@@ -271,10 +271,12 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		query.Description = *p.Description
 	}
 	if p.Query != nil {
-		query.Query = *p.Query
-		if err := svc.ds.DeleteAllResultsForQuery(ctx, id); err != nil {
-			return nil, err
+		if query.Query != *p.Query {
+			if err := svc.ds.DeleteAllResultsForQuery(ctx, id); err != nil {
+				return nil, err
+			}
 		}
+		query.Query = *p.Query
 	}
 	if p.Interval != nil {
 		query.Interval = *p.Interval
