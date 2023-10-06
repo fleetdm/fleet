@@ -198,7 +198,7 @@ const STATUS_CELL_VALUES: Record<DiskEncryptionStatus, IStatusCellValue> = {
     statusName: "pendingPartial",
     value: "removing_enforcement",
     tooltip:
-      "These hosts will receive the MDM command to turn off the disk encryption when the hosts come online.",
+      "These hosts will receive the MDM command to turn off disk encryption when the hosts come online.",
   },
 };
 
