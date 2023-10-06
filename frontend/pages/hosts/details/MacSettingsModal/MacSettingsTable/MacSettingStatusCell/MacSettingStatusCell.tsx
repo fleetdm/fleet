@@ -44,7 +44,7 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
       iconName: "pending-partial",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
-          ? "The hosts will receive the MDM command to turn on the disk encryption " +
+          ? "The hosts will receive the MDM command to turn on disk encryption " +
             "when the hosts come online."
           : "The host will receive the MDM command to install the configuration profile when the " +
             "host comes online.",
