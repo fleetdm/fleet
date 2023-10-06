@@ -36,7 +36,7 @@ Fleet's community programs are rooted in several areas; created to nurture commu
 ### Social media
 Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
 
-Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).)
+Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/marketing#engage-with-the-community).
 
 Here are some topics for social media posts:
 - Fleet the product
@@ -47,9 +47,9 @@ Here are some topics for social media posts:
 - Industry news about device management
 - Upcoming events, interviews, and podcasts
 
-
 ### Ads
 Fleet uses advertising to spread awareness through a broader audience and foster greater engagement within user communities. The more people actively using Fleet, or contributing, the better Fleet will be.
+
 
 ### Events
 It's important for Fleet to engage at events. This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
@@ -118,6 +118,19 @@ Any changes to the current running ads visible to a user, including designs, key
 2. Compare existing ads against the newly proposed ad within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
 3. If your change is approved, Field Marketer makes changes and creates a calendar reminder to check performance two weeks from the date changes were made.
 
+
+### Engage with the community
+Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
+
+Here are some links that filter relevant conversations on each platform:
+- [LinkedIn](https://www.linkedin.com/search/results/content/?datePosted=%22past-week%22&keywords=osquery%20OR%20%22fleet%20device%20management%22%20OR%20%22fleetdm%22%20OR%20%22github.com%2Ffleetdm%2Ffleet%22%20OR%20%22fleetdm.com%22&origin=FACETED_SEARCH&sid=oxR)
+- [Twitter](https://twitter.com/search?q=%22osquery%22%20OR%20%22github.com%2Fosquery%2Fosquery%22%20OR%20%22github.com%2Ffleetdm%2Ffleet%22%20OR%20%22github.com%2Fkolide%2Ffleet%22%20OR%20%22fleetdm%22%20OR%20%22fleet%20device%20management%22%20OR%20%22nanomdm%22%20OR%20%22micromdm%22%20OR%20%22swiftDialog%22&src=typed_query&f=live)
+
+1. Find conversations that are relevant to Fleet on both LinkedIn and Twitter
+2. Reply to threads looking for solutions Fleet can solve with helpful information. If additional information is needed, find help in [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) for accurate information.
+3. Leave a like on threads and posts that are interesting, cool, celebratory, funny, etc. within our communities.
+4. If a post is helpful to our audience, reshare it.
+
 ### Book an event
 For an event to be considered, booked, and scheduled, we follow the event issue template.
 
@@ -128,6 +141,7 @@ Once approval has been received, move the event into the "🗓 Planned events" c
 
 ### Review ongoing events
 Check the "🗓 Planned events" column in [#g-marketing board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
+
 
 ## Rituals
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
