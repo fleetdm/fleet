@@ -536,13 +536,19 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 		}
 
 		dbQuery, err := svc.ds.QueryByName(ctx, query.TeamID, query.Name)
-		if err != nil {
-			return ctxerr.Wrap(ctx, &fleet.GatewayError{Message: fmt.Sprintf("fetching saved query: %s", err)})
+		if err != nil && !fleet.IsNotFound(ctxerr.Unwrap(err)) {
+			return ctxerr.Wrap(ctx, fleet.NewBadGatewayError(fmt.Sprintf("fetching saved query"), err))
+		}
+
+		if dbQuery == nil {
+			// then we're creating a new query, so move on.
+			continue
 		}
 
 		if query.DiscardData || query.Logging != fleet.LoggingSnapshot || query.Query != dbQuery.Query {
-			if err := svc.ds.DeleteAllResultsForQueryByName(ctx, query.Name); err != nil {
-				return ctxerr.Wrap(ctx, &fleet.GatewayError{Message: fmt.Sprintf("query results deletion: %s", err)})
+			err = svc.ds.DeleteAllResultsForQueryByName(ctx, query.Name)
+			if err != nil && !fleet.IsNotFound(ctxerr.Unwrap(err)) {
+				return ctxerr.Wrap(ctx, fleet.NewBadGatewayError(fmt.Sprintf("query results deletion"), err))
 			}
 		}
 	}

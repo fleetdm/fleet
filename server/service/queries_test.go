@@ -250,6 +250,12 @@ func TestQueryPayloadValidationModify(t *testing.T) {
 		assert.NotEmpty(t, act.Name)
 		return nil
 	}
+
+	ds.DeleteAllResultsForQueryFunc = func(ctx context.Context, queryId uint) error {
+		assert.NotEqual(t, 0, queryId)
+		return nil
+	}
+
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	testCases := []struct {
@@ -459,6 +465,10 @@ func TestQueryAuth(t *testing.T) {
 		return nil, nil
 	}
 	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query) error {
+		return nil
+	}
+	ds.DeleteAllResultsForQueryByNameFunc = func(ctx context.Context, queryName string) error {
+		assert.NotEqual(t, "", queryName)
 		return nil
 	}
 
