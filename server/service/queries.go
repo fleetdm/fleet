@@ -305,16 +305,16 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		}
 	}
 
-	if shouldDiscardQueryResults {
-		if err := svc.ds.DeleteAllResultsForQuery(ctx, id); err != nil {
-			return nil, err
-		}
-	}
-
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
 
 	if err := svc.ds.SaveQuery(ctx, query); err != nil {
 		return nil, err
+	}
+
+	if shouldDiscardQueryResults {
+		if err := svc.ds.DeleteAllResultsForQuery(ctx, id); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := svc.ds.NewActivity(
