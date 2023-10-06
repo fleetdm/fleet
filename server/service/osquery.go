@@ -1470,11 +1470,14 @@ func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQu
 	}
 
 	// Discard Result if query is marked as discard data or if the query report is full
+	if query.DiscardData {
+		return nil
+	}
 	rowCount, err := svc.ds.ResultCountForQuery(ctx, query.ID)
 	if err != nil {
 		return newOsqueryError("getting result count for query: " + err.Error())
 	}
-	if query.DiscardData || rowCount >= fleet.MaxQueryReportRows {
+	if rowCount >= fleet.MaxQueryReportRows {
 		return nil
 	}
 
