@@ -22,6 +22,7 @@ func TestQueryResults(t *testing.T) {
 		{"Get", getQueryResultRows},
 		{"DeleteForHost", testDeleteQueryResultsForHost},
 		{"Count", testCountResultsForQuery},
+		{"Overwrite", testOverwriteQueryResultRows},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -255,4 +256,57 @@ func testCountResultsForQuery(t *testing.T, ds *Datastore) {
 	count, err = ds.ResultCountForQuery(context.Background(), 999)
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
+}
+
+func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	query := test.NewQuery(t, ds, nil, "Overwrite Test Query", "SELECT 1", user.ID, true)
+	host := test.NewHost(t, ds, "hostname1234", "192.168.1.101", "12345", "UI8XB1224", time.Now())
+
+	mockTime := time.Now().UTC().Truncate(time.Second)
+
+	// Insert initial Result Rows
+	initialRows := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     query.ID,
+			HostID:      host.ID,
+			LastFetched: mockTime,
+			Data: json.RawMessage(
+				`{"model": "USB Keyboard", "vendor": "Apple Inc."}`,
+			),
+		},
+	}
+
+	err := ds.SaveQueryResultRows(context.Background(), initialRows)
+	require.NoError(t, err)
+
+	// Overwrite Result Rows with new data
+	newMockTime := mockTime.Add(2 * time.Minute)
+	overwriteRows := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     query.ID,
+			HostID:      host.ID,
+			LastFetched: newMockTime,
+			Data: json.RawMessage(
+				`{"model": "USB Mouse", "vendor": "Logitech"}`,
+			),
+		},
+	}
+
+	err = ds.OverwriteQueryResultRows(context.Background(), overwriteRows)
+	require.NoError(t, err)
+
+	// Assert that we get the overwritten data (1 result with USB Mouse data)
+	results, err := ds.QueryResultRows(context.Background(), overwriteRows[0].QueryID, overwriteRows[0].HostID)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, overwriteRows[0].QueryID, results[0].QueryID)
+	require.Equal(t, overwriteRows[0].HostID, results[0].HostID)
+	require.Equal(t, overwriteRows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
+	require.JSONEq(t, string(overwriteRows[0].Data), string(results[0].Data))
+
+	// Assert that QueryResultRows returns empty slice when no results are found
+	results, err = ds.QueryResultRows(context.Background(), 999, 999)
+	require.NoError(t, err)
+	require.Len(t, results, 0)
 }
