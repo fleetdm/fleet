@@ -93,8 +93,6 @@ type Datastore interface {
 	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
 	// DeleteAllResultsForQuery deletes all cached query results for a given query.
 	DeleteAllResultsForQuery(ctx context.Context, queryId uint) error
-	// DeleteAllResultsForQueryByName deletes all cached query results for a given query by name.
-	DeleteAllResultsForQueryByName(ctx context.Context, queryName string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CampaignStore defines the distributed query campaign related datastore methods

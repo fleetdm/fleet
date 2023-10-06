@@ -467,10 +467,6 @@ func TestQueryAuth(t *testing.T) {
 	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]bool) error {
 		return nil
 	}
-	ds.DeleteAllResultsForQueryByNameFunc = func(ctx context.Context, queryName string) error {
-		assert.NotEqual(t, "", queryName)
-		return nil
-	}
 
 	testCases := []struct {
 		name            string

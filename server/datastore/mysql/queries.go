@@ -529,17 +529,3 @@ func (ds *Datastore) DeleteAllResultsForQuery(ctx context.Context, id uint) erro
 
 	return nil
 }
-
-// DeleteAllResultsForQueryByName is needed for deleting query results when modifying specs, as we don't have the query ID in that context.
-func (ds *Datastore) DeleteAllResultsForQueryByName(ctx context.Context, queryName string) error {
-	deleteStmt := `DELETE query_results FROM query_results LEFT JOIN queries ON query_results.query_id = queries.id WHERE queries.name = ?;`
-	result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, queryName)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "delete %s by query name", queryResultsTable)
-	}
-	rows, _ := result.RowsAffected()
-	if rows < 1 {
-		return ctxerr.Wrap(ctx, notFound(queryResultsTable.name).WithName(queryName))
-	}
-	return nil
-}
