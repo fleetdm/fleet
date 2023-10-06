@@ -125,7 +125,7 @@ const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDisplayConfig
     statusText: "Enforcing (pending)",
     iconName: "pending-partial",
     tooltip: () =>
-      "The host will receive the MDM command to turn on the disk encryption when the host comes online.",
+      "The host will receive the MDM command to turn on disk encryption when the host comes online.",
   },
   failed: {
     statusText: "Failed",
