@@ -173,7 +173,6 @@ const RunQueryPage = ({
         : router.push(PATHS.NEW_QUERY()),
     []
   );
-  // const params = { id: paramsQueryId };
 
   const renderScreen = () => {
     const step1Props = {
