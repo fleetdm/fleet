@@ -102,14 +102,12 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 	}
 
 	for id := range queriesToDiscardResults {
-		if resultsStmt != nil {
-			_, err := resultsStmt.ExecContext(
-				ctx,
-				id,
-			)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "exec ApplyQueries delete query results")
-			}
+		_, err := resultsStmt.ExecContext(
+			ctx,
+			id,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "exec ApplyQueries delete query results")
 		}
 	}
 
