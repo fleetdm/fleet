@@ -625,8 +625,8 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.DeleteQueryResultsForHostFunc = func(ctx context.Context, hid uint, qid uint) error {
 		return nil
 	}
-	ds.SaveQueryResultRowFunc = func(ctx context.Context, row *fleet.ScheduledQueryResultRow) (*fleet.ScheduledQueryResultRow, error) {
-		return nil, nil
+	ds.SaveQueryResultRowsFunc = func(ctx context.Context, row []*fleet.ScheduledQueryResultRow) error {
+		return nil
 	}
 	err = svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
 	require.NoError(t, err)

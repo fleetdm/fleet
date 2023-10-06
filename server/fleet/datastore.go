@@ -393,7 +393,7 @@ type Datastore interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryResultsStore
-	SaveQueryResultRow(ctx context.Context, row *ScheduledQueryResultRow) (*ScheduledQueryResultRow, error)
+	SaveQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow) error
 	QueryResultRows(ctx context.Context, queryID, hostID uint) ([]*ScheduledQueryResultRow, error)
 	DeleteQueryResultsForHost(ctx context.Context, hostID, queryID uint) error
 	ResultCountForQuery(ctx context.Context, queryID uint) (int, error)

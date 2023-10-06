@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -13,19 +15,31 @@ const (
 	QueryResultRowLimit = 1000
 )
 
-func (ds *Datastore) SaveQueryResultRow(ctx context.Context, row *fleet.ScheduledQueryResultRow) (*fleet.ScheduledQueryResultRow, error) {
-	insertStmt := `
-		INSERT INTO query_results (query_id, host_id, last_fetched, data)
-			VALUES (?, ?, ?, ?)
-		`
-	_, err := ds.writer(ctx).ExecContext(ctx, insertStmt, row.QueryID, row.HostID, row.LastFetched, row.Data)
-	if err != nil && isDuplicate(err) {
-		return nil, ctxerr.Wrap(ctx, alreadyExists("Query Result Row", row.QueryID+row.HostID))
-	} else if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "saving Query Result Row")
+// SaveQueryResultRow saves a query result row to the datastore and returns number of rows inserted
+func (ds *Datastore) SaveQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	if len(rows) == 0 {
+		return nil // Nothing to insert
 	}
 
-	return row, nil
+	valueStrings := make([]string, 0, len(rows))
+	valueArgs := make([]interface{}, 0, len(rows)*4)
+
+	for _, row := range rows {
+		valueStrings = append(valueStrings, "(?, ?, ?, ?)")
+		valueArgs = append(valueArgs, row.QueryID, row.HostID, row.LastFetched, row.Data)
+	}
+
+	insertStmt := fmt.Sprintf(`
+        INSERT INTO query_results (query_id, host_id, last_fetched, data)
+            VALUES %s
+    `, strings.Join(valueStrings, ","))
+
+	_, err := ds.writer(ctx).ExecContext(ctx, insertStmt, valueArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "saving Query Result Rows")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) QueryResultRows(ctx context.Context, queryID, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {

@@ -1499,10 +1499,9 @@ func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQu
 func (svc *Service) saveResultRows(ctx context.Context, result fleet.ScheduledQueryResult, queryID, hostID uint, rowCount int) error {
 	fetchTime := time.Now()
 
+	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
+
 	for _, snapshotItem := range result.Snapshot {
-		if rowCount >= maxQueryReportRows {
-			break
-		}
 
 		row := &fleet.ScheduledQueryResultRow{
 			QueryID:     queryID,
@@ -1511,11 +1510,17 @@ func (svc *Service) saveResultRows(ctx context.Context, result fleet.ScheduledQu
 			LastFetched: fetchTime,
 		}
 
-		if _, err := svc.ds.SaveQueryResultRow(ctx, row); err != nil {
-			return newOsqueryError("saving query result row: " + err.Error())
-		}
+		rows = append(rows, row)
 
+		// only insert enough rows to reach the maxQueryReportRows
 		rowCount++
+		if rowCount >= maxQueryReportRows {
+			break
+		}
+	}
+
+	if err := svc.ds.SaveQueryResultRows(ctx, rows); err != nil {
+		return newOsqueryError("saving query result row: " + err.Error())
 	}
 
 	return nil
