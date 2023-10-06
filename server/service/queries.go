@@ -250,6 +250,7 @@ func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error) {
 	// Load query first to determine if the user can modify it.
 	query, err := svc.ds.Query(ctx, id)
+	shouldDiscardQueryResults := false
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, err
@@ -272,9 +273,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	}
 	if p.Query != nil {
 		if query.Query != *p.Query {
-			if err := svc.ds.DeleteAllResultsForQuery(ctx, id); err != nil {
-				return nil, err
-			}
+			shouldDiscardQueryResults = true
 		}
 		query.Query = *p.Query
 	}
@@ -293,9 +292,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	if p.Logging != nil {
 		query.Logging = *p.Logging
 		if *p.Logging != fleet.LoggingSnapshot {
-			if err := svc.ds.DeleteAllResultsForQuery(ctx, id); err != nil {
-				return nil, err
-			}
+			shouldDiscardQueryResults = true
 		}
 	}
 	if p.ObserverCanRun != nil {
@@ -303,10 +300,14 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	}
 	if p.DiscardData != nil {
 		query.DiscardData = *p.DiscardData
-		if *p.DiscardData == true {
-			if err := svc.ds.DeleteAllResultsForQuery(ctx, id); err != nil {
-				return nil, err
-			}
+		if *p.DiscardData {
+			shouldDiscardQueryResults = true
+		}
+	}
+
+	if shouldDiscardQueryResults {
+		if err := svc.ds.DeleteAllResultsForQuery(ctx, id); err != nil {
+			return nil, err
 		}
 	}
 
@@ -537,7 +538,7 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 
 		dbQuery, err := svc.ds.QueryByName(ctx, query.TeamID, query.Name)
 		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, fleet.NewBadGatewayError(fmt.Sprintf("fetching saved query"), err))
+			return ctxerr.Wrap(ctx, err, "fetching saved query")
 		}
 
 		if dbQuery == nil {
