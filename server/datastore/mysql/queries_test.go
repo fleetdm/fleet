@@ -70,7 +70,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 	}
 
 	// Zach creates some queries
-	err := ds.ApplyQueries(context.Background(), zwass.ID, expectedQueries)
+	err := ds.ApplyQueries(context.Background(), zwass.ID, expectedQueries, nil)
 	require.NoError(t, err)
 
 	queries, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
@@ -90,7 +90,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 	// Victor modifies a query (but also pushes the same version of the
 	// first query)
 	expectedQueries[1].Query = "not really a valid query ;)"
-	err = ds.ApplyQueries(context.Background(), groob.ID, expectedQueries)
+	err = ds.ApplyQueries(context.Background(), groob.ID, expectedQueries, nil)
 	require.NoError(t, err)
 
 	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
@@ -116,7 +116,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			DiscardData: true,
 		},
 	)
-	err = ds.ApplyQueries(context.Background(), zwass.ID, []*fleet.Query{expectedQueries[2]})
+	err = ds.ApplyQueries(context.Background(), zwass.ID, []*fleet.Query{expectedQueries[2]}, nil)
 	require.NoError(t, err)
 
 	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
@@ -153,7 +153,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			Logging:            "differential",
 		},
 	}
-	err = ds.ApplyQueries(context.Background(), zwass.ID, invalidQueries)
+	err = ds.ApplyQueries(context.Background(), zwass.ID, invalidQueries, nil)
 	require.ErrorIs(t, err, fleet.ErrQueryInvalidPlatform)
 }
 
@@ -357,7 +357,7 @@ func testQueriesLoadPacksForQueries(t *testing.T, ds *Datastore) {
 		{Name: "q1", Query: "select * from time"},
 		{Name: "q2", Query: "select * from osquery_info"},
 	}
-	err := ds.ApplyQueries(context.Background(), zwass.ID, queries)
+	err := ds.ApplyQueries(context.Background(), zwass.ID, queries, nil)
 	require.NoError(t, err)
 
 	specs := []*fleet.PackSpec{

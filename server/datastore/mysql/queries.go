@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query) (err error) {
+func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]bool) (err error) {
 	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "begin ApplyQueries transaction")
@@ -29,7 +29,7 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 		}
 	}()
 
-	sql := `
+	insertSql := `
 		INSERT INTO queries (
 			name,
 			description,
@@ -60,11 +60,22 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 			automations_enabled = VALUES(automations_enabled),
 			logging_type = VALUES(logging_type)
 	`
-	stmt, err := tx.PrepareContext(ctx, sql)
+	stmt, err := tx.PrepareContext(ctx, insertSql)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare ApplyQueries insert")
 	}
 	defer stmt.Close()
+
+	var resultsStmt *sql.Stmt
+	if len(queriesToDiscardResults) > 0 {
+		resultsSql := `DELETE FROM query_results WHERE query_id = ?`
+		resultsStmt, err = tx.PrepareContext(ctx, resultsSql)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare ApplyQueries delete query results")
+		}
+		defer resultsStmt.Close()
+
+	}
 
 	for _, q := range queries {
 		if err := q.Verify(); err != nil {
@@ -87,6 +98,18 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "exec ApplyQueries insert")
+		}
+	}
+
+	for id := range queriesToDiscardResults {
+		if resultsStmt != nil {
+			_, err := resultsStmt.ExecContext(
+				ctx,
+				id,
+			)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "exec ApplyQueries delete query results")
+			}
 		}
 	}
 

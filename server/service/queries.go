@@ -535,7 +535,12 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 				Message: fmt.Sprintf("query payload verification: %s", err),
 			})
 		}
+	}
+	// 3. Apply the queries.
 
+	// first, find out if we should delete query results
+	queriesToDiscardResults := make(map[uint]bool)
+	for _, query := range queries {
 		dbQuery, err := svc.ds.QueryByName(ctx, query.TeamID, query.Name)
 		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "fetching saved query")
@@ -547,18 +552,19 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 		}
 
 		if query.DiscardData || query.Logging != fleet.LoggingSnapshot || query.Query != dbQuery.Query {
-			err = svc.ds.DeleteAllResultsForQuery(ctx, dbQuery.ID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, fleet.NewBadGatewayError(fmt.Sprintf("query results deletion"), err))
-			}
+			// err = svc.ds.DeleteAllResultsForQuery(ctx, dbQuery.ID)
+			// if err != nil {
+			// 	return ctxerr.Wrap(ctx, fleet.NewBadGatewayError(fmt.Sprintf("query results deletion"), err))
+			// }
+			queriesToDiscardResults[dbQuery.ID] = true
 		}
 	}
-	// 3. Apply the queries.
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return ctxerr.New(ctx, "user must be authenticated to apply queries")
 	}
-	err := svc.ds.ApplyQueries(ctx, vc.UserID(), queries)
+	err := svc.ds.ApplyQueries(ctx, vc.UserID(), queries, queriesToDiscardResults)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "applying queries")
 	}

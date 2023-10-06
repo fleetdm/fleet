@@ -464,7 +464,7 @@ func TestQueryAuth(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) {
 		return nil, nil
 	}
-	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query) error {
+	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]bool) error {
 		return nil
 	}
 	ds.DeleteAllResultsForQueryByNameFunc = func(ctx context.Context, queryName string) error {
