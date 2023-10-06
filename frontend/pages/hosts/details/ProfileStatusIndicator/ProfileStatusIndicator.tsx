@@ -4,9 +4,9 @@ import { IconNames } from "components/icons";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 
-const baseClass = "settings-indicator";
+const baseClass = "profile-status-indicator";
 
-export interface IMacSettingsIndicator {
+export interface IProfileStatusIndicatorProps {
   indicatorText: string;
   iconName: IconNames;
   onClick?: () => void;
@@ -16,12 +16,12 @@ export interface IMacSettingsIndicator {
   };
 }
 
-const MacSettingsIndicator = ({
+const ProfileStatusIndicator = ({
   indicatorText,
   iconName,
   onClick,
   tooltip,
-}: IMacSettingsIndicator): JSX.Element => {
+}: IProfileStatusIndicatorProps) => {
   const getIndicatorTextWrapped = () => {
     if (onClick && tooltip?.tooltipText) {
       return (
@@ -103,4 +103,4 @@ const MacSettingsIndicator = ({
   );
 };
 
-export default MacSettingsIndicator;
+export default ProfileStatusIndicator;

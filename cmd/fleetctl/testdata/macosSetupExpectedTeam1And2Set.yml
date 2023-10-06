@@ -7,9 +7,9 @@ spec:
       enable_host_users: true
       enable_software_inventory: true
     mdm:
+      enable_disk_encryption: false
       macos_settings:
         custom_settings: null
-        enable_disk_encryption: false
       macos_setup:
         bootstrap_package: %s
         enable_end_user_authentication: false
@@ -27,9 +27,9 @@ spec:
       enable_host_users: false
       enable_software_inventory: false
     mdm:
+      enable_disk_encryption: false
       macos_settings:
         custom_settings: null
-        enable_disk_encryption: false
       macos_setup:
         bootstrap_package: %s
         macos_setup_assistant: %s
