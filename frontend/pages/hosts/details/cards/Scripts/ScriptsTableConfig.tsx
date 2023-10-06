@@ -1,7 +1,9 @@
 import React from "react";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { IScriptExecutionStatus } from "services/entities/scripts";
+import { IHostScript, IScriptExecutionStatus } from "services/entities/scripts";
+
+import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 
 import ScriptStatusCell from "./components/ScriptStatusCell";
 
@@ -15,33 +17,72 @@ interface IDropdownCellProps {
   cell: {
     value: IDropdownOption[];
   };
+  row: {
+    original: IHostScript;
+  };
 }
 
-const DEFAULT_TABLE_HEADERS = [
-  {
-    title: "Name",
-    Header: "Name",
-    disableSortBy: true,
-    accessor: "name",
-  },
-  {
-    title: "Status",
-    Header: "Status",
-    disableSortBy: true,
-    accessor: "last_execution",
-    Cell: ({ cell: { value } }: IStatusCellProps) => {
-      return <ScriptStatusCell status={value} />;
-    },
-  },
-  {
-    title: "Actions",
-    Header: "",
-    disableSortBy: true,
-    accessor: "actions",
-  },
-];
-
 // eslint-disable-next-line import/prefer-default-export
-export const generateTableHeaders = () => {
-  return DEFAULT_TABLE_HEADERS;
+export const generateTableHeaders = (
+  actionSelectHandler: (value: string, script: IHostScript) => void
+) => {
+  return [
+    {
+      title: "Name",
+      Header: "Name",
+      disableSortBy: true,
+      accessor: "name",
+    },
+    {
+      title: "Status",
+      Header: "Status",
+      disableSortBy: true,
+      accessor: "last_execution",
+      Cell: ({ cell: { value } }: IStatusCellProps) => {
+        return <ScriptStatusCell status={value} />;
+      },
+    },
+    {
+      title: "Actions",
+      Header: "",
+      disableSortBy: true,
+      accessor: "actions",
+      Cell: (cellProps: IDropdownCellProps) => (
+        <DropdownCell
+          options={cellProps.cell.value}
+          onChange={(value: string) =>
+            actionSelectHandler(value, cellProps.row.original)
+          }
+          placeholder={"Actions"}
+        />
+      ),
+    },
+  ];
+};
+
+// NOTE: may need current user ID later for permission on actions.
+const generateActionDropdownOptions = (
+  script: IHostScript
+): IDropdownOption[] => {
+  return [
+    {
+      label: "Show details",
+      disabled: script.last_execution === null,
+      value: "showDetails",
+    },
+    {
+      label: "Run",
+      disabled: false,
+      value: "run",
+    },
+  ];
+};
+
+export const generateDataSet = (scripts: IHostScript[]) => {
+  return scripts.map((script) => {
+    return {
+      ...script,
+      actions: generateActionDropdownOptions(script),
+    };
+  });
 };

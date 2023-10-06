@@ -39,7 +39,7 @@ export interface IScriptResultResponse {
 
 export type IScriptExecutionStatus = "ran" | "pending" | "error";
 
-interface ILastExecution {
+export interface ILastExecution {
   execution_id: string;
   executed_at: string;
   status: IScriptExecutionStatus;
