@@ -5501,8 +5501,6 @@ Returns the query report specified by ID.
 | Name | Type    | In   | Description                                |
 | ---- | ------- | ---- | ------------------------------------------ |
 | id   | integer | path | **Required**. The id of the desired query. |
-| order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
-| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 #### Example
 
@@ -5565,8 +5563,11 @@ Returns the query report specified by ID.
 }
 
 ```
-### osquery Scheduled queries do not return errors.
+
+### osquery scheduled queries do not return errors.
+
 osquery scheduled queries mechanism does not return errors. Hence those are not stored in the cache and are not part of this report.
+
 ### List queries
 
 Returns a list of global queries or team queries.
