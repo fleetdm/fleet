@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1204,7 +1203,7 @@ spec:
 	// Apply queries.
 	var appliedQueries []*fleet.Query
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		return nil, sql.ErrNoRows
+		return nil, &notFoundError{}
 	}
 	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query) error {
 		appliedQueries = queries
@@ -1300,12 +1299,17 @@ spec:
 	require.Equal(t, expectedErrMsg, err.Error())
 }
 
+type notFoundErr struct{}
+
+func (*notFoundErr) Error() string    { return "not found" }
+func (*notFoundErr) IsNotFound() bool { return true }
+
 func TestApplyQueries(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	var appliedQueries []*fleet.Query
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		return nil, sql.ErrNoRows
+		return nil, &notFoundError{}
 	}
 	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query) error {
 		appliedQueries = queries
