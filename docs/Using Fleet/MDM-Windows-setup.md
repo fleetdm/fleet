@@ -132,7 +132,7 @@ This section will guide you through how to:
 
 ### Step 1: buy a Microsoft Intune license
 
-Autopilot requires at least one Intune license to edit the Autopilot profile. It's recommended to purchase one Intune licenese that you can assign to a shared, IT team user.
+Autopilot requires at least one Intune license to edit the Autopilot profile.
 
 1. Sign in to [Microsoft 365 admin center](https://admin.microsoft.com/).
 
@@ -144,19 +144,17 @@ Autopilot requires at least one Intune license to edit the Autopilot profile. It
 
 5. On the **Microsoft Intune Plan 1 Device** page, select **Buy** and follow instructions to purchase the license. 
 
-  It's recommended to select the monthly billing frequency and, once you purchase the license, set it to expire (not renew automatically). This way, you won't be charged every month when you change your Autopilot profile infrequently. If you need to change the profile, you can renew the license.
-
 6. Sign in to [Entra admin center](https://entra.microsoft.com).
 
 7. In the left-side bar, select **Users > All users**.
 
-8. Select or create your shared, IT team user and then select **Licenses**
+8. Select or create your Intune admin user and then select **Licenses**
 
 9. Select **+ Assignments** and assign the **Microsoft Intune Plan 1 Device** to this user.
 
 ### Step 2: create an Autopilot profile
 
-1. Sign in to [Microsoft Intune](https://endpoint.microsoft.com/) using the shared, IT team user from step 1.
+1. Sign in to [Microsoft Intune](https://endpoint.microsoft.com/) using the Intune admin user from step 1.
 
 2. In the left-side bar select **Devices > Enroll devices**. Under **Windows Autopilot Deployment Program** select **Deployment Profiles** to navigate to the **Windows Autopilot deployment profiles** page.
 
