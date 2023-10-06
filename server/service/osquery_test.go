@@ -653,6 +653,52 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 	}
 }
 
+func TestGetMostRecentResults(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []fleet.ScheduledQueryResult
+		expected []fleet.ScheduledQueryResult
+	}{
+		{
+			name: "basic test",
+			input: []fleet.ScheduledQueryResult{
+				{QueryName: "test1", LastFetched: 1},
+				{QueryName: "test1", LastFetched: 2},
+				{QueryName: "test1", LastFetched: 3},
+				{QueryName: "test2", LastFetched: 1},
+				{QueryName: "test2", LastFetched: 2},
+				{QueryName: "test2", LastFetched: 3},
+			},
+			expected: []fleet.ScheduledQueryResult{
+				{QueryName: "test1", LastFetched: 3},
+				{QueryName: "test2", LastFetched: 3},
+			},
+		},
+		{
+			name: "out of order test",
+			input: []fleet.ScheduledQueryResult{
+				{QueryName: "test1", LastFetched: 2},
+				{QueryName: "test1", LastFetched: 3},
+				{QueryName: "test1", LastFetched: 1},
+				{QueryName: "test2", LastFetched: 3},
+				{QueryName: "test2", LastFetched: 2},
+				{QueryName: "test2", LastFetched: 1},
+			},
+			expected: []fleet.ScheduledQueryResult{
+				{QueryName: "test1", LastFetched: 3},
+				{QueryName: "test2", LastFetched: 3},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			results := getMostRecentResults(tt.input)
+			assert.Equal(t, tt.expected, results)
+		})
+	}
+}
+
 func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
