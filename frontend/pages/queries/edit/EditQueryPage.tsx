@@ -91,7 +91,7 @@ const EditQueryPage = ({
     setLastEditedQueryPlatforms,
     // setSelectedQueryTargets,
   } = useContext(QueryContext);
-  const { currentUser, setConfig } = useContext(AppContext);
+  const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   // const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
@@ -107,16 +107,16 @@ const EditQueryPage = ({
     setShowConfirmSaveChangesModal,
   ] = useState(false);
 
-  const { data: appConfig, isLoading: isLoadingAppConfig } = useQuery<
-    IConfig,
-    Error,
-    IConfig
-  >(["config"], () => configAPI.loadAll(), {
-    select: (data: IConfig) => data,
-    onSuccess: (data) => {
-      setConfig(data);
-    },
-  });
+  const { data: appConfig } = useQuery<IConfig, Error, IConfig>(
+    ["config"],
+    () => configAPI.loadAll(),
+    {
+      select: (data: IConfig) => data,
+      onSuccess: (data) => {
+        setConfig(data);
+      },
+    }
+  );
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
@@ -323,8 +323,9 @@ const EditQueryPage = ({
               isQuerySaving={isQuerySaving}
               isQueryUpdating={isQueryUpdating}
               hostId={parseInt(location.query.host_ids as string, 10)}
-              appConfig={appConfig}
-              isLoadingAppConfig={isLoadingAppConfig}
+              queryReportsDisabled={
+                appConfig?.server_settings.query_reports_disabled
+              }
               showConfirmSaveChangesModal={showConfirmSaveChangesModal}
               setShowConfirmSaveChangesModal={setShowConfirmSaveChangesModal}
             />

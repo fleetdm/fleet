@@ -23,7 +23,6 @@ import {
   ISchedulableQuery,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
-import { IConfig } from "interfaces/config";
 import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "save-query-modal";
@@ -35,8 +34,7 @@ export interface ISaveQueryModalProps {
   toggleSaveQueryModal: () => void;
   backendValidators: { [key: string]: string };
   existingQuery?: ISchedulableQuery;
-  appConfig?: IConfig;
-  isLoadingAppConfig?: boolean;
+  queryReportsDisabled?: boolean;
 }
 
 const validateQueryName = (name: string) => {
@@ -58,8 +56,7 @@ const SaveQueryModal = ({
   toggleSaveQueryModal,
   backendValidators,
   existingQuery,
-  appConfig,
-  isLoadingAppConfig,
+  queryReportsDisabled,
 }: ISaveQueryModalProps): JSX.Element => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -238,15 +235,15 @@ const SaveQueryModal = ({
               label="Logging"
               wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
             />
-            {!isLoadingAppConfig && (
+            {queryReportsDisabled !== undefined && (
               <DiscardDataOption
                 {...{
-                  appConfig,
+                  queryReportsDisabled,
                   selectedLoggingType,
                   discardData,
                   setDiscardData,
+                  breakHelpText: true,
                 }}
-                breakHelpText
               />
             )}
           </>

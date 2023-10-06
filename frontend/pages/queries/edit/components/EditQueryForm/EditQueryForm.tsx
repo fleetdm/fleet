@@ -75,7 +75,7 @@ interface IEditQueryFormProps {
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
   hostId?: number;
-  appConfig?: IConfig;
+  queryReportsDisabled?: boolean;
   isLoadingAppConfig?: boolean;
   showConfirmSaveChangesModal: boolean;
   setShowConfirmSaveChangesModal: (bool: boolean) => void;
@@ -126,7 +126,7 @@ const EditQueryForm = ({
   renderLiveQueryWarning,
   backendValidators,
   hostId,
-  appConfig,
+  queryReportsDisabled,
   isLoadingAppConfig,
   showConfirmSaveChangesModal,
   setShowConfirmSaveChangesModal,
@@ -631,10 +631,10 @@ const EditQueryForm = ({
 
   const confirmChanges =
     currentlySavingQueryResults &&
-    (!!changedSQL || !!changedLoggingToDifferential || !!enabledDiscardData);
+    (changedSQL || changedLoggingToDifferential || enabledDiscardData);
 
   const showChangedSQLCopy =
-    !!changedSQL && !changedLoggingToDifferential && !enabledDiscardData;
+    changedSQL && !changedLoggingToDifferential && !enabledDiscardData;
 
   // Global admin, any maintainer, any observer+ on new query
   const renderEditableQueryForm = () => {
@@ -746,14 +746,12 @@ const EditQueryForm = ({
                     label="Logging"
                     wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
                   />
-                  {!isLoadingAppConfig && (
+                  {queryReportsDisabled !== undefined && (
                     <DiscardDataOption
-                      {...{
-                        appConfig,
-                        selectedLoggingType: lastEditedQueryLoggingType,
-                        discardData: lastEditedQueryDiscardData,
-                        setDiscardData: setLastEditedQueryDiscardData,
-                      }}
+                      selectedLoggingType={lastEditedQueryLoggingType}
+                      discardData={lastEditedQueryDiscardData}
+                      setDiscardData={setLastEditedQueryDiscardData}
+                      queryReportsDisabled={queryReportsDisabled}
                     />
                   )}
                 </div>
@@ -777,7 +775,7 @@ const EditQueryForm = ({
                     Save as new
                   </Button>
                 )}
-                <div className="edit-query-form__button-wrap--save-query-button">
+                <div className={`${baseClass}__button-wrap--save-query-button`}>
                   <div
                     data-tip
                     data-for="save-query-button"
@@ -840,15 +838,15 @@ const EditQueryForm = ({
             toggleSaveQueryModal={toggleSaveQueryModal}
             backendValidators={backendValidators}
             isLoading={isQuerySaving}
-            appConfig={appConfig}
-            isLoadingAppConfig={isLoadingAppConfig}
+            queryReportsDisabled={queryReportsDisabled}
           />
         )}
         {showConfirmSaveChangesModal && (
           <ConfirmSaveChangesModal
             onSaveChanges={promptSaveQuery()}
             isUpdating={isQueryUpdating}
-            {...{ toggleConfirmSaveChangesModal, showChangedSQLCopy }}
+            onClose={toggleConfirmSaveChangesModal}
+            showChangedSQLCopy={showChangedSQLCopy}
           />
         )}
       </>

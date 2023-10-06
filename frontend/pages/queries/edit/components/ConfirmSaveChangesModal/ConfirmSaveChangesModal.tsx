@@ -8,14 +8,14 @@ const baseClass = "save-changes-modal";
 export interface IConfirmSaveChangesModalProps {
   isUpdating: boolean;
   onSaveChanges: (evt: React.MouseEvent<HTMLButtonElement>) => void;
-  toggleConfirmSaveChangesModal: () => void;
+  onClose: () => void;
   showChangedSQLCopy?: boolean;
 }
 
 const ConfirmSaveChangesModal = ({
   isUpdating,
   onSaveChanges,
-  toggleConfirmSaveChangesModal,
+  onClose,
   showChangedSQLCopy = false,
 }: IConfirmSaveChangesModalProps) => {
   const warningText = showChangedSQLCopy
@@ -23,7 +23,7 @@ const ConfirmSaveChangesModal = ({
     : "The changes you are making to this query will delete its previous results.";
 
   return (
-    <Modal title={"Save changes?"} onExit={toggleConfirmSaveChangesModal}>
+    <Modal title={"Save changes?"} onExit={onClose}>
       <form className={`${baseClass}__form`}>
         <p>{warningText}</p>
         <p>You cannot undo this action.</p>
@@ -37,7 +37,7 @@ const ConfirmSaveChangesModal = ({
           >
             Save
           </Button>
-          <Button onClick={toggleConfirmSaveChangesModal} variant="inverse">
+          <Button onClick={onClose} variant="inverse">
             Cancel
           </Button>
         </div>

@@ -9,8 +9,8 @@ import { Link } from "react-router";
 
 const baseClass = "discard-data-option";
 
-interface IDiscardDataOption {
-  appConfig?: IConfig;
+interface IDiscardDataOptionProps {
+  queryReportsDisabled: boolean;
   selectedLoggingType: QueryLoggingOption;
   discardData: boolean;
   setDiscardData: (value: boolean) => void;
@@ -18,16 +18,61 @@ interface IDiscardDataOption {
 }
 
 const DiscardDataOption = ({
-  appConfig,
+  queryReportsDisabled,
   selectedLoggingType,
   discardData,
   setDiscardData,
   breakHelpText = false,
-}: IDiscardDataOption) => {
+}: IDiscardDataOptionProps) => {
   const [forceEditDiscardData, setForceEditDiscardData] = useState(false);
-  const disable =
-    appConfig?.server_settings.query_reports_disabled && !forceEditDiscardData;
+  const disable = queryReportsDisabled && !forceEditDiscardData;
 
+  const renderHelpText = () => (
+    <div className="help-text">
+      {disable ? (
+        <>
+          This setting is ignored because query reports in Fleet have been{" "}
+          <TooltipWrapper
+            // TODO - use JSX once new tooltipwrapper is merged
+            tipContent={
+              "A Fleet administrator can enable query reports under <br />\
+                  <b>Organization settings > Advanced options > Disable  query reports</b>."
+            }
+            position="bottom"
+          >
+            {"globally disabled."}
+          </TooltipWrapper>{" "}
+          <Link
+            to={""}
+            onClick={(e: React.MouseEvent) => {
+              e.preventDefault();
+              setForceEditDiscardData(true);
+            }}
+            className={`${baseClass}__edit-anyway`}
+          >
+            <>
+              Edit anyway
+              <Icon
+                name="chevron"
+                direction="right"
+                color="core-fleet-blue"
+                size="small"
+              />
+            </>
+          </Link>
+        </>
+      ) : (
+        <>
+          The most recent results for each host will not be available in Fleet.
+          {breakHelpText ? <br /> : " "}
+          Data will still be sent to your log destination if <b>
+            automations
+          </b>{" "}
+          are <b>on</b>.
+        </>
+      )}
+    </div>
+  );
   return (
     <div className={baseClass}>
       {["differential", "differential_ignore_removals"].includes(
@@ -51,49 +96,7 @@ const DiscardDataOption = ({
       >
         <b>Discard data</b>
       </Checkbox>
-      <div className="help-text">
-        {disable ? (
-          <>
-            This setting is ignored because query reports in Fleet have been{" "}
-            <TooltipWrapper
-              // TODO - use JSX once new tooltipwrapper is merged
-              tipContent={
-                "A Fleet administrator can enable query reports under <br />\
-                  <b>Organization settings > Advanced options > Disable  query reports</b>."
-              }
-              position="bottom"
-            >
-              {"globally disabled."}
-            </TooltipWrapper>{" "}
-            <Link
-              to={""}
-              onClick={(e: React.MouseEvent) => {
-                e.preventDefault();
-                setForceEditDiscardData(true);
-              }}
-              className={`${baseClass}__edit-anyway`}
-            >
-              <>
-                Edit anyway
-                <Icon
-                  name="chevron"
-                  direction="right"
-                  color="core-fleet-blue"
-                  size="small"
-                />
-              </>
-            </Link>
-          </>
-        ) : (
-          <>
-            The most recent results for each host will not be available in
-            Fleet.
-            {breakHelpText ? <br /> : " "}
-            Data will still be sent to your log destination if{" "}
-            <b>automations</b> are <b>on</b>.
-          </>
-        )}
-      </div>
+      {renderHelpText()}
     </div>
   );
 };

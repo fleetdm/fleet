@@ -10,10 +10,10 @@ describe("DiscardDataOption component", () => {
   const [discardData, setDiscardData] = [false, jest.fn()];
 
   it("Renders normal help text when the global option is not disabled", () => {
-    const appConfig = createMockConfig();
     render(
       <DiscardDataOption
-        {...{ appConfig, selectedLoggingType, discardData, setDiscardData }}
+        queryReportsDisabled={false}
+        {...{ selectedLoggingType, discardData, setDiscardData }}
       />
     );
 
@@ -22,19 +22,10 @@ describe("DiscardDataOption component", () => {
   });
 
   it('Renders the "disabled" help text with tooltip when the global option is disabled', async () => {
-    const appConfig = createMockConfig({
-      server_settings: {
-        query_reports_disabled: true,
-        // below fields are not used in this test
-        server_url: "https://localhost:8080",
-        live_query_disabled: false,
-        enable_analytics: true,
-        deferred_save_host: false,
-      },
-    });
     render(
       <DiscardDataOption
-        {...{ appConfig, selectedLoggingType, discardData, setDiscardData }}
+        queryReportsDisabled
+        {...{ selectedLoggingType, discardData, setDiscardData }}
       />
     );
 
@@ -47,19 +38,10 @@ describe("DiscardDataOption component", () => {
   });
 
   it('Restores normal help text when disabled and then "Edit anyway" is clicked', async () => {
-    const appConfig = createMockConfig({
-      server_settings: {
-        query_reports_disabled: true,
-        // below fields are not used in this test
-        server_url: "https://localhost:8080",
-        live_query_disabled: false,
-        enable_analytics: true,
-        deferred_save_host: false,
-      },
-    });
     render(
       <DiscardDataOption
-        {...{ appConfig, selectedLoggingType, discardData, setDiscardData }}
+        queryReportsDisabled
+        {...{ selectedLoggingType, discardData, setDiscardData }}
       />
     );
 
@@ -74,11 +56,11 @@ describe("DiscardDataOption component", () => {
     expect(screen.getByText(/Data will still be sent/)).toBeInTheDocument();
   });
   it('Renders the info banner when  "Differential"  logging option is selected', () => {
-    const appConfig = createMockConfig({});
     render(
       <DiscardDataOption
-        {...{ appConfig, discardData, setDiscardData }}
         selectedLoggingType="differential"
+        queryReportsDisabled={false}
+        {...{ discardData, setDiscardData }}
       />
     );
 
@@ -92,8 +74,9 @@ describe("DiscardDataOption component", () => {
     const appConfig = createMockConfig({});
     render(
       <DiscardDataOption
-        {...{ appConfig, discardData, setDiscardData }}
         selectedLoggingType="differential_ignore_removals"
+        queryReportsDisabled={false}
+        {...{ discardData, setDiscardData }}
       />
     );
     expect(
