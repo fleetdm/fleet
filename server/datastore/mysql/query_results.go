@@ -127,7 +127,17 @@ func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int
 	var count int
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `select count(*) from query_results where query_id = ?`, queryID)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "counting query results")
+		return 0, ctxerr.Wrap(ctx, err, "counting query results for query")
+	}
+
+	return count, nil
+}
+
+func (ds *Datastore) ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error) {
+	var count int
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `select count(*) from query_results where query_id = ? AND host_id = ?`, queryID, hostID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "counting query results for query and host")
 	}
 
 	return count, nil

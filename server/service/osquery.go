@@ -1483,20 +1483,21 @@ func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQu
 		return newOsqueryError("getting host ID: " + err.Error())
 	}
 
-	// Delete any existing query results for host before inserting new results
-	err = svc.ds.DeleteQueryResultsForHost(ctx, host.ID, query.ID)
-	if err != nil {
-		return newOsqueryError("deleting query results for host: " + err.Error())
-	}
-
-	return svc.saveResultRows(ctx, result, query.ID, host.ID, rowCount)
+	return svc.overwriteResultRows(ctx, result, query.ID, host.ID, rowCount)
 }
 
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.  Each
 // row is saved as a separate ScheduledQueryResultRow. ie. a result could contain
 // many USB Devices or a result could contain all User Accounts on a host.
-func (svc *Service) saveResultRows(ctx context.Context, result fleet.ScheduledQueryResult, queryID, hostID uint, rowCount int) error {
+func (svc *Service) overwriteResultRows(ctx context.Context, result fleet.ScheduledQueryResult, queryID, hostID uint, rowCount int) error {
 	fetchTime := time.Now()
+
+	// Update row count to account for deletion of existing host results
+	hostResultCount, err := svc.ds.ResultCountForQueryAndHost(ctx, queryID, hostID)
+	if err != nil {
+		return newOsqueryError("getting result count for query and host: " + err.Error())
+	}
+	rowCount = rowCount - hostResultCount
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
 
@@ -1518,7 +1519,7 @@ func (svc *Service) saveResultRows(ctx context.Context, result fleet.ScheduledQu
 		}
 	}
 
-	if err := svc.ds.SaveQueryResultRows(ctx, rows); err != nil {
+	if err := svc.ds.OverwriteQueryResultRows(ctx, rows); err != nil {
 		return newOsqueryError("saving query result row: " + err.Error())
 	}
 

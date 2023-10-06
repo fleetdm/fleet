@@ -622,10 +622,10 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		return &fleet.Host{ID: 1}, nil
 	}
-	ds.DeleteQueryResultsForHostFunc = func(ctx context.Context, hid uint, qid uint) error {
-		return nil
+	ds.ResultCountForQueryAndHostFunc = func(ctx context.Context, id uint, hid uint) (int, error) {
+		return 0, nil
 	}
-	ds.SaveQueryResultRowsFunc = func(ctx context.Context, row []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
 		return nil
 	}
 	err = svc.SaveResultLogsToQueryReports(ctx, logRawMessages)

@@ -21,7 +21,8 @@ func TestQueryResults(t *testing.T) {
 		{"Save", saveQueryResultRows},
 		{"Get", getQueryResultRows},
 		{"DeleteForHost", testDeleteQueryResultsForHost},
-		{"Count", testCountResultsForQuery},
+		{"CountForQuery", testCountResultsForQuery},
+		{"CountForQueryAndHost", testCountResultsForQueryAndHost},
 		{"Overwrite", testOverwriteQueryResultRows},
 	}
 	for _, c := range cases {
@@ -254,6 +255,72 @@ func testCountResultsForQuery(t *testing.T, ds *Datastore) {
 
 	// Returns empty result when no results are found
 	count, err = ds.ResultCountForQuery(context.Background(), 999)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+}
+
+func testCountResultsForQueryAndHost(t *testing.T, ds *Datastore) {
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	query1 := test.NewQuery(t, ds, nil, "New Query", "SELECT 1", user.ID, true)
+	query2 := test.NewQuery(t, ds, nil, "New Query 2", "SELECT 1", user.ID, true)
+	host := test.NewHost(t, ds, "host1", "192.168.1.100", "1234", "UI8XB1223", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "192.168.1.101", "4567", "UI8XB1224", time.Now())
+
+	mockTime := time.Now().UTC().Truncate(time.Second)
+
+	resultRows := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     query1.ID,
+			HostID:      host.ID,
+			LastFetched: mockTime,
+			Data: json.RawMessage(`{
+				"model": "USB Keyboard",
+				"vendor": "Apple Inc."
+			}`),
+		},
+		{
+			QueryID:     query1.ID,
+			HostID:      host.ID,
+			LastFetched: mockTime,
+			Data: json.RawMessage(`{
+				"model": "USB Mouse",
+				"vendor": "Logitech"
+			}`),
+		},
+		{
+			QueryID:     query1.ID,
+			HostID:      host2.ID,
+			LastFetched: mockTime,
+			Data: json.RawMessage(`{
+				"model": "USB Mouse",
+				"vendor": "Logitech"
+			}`),
+		},
+		{
+			QueryID:     query2.ID,
+			HostID:      host.ID,
+			LastFetched: mockTime,
+			Data: json.RawMessage(`{
+				"foo": "bar"
+			}`),
+		},
+	}
+
+	err := ds.SaveQueryResultRows(context.Background(), resultRows)
+	require.NoError(t, err)
+
+	// Assert that Query1 returns 2
+	count, err := ds.ResultCountForQueryAndHost(context.Background(), query1.ID, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+
+	// Assert that ResultCountForQuery returns 1
+	count, err = ds.ResultCountForQueryAndHost(context.Background(), query2.ID, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
+	// Returns empty result when no results are found
+	count, err = ds.ResultCountForQueryAndHost(context.Background(), 999, host.ID)
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
 }
