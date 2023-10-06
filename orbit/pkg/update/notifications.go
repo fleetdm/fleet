@@ -441,8 +441,8 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 }
 
 // GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
-// server set the "needs windows enrollment" flag to true, executes the command
-// to enroll into Windows MDM (or not, if the device is a Windows Server).
+// server set the "EnforceBitLockerEncryption" flag to true, executes the command
+// to attempt BitlockerEncryption (or not, if the device is a Windows Server).
 func (w *windowsMDMBitlockerConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	cfg, err := w.Fetcher.GetConfig()
 	if err == nil && cfg.Notifications.EnforceBitLockerEncryption {
