@@ -128,6 +128,8 @@ Currently enrolled hosts do not necessarily need enroll secrets updated, as the 
 
 Deploying a new enroll secret cannot be done centrally from Fleet.
 
+> Enroll secrets must be alphanumeric and should not contain special characters. 
+
 ### Multiple enroll secrets
 
 Fleet allows the abiility to maintain multiple enroll secrets. Some organizations have internal goals  around rotating secrets. Having multiple secrets allows some of them to work at the same time the rotation is happening.
@@ -146,7 +148,7 @@ To do this with `fleetctl` (assuming the existing secret is `oldsecret` and the 
 
 Begin by retrieving the existing secret configuration:
 
-```
+```sh
 $ fleetctl get enroll_secret
 ---
 apiVersion: v1
@@ -159,7 +161,7 @@ spec:
 
 Apply the new configuration with both secrets:
 
-```
+```sh
 $ echo '
 ---
 apiVersion: v1
@@ -176,7 +178,7 @@ $ fleetctl apply -f secrets.yml
 Now transition clients to using only the new secret. When the transition is completed, remove the
 old secret:
 
-```
+```sh
 $ echo '
 ---
 apiVersion: v1
@@ -269,7 +271,7 @@ The `secrets` section provides the list of enroll secrets that will be valid for
 - Optional setting (array of dictionaries)
 - Default value: none (empty)
 - Config file format:
-  ```
+  ```yaml
   team:
     name: Client Platform Engineering
     secrets:
@@ -283,18 +285,18 @@ You can modify an existing team by applying a new team configuration file with t
 
 Retrieve the team configuration and output to a YAML file:
 
-```console
+```sh
 % fleetctl get teams --name Workstations --yaml > workstation_config.yml
 ```
 After updating the generated YAML, apply the changes:
 
-```console
+```sh
 % fleetctl apply -f workstation_config.yml
 ```
 
 Depending on your Fleet version, you may see `unsupported key` errors for the following keys when applying the new team configuration:
 
-```
+```text
 id
 user_count
 host_count
@@ -366,6 +368,8 @@ spec:
     zendesk: null
   org_info:
     org_logo_url: ""
+    org_logo_url_light_background: ""
+    contact_url: ""
     org_name: Fleet
   server_settings:
     deferred_save_host: false
@@ -525,8 +529,10 @@ Use with caution as this may break Fleet ingestion of hosts data.
   ```yaml
   features:
     detail_query_overrides:
-      # null allows to disable the "users" query from running on hosts.
+      # null disables the "users" query from running on hosts.
       users: null
+      # "" disables the "disk_encryption_linux" query from running on hosts.
+      disk_encryption_linux: ""
       # this replaces the hardcoded "mdm" detail query.
       mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
   ```
@@ -599,12 +605,40 @@ The name of the organization.
 
 The URL of the logo of the organization.
 
+This logo is displayed in the top bar and other areas of Fleet that have dark backgrounds.
+
 - Optional setting (string)
 - Default value: none (uses Fleet's logo)
 - Config file format:
   ```yaml
   org_info:
-  	org_logo_url: https://example.com/logo.png
+    org_logo_url: https://example.com/logo.png
+  ```
+
+##### org_info.org_logo_url_light_background
+
+The URL of a logo of the organization that can be used with light backgrounds.
+
+> Note: this URL is currently only used for the dialogs displayed during MDM migration
+
+- Optional setting (string)
+- Default value: none (uses Fleet's logo)
+- Config file format:
+  ```yaml
+  org_info:
+    org_logo_url_light_background: https://example.com/logo-light.png
+  ```
+
+##### org_info.contact_url
+
+A URL that can be used by end users to contact the organization.
+
+- Optional setting (string)
+- Default value: https://fleetdm.com/company/contact
+- Config file format:
+  ```yaml
+  org_info:
+    contact_url: https://example.com/contact-us
   ```
 
 #### Server settings
@@ -645,7 +679,7 @@ in a public channel or a GitHub issue.
 - Optional setting (array of integers)
 - Default value: empty
 - Config file format:
-  ```
+  ```yaml
   server_settings:
     debug_host_ids:
       - 342

@@ -1005,6 +1005,66 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, serials []str
 	return nil
 }
 
+func (ds *Datastore) RestoreMDMApplePendingDEPHost(ctx context.Context, host *fleet.Host) error {
+	ac, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "restore pending dep host get app config")
+	}
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Insert a new host row with the same ID as the host that was deleted. We set only a
+		// limited subset of fields just as if the host were initially ingested from DEP sync;
+		// however, we also restore the UUID. Note that we are explicitly not restoring the
+		// osquery_host_id.
+		stmt := `
+INSERT INTO hosts (
+	id,
+	uuid,
+	hardware_serial,
+	hardware_model,
+	platform,
+	last_enrolled_at,
+	detail_updated_at,
+	osquery_host_id,
+	refetch_requested,
+	team_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+		args := []interface{}{
+			host.ID,
+			host.UUID,
+			host.HardwareSerial,
+			host.HardwareModel,
+			host.Platform,
+			host.LastEnrolledAt,
+			host.DetailUpdatedAt,
+			nil, // osquery_host_id is not restored
+			host.RefetchRequested,
+			host.TeamID,
+		}
+
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "restore pending dep host")
+		}
+
+		// Upsert related host tables for the restored host just as if it were initially ingested
+		// from DEP sync. Note we are not upserting host_dep_assignments in order to preserve the
+		// existing timestamps.
+		if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, *host); err != nil {
+			// TODO: Why didn't this work as expected?
+			return ctxerr.Wrap(ctx, err, "restore pending dep host display name")
+		}
+		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, *host); err != nil {
+			return ctxerr.Wrap(ctx, err, "restore pending dep host label membership")
+		}
+		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, ac.ServerSettings, true, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
+		}
+
+		return nil
+	})
+}
+
 func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
 	var nanoEnroll fleet.NanoEnrollment
 	// use writer as it is used just after creation in some cases

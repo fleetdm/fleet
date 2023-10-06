@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	eefleetctl "github.com/fleetdm/fleet/v4/ee/fleetctl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
@@ -182,6 +183,7 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_NATIVE_TOOLING"},
 				Destination: &opt.NativeTooling,
 			},
+			eefleetctl.LocalWixDirFlag(&opt.LocalWixDir),
 			&cli.StringFlag{
 				Name:        "macos-devid-pem-content",
 				Usage:       "Dev ID certificate keypair content in PEM format",
@@ -260,6 +262,11 @@ func packageCommand() *cli.Command {
 
 			if opt.NativeTooling && runtime.GOOS != "linux" {
 				return errors.New("native tooling is only available in Linux")
+			}
+
+			if opt.LocalWixDir != "" && runtime.GOOS != "windows" {
+				return errors.New(`Could not use local WiX to generate an osquery installer. This option is only available on Windows.
+				Visit https://wixtoolset.org/ for more information about how to use WiX.`)
 			}
 
 			if opt.FleetCertificate != "" {

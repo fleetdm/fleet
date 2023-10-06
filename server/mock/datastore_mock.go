@@ -174,6 +174,8 @@ type HostIDsByNameFunc func(ctx context.Context, filter fleet.TeamFilter, hostna
 
 type HostIDsByOSIDFunc func(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
 
+type HostMemberOfAllLabelsFunc func(ctx context.Context, hostID uint, labelNames []string) (bool, error)
+
 type HostIDsByOSVersionFunc func(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error)
 
 type HostByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.Host, error)
@@ -582,6 +584,8 @@ type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []go
 
 type IngestMDMAppleDeviceFromCheckinFunc func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error
 
+type RestoreMDMApplePendingDEPHostFunc func(ctx context.Context, host *fleet.Host) error
+
 type ResetMDMAppleEnrollmentFunc func(ctx context.Context, hostUUID string) error
 
 type ListMDMAppleDEPSerialsInTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
@@ -920,6 +924,9 @@ type DataStore struct {
 
 	HostIDsByOSIDFunc        HostIDsByOSIDFunc
 	HostIDsByOSIDFuncInvoked bool
+
+	HostMemberOfAllLabelsFunc        HostMemberOfAllLabelsFunc
+	HostMemberOfAllLabelsFuncInvoked bool
 
 	HostIDsByOSVersionFunc        HostIDsByOSVersionFunc
 	HostIDsByOSVersionFuncInvoked bool
@@ -1532,6 +1539,9 @@ type DataStore struct {
 
 	IngestMDMAppleDeviceFromCheckinFunc        IngestMDMAppleDeviceFromCheckinFunc
 	IngestMDMAppleDeviceFromCheckinFuncInvoked bool
+
+	RestoreMDMApplePendingDEPHostFunc        RestoreMDMApplePendingDEPHostFunc
+	RestoreMDMApplePendingDEPHostFuncInvoked bool
 
 	ResetMDMAppleEnrollmentFunc        ResetMDMAppleEnrollmentFunc
 	ResetMDMAppleEnrollmentFuncInvoked bool
@@ -2236,6 +2246,13 @@ func (s *DataStore) HostIDsByOSID(ctx context.Context, osID uint, offset int, li
 	s.HostIDsByOSIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.HostIDsByOSIDFunc(ctx, osID, offset, limit)
+}
+
+func (s *DataStore) HostMemberOfAllLabels(ctx context.Context, hostID uint, labelNames []string) (bool, error) {
+	s.mu.Lock()
+	s.HostMemberOfAllLabelsFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostMemberOfAllLabelsFunc(ctx, hostID, labelNames)
 }
 
 func (s *DataStore) HostIDsByOSVersion(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error) {
@@ -3664,6 +3681,13 @@ func (s *DataStore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost
 	s.IngestMDMAppleDeviceFromCheckinFuncInvoked = true
 	s.mu.Unlock()
 	return s.IngestMDMAppleDeviceFromCheckinFunc(ctx, mdmHost)
+}
+
+func (s *DataStore) RestoreMDMApplePendingDEPHost(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.RestoreMDMApplePendingDEPHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.RestoreMDMApplePendingDEPHostFunc(ctx, host)
 }
 
 func (s *DataStore) ResetMDMAppleEnrollment(ctx context.Context, hostUUID string) error {

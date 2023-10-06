@@ -54,9 +54,10 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		Pool:   s.redisPool,
-		Lq:     s.lq,
-		Logger: log.NewLogfmtLogger(os.Stdout),
+		Pool:           s.redisPool,
+		Lq:             s.lq,
+		Logger:         log.NewLogfmtLogger(os.Stdout),
+		EnableCachedDS: true,
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
@@ -3923,4 +3924,275 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.RunScriptHostOfflineErrMsg)
+}
+
+func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
+	t := s.T()
+	ctx := context.Background()
+
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	defer func() {
+		err = s.ds.SaveAppConfig(ctx, appCfg)
+		require.NoError(t, err)
+	}()
+
+	foobarLabel, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:  "Foobar",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	zoobarLabel, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:  "Zoobar",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	allHostsLabel, err := s.ds.GetLabelSpec(ctx, "All hosts")
+	require.NoError(t, err)
+
+	orbitDarwinClient := createOrbitEnrolledHost(t, "darwin", "foobar1", s.ds)
+	orbitLinuxClient := createOrbitEnrolledHost(t, "linux", "foobar2", s.ds)
+	orbitWindowsClient := createOrbitEnrolledHost(t, "windows", "foobar3", s.ds)
+
+	// orbitDarwinClient is member of 'All hosts' and 'Zoobar' labels.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitDarwinClient, map[uint]*bool{
+		allHostsLabel.ID: ptr.Bool(true),
+		zoobarLabel.ID:   ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+	// orbitLinuxClient is member of 'All hosts' and 'Foobar' labels.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitLinuxClient, map[uint]*bool{
+		allHostsLabel.ID: ptr.Bool(true),
+		foobarLabel.ID:   ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+	// orbitWindowsClient is member of the 'All hosts' label only.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitWindowsClient, map[uint]*bool{
+		allHostsLabel.ID: ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Attempt to add labels to extensions.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+  "agent_options": {
+	"config": {
+		"options": {
+		"pack_delimiter": "/",
+		"logger_tls_period": 10,
+		"distributed_plugin": "tls",
+		"disable_distributed": false,
+		"logger_tls_endpoint": "/api/osquery/log",
+		"distributed_interval": 10,
+		"distributed_tls_max_attempts": 3
+		}
+	},
+	"extensions": {
+		"hello_world_linux": {
+			"labels": [
+				"All hosts",
+				"Foobar"
+			],
+			"channel": "stable",
+			"platform": "linux"
+		},
+		"hello_world_macos": {
+			"labels": [
+				"All hosts",
+				"Foobar"
+			],
+			"channel": "stable",
+			"platform": "macos"
+		},
+		"hello_mars_macos": {
+			"labels": [
+				"All hosts",
+				"Zoobar"
+			],
+			"channel": "stable",
+			"platform": "macos"
+		},
+		"hello_world_windows": {
+			"labels": [
+				"Zoobar"
+			],
+			"channel": "stable",
+			"platform": "windows"
+		},
+		"hello_mars_windows": {
+			"labels": [
+				"Foobar"
+			],
+			"channel": "stable",
+			"platform": "windows"
+		}
+	}
+  }
+}`), http.StatusOK)
+
+	resp := orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+	"hello_mars_macos": {
+		"channel": "stable",
+		"platform": "macos"
+	}
+  }`, string(resp.Extensions))
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+	"hello_world_linux": {
+		"channel": "stable",
+		"platform": "linux"
+	}
+  }`, string(resp.Extensions))
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitWindowsClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, string(resp.Extensions))
+
+	// orbitDarwinClient is now also a member of the 'Foobar' label.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitDarwinClient, map[uint]*bool{
+		foobarLabel.ID: ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+	"hello_world_macos": {
+		"channel": "stable",
+		"platform": "macos"
+	},
+	"hello_mars_macos": {
+		"channel": "stable",
+		"platform": "macos"
+	}
+  }`, string(resp.Extensions))
+
+	// orbitLinuxClient is no longer a member of the 'Foobar' label.
+	err = s.ds.RecordLabelQueryExecutions(ctx, orbitLinuxClient, map[uint]*bool{
+		foobarLabel.ID: nil,
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, string(resp.Extensions))
+
+	// Attempt to set non-existent labels in the config.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+  "agent_options": {
+	"config": {
+		"options": {
+		"pack_delimiter": "/",
+		"logger_tls_period": 10,
+		"distributed_plugin": "tls",
+		"disable_distributed": false,
+		"logger_tls_endpoint": "/api/osquery/log",
+		"distributed_interval": 10,
+		"distributed_tls_max_attempts": 3
+		}
+	},
+	"extensions": {
+		"hello_world_linux": {
+			"labels": [
+				"All hosts",
+				"Doesn't exist"
+			],
+			"channel": "stable",
+			"platform": "linux"
+		}
+	}
+  }
+}`), http.StatusBadRequest)
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() {
+	ctx := context.Background()
+	t := s.T()
+
+	teamName := t.Name() + "team1"
+	team := &fleet.Team{
+		Name:        teamName,
+		Description: "desc team1",
+	}
+	s.Do("POST", "/api/latest/fleet/teams", team, http.StatusOK)
+
+	spec := []byte(fmt.Sprintf(`
+  name: %s
+  features:
+    additional_queries:
+      time: SELECT * FROM time
+    enable_host_users: true
+    detail_query_overrides:
+      users: null
+      software_linux: "select * from blah;"
+      disk_encryption_linux: null
+`, teamName))
+
+	s.applyTeamSpec(spec)
+	team, err := s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.NotNil(t, team.Config.Features.DetailQueryOverrides)
+	require.Nil(t, team.Config.Features.DetailQueryOverrides["users"])
+	require.Nil(t, team.Config.Features.DetailQueryOverrides["disk_encryption_linux"])
+	require.NotNil(t, team.Config.Features.DetailQueryOverrides["software_linux"])
+	require.Equal(t, "select * from blah;", *team.Config.Features.DetailQueryOverrides["software_linux"])
+
+	// create a linux host
+	linuxHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now().Add(-10 * time.Hour),
+		LabelUpdatedAt:  time.Now().Add(-10 * time.Hour),
+		PolicyUpdatedAt: time.Now().Add(-10 * time.Hour),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+
+	// add the host to team1
+	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{linuxHost.ID})
+	require.NoError(t, err)
+
+	// get distributed queries for the host
+	s.lq.On("QueriesForHost", linuxHost.ID).Return(map[string]string{fmt.Sprintf("%d", linuxHost.ID): "select 1 from osquery;"}, nil)
+	req := getDistributedQueriesRequest{NodeKey: *linuxHost.NodeKey}
+	var dqResp getDistributedQueriesResponse
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
+	require.NotContains(t, dqResp.Queries, "fleet_detail_query_disk_encryption_linux")
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_linux")
+	require.Contains(t, dqResp.Queries, "fleet_distributed_query_17")
+
+	spec = []byte(fmt.Sprintf(`
+  name: %s
+  features:
+    additional_queries:
+      time: SELECT * FROM time
+    enable_host_users: true
+    detail_query_overrides:
+      software_linux: "select * from blah;"
+`, teamName))
+
+	s.applyTeamSpec(spec)
+	team, err = s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.NotNil(t, team.Config.Features.DetailQueryOverrides)
+	require.Nil(t, team.Config.Features.DetailQueryOverrides["users"])
+	require.Nil(t, team.Config.Features.DetailQueryOverrides["disk_encryption_linux"])
+	require.NotNil(t, team.Config.Features.DetailQueryOverrides["software_linux"])
+	require.Equal(t, "select * from blah;", *team.Config.Features.DetailQueryOverrides["software_linux"])
+
+	// get distributed queries for the host
+	req = getDistributedQueriesRequest{NodeKey: *linuxHost.NodeKey}
+	dqResp = getDistributedQueriesResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_disk_encryption_linux")
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_linux")
+	require.Contains(t, dqResp.Queries, "fleet_distributed_query_17")
 }

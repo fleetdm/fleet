@@ -1020,10 +1020,11 @@ func TestMDMTokenUpdate(t *testing.T) {
 	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
 		require.Equal(t, uuid, hostUUID)
 		return &fleet.HostMDMCheckinInfo{
-			HardwareSerial:   serial,
-			DisplayName:      model,
-			InstalledFromDEP: true,
-			TeamID:           wantTeamID,
+			HardwareSerial:     serial,
+			DisplayName:        model,
+			InstalledFromDEP:   true,
+			TeamID:             wantTeamID,
+			DEPAssignedToFleet: true,
 		}, nil
 	}
 

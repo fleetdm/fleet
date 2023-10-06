@@ -1617,7 +1617,7 @@ func GetDetailQueries(
 				unknownQueries = append(unknownQueries, name)
 				continue
 			}
-			if override == nil {
+			if override == nil || *override == "" {
 				delete(generatedMap, name)
 			} else {
 				query.Query = *override

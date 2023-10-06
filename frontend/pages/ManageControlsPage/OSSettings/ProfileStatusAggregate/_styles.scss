@@ -4,7 +4,7 @@
   border-top: 1px solid #e2e4ea;
   border-bottom: 1px solid #e2e4ea;
   border-left: 1px solid #e2e4ea;
-  border-radius: 6px;
+  border-radius: $border-radius-large;
 
   &__loading-spinner {
     margin: auto;

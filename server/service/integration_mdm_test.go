@@ -89,6 +89,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 	appConf.MDM.EnabledAndConfigured = true
 	appConf.MDM.WindowsEnabledAndConfigured = true
+	appConf.MDM.AppleBMEnabledAndConfigured = true
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 
@@ -1789,6 +1790,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	gotSerials = []string{}
 	var deletedHostID uint
 	var addedHostID uint
+	var mdmDeviceID uint
 	for _, device := range listHostsRes.Hosts {
 		gotSerials = append(gotSerials, device.HardwareSerial)
 		switch device.HardwareSerial {
@@ -1796,6 +1798,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			deletedHostID = device.ID
 		case addedSerial:
 			addedHostID = device.ID
+		case mdmDevice.SerialNumber:
+			mdmDeviceID = device.ID
 		}
 	}
 	require.ElementsMatch(t, wantSerials, gotSerials)
@@ -1838,6 +1842,35 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// enroll the device again, it should get the post-enrollment commands
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
+	checkPostEnrollmentCommands(mdmDevice, true)
+
+	// delete the device from Fleet
+	var delResp deleteHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmDeviceID), nil, http.StatusOK, &delResp)
+
+	// the device comes back as pending
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts?query=%s", mdmDevice.UUID), nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 1)
+	require.Equal(t, mdmDevice.SerialNumber, listHostsRes.Hosts[0].HardwareSerial)
+
+	// we assign a DEP profile to the device
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runWorker()
+	require.Equal(t, mdmDevice.SerialNumber, profileAssignmentReqs[0].Devices[0])
+
+	// it should get the post-enrollment commands
+	require.NoError(t, mdmDevice.Enroll())
+	checkPostEnrollmentCommands(mdmDevice, true)
+
+	// delete all MDM info
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm WHERE host_id = ?`, listHostsRes.Hosts[0].ID)
+		return err
+	})
+
+	// it should still get the post-enrollment commands
+	require.NoError(t, mdmDevice.Enroll())
 	checkPostEnrollmentCommands(mdmDevice, true)
 }
 

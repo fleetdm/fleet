@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -5103,4 +5104,129 @@ func profilesByIdentifier(profiles []*fleet.HostMacOSProfile) map[string]*fleet.
 		byIdentifier[p.Identifier] = p
 	}
 	return byIdentifier
+}
+
+func TestRestorePendingDEPHost(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	ctx := context.Background()
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	expectedMDMServerURL, err := apple_mdm.ResolveAppleEnrollMDMURL(ac.ServerSettings.ServerURL)
+	require.NoError(t, err)
+
+	t.Run("DEP enrollment", func(t *testing.T) {
+		checkHostExistsInTable := func(t *testing.T, tableName string, hostID uint, expected bool, where ...string) {
+			stmt := "SELECT 1 FROM " + tableName + " WHERE host_id = ?"
+			if len(where) != 0 {
+				stmt += " AND " + strings.Join(where, " AND ")
+			}
+			var exists bool
+			err := sqlx.GetContext(ctx, ds.primary, &exists, stmt, hostID)
+			if expected {
+				require.NoError(t, err, tableName)
+				require.True(t, exists, tableName)
+			} else {
+				require.ErrorIs(t, err, sql.ErrNoRows, tableName)
+				require.False(t, exists, tableName)
+			}
+		}
+
+		checkStoredHost := func(t *testing.T, hostID uint, expectedHost *fleet.Host) {
+			h, err := ds.Host(ctx, hostID)
+			if expectedHost != nil {
+				require.NoError(t, err)
+				require.NotNil(t, h)
+				require.Equal(t, expectedHost.ID, h.ID)
+				require.Equal(t, expectedHost.OrbitNodeKey, h.OrbitNodeKey)
+				require.Equal(t, expectedHost.HardwareModel, h.HardwareModel)
+				require.Equal(t, expectedHost.HardwareSerial, h.HardwareSerial)
+				require.Equal(t, expectedHost.UUID, h.UUID)
+				require.Equal(t, expectedHost.Platform, h.Platform)
+				require.Equal(t, expectedHost.TeamID, h.TeamID)
+			} else {
+				nfe := &notFoundError{}
+				require.ErrorAs(t, err, &nfe)
+			}
+
+			for _, table := range []string{
+				"host_mdm",
+				"host_display_names",
+				// "label_membership", // TODO: uncomment this if/when we add the builtin labels to the mysql test setup
+			} {
+				checkHostExistsInTable(t, table, hostID, expectedHost != nil)
+			}
+
+			// host DEP assignment row is NEVER deleted
+			checkHostExistsInTable(t, "host_dep_assignments", hostID, true, "deleted_at IS NULL")
+		}
+
+		setupTestHost := func(t *testing.T) (pendingHost, mdmEnrolledHost *fleet.Host) {
+			depSerial := "dep-serial"
+			depUUID := "dep-uuid"
+			depOrbitNodeKey := "dep-orbit-node-key"
+
+			n, _, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}})
+			require.NoError(t, err)
+			require.Equal(t, int64(1), n)
+
+			var depHostID uint
+			err = sqlx.GetContext(ctx, ds.reader(ctx), &depHostID, "SELECT id FROM hosts WHERE hardware_serial = ?", depSerial)
+			require.NoError(t, err)
+
+			// host MDM row is created when DEP device is ingested
+			pendingHost, err = ds.Host(ctx, depHostID)
+			require.NoError(t, err)
+			require.NotNil(t, pendingHost)
+			require.Equal(t, depHostID, pendingHost.ID)
+			require.Equal(t, "Pending", *pendingHost.MDM.EnrollmentStatus)
+			require.Equal(t, fleet.WellKnownMDMFleet, pendingHost.MDM.Name)
+			require.Nil(t, pendingHost.OsqueryHostID)
+
+			// host DEP assignment is created when DEP device is ingested
+			depAssignment, err := ds.GetHostDEPAssignment(ctx, depHostID)
+			require.NoError(t, err)
+			require.Equal(t, depHostID, depAssignment.HostID)
+			require.Nil(t, depAssignment.DeletedAt)
+			require.WithinDuration(t, time.Now(), depAssignment.AddedAt, 5*time.Second)
+
+			// simulate initial osquery enrollment via Orbit
+			h, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{HardwareSerial: depSerial, Platform: "darwin", HardwareUUID: depUUID, Hostname: "dep-host"}, depOrbitNodeKey, nil)
+			require.NoError(t, err)
+			require.NotNil(t, h)
+			require.Equal(t, depHostID, h.ID)
+
+			// simulate osquery report of MDM detail query
+			err = ds.SetOrUpdateMDMData(ctx, depHostID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet)
+			require.NoError(t, err)
+
+			// enrollment status changes to "On (automatic)"
+			mdmEnrolledHost, err = ds.Host(ctx, depHostID)
+			require.NoError(t, err)
+			require.Equal(t, "On (automatic)", *mdmEnrolledHost.MDM.EnrollmentStatus)
+			require.Equal(t, fleet.WellKnownMDMFleet, mdmEnrolledHost.MDM.Name)
+			require.Equal(t, depUUID, *mdmEnrolledHost.OsqueryHostID)
+
+			return pendingHost, mdmEnrolledHost
+		}
+
+		pendingHost, mdmEnrolledHost := setupTestHost(t)
+		require.Equal(t, pendingHost.ID, mdmEnrolledHost.ID)
+		checkStoredHost(t, mdmEnrolledHost.ID, mdmEnrolledHost)
+
+		// delete the host from Fleet
+		err = ds.DeleteHost(ctx, mdmEnrolledHost.ID)
+		require.NoError(t, err)
+		checkStoredHost(t, mdmEnrolledHost.ID, nil)
+
+		// host is restored
+		err = ds.RestoreMDMApplePendingDEPHost(ctx, mdmEnrolledHost)
+		require.NoError(t, err)
+		expectedHost := *pendingHost
+		// host uuid is preserved for restored hosts. It isn't available via DEP so the original
+		// pending host record did not include it so we add it to our expected host here.
+		expectedHost.UUID = mdmEnrolledHost.UUID
+		checkStoredHost(t, mdmEnrolledHost.ID, &expectedHost)
+	})
 }

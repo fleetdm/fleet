@@ -9,7 +9,6 @@ Any past decision is open to questioning in a future iteration, as long as you a
 Here are some of Fleet's decisions about the best way to work, and the reasoning for them.
 
 ## Why open source?
-
 Fleet's source code, website, documentation, company handbook, and internal tools are [public](https://github.com/fleetdm/fleet) and accessible to everyone, including engineers, executives, and end users. (Even [paid features](https://fleetdm.com/pricing) are source-available.)
 
 Meanwhile, the [company behind Fleet](https://twitter.com/fleetctl) is built on the [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) business model.  Openness is one of our core [values](https://fleetdm.com/handbook/company#values), and everything we do is [public by default](https://handbook.gitlab.com/handbook/values/#public-by-default).  Even the [company handbook](https://fleetdm.com/handbook) is open to the world.
@@ -29,7 +28,6 @@ Here are some of the reasons we build in the open:
 
 
 ## Why handbook-first strategy?
-
 The Fleet handbook provides team members with up-to-date information about how to do things in the company. 
 
 At Fleet, we make changes to the handbook first.  That means, before any change to how we run the business is "live" or "official", it is first changed in the relevant [handbook pages](https://fleetdm.com/handbook) and [issue templates](https://github.com/fleetdm/confidential/tree/main/.github/ISSUE_TEMPLATE).
@@ -42,7 +40,6 @@ To contribute to the handbook, click "Edit this page" and make your [edits in Ma
 
 
 ## Why read documentation?
-
 There are three reasons for visiting [the docs](https://fleetdm.com/docs):
 - **Tire-kicking**: "I think this is cool, now is it something that I could ACTUALLY use? Does it ACTUALLY work? What all's in it?  What links can I share with my colleagues to help them see what I'm seeing?"
 - **Committed learning**: "I've decided to learn this. I need a curriculum to get me there; with content that makes it as easy as possible, surface-level as possible. I want to learn how Fleet works and how to do all the things."
@@ -83,7 +80,6 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 
 
 ## Why do we use a wireframe-first approach?
-
 Wireframing (usually as part of what Fleet calls ["drafting"](https://fleetdm.com/handbook/company/development-groups#making-changes)) provides a clear overview of page layout, information architecture, user flow, and functionality. The [wireframe-first approach](https://speakerdeck.com/mikermcneil/i-love-apis?slide=28) extends beyond what users see on their screens. Wireframe-first is also excellent for drafting APIs, config settings, CLI options, and even business processes.
 
 It's design thinking, applied to software development.
@@ -153,7 +149,6 @@ Every group at Fleet maintains their own Slack channel, which all group members 
 
 
 ## Why make work visible?
-
 Work is tracked in [GitHub issues](https://github.com/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+).
 
 Every department organizes their work into [team-based kanban boards](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none).  This provides a consistent framework for how every team works, plans, and requests things from each other.
@@ -208,7 +203,6 @@ The Fleet product is released every three weeks. By syncing the whole company to
 - Align project planning and milestones across all teams, which helps us schedule our content calendar and manage company-wide goals.
 
 ## Why spend so much energy responding to every potential production incident?
-
 At Fleet, every 5xx response, timed-out request, and failed scheduled job is a P1 outage.
 
 As soon as the outage is detected in any production environment (including fleetdm.com, Fleet Sandbox, hosted customer environments, TUF, and others), we create an outage issue _immediately_: before we know for sure whether any real users are affected, and even before we know what the error message says.
@@ -225,7 +219,6 @@ Why bother with all that?  And why do it in this particular order?
 - **It helps us prevent future outages.** By finding outages sooner, we incentivize ourselves to fix the root cause sooner.  And by fixing bugs sooner, we prevent them from stacking and bleeding into one another, and we prevent ourselves from implementing future fixes and improvements on top of shaky foundations.  This makes contributions less risky and reduces the number of outages.
 
 ## Why make it obvious when stuff breaks?
-
 At Fleet, we detect and fix bugs as quickly as possible.  
 
 Breaking loudly means we can fix the break sooner and improve how fast and certain we are about making future changes.  Especially in an all-remote environment, this provides contributors with discipline around quality and stability of the main branch.  This is ["good annoying"](https://agilehope.blogspot.com/2014/12/diy-build-light-indicator.html).
@@ -248,7 +241,6 @@ For example, here is the [philosophy behind Fleet's bug report template](https:/
 
 
 ## Why spend less?
-
 - **Default to efficiency. Reward richly.** At Fleet, we celebrate success and reward hard work.  But we do everyday things cheap.  And that is very important, because it shapes the kind of people we hire, and the kind of expectations we set for the team about what "comfortable" feels like.
 - **Offsites are not rewards.** Day to day, Fleet does not look rich.  Rich !== welcoming.  The company is open, not closed.  Work here means flexible collaboration, accessible people, and clear expectations.  And a rich, exciting future worth working for.  Not a rich, complacent baseline worth coasting for.
 - **Minimally viable comfort.**  We stay at La Quintas by the train tracks every single time unless customers are coming into the room and we need more space.  Even then, we accommodate in the spirit of _hospitality_, not to show off how well Fleet is doing.  They'll know how well we're doing by how great the product is, how great the support is, and [how that makes them feel](https://fleetdm.com/handbook/company#purpose).  They'll remember openness, flexibility, accessibility, and clarity in all of their interactions with the brand.  Not the view from our hotel rooms.
@@ -256,7 +248,6 @@ For example, here is the [philosophy behind Fleet's bug report template](https:/
 
 
 ## Why don't we sell like everyone else?
-
 Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
 - **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 conversation-starting](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
 - **Be a helper.**  We focus on [🔴being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for people is the way we win.
@@ -268,7 +259,6 @@ Many companies encourage salespeople to "spray and pray" email blasts, and to do
 
 
 ## Why don't we track leads differently?
-
 There are about as many "MQL" definitions as there are sales orgs in the world. Exaggerating here, but only somewhat.
 
 Fleet documents all KPI's with clear definitions that are simple to evaluate, easy to track, and highly iterable.
@@ -301,7 +291,6 @@ Fleet documents all KPI's with clear definitions that are simple to evaluate, ea
 
 
 ## Why does Fleet support query packs?
-
 As originally envisioned by Zach Wasserman and the team when creating osquery, packs are a way to import and export queries into (and out of!) any platform that speaks osquery, whether that's Fleet, [Security Onion](https://securityonionsolutions.com/), an EDR, or even Rapid7. Queries [should be portable](https://github.com/fleetdm/fleet/blob/f711e60de47c69ab8be5bc13cf73fedf88adc338/README.md#lighter-than-air) to minimize lock-in to particular tools.
 
 The "Packs" section of the UI that began in `kolide/fleet` c. 2017 was an early attempt to  segment and target formations of hosts that share certain characteristics.  This came with some difficulties with debugging and collaboration, since it could be hard to tell which queries were running on which hosts. It also made it harder to understand what performance impact running all those queries might cause.
@@ -313,7 +302,6 @@ The first step was to add a simpler way to schedule queries, and tuck away the l
 Packs will always be supported in Fleet.
 
 ## Why does Fleet use sentence case?
-
 Fleet uses sentence case capitalization for all headings, subheadings, button text in the Fleet product, fleetdm.com, the documentation, the handbook, marketing material, direct emails, in Slack, and in every other conceivable situation.
 
 In sentence case, we write and capitalize words as if they were in sentences:
@@ -325,7 +313,6 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
 
 ## Why not use superlatives?
-
 A superlative is an adjective or adverb that expresses the degree of a quality, such as "best," "worst," or "most beautiful."
 
 A superlative is a judgment or evaluation, [which only the customer can decide](https://twitter.com/mikermcneil/status/1686837625187930112). 
@@ -344,7 +331,6 @@ Avoid using too many unnecessary words or superlatives, so your writing is short
 
 
 ## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
-
 Fleet is more than an MDM (mobile device management) solution.
 
 With Fleet, you can secure and investigate Macs, Windows servers, Chromebooks, and more by installing the fleetd agent (or chrome extension for Chromebooks). When we use the word "enroll" in Fleet, we want this to mean anytime one of these hosts shows up in Fleet and the user can see that sweet telemetry.
