@@ -2,7 +2,6 @@ import Checkbox from "components/forms/fields/Checkbox";
 import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
 import TooltipWrapper from "components/TooltipWrapper";
-import { IConfig } from "interfaces/config";
 import { QueryLoggingOption } from "interfaces/schedulable_query";
 import React, { useState } from "react";
 import { Link } from "react-router";

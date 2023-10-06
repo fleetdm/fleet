@@ -13,6 +13,7 @@ import queryAPI from "services/entities/queries";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
+import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 import {
   IHost,
@@ -26,6 +27,7 @@ import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
+import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import {
   IListQueriesResponse,
@@ -45,6 +47,7 @@ import {
   TAGGED_TEMPLATES,
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
+import { DEFAULT_QUERY } from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -133,6 +136,7 @@ const HostDetailsPage = ({
     setLastEditedQueryCritical,
     setPolicyTeamId,
   } = useContext(PolicyContext);
+  const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const handlePageError = useErrorHandler();
@@ -519,12 +523,15 @@ const HostDetailsPage = ({
   };
 
   const onQueryHostCustom = () => {
+    setLastEditedQueryBody(DEFAULT_QUERY.query);
+    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
       PATHS.NEW_QUERY() + TAGGED_TEMPLATES.queryByHostRoute(host?.id)
     );
   };
 
   const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
+    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
       PATHS.EDIT_QUERY(selectedQuery.id) +
         TAGGED_TEMPLATES.queryByHostRoute(host?.id)

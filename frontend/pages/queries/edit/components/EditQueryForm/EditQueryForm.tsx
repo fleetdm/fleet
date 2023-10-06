@@ -34,7 +34,6 @@ import {
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
 import { SelectedPlatformString } from "interfaces/platform";
-import { IConfig } from "interfaces/config";
 import queryAPI from "services/entities/queries";
 
 import { IAceEditor } from "react-ace/lib/types";
@@ -76,7 +75,6 @@ interface IEditQueryFormProps {
   backendValidators: { [key: string]: string };
   hostId?: number;
   queryReportsDisabled?: boolean;
-  isLoadingAppConfig?: boolean;
   showConfirmSaveChangesModal: boolean;
   setShowConfirmSaveChangesModal: (bool: boolean) => void;
 }
@@ -127,7 +125,6 @@ const EditQueryForm = ({
   backendValidators,
   hostId,
   queryReportsDisabled,
-  isLoadingAppConfig,
   showConfirmSaveChangesModal,
   setShowConfirmSaveChangesModal,
 }: IEditQueryFormProps): JSX.Element => {
@@ -186,9 +183,7 @@ const EditQueryForm = ({
   const { setCompatiblePlatforms } = platformCompatibility;
 
   const debounceSQL = useDebouncedCallback((sql: string) => {
-    let valid = true;
-    const { valid: isValidated, errors: newErrors } = validateQuerySQL(sql);
-    valid = isValidated;
+    const { errors: newErrors } = validateQuerySQL(sql);
 
     setErrors({
       ...newErrors,
@@ -210,13 +205,6 @@ const EditQueryForm = ({
       setFrequencyOptions(customFrequencyOptions(lastEditedQueryFrequency));
     }
   }, [lastEditedQueryFrequency, isInitialFrequency]);
-
-  const hasTeamMaintainerPermissions = savedQueryMode
-    ? isAnyTeamMaintainerOrTeamAdmin &&
-      storedQuery &&
-      currentUser &&
-      storedQuery.author_id === currentUser.id
-    : isAnyTeamMaintainerOrTeamAdmin;
 
   const toggleSaveQueryModal = () => {
     setShowSaveQueryModal(!showSaveQueryModal);
@@ -598,11 +586,10 @@ const EditQueryForm = ({
             className={`${baseClass}__run`}
             variant="blue-green"
             onClick={() => {
-              queryIdForEdit &&
-                router.push(
-                  PATHS.LIVE_QUERY(queryIdForEdit) +
-                    TAGGED_TEMPLATES.queryByHostRoute(hostId)
-                );
+              router.push(
+                PATHS.LIVE_QUERY(queryIdForEdit) +
+                  TAGGED_TEMPLATES.queryByHostRoute(hostId)
+              );
             }}
           >
             Live query
@@ -819,11 +806,10 @@ const EditQueryForm = ({
               className={`${baseClass}__run`}
               variant="blue-green"
               onClick={() => {
-                queryIdForEdit &&
-                  router.push(
-                    PATHS.LIVE_QUERY(queryIdForEdit) +
-                      TAGGED_TEMPLATES.queryByHostRoute(hostId)
-                  );
+                router.push(
+                  PATHS.LIVE_QUERY(queryIdForEdit) +
+                    TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                );
               }}
             >
               Live query

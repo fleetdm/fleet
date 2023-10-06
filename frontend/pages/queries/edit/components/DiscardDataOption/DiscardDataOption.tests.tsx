@@ -2,7 +2,6 @@ import React from "react";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 
-import createMockConfig from "__mocks__/configMock";
 import DiscardDataOption from "./DiscardDataOption";
 
 describe("DiscardDataOption component", () => {
@@ -71,7 +70,6 @@ describe("DiscardDataOption component", () => {
     ).toBeInTheDocument();
   });
   it('Renders the info banner when  "Differential (ignore removals)" logging option is selected', () => {
-    const appConfig = createMockConfig({});
     render(
       <DiscardDataOption
         selectedLoggingType="differential_ignore_removals"
