@@ -20,8 +20,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/spf13/cast"
 )
 
@@ -1355,6 +1355,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	req := request.(*submitLogsRequest)
 
 	var err error
+	var combinedErrors []string
 	switch req.LogType {
 	case "status":
 		var statuses []json.RawMessage
@@ -1375,14 +1376,16 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 			break
 		}
 
-		err = svc.SubmitResultLogs(ctx, results)
-		if err != nil {
-			break
+		if errSave := svc.SaveResultLogsToQueryReports(ctx, results); errSave != nil {
+			combinedErrors = append(combinedErrors, errSave.Error())
 		}
 
-		err = svc.SaveResultLogsToQueryReports(ctx, results)
-		if err != nil {
-			break
+		if errSubmit := svc.SubmitResultLogs(ctx, results); errSubmit != nil {
+			combinedErrors = append(combinedErrors, errSubmit.Error())
+		}
+
+		if len(combinedErrors) > 0 {
+			err = fmt.Errorf(strings.Join(combinedErrors, "; "))
 		}
 
 	default:
