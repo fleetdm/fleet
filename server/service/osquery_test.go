@@ -610,7 +610,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 		return &fleet.Query{ID: 1, DiscardData: false}, nil
 	}
 	ds.ResultCountForQueryFunc = func(ctx context.Context, id uint) (int, error) {
-		return maxQueryReportRows, nil
+		return fleet.MaxQueryReportRows, nil
 	}
 	err = svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
 	require.NoError(t, err)
