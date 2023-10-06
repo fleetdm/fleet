@@ -1455,7 +1455,12 @@ func (svc *Service) SaveResultLogsToQueryReports(ctx context.Context, results []
 }
 
 func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQueryResult) error {
-	query, err := svc.ds.QueryByName(ctx, nil, getQueryNameFromResult(result.QueryName))
+	teamID, queryName, err := getQueryNameAndTeamIDFromResult(result.QueryName)
+	if err != nil {
+		return newOsqueryError("getting query name and team ID: " + err.Error())
+	}
+
+	query, err := svc.ds.QueryByName(ctx, teamID, queryName)
 	if err != nil {
 		return newOsqueryError("getting query by Name: " + err.Error())
 	}
@@ -1538,12 +1543,31 @@ func getMostRecentResults(results []fleet.ScheduledQueryResult) []fleet.Schedule
 	return filteredResults
 }
 
-// Query names recieved from osqueryd are prefixed so we need
-// to strip the prefix to match the query name in the database
-func getQueryNameFromResult(path string) string {
-	lastSlash := strings.LastIndex(path, "/")
-	if lastSlash == -1 {
-		return path
+// Query names recieved from osqueryd are prefixed by teamID so we need
+// to pull them out to match the query name and team ID in the database
+func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
+	// For pattern: pack/Global/Name
+	if strings.HasPrefix(path, "pack/Global/") {
+		return nil, strings.TrimPrefix(path, "pack/Global/"), nil
 	}
-	return path[lastSlash+1:]
+
+	// For pattern: pack/team-<ID>/Name
+	if strings.HasPrefix(path, "pack/team-") {
+		parts := strings.SplitN(path, "/", 3)
+		if len(parts) != 3 {
+			return nil, "", nil
+		}
+
+		teamNumberStr := strings.TrimPrefix(parts[1], "team-")
+		teamNumberUint, err := strconv.ParseUint(teamNumberStr, 10, 32)
+		if err != nil {
+			return nil, "", fmt.Errorf("parsing team number: %w", err)
+		}
+
+		teamNumber := uint(teamNumberUint)
+		return &teamNumber, parts[2], nil
+	}
+
+	// If neither pattern matches, return nil and empty string
+	return nil, "", fmt.Errorf("unknown format: %s", path)
 }

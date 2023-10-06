@@ -563,6 +563,96 @@ func TestSubmitResultLogs(t *testing.T) {
 	assert.Equal(t, results, testLogger.logs)
 }
 
+func TestSaveResultLogsToQueryReports(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	logs := []string{
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/Uptime","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+	}
+
+	var logRawMessages []json.RawMessage
+	for _, log := range logs {
+		logRawMessages = append(logRawMessages, json.RawMessage(log))
+	}
+
+	host := fleet.Host{}
+	ctx = hostctx.NewContext(ctx, &host)
+
+	// Results not saved if query reports disabled globally
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: true}}, nil
+	}
+	err := svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
+	require.NoError(t, err)
+
+	// Results not saved if discard data is true in Query
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: false}}, nil
+	}
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		return &fleet.Query{ID: 1, DiscardData: true}, nil
+	}
+	ds.ResultCountForQueryFunc = func(ctx context.Context, id uint) (int, error) {
+		return 0, nil
+	}
+	err = svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
+	require.NoError(t, err)
+
+	// Results not saved if query row count hits max
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		return &fleet.Query{ID: 1, DiscardData: false}, nil
+	}
+	ds.ResultCountForQueryFunc = func(ctx context.Context, id uint) (int, error) {
+		return maxQueryReportRows, nil
+	}
+	err = svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
+	require.NoError(t, err)
+
+	// Happy Path: results saved
+	ds.ResultCountForQueryFunc = func(ctx context.Context, id uint) (int, error) {
+		return 0, nil
+	}
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		return &fleet.Host{ID: 1}, nil
+	}
+	ds.DeleteQueryResultsForHostFunc = func(ctx context.Context, hid uint, qid uint) error {
+		return nil
+	}
+	ds.SaveQueryResultRowFunc = func(ctx context.Context, row *fleet.ScheduledQueryResultRow) (*fleet.ScheduledQueryResultRow, error) {
+		return nil, nil
+	}
+	err = svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
+	require.NoError(t, err)
+}
+
+func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
+	tests := []struct {
+		input        string
+		expectedID   *uint
+		expectedName string
+		hasErr       bool
+	}{
+		{"pack/Global/Query Name", nil, "Query Name", false},
+		{"pack/team-1/Query Name", ptr.Uint(1), "Query Name", false},
+		{"pack/team-12345/Another Query", ptr.Uint(12345), "Another Query", false},
+		{"pack/Invalid/Query", nil, "", true},
+		{"pack/team-foo/Query", nil, "", true},
+		{"InvalidString", nil, "", true},
+	}
+
+	for _, tt := range tests {
+		id, str, err := getQueryNameAndTeamIDFromResult(tt.input)
+		assert.Equal(t, tt.expectedID, id)
+		assert.Equal(t, tt.expectedName, str)
+		if tt.hasErr {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+		}
+	}
+}
+
 func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
