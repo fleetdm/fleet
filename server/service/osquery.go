@@ -1525,6 +1525,7 @@ func (svc *Service) saveResultRows(ctx context.Context, result fleet.ScheduledQu
 	return nil
 }
 
+// getMostRecentResults returns only the most recent result per query. 
 // Osquery can send multiple results for the same query (ie. if an agent loses
 // network connectivity it will cache multiple results).  Query Reports only
 // save the most recent result for a given query.
