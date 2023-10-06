@@ -222,12 +222,15 @@ const routes = (
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManageQueriesPage} />
             <Route component={AuthAnyMaintainerAdminObserverPlusRoutes}>
-              <Route path="new" component={EditQueryPage} />
+              <Route path="new">
+                <IndexRoute component={EditQueryPage} />
+                <Route path="live" component={LiveQueryPage} />
+              </Route>
             </Route>
             <Route path=":id">
               <IndexRoute component={QueryDetailsPage} />
               <Route path="edit" component={EditQueryPage} />
-              <Route path="run" component={LiveQueryPage} />
+              <Route path="live" component={LiveQueryPage} />
             </Route>
           </Route>
           <Route path="policies">

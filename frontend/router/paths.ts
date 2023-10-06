@@ -57,8 +57,8 @@ export default {
       teamId ? `?team_id=${teamId}` : ""
     }`;
   },
-  LIVE_QUERY: (queryId: number, teamId?: number): string => {
-    return `${URL_PREFIX}/queries/${queryId}/live${
+  LIVE_QUERY: (queryId: number | null, teamId?: number): string => {
+    return `${URL_PREFIX}/queries/${queryId || "new"}/live${
       teamId ? `?team_id=${teamId}` : ""
     }`;
   },

@@ -63,6 +63,8 @@ const RunQueryPage = ({
   const {
     selectedQueryTargets,
     setSelectedQueryTargets,
+    selectedQueryTargetsByType,
+    setSelectedQueryTargetsByType,
     setLastEditedQueryId,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -76,17 +78,17 @@ const RunQueryPage = ({
 
   const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
   const [step, setStep] = useState(LIVE_QUERY_STEPS[1]);
-  const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
-  const [targetedLabels, setTargetedLabels] = useState<ILabel[]>([]);
-  const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
+  const [targetedHosts, setTargetedHosts] = useState<IHost[]>(
+    selectedQueryTargetsByType.hosts
+  );
+  const [targetedLabels, setTargetedLabels] = useState<ILabel[]>(
+    selectedQueryTargetsByType.labels
+  );
+  const [targetedTeams, setTargetedTeams] = useState<ITeam[]>(
+    selectedQueryTargetsByType.teams
+  );
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
-
-  const TAGGED_TEMPLATES = {
-    queryByHostRoute: (hostId: number | undefined | null) => {
-      return `${hostId ? `?host_ids=${hostId}` : ""}`;
-    },
-  };
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
@@ -143,18 +145,20 @@ const RunQueryPage = ({
 
   useEffect(() => {
     detectIsFleetQueryRunnable();
-    if (!queryId) {
-      setLastEditedQueryId(DEFAULT_QUERY.id);
-      setLastEditedQueryName(DEFAULT_QUERY.name);
-      setLastEditedQueryDescription(DEFAULT_QUERY.description);
-      setLastEditedQueryBody(DEFAULT_QUERY.query);
-      setLastEditedQueryObserverCanRun(DEFAULT_QUERY.observer_can_run);
-      setLastEditedQueryFrequency(DEFAULT_QUERY.interval);
-      setLastEditedQueryLoggingType(DEFAULT_QUERY.logging);
-      setLastEditedQueryMinOsqueryVersion(DEFAULT_QUERY.min_osquery_version);
-      setLastEditedQueryPlatforms(DEFAULT_QUERY.platform);
-    }
   }, [queryId]);
+
+  useEffect(() => {
+    setSelectedQueryTargetsByType({
+      hosts: targetedHosts,
+      labels: targetedLabels,
+      teams: targetedTeams,
+    });
+  }, [targetedLabels, targetedHosts, targetedTeams]);
+
+  console.log(
+    "LiveQueryPage.tsx: selectedQueryTargetsByType",
+    selectedQueryTargetsByType
+  );
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
@@ -163,10 +167,12 @@ const RunQueryPage = ({
   }, [location.pathname, storedQuery?.name]);
 
   const goToQueryEditor = useCallback(
-    () => queryId && router.push(PATHS.EDIT_QUERY(queryId)),
+    () =>
+      queryId
+        ? router.push(PATHS.EDIT_QUERY(queryId))
+        : router.push(PATHS.NEW_QUERY()),
     []
   );
-  // const params = { id: paramsQueryId };
 
   const renderScreen = () => {
     const step1Props = {
