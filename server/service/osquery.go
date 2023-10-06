@@ -1385,7 +1385,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		}
 
 		if len(combinedErrors) > 0 {
-			err = fmt.Errorf(strings.Join(combinedErrors, "; "))
+			err = newOsqueryError(strings.Join(combinedErrors, "; "))
 		}
 
 	default:
