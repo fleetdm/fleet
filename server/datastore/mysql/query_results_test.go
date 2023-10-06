@@ -3,11 +3,14 @@ package mysql
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +23,6 @@ func TestQueryResults(t *testing.T) {
 	}{
 		{"Save", saveQueryResultRows},
 		{"Get", getQueryResultRows},
-		{"DeleteForHost", testDeleteQueryResultsForHost},
 		{"CountForQuery", testCountResultsForQuery},
 		{"CountForQueryAndHost", testCountResultsForQueryAndHost},
 		{"Overwrite", testOverwriteQueryResultRows},
@@ -135,71 +137,6 @@ func getQueryResultRows(t *testing.T, ds *Datastore) {
 	results, err = ds.QueryResultRows(context.Background(), 999, 999)
 	require.NoError(t, err)
 	require.Len(t, results, 0)
-}
-
-func testDeleteQueryResultsForHost(t *testing.T, ds *Datastore) {
-	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
-	query := test.NewQuery(t, ds, nil, "New Query", "SELECT 1", user.ID, true)
-	query2 := test.NewQuery(t, ds, nil, "New Query 2", "SELECT 1", user.ID, true)
-	host := test.NewHost(t, ds, "hostname123", "192.168.1.100", "1234", "UI8XB1223", time.Now())
-
-	mockTime := time.Now().UTC().Truncate(time.Second)
-
-	// Insert 2 Result Rows
-	resultRows := []*fleet.ScheduledQueryResultRow{
-		{
-			QueryID:     query.ID,
-			HostID:      host.ID,
-			LastFetched: mockTime,
-			Data: json.RawMessage(
-				`{"model": "USB Keyboard", "vendor": "Apple Inc."}`,
-			),
-		},
-		{
-			QueryID:     query.ID,
-			HostID:      host.ID,
-			LastFetched: mockTime,
-			Data: json.RawMessage(
-				`{"model": "USB Mouse", "vendor": "Logitech"}`,
-			),
-		},
-	}
-
-	err := ds.SaveQueryResultRows(context.Background(), resultRows)
-	require.NoError(t, err)
-
-	// Insert Result Row for different Scheduled Query
-	resultRow3 := []*fleet.ScheduledQueryResultRow{
-		{
-			QueryID:     query2.ID,
-			HostID:      host.ID,
-			LastFetched: mockTime,
-			Data: json.RawMessage(
-				`{"model": "USB Hub","vendor": "Logitech"}`,
-			),
-		},
-	}
-
-	err = ds.SaveQueryResultRows(context.Background(), resultRow3)
-	require.NoError(t, err)
-
-	// Delete Query Results for Host
-	err = ds.DeleteQueryResultsForHost(context.Background(), host.ID, query.ID)
-	require.NoError(t, err)
-
-	// Assert that Query1 returns 0 results
-	results, err := ds.QueryResultRows(context.Background(), query.ID, host.ID)
-	require.NoError(t, err)
-	require.Len(t, results, 0)
-
-	// Assert that Query2 returns 1 result
-	results, err = ds.QueryResultRows(context.Background(), query2.ID, host.ID)
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.Equal(t, resultRow3[0].QueryID, results[0].QueryID)
-	require.Equal(t, resultRow3[0].HostID, results[0].HostID)
-	require.Equal(t, resultRow3[0].LastFetched.Unix(), results[0].LastFetched.Unix())
-	require.JSONEq(t, string(resultRow3[0].Data), string(results[0].Data))
 }
 
 func testCountResultsForQuery(t *testing.T, ds *Datastore) {
@@ -376,4 +313,44 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	results, err = ds.QueryResultRows(context.Background(), 999, 999)
 	require.NoError(t, err)
 	require.Len(t, results, 0)
+}
+
+func (ds *Datastore) SaveQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	if len(rows) == 0 {
+		return nil // Nothing to insert
+	}
+
+	valueStrings := make([]string, 0, len(rows))
+	valueArgs := make([]interface{}, 0, len(rows)*4)
+
+	for _, row := range rows {
+		valueStrings = append(valueStrings, "(?, ?, ?, ?)")
+		valueArgs = append(valueArgs, row.QueryID, row.HostID, row.LastFetched, row.Data)
+	}
+
+	insertStmt := fmt.Sprintf(`
+        INSERT INTO query_results (query_id, host_id, last_fetched, data)
+            VALUES %s
+    `, strings.Join(valueStrings, ","))
+
+	_, err := ds.writer(ctx).ExecContext(ctx, insertStmt, valueArgs...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ds *Datastore) QueryResultRows(ctx context.Context, queryID, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
+	selectStmt := `
+		SELECT query_id, host_id, last_fetched, data FROM query_results
+			WHERE query_id = ? AND host_id = ?
+		`
+	results := []*fleet.ScheduledQueryResultRow{}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID, hostID)
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }
