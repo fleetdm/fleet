@@ -767,7 +767,7 @@ const HostDetailsPage = ({
               />
             </TabPanel>
             <TabPanel>
-              <ScriptsCard />
+              <ScriptsCard hostId={host?.id} />
             </TabPanel>
             <TabPanel>
               <SoftwareCard

@@ -1,6 +1,3 @@
-import { createMockScript } from "__mocks__/scriptMock";
-import team from "interfaces/team";
-import { create } from "lodash";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -48,12 +45,10 @@ interface ILastExecution {
   status: IScriptExecutionStatus;
 }
 
-interface IHostScript {
-  scripts: {
-    script_id: number;
-    name: string;
-    last_execution: ILastExecution | null;
-  };
+export interface IHostScript {
+  script_id: number;
+  name: string;
+  last_execution: ILastExecution | null;
 }
 
 /**
