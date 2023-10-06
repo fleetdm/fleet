@@ -82,7 +82,7 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		valueArgs = append(valueArgs, queryID, hostID, row.LastFetched, row.Data)
 	}
 
-	// #nosec G202
+	//nolint:gosec // SQL query is constructed using constant strings
 	insertStmt := `
 		INSERT INTO query_results (query_id, host_id, last_fetched, data) VALUES
 	` + strings.Join(valueStrings, ",")
