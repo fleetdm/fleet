@@ -4676,7 +4676,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Print\\RpcAuthnLevelPrivacyEnabled' AND (data = 1));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.4.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.4.2
   contributors: defensivedepth
 ---
 apiVersion: v1
@@ -4771,7 +4771,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\RunAsPPL' AND (data = 1));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.4.6
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.4.6
   contributors: DefensiveDepth
 ---
 apiVersion: v1
@@ -5208,7 +5208,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\RedirectionGuardPolicy' AND (data = 1));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.7.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.7.2
   contributors: DefensiveDepth
 ---
 apiVersion: v1
@@ -9851,7 +9851,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Internet Explorer\\Main\\NotifyDisableIEOptions' AND (data = 1));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.35.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.10.35.1
   contributors: defensivedepth
 ---
 apiVersion: v1
@@ -9927,7 +9927,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\Transcription\\EnableTranscripting' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.87.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.10.87.2
   contributors: marcosd4h
 ---
 apiVersion: v1
