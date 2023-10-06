@@ -43,7 +43,6 @@ export const generateTableHeaders = (
       disableSortBy: true,
       accessor: "last_execution",
       Cell: ({ cell: { value } }: IStatusCellProps) => {
-        console.log("value", value);
         return <ScriptStatusCell lastExecution={value} />;
       },
     },
