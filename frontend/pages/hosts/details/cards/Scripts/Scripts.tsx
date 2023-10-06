@@ -1,17 +1,19 @@
-import React, { useRef, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 import { useQuery } from "react-query";
 
 import scriptsAPI, {
   IHostScript,
   IHostScriptsResponse,
 } from "services/entities/scripts";
-import { IError } from "interfaces/errors";
+import { IApiError, IError } from "interfaces/errors";
+import { NotificationContext } from "context/notification";
 
 import Card from "components/Card";
 import TableContainer from "components/TableContainer";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 
 import { generateDataSet, generateTableHeaders } from "./ScriptsTableConfig";
+import { AxiosResponse } from "axios";
 
 const baseClass = "host-scripts-section";
 
@@ -26,6 +28,8 @@ const Scripts = ({ hostId, isHostOnline }: IScriptsProps) => {
   // details modal.
   const scriptExecutionId = useRef<string | null>(null);
 
+  const { renderFlash } = useContext(NotificationContext);
+
   const { data: scriptsData, isLoading, isError } = useQuery<
     IHostScriptsResponse,
     IError,
@@ -39,7 +43,7 @@ const Scripts = ({ hostId, isHostOnline }: IScriptsProps) => {
 
   if (!hostId || !scriptsData) return null;
 
-  const onActionSelection = (action: string, script: IHostScript): void => {
+  const onActionSelection = async (action: string, script: IHostScript) => {
     switch (action) {
       case "showDetails":
         if (!script.last_execution) return;
@@ -47,7 +51,13 @@ const Scripts = ({ hostId, isHostOnline }: IScriptsProps) => {
         setShowScriptDetailsModal(true);
         break;
       case "run":
-        console.log("running");
+        try {
+          await scriptsAPI.runScript(script.script_id);
+          renderFlash("success", "Script successfully queued!");
+        } catch (e) {
+          const error = e as AxiosResponse<IApiError>;
+          renderFlash("error", error.data.errors[0].reason);
+        }
         break;
       default:
     }

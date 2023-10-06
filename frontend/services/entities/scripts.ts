@@ -113,4 +113,9 @@ export default {
     const { SCRIPT_RESULT } = endpoints;
     return sendRequest("GET", SCRIPT_RESULT(executionId));
   },
+
+  runScript(id: number) {
+    const { SCRIPT_RUN } = endpoints;
+    return sendRequest("POST", SCRIPT_RUN, { script_id: id });
+  },
 };

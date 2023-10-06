@@ -129,4 +129,5 @@ export default {
   SCRIPT: (id: number) => `/${API_VERSION}/fleet/scripts/${id}`,
   SCRIPT_RESULT: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/results/${executionId}`,
+  SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
 };
