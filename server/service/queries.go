@@ -552,10 +552,6 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 		}
 
 		if query.DiscardData || query.Logging != fleet.LoggingSnapshot || query.Query != dbQuery.Query {
-			// err = svc.ds.DeleteAllResultsForQuery(ctx, dbQuery.ID)
-			// if err != nil {
-			// 	return ctxerr.Wrap(ctx, fleet.NewBadGatewayError(fmt.Sprintf("query results deletion"), err))
-			// }
 			queriesToDiscardResults[dbQuery.ID] = true
 		}
 	}
