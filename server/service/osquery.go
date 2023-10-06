@@ -1455,6 +1455,11 @@ func (svc *Service) SaveResultLogsToQueryReports(ctx context.Context, results []
 }
 
 func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQueryResult) error {
+	// Discard result if there is no snapshot
+	if len(result.Snapshot) == 0 {
+		return nil
+	}
+
 	teamID, queryName, err := getQueryNameAndTeamIDFromResult(result.QueryName)
 	if err != nil {
 		return newOsqueryError("getting query name and team ID: " + err.Error())

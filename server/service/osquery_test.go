@@ -567,13 +567,8 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	logs := []string{
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/Uptime","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
-	}
-
-	var logRawMessages []json.RawMessage
-	for _, log := range logs {
-		logRawMessages = append(logRawMessages, json.RawMessage(log))
+	logRawMessages := []json.RawMessage{
+		json.RawMessage(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/Uptime","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`),
 	}
 
 	host := fleet.Host{}
@@ -586,7 +581,18 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	err := svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
 	require.NoError(t, err)
 
+	// Result not saved if result is not a snapshot
+	logRawMessages = []json.RawMessage{
+		json.RawMessage(`{"name":"pack/Global/Uptime","hostIdentifier":"2e23c347-da72-4e72-b6a8-a6b8a9a46ab7","calendarTime":"Fri Oct  6 14:19:15 2023 UTC","unixTime":1696601955,"epoch":0,"counter":10,"numerics":false,"decorations":{"host_uuid":"550eb898-c522-410b-8855-d74d94fdfcd2","hostname":"0025ad6e71fb"},"columns":{"days":"0","hours":"4","minutes":"52","seconds":"25","total_seconds":"17545"},"action":"removed"}`),
+	}
+	err = svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
+	require.NoError(t, err)
+
 	// Results not saved if discard data is true in Query
+	logRawMessages = []json.RawMessage{
+		json.RawMessage(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/Uptime","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`),
+	}
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: false}}, nil
 	}
