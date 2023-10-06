@@ -594,7 +594,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	}
 	query, params = searchLike(query, params, opt.MatchQuery, hostSearchColumns...)
 
-	query = appendListOptionsToSQL(query, &opt.ListOptions)
+	query, params = appendListOptionsWithCursorToSQL(query, params, &opt.ListOptions)
 	return query, params, nil
 }
 
