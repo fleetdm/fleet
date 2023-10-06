@@ -168,7 +168,7 @@ const STATUS_CELL_VALUES: Record<DiskEncryptionStatus, IStatusCellValue> = {
     value: "verifying",
     tooltip:
       "These hosts acknowledged the MDM command to turn on disk encryption. Fleet is verifying with " +
-      "osquery and retrieving the disk encryption key.This may take up to one hour.",
+      "osquery and retrieving the disk encryption key. This may take up to one hour.",
   },
   action_required: {
     displayName: "Action required (pending)",
