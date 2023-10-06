@@ -1,6 +1,10 @@
 import React from "react";
+import { formatDistanceToNow } from "date-fns";
 
-import { IScriptExecutionStatus } from "services/entities/scripts";
+import {
+  ILastExecution,
+  IScriptExecutionStatus,
+} from "services/entities/scripts";
 
 import StatusIndicatorWithIcon, {
   IndicatorStatus,
@@ -10,7 +14,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 interface IScriptStatusDisplayConfig {
   displayText: string;
   iconStatus: IndicatorStatus;
-  tooltip: string;
+  tooltip: (executedAt?: string) => string;
 }
 
 const STATUS_DISPLAY_CONFIG: Record<
@@ -20,36 +24,46 @@ const STATUS_DISPLAY_CONFIG: Record<
   ran: {
     displayText: "Ran",
     iconStatus: "success",
-    tooltip: "Script ran and exited with exit code 0. (5 minutes ago)",
+    tooltip: (executedAt) =>
+      `Script ran and exited with exit code 0. (${executedAt} ago)`,
   },
   pending: {
     displayText: "Pending",
     iconStatus: "pendingPartial",
-    tooltip: "Script will run when the host comes online.",
+    tooltip: () => "Script will run when the host comes online.",
   },
   error: {
     displayText: "Error",
     iconStatus: "error",
-    tooltip: "Script ran and exited with a non-zero exit code. (5 minutes ago)",
+    tooltip: (executedAt) =>
+      `Script ran and exited with a non-zero exit code. (${executedAt} ago)`,
   },
 };
 
 interface IScriptStatusCellProps {
-  status: IScriptExecutionStatus | null;
+  lastExecution: ILastExecution | null;
 }
 
-const ScriptStatusCell = ({ status }: IScriptStatusCellProps) => {
-  if (!status) {
-    return <TextCell value={status} />;
+const ScriptStatusCell = ({ lastExecution }: IScriptStatusCellProps) => {
+  if (!lastExecution) {
+    return <TextCell value={null} />;
   }
 
-  const { displayText, iconStatus, tooltip } = STATUS_DISPLAY_CONFIG[status];
+  const { displayText, iconStatus, tooltip } = STATUS_DISPLAY_CONFIG[
+    lastExecution.status
+  ];
+
+  const humanizedExecutedAt = formatDistanceToNow(
+    new Date(lastExecution.executed_at),
+    { includeSeconds: true }
+  );
+
   return (
     <StatusIndicatorWithIcon
       value={displayText}
       status={iconStatus}
       tooltip={{
-        tooltipText: tooltip,
+        tooltipText: tooltip(humanizedExecutedAt),
       }}
     />
   );

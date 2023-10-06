@@ -1,5 +1,6 @@
 import React, { useContext, useRef, useState } from "react";
 import { useQuery } from "react-query";
+import { AxiosResponse } from "axios";
 
 import scriptsAPI, {
   IHostScript,
@@ -13,7 +14,6 @@ import TableContainer from "components/TableContainer";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 
 import { generateDataSet, generateTableHeaders } from "./ScriptsTableConfig";
-import { AxiosResponse } from "axios";
 
 const baseClass = "host-scripts-section";
 

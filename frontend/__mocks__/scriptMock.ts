@@ -1,4 +1,8 @@
-import { IScript, IScriptResultResponse } from "services/entities/scripts";
+import {
+  IHostScript,
+  IScript,
+  IScriptResultResponse,
+} from "services/entities/scripts";
 
 const DEFAULT_SCRIPT_MOCK: IScript = {
   id: 1,
@@ -28,4 +32,20 @@ export const createMockScriptResult = (
   overrides?: Partial<IScriptResultResponse>
 ): IScriptResultResponse => {
   return { ...DEFAULT_SCRIPT_RESULT_MOCK, ...overrides };
+};
+
+const DEFAULT_HOST_SCRIPT_MOCK: IHostScript = {
+  script_id: 1,
+  name: "test script",
+  last_execution: {
+    execution_id: "123",
+    executed_at: "2020-01-01T00:00:00.000Z",
+    status: "ran",
+  },
+};
+
+export const createMockHostScript = (
+  overrides?: Partial<IHostScript>
+): IHostScript => {
+  return { ...DEFAULT_HOST_SCRIPT_MOCK, ...overrides };
 };

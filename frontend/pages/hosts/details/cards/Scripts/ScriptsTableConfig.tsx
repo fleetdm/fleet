@@ -1,7 +1,11 @@
 import React from "react";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { IHostScript, IScriptExecutionStatus } from "services/entities/scripts";
+import {
+  IHostScript,
+  ILastExecution,
+  IScriptExecutionStatus,
+} from "services/entities/scripts";
 
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 
@@ -9,7 +13,7 @@ import ScriptStatusCell from "./components/ScriptStatusCell";
 
 interface IStatusCellProps {
   cell: {
-    value: IScriptExecutionStatus | null;
+    value: ILastExecution | null;
   };
 }
 
@@ -39,7 +43,8 @@ export const generateTableHeaders = (
       disableSortBy: true,
       accessor: "last_execution",
       Cell: ({ cell: { value } }: IStatusCellProps) => {
-        return <ScriptStatusCell status={value} />;
+        console.log("value", value);
+        return <ScriptStatusCell lastExecution={value} />;
       },
     },
     {
