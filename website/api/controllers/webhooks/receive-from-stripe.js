@@ -73,6 +73,8 @@ module.exports = {
       'invoice.finalized',
       'invoice.paid',
       'invoice.payment_succeeded',
+      'invoice.payment_failed',
+      'invoice.payment_action_required',
     ];
 
     // If this event is for a subscription that was just created, we won't have a matching Subscription record in the database. This is because we wait until the subscription's invoice is paid to create the record in our database.
