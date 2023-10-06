@@ -54,7 +54,12 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "starting a transaction")
 	}
-	defer tx.Rollback()
+	defer func() {
+		err := tx.Rollback()
+		if err != nil {
+			ds.logger.Log("err", err, "msg", "rolling back transaction")
+		}
+	}()
 
 	// Since we assume all rows have the same queryID and hostID, take it from the first row
 	queryID := rows[0].QueryID
@@ -77,10 +82,9 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		valueArgs = append(valueArgs, queryID, hostID, row.LastFetched, row.Data)
 	}
 
-	insertStmt := fmt.Sprintf(`
-        INSERT INTO query_results (query_id, host_id, last_fetched, data)
-            VALUES %s
-    `, strings.Join(valueStrings, ","))
+	insertStmt := `
+		INSERT INTO query_results (query_id, host_id, last_fetched, data) VALUES
+	` + strings.Join(valueStrings, ",")
 
 	_, err = tx.ExecContext(ctx, insertStmt, valueArgs...)
 	if err != nil {
@@ -95,7 +99,6 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 
 	return nil
 }
-
 
 func (ds *Datastore) QueryResultRows(ctx context.Context, queryID, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
 	selectStmt := `

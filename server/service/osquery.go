@@ -1526,7 +1526,7 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result fleet.Schedu
 	return nil
 }
 
-// getMostRecentResults returns only the most recent result per query. 
+// getMostRecentResults returns only the most recent result per query.
 // Osquery can send multiple results for the same query (ie. if an agent loses
 // network connectivity it will cache multiple results).  Query Reports only
 // save the most recent result for a given query.
