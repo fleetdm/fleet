@@ -88,7 +88,7 @@ export type DiskEncryptionStatus =
   | "failed"
   | "removing_enforcement";
 
-/** Currently windows disk enxryption status will only be one of these three
+/** Currently windows disk enxryption status will only be one of these four
 values. In the future we may add more. */
 export type IWindowsDiskEncryptionStatus = Extract<
   DiskEncryptionStatus,
