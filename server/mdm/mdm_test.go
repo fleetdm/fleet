@@ -1,4 +1,4 @@
-package apple_mdm
+package mdm
 
 import (
 	"crypto/tls"

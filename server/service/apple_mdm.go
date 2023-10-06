@@ -18,6 +18,7 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -609,7 +610,6 @@ func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{
 	}, nil
 }
 
-// QUESTION: workflow for developing new APIs? whats your setup quickly test code working?
 func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
 	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -1716,8 +1716,8 @@ func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload
 
 	var didUpdate, didUpdateMacOSDiskEncryption bool
 	if payload.EnableDiskEncryption != nil {
-		if ac.MDM.MacOSSettings.EnableDiskEncryption != *payload.EnableDiskEncryption {
-			ac.MDM.MacOSSettings.EnableDiskEncryption = *payload.EnableDiskEncryption
+		if ac.MDM.EnableDiskEncryption.Value != *payload.EnableDiskEncryption {
+			ac.MDM.EnableDiskEncryption = optjson.SetBool(*payload.EnableDiskEncryption)
 			didUpdate = true
 			didUpdateMacOSDiskEncryption = true
 		}
@@ -1729,7 +1729,7 @@ func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload
 		}
 		if didUpdateMacOSDiskEncryption {
 			var act fleet.ActivityDetails
-			if ac.MDM.MacOSSettings.EnableDiskEncryption {
+			if ac.MDM.EnableDiskEncryption.Value {
 				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
 				if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
 					return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
