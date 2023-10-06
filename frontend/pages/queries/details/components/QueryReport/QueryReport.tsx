@@ -7,7 +7,7 @@ import { QueryContext } from "context/query";
 
 import {
   generateCSVFilename,
-  generateCSVQueryResults,
+  generateCSVQueryReport,
 } from "utilities/generate_csv";
 import { IQueryReport } from "interfaces/query_report";
 import { humanLastSeen } from "utilities/helpers";
@@ -26,34 +26,14 @@ interface IQueryReportProps {
 const baseClass = "query-report";
 const CSV_TITLE = "Query";
 
-/*
-I want to return 
-
-[
-  {
-    host_name: "foo",
-    last_fetched: "2021-01-19T17:08:31Z",
-    model: "USB 2.0 Hub",
-    vendor: "VIA Labs, Inc.",
-  },
-  {
-    host_name: "foo",
-    last_fetched: "2021-01-19T17:08:31Z",
-    model: "USB Keyboard",
-    vendor: "VIA Labs, Inc.",
-  },
-]
-*/
 const tableResults = (results: any) => {
   return results.map((result: any) => {
     const hostInfo = {
-      // host_id: result.host_id,
-      Host: result.host_name,
+      host_display_name: result.host_name,
       last_fetched: humanLastSeen(result.last_fetched),
     };
 
     const tableData = { ...hostInfo, ...result.columns };
-    console.log("tableData", tableData);
     return tableData;
   });
 };
@@ -66,9 +46,6 @@ const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
     tableResults(queryReport?.results)
   );
   const [tableHeaders, setTableHeaders] = useState<any>([]);
-  // const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
-  //   queryReport?.results
-  // );
 
   useEffect(() => {
     if (queryReport && queryReport.results && queryReport.results.length > 0) {
@@ -85,9 +62,11 @@ const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
     FileSaver.saveAs(
-      generateCSVQueryResults(
+      generateCSVQueryReport(
         filteredResults,
-        generateCSVFilename(`${lastEditedQueryName || CSV_TITLE} - Results`),
+        generateCSVFilename(
+          `${lastEditedQueryName || CSV_TITLE} - Query Report`
+        ),
         tableHeaders
       )
     );

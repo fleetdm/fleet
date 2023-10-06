@@ -917,6 +917,34 @@ const queryReport = {
         model_id: "9a39",
       },
     },
+    {
+      host_id: 9,
+      host_name: "moo moo",
+      last_fetched: "2023-09-28T02:02:34Z",
+      columns: {
+        model: "Display Audio",
+        vendor: "Apple Inc.",
+      },
+    },
+    {
+      host_id: 9,
+      host_name: "moo moo",
+      last_fetched: "2023-09-28T02:02:34Z",
+      columns: {
+        model: "USB Reciever",
+        vendor: "Logitech",
+      },
+    },
+    {
+      host_id: 9,
+      host_name: "moo moo",
+      last_fetched: "2023-09-28T02:02:34Z",
+      columns: {
+        model: "LG Monitor Controls",
+        vendor: "LG Electronics Inc.",
+        model_id: "9a39",
+      },
+    },
   ],
 };
 

@@ -4,6 +4,7 @@ import { ICampaignError } from "interfaces/campaign";
 import { format } from "date-fns";
 
 const reorderCSVFields = (tableHeaders: string[]) => {
+  console.log("tableHeaders", tableHeaders);
   const result = tableHeaders.filter((field) => field !== "host_display_name");
   result.unshift("host_display_name");
 
@@ -12,6 +13,27 @@ const reorderCSVFields = (tableHeaders: string[]) => {
 
 export const generateCSVFilename = (descriptor: string) => {
   return `${descriptor} (${format(new Date(), "MM-dd-yy hh-mm-ss")}).csv`;
+};
+
+// Query report
+export const generateCSVQueryReport = (
+  rows: Row[],
+  filename: string,
+  tableHeaders: Column[] | string[]
+) => {
+  return new global.window.File(
+    [
+      convertToCSV({
+        objArray: rows,
+        fieldSortFunc: reorderCSVFields,
+        tableHeaders,
+      }),
+    ],
+    filename,
+    {
+      type: "text/csv",
+    }
+  );
 };
 
 // Query results and query errors
