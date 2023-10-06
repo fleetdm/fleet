@@ -9794,7 +9794,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppInstaller\\EnableExperimentalFeatures' AND (data = 0));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.17.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.10.17.2
   contributors: DefensiveDepth
 ---
 apiVersion: v1
@@ -9813,7 +9813,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppInstaller\\EnableHashOverride' AND (data = 0));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.17.3
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.10.17.3
   contributors: DefensiveDepth
 ---
 apiVersion: v1
@@ -9832,7 +9832,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppInstaller\\EnableMSAppInstallerProtocol' AND (data = 0));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.17.4
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.10.17.4
   contributors: DefensiveDepth
 ---
 apiVersion: v1
@@ -9870,7 +9870,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\\fDisableWebAuthn' AND (data = 1));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.57.3.3.7
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.10.57.3.3.7
   contributors: DefensiveDepth
 ---
 apiVersion: v1
@@ -9889,7 +9889,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search\\EnableDynamicContentInWSB' AND (data = 0));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.59.7
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.10.59.7
   contributors: DefensiveDepth
 ---
 apiVersion: v1
