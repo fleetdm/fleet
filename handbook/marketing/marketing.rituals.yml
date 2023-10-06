@@ -27,6 +27,7 @@
   frequency: "Daily"
   description: "Find relevant conversations with the community and contribute"
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#engage-with-the-community"
+  dri: "drewbakerfdm"
 -
   task: "Review ongoing events"
   startedOn: "2023-10-02"
