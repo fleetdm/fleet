@@ -1299,11 +1299,6 @@ spec:
 	require.Equal(t, expectedErrMsg, err.Error())
 }
 
-type notFoundErr struct{}
-
-func (*notFoundErr) Error() string    { return "not found" }
-func (*notFoundErr) IsNotFound() bool { return true }
-
 func TestApplyQueries(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
