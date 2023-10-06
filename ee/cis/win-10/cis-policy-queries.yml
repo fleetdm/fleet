@@ -10203,7 +10203,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path LIKE 'HKEY_USERS\%\Software\Policies\Microsoft\Windows\Installer\AlwaysInstallElevated' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_19.7.43.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.81.2
   contributors: rachelelysia
 ---
 apiVersion: v1
