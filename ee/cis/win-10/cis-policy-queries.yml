@@ -5246,7 +5246,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\RPC\RpcAuthentication' AND (data = 0));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.7.4
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.7.4
   contributors: DefensiveDepth
 ---
 apiVersion: v1
@@ -5265,7 +5265,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\RPC\RpcProtocols' AND (data = 5));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.7.5
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.7.5
   contributors: DefensiveDepth
 ---
 apiVersion: v1
@@ -5284,7 +5284,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\RPC\ForceKerberosForRpc' AND (data = 0));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.7.6
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.7.6
   contributors: DefensiveDepth
 ---
 apiVersion: v1
@@ -5303,7 +5303,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\CopyFilesPolicy' AND (data = 1));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.7.9
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.7.9
   contributors: DefensiveDepth
 ---
 apiVersion: v1
@@ -9775,7 +9775,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppInstaller\\EnableAppInstaller' AND (data = 0));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_18.10.17.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_group_policy_template_required, CIS_bullet_18.10.17.1
   contributors: DefensiveDepth
 ---
 apiVersion: v1
