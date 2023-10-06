@@ -62,7 +62,8 @@ export const generateTableHeaders = (
 
 // NOTE: may need current user ID later for permission on actions.
 const generateActionDropdownOptions = (
-  script: IHostScript
+  script: IHostScript,
+  isHostOnline: boolean
 ): IDropdownOption[] => {
   return [
     {
@@ -72,17 +73,20 @@ const generateActionDropdownOptions = (
     },
     {
       label: "Run",
-      disabled: false,
+      disabled: !isHostOnline,
       value: "run",
     },
   ];
 };
 
-export const generateDataSet = (scripts: IHostScript[]) => {
+export const generateDataSet = (
+  scripts: IHostScript[],
+  isHostOnline: boolean
+) => {
   return scripts.map((script) => {
     return {
       ...script,
-      actions: generateActionDropdownOptions(script),
+      actions: generateActionDropdownOptions(script, isHostOnline),
     };
   });
 };

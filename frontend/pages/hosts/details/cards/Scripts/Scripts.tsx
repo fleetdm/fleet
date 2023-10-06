@@ -17,9 +17,10 @@ const baseClass = "host-scripts-section";
 
 interface IScriptsProps {
   hostId?: number;
+  isHostOnline: boolean;
 }
 
-const Scripts = ({ hostId }: IScriptsProps) => {
+const Scripts = ({ hostId, isHostOnline }: IScriptsProps) => {
   const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
   // used to track the current script execution id we want to show in the show
   // details modal.
@@ -58,7 +59,7 @@ const Scripts = ({ hostId }: IScriptsProps) => {
   };
 
   const scriptHeaders = generateTableHeaders(onActionSelection);
-  const data = generateDataSet(scriptsData);
+  const data = generateDataSet(scriptsData, isHostOnline);
 
   return (
     <Card className={baseClass} borderRadiusSize="large" includeShadow>
