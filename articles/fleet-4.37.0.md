@@ -1,4 +1,4 @@
-# Fleet 4.37.0 | Remote script execution & Puppet support.
+# Fleet 4.37.0 | Puppet support.
 
 ![Fleet 4.37.0](../website/assets/images/articles/fleet-4.37.0-1600x900@2x.png)
 
@@ -13,6 +13,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 * Puppet support
 * Web user interface improvements
 
+<!--
 ### Introducing cross-platform script execution
 
 _Available in Fleet Premium and Fleet Ultimate_
