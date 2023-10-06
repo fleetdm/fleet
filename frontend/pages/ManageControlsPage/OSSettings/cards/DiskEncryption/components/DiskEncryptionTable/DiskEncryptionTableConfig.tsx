@@ -186,7 +186,7 @@ const STATUS_CELL_VALUES: Record<DiskEncryptionStatus, IStatusCellValue> = {
     statusName: "pendingPartial",
     value: "enforcing",
     tooltip:
-      "These hosts will receive the MDM command to turn on the disk encryption when the hosts come online.",
+      "These hosts will receive the MDM command to turn on disk encryption when the hosts come online.",
   },
   failed: {
     displayName: "Failed",
