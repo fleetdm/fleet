@@ -798,23 +798,29 @@ module.exports = {
           }
           // Validate all features in a category.
           for(let feature of category.features){
-            if(feature.name) {
+            if(feature.name) {// Compatibility check
               throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category has a "name" which is no longer supported. To resolve, add a "industryName" to this feature '+feature);
             }
-            feature.name = feature.industryName; // Alias FUTURE: update code to use industryName everywhere
-            if(!feature.industryName) { // Throw an error if a feature is missing an `industryName`.
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category is missing a "industryName". To resolve, add a "industryName" to this feature '+feature);
+            if(feature.industryName !== undefined) {
+              if(!feature.industryName || typeof feature.industryName !== 'string') {
+                throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category has a missing or invalid "industryName". To resolve, set an "industryName" as a valid, non-empty string for this feature '+feature);
+              }
+              feature.name = feature.industryName;//« This is just an alias. FUTURE: update code elsewhere to use the new property instead, and delete this aliasing.
             }
             if(!feature.tier) { // Throw an error if a feature is missing a `tier`.
               throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.industryName+'" feature is missing a "tier". To resolve, add a "tier" (either "Free" or "Premium") to this feature.');
             } else if(!_.contains(['Free', 'Premium'], feature.tier)){ // Throw an error if a feature's `tier` is not "Free" or "Premium".
               throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.industryName+'" feature has an invalid "tier". to resolve, change the value of this features "tier" (currently set to '+feature.tier+') to be either "Free" or "Premium".');
             }
-            if(feature.comingSoon === undefined) { // Throw an error if a feature is missing a `comingSoon` value
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.industryName+'" feature is missing a "comingSoon" value (boolean). To resolve, add a comingSoon value to this feature.');
-            } else if(typeof feature.comingSoon !== 'boolean'){ // Throw an error if the `comingSoon` value is not a boolean.
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.industryName+'" feature has an invalid "comingSoon" value (currently set to '+feature.comingSoon+'). To resolve, change the value of "comingSoon" for this feature to be either "true" or "false".');
+            if(feature.comingSoon) {// Compatibility check
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category has "comingSoon", which is no longer supported. To resolve, remove "comingSoon" or add "comingSoonOn" (YYYY-MM-DD) to this feature '+feature);
             }
+            if(feature.comingSoonOn !== undefined) {
+              if(typeof feature.comingSoonOn !== 'string'){
+                throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.industryName+'" feature has an invalid "comingSoonOn" value (currently set to '+feature.comingSoonOn+', but expecting a string like \'YYYY-MM-DD\'.)');
+              }
+              feature.comingSoon = true;//« This is just an alias. FUTURE: update code elsewhere to use the new property instead, and delete this aliasing.
+            }//ﬁ
           }
         }
         builtStaticContent.pricingTable = pricingTableCategories;
