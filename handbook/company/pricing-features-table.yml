@@ -1,3 +1,39 @@
+- categoryName: Other
+  features:
+    - industryName: File integrity monitoring (FIM) # Industry one-liner phrase 
+      friendlyName: Detect changes to critical files # Fleet one-liner for the feature
+      description: Fleet enables you to specify files to monitor and then reports those events to your SIEM for action. Fleet provides key information such as action type, filepath, and checksum. # Clear Mr. Rogers description
+      moreInfoUrl: "" # Point to the ONE "jumping-off point" in the docs for this feature
+      screenshotSrc: "" #single best simplifying obvious example 
+      tier: Free # Fleet free vs Fleet Premium
+      #comingSoonOn: YYYY-MM-DD
+      #comingSoon: false
+      usualDepartment: Security
+      productCategory: Endpoint operations
+      dri: mikermcneil #GitHub user name
+      cues:
+        - description: Detect illicit activity
+          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+        - description: Pinpoint unintended changes
+          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+        - description: Verify update status and monitoring system health
+          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+        - description: Meet compliance mandates
+          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+      demos:
+        - description: Security engineers at a top gaming company needed a way to monitor critical files on production Debian servers.
+          moreInfoUrl: ""
+        - description: A top gaming company wanted to simplify their stack and open up their options for infrastructure vulnerability detection by replacing Qualys with a more custom-tailored, threat-informed approach.
+          moreInfoUrl: ""
+    - industryName: Rest API  
+      friendlyName: Automate any feature  
+      description:
+      moreInfoUrl: https://fleetdm.com/docs/rest-api/rest-api 
+      screenshotSrc: ""
+      tier: Free
+      #coming soon on:
+      #comingSoon: false
+      dri: mikermcneil 
 - categoryName: Device management
   features:
     - name: User-initiated enrollment of macOS computers
