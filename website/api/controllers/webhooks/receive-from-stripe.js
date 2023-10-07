@@ -69,12 +69,14 @@ module.exports = {
     let subscriptionForThisEvent = await Subscription.findOne({stripeSubscriptionId: subscriptionIdToFind}).populate('user');
 
     let STRIPE_EVENTS_SENT_BEFORE_A_SUBSCRIPTION_RECORD_EXISTS = [
-      'invoice.created',
-      'invoice.finalized',
-      'invoice.paid',
-      'invoice.payment_succeeded',
-      'invoice.payment_failed',
-      'invoice.payment_action_required',
+      'invoice.created',// Sent when a user creates their subscription
+      'invoice.finalized',// Sent when a user creates their subscription
+      'invoice.paid',// Sent when a user submits the billiing form on customers/new-license
+      'invoice.payment_succeeded',// Sent when payment for a users subscription is successful. The save-billing-info-and-subscribe action will check for this event before creating a license key.
+      'invoice.payment_failed',// Sent when a users subscritpion payment fails.
+      'invoice.payment_action_required',// Sent when a user's billing card requires additional verification from stripe
+      'invoice.updated',// Sent before an incomplete invoice is voided (~24 hours after a payment fails)
+      'invoice.voided',// Sent when an incomplete invoice is marked as voided (~24 hours after a payment fails)
     ];
 
     // If this event is for a subscription that was just created, we won't have a matching Subscription record in the database. This is because we wait until the subscription's invoice is paid to create the record in our database.
