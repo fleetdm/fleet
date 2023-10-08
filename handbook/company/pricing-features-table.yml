@@ -54,103 +54,103 @@
       screenshotSrc: ""
       tier: Free
       dri: rachaelshaw
-    - name: Command line tool (CLI)
+    - industryName: Command line tool (CLI)
       tier: Free
 - categoryName: Device management
   features:
-    - name: User-initiated enrollment of macOS computers
+    - industryName: User-initiated enrollment of macOS computers
       tier: Free
       usualDepartment: IT
       productCategories: [Device management]
-    - name: Remotely enforce macOS settings
+    - industryName: Remotely enforce macOS settings
       tier: Free
       usualDepartment: IT
       productCategories: [Device management]
-    - name: Low-level macOS MDM commands (e.g. remote restart)
+    - industryName: Low-level macOS MDM commands (e.g. remote restart)
       tier: Free
       usualDepartment: IT
       productCategories: [Device management]
-    - name: Native macOS update reminders
+    - industryName: Native macOS update reminders
       tier: Free
       usualDepartment: IT
       productCategories: [Device management]
-    - name: Zero-touch setup for macOS computers
+    - industryName: Zero-touch setup for macOS computers
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - name: Safely execute custom scripts (macOS, Windows, and Linux)
+    - industryName: Safely execute custom scripts (macOS, Windows, and Linux)
       tier: Premium
       productCategories: [Device management,Endpoint operations]
-    - name: End-user macOS update reminders (via Nudge)
+    - industryName: End-user macOS update reminders (via Nudge)
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - name: Encrypt macOS hard disks with FileVault
+    - industryName: Encrypt macOS hard disks with FileVault
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - name: Manage queued MDM commands on macOS
+    - industryName: Manage queued MDM commands on macOS
       tier: Premium
       comingSoonOn: 2023-12-31
       usualDepartment: IT
       productCategories: [Device management]
-    - name: Remotely lock and wipe macOS computers
+    - industryName: Remotely lock and wipe macOS computers
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - name: Update apps on macOS computers
+    - industryName: Update apps on macOS computers
       tier: Premium
       comingSoonOn: 2024-03-31
       usualDepartment: IT
       productCategories: [Device management]
-    - name: Puppet integration
+    - industryName: Puppet integration
       friendlyName: Map macOS settings to computers with Puppet module
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - name: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
+    - industryName: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
 - categoryName: Support
   features:
-    - name: Public issue tracker (GitHub)
+    - industryName: Public issue tracker (GitHub)
       tier: Free
-    - name: Community Slack channel
+    - industryName: Community Slack channel
       tier: Free
-    - name: Unlimited email support (confidential)
+    - industryName: Unlimited email support (confidential)
       tier: Premium
-    - name: Phone and video call support
+    - industryName: Phone and video call support
       tier: Premium    
 - categoryName: Inventory management
   features:
-    - name: Device inventory dashboard
+    - industryName: Device inventory dashboard
       tier: Free
-    - name: Browse installed software packages
+    - industryName: Browse installed software packages
       tier: Free
-    - name: Search devices by IP, serial, hostname, UUID
+    - industryName: Search devices by IP, serial, hostname, UUID
       tier: Free
-    - name: Target and configure specific groups of devices
+    - industryName: Target and configure specific groups of devices
       tier: Premium
-    - name: Generate reports for groups of devices
+    - industryName: Generate reports for groups of devices
       tier: Premium
 - categoryName: Collaboration
   features:
-    - name: Shareable device health reports
+    - industryName: Shareable device health reports
       tier: Free
-    - name: Versionable queries and config (GitOps)
+    - industryName: Versionable queries and config (GitOps)
       tier: Free
       demos:
         - description: A top financial services company needed to set up rolling deployments for changes to osquery agents running on their production servers.
           moreInfoUrl: https://docs.google.com/document/d/1UdzZMyBLbs9SUXfSXN2x2wZQCbjZZUetYlNWH6-ryqQ/edit#heading=h.2lh6ehprpvl6
-    - name: Scope transparency
+    - industryName: Scope transparency
       tier: Free
       moreInfoUrl: https://fleetdm.com/transparency
 - categoryName: Security and compliance
   features:
-    - name: Single sign on (SSO, SAML)
+    - industryName: Single sign on (SSO, SAML)
       tier: Free
-    - name: Disk encryption
+    - industryName: Disk encryption
       friendlyName: Ensure hard disks are encrypted
       description: Encrypt hard disks of macOS and Windows computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker).
       tier: Free
@@ -159,31 +159,31 @@
         - description: Encrypt hard disks on macOS with FileVault
         - description: Escrow FileVault keys on macOS
         - description: Encrypt hard disks on Windows with BitLocker
-    - name: Audit queries and user activities
+    - industryName: Audit queries and user activities
       tier: Free
       usualDepartment: Security
-    - name: Grant API-only access
+    - industryName: Grant API-only access
       tier: Free
-    - name: Programmable audit log
+    - industryName: Programmable audit log
       tier: Premium
       usualDepartment: Security
       cues:
         - description: Export activity of Fleet admins to your SIEM or data lake
-    - name: Just-in-time (JIT) provisioning
+    - industryName: Just-in-time (JIT) provisioning
       tier: Premium
-    - name: Automated user role sync via Okta, AD, or any IDP
+    - industryName: Automated user role sync via Okta, AD, or any IDP
       tier: Premium
       cue:
         - description: Automatically set admin access to Fleet based on your IDP
-    - name: Vanta integration
+    - industryName: Vanta integration
       tier: Premium
-    - name: Trigger a workflow based on a failing policy
+    - industryName: Trigger a workflow based on a failing policy
       tier: Premium
-    - name: Role-based access control
+    - industryName: Role-based access control
       tier: Premium
 - categoryName: Monitoring
   features:
-    - name: Schedule and automate custom queries
+    - industryName: Schedule and automate custom queries
       tier: Free
       usualDepartment: Security
       cues:
@@ -192,7 +192,7 @@
           moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
         - description: Export data to a third-party SIEM tool
           moreInfoUrl: https://www.websense.com/content/support/library/web/hosted/admin_guide/siem_integration_explain.aspx
-    - name: Detect vulnerable software
+    - industryName: Detect vulnerable software
       tier: Free
       usualDepartment: Security
       productCategories: [Vulnerability management]
@@ -200,70 +200,70 @@
         - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
           quote: So we have some stuff today through Qualys, but it's just not very good. A lot of it is...it's just really noisy.  I'm trying to find out specifically, actually what packages are installed where, and then the ability to live query them.
           moreInfoUrl: https://docs.google.com/document/d/1JWtRsW1FUTCkZEESJj9-CvXjLXK4219by-C6vvVVyBY/edit
-    - name: Query performance monitoring
+    - industryName: Query performance monitoring
       tier: Free
       demos:
         - description: A top software company needed to understand the performance impact of osquery queries before running them on all of their production Linux servers.
           moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
         - description: A top software company wanted to detect regressions when adding/changing queries and fail builds if queries were too expensive.
           moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
-    - name: Device trust
+    - industryName: Device trust
       tier: Free
       cue:
         - description: Standard query and policy library
         - description: Beyondcorp
         - description: Zero trust
         - description: Conditional access
-    - name: Policy and vulnerability automations (webhook, Zendesk, JIRA, ServiceNow*)
+    - industryName: Policy and vulnerability automations (webhook, Zendesk, JIRA, ServiceNow*)
       tier: Free
-    - name: Detect and surface issues with devices (policies)
+    - industryName: Detect and surface issues with devices (policies)
       tier: Free
-    - name: Mark policies as critical
+    - industryName: Mark policies as critical
       tier: Premium
-    - name: Vulnerability scores (EPSS and CVSS)
+    - industryName: Vulnerability scores (EPSS and CVSS)
       tier: Premium
       usualDepartment: Security
       productCategories: [Vulnerability management]
-    - name: CISA known exploited vulnerabilities
+    - industryName: CISA known exploited vulnerabilities
       tier: Premium
       usualDepartment: Security
       productCategories: [Vulnerability management]
-    - name: End-user self-service
+    - industryName: End-user self-service
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management,Endpoint operations]
 - categoryName: Data outputs
   features:
-    - name: Flexible log destinations (AWS Kinesis, Lambda, GCP, Kafka)
+    - industryName: Flexible log destinations (AWS Kinesis, Lambda, GCP, Kafka)
       tier: Free
       usualDepartment: Security
       productCategories: [Endpoint operations]
-    - name: File carving (AWS S3)
+    - industryName: File carving (AWS S3)
       tier: Free
       usualDepartment: Security
       productCategories: [Endpoint operations]
 - categoryName: Deployment
   features:
-    - name: Self-hosted
+    - industryName: Self-hosted
       tier: Free
       cues:
         - description: Self-managed
         - description: Host it yourself
-    - name: Deployment tools (Terraform, Helm)
+    - industryName: Deployment tools (Terraform, Helm)
       tier: Free
-    - name: Configure osquery startup flags remotely
+    - industryName: Configure osquery startup flags remotely
       tier: Free
       usualDepartment: Security
       productCategories: [Endpoint operations]
-    - name: Auto-update osquery agents
+    - industryName: Auto-update osquery agents
       tier: Free
       productCategories: [Endpoint operations]
-    - name: Self-managed auto-update registry
+    - industryName: Self-managed auto-update registry
       tier: Premium
       usualDepartment: Security
       productCategories: [Endpoint operations]
-    - name: Manage osquery extensions remotely
+    - industryName: Manage osquery extensions remotely
       tier: Premium
       productCategories: [Endpoint operations]
-    - name: Managed Cloud
+    - industryName: Managed Cloud
       tier: Premium
