@@ -15,7 +15,6 @@
           moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
       cues:
         - description: Monitor critical files on production Debian servers
-        - description: Replace Qualys with a more custom-tailored approach
         - description: Detect illicit activity
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
         - description: Pinpoint unintended changes
