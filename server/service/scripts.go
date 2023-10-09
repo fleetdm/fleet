@@ -12,9 +12,6 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
-	"github.com/fleetdm/fleet/v4/server/authz"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -442,93 +439,9 @@ func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []fleet.ScriptPayload, dryRun bool) error {
-	tmID, tmName, err := svc.teamByIdOrName(ctx, maybeTmID, maybeTmName)
-	if err != nil {
-		return err
-	}
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: tmID}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
-	}
-
-	// any duplicate name in the provided set results in an error
-	scripts := make([]*fleet.Script, 0, len(payloads))
-	byName := make(map[string]bool, len(payloads))
-	for i, p := range payloads {
-		script := &fleet.Script{
-			ScriptContents: string(p.ScriptContents),
-			Name:           p.Name,
-			TeamID:         tmID,
-		}
-
-		if err := script.Validate(); err != nil {
-			return ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), err.Error()))
-		}
-
-		if byName[script.Name] {
-			// TODO: check error message
-			return ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), fmt.Sprintf("Couldn’t edit scripts. More than one script has the same file name: %q", script.Name)),
-				"duplicate script by name")
-		}
-		byName[script.Name] = true
-		scripts = append(scripts, script)
-	}
-
-	if dryRun {
-		return nil
-	}
-
-	if err := svc.ds.BatchSetScripts(ctx, tmID, scripts); err != nil {
-		return err
-	}
-
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedScript{
-		TeamID:   tmID,
-		TeamName: tmName,
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "logging activity for edited scripts")
-	}
-	return nil
-}
-
-// TODO: find a better name for this function
-// TODO: document what this function does
-func (svc *Service) teamByIdOrName(ctx context.Context, maybeTmID *uint, maybeTmName *string) (*uint, *string, error) {
-	tmID := maybeTmID
-	tmName := maybeTmName
-
-	if maybeTmID != nil && maybeTmName != nil {
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
-	}
-	if maybeTmID != nil || maybeTmName != nil {
-		license, _ := license.FromContext(ctx)
-		if !license.IsPremium() {
-			field := "team_id"
-			if maybeTmName != nil {
-				field = "team_name"
-			}
-			svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-			return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, ErrMissingLicense.Error()))
-		}
-	}
-
-	// if the team name is provided, load the corresponding team to get its id.
-	// vice-versa, if the id is provided, load it to get the name (required for
-	// the activity).
-	if maybeTmName != nil || maybeTmID != nil {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, maybeTmID, maybeTmName)
-		if err != nil {
-			return nil, nil, err
-		}
-		if maybeTmID == nil {
-			tmID = &tm.ID
-		} else {
-			tmName = &tm.Name
-		}
-	}
-
-	return tmID, tmName, nil
+	return fleet.ErrMissingLicense
 }

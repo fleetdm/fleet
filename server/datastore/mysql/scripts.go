@@ -336,14 +336,14 @@ WHERE
 DELETE FROM
   scripts
 WHERE
-  team_id = ?
+  global_or_team_id = ?
 `
 
 	const deleteScriptsNotInList = `
 DELETE FROM
   scripts
 WHERE
-  team_id = ? AND
+  global_or_team_id = ? AND
   name NOT IN (?)
 `
 
@@ -358,10 +358,10 @@ ON DUPLICATE KEY UPDATE
   script_contents = VALUES(script_contents)
 `
 
-	// use a profile team id of 0 if no-team
-	var scriptsTeamID uint
+	// use a team id of 0 if no-team
+	var globalOrTeamID uint
 	if tmID != nil {
-		scriptsTeamID = *tmID
+		globalOrTeamID = *tmID
 	}
 
 	// build a list of names for the incoming scripts, will keep the
@@ -379,8 +379,8 @@ ON DUPLICATE KEY UPDATE
 		var existingScripts []*fleet.Script
 
 		if len(incomingNames) > 0 {
-			// load existing profiles that match the incoming scripts by names
-			stmt, args, err := sqlx.In(loadExistingScripts, scriptsTeamID, incomingNames)
+			// load existing scripts that match the incoming scripts by names
+			stmt, args, err := sqlx.In(loadExistingScripts, globalOrTeamID, incomingNames)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build query to load existing scripts")
 			}
@@ -404,13 +404,13 @@ ON DUPLICATE KEY UPDATE
 		)
 		if len(keepNames) > 0 {
 			// delete the obsolete scripts
-			stmt, args, err = sqlx.In(deleteScriptsNotInList, scriptsTeamID, keepNames)
+			stmt, args, err = sqlx.In(deleteScriptsNotInList, globalOrTeamID, keepNames)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to delete obsolete scripts")
 			}
 		} else {
 			stmt = deleteAllScriptsInTeam
-			args = []any{scriptsTeamID}
+			args = []any{globalOrTeamID}
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete scripts")
@@ -418,7 +418,7 @@ ON DUPLICATE KEY UPDATE
 
 		// insert the new scripts and the ones that have changed
 		for _, s := range incomingScripts {
-			if _, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, scriptsTeamID, s.Name, s.ScriptContents); err != nil {
+			if _, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, globalOrTeamID, s.Name, s.ScriptContents); err != nil {
 				return ctxerr.Wrapf(ctx, err, "insert new/edited script with name %q", s.Name)
 			}
 		}
