@@ -20,6 +20,7 @@ import generateResultsTableHeaders from "./QueryReportTableConfig";
 
 interface IQueryReportProps {
   queryReport?: IQueryReport;
+  isClipped?: boolean;
 }
 
 const baseClass = "query-report";
@@ -38,7 +39,10 @@ const tableResults = (results: IQueryReportResultRow[]) => {
   });
 };
 
-const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
+const QueryReport = ({
+  queryReport,
+  isClipped,
+}: IQueryReportProps): JSX.Element => {
   const { lastEditedQueryName, lastEditedQueryBody } = useContext(QueryContext);
 
   const [showQueryModal, setShowQueryModal] = useState(false);
@@ -106,7 +110,7 @@ const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
     );
   };
 
-  const renderSoftwareCount = useCallback(() => {
+  const renderResultsCount = useCallback(() => {
     const count = filteredResults.length;
 
     if (isClipped) {
@@ -146,7 +150,7 @@ const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
           resultsTitle="results"
           customControl={() => renderTableButtons()}
           setExportRows={setFilteredResults}
-          renderCount={renderSoftwareCount}
+          renderCount={renderResultsCount}
         />
       </div>
     );

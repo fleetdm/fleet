@@ -287,7 +287,7 @@ const QueryDetailsPage = ({
         />
       );
     }
-    return <QueryReport queryReport={queryReport} />; // TODO: Everything related to new APIs including surfacing errorsOnly
+    return <QueryReport queryReport={queryReport} isClipped={isClipped} />;
   };
 
   return (
