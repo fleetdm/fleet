@@ -67,6 +67,7 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
     }
   );
 
+  // pagination controls
   const path = PATHS.CONTROLS_SCRIPTS.concat(`?team_id=${teamIdForApi}`);
   const onPrevPage = useCallback(() => {
     router.push(path.concat(`&page=${currentPage - 1}`));
