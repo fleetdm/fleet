@@ -8070,7 +8070,7 @@ func (s *integrationTestSuite) TestQueryReports() {
       "platform_mask": "9",
       "start_time": "1696502961",
       "uuid": "` + host1Global.UUID + `",
-      "version": "5.9.1",
+      "version": "5.9.2",
       "watcher": "3570"
     }
   ],
@@ -8097,6 +8097,10 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.NoError(t, gqrr.Err)
 	require.Equal(t, usbDevicesQuery.ID, gqrr.QueryID)
 	require.Len(t, gqrr.Results, 2)
+	sort.Slice(gqrr.Results, func(i, j int) bool {
+		// Let's just pick a known column of the query to sort.
+		return gqrr.Results[i].Columns["usb_port"] < gqrr.Results[j].Columns["usb_port"]
+	})
 	require.Equal(t, host2Team1.ID, gqrr.Results[0].HostID)
 	require.Equal(t, host2Team1.Hostname, gqrr.Results[0].Hostname)
 	require.NotZero(t, gqrr.Results[0].LastFetched)
@@ -8137,6 +8141,10 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.NoError(t, gqrr.Err)
 	require.Equal(t, osqueryInfoQuery.ID, gqrr.QueryID)
 	require.Len(t, gqrr.Results, 2)
+	sort.Slice(gqrr.Results, func(i, j int) bool {
+		// Let's just pick a known column of the query to sort.
+		return gqrr.Results[i].Columns["version"] > gqrr.Results[j].Columns["version"]
+	})
 	require.Equal(t, host1Global.ID, gqrr.Results[0].HostID)
 	require.Equal(t, host1Global.Hostname, gqrr.Results[0].Hostname)
 	require.NotZero(t, gqrr.Results[0].LastFetched)
@@ -8151,7 +8159,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"platform_mask":  "9",
 		"start_time":     "1696502961",
 		"uuid":           host1Global.UUID,
-		"version":        "5.9.1",
+		"version":        "5.9.2",
 		"watcher":        "3570",
 	}, gqrr.Results[0].Columns)
 	require.Equal(t, host2Team1.ID, gqrr.Results[1].HostID)
