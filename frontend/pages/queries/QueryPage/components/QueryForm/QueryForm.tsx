@@ -208,7 +208,7 @@ const QueryForm = ({
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
-      enableMultiselect: false,
+      enableMultiselect: false, // Disables command + click creating multiple cursors
     });
 
     // @ts-expect-error
