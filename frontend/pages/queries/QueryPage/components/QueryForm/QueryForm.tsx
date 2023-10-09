@@ -208,6 +208,7 @@ const QueryForm = ({
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
+      enableMultiselect: false,
     });
 
     // @ts-expect-error
