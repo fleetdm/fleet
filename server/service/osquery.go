@@ -1358,7 +1358,10 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	switch req.LogType {
 	case "status":
 		var statuses []json.RawMessage
-		if err = json.Unmarshal(req.Data, &statuses); err != nil {
+		// NOTE(lucas): This unmarshal error is not being sent back to osquery (`if err :=` vs. `if err =`)
+		// Maybe there's a reason for it, we need to test such a change before fixing what appears
+		// to be a bug because the `err` is lost.
+		if err := json.Unmarshal(req.Data, &statuses); err != nil {
 			err = newOsqueryError("unmarshalling status logs: " + err.Error())
 			break
 		}
@@ -1370,7 +1373,10 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 	case "result":
 		var results []json.RawMessage
-		if err = json.Unmarshal(req.Data, &results); err != nil {
+		// NOTE(lucas): This unmarshal error is not being sent back to osquery (`if err :=` vs. `if err =`)
+		// Maybe there's a reason for it, we need to test such a change before fixing what appears
+		// to be a bug because the `err` is lost.
+		if err := json.Unmarshal(req.Data, &results); err != nil {
 			err = newOsqueryError("unmarshalling result logs: " + err.Error())
 			break
 		}
