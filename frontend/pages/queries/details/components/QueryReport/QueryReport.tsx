@@ -122,7 +122,7 @@ const QueryReport = ({
             You can reset this report by updating the query's SQL, or by
             temporarily enabling the <b>discard data</b> setting and disabling it again.`}
           >
-            {`${count} results`}
+            {`${count} result${count === 1 ? "" : "s"}`}
           </TooltipWrapper>
         </div>
       );
