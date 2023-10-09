@@ -1355,7 +1355,6 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	req := request.(*submitLogsRequest)
 
 	var err error
-	var combinedErrors []string
 	switch req.LogType {
 	case "status":
 		var statuses []json.RawMessage
@@ -1516,8 +1515,8 @@ func getMostRecentResults(results []fleet.ScheduledQueryResult) []fleet.Schedule
 
 	for _, result := range results {
 		if existing, ok := latestResults[result.QueryName]; ok {
-			// Compare the LastFetched time and update the map if the current result is more recent
-			if result.LastFetched > existing.LastFetched {
+			// Compare the UnixTime time and update the map if the current result is more recent
+			if result.UnixTime > existing.UnixTime {
 				latestResults[result.QueryName] = result
 			}
 		} else {

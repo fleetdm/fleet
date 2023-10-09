@@ -578,15 +578,13 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: true}}, nil
 	}
-	err := svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
-	require.NoError(t, err)
+	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
 
 	// Result not saved if result is not a snapshot
 	logRawMessages = []json.RawMessage{
 		json.RawMessage(`{"name":"pack/Global/Uptime","hostIdentifier":"2e23c347-da72-4e72-b6a8-a6b8a9a46ab7","calendarTime":"Fri Oct  6 14:19:15 2023 UTC","unixTime":1696601955,"epoch":0,"counter":10,"numerics":false,"decorations":{"host_uuid":"550eb898-c522-410b-8855-d74d94fdfcd2","hostname":"0025ad6e71fb"},"columns":{"days":"0","hours":"4","minutes":"52","seconds":"25","total_seconds":"17545"},"action":"removed"}`),
 	}
-	err = svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
-	require.NoError(t, err)
+	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
 
 	// Results not saved if DiscardData is true in Query
 	logRawMessages = []json.RawMessage{
@@ -599,8 +597,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return &fleet.Query{ID: 1, DiscardData: true}, nil
 	}
-	err = svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
-	require.NoError(t, err)
+	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
 
 	// Happy Path: Results saved
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
@@ -609,8 +606,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
 		return nil
 	}
-	err = svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
-	require.NoError(t, err)
+	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
 }
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
@@ -649,31 +645,31 @@ func TestGetMostRecentResults(t *testing.T) {
 		{
 			name: "basic test",
 			input: []fleet.ScheduledQueryResult{
-				{QueryName: "test1", LastFetched: 1},
-				{QueryName: "test1", LastFetched: 2},
-				{QueryName: "test1", LastFetched: 3},
-				{QueryName: "test2", LastFetched: 1},
-				{QueryName: "test2", LastFetched: 2},
-				{QueryName: "test2", LastFetched: 3},
+				{QueryName: "test1", UnixTime: 1},
+				{QueryName: "test1", UnixTime: 2},
+				{QueryName: "test1", UnixTime: 3},
+				{QueryName: "test2", UnixTime: 1},
+				{QueryName: "test2", UnixTime: 2},
+				{QueryName: "test2", UnixTime: 3},
 			},
 			expected: []fleet.ScheduledQueryResult{
-				{QueryName: "test1", LastFetched: 3},
-				{QueryName: "test2", LastFetched: 3},
+				{QueryName: "test1", UnixTime: 3},
+				{QueryName: "test2", UnixTime: 3},
 			},
 		},
 		{
 			name: "out of order test",
 			input: []fleet.ScheduledQueryResult{
-				{QueryName: "test1", LastFetched: 2},
-				{QueryName: "test1", LastFetched: 3},
-				{QueryName: "test1", LastFetched: 1},
-				{QueryName: "test2", LastFetched: 3},
-				{QueryName: "test2", LastFetched: 2},
-				{QueryName: "test2", LastFetched: 1},
+				{QueryName: "test1", UnixTime: 2},
+				{QueryName: "test1", UnixTime: 3},
+				{QueryName: "test1", UnixTime: 1},
+				{QueryName: "test2", UnixTime: 3},
+				{QueryName: "test2", UnixTime: 2},
+				{QueryName: "test2", UnixTime: 1},
 			},
 			expected: []fleet.ScheduledQueryResult{
-				{QueryName: "test1", LastFetched: 3},
-				{QueryName: "test2", LastFetched: 3},
+				{QueryName: "test1", UnixTime: 3},
+				{QueryName: "test2", UnixTime: 3},
 			},
 		},
 	}

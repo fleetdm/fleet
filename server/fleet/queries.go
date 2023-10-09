@@ -413,7 +413,7 @@ type ScheduledQueryResult struct {
 	// are column names and map values are the values.
 	Snapshot []json.RawMessage `json:"snapshot"`
 	// LastFetched is the time this result was received.
-	LastFetched uint `json:"unixTime"`
+	UnixTime uint `json:"unixTime"`
 }
 
 // ScheduledQueryResultRow is a scheduled query result row.
