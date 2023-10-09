@@ -368,7 +368,7 @@ ON DUPLICATE KEY UPDATE
 	// existing ones if there's a match and no change
 	incomingNames := make([]string, len(scripts))
 	// at the same time, index the incoming scripts keyed by name for ease
-	// or processing
+	// of processing
 	incomingScripts := make(map[string]*fleet.Script, len(scripts))
 	for i, p := range scripts {
 		incomingNames[i] = p.Name

@@ -534,14 +534,14 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 
 		// compare only the fields we care about
 		m := make(map[string]uint)
-		for _, gotp := range got {
-			m[gotp.Name] = gotp.ID
-			if gotp.TeamID != nil && *gotp.TeamID == 0 {
-				gotp.TeamID = nil
+		for _, gotScript := range got {
+			m[gotScript.Name] = gotScript.ID
+			if gotScript.TeamID != nil && *gotScript.TeamID == 0 {
+				gotScript.TeamID = nil
 			}
-			gotp.ID = 0
-			gotp.CreatedAt = time.Time{}
-			gotp.UpdatedAt = time.Time{}
+			gotScript.ID = 0
+			gotScript.CreatedAt = time.Time{}
+			gotScript.UpdatedAt = time.Time{}
 		}
 		// order is not guaranteed
 		require.ElementsMatch(t, want, got)
