@@ -39,6 +39,10 @@
   &__log-destination {
     display: flex;
     gap: $pad-small;
+
+    .component__tooltip-wrapper__element {
+      font-weight: $bold;
+    }
   }
 
   .empty-table__inner {

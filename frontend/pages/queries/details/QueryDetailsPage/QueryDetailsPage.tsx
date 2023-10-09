@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
@@ -12,8 +12,10 @@ import {
   IGetQueryResponse,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
+import { IQueryReport } from "interfaces/query_report";
 
 import queryAPI from "services/entities/queries";
+import queryReportAPI, { ISortOption } from "services/entities/query_report";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
@@ -23,15 +25,20 @@ import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
 import DataError from "components/DataError/DataError";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
-import CachedDetails from "../components/CachedDetails/CachedDetails";
+import QueryReport from "../components/QueryReport/QueryReport";
 import NoResults from "../components/NoResults/NoResults";
+
+import {
+  DEFAULT_SORT_HEADER,
+  DEFAULT_SORT_DIRECTION,
+} from "./QueryDetailsPageConfig";
 
 interface IQueryDetailsPageProps {
   router: InjectedRouter; // v3
   params: Params;
   location: {
     pathname: string;
-    query: { team_id?: string };
+    query: { team_id?: string; order_key?: string; order_direction?: string };
     search: string;
   };
 }
@@ -43,7 +50,20 @@ const QueryDetailsPage = ({
   params: { id: paramsQueryId },
   location,
 }: IQueryDetailsPageProps): JSX.Element => {
-  const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+  const queryId = parseInt(paramsQueryId, 10);
+  const queryParams = location.query;
+
+  // Functions to avoid race conditions
+  const initialSortBy: ISortOption[] = (() => {
+    return [
+      {
+        key: queryParams?.order_key ?? DEFAULT_SORT_HEADER,
+        direction: queryParams?.order_direction ?? DEFAULT_SORT_DIRECTION,
+      },
+    ];
+  })();
+
+  const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
 
   const {
     currentTeamName: teamNameForQuery,
@@ -91,7 +111,7 @@ const QueryDetailsPage = ({
     error: storedQueryError,
   } = useQuery<IGetQueryResponse, Error, ISchedulableQuery>(
     ["query", queryId],
-    () => queryAPI.load(queryId as number),
+    () => queryAPI.load(queryId),
     {
       enabled: !!queryId,
       refetchOnWindowFocus: false,
@@ -111,8 +131,26 @@ const QueryDetailsPage = ({
     }
   );
 
-  const isLoading = isStoredQueryLoading; // TODO: Add || isCachedResultsLoading for new API response
-  const isApiError = storedQueryError || false; // TODO: Add || isCachedResultsError for new API response
+  const {
+    isLoading: isQueryReportLoading,
+    data: queryReport,
+    error: queryReportError,
+  } = useQuery<IQueryReport, Error, IQueryReport>(
+    [],
+    () =>
+      queryReportAPI.load({
+        sortBy,
+        id: queryId,
+      }),
+    {
+      enabled: !!queryId,
+      refetchOnWindowFocus: false,
+      onError: (error) => handlePageError(error),
+    }
+  );
+
+  const isLoading = isStoredQueryLoading || isQueryReportLoading;
+  const isApiError = storedQueryError || queryReportError;
 
   const renderHeader = () => {
     const canEditQuery =
@@ -172,7 +210,9 @@ const QueryDetailsPage = ({
         {!isLoading && !isApiError && (
           <div className={`${baseClass}__settings`}>
             <div className={`${baseClass}__automations`}>
-              <TooltipWrapper tipContent="Query automations let you send data to your log destination on a schedule. When automations are on, data is sent according to a query’s frequency.">
+              <TooltipWrapper
+                tipContent={`Query automations let you send data to your log destination on a schedule. When automations are <b>on</b>, data is sent according to a query’s frequency.`}
+              >
                 Automations:
               </TooltipWrapper>
               <QueryAutomationsStatusIndicator
@@ -198,8 +238,7 @@ const QueryDetailsPage = ({
     const loggingSnapshot = storedQuery?.logging === "snapshot";
     const disabledCaching =
       disabledCachingGlobally || discardDataEnabled || !loggingSnapshot;
-    const emptyCache = true; // TODO: Update with API response
-    const errorsOnly = true; // TODO: Update with API response
+    const emptyCache = queryReport?.results.length === 0; // TODO: Update with API response
 
     // Loading state
     if (isLoading) {
@@ -221,11 +260,10 @@ const QueryDetailsPage = ({
           disabledCachingGlobally={disabledCachingGlobally}
           discardDataEnabled={discardDataEnabled}
           loggingSnapshot={loggingSnapshot}
-          errorsOnly={errorsOnly}
         />
       );
     }
-    return <CachedDetails />; // TODO: Everything related to new APIs including surfacing errorsOnly
+    return <QueryReport queryReport={queryReport} />; // TODO: Everything related to new APIs including surfacing errorsOnly
   };
 
   return (
