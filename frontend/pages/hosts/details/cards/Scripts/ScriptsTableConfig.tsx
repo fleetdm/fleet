@@ -1,11 +1,10 @@
 import React from "react";
+import ReactTooltip from "react-tooltip";
+
+import { COLORS } from "styles/var/colors";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
-import {
-  IHostScript,
-  ILastExecution,
-  IScriptExecutionStatus,
-} from "services/entities/scripts";
+import { IHostScript, ILastExecution } from "services/entities/scripts";
 
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 
@@ -25,6 +24,36 @@ interface IDropdownCellProps {
     original: IHostScript;
   };
 }
+
+const ScriptRunActionDropdownLabel = ({
+  scriptId,
+  disabled,
+}: {
+  scriptId: number;
+  disabled: boolean;
+}) => {
+  const tipId = `run-script-${scriptId}`;
+  return disabled ? (
+    <>
+      <span data-tip data-for={tipId}>
+        Run
+      </span>
+      <ReactTooltip
+        place="bottom"
+        type="dark"
+        effect="solid"
+        id={tipId}
+        backgroundColor={COLORS["tooltip-bg"]}
+        delayHide={100}
+        delayUpdate={500}
+      >
+        You can only run the script when the host is online.
+      </ReactTooltip>
+    </>
+  ) : (
+    <>Run</>
+  );
+};
 
 // eslint-disable-next-line import/prefer-default-export
 export const generateTableHeaders = (
@@ -66,17 +95,22 @@ export const generateTableHeaders = (
 
 // NOTE: may need current user ID later for permission on actions.
 const generateActionDropdownOptions = (
-  script: IHostScript,
+  { script_id, last_execution }: IHostScript,
   isHostOnline: boolean
 ): IDropdownOption[] => {
   return [
     {
       label: "Show details",
-      disabled: script.last_execution === null,
+      disabled: last_execution === null,
       value: "showDetails",
     },
     {
-      label: "Run",
+      label: (
+        <ScriptRunActionDropdownLabel
+          scriptId={script_id}
+          disabled={!isHostOnline}
+        />
+      ),
       disabled: !isHostOnline,
       value: "run",
     },
