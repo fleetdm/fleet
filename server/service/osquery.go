@@ -1448,7 +1448,7 @@ func (svc *Service) SaveResultLogsToQueryReports(ctx context.Context, results []
 	for _, result := range filtered {
 		if err := svc.processResults(ctx, result); err != nil {
 			level.Error(svc.logger).Log("err", "processing result", "err", err)
-			return
+			continue
 		}
 	}
 
