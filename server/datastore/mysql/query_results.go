@@ -43,6 +43,11 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		return ctxerr.Wrap(ctx, err, "counting existing query results")
 	}
 
+	if countExisting == fleet.MaxQueryReportRows {
+		// do not delete any rows if we are already at the limit
+		return nil
+	}
+
 	// Delete rows based on the specific queryID and hostID
 	deleteStmt := `
 		DELETE FROM query_results WHERE host_id = ? AND query_id = ?
