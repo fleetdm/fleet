@@ -493,3 +493,13 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 
 	return results, nil
 }
+
+func (ds *Datastore) CleanupGlobalDiscardQueryResults(ctx context.Context) error {
+	deleteStmt := "DELETE FROM query_results"
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "delete all from query_result")
+	}
+
+	return nil
+}
