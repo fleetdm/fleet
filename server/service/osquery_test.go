@@ -588,7 +588,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	err = svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
 	require.NoError(t, err)
 
-	// Results not saved if discard data is true in Query
+	// Results not saved if DiscardData is true in Query
 	logRawMessages = []json.RawMessage{
 		json.RawMessage(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/Uptime","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`),
 	}
@@ -599,31 +599,12 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return &fleet.Query{ID: 1, DiscardData: true}, nil
 	}
-	ds.ResultCountForQueryFunc = func(ctx context.Context, id uint) (int, error) {
-		return 0, nil
-	}
 	err = svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
 	require.NoError(t, err)
 
-	// Results not saved if query row count hits max
+	// Happy Path: Results saved
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return &fleet.Query{ID: 1, DiscardData: false}, nil
-	}
-	ds.ResultCountForQueryFunc = func(ctx context.Context, id uint) (int, error) {
-		return fleet.MaxQueryReportRows, nil
-	}
-	err = svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
-	require.NoError(t, err)
-
-	// Happy Path: results saved
-	ds.ResultCountForQueryFunc = func(ctx context.Context, id uint) (int, error) {
-		return 0, nil
-	}
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
-		return &fleet.Host{ID: 1}, nil
-	}
-	ds.ResultCountForQueryAndHostFunc = func(ctx context.Context, id uint, hid uint) (int, error) {
-		return 0, nil
 	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
 		return nil

@@ -1470,34 +1470,23 @@ func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQu
 	}
 
 	// Discard Result if query is marked as discard data or if the query report is full
-	rowCount, err := svc.ds.ResultCountForQuery(ctx, query.ID)
-	if err != nil {
-		return newOsqueryError("getting result count for query: " + err.Error())
-	}
-	if query.DiscardData || rowCount >= fleet.MaxQueryReportRows {
+	if query.DiscardData {
 		return nil
 	}
 
-	host, err := svc.ds.HostByIdentifier(ctx, result.OsqueryHostID)
-	if err != nil {
-		return newOsqueryError("getting host ID: " + err.Error())
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return newOsqueryError("internal error: missing host from request context")
 	}
 
-	return svc.overwriteResultRows(ctx, result, query.ID, host.ID, rowCount)
+	return svc.overwriteResultRows(ctx, result, query.ID, host.ID)
 }
 
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.  Each
 // row is saved as a separate ScheduledQueryResultRow. ie. a result could contain
 // many USB Devices or a result could contain all User Accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result fleet.ScheduledQueryResult, queryID, hostID uint, rowCount int) error {
+func (svc *Service) overwriteResultRows(ctx context.Context, result fleet.ScheduledQueryResult, queryID, hostID uint) error {
 	fetchTime := time.Now()
-
-	// Update row count to account for deletion of existing host results
-	hostResultCount, err := svc.ds.ResultCountForQueryAndHost(ctx, queryID, hostID)
-	if err != nil {
-		return newOsqueryError("getting result count for query and host: " + err.Error())
-	}
-	rowCount = rowCount - hostResultCount
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
 
@@ -1512,11 +1501,6 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result fleet.Schedu
 
 		rows = append(rows, row)
 
-		// only insert enough rows to reach the maxQueryReportRows
-		rowCount++
-		if rowCount >= fleet.MaxQueryReportRows {
-			break
-		}
 	}
 
 	if err := svc.ds.OverwriteQueryResultRows(ctx, rows); err != nil {

@@ -394,15 +394,8 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryResultsStore
 
-	// SaveQueryResultRow stores the given schedule query results.
-	SaveQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow) error
-	// QueryResultRowsForHost returns the stored results of a query of a specified host.
-	QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*ScheduledQueryResultRow, error)
 	// QueryResultRows returns all the stored results of a query (from all hosts).
 	QueryResultRows(ctx context.Context, queryID uint) ([]*ScheduledQueryResultRow, error)
-	// DeleteQueryResultsForHost deletes the results of a query of a specified host.
-	DeleteQueryResultsForHost(ctx context.Context, hostID, queryID uint) error
-	// ResultCountForQuery returns the number of results stored of a query.
 	ResultCountForQuery(ctx context.Context, queryID uint) (int, error)
 	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
 	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow) error

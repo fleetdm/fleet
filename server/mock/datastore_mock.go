@@ -294,13 +294,7 @@ type CleanupExpiredHostsFunc func(ctx context.Context) ([]uint, error)
 
 type ScheduledQueryIDsByNameFunc func(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
-type SaveQueryResultRowsFunc func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error
-
-type QueryResultRowsForHostFunc func(ctx context.Context, queryID uint, hostID uint) ([]*fleet.ScheduledQueryResultRow, error)
-
 type QueryResultRowsFunc func(ctx context.Context, queryID uint) ([]*fleet.ScheduledQueryResultRow, error)
-
-type DeleteQueryResultsForHostFunc func(ctx context.Context, hostID uint, queryID uint) error
 
 type ResultCountForQueryFunc func(ctx context.Context, queryID uint) (int, error)
 
@@ -1111,17 +1105,8 @@ type DataStore struct {
 	ScheduledQueryIDsByNameFunc        ScheduledQueryIDsByNameFunc
 	ScheduledQueryIDsByNameFuncInvoked bool
 
-	SaveQueryResultRowsFunc        SaveQueryResultRowsFunc
-	SaveQueryResultRowsFuncInvoked bool
-
-	QueryResultRowsForHostFunc        QueryResultRowsForHostFunc
-	QueryResultRowsForHostFuncInvoked bool
-
 	QueryResultRowsFunc        QueryResultRowsFunc
 	QueryResultRowsFuncInvoked bool
-
-	DeleteQueryResultsForHostFunc        DeleteQueryResultsForHostFunc
-	DeleteQueryResultsForHostFuncInvoked bool
 
 	ResultCountForQueryFunc        ResultCountForQueryFunc
 	ResultCountForQueryFuncInvoked bool
@@ -2683,32 +2668,11 @@ func (s *DataStore) ScheduledQueryIDsByName(ctx context.Context, batchSize int, 
 	return s.ScheduledQueryIDsByNameFunc(ctx, batchSize, packAndSchedQueryNames...)
 }
 
-func (s *DataStore) SaveQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
-	s.mu.Lock()
-	s.SaveQueryResultRowsFuncInvoked = true
-	s.mu.Unlock()
-	return s.SaveQueryResultRowsFunc(ctx, rows)
-}
-
-func (s *DataStore) QueryResultRowsForHost(ctx context.Context, queryID uint, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
-	s.mu.Lock()
-	s.QueryResultRowsForHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.QueryResultRowsForHostFunc(ctx, queryID, hostID)
-}
-
 func (s *DataStore) QueryResultRows(ctx context.Context, queryID uint) ([]*fleet.ScheduledQueryResultRow, error) {
 	s.mu.Lock()
 	s.QueryResultRowsFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueryResultRowsFunc(ctx, queryID)
-}
-
-func (s *DataStore) DeleteQueryResultsForHost(ctx context.Context, hostID uint, queryID uint) error {
-	s.mu.Lock()
-	s.DeleteQueryResultsForHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteQueryResultsForHostFunc(ctx, hostID, queryID)
 }
 
 func (s *DataStore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
