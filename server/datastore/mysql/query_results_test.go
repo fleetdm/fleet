@@ -26,6 +26,7 @@ func TestQueryResults(t *testing.T) {
 		{"CountForQuery", testCountResultsForQuery},
 		{"CountForQueryAndHost", testCountResultsForQueryAndHost},
 		{"Overwrite", testOverwriteQueryResultRows},
+		{"MaxRows", testQueryResultRowsDoNotExceedMaxRows},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -313,6 +314,55 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	results, err = ds.QueryResultRows(context.Background(), 999, 999)
 	require.NoError(t, err)
 	require.Len(t, results, 0)
+}
+
+func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	query := test.NewQuery(t, ds, nil, "Overwrite Test Query", "SELECT 1", user.ID, true)
+	host := test.NewHost(t, ds, "hostname1", "192.168.1.101", "12345", "UI8XB1224", time.Now())
+
+	mockTime := time.Now().UTC().Truncate(time.Second)
+
+	// Generate more than max rows
+	rows := fleet.MaxQueryReportRows + 50
+	largeBatchRows := make([]*fleet.ScheduledQueryResultRow, rows)
+	for i := 0; i < rows; i++ {
+		largeBatchRows[i] = &fleet.ScheduledQueryResultRow{
+			QueryID:     query.ID,
+			HostID:      host.ID,
+			LastFetched: mockTime,
+			Data:        json.RawMessage(`{"model": "Bulk Mouse", "vendor": "BulkTech"}`),
+		}
+	}
+
+	err := ds.OverwriteQueryResultRows(context.Background(), largeBatchRows)
+	require.NoError(t, err)
+
+	// Confirm only max rows are stored for the queryID
+	allResults, err := ds.QueryResultRows(context.Background(), query.ID, host.ID)
+	require.NoError(t, err)
+	require.Len(t, allResults, fleet.MaxQueryReportRows)
+
+	// Confirm that new rows are not added when the max is reached
+	host2 := test.NewHost(t, ds, "hostname2", "192.168.1.102", "678910", "UI8XB1225", time.Now())
+	newMockTime := mockTime.Add(2 * time.Minute)
+	overwriteRows := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     query.ID,
+			HostID:      host2.ID,
+			LastFetched: newMockTime,
+			Data: json.RawMessage(
+				`{"model": "USB Mouse", "vendor": "Logitech"}`,
+			),
+		},
+	}
+
+	err = ds.OverwriteQueryResultRows(context.Background(), overwriteRows)
+	require.NoError(t, err)
+
+	host2Results, err := ds.QueryResultRows(context.Background(), query.ID, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, host2Results, 0)
 }
 
 func (ds *Datastore) SaveQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {

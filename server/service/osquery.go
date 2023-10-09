@@ -1486,21 +1486,14 @@ func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQu
 		return newOsqueryError("getting host ID: " + err.Error())
 	}
 
-	return svc.overwriteResultRows(ctx, result, query.ID, host.ID, rowCount)
+	return svc.overwriteResultRows(ctx, result, query.ID, host.ID)
 }
 
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.  Each
 // row is saved as a separate ScheduledQueryResultRow. ie. a result could contain
 // many USB Devices or a result could contain all User Accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result fleet.ScheduledQueryResult, queryID, hostID uint, rowCount int) error {
+func (svc *Service) overwriteResultRows(ctx context.Context, result fleet.ScheduledQueryResult, queryID, hostID uint) error {
 	fetchTime := time.Now()
-
-	// Update row count to account for deletion of existing host results
-	hostResultCount, err := svc.ds.ResultCountForQueryAndHost(ctx, queryID, hostID)
-	if err != nil {
-		return newOsqueryError("getting result count for query and host: " + err.Error())
-	}
-	rowCount = rowCount - hostResultCount
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
 
@@ -1515,11 +1508,6 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result fleet.Schedu
 
 		rows = append(rows, row)
 
-		// only insert enough rows to reach the maxQueryReportRows
-		rowCount++
-		if rowCount >= fleet.MaxQueryReportRows {
-			break
-		}
 	}
 
 	if err := svc.ds.OverwriteQueryResultRows(ctx, rows); err != nil {
