@@ -25,7 +25,7 @@ import ScriptUploader from "./components/ScriptUploader";
 
 const baseClass = "scripts";
 
-const SCRIPTS_PER_PAGE = 2; // TODO: confirm this is the desired default
+const SCRIPTS_PER_PAGE = 10; // TODO: confirm this is the desired default
 
 interface IScriptsProps {
   router: InjectedRouter; // v3
