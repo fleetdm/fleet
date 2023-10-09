@@ -25,12 +25,15 @@ import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
 import DataError from "components/DataError/DataError";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
+import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner";
 import QueryReport from "../components/QueryReport/QueryReport";
 import NoResults from "../components/NoResults/NoResults";
 
 import {
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
+  QUERY_REPORT_RESULTS_LIMIT,
 } from "./QueryDetailsPageConfig";
 
 interface IQueryDetailsPageProps {
@@ -151,6 +154,8 @@ const QueryDetailsPage = ({
 
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
+  const isClipped =
+    queryReport && queryReport.results.length >= QUERY_REPORT_RESULTS_LIMIT;
 
   const renderHeader = () => {
     const canEditQuery =
@@ -232,6 +237,25 @@ const QueryDetailsPage = ({
     );
   };
 
+  const renderClippedBanner = () => (
+    <InfoBanner
+      color="yellow"
+      cta={
+        <CustomLink
+          url="https://www.fleetdm.com/support"
+          text="Get help"
+          newTab
+        />
+      }
+    >
+      <div>
+        <b>Report clipped.</b> A sample of this query&apos;s results is included
+        below. You can still use query automations to complete this report in
+        your log destination.
+      </div>
+    </InfoBanner>
+  );
+
   const renderReport = () => {
     const disabledCachingGlobally = true; // TODO: Update accordingly to config?.server_settings.query_reports_disabled
     const discardDataEnabled = true; // TODO: Update accordingly to storedQuery?.discard_data
@@ -270,6 +294,7 @@ const QueryDetailsPage = ({
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         {renderHeader()}
+        {isClipped && renderClippedBanner()}
         {renderReport()}
       </div>
     </MainContent>
