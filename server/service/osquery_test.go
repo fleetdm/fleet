@@ -586,7 +586,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	}
 	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
 
-	// Results not saved if DiscardData is true in Query
+	// Results not saved if Logging is not snapshot in the query config
 	logRawMessages = []json.RawMessage{
 		json.RawMessage(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/Uptime","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`),
 	}
@@ -595,9 +595,11 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: false}}, nil
 	}
 
+	// Results not saved if DiscardData is true in Query
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return &fleet.Query{ID: 1, DiscardData: true, Logging: fleet.LoggingSnapshot}, nil
 	}
+
 	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
 
 	// Happy Path: Results saved
