@@ -594,19 +594,21 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: false}}, nil
 	}
+
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		return &fleet.Query{ID: 1, DiscardData: true}, nil
+		return &fleet.Query{ID: 1, DiscardData: true, Logging: fleet.LoggingSnapshot}, nil
 	}
 	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
 
 	// Happy Path: Results saved
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		return &fleet.Query{ID: 1, DiscardData: false}, nil
+		return &fleet.Query{ID: 1, DiscardData: false, Logging: fleet.LoggingSnapshot}, nil
 	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
 		return nil
 	}
 	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
+	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {

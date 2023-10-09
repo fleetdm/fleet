@@ -1420,6 +1420,7 @@ func (svc *Service) SaveResultLogsToQueryReports(ctx context.Context, results []
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(svc.logger).Log("err", "getting app config", "err", err)
+		return
 	}
 	if appConfig.ServerSettings.QueryReportsDisabled {
 		return
@@ -1464,8 +1465,8 @@ func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQu
 		return newOsqueryError("getting query by Name: " + err.Error())
 	}
 
-	// Discard Result if query is marked as discard data or if the query report is full
-	if query.DiscardData {
+	// Discard Result if query is marked as discard data or if logging is not snapshot
+	if query.DiscardData || query.Logging != fleet.LoggingSnapshot {
 		return nil
 	}
 
