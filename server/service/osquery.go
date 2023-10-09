@@ -1376,16 +1376,10 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 			break
 		}
 
-		if errSave := svc.SaveResultLogsToQueryReports(ctx, results); errSave != nil {
-			combinedErrors = append(combinedErrors, errSave.Error())
-		}
+		svc.SaveResultLogsToQueryReports(ctx, results)
 
-		if errSubmit := svc.SubmitResultLogs(ctx, results); errSubmit != nil {
-			combinedErrors = append(combinedErrors, errSubmit.Error())
-		}
-
-		if len(combinedErrors) > 0 {
-			err = newOsqueryError(strings.Join(combinedErrors, "; "))
+		if err = svc.SubmitResultLogs(ctx, results); err != nil {
+			break
 		}
 
 	default:
@@ -1419,24 +1413,25 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 // Query Reports
 ////////////////////////////////////////////////////////////////////////////////
 
-func (svc *Service) SaveResultLogsToQueryReports(ctx context.Context, results []json.RawMessage) error {
+func (svc *Service) SaveResultLogsToQueryReports(ctx context.Context, results []json.RawMessage) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
 	// Do not insert results if query reports are disabled globally
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return newOsqueryError("getting app config: " + err.Error())
+		level.Error(svc.logger).Log("err", "getting app config", "err", err)
 	}
 	if appConfig.ServerSettings.QueryReportsDisabled {
-		return nil
+		return
 	}
 
 	var queryResults []fleet.ScheduledQueryResult
 	for _, raw := range results {
 		var result fleet.ScheduledQueryResult
 		if err := json.Unmarshal(raw, &result); err != nil {
-			return newOsqueryError("unmarshalling individual result log: " + err.Error())
+			level.Error(svc.logger).Log("err", "unmarshalling result", "err", err)
+			continue
 		}
 		queryResults = append(queryResults, result)
 	}
@@ -1446,11 +1441,12 @@ func (svc *Service) SaveResultLogsToQueryReports(ctx context.Context, results []
 
 	for _, result := range filtered {
 		if err := svc.processResults(ctx, result); err != nil {
-			return err
+			level.Error(svc.logger).Log("err", "processing result", "err", err)
+			return
 		}
 	}
 
-	return nil
+	return
 }
 
 func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQueryResult) error {
