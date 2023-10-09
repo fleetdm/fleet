@@ -529,13 +529,10 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 		if tmID == nil {
 			tmID = ptr.Uint(0)
 		}
-		// don't use ds.ListMDMAppleConfigProfiles as it leaves out
-		// fleet-managed profiles.
 		got, _, err := ds.ListScripts(ctx, tmID, fleet.ListOptions{})
 		require.NoError(t, err)
 
-		// compare only the fields we care about, and build the resulting map of
-		// profile identifier as key to profile ID as value
+		// compare only the fields we care about
 		m := make(map[string]uint)
 		for _, gotp := range got {
 			m[gotp.Name] = gotp.ID
@@ -559,7 +556,7 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_tm1"})
 	require.NoError(t, err)
 
-	// apply single profile set for tm1
+	// apply single script set for tm1
 	sTm1 := applyAndExpect([]*fleet.Script{
 		{Name: "N1", ScriptContents: "C1"},
 	}, ptr.Uint(tm1.ID), []*fleet.Script{
@@ -608,7 +605,7 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 	// identifier for N2-I2 is unchanged
 	require.Equal(t, sTm1b["I2"], sTm1c["I2"])
 
-	// apply only new profiles to no-team
+	// apply only new scripts to no-team
 	applyAndExpect([]*fleet.Script{
 		{Name: "N4", ScriptContents: "C4"},
 		{Name: "N5", ScriptContents: "C5"},
@@ -617,6 +614,6 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 		{Name: "N5", TeamID: nil},
 	})
 
-	// clear profiles for tm1
+	// clear scripts for tm1
 	applyAndExpect(nil, ptr.Uint(1), nil)
 }
