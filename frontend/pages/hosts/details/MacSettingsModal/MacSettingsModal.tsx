@@ -7,20 +7,28 @@ import MacSettingsTable from "./MacSettingsTable";
 import { generateTableData } from "./MacSettingsTable/MacSettingsTableConfig";
 
 interface IMacSettingsModalProps {
-  hostMDMData?: Pick<IHostMdmData, "profiles" | "macos_settings">;
+  platform?: string;
+  hostMDMData?: IHostMdmData;
   onClose: () => void;
 }
 
 const baseClass = "mac-settings-modal";
 
-const MacSettingsModal = ({ hostMDMData, onClose }: IMacSettingsModalProps) => {
-  const memoizedTableData = useMemo(() => generateTableData(hostMDMData), [
-    hostMDMData,
-  ]);
+const MacSettingsModal = ({
+  platform,
+  hostMDMData,
+  onClose,
+}: IMacSettingsModalProps) => {
+  const memoizedTableData = useMemo(
+    () => generateTableData(hostMDMData, platform),
+    [hostMDMData, platform]
+  );
+
+  if (!platform) return null;
 
   return (
     <Modal
-      title="macOS settings"
+      title="OS settings"
       onExit={onClose}
       className={baseClass}
       width="large"

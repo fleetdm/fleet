@@ -1,4 +1,4 @@
-# Fleet 4.37.0 | Remote script execution & Puppet support.
+# Fleet 4.37.0 | Puppet support.
 
 ![Fleet 4.37.0](../website/assets/images/articles/fleet-4.37.0-1600x900@2x.png)
 
@@ -13,11 +13,12 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 * Puppet support
 * Web user interface improvements
 
+<!--
 ### Introducing cross-platform script execution
 
 _Available in Fleet Premium and Fleet Ultimate_
 
-Fleet adds a significant new feature, allowing IT administrators and security engineers to execute shell scripts across macOS, Windows, and Linux. This addition streamlines processes, offers root-level security control, and enables swift, real-time remediation and investigation. Learn more about Fleet's [cross-platform script execution](introducing-cross-platform-script-execution).
+Fleet adds a significant new feature, allowing IT administrators and security engineers to execute shell scripts across macOS, Windows, and Linux. This addition streamlines processes, offers root-level security control, and enables swift, real-time remediation and investigation. <!-- Learn more about Fleet's [cross-platform script execution](introducing-cross-platform-script-execution). -->
 
 
 ### Vulnerability dashboard

@@ -304,6 +304,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /integrations': {
+    action: 'view-integrations',
+    locals: {
+      pageTitleForMeta: 'Integrations | Fleet for osquery',
+      pageDescriptionForMeta: 'Explore and learn how Fleet can integrate with your favorite tools.',
+      currentSection: 'platform'
+    }
+  },
+
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
   //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │

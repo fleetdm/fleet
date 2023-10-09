@@ -697,15 +697,15 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	}
 	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		if hostID == uint(42) {
-			return &fleet.Host{ID: uint(42), UUID: "H057-UU1D-1337"}, nil
+			return &fleet.Host{ID: uint(42), UUID: "H057-UU1D-1337", Platform: "darwin"}, nil
 		}
-		return &fleet.Host{ID: hostID, UUID: "WR0N6-UU1D"}, nil
+		return &fleet.Host{ID: hostID, UUID: "WR0N6-UU1D", Platform: "darwin"}, nil
 	}
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		if identifier == "h0571d3n71f13r" {
-			return &fleet.Host{ID: uint(42), UUID: "H057-UU1D-1337"}, nil
+			return &fleet.Host{ID: uint(42), UUID: "H057-UU1D-1337", Platform: "darwin"}, nil
 		}
-		return &fleet.Host{ID: uint(21), UUID: "WR0N6-UU1D"}, nil
+		return &fleet.Host{ID: uint(21), UUID: "WR0N6-UU1D", Platform: "darwin"}, nil
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
