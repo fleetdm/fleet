@@ -233,13 +233,12 @@ type entity struct {
 }
 
 var (
-	hostsTable        = entity{"hosts"}
-	invitesTable      = entity{"invites"}
-	packsTable        = entity{"packs"}
-	queriesTable      = entity{"queries"}
-	sessionsTable     = entity{"sessions"}
-	usersTable        = entity{"users"}
-	queryResultsTable = entity{"query_results"}
+	hostsTable    = entity{"hosts"}
+	invitesTable  = entity{"invites"}
+	packsTable    = entity{"packs"}
+	queriesTable  = entity{"queries"}
+	sessionsTable = entity{"sessions"}
+	usersTable    = entity{"users"}
 )
 
 var doRetryErr = errors.New("fleet datastore retry")
