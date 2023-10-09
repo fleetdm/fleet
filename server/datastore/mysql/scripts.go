@@ -321,3 +321,108 @@ WHERE
 
 	return results, metaData, nil
 }
+
+func (ds *Datastore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+	const loadExistingScripts = `
+SELECT
+  name
+FROM
+  scripts
+WHERE
+  global_or_team_id = ? AND
+  name IN (?)
+`
+	const deleteAllScriptsInTeam = `
+DELETE FROM
+  scripts
+WHERE
+  team_id = ?
+`
+
+	const deleteScriptsNotInList = `
+DELETE FROM
+  scripts
+WHERE
+  team_id = ? AND
+  name NOT IN (?)
+`
+
+	const insertNewOrEditedScript = `
+INSERT INTO
+  scripts (
+    team_id, global_or_team_id, name, script_contents
+  )
+VALUES
+  (?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+  script_contents = VALUES(script_contents)
+`
+
+	// use a profile team id of 0 if no-team
+	var scriptsTeamID uint
+	if tmID != nil {
+		scriptsTeamID = *tmID
+	}
+
+	// build a list of names for the incoming scripts, will keep the
+	// existing ones if there's a match and no change
+	incomingNames := make([]string, len(scripts))
+	// at the same time, index the incoming scripts keyed by name for ease
+	// or processing
+	incomingScripts := make(map[string]*fleet.Script, len(scripts))
+	for i, p := range scripts {
+		incomingNames[i] = p.Name
+		incomingScripts[p.Name] = p
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var existingScripts []*fleet.Script
+
+		if len(incomingNames) > 0 {
+			// load existing profiles that match the incoming scripts by names
+			stmt, args, err := sqlx.In(loadExistingScripts, scriptsTeamID, incomingNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build query to load existing scripts")
+			}
+			if err := sqlx.SelectContext(ctx, tx, &existingScripts, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "load existing scripts")
+			}
+		}
+
+		// figure out if we need to delete any scripts
+		keepNames := make([]string, 0, len(incomingNames))
+		for _, p := range existingScripts {
+			if newS := incomingScripts[p.Name]; newS != nil {
+				keepNames = append(keepNames, p.Name)
+			}
+		}
+
+		var (
+			stmt string
+			args []any
+			err  error
+		)
+		if len(keepNames) > 0 {
+			// delete the obsolete scripts
+			stmt, args, err = sqlx.In(deleteScriptsNotInList, scriptsTeamID, keepNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to delete obsolete scripts")
+			}
+		} else {
+			stmt = deleteAllScriptsInTeam
+			args = []any{scriptsTeamID}
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete scripts")
+		}
+
+		// insert the new scripts and the ones that have changed
+		for _, s := range incomingScripts {
+			if _, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, scriptsTeamID, s.Name, s.ScriptContents); err != nil {
+				return ctxerr.Wrapf(ctx, err, "insert new/edited script with name %q", s.Name)
+			}
+		}
+		return nil
+	})
+
+}

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"path/filepath"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -203,27 +202,20 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		return nil, err
 	}
 
-	if name == "" {
-		return nil, fleet.NewInvalidArgumentError("script", "The file name must not be empty.")
-	}
-	if filepath.Ext(name) != ".sh" {
-		return nil, fleet.NewInvalidArgumentError("script", "The file should be a .sh file.")
-	}
-
 	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "read script contents")
-	}
-	contents := string(b)
-	if err := fleet.ValidateHostScriptContents(contents); err != nil {
-		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
 	script := &fleet.Script{
 		TeamID:         teamID,
 		Name:           name,
-		ScriptContents: contents,
+		ScriptContents: string(b),
 	}
+	if err := script.Validate(); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script", err.Error())
+	}
+
 	savedScript, err := svc.ds.NewScript(ctx, script)
 	if err != nil {
 		var (

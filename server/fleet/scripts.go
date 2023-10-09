@@ -3,6 +3,7 @@ package fleet
 import (
 	"bufio"
 	"errors"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -27,6 +28,21 @@ type Script struct {
 
 func (s Script) AuthzType() string {
 	return "script"
+}
+
+func (s *Script) Validate() error {
+	if s.Name == "" {
+		return errors.New("The file name must not be empty.")
+	}
+	if filepath.Ext(s.Name) != ".sh" {
+		return errors.New("The file should be a .sh file.")
+	}
+
+	if err := ValidateHostScriptContents(s.ScriptContents); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // HostScriptDetail represents the details of a script that applies to a specific host.
@@ -246,4 +262,9 @@ func ValidateHostScriptContents(s string) error {
 	}
 
 	return nil
+}
+
+type ScriptPayload struct {
+	Name           string `json:"name"`
+	ScriptContents []byte `json:"script_contents"`
 }

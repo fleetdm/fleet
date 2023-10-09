@@ -449,6 +449,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/scripts", listScriptsEndpoint, listScriptsRequest{})
 	ue.GET("/api/_version_/fleet/scripts/{script_id:[0-9]+}", getScriptEndpoint, getScriptRequest{})
 	ue.DELETE("/api/_version_/fleet/scripts/{script_id:[0-9]+}", deleteScriptEndpoint, deleteScriptRequest{})
+	ue.POST("/api/_version_/fleet/scripts/batch", batchSetScriptsEndpoint, batchSetScriptsRequest{})
 
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/scripts", getHostScriptDetailsEndpoint, getHostScriptDetailsRequest{})
 
