@@ -643,15 +643,24 @@ const HostDetailsPage = ({
     },
   ];
 
+  // we want the scripts tabs on the list for only mac hosts atm. We filter it out
+  // for other platforms.
+  // TODO: improve this code. We can pull the tab list component out
+  // into its own component later.
+  const filteredSubNavTabs =
+    host?.platform === "darwin"
+      ? hostDetailsSubNav
+      : hostDetailsSubNav.filter((navItem) => navItem.title !== "scripts");
+
   const getTabIndex = (path: string): number => {
-    return hostDetailsSubNav.findIndex((navItem) => {
+    return filteredSubNavTabs.findIndex((navItem) => {
       // tab stays highlighted for paths that ends with same pathname
       return path.endsWith(navItem.pathname);
     });
   };
 
   const navigateToNav = (i: number): void => {
-    const navPath = hostDetailsSubNav[i].pathname;
+    const navPath = filteredSubNavTabs[i].pathname;
     router.push(navPath);
   };
 
@@ -733,7 +742,7 @@ const HostDetailsPage = ({
             onSelect={(i) => navigateToNav(i)}
           >
             <TabList>
-              {hostDetailsSubNav.map((navItem) => {
+              {filteredSubNavTabs.map((navItem) => {
                 // Bolding text when the tab is active causes a layout shift
                 // so we add a hidden pseudo element with the same text string
                 return <Tab key={navItem.title}>{navItem.name}</Tab>;
@@ -766,12 +775,14 @@ const HostDetailsPage = ({
                 hostUsersEnabled={featuresConfig?.enable_host_users}
               />
             </TabPanel>
-            <TabPanel>
-              <ScriptsCard
-                hostId={host?.id}
-                isHostOnline={host?.status === "online"}
-              />
-            </TabPanel>
+            {host?.platform === "darwin" && (
+              <TabPanel>
+                <ScriptsCard
+                  hostId={host?.id}
+                  isHostOnline={host?.status === "online"}
+                />
+              </TabPanel>
+            )}
             <TabPanel>
               <SoftwareCard
                 isLoading={isLoadingHost}

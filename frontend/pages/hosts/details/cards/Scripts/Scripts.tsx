@@ -32,16 +32,21 @@ const Scripts = ({ hostId, isHostOnline }: IScriptsProps) => {
 
   const { renderFlash } = useContext(NotificationContext);
 
-  const { data: scriptsData, isLoading, isError } = useQuery<
-    IHostScriptsResponse,
-    IError,
-    IHostScript[]
-  >(["scripts", hostId], () => scriptsAPI.getHostScripts(hostId as number), {
-    refetchOnWindowFocus: false,
-    retry: false,
-    enabled: Boolean(hostId),
-    select: (res) => res?.scripts,
-  });
+  const {
+    data: scriptsData,
+    isLoading: isLoadingScriptData,
+    isError: isErrorScriptData,
+    refetch: refetchScriptsData,
+  } = useQuery<IHostScriptsResponse, IError, IHostScript[]>(
+    ["scripts", hostId],
+    () => scriptsAPI.getHostScripts(hostId as number),
+    {
+      refetchOnWindowFocus: false,
+      retry: false,
+      enabled: Boolean(hostId),
+      select: (res) => res?.scripts,
+    }
+  );
 
   if (!hostId) return null;
 
@@ -55,13 +60,14 @@ const Scripts = ({ hostId, isHostOnline }: IScriptsProps) => {
       case "run":
         try {
           await scriptsAPI.runScript(script.script_id);
-          renderFlash("success", "Script successfully queued!");
+          refetchScriptsData();
         } catch (e) {
           const error = e as AxiosResponse<IApiError>;
           renderFlash("error", error.data.errors[0].reason);
         }
         break;
       default:
+        break;
     }
   };
 
@@ -70,7 +76,7 @@ const Scripts = ({ hostId, isHostOnline }: IScriptsProps) => {
     scriptExecutionId.current = null;
   };
 
-  if (isError) {
+  if (isErrorScriptData) {
     return <DataError card />;
   }
 
@@ -93,7 +99,7 @@ const Scripts = ({ hostId, isHostOnline }: IScriptsProps) => {
           isAllPagesSelected={false}
           columns={scriptHeaders}
           data={data}
-          isLoading={isLoading}
+          isLoading={isLoadingScriptData}
           disableCount
         />
       )}
