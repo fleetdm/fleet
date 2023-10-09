@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useCallback } from "react";
 
 import { Row, Column } from "react-table";
 import FileSaver from "file-saver";
@@ -14,6 +14,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
 import ShowQueryModal from "components/modals/ShowQueryModal";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import generateResultsTableHeaders from "./QueryReportTableConfig";
 
@@ -105,6 +106,30 @@ const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
     );
   };
 
+  const renderSoftwareCount = useCallback(() => {
+    const count = filteredResults.length;
+
+    if (isClipped) {
+      return (
+        <div className={`${baseClass}__count `}>
+          <TooltipWrapper
+            tipContent={`Fleet has retained a sample of early results for 
+            reference. Reporting is paused until existing data is deleted. 
+            You can reset this report by updating the query's SQL, or by
+            temporarily enabling the <b>discard data</b> setting and disabling it again.`}
+          >
+            {`${count} results`}
+          </TooltipWrapper>
+        </div>
+      );
+    }
+    return (
+      <div className={`${baseClass}__count `}>
+        <span>{`${count} result${count === 1 ? "" : "s"}`}</span>
+      </div>
+    );
+  }, [filteredResults]);
+
   const renderTable = () => {
     return (
       <div className={`${baseClass}__results-table-container`}>
@@ -121,6 +146,7 @@ const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
           resultsTitle="results"
           customControl={() => renderTableButtons()}
           setExportRows={setFilteredResults}
+          renderCount={renderSoftwareCount}
         />
       </div>
     );
