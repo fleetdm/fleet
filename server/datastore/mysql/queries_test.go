@@ -65,11 +65,12 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			Name:        "bar",
 			Description: "do some bars",
 			Query:       "select baz from bar",
+			DiscardData: true,
 		},
 	}
 
 	// Zach creates some queries
-	err := ds.ApplyQueries(context.Background(), zwass.ID, expectedQueries)
+	err := ds.ApplyQueries(context.Background(), zwass.ID, expectedQueries, nil)
 	require.NoError(t, err)
 
 	queries, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
@@ -89,8 +90,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 	// Victor modifies a query (but also pushes the same version of the
 	// first query)
 	expectedQueries[1].Query = "not really a valid query ;)"
-	expectedQueries[1].DiscardData = true
-	err = ds.ApplyQueries(context.Background(), groob.ID, expectedQueries)
+	err = ds.ApplyQueries(context.Background(), groob.ID, expectedQueries, nil)
 	require.NoError(t, err)
 
 	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
@@ -113,9 +113,10 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			Name:        "trouble",
 			Description: "Look out!",
 			Query:       "select * from time",
+			DiscardData: true,
 		},
 	)
-	err = ds.ApplyQueries(context.Background(), zwass.ID, []*fleet.Query{expectedQueries[2]})
+	err = ds.ApplyQueries(context.Background(), zwass.ID, []*fleet.Query{expectedQueries[2]}, nil)
 	require.NoError(t, err)
 
 	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
@@ -152,7 +153,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			Logging:            "differential",
 		},
 	}
-	err = ds.ApplyQueries(context.Background(), zwass.ID, invalidQueries)
+	err = ds.ApplyQueries(context.Background(), zwass.ID, invalidQueries, nil)
 	require.ErrorIs(t, err, fleet.ErrQueryInvalidPlatform)
 }
 
@@ -278,8 +279,9 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	query.MinOsqueryVersion = "5.2.1"
 	query.AutomationsEnabled = true
 	query.Logging = "differential"
+	query.DiscardData = true
 
-	err = ds.SaveQuery(context.Background(), query)
+	err = ds.SaveQuery(context.Background(), query, true)
 	require.NoError(t, err)
 
 	actual, err := ds.Query(context.Background(), query.ID)
@@ -298,10 +300,11 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewQuery(context.Background(), &fleet.Query{
-			Name:     fmt.Sprintf("name%02d", i),
-			Query:    fmt.Sprintf("query%02d", i),
-			Saved:    true,
-			AuthorID: &user.ID,
+			Name:        fmt.Sprintf("name%02d", i),
+			Query:       fmt.Sprintf("query%02d", i),
+			Saved:       true,
+			AuthorID:    &user.ID,
+			DiscardData: true,
 		})
 		require.Nil(t, err)
 	}
@@ -321,6 +324,7 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 	require.Equal(t, 10, len(results))
 	require.Equal(t, "Zach", results[0].AuthorName)
 	require.Equal(t, "zwass@fleet.co", results[0].AuthorEmail)
+	require.True(t, results[0].DiscardData)
 
 	idWithAgg := results[0].ID
 
@@ -353,7 +357,7 @@ func testQueriesLoadPacksForQueries(t *testing.T, ds *Datastore) {
 		{Name: "q1", Query: "select * from time"},
 		{Name: "q2", Query: "select * from osquery_info"},
 	}
-	err := ds.ApplyQueries(context.Background(), zwass.ID, queries)
+	err := ds.ApplyQueries(context.Background(), zwass.ID, queries, nil)
 	require.NoError(t, err)
 
 	specs := []*fleet.PackSpec{
