@@ -1,4 +1,9 @@
 .query-details-page {
+  &__wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
   &__title-bar {
     display: flex;
     justify-content: space-between;

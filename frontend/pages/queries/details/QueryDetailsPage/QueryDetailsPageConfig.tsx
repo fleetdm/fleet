@@ -11,3 +11,5 @@ export type QueryDetailsPageQueryParams = Record<
 
 export const DEFAULT_SORT_HEADER = "host_name";
 export const DEFAULT_SORT_DIRECTION = "asc";
+
+export const QUERY_REPORT_RESULTS_LIMIT = 1000;
