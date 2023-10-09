@@ -7,17 +7,19 @@ import FleetIcon from "components/icons/FleetIcon";
 
 const baseClass = "script-list-pagination";
 
-const ScriptsPagination = ({
-  meta,
-  isLoading,
-  onPrevPage,
-  onNextPage,
-}: {
+interface IScriptsListPaginationProps {
   meta: IScriptsResponse["meta"] | undefined;
   isLoading: boolean;
   onPrevPage: () => void;
   onNextPage: () => void;
-}) => {
+}
+
+const ScriptsListPagination = ({
+  meta,
+  isLoading,
+  onPrevPage,
+  onNextPage,
+}: IScriptsListPaginationProps) => {
   return (
     <div className={baseClass}>
       <Button
@@ -44,4 +46,4 @@ const ScriptsPagination = ({
   );
 };
 
-export default ScriptsPagination;
+export default ScriptsListPagination;
