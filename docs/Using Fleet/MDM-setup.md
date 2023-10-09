@@ -154,9 +154,9 @@ It's not recommended to change these unless your SCEP certificate or key was com
 
 This is because Fleet uses the pair to encrypt and decrypt macOS hosts' disk encryption (FileVault) keys. 
 
-If the pair changes, the disk encryption key for all macOS hosts needs to be reset by the end user. The keys will no longer be viewable on each hosts' respective **Host details** page.
+If the pair changes, the disk encryption key for all macOS hosts needs to be reset by the end user. The keys will no longer be viewable on each host's respective **Host details** page.
 
-If your SCEP certificate was been compromised, here's how to change them and reset your disk encryption keys:
+If your SCEP certificate has been compromised, here's how to change it and reset your disk encryption keys:
 
 1. Regenerate the certificate and key and update the relevant environment variables.
 
