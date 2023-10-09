@@ -7954,6 +7954,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		AutomationsEnabled: true,
 		DiscardData:        false,
 		TeamID:             nil,
+		Logging:            fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -7966,6 +7967,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		AutomationsEnabled: true,
 		DiscardData:        false,
 		TeamID:             ptr.Uint(team1.ID),
+		Logging:            fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
