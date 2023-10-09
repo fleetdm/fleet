@@ -63,7 +63,7 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
     {
       retry: false,
       refetchOnWindowFocus: false,
-      staleTime: 1000,
+      staleTime: 3000,
     }
   );
 
