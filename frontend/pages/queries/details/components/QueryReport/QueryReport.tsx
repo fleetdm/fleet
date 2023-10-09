@@ -118,7 +118,7 @@ const QueryReport = ({
         <div className={`${baseClass}__count `}>
           <TooltipWrapper
             tipContent={`Fleet has retained a sample of early results for 
-            reference. Reporting is paused until existing data is deleted. 
+            reference. Reporting is paused until existing data is deleted. <br/><br/>
             You can reset this report by updating the query's SQL, or by
             temporarily enabling the <b>discard data</b> setting and disabling it again.`}
           >
