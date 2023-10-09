@@ -7,7 +7,7 @@ import { QueryContext } from "context/query";
 
 import {
   generateCSVFilename,
-  generateCSVQueryReport,
+  generateCSVQueryResults,
 } from "utilities/generate_csv";
 import { IQueryReport } from "interfaces/query_report";
 import { humanLastSeen } from "utilities/helpers";
@@ -62,7 +62,7 @@ const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
     FileSaver.saveAs(
-      generateCSVQueryReport(
+      generateCSVQueryResults(
         filteredResults,
         generateCSVFilename(
           `${lastEditedQueryName || CSV_TITLE} - Query Report`
@@ -106,14 +106,12 @@ const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
     );
   };
 
-  console.log("tableHeaders", tableHeaders);
-  console.log("filteredResults", filteredResults);
   const renderTable = () => {
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
           columns={tableHeaders}
-          data={filteredResults}
+          data={tableResults(queryReport?.results) || []}
           emptyComponent={renderNoResults}
           isLoading={false}
           isClientSidePagination
@@ -123,7 +121,7 @@ const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
           isAllPagesSelected={false}
           resultsTitle="results"
           customControl={() => renderTableButtons()}
-          // setExportRows={setFilteredResults}
+          setExportRows={setFilteredResults}
         />
       </div>
     );

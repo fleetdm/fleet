@@ -4,7 +4,6 @@ import { ICampaignError } from "interfaces/campaign";
 import { format } from "date-fns";
 
 const reorderCSVFields = (tableHeaders: string[]) => {
-  console.log("tableHeaders", tableHeaders);
   const result = tableHeaders.filter((field) => field !== "host_display_name");
   result.unshift("host_display_name");
 
@@ -15,28 +14,7 @@ export const generateCSVFilename = (descriptor: string) => {
   return `${descriptor} (${format(new Date(), "MM-dd-yy hh-mm-ss")}).csv`;
 };
 
-// Query report
-export const generateCSVQueryReport = (
-  rows: Row[],
-  filename: string,
-  tableHeaders: Column[] | string[]
-) => {
-  return new global.window.File(
-    [
-      convertToCSV({
-        objArray: rows,
-        fieldSortFunc: reorderCSVFields,
-        tableHeaders,
-      }),
-    ],
-    filename,
-    {
-      type: "text/csv",
-    }
-  );
-};
-
-// Query results and query errors
+// Live query results, live query errors, and query report
 export const generateCSVQueryResults = (
   rows: Row[],
   filename: string,
@@ -57,7 +35,7 @@ export const generateCSVQueryResults = (
   );
 };
 
-// Policy results only
+// Live policy results only
 export const generateCSVPolicyResults = (
   rows: { host: string; status: string }[],
   filename: string
@@ -67,7 +45,7 @@ export const generateCSVPolicyResults = (
   });
 };
 
-// Policy errors only
+// Live policy errors only
 export const generateCSVPolicyErrors = (
   rows: ICampaignError[],
   filename: string
