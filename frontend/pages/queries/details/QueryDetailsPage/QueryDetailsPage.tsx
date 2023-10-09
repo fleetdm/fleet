@@ -50,21 +50,17 @@ const QueryDetailsPage = ({
   params: { id: paramsQueryId },
   location,
 }: IQueryDetailsPageProps): JSX.Element => {
-  const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+  const queryId = parseInt(paramsQueryId, 10);
   const queryParams = location.query;
 
   // Functions to avoid race conditions
   const initialSortBy: ISortOption[] = (() => {
-    let key = DEFAULT_SORT_HEADER;
-    let direction = DEFAULT_SORT_DIRECTION;
-
-    if (queryParams) {
-      const { order_key, order_direction } = queryParams;
-      key = order_key || key;
-      direction = order_direction || direction;
-    }
-
-    return [{ key, direction }];
+    return [
+      {
+        key: queryParams?.order_key ?? DEFAULT_SORT_HEADER,
+        direction: queryParams?.order_direction ?? DEFAULT_SORT_DIRECTION,
+      },
+    ];
   })();
 
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
@@ -115,7 +111,7 @@ const QueryDetailsPage = ({
     error: storedQueryError,
   } = useQuery<IGetQueryResponse, Error, ISchedulableQuery>(
     ["query", queryId],
-    () => queryAPI.load(queryId as number),
+    () => queryAPI.load(queryId),
     {
       enabled: !!queryId,
       refetchOnWindowFocus: false,
@@ -144,18 +140,17 @@ const QueryDetailsPage = ({
     () =>
       queryReportAPI.load({
         sortBy,
-        id: queryId as number,
+        id: queryId,
       }),
     {
       enabled: !!queryId,
       refetchOnWindowFocus: false,
-      select: (data) => data,
       onError: (error) => handlePageError(error),
     }
   );
 
-  const isLoading = isStoredQueryLoading || isQueryReportLoading; // TODO: Add || isCachedResultsLoading for new API response
-  const isApiError = storedQueryError || queryReportError; // TODO: Add || isCachedResultsError for new API response
+  const isLoading = isStoredQueryLoading || isQueryReportLoading;
+  const isApiError = storedQueryError || queryReportError;
 
   const renderHeader = () => {
     const canEditQuery =

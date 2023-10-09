@@ -1,7 +1,6 @@
 import React, { useState, useContext, useEffect } from "react";
-// import { Row, Column } from "react-table";
 
-// import classnames from "classnames";
+import { Row, Column } from "react-table";
 import FileSaver from "file-saver";
 import { QueryContext } from "context/query";
 
@@ -9,8 +8,7 @@ import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
-import { IQueryReport } from "interfaces/query_report";
-import { humanLastSeen } from "utilities/helpers";
+import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -26,15 +24,16 @@ interface IQueryReportProps {
 const baseClass = "query-report";
 const CSV_TITLE = "Query";
 
-const tableResults = (results: any) => {
-  return results.map((result: any) => {
-    const hostInfo = {
+const tableResults = (results: IQueryReportResultRow[]) => {
+  return results.map((result: IQueryReportResultRow) => {
+    const hostInfoColumns = {
       host_display_name: result.host_name,
       last_fetched: result.last_fetched,
     };
 
-    const tableData = { ...hostInfo, ...result.columns };
-    return tableData;
+    // hostInfoColumns displays the host metadata that is returned with every query
+    // result.columns are the variable columns returned by the API that differ per query
+    return { ...hostInfoColumns, ...result.columns };
   });
 };
 
@@ -42,10 +41,10 @@ const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
   const { lastEditedQueryName, lastEditedQueryBody } = useContext(QueryContext);
 
   const [showQueryModal, setShowQueryModal] = useState(false);
-  const [filteredResults, setFilteredResults] = useState<any>(
-    tableResults(queryReport?.results)
+  const [filteredResults, setFilteredResults] = useState<Row[]>(
+    tableResults(queryReport?.results || [])
   );
-  const [tableHeaders, setTableHeaders] = useState<any>([]);
+  const [tableHeaders, setTableHeaders] = useState<Column[]>([]);
 
   useEffect(() => {
     if (queryReport && queryReport.results && queryReport.results.length > 0) {
@@ -111,7 +110,7 @@ const QueryReport = ({ queryReport }: IQueryReportProps): JSX.Element => {
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
           columns={tableHeaders}
-          data={tableResults(queryReport?.results) || []}
+          data={tableResults(queryReport?.results || [])}
           emptyComponent={renderNoResults}
           isLoading={false}
           isClientSidePagination
