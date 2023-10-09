@@ -1,3 +1,15 @@
-.hosts-scripts-section {
+.host-scripts-section {
+  margin-top: $pad-medium;
+  padding: $pad-xxlarge;
 
+  h2 {
+    font-size: $medium;
+    font-weight: $bold;
+    margin: 0 0 $pad-medium 0;
+    line-height: 1.5;
+  }
+
+  .table-container__header-left {
+    display: block;
+  }
 }

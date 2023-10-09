@@ -12,6 +12,7 @@ import { NotificationContext } from "context/notification";
 import Card from "components/Card";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
+import DataError from "components/DataError";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 
 import { generateDataSet, generateTableHeaders } from "./ScriptsTableConfig";
@@ -69,28 +70,34 @@ const Scripts = ({ hostId, isHostOnline }: IScriptsProps) => {
     scriptExecutionId.current = null;
   };
 
+  if (isError) {
+    return <DataError card />;
+  }
+
   const scriptHeaders = generateTableHeaders(onActionSelection);
   const data = generateDataSet(scriptsData || [], isHostOnline);
 
   return (
     <Card className={baseClass} borderRadiusSize="large" includeShadow>
       <h2>Scripts</h2>
-      <TableContainer
-        resultsTitle=""
-        emptyComponent={() => (
-          <EmptyTable
-            header="No Scripts"
-            iconName="alert"
-            info="There is no scripts to display."
-          />
-        )}
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        columns={scriptHeaders}
-        data={data}
-        isLoading={isLoading}
-        disableCount
-      />
+      {data && data.length === 0 ? (
+        <EmptyTable
+          header="No scripts are available for this host"
+          info="Expecting to see scripts? Try selecting “Refetch” to ask this host to report new vitals."
+        />
+      ) : (
+        <TableContainer
+          resultsTitle=""
+          emptyComponent={() => <></>}
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          columns={scriptHeaders}
+          data={data}
+          isLoading={isLoading}
+          disableCount
+        />
+      )}
+
       {showScriptDetailsModal && scriptExecutionId.current && (
         <ScriptDetailsModal
           scriptExecutionId={scriptExecutionId.current}
