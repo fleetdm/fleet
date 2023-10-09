@@ -281,7 +281,7 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	query.Logging = "differential"
 	query.DiscardData = true
 
-	err = ds.SaveQuery(context.Background(), query)
+	err = ds.SaveQuery(context.Background(), query, true)
 	require.NoError(t, err)
 
 	actual, err := ds.Query(context.Background(), query.ID)

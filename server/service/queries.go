@@ -290,31 +290,25 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		query.AutomationsEnabled = *p.AutomationsEnabled
 	}
 	if p.Logging != nil {
-		query.Logging = *p.Logging
-		if *p.Logging != fleet.LoggingSnapshot {
+		if query.Logging != *p.Logging && *p.Logging != fleet.LoggingSnapshot {
 			shouldDiscardQueryResults = true
 		}
+		query.Logging = *p.Logging
 	}
 	if p.ObserverCanRun != nil {
 		query.ObserverCanRun = *p.ObserverCanRun
 	}
 	if p.DiscardData != nil {
-		query.DiscardData = *p.DiscardData
-		if *p.DiscardData {
+		if *p.DiscardData && *p.DiscardData != query.DiscardData {
 			shouldDiscardQueryResults = true
 		}
+		query.DiscardData = *p.DiscardData
 	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
 
-	if err := svc.ds.SaveQuery(ctx, query); err != nil {
+	if err := svc.ds.SaveQuery(ctx, query, shouldDiscardQueryResults); err != nil {
 		return nil, err
-	}
-
-	if shouldDiscardQueryResults {
-		if err := svc.ds.DeleteAllResultsForQuery(ctx, id); err != nil {
-			return nil, err
-		}
 	}
 
 	if err := svc.ds.NewActivity(
@@ -551,7 +545,9 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 			continue
 		}
 
-		if query.DiscardData || query.Logging != fleet.LoggingSnapshot || query.Query != dbQuery.Query {
+		if (query.DiscardData && query.DiscardData != dbQuery.DiscardData) ||
+			(query.Logging != dbQuery.Logging && query.Logging != fleet.LoggingSnapshot) ||
+			query.Query != dbQuery.Query {
 			queriesToDiscardResults[dbQuery.ID] = true
 		}
 	}

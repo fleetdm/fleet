@@ -70,7 +70,7 @@ type Datastore interface {
 	// NewQuery creates a new query object in thie datastore. The returned query should have the ID updated.
 	NewQuery(ctx context.Context, query *Query, opts ...OptionalArg) (*Query, error)
 	// SaveQuery saves changes to an existing query object.
-	SaveQuery(ctx context.Context, query *Query) error
+	SaveQuery(ctx context.Context, query *Query, shouldDiscardResults bool) error
 	// DeleteQuery deletes an existing query object on a team. If teamID is nil, then the query is
 	// looked up in the 'global' team.
 	DeleteQuery(ctx context.Context, teamID *uint, name string) error

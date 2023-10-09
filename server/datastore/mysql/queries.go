@@ -221,8 +221,26 @@ func (ds *Datastore) NewQuery(
 }
 
 // SaveQuery saves changes to a Query.
-func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
-	sql := `
+func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscardResults bool) error {
+	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "begin SaveQuery transaction")
+	}
+
+	defer func() {
+		if err != nil {
+			rbErr := tx.Rollback()
+			// It seems possible that there might be a case in
+			// which the error we are dealing with here was thrown
+			// by the call to tx.Commit(), and the docs suggest
+			// this call would then result in sql.ErrTxDone.
+			if rbErr != nil && rbErr != sql.ErrTxDone {
+				panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
+			}
+		}
+	}()
+
+	updateSql := `
 		UPDATE queries
 		SET name                = ?,
 			description         = ?,
@@ -240,9 +258,26 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 			discard_data        = ?
 		WHERE id = ?
 	`
-	result, err := ds.writer(ctx).ExecContext(
+
+	stmt, err := tx.PrepareContext(ctx, updateSql)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare SaveQuery update")
+	}
+	defer stmt.Close()
+
+	var resultsStmt *sql.Stmt
+	if shouldDiscardResults {
+		resultsSql := `DELETE FROM query_results WHERE query_id = ?`
+		resultsStmt, err = tx.PrepareContext(ctx, resultsSql)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare SaveQuery delete query results")
+		}
+		defer resultsStmt.Close()
+
+	}
+
+	_, err = stmt.ExecContext(
 		ctx,
-		sql,
 		q.Name,
 		q.Description,
 		q.Query,
@@ -257,19 +292,24 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 		q.AutomationsEnabled,
 		q.Logging,
 		q.DiscardData,
-		q.ID)
+		q.ID,
+	)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating query")
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "rows affected updating query")
-	}
-	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("Query").WithID(q.ID))
+		return ctxerr.Wrap(ctx, err, "exec SaveQuery update")
 	}
 
-	return nil
+	if resultsStmt != nil {
+		_, err := resultsStmt.ExecContext(
+			ctx,
+			q.ID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "exec SaveQuery delete query results")
+		}
+	}
+
+	err = tx.Commit()
+	return ctxerr.Wrap(ctx, err, "commit SaveQuery transaction")
 }
 
 func (ds *Datastore) DeleteQuery(
