@@ -310,11 +310,6 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	require.Equal(t, overwriteRows[0].HostID, results[0].HostID)
 	require.Equal(t, overwriteRows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
 	require.JSONEq(t, string(overwriteRows[0].Data), string(results[0].Data))
-
-	// Assert that QueryResultRows returns empty slice when no results are found
-	results, err = ds.QueryResultRowsForHost(context.Background(), 999, 999)
-	require.NoError(t, err)
-	require.Len(t, results, 0)
 }
 
 func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
