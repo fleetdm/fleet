@@ -11,6 +11,7 @@ import { NotificationContext } from "context/notification";
 
 import Card from "components/Card";
 import TableContainer from "components/TableContainer";
+import EmptyTable from "components/EmptyTable";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 
 import { generateDataSet, generateTableHeaders } from "./ScriptsTableConfig";
@@ -41,7 +42,7 @@ const Scripts = ({ hostId, isHostOnline }: IScriptsProps) => {
     select: (res) => res?.scripts,
   });
 
-  if (!hostId || !scriptsData) return null;
+  if (!hostId) return null;
 
   const onActionSelection = async (action: string, script: IHostScript) => {
     switch (action) {
@@ -69,14 +70,20 @@ const Scripts = ({ hostId, isHostOnline }: IScriptsProps) => {
   };
 
   const scriptHeaders = generateTableHeaders(onActionSelection);
-  const data = generateDataSet(scriptsData, isHostOnline);
+  const data = generateDataSet(scriptsData || [], isHostOnline);
 
   return (
     <Card className={baseClass} borderRadiusSize="large" includeShadow>
       <h2>Scripts</h2>
       <TableContainer
         resultsTitle=""
-        emptyComponent={() => <span>No scripts</span>}
+        emptyComponent={() => (
+          <EmptyTable
+            header="No Scripts"
+            iconName="alert"
+            info="There is no scripts to display."
+          />
+        )}
         showMarkAllPages={false}
         isAllPagesSelected={false}
         columns={scriptHeaders}
