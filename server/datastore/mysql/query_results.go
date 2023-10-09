@@ -101,6 +101,24 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 	return nil
 }
 
+// TODO(lucas): Any chance we can store hostname in the query_results table?
+// (to avoid having to left join hosts).
+func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint) ([]*fleet.ScheduledQueryResultRow, error) {
+	selectStmt := `
+		SELECT qr.query_id, qr.host_id, h.hostname, qr.last_fetched, qr.data
+			FROM query_results qr
+			LEFT JOIN hosts h ON (qr.host_id=h.id)
+			WHERE query_id = ?
+		`
+	results := []*fleet.ScheduledQueryResultRow{}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting query result rows")
+	}
+
+	return results, nil
+}
+
 func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
 	var count int
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `select count(*) from query_results where query_id = ?`, queryID)

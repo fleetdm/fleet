@@ -43,8 +43,9 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 			min_osquery_version,
 			schedule_interval,
 			automations_enabled,
-			logging_type 
-		) VALUES ( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ? )
+			logging_type,
+			discard_data
+		) VALUES ( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
@@ -58,7 +59,8 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 			min_osquery_version = VALUES(min_osquery_version),
 			schedule_interval = VALUES(schedule_interval),
 			automations_enabled = VALUES(automations_enabled),
-			logging_type = VALUES(logging_type)
+			logging_type = VALUES(logging_type),
+			discard_data = VALUES(discard_data)
 	`
 	stmt, err := tx.PrepareContext(ctx, sql)
 	if err != nil {
@@ -84,6 +86,7 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 			q.Interval,
 			q.AutomationsEnabled,
 			q.Logging,
+			q.DiscardData,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "exec ApplyQueries insert")
@@ -165,8 +168,9 @@ func (ds *Datastore) NewQuery(
 			min_osquery_version,
 			schedule_interval,
 			automations_enabled,
-			logging_type 
-		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+			logging_type,
+			discard_data
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -184,6 +188,7 @@ func (ds *Datastore) NewQuery(
 		query.Interval,
 		query.AutomationsEnabled,
 		query.Logging,
+		query.DiscardData,
 	)
 
 	if err != nil && isDuplicate(err) {
@@ -214,7 +219,8 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 			min_osquery_version = ?,
 			schedule_interval   = ?,
 			automations_enabled = ?,
-			logging_type        = ?
+			logging_type        = ?,
+			discard_data        = ?
 		WHERE id = ?
 	`
 	result, err := ds.writer(ctx).ExecContext(
@@ -233,6 +239,7 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 		q.Interval,
 		q.AutomationsEnabled,
 		q.Logging,
+		q.DiscardData,
 		q.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating query")
@@ -300,6 +307,7 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 			q.min_osquery_version,
 			q.automations_enabled,
 			q.logging_type,
+			q.discard_data,
 			q.created_at,
 			q.updated_at,
 			COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name, 
@@ -349,6 +357,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 			q.min_osquery_version,
 			q.automations_enabled,
 			q.logging_type,
+			q.discard_data,
 			q.created_at,
 			q.updated_at,
 			COALESCE(u.name, '<deleted>') AS author_name,

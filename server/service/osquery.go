@@ -1359,7 +1359,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	switch req.LogType {
 	case "status":
 		var statuses []json.RawMessage
-		if err := json.Unmarshal(req.Data, &statuses); err != nil {
+		if err = json.Unmarshal(req.Data, &statuses); err != nil {
 			err = newOsqueryError("unmarshalling status logs: " + err.Error())
 			break
 		}
@@ -1371,7 +1371,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 	case "result":
 		var results []json.RawMessage
-		if err := json.Unmarshal(req.Data, &results); err != nil {
+		if err = json.Unmarshal(req.Data, &results); err != nil {
 			err = newOsqueryError("unmarshalling result logs: " + err.Error())
 			break
 		}

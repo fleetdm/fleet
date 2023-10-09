@@ -59,6 +59,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			MinOsqueryVersion:  "5.2.1",
 			AutomationsEnabled: true,
 			Logging:            "differential",
+			DiscardData:        true,
 		},
 		{
 			Name:        "bar",
@@ -88,6 +89,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 	// Victor modifies a query (but also pushes the same version of the
 	// first query)
 	expectedQueries[1].Query = "not really a valid query ;)"
+	expectedQueries[1].DiscardData = true
 	err = ds.ApplyQueries(context.Background(), groob.ID, expectedQueries)
 	require.NoError(t, err)
 

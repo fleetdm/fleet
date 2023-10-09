@@ -1,7 +1,9 @@
 package fleet
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -208,5 +210,218 @@ func TestVerifyQueryPlatforms(t *testing.T) {
 				require.NoError(t, err)
 			}
 		})
+	}
+}
+
+func TestMapQueryReportResultRows(t *testing.T) {
+	macOSUSBDevicesLastFetched := time.Now()
+	ubuntuUSBDevicesLastFetched := time.Now().Add(-1 * time.Hour)
+	macOSOsqueryInfoLastFetched := time.Now().Add(-2 * time.Hour)
+	for _, tc := range []struct {
+		name       string
+		rows       []*ScheduledQueryResultRow
+		expected   []HostQueryResultRow
+		shouldFail bool
+	}{
+		{
+			name: "USB devices query with results from a macOS and Linux host",
+			rows: []*ScheduledQueryResultRow{
+				{
+					HostID:      1,
+					Hostname:    "macOS host",
+					LastFetched: macOSUSBDevicesLastFetched,
+					Data: json.RawMessage(`{
+						"class": "9",
+						"model": "AppleUSBVHCIBCE Root Hub Simulation",
+						"model_id": "8000",
+						"protocol": "",
+						"removable": "0",
+						"serial": "0",
+						"subclass": "255",
+						"usb_address": "",
+						"usb_port": "",
+						"vendor": "Apple Inc.",
+						"vendor_id": "05bc",
+						"version": "0.0"
+					}`),
+				},
+				{
+					HostID:      1,
+					Hostname:    "macOS host",
+					LastFetched: macOSUSBDevicesLastFetched,
+					Data: json.RawMessage(`{
+						"class": "9",
+						"model": "AppleUSBXHCI Root Hub Simulation",
+						"model_id": "8007",
+						"protocol": "",
+						"removable": "0",
+						"serial": "0",
+						"subclass": "255",
+						"usb_address": "",
+						"usb_port": "",
+						"vendor": "Apple Inc.",
+						"vendor_id": "05ac",
+						"version": "0.0"
+					}`),
+				},
+				{
+					HostID:      2,
+					Hostname:    "ubuntu host",
+					LastFetched: ubuntuUSBDevicesLastFetched,
+					Data: json.RawMessage(`{
+						"class": "9",
+						"model": "1.1 root hub",
+						"model_id": "0001",
+						"protocol": "0",
+						"removable": "-1",
+						"serial": "0000:02:00.0",
+						"subclass": "0",
+						"usb_address": "1",
+						"usb_port": "1",
+						"vendor": "Linux Foundation",
+						"vendor_id": "1d6b",
+						"version": "0602"
+					}`),
+				},
+			},
+			expected: []HostQueryResultRow{
+				{
+					HostID:      1,
+					Hostname:    "macOS host",
+					LastFetched: macOSUSBDevicesLastFetched,
+					Columns: map[string]string{
+						"class":       "9",
+						"model":       "AppleUSBVHCIBCE Root Hub Simulation",
+						"model_id":    "8000",
+						"protocol":    "",
+						"removable":   "0",
+						"serial":      "0",
+						"subclass":    "255",
+						"usb_address": "",
+						"usb_port":    "",
+						"vendor":      "Apple Inc.",
+						"vendor_id":   "05bc",
+						"version":     "0.0",
+					},
+				},
+				{
+					HostID:      1,
+					Hostname:    "macOS host",
+					LastFetched: macOSUSBDevicesLastFetched,
+					Columns: map[string]string{
+						"class":       "9",
+						"model":       "AppleUSBXHCI Root Hub Simulation",
+						"model_id":    "8007",
+						"protocol":    "",
+						"removable":   "0",
+						"serial":      "0",
+						"subclass":    "255",
+						"usb_address": "",
+						"usb_port":    "",
+						"vendor":      "Apple Inc.",
+						"vendor_id":   "05ac",
+						"version":     "0.0",
+					},
+				},
+				{
+					HostID:      2,
+					Hostname:    "ubuntu host",
+					LastFetched: ubuntuUSBDevicesLastFetched,
+					Columns: map[string]string{
+						"class":       "9",
+						"model":       "1.1 root hub",
+						"model_id":    "0001",
+						"protocol":    "0",
+						"removable":   "-1",
+						"serial":      "0000:02:00.0",
+						"subclass":    "0",
+						"usb_address": "1",
+						"usb_port":    "1",
+						"vendor":      "Linux Foundation",
+						"vendor_id":   "1d6b",
+						"version":     "0602",
+					},
+				},
+			},
+			shouldFail: false,
+		},
+		{
+			name: "macOS osquery_info result",
+			rows: []*ScheduledQueryResultRow{
+				{
+					HostID:      1,
+					Hostname:    "macOS host",
+					LastFetched: macOSOsqueryInfoLastFetched,
+					Data: json.RawMessage(`{
+						"build_distro": "10.14",
+						"build_platform": "darwin",
+						"config_hash": "eed0d8296e5f90b790a23814a9db7a127b13498d",
+						"config_valid": "1",
+						"extensions": "active",
+						"instance_id": "7f02ff0f-f8a7-4ba9-a1d2-66836b154f4a",
+						"pid": "96730",
+						"platform_mask": "21",
+						"start_time": "1696421866",
+						"uuid": "589966AE-074A-503B-B17B-54B05684A120",
+						"version": "5.9.1",
+						"watcher": "96729"
+					}`),
+				},
+			},
+			expected: []HostQueryResultRow{
+				{
+					HostID:      1,
+					Hostname:    "macOS host",
+					LastFetched: macOSOsqueryInfoLastFetched,
+					Columns: map[string]string{
+						"build_distro":   "10.14",
+						"build_platform": "darwin",
+						"config_hash":    "eed0d8296e5f90b790a23814a9db7a127b13498d",
+						"config_valid":   "1",
+						"extensions":     "active",
+						"instance_id":    "7f02ff0f-f8a7-4ba9-a1d2-66836b154f4a",
+						"pid":            "96730",
+						"platform_mask":  "21",
+						"start_time":     "1696421866",
+						"uuid":           "589966AE-074A-503B-B17B-54B05684A120",
+						"version":        "5.9.1",
+						"watcher":        "96729",
+					},
+				},
+			},
+			shouldFail: false,
+		},
+		{
+			name: "invalid JSON result",
+			rows: []*ScheduledQueryResultRow{
+				{
+					HostID:      3,
+					Hostname:    "bar",
+					LastFetched: time.Now(),
+					Data:        json.RawMessage(`invalid JSON`),
+				},
+			},
+			shouldFail: true,
+		},
+		{
+			name: "invalid item value type",
+			rows: []*ScheduledQueryResultRow{
+				{
+					HostID:      3,
+					Hostname:    "bar",
+					LastFetched: time.Now(),
+					Data:        json.RawMessage(`{"foobar": 1}`),
+				},
+			},
+			shouldFail: true,
+		},
+	} {
+		results, err := MapQueryReportResultsToRows(tc.rows)
+		if !tc.shouldFail {
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, results)
+		} else {
+			require.Error(t, err)
+		}
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -113,7 +114,7 @@ func getQueryResultRows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Assert that Query1 returns 2 results
-	results, err := ds.QueryResultRows(context.Background(), resultRows[0].QueryID, resultRows[0].HostID)
+	results, err := ds.QueryResultRowsForHost(context.Background(), resultRows[0].QueryID, resultRows[0].HostID)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	require.Equal(t, resultRows[0].QueryID, results[0].QueryID)
@@ -126,7 +127,7 @@ func getQueryResultRows(t *testing.T, ds *Datastore) {
 	require.JSONEq(t, string(resultRows[1].Data), string(results[1].Data))
 
 	// Assert that Query2 returns 1 result
-	results, err = ds.QueryResultRows(context.Background(), resultRow3[0].QueryID, resultRow3[0].HostID)
+	results, err = ds.QueryResultRowsForHost(context.Background(), resultRow3[0].QueryID, resultRow3[0].HostID)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, resultRow3[0].QueryID, results[0].QueryID)
@@ -135,7 +136,7 @@ func getQueryResultRows(t *testing.T, ds *Datastore) {
 	require.JSONEq(t, string(resultRow3[0].Data), string(results[0].Data))
 
 	// Assert that QueryResultRows returns empty slice when no results are found
-	results, err = ds.QueryResultRows(context.Background(), 999, 999)
+	results, err = ds.QueryResultRowsForHost(context.Background(), 999, 999)
 	require.NoError(t, err)
 	require.Len(t, results, 0)
 }
@@ -302,7 +303,7 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Assert that we get the overwritten data (1 result with USB Mouse data)
-	results, err := ds.QueryResultRows(context.Background(), overwriteRows[0].QueryID, overwriteRows[0].HostID)
+	results, err := ds.QueryResultRowsForHost(context.Background(), overwriteRows[0].QueryID, overwriteRows[0].HostID)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, overwriteRows[0].QueryID, results[0].QueryID)
@@ -311,7 +312,7 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	require.JSONEq(t, string(overwriteRows[0].Data), string(results[0].Data))
 
 	// Assert that QueryResultRows returns empty slice when no results are found
-	results, err = ds.QueryResultRows(context.Background(), 999, 999)
+	results, err = ds.QueryResultRowsForHost(context.Background(), 999, 999)
 	require.NoError(t, err)
 	require.Len(t, results, 0)
 }
@@ -339,7 +340,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Confirm only max rows are stored for the queryID
-	allResults, err := ds.QueryResultRows(context.Background(), query.ID, host.ID)
+	allResults, err := ds.QueryResultRowsForHost(context.Background(), query.ID, host.ID)
 	require.NoError(t, err)
 	require.Len(t, allResults, fleet.MaxQueryReportRows)
 
@@ -360,7 +361,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 	err = ds.OverwriteQueryResultRows(context.Background(), overwriteRows)
 	require.NoError(t, err)
 
-	host2Results, err := ds.QueryResultRows(context.Background(), query.ID, host2.ID)
+	host2Results, err := ds.QueryResultRowsForHost(context.Background(), query.ID, host2.ID)
 	require.NoError(t, err)
 	require.Len(t, host2Results, 0)
 }
@@ -391,15 +392,15 @@ func (ds *Datastore) SaveQueryResultRows(ctx context.Context, rows []*fleet.Sche
 	return nil
 }
 
-func (ds *Datastore) QueryResultRows(ctx context.Context, queryID, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
+func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
 	selectStmt := `
-		SELECT query_id, host_id, last_fetched, data FROM query_results
-			WHERE query_id = ? AND host_id = ?
-		`
+               SELECT query_id, host_id, last_fetched, data FROM query_results
+                       WHERE query_id = ? AND host_id = ?
+               `
 	results := []*fleet.ScheduledQueryResultRow{}
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID, hostID)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "selecting query result rows for host")
 	}
 
 	return results, nil
