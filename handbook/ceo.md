@@ -17,7 +17,7 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
   - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board?sprints=none) (confidential) for this team, including pending tasks and requests.
 - **Do not add events to the CEO's calendar.** events added directly to the CEO's calendar will be declined and removed. Even if the CEO asks you to set up a meeting or add him to a call, please [get scheduling help from the Apprentice](#schedule-time-with-the-ceo).
-- **For personal or extremely urgent requests** that cannot wait one business day, send a Slack direct message (DM) to `@mikermcneil` right away.
+- **For personal or extremely urgent requests** that cannot wait one business day, send a Slack direct message (DM) to `@mikermcneil` right away 🎵
   - If you mention the CEO or reply from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
 - **If you're a hiring manager**, you can [schedule a CEO interview](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=&title=CEO%20interview%3a%20%7BCANDIDATE_NAME%7D&body=-%20[%20]%20I%20followed%20all%20the%20steps%20in%20https%3A%2F%2Ffleetdm.com%2Fhandbook%2Fcompany%2Fleadership%23hiring-a-new-team-member%20before%20submitting%20this%20issue.)
 - **If you're in Business Operations**, you can [request warehoused equipment be shipped from Fleet IT](#request-equipment-from-fleet-it).
@@ -78,13 +78,8 @@ Thank you so much!" 🙇
 - I can be inconsistent about how certain I sound about the same topics at different times.  Even when I am probably still certain.  That's because I try to question blind certainty, even my own. The problem is, I don't always remember why I first became certain about every topic.  It is okay to stop and share what you observe: "You seem less sure about this.  What's up?"  If I am waffling, it can be helpful to say "Did we write down a decision on that?  I'll make a GitHub issue." (Luke is good at this.)
 - I get grumpy when I am tired and I worry that I'll forget to follow up about things.  You can say: "Would it help if I made a confidential issue about this for you and Sam to go over tonight?"
 - I sometimes will keep talking longer than I otherwise would (ESPECIALLY OVER ZOOM AND ESPECIALLY WHILE SCREENSHARING) when it is harder to see faces and pick up on subtle cues. This is exacerbated by me being afraid I’ll forget to come back to the topic, and feeling like I have to get to address it immediately or it will be lost. 
-  - When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t in the agenda, its ok to interruptively share your screen and show me the sprawl visually in the notes you’ve been taking, select the text of the tangent, and say: “I’m taking notes, and I noticed that we’ve veered onto a tangent. Want me to tag you in a google doc comment on this you can follow up later?
+- When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t in the agenda, its ok to interrupt by sharing your screen and show me the sprawl visually in the notes you’ve been taking, select the text of the tangent and say: “I’m taking notes, and I noticed that we’ve veered onto a tangent. Do you want me to tag you in a Google Doc comment to follow up later on this?
 
-<!--
-[![SC2021 - Keynote: The Voyage of Sails - Mike McNeil](https://img.youtube.com/vi/_T-UR9mU4-o/0.jpg)](https://www.youtube.com/watch?v=_T-UR9mU4-o)
-
-"[Broken links and bugs](https://gist.github.com/mikermcneil/0ce44f6c4f803ff6b4f6), fleas, dance tights, [focus](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/), [running out of money](https://nathanleclaire.com/blog/2013/12/28/the-good-the-bad-and-the-ugly-of-sails-dot-js-realtime-javascript-mvc-framework/), etc."
--->
 
 ## Automated filing of signed documents
 We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 

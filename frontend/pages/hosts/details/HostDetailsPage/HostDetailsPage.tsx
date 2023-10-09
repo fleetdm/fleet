@@ -65,6 +65,7 @@ import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import MacSettingsModal from "../MacSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import SelectQueryModal from "./modals/SelectQueryModal";
+import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
 
 const baseClass = "host-details";
 
@@ -720,6 +721,7 @@ const HostDetailsPage = ({
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
+          osSettings={host?.mdm.os_settings}
         />
         <TabsWrapper>
           <Tabs
@@ -845,6 +847,7 @@ const HostDetailsPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
+            platform={host?.platform}
             hostMDMData={host?.mdm}
             onClose={toggleMacSettingsModal}
           />
@@ -852,12 +855,15 @@ const HostDetailsPage = ({
         {showUnenrollMdmModal && !!host && (
           <UnenrollMdmModal hostId={host.id} onClose={toggleUnenrollMdmModal} />
         )}
-        {showDiskEncryptionModal && host && (
-          <DiskEncryptionKeyModal
-            hostId={host.id}
-            onCancel={() => setShowDiskEncryptionModal(false)}
-          />
-        )}
+        {showDiskEncryptionModal &&
+          host &&
+          isSupportedPlatform(host.platform) && (
+            <DiskEncryptionKeyModal
+              platform={host.platform}
+              hostId={host.id}
+              onCancel={() => setShowDiskEncryptionModal(false)}
+            />
+          )}
         {showBootstrapPackageModal &&
           bootstrapPackageData.details &&
           bootstrapPackageData.name && (
