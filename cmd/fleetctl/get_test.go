@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -168,15 +167,15 @@ func TestGetTeams(t *testing.T) {
 				}, nil
 			}
 
-			b, err := ioutil.ReadFile(filepath.Join("testdata", "expectedGetTeamsText.txt"))
+			b, err := os.ReadFile(filepath.Join("testdata", "expectedGetTeamsText.txt"))
 			require.NoError(t, err)
 			expectedText := string(b)
 
-			b, err = ioutil.ReadFile(filepath.Join("testdata", "expectedGetTeamsYaml.yml"))
+			b, err = os.ReadFile(filepath.Join("testdata", "expectedGetTeamsYaml.yml"))
 			require.NoError(t, err)
 			expectedYaml := string(b)
 
-			b, err = ioutil.ReadFile(filepath.Join("testdata", "expectedGetTeamsJson.json"))
+			b, err = os.ReadFile(filepath.Join("testdata", "expectedGetTeamsJson.json"))
 			require.NoError(t, err)
 			// must read each JSON value separately and compact it
 			var buf bytes.Buffer
@@ -206,8 +205,8 @@ func TestGetTeams(t *testing.T) {
 			errBuffer.Reset()
 			actualJSON, err := runWithErrWriter([]string{"get", "teams", "--json"}, &errBuffer)
 			require.NoError(t, err)
-			require.Equal(t, expectedJson, actualJSON.String())
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
+			require.Equal(t, expectedJson, actualJSON.String())
 
 			errBuffer.Reset()
 			actualYaml, err := runWithErrWriter([]string{"get", "teams", "--yaml"}, &errBuffer)
@@ -433,7 +432,7 @@ func TestGetHosts(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			expected, err := ioutil.ReadFile(filepath.Join("testdata", tt.goldenFile))
+			expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
 			require.NoError(t, err)
 			expectedResults := tt.scanner(string(expected))
 			actualResult := tt.scanner(runAppForTest(t, tt.args))
@@ -536,7 +535,7 @@ func TestGetHostsMDM(t *testing.T) {
 			}
 
 			if tt.goldenFile != "" {
-				expected, err := ioutil.ReadFile(filepath.Join("testdata", tt.goldenFile))
+				expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
 				require.NoError(t, err)
 				if ext := filepath.Ext(tt.goldenFile); ext == ".json" {
 					// the output of --json is not a json array, but a list of
