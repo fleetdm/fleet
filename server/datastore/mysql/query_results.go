@@ -12,7 +12,7 @@ import (
 // OverwriteQueryResultRows overwrites the query result rows for a given query and host
 // in a single transaction, ensuring that the number of rows for the given query
 // does not exceed the maximum allowed
-func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) (err error) {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -23,9 +23,11 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		return ctxerr.Wrap(ctx, err, "starting a transaction")
 	}
 	defer func() {
-		err := tx.Rollback()
 		if err != nil {
-			ds.logger.Log("err", err, "msg", "rolling back transaction")
+			err := tx.Rollback()
+			if err != nil {
+				ds.logger.Log("err", err, "msg", "rolling back transaction")
+			}
 		}
 	}()
 
