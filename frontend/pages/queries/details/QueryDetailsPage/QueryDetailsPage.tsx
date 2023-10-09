@@ -210,7 +210,9 @@ const QueryDetailsPage = ({
         {!isLoading && !isApiError && (
           <div className={`${baseClass}__settings`}>
             <div className={`${baseClass}__automations`}>
-              <TooltipWrapper tipContent="Query automations let you send data to your log destination on a schedule. When automations are on, data is sent according to a query’s frequency.">
+              <TooltipWrapper
+                tipContent={`Query automations let you send data to your log destination on a schedule. When automations are <b>on</b>, data is sent according to a query’s frequency.`}
+              >
                 Automations:
               </TooltipWrapper>
               <QueryAutomationsStatusIndicator
