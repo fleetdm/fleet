@@ -1381,6 +1381,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 			break
 		}
 
+		// Not returning errors as it will trigger osqueryd to retry the request
 		svc.SaveResultLogsToQueryReports(ctx, results)
 
 		if err = svc.SubmitResultLogs(ctx, results); err != nil {
@@ -1545,14 +1546,14 @@ func getMostRecentResults(results []fleet.ScheduledQueryResult) []fleet.Schedule
 func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 	// For pattern: pack/Global/Name
 	if strings.HasPrefix(path, "pack/Global/") {
-		return nil, strings.TrimPrefix(path, "pack/Global/"), nil
+		return nil, lastItemFromPath(path), nil
 	}
 
 	// For pattern: pack/team-<ID>/Name
 	if strings.HasPrefix(path, "pack/team-") {
 		parts := strings.SplitN(path, "/", 3)
 		if len(parts) != 3 {
-			return nil, "", nil
+			return nil, "", fmt.Errorf("unknown format: %s", path)
 		}
 
 		teamNumberStr := strings.TrimPrefix(parts[1], "team-")
@@ -1565,6 +1566,19 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 		return &teamNumber, parts[2], nil
 	}
 
-	// If neither pattern matches, return nil and empty string
+	// For pattern: pack/PackName/Query (legacy pack)
+	if strings.Count(path, "/") == 2 && strings.HasPrefix(path, "pack/") {
+		return nil, lastItemFromPath(path), nil
+	}
+
+	// If none of the above patterns match, return error
 	return nil, "", fmt.Errorf("unknown format: %s", path)
+}
+
+func lastItemFromPath(path string) string {
+	parts := strings.Split(path, "/")
+	if len(parts) == 0 {
+		return ""
+	}
+	return parts[len(parts)-1]
 }

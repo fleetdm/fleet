@@ -623,9 +623,10 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 		{"pack/Global/Query Name", nil, "Query Name", false},
 		{"pack/team-1/Query Name", ptr.Uint(1), "Query Name", false},
 		{"pack/team-12345/Another Query", ptr.Uint(12345), "Another Query", false},
-		{"pack/Invalid/Query", nil, "", true},
+		{"pack/PackName/Query", nil, "Query", false}, // Legacy Pack support
 		{"pack/team-foo/Query", nil, "", true},
 		{"InvalidString", nil, "", true},
+		{"Invalid/Query", nil, "", true},
 	}
 
 	for _, tt := range tests {
