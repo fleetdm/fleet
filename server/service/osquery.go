@@ -1473,17 +1473,10 @@ func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQu
 	if query.DiscardData {
 		return nil
 	}
-	rowCount, err := svc.ds.ResultCountForQuery(ctx, query.ID)
-	if err != nil {
-		return newOsqueryError("getting result count for query: " + err.Error())
-	}
-	if rowCount >= fleet.MaxQueryReportRows {
-		return nil
-	}
 
-	host, err := svc.ds.HostByIdentifier(ctx, result.OsqueryHostID)
-	if err != nil {
-		return newOsqueryError("getting host ID: " + err.Error())
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return newOsqueryError("internal error: missing host from request context")
 	}
 
 	return svc.overwriteResultRows(ctx, result, query.ID, host.ID)
