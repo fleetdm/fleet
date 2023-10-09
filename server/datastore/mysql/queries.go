@@ -221,7 +221,7 @@ func (ds *Datastore) NewQuery(
 }
 
 // SaveQuery saves changes to a Query.
-func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscardResults bool) error {
+func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscardResults bool) (err error) {
 	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "begin SaveQuery transaction")
@@ -559,13 +559,4 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 	}
 
 	return results, nil
-}
-
-func (ds *Datastore) DeleteAllResultsForQuery(ctx context.Context, id uint) error {
-	deleteStmt := fmt.Sprintf(`DELETE FROM %s WHERE query_id = ?`, queryResultsTable.name)
-	if _, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, id); err != nil {
-		return ctxerr.Wrapf(ctx, err, "delete %s by query id", queryResultsTable)
-	}
-
-	return nil
 }

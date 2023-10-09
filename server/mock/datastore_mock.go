@@ -76,8 +76,6 @@ type QueryByNameFunc func(ctx context.Context, teamID *uint, name string, opts .
 
 type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
 
-type DeleteAllResultsForQueryFunc func(ctx context.Context, queryId uint) error
-
 type NewDistributedQueryCampaignFunc func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
 
 type DistributedQueryCampaignFunc func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error)
@@ -771,9 +769,6 @@ type DataStore struct {
 
 	ObserverCanRunQueryFunc        ObserverCanRunQueryFunc
 	ObserverCanRunQueryFuncInvoked bool
-
-	DeleteAllResultsForQueryFunc        DeleteAllResultsForQueryFunc
-	DeleteAllResultsForQueryFuncInvoked bool
 
 	NewDistributedQueryCampaignFunc        NewDistributedQueryCampaignFunc
 	NewDistributedQueryCampaignFuncInvoked bool
@@ -1888,13 +1883,6 @@ func (s *DataStore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool
 	s.ObserverCanRunQueryFuncInvoked = true
 	s.mu.Unlock()
 	return s.ObserverCanRunQueryFunc(ctx, queryID)
-}
-
-func (s *DataStore) DeleteAllResultsForQuery(ctx context.Context, queryId uint) error {
-	s.mu.Lock()
-	s.DeleteAllResultsForQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteAllResultsForQueryFunc(ctx, queryId)
 }
 
 func (s *DataStore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {

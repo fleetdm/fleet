@@ -251,11 +251,6 @@ func TestQueryPayloadValidationModify(t *testing.T) {
 		return nil
 	}
 
-	ds.DeleteAllResultsForQueryFunc = func(ctx context.Context, queryId uint) error {
-		assert.NotEqual(t, 0, queryId)
-		return nil
-	}
-
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	testCases := []struct {
