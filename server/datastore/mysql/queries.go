@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query) (err error) {
+func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]bool) (err error) {
 	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "begin ApplyQueries transaction")
@@ -29,7 +29,7 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 		}
 	}()
 
-	sql := `
+	insertSql := `
 		INSERT INTO queries (
 			name,
 			description,
@@ -60,11 +60,22 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 			automations_enabled = VALUES(automations_enabled),
 			logging_type = VALUES(logging_type)
 	`
-	stmt, err := tx.PrepareContext(ctx, sql)
+	stmt, err := tx.PrepareContext(ctx, insertSql)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare ApplyQueries insert")
 	}
 	defer stmt.Close()
+
+	var resultsStmt *sql.Stmt
+	if len(queriesToDiscardResults) > 0 {
+		resultsSql := `DELETE FROM query_results WHERE query_id = ?`
+		resultsStmt, err = tx.PrepareContext(ctx, resultsSql)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare ApplyQueries delete query results")
+		}
+		defer resultsStmt.Close()
+
+	}
 
 	for _, q := range queries {
 		if err := q.Verify(); err != nil {
@@ -87,6 +98,16 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "exec ApplyQueries insert")
+		}
+	}
+
+	for id := range queriesToDiscardResults {
+		_, err := resultsStmt.ExecContext(
+			ctx,
+			id,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "exec ApplyQueries delete query results")
 		}
 	}
 
@@ -164,8 +185,9 @@ func (ds *Datastore) NewQuery(
 			min_osquery_version,
 			schedule_interval,
 			automations_enabled,
-			logging_type 
-		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+			logging_type,
+			discard_data
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -183,6 +205,7 @@ func (ds *Datastore) NewQuery(
 		query.Interval,
 		query.AutomationsEnabled,
 		query.Logging,
+		query.DiscardData,
 	)
 
 	if err != nil && isDuplicate(err) {
@@ -198,8 +221,26 @@ func (ds *Datastore) NewQuery(
 }
 
 // SaveQuery saves changes to a Query.
-func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
-	sql := `
+func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscardResults bool) (err error) {
+	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "begin SaveQuery transaction")
+	}
+
+	defer func() {
+		if err != nil {
+			rbErr := tx.Rollback()
+			// It seems possible that there might be a case in
+			// which the error we are dealing with here was thrown
+			// by the call to tx.Commit(), and the docs suggest
+			// this call would then result in sql.ErrTxDone.
+			if rbErr != nil && rbErr != sql.ErrTxDone {
+				panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
+			}
+		}
+	}()
+
+	updateSql := `
 		UPDATE queries
 		SET name                = ?,
 			description         = ?,
@@ -213,12 +254,30 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 			min_osquery_version = ?,
 			schedule_interval   = ?,
 			automations_enabled = ?,
-			logging_type        = ?
+			logging_type        = ?,
+			discard_data        = ?
 		WHERE id = ?
 	`
-	result, err := ds.writer(ctx).ExecContext(
+
+	stmt, err := tx.PrepareContext(ctx, updateSql)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare SaveQuery update")
+	}
+	defer stmt.Close()
+
+	var resultsStmt *sql.Stmt
+	if shouldDiscardResults {
+		resultsSql := `DELETE FROM query_results WHERE query_id = ?`
+		resultsStmt, err = tx.PrepareContext(ctx, resultsSql)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare SaveQuery delete query results")
+		}
+		defer resultsStmt.Close()
+
+	}
+
+	_, err = stmt.ExecContext(
 		ctx,
-		sql,
 		q.Name,
 		q.Description,
 		q.Query,
@@ -232,19 +291,25 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 		q.Interval,
 		q.AutomationsEnabled,
 		q.Logging,
-		q.ID)
+		q.DiscardData,
+		q.ID,
+	)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating query")
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "rows affected updating query")
-	}
-	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("Query").WithID(q.ID))
+		return ctxerr.Wrap(ctx, err, "exec SaveQuery update")
 	}
 
-	return nil
+	if resultsStmt != nil {
+		_, err := resultsStmt.ExecContext(
+			ctx,
+			q.ID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "exec SaveQuery delete query results")
+		}
+	}
+
+	err = tx.Commit()
+	return ctxerr.Wrap(ctx, err, "commit SaveQuery transaction")
 }
 
 func (ds *Datastore) DeleteQuery(
@@ -301,6 +366,7 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 			q.logging_type,
 			q.created_at,
 			q.updated_at,
+			q.discard_data,
 			COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name, 
 			COALESCE(u.email, '') AS author_email,
 			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
@@ -350,6 +416,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 			q.logging_type,
 			q.created_at,
 			q.updated_at,
+			q.discard_data,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
 			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
