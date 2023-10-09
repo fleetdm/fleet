@@ -12,6 +12,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -4818,7 +4819,7 @@ func (s *integrationEnterpriseTestSuite) TestAppConfigScripts() {
 	assert.Empty(t, acResp.Scripts.Value)
 }
 
-func (s *integrationEnterpriseTestSuite) TestApplyTeamsScripts() {
+func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 	t := s.T()
 
 	// create a team through the service so it initializes the agent ops
@@ -4905,4 +4906,110 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScripts() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Scripts.Value)
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
+	t := s.T()
+	ctx := context.Background()
+
+	saveAndCheckScripts := func(team *fleet.Team, scripts []fleet.ScriptPayload) {
+		var teamID *uint
+		teamIDStr := ""
+		teamActivity := `{"team_id": null, "team_name": null}`
+		if team != nil {
+			teamID = &team.ID
+			teamIDStr = strconv.Itoa(int(team.ID))
+			teamActivity = fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, team.Name)
+		}
+
+		// create and check activities
+		s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: scripts}, http.StatusNoContent, "team_id", teamIDStr)
+		s.lastActivityMatches(
+			fleet.ActivityTypeEditedScript{}.ActivityName(),
+			teamActivity,
+			0,
+		)
+
+		// check that the right values got stored in the db
+		var listResp listScriptsResponse
+		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "team_id", teamIDStr)
+		require.Len(t, listResp.Scripts, len(scripts))
+
+		got := make([]fleet.ScriptPayload, len(scripts))
+		for i, gotScript := range listResp.Scripts {
+			// add the script contents
+			res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", gotScript.ID), nil, http.StatusOK, "alt", "media")
+			b, err := io.ReadAll(res.Body)
+			require.NoError(t, err)
+			got[i] = fleet.ScriptPayload{
+				Name:           gotScript.Name,
+				ScriptContents: b,
+			}
+			// check that it belongs to the right team
+			require.Equal(t, teamID, gotScript.TeamID)
+		}
+
+		require.ElementsMatch(t, scripts, got)
+	}
+
+	// create a new team
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_scripts"})
+	require.NoError(t, err)
+
+	// apply an empty set to no-team
+	saveAndCheckScripts(nil, nil)
+
+	// apply to both team id and name
+	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil},
+		http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)), "team_name", tm.Name)
+
+	// invalid team name
+	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil},
+		http.StatusNotFound, "team_name", uuid.New().String())
+
+	// duplicate script names
+	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+		{Name: "N1.sh", ScriptContents: []byte("foo")},
+		{Name: "N1.sh", ScriptContents: []byte("bar")},
+	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+
+	// invalid script name
+	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+		{Name: "N1", ScriptContents: []byte("foo")},
+	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+
+	// empty script name
+	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+		{Name: "", ScriptContents: []byte("foo")},
+	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+
+	// successfully apply a scripts for the team
+	saveAndCheckScripts(tm, []fleet.ScriptPayload{
+		{Name: "N1.sh", ScriptContents: []byte("foo")},
+		{Name: "N2.sh", ScriptContents: []byte("bar")},
+	})
+
+	// successfully apply scripts for "no team"
+	saveAndCheckScripts(nil, []fleet.ScriptPayload{
+		{Name: "N1.sh", ScriptContents: []byte("foo")},
+		{Name: "N2.sh", ScriptContents: []byte("bar")},
+	})
+
+	// edit, delete and add a new one for "no team"
+	saveAndCheckScripts(nil, []fleet.ScriptPayload{
+		{Name: "N2.sh", ScriptContents: []byte("bar-edited")},
+		{Name: "N3.sh", ScriptContents: []byte("baz")},
+	})
+
+	// edit, delete and add a new one for the team
+	saveAndCheckScripts(tm, []fleet.ScriptPayload{
+		{Name: "N2.sh", ScriptContents: []byte("bar-edited")},
+		{Name: "N3.sh", ScriptContents: []byte("baz")},
+	})
+
+	// remove all scripts for a team
+	saveAndCheckScripts(tm, nil)
+
+	// remove all scripts for "no team"
+	saveAndCheckScripts(nil, nil)
 }

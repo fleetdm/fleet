@@ -410,3 +410,38 @@ func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt f
 
 	return nil, nil, fleet.ErrMissingLicense
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Batch Replace Scripts
+////////////////////////////////////////////////////////////////////////////////
+
+type batchSetScriptsRequest struct {
+	TeamID   *uint                 `json:"-" query:"team_id,optional"`
+	TeamName *string               `json:"-" query:"team_name,optional"`
+	DryRun   bool                  `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	Scripts  []fleet.ScriptPayload `json:"scripts"`
+}
+
+type batchSetScriptsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchSetScriptsResponse) error() error { return r.Err }
+
+func (r batchSetScriptsResponse) Status() int { return http.StatusNoContent }
+
+func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*batchSetScriptsRequest)
+	if err := svc.BatchSetScripts(ctx, req.TeamID, req.TeamName, req.Scripts, req.DryRun); err != nil {
+		return batchSetScriptsResponse{Err: err}, nil
+	}
+	return batchSetScriptsResponse{}, nil
+}
+
+func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []fleet.ScriptPayload, dryRun bool) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}

@@ -8,6 +8,7 @@
 - [Device-authenticated routes](#device-authenticated-routes)
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
+- [Scripts](#scripts)
 
 This document includes the Fleet API routes that are helpful when developing or contributing to Fleet.
 
@@ -2649,6 +2650,33 @@ If the Fleet instance is provided required parameters to complete setup.
 }
 
 ```
+
+## Scripts
+
+### Batch-apply scripts 
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/scripts/batch`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_id   | number | query | The team ID to add the scripts to. Only one of team_name/team_id can be provided.                                                                                     |
+| team_name | string | query | The name of the team to add the scripts to. Only one of team_name/team_id can be provided.                                                                            |
+| dry_run   | bool   | query | Validate the provided scripts and return any validation errors, but do not apply the changes.                                                                         |
+| scripts   | array  | body  | An array of objects with the scripts payloads. Each item must contain `name` with the script name and `script_contents` with the script contents encoded in base64    |
+
+If no team (id or name) is provided, the scripts are applied for all hosts. After the call, the provided list of `scripts` will be the active scripts for that team (or no team) - that is, any existing script that is not part of that list will be removed, and an existing script with the same name as a new script will be edited. If the list of provided `scripts` is empty, all scripts are removed for that team (or no team).
+
+#### Example
+
+`POST /api/v1/fleet/mdm/scripts/batch`
+
+##### Default response
+
+`204`
 
 <meta name="pageOrderInSection" value="800">
 <meta name="description" value="Read about Fleet API routes that are helpful when developing or contributing to Fleet.">

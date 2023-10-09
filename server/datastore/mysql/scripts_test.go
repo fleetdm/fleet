@@ -23,7 +23,8 @@ func TestScripts(t *testing.T) {
 		{"HostScriptResult", testHostScriptResult},
 		{"Scripts", testScripts},
 		{"ListScripts", testListScripts},
-		{"GetHostScriptDetailss", testGetHostScriptDetails},
+		{"GetHostScriptDetails", testGetHostScriptDetails},
+		{"BatchSetScripts", testBatchSetScripts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -516,4 +517,103 @@ VALUES
 			})
 		}
 	})
+}
+
+func testBatchSetScripts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	applyAndExpect := func(newSet []*fleet.Script, tmID *uint, want []*fleet.Script) map[string]uint {
+		err := ds.BatchSetScripts(ctx, tmID, newSet)
+		require.NoError(t, err)
+
+		if tmID == nil {
+			tmID = ptr.Uint(0)
+		}
+		got, _, err := ds.ListScripts(ctx, tmID, fleet.ListOptions{})
+		require.NoError(t, err)
+
+		// compare only the fields we care about
+		m := make(map[string]uint)
+		for _, gotScript := range got {
+			m[gotScript.Name] = gotScript.ID
+			if gotScript.TeamID != nil && *gotScript.TeamID == 0 {
+				gotScript.TeamID = nil
+			}
+			gotScript.ID = 0
+			gotScript.CreatedAt = time.Time{}
+			gotScript.UpdatedAt = time.Time{}
+		}
+		// order is not guaranteed
+		require.ElementsMatch(t, want, got)
+
+		return m
+	}
+
+	// apply empty set for no-team
+	applyAndExpect(nil, nil, nil)
+
+	// create a team
+	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_tm1"})
+	require.NoError(t, err)
+
+	// apply single script set for tm1
+	sTm1 := applyAndExpect([]*fleet.Script{
+		{Name: "N1", ScriptContents: "C1"},
+	}, ptr.Uint(tm1.ID), []*fleet.Script{
+		{Name: "N1", TeamID: ptr.Uint(tm1.ID)},
+	})
+
+	// apply single script set for no-team
+	sNoTm := applyAndExpect([]*fleet.Script{
+		{Name: "N1", ScriptContents: "C1"},
+	}, nil, []*fleet.Script{
+		{Name: "N1", TeamID: nil},
+	})
+
+	// apply new script set for tm1
+	sTm1b := applyAndExpect([]*fleet.Script{
+		{Name: "N1", ScriptContents: "C1"},
+		{Name: "N2", ScriptContents: "C2"},
+	}, ptr.Uint(tm1.ID), []*fleet.Script{
+		{Name: "N1", TeamID: ptr.Uint(tm1.ID)},
+		{Name: "N2", TeamID: ptr.Uint(tm1.ID)},
+	})
+	// name for N1-I1 is unchanged
+	require.Equal(t, sTm1["I1"], sTm1b["I1"])
+
+	// apply edited (by contents only) script set for no-team
+	sNoTmb := applyAndExpect([]*fleet.Script{
+		{Name: "N1", ScriptContents: "C1-changed"},
+	}, nil, []*fleet.Script{
+		{Name: "N1", TeamID: nil},
+	})
+	require.Equal(t, sNoTm["I1"], sNoTmb["I1"])
+
+	// apply edited script (by content only), unchanged script and new
+	// script for tm1
+	sTm1c := applyAndExpect([]*fleet.Script{
+		{Name: "N1", ScriptContents: "C1-updated"}, // content updated
+		{Name: "N2", ScriptContents: "C2"},         // unchanged
+		{Name: "N3", ScriptContents: "C3"},         // new
+	}, ptr.Uint(tm1.ID), []*fleet.Script{
+		{Name: "N1", TeamID: ptr.Uint(tm1.ID)}, // content updated
+		{Name: "N2", TeamID: ptr.Uint(tm1.ID)}, // unchanged
+		{Name: "N3", TeamID: ptr.Uint(tm1.ID)}, // new
+	})
+	// name for N1-I1 is unchanged
+	require.Equal(t, sTm1b["I1"], sTm1c["I1"])
+	// identifier for N2-I2 is unchanged
+	require.Equal(t, sTm1b["I2"], sTm1c["I2"])
+
+	// apply only new scripts to no-team
+	applyAndExpect([]*fleet.Script{
+		{Name: "N4", ScriptContents: "C4"},
+		{Name: "N5", ScriptContents: "C5"},
+	}, nil, []*fleet.Script{
+		{Name: "N4", TeamID: nil},
+		{Name: "N5", TeamID: nil},
+	})
+
+	// clear scripts for tm1
+	applyAndExpect(nil, ptr.Uint(1), nil)
 }

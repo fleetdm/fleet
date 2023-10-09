@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
-	"path/filepath"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -203,27 +203,20 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		return nil, err
 	}
 
-	if name == "" {
-		return nil, fleet.NewInvalidArgumentError("script", "The file name must not be empty.")
-	}
-	if filepath.Ext(name) != ".sh" {
-		return nil, fleet.NewInvalidArgumentError("script", "The file should be a .sh file.")
-	}
-
 	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "read script contents")
-	}
-	contents := string(b)
-	if err := fleet.ValidateHostScriptContents(contents); err != nil {
-		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
 	script := &fleet.Script{
 		TeamID:         teamID,
 		Name:           name,
-		ScriptContents: contents,
+		ScriptContents: string(b),
 	}
+	if err := script.Validate(); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script", err.Error())
+	}
+
 	savedScript, err := svc.ds.NewScript(ctx, script)
 	if err != nil {
 		var (
@@ -382,4 +375,67 @@ func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt f
 	}
 
 	return svc.ds.GetHostScriptDetails(ctx, h.ID, h.TeamID, opt)
+}
+
+func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []fleet.ScriptPayload, dryRun bool) error {
+	if maybeTmID != nil && maybeTmName != nil {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
+	}
+
+	var teamID *uint
+	var teamName *string
+
+	if maybeTmID != nil || maybeTmName != nil {
+		team, err := svc.teamByIDOrName(ctx, maybeTmID, maybeTmName)
+		if err != nil {
+			return err
+		}
+		teamID = &team.ID
+		teamName = &team.Name
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// any duplicate name in the provided set results in an error
+	scripts := make([]*fleet.Script, 0, len(payloads))
+	byName := make(map[string]bool, len(payloads))
+	for i, p := range payloads {
+		script := &fleet.Script{
+			ScriptContents: string(p.ScriptContents),
+			Name:           p.Name,
+			TeamID:         teamID,
+		}
+
+		if err := script.Validate(); err != nil {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), err.Error()))
+		}
+
+		if byName[script.Name] {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), fmt.Sprintf("Couldn’t edit scripts. More than one script has the same file name: %q", script.Name)),
+				"duplicate script by name")
+		}
+		byName[script.Name] = true
+		scripts = append(scripts, script)
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	if err := svc.ds.BatchSetScripts(ctx, teamID, scripts); err != nil {
+		return ctxerr.Wrap(ctx, err, "batch saving scripts")
+	}
+
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedScript{
+		TeamID:   teamID,
+		TeamName: teamName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for edited scripts")
+	}
+	return nil
 }

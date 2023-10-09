@@ -823,4 +823,8 @@ type Service interface {
 
 	// GetHostScriptDetails returns a list of scripts that apply to the provided host.
 	GetHostScriptDetails(ctx context.Context, hostID uint, opt ListOptions) ([]*HostScriptDetail, *PaginationMetadata, error)
+
+	// BatchSetScripts replaces the scripts for a specified team or for
+	// hosts with no team.
+	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) error
 }
