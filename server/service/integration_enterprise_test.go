@@ -4953,7 +4953,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 	}
 
 	// create a new team
-	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_scripts"})
 	require.NoError(t, err)
 
 	// apply an empty set to no-team
