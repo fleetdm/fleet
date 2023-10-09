@@ -1,4 +1,4 @@
-.query-form {
+.edit-query-form {
   &__wrapper {
     position: relative;
     font-size: $x-small;
@@ -46,7 +46,7 @@
       .query-name-wrapper {
         display: flex;
 
-        &:not(.query-form--editing) {
+        &:not(.edit-query-form--editing) {
           textarea:hover {
             cursor: pointer;
             color: $core-vibrant-blue;
@@ -57,7 +57,7 @@
           top: 13px;
           margin-left: 0;
         }
-        .query-form__query-name,
+        .edit-query-form__query-name,
         .input-sizer::after {
           font-size: $large;
         }
@@ -70,7 +70,7 @@
       .query-description-wrapper {
         display: flex;
         padding-top: $pad-small;
-        &:not(.query-form--editing) {
+        &:not(.edit-query-form--editing) {
           textarea:hover {
             cursor: pointer;
             color: $core-vibrant-blue;
@@ -158,26 +158,6 @@
   &__frequency {
     .form-field {
       margin-bottom: $pad-small;
-    }
-  }
-
-  &__advanced-options {
-    margin-top: $pad-medium;
-  }
-
-  &__query-observer-can-run-wrapper {
-    margin: 0;
-    margin-top: $pad-large;
-    font-weight: $bold !important; // override checkbox default
-
-    & + p {
-      margin: 0;
-      margin-top: $pad-small;
-    }
-
-    .fleet-checkbox {
-      display: flex;
-      align-items: center;
     }
   }
 

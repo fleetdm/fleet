@@ -34,7 +34,6 @@ import {
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
 import { SelectedPlatformString } from "interfaces/platform";
-import { IConfig } from "interfaces/config";
 import queryAPI from "services/entities/queries";
 
 import { IAceEditor } from "react-ace/lib/types";
@@ -53,11 +52,12 @@ import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import SaveQueryModal from "../SaveQueryModal";
-import SaveChangesModal from "../SaveChangesModal";
+import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
+import DiscardDataOption from "../DiscardDataOption";
 
-const baseClass = "query-form";
+const baseClass = "edit-query-form";
 
-interface IQueryFormProps {
+interface IEditQueryFormProps {
   router: InjectedRouter;
   queryIdForEdit: number | null;
   apiTeamIdForQuery?: number;
@@ -74,10 +74,9 @@ interface IQueryFormProps {
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
   hostId?: number;
-  appConfig?: IConfig;
-  isLoadingAppConfig?: boolean;
-  showSaveChangesModal: boolean;
-  setShowSaveChangesModal: (bool: boolean) => void;
+  queryReportsDisabled?: boolean;
+  showConfirmSaveChangesModal: boolean;
+  setShowConfirmSaveChangesModal: (bool: boolean) => void;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -108,7 +107,7 @@ const customFrequencyOptions = (frequency: number) => {
   return FREQUENCY_DROPDOWN_OPTIONS;
 };
 
-const QueryForm = ({
+const EditQueryForm = ({
   router,
   queryIdForEdit,
   apiTeamIdForQuery,
@@ -125,11 +124,10 @@ const QueryForm = ({
   renderLiveQueryWarning,
   backendValidators,
   hostId,
-  appConfig,
-  isLoadingAppConfig,
-  showSaveChangesModal,
-  setShowSaveChangesModal,
-}: IQueryFormProps): JSX.Element => {
+  queryReportsDisabled,
+  showConfirmSaveChangesModal,
+  setShowConfirmSaveChangesModal,
+}: IEditQueryFormProps): JSX.Element => {
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
   const {
@@ -142,6 +140,7 @@ const QueryForm = ({
     lastEditedQueryPlatforms,
     lastEditedQueryMinOsqueryVersion,
     lastEditedQueryLoggingType,
+    lastEditedQueryDiscardData,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
@@ -150,6 +149,7 @@ const QueryForm = ({
     setLastEditedQueryPlatforms,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryLoggingType,
+    setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
 
   const {
@@ -183,9 +183,7 @@ const QueryForm = ({
   const { setCompatiblePlatforms } = platformCompatibility;
 
   const debounceSQL = useDebouncedCallback((sql: string) => {
-    let valid = true;
-    const { valid: isValidated, errors: newErrors } = validateQuerySQL(sql);
-    valid = isValidated;
+    const { errors: newErrors } = validateQuerySQL(sql);
 
     setErrors({
       ...newErrors,
@@ -208,19 +206,12 @@ const QueryForm = ({
     }
   }, [lastEditedQueryFrequency, isInitialFrequency]);
 
-  const hasTeamMaintainerPermissions = savedQueryMode
-    ? isAnyTeamMaintainerOrTeamAdmin &&
-      storedQuery &&
-      currentUser &&
-      storedQuery.author_id === currentUser.id
-    : isAnyTeamMaintainerOrTeamAdmin;
-
   const toggleSaveQueryModal = () => {
     setShowSaveQueryModal(!showSaveQueryModal);
   };
 
-  const toggleSaveChangesModal = () => {
-    setShowSaveChangesModal(!showSaveChangesModal);
+  const toggleConfirmSaveChangesModal = () => {
+    setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
   };
 
   const onLoad = (editor: IAceEditor) => {
@@ -416,6 +407,7 @@ const QueryForm = ({
           platform: lastEditedQueryPlatforms,
           min_osquery_version: lastEditedQueryMinOsqueryVersion,
           logging: lastEditedQueryLoggingType,
+          discard_data: lastEditedQueryDiscardData,
         });
       }
     }
@@ -609,25 +601,27 @@ const QueryForm = ({
 
   const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
 
-  const hasSqlChange = storedQuery && lastEditedQueryBody !== storedQuery.query;
-  const hasSnapshotChange =
+  const currentlySavingQueryResults =
     storedQuery &&
-    lastEditedQueryLoggingType !== "snapshot" &&
-    storedQuery.logging === "snapshot";
-  // Use commented out logic when discard data checkbox is implemented #13470
-  const hasEnabledDiscardData = false;
-  // const hasEnabledDiscardData =
-  //   storedQuery && lastEditedDiscardData && !storedQuery.discardData;
+    !storedQuery.discard_data &&
+    !["differential", "differential_ignore_removals"].includes(
+      storedQuery.logging
+    );
+  const changedSQL = storedQuery && lastEditedQueryBody !== storedQuery.query;
+  const changedLoggingToDifferential = [
+    "differential",
+    "differential_ignore_removals",
+  ].includes(lastEditedQueryLoggingType);
 
-  const confirmChanges = (): boolean => {
-    // Confirm changes if the query has been edited, removed snapshot logging, or enabled discard data
-    return hasSqlChange || hasSnapshotChange || hasEnabledDiscardData;
-  };
+  const enabledDiscardData =
+    storedQuery && lastEditedQueryDiscardData && !storedQuery.discard_data;
 
-  const confirmSqlChange = (): boolean => {
-    // Confirm sql changes message if sql changed but snapshot and enabling discard data has not
-    return !!hasSqlChange && !hasSnapshotChange && !hasEnabledDiscardData;
-  };
+  const confirmChanges =
+    currentlySavingQueryResults &&
+    (changedSQL || changedLoggingToDifferential || enabledDiscardData);
+
+  const showChangedSQLCopy =
+    changedSQL && !changedLoggingToDifferential && !enabledDiscardData;
 
   // Global admin, any maintainer, any observer+ on new query
   const renderEditableQueryForm = () => {
@@ -661,7 +655,7 @@ const QueryForm = ({
             wrapperClassName={`${baseClass}__text-editor-wrapper`}
             onChange={onChangeQuery}
             handleSubmit={
-              confirmChanges() ? toggleSaveChangesModal : promptSaveQuery
+              confirmChanges ? toggleConfirmSaveChangesModal : promptSaveQuery
             }
             wrapEnabled
             focus={!savedQueryMode}
@@ -679,10 +673,11 @@ const QueryForm = ({
                   placeholder={"Every day"}
                   value={lastEditedQueryFrequency}
                   label={"Frequency"}
-                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+                  wrapperClassName={`${baseClass}__form-field form-field--frequency`}
                 />
-                If automations are on, this is how often your query collects
-                data.
+                <div className="help-text">
+                  This is how often your query collects data.
+                </div>
               </div>
               <div className={`${baseClass}__observers-can-run`}>
                 <Checkbox
@@ -690,18 +685,18 @@ const QueryForm = ({
                   onChange={(value: boolean) =>
                     setLastEditedQueryObserverCanRun(value)
                   }
-                  wrapperClassName={`${baseClass}__query-observer-can-run-wrapper`}
+                  wrapperClassName={"observer-can-run-wrapper"}
                 >
                   Observers can run
                 </Checkbox>
-                <p>
+                <div className="help-text">
                   Users with the observer role will be able to run this query on
                   hosts where they have access.
-                </p>
+                </div>
               </div>
               <RevealButton
                 isShowing={showAdvancedOptions}
-                className={baseClass}
+                className={"advanced-options-toggle"}
                 hideText={"Hide advanced options"}
                 showText={"Show advanced options"}
                 caretPosition={"after"}
@@ -716,8 +711,12 @@ const QueryForm = ({
                     onChange={onChangeSelectPlatformOptions}
                     value={lastEditedQueryPlatforms}
                     multi
-                    wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+                    wrapperClassName={`${baseClass}__form-field form-field--platform`}
                   />
+                  <div className="help-text">
+                    By default, your query collects data on all compatible
+                    platforms.
+                  </div>
                   <Dropdown
                     options={MIN_OSQUERY_VERSION_OPTIONS}
                     onChange={onChangeMinOsqueryVersionOptions}
@@ -734,6 +733,14 @@ const QueryForm = ({
                     label="Logging"
                     wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
                   />
+                  {queryReportsDisabled !== undefined && (
+                    <DiscardDataOption
+                      selectedLoggingType={lastEditedQueryLoggingType}
+                      discardData={lastEditedQueryDiscardData}
+                      setDiscardData={setLastEditedQueryDiscardData}
+                      queryReportsDisabled={queryReportsDisabled}
+                    />
+                  )}
                 </div>
               )}
             </div>
@@ -755,7 +762,7 @@ const QueryForm = ({
                     Save as new
                   </Button>
                 )}
-                <div className="query-form__button-wrap--save-query-button">
+                <div className={`${baseClass}__button-wrap--save-query-button`}>
                   <div
                     data-tip
                     data-for="save-query-button"
@@ -766,8 +773,8 @@ const QueryForm = ({
                       className="save-loading"
                       variant="brand"
                       onClick={
-                        confirmChanges()
-                          ? toggleSaveChangesModal
+                        confirmChanges
+                          ? toggleConfirmSaveChangesModal
                           : promptSaveQuery()
                       }
                       // Button disabled for team maintainer/admins viewing global queries
@@ -817,16 +824,15 @@ const QueryForm = ({
             toggleSaveQueryModal={toggleSaveQueryModal}
             backendValidators={backendValidators}
             isLoading={isQuerySaving}
-            appConfig={appConfig}
-            isLoadingAppConfig={isLoadingAppConfig}
+            queryReportsDisabled={queryReportsDisabled}
           />
         )}
-        {showSaveChangesModal && (
-          <SaveChangesModal
+        {showConfirmSaveChangesModal && (
+          <ConfirmSaveChangesModal
             onSaveChanges={promptSaveQuery()}
-            toggleSaveChangesModal={toggleSaveChangesModal}
             isUpdating={isQueryUpdating}
-            sqlUpdated={confirmSqlChange()}
+            onClose={toggleConfirmSaveChangesModal}
+            showChangedSQLCopy={showChangedSQLCopy}
           />
         )}
       </>
@@ -854,4 +860,4 @@ const QueryForm = ({
   return renderEditableQueryForm();
 };
 
-export default QueryForm;
+export default EditQueryForm;

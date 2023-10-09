@@ -111,7 +111,7 @@ export interface IDeleteQueriesResponse {
   deleted: number; // number of queries deleted
 }
 
-export interface IQueryFormFields {
+export interface IEditQueryFormFields {
   name: IFormField<string>;
   description: IFormField<string>;
   query: IFormField<string>;

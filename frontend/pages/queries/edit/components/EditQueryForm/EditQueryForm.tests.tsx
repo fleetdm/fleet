@@ -5,7 +5,7 @@ import { createCustomRenderer } from "test/test-utils";
 import createMockQuery from "__mocks__/queryMock";
 import createMockUser from "__mocks__/userMock";
 
-import QueryForm from "./QueryForm";
+import EditQueryForm from "./EditQueryForm";
 
 const mockQuery = createMockQuery();
 const mockRouter = {
@@ -20,7 +20,7 @@ const mockRouter = {
   createPath: jest.fn(),
 };
 
-describe("QueryForm - component", () => {
+describe("EditQueryForm - component", () => {
   it("disables save button for missing query name", async () => {
     const render = createCustomRenderer({
       context: {
@@ -56,7 +56,7 @@ describe("QueryForm - component", () => {
     });
 
     render(
-      <QueryForm
+      <EditQueryForm
         router={mockRouter}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
@@ -72,8 +72,8 @@ describe("QueryForm - component", () => {
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
-        showSaveChangesModal={false}
-        setShowSaveChangesModal={jest.fn()}
+        showConfirmSaveChangesModal={false}
+        setShowConfirmSaveChangesModal={jest.fn()}
       />
     );
 

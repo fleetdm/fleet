@@ -28,6 +28,7 @@ type InitialStateType = {
   lastEditedQueryPlatforms: SelectedPlatformString;
   lastEditedQueryMinOsqueryVersion: string;
   lastEditedQueryLoggingType: QueryLoggingOption;
+  lastEditedQueryDiscardData: boolean;
   selectedQueryTargets: ITarget[]; // Mimicks old selectedQueryTargets still used for policies for SelectTargets.tsx and running a live query
   selectedQueryTargetsByType: ISelectedTargetsByType; // New format by type for cleaner app wide state
   setLastEditedQueryId: (value: number | null) => void;
@@ -39,6 +40,7 @@ type InitialStateType = {
   setLastEditedQueryPlatforms: (value: SelectedPlatformString) => void;
   setLastEditedQueryMinOsqueryVersion: (value: string) => void;
   setLastEditedQueryLoggingType: (value: string) => void;
+  setLastEditedQueryDiscardData: (value: boolean) => void;
   setSelectedOsqueryTable: (tableName: string) => void;
   setSelectedQueryTargets: (value: ITarget[]) => void;
   setSelectedQueryTargetsByType: (value: ISelectedTargetsByType) => void;
@@ -58,6 +60,7 @@ const initialState = {
   lastEditedQueryPlatforms: DEFAULT_QUERY.platform,
   lastEditedQueryMinOsqueryVersion: DEFAULT_QUERY.min_osquery_version,
   lastEditedQueryLoggingType: DEFAULT_QUERY.logging,
+  lastEditedQueryDiscardData: DEFAULT_QUERY.discard_data,
   selectedQueryTargets: DEFAULT_TARGETS,
   selectedQueryTargetsByType: DEFAULT_TARGETS_BY_TYPE,
   setLastEditedQueryId: () => null,
@@ -69,6 +72,7 @@ const initialState = {
   setLastEditedQueryPlatforms: () => null,
   setLastEditedQueryMinOsqueryVersion: () => null,
   setLastEditedQueryLoggingType: () => null,
+  setLastEditedQueryDiscardData: () => null,
   setSelectedOsqueryTable: () => null,
   setSelectedQueryTargets: () => null,
   setSelectedQueryTargetsByType: () => null,
@@ -129,6 +133,10 @@ const reducer = (state: InitialStateType, action: any) => {
           typeof action.lastEditedQueryLoggingType === "undefined"
             ? state.lastEditedQueryLoggingType
             : action.lastEditedQueryLoggingType,
+        lastEditedQueryDiscardData:
+          typeof action.lastEditedQueryDiscardData === "undefined"
+            ? state.lastEditedQueryDiscardData
+            : action.lastEditedQueryDiscardData,
       };
     case actions.SET_SELECTED_QUERY_TARGETS:
       return {
@@ -167,6 +175,7 @@ const QueryProvider = ({ children }: Props) => {
     lastEditedQueryPlatforms: state.lastEditedQueryPlatforms,
     lastEditedQueryMinOsqueryVersion: state.lastEditedQueryMinOsqueryVersion,
     lastEditedQueryLoggingType: state.lastEditedQueryLoggingType,
+    lastEditedQueryDiscardData: state.lastEditedQueryDiscardData,
     selectedQueryTargets: state.selectedQueryTargets,
     selectedQueryTargetsByType: state.selectedQueryTargetsByType,
     setLastEditedQueryId: (lastEditedQueryId: number | null) => {
@@ -225,6 +234,12 @@ const QueryProvider = ({ children }: Props) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryLoggingType,
+      });
+    },
+    setLastEditedQueryDiscardData: (lastEditedQueryDiscardData: boolean) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryDiscardData,
       });
     },
     setSelectedQueryTargets: (selectedQueryTargets: ITarget[]) => {

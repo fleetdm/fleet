@@ -29,7 +29,7 @@ import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 
 import BackLink from "components/BackLink";
-import QueryForm from "pages/queries/edit/components/QueryForm";
+import EditQueryForm from "pages/queries/edit/components/EditQueryForm";
 import { IConfig } from "interfaces/config";
 
 interface IEditQueryPageProps {
@@ -89,7 +89,7 @@ const EditQueryPage = ({
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryPlatforms,
   } = useContext(QueryContext);
-  const { currentUser, setConfig } = useContext(AppContext);
+  const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
@@ -97,18 +97,21 @@ const EditQueryPage = ({
   const [showOpenSchemaActionText, setShowOpenSchemaActionText] = useState(
     false
   );
-  const [showSaveChangesModal, setShowSaveChangesModal] = useState(false);
+  const [
+    showConfirmSaveChangesModal,
+    setShowConfirmSaveChangesModal,
+  ] = useState(false);
 
-  const { data: appConfig, isLoading: isLoadingAppConfig } = useQuery<
-    IConfig,
-    Error,
-    IConfig
-  >(["config"], () => configAPI.loadAll(), {
-    select: (data: IConfig) => data,
-    onSuccess: (data) => {
-      setConfig(data);
-    },
-  });
+  const { data: appConfig } = useQuery<IConfig, Error, IConfig>(
+    ["config"],
+    () => configAPI.loadAll(),
+    {
+      select: (data: IConfig) => data,
+      onSuccess: (data) => {
+        setConfig(data);
+      },
+    }
+  );
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
@@ -238,7 +241,7 @@ const EditQueryPage = ({
     }
 
     setIsQueryUpdating(false);
-    setShowSaveChangesModal(false); // Closes conditionally opened modal when discarding previous results
+    setShowConfirmSaveChangesModal(false); // Closes conditionally opened modal when discarding previous results
 
     return false;
   };
@@ -301,7 +304,7 @@ const EditQueryPage = ({
                 path={backToQueriesPath()}
               />
             </div>
-            <QueryForm
+            <EditQueryForm
               router={router}
               saveQuery={saveQuery}
               onOsqueryTableSelect={onOsqueryTableSelect}
@@ -318,10 +321,11 @@ const EditQueryPage = ({
               isQuerySaving={isQuerySaving}
               isQueryUpdating={isQueryUpdating}
               hostId={parseInt(location.query.host_ids as string, 10)}
-              appConfig={appConfig}
-              isLoadingAppConfig={isLoadingAppConfig}
-              showSaveChangesModal={showSaveChangesModal}
-              setShowSaveChangesModal={setShowSaveChangesModal}
+              queryReportsDisabled={
+                appConfig?.server_settings.query_reports_disabled
+              }
+              showConfirmSaveChangesModal={showConfirmSaveChangesModal}
+              setShowConfirmSaveChangesModal={setShowConfirmSaveChangesModal}
             />
           </div>
         </div>
