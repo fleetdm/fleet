@@ -168,6 +168,8 @@ If your SCEP certificate was been compromised, here's how to change them and res
 
 By connecting Fleet to ABM, Macs purchased through Apple or an authorized reseller can automatically enroll to Fleet when they’re first unboxed and set up by your end user.
 
+New or wiped macOS hosts that are in ABM, before they've been set up, appear in Fleet with **MDM status** set to "Pending.
+
 This section will guide you through how to:
 
 1. Generate certificate and private key for ABM
@@ -239,11 +241,11 @@ Set Fleet to be the MDM for all future Macs purchased via Apple or an authorized
 4. Click **MDM Server Assignment**
 5. Switch Macs to the new Fleet instance.
 
-### Step 6 (optional): set the default team for hosts enrolled via ABM
+### Step 6: set the default team for hosts enrolled via ABM
 
-All automatically-enrolled hosts will be assigned to a default team of your choosing after they are unboxed and set up. The host will receive the configurations and behaviors set for that team. If no default team is set, then the host will be placed in "No Teams". 
+All hosts that automatically enroll will be assigned to the default team. If no default team is set, then the host will be placed in "No Teams". 
 
-> A host can be transferred to a new (not default) team before it enrolls. Learn how [here](./Teams.md#transfer-hosts-to-a-team). Transferring a host will automatically enforce the new team's settings when it enrolls.
+> A host can be transferred to a new (not default) team before it enrolls. Learn how [here](./Teams.md#transfer-hosts-to-a-team).
 
 Use either of the following methods to change the default team:
 
@@ -262,9 +264,6 @@ Use either of the following methods to change the default team:
 2. Set the `mdm.apple_bm_default_team` configuration option to the desired team's name.
 
 3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
-
-### Pending hosts 
-Some time after you purchase a Mac through Apple or an authorized reseller, but before it has been set up, the Mac will appear in ABM as in transit. When the Mac appears in ABM, it will also appear in Fleet with **MDM status** set to "Pending." After the new host is set up, the **MDM Status** will change to "On" and the host will be assigned to the default team.
 
 ## Renewing ABM
 
