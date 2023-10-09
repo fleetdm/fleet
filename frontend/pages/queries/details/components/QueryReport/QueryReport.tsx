@@ -30,7 +30,7 @@ const tableResults = (results: any) => {
   return results.map((result: any) => {
     const hostInfo = {
       host_display_name: result.host_name,
-      last_fetched: humanLastSeen(result.last_fetched),
+      last_fetched: result.last_fetched,
     };
 
     const tableData = { ...hostInfo, ...result.columns };

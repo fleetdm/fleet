@@ -2,7 +2,6 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import { isPlainObject } from "lodash";
 
 import {
   CellProps,
@@ -15,6 +14,8 @@ import {
 
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+
+import { humanHostLastSeen } from "utilities/helpers";
 
 type IHeaderProps = HeaderProps<TableInstance> & {
   column: ColumnInstance & IDataColumn;
@@ -64,14 +65,25 @@ const generateResultsTableHeaders = (results: any[]): Column[] => {
       title: key as string,
       Header: (headerProps: IHeaderProps) => (
         <HeaderCell
-          value={headerProps.column.title || headerProps.column.id}
+          value={
+            // Sentence case last fetched
+            headerProps.column.title === "last_fetched"
+              ? "Last fetched"
+              : headerProps.column.title || headerProps.column.id
+          }
           isSortedDesc={headerProps.column.isSortedDesc}
         />
       ),
       accessor: key as string,
-      Cell: (cellProps: ICellProps) => cellProps?.cell?.value || null,
+      Cell: (cellProps: ICellProps) => {
+        // Filters chronologically by date, but UI displays readable last fetched
+        if (cellProps.column.id === "last_fetched") {
+          return humanHostLastSeen(cellProps?.cell?.value);
+        }
+        return cellProps?.cell?.value || null;
+      },
       Filter: DefaultColumnFilter,
-      // filterType: "text",
+      filterType: "text",
       disableSortBy: false,
     };
   });
