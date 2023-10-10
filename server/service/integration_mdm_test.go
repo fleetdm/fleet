@@ -1114,7 +1114,10 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NotNil(t, h.TeamID)
 	require.Equal(t, tm2.ID, *h.TeamID)
 
-	// the host's profiles are the same as the team's and are pending, and prof2 + old filevault + old fleetd config are pending removal
+	// the host's profiles are:
+	// - the same as the team's and are pending
+	// - prof2 + old filevault are pending removal
+	// - fleetd config being reinstalled (to update the enroll secret)
 	s.awaitTriggerProfileSchedule(t, 1*time.Second)
 	hostProfs, err := s.ds.GetHostMDMProfiles(ctx, mdmHost.UUID)
 	require.NoError(t, err)
@@ -1131,7 +1134,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.Equal(t, "Fleetd configuration", hostProfs[1].Name)
 	require.NotNil(t, hostProfs[1].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[1].Status)
-	require.Equal(t, fleet.MDMAppleOperationTypeRemove, hostProfs[1].OperationType)
+	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfs[1].OperationType)
 	require.Equal(t, "n1", hostProfs[2].Name)
 	require.NotNil(t, hostProfs[2].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[2].Status)
