@@ -77,7 +77,9 @@
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Safely execute custom scripts (macOS, Windows, and Linux)
+    - industryName: Script execution
+      fiendlyName: Safely execute custom scripts (macOS, Windows, and Linux)
+      documentationUrl: https://fleetdm.com/docs/using-fleet/scripts
       tier: Premium
       productCategories: [Device management,Endpoint operations]
     - industryName: End-user macOS update reminders (via Nudge)
