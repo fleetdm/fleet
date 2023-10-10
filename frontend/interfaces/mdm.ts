@@ -98,7 +98,15 @@ export type IWindowsDiskEncryptionStatus = Extract<
 export const isWindowsDiskEncryptionStatus = (
   status: DiskEncryptionStatus
 ): status is IWindowsDiskEncryptionStatus => {
-  return !["action_required", "removing_enforcement"].includes(status);
+  switch (status) {
+    case "verified":
+    case "verifying":
+    case "enforcing":
+    case "failed":
+      return true;
+    default:
+      return false;
+  }
 };
 
 export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
