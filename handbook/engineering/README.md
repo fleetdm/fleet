@@ -2,7 +2,7 @@
 This handbook page details processes specific to working [with](#team) and [within](#responsibilities) this department
 
 ## What we do
-The 🚀 Engineering department at Fleet is directly responsible for writing and maintaining the [code](https://github.com/fleetdm/fleet) and [documentation](https://fleetdm.com/docs/get-started/why-fleet) used in the Fleet's core product, infrastuture, and website.
+The 🚀 Engineering department at Fleet is directly responsible for writing and maintaining the [code](https://github.com/fleetdm/fleet) for Fleet's core product and infrastructure.
 
 
 ## Team
