@@ -22,6 +22,16 @@ export interface IScriptsResponse {
   };
 }
 
+export interface IListScriptsApiParams {
+  page?: number;
+  per_page?: number;
+  team_id?: number;
+}
+
+export interface IListScriptsQueryKey extends IListScriptsApiParams {
+  scope: "scripts";
+}
+
 /**
  * Script Result response from GET /scripts/results/:id
  */
@@ -69,11 +79,9 @@ export default {
     return sendRequest("GET", HOST_SCRIPTS(id));
   },
 
-  getScripts(teamId?: number) {
+  getScripts(params: IListScriptsApiParams): Promise<IScriptsResponse> {
     const { SCRIPTS } = endpoints;
-    const path = teamId
-      ? `${SCRIPTS}?${buildQueryStringFromParams({ team_id: teamId })}`
-      : SCRIPTS;
+    const path = `${SCRIPTS}?${buildQueryStringFromParams({ ...params })}`;
 
     return sendRequest("GET", path);
   },
