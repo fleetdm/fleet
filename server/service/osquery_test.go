@@ -563,6 +563,135 @@ func TestSubmitResultLogs(t *testing.T) {
 	assert.Equal(t, results, testLogger.logs)
 }
 
+func TestSaveResultLogsToQueryReports(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	logRawMessages := []json.RawMessage{
+		json.RawMessage(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/Uptime","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`),
+	}
+
+	host := fleet.Host{}
+	ctx = hostctx.NewContext(ctx, &host)
+
+	// Results not saved if query reports disabled globally
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: true}}, nil
+	}
+	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
+
+	// Result not saved if result is not a snapshot
+	logRawMessages = []json.RawMessage{
+		json.RawMessage(`{"name":"pack/Global/Uptime","hostIdentifier":"2e23c347-da72-4e72-b6a8-a6b8a9a46ab7","calendarTime":"Fri Oct  6 14:19:15 2023 UTC","unixTime":1696601955,"epoch":0,"counter":10,"numerics":false,"decorations":{"host_uuid":"550eb898-c522-410b-8855-d74d94fdfcd2","hostname":"0025ad6e71fb"},"columns":{"days":"0","hours":"4","minutes":"52","seconds":"25","total_seconds":"17545"},"action":"removed"}`),
+	}
+	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
+
+	// Results not saved if Logging is not snapshot in the query config
+	logRawMessages = []json.RawMessage{
+		json.RawMessage(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/Uptime","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`),
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: false}}, nil
+	}
+
+	// Results not saved if DiscardData is true in Query
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		return &fleet.Query{ID: 1, DiscardData: true, Logging: fleet.LoggingSnapshot}, nil
+	}
+
+	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
+
+	// Happy Path: Results saved
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		return &fleet.Query{ID: 1, DiscardData: false, Logging: fleet.LoggingSnapshot}, nil
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+		return nil
+	}
+	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
+	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
+	tests := []struct {
+		input        string
+		expectedID   *uint
+		expectedName string
+		hasErr       bool
+	}{
+		{"pack/Global/Query Name", nil, "Query Name", false},
+		{"pack/team-1/Query Name", ptr.Uint(1), "Query Name", false},
+		{"pack/team-12345/Another Query", ptr.Uint(12345), "Another Query", false},
+		{"pack/PackName/Query", nil, "Query", false}, // Legacy Pack support
+		{"pack/team-foo/Query", nil, "", true},
+		{"pack/Global/QueryWith/Slash", nil, "QueryWith/Slash", false},
+		{"pack/team-1/QueryWith/Slash", ptr.Uint(1), "QueryWith/Slash", false},
+		{"pack/PackName/QueryWith/Slash", nil, "QueryWith/Slash", false}, // Legacy Pack support
+		{"InvalidString", nil, "", true},
+		{"Invalid/Query", nil, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			id, str, err := getQueryNameAndTeamIDFromResult(tt.input)
+			assert.Equal(t, tt.expectedID, id)
+			assert.Equal(t, tt.expectedName, str)
+			if tt.hasErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGetMostRecentResults(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []fleet.ScheduledQueryResult
+		expected []fleet.ScheduledQueryResult
+	}{
+		{
+			name: "basic test",
+			input: []fleet.ScheduledQueryResult{
+				{QueryName: "test1", UnixTime: 1},
+				{QueryName: "test1", UnixTime: 2},
+				{QueryName: "test1", UnixTime: 3},
+				{QueryName: "test2", UnixTime: 1},
+				{QueryName: "test2", UnixTime: 2},
+				{QueryName: "test2", UnixTime: 3},
+			},
+			expected: []fleet.ScheduledQueryResult{
+				{QueryName: "test1", UnixTime: 3},
+				{QueryName: "test2", UnixTime: 3},
+			},
+		},
+		{
+			name: "out of order test",
+			input: []fleet.ScheduledQueryResult{
+				{QueryName: "test1", UnixTime: 2},
+				{QueryName: "test1", UnixTime: 3},
+				{QueryName: "test1", UnixTime: 1},
+				{QueryName: "test2", UnixTime: 3},
+				{QueryName: "test2", UnixTime: 2},
+				{QueryName: "test2", UnixTime: 1},
+			},
+			expected: []fleet.ScheduledQueryResult{
+				{QueryName: "test1", UnixTime: 3},
+				{QueryName: "test2", UnixTime: 3},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			results := getMostRecentResults(tt.input)
+			assert.Equal(t, tt.expected, results)
+		})
+	}
+}
+
 func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
