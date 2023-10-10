@@ -744,7 +744,8 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 
-		result, err := ds.ListScheduledQueriesForAgents(ctx, teamID)
+		// TODO(lucas): Add tests for this.
+		result, err := ds.ListScheduledQueriesForAgents(ctx, teamID, false)
 		require.NoError(t, err)
 		test.QueryElementsMatch(t, result, []*fleet.Query{q3}, i)
 	}

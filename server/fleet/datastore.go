@@ -84,7 +84,7 @@ type Datastore interface {
 	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, error)
 	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
 	// given teamID. If teamID is nil, then all scheduled queries for the 'global' team are returned.
-	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*Query, error)
+	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*Query, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string, opts ...OptionalArg) (*Query, error)
