@@ -170,15 +170,17 @@ const QueryDetailsPage = ({
                 </p>
               </div>
               <div className={`${baseClass}__action-button-container`}>
-                <Button
-                  onClick={() => {
-                    queryId && router.push(PATHS.EDIT_QUERY(queryId));
-                  }}
-                  className={`${baseClass}__manage-automations button`}
-                  variant="brand"
-                >
-                  {canEditQuery ? "Edit query" : "More details"}
-                </Button>
+                {canEditQuery && (
+                  <Button
+                    onClick={() => {
+                      queryId && router.push(PATHS.EDIT_QUERY(queryId));
+                    }}
+                    className={`${baseClass}__manage-automations button`}
+                    variant="brand"
+                  >
+                    Edit query
+                  </Button>
+                )}
                 {(lastEditedQueryObserverCanRun ||
                   isObserverPlus ||
                   isAnyTeamObserverPlus ||
