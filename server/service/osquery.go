@@ -20,8 +20,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/spf13/cast"
 )
 
@@ -1358,6 +1358,9 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	switch req.LogType {
 	case "status":
 		var statuses []json.RawMessage
+		// NOTE(lucas): This unmarshal error is not being sent back to osquery (`if err :=` vs. `if err =`)
+		// Maybe there's a reason for it, we need to test such a change before fixing what appears
+		// to be a bug because the `err` is lost.
 		if err := json.Unmarshal(req.Data, &statuses); err != nil {
 			err = newOsqueryError("unmarshalling status logs: " + err.Error())
 			break
@@ -1370,12 +1373,18 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 	case "result":
 		var results []json.RawMessage
+		// NOTE(lucas): This unmarshal error is not being sent back to osquery (`if err :=` vs. `if err =`)
+		// Maybe there's a reason for it, we need to test such a change before fixing what appears
+		// to be a bug because the `err` is lost.
 		if err := json.Unmarshal(req.Data, &results); err != nil {
 			err = newOsqueryError("unmarshalling result logs: " + err.Error())
 			break
 		}
-		err = svc.SubmitResultLogs(ctx, results)
-		if err != nil {
+
+		// Not returning errors as it will trigger osqueryd to retry the request
+		svc.SaveResultLogsToQueryReports(ctx, results)
+
+		if err = svc.SubmitResultLogs(ctx, results); err != nil {
 			break
 		}
 
@@ -1404,4 +1413,168 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 		return newOsqueryError("error writing result logs: " + err.Error())
 	}
 	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Query Reports
+////////////////////////////////////////////////////////////////////////////////
+
+func (svc *Service) SaveResultLogsToQueryReports(ctx context.Context, results []json.RawMessage) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	// Do not insert results if query reports are disabled globally
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		level.Error(svc.logger).Log("err", "getting app config", "err", err)
+		return
+	}
+	if appConfig.ServerSettings.QueryReportsDisabled {
+		return
+	}
+
+	var queryResults []fleet.ScheduledQueryResult
+	for _, raw := range results {
+		var result fleet.ScheduledQueryResult
+		if err := json.Unmarshal(raw, &result); err != nil {
+			level.Error(svc.logger).Log("err", "unmarshalling result", "err", err)
+			continue
+		}
+		queryResults = append(queryResults, result)
+	}
+
+	// Filter results to only the most recent for each query
+	filtered := getMostRecentResults(queryResults)
+
+	for _, result := range filtered {
+		if err := svc.processResults(ctx, result); err != nil {
+			level.Error(svc.logger).Log("err", "processing result", "err", err)
+			continue
+		}
+	}
+
+	return
+}
+
+func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQueryResult) error {
+	// Discard result if there is no snapshot
+	if len(result.Snapshot) == 0 {
+		return nil
+	}
+
+	teamID, queryName, err := getQueryNameAndTeamIDFromResult(result.QueryName)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "querying name and team ID from result")
+	}
+
+	query, err := svc.ds.QueryByName(ctx, teamID, queryName)
+	if err != nil {
+		return nil // not logging here due to a known issue when renaming queries
+	}
+
+	// Discard Result if query is marked as discard data or if logging is not snapshot
+	if query.DiscardData || query.Logging != fleet.LoggingSnapshot {
+		return nil
+	}
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return ctxerr.Wrap(ctx, err, "getting host from context")
+	}
+
+	return svc.overwriteResultRows(ctx, result, query.ID, host.ID)
+}
+
+// The "snapshot" array in a ScheduledQueryResult can contain multiple rows.  Each
+// row is saved as a separate ScheduledQueryResultRow. ie. a result could contain
+// many USB Devices or a result could contain all User Accounts on a host.
+func (svc *Service) overwriteResultRows(ctx context.Context, result fleet.ScheduledQueryResult, queryID, hostID uint) error {
+	fetchTime := time.Now()
+
+	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
+
+	for _, snapshotItem := range result.Snapshot {
+
+		row := &fleet.ScheduledQueryResultRow{
+			QueryID:     queryID,
+			HostID:      hostID,
+			Data:        snapshotItem,
+			LastFetched: fetchTime,
+		}
+
+		rows = append(rows, row)
+
+	}
+
+	if err := svc.ds.OverwriteQueryResultRows(ctx, rows); err != nil {
+		return ctxerr.Wrap(ctx, err, "overwriting query result rows")
+	}
+
+	return nil
+}
+
+// getMostRecentResults returns only the most recent result per query.
+// Osquery can send multiple results for the same query (ie. if an agent loses
+// network connectivity it will cache multiple results).  Query Reports only
+// save the most recent result for a given query.
+func getMostRecentResults(results []fleet.ScheduledQueryResult) []fleet.ScheduledQueryResult {
+	// Use a map to track the most recent entry for each unique QueryName
+	latestResults := make(map[string]fleet.ScheduledQueryResult)
+
+	for _, result := range results {
+		if existing, ok := latestResults[result.QueryName]; ok {
+			// Compare the UnixTime time and update the map if the current result is more recent
+			if result.UnixTime > existing.UnixTime {
+				latestResults[result.QueryName] = result
+			}
+		} else {
+			latestResults[result.QueryName] = result
+		}
+	}
+
+	// Convert the map back to a slice
+	var filteredResults []fleet.ScheduledQueryResult
+	for _, v := range latestResults {
+		filteredResults = append(filteredResults, v)
+	}
+
+	return filteredResults
+}
+
+// Query names recieved from osqueryd are prefixed by teamID so we need
+// to pull them out to match the query name and team ID in the database
+func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
+	// For pattern: pack/Global/Name
+	if strings.HasPrefix(path, "pack/Global/") {
+		return nil, strings.TrimPrefix(path, "pack/Global/"), nil
+	}
+
+	// For pattern: pack/team-<ID>/Name
+	if strings.HasPrefix(path, "pack/team-") {
+		parts := strings.SplitN(path, "/", 3)
+		if len(parts) != 3 {
+			return nil, "", fmt.Errorf("unknown format: %s", path)
+		}
+
+		teamNumberStr := strings.TrimPrefix(parts[1], "team-")
+		teamNumberUint, err := strconv.ParseUint(teamNumberStr, 10, 32)
+		if err != nil {
+			return nil, "", fmt.Errorf("parsing team number: %w", err)
+		}
+
+		teamNumber := uint(teamNumberUint)
+		return &teamNumber, parts[2], nil
+	}
+
+	// For pattern: pack/PackName/Query (legacy pack)
+	if strings.HasPrefix(path, "pack/") {
+		parts := strings.SplitN(path, "/", 3)
+		if len(parts) != 3 {
+			return nil, "", fmt.Errorf("unknown format: %s", path)
+		}
+		return nil, parts[2], nil
+	}
+
+	// If none of the above patterns match, return error
+	return nil, "", fmt.Errorf("unknown format: %s", path)
 }
