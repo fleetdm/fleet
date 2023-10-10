@@ -1,11 +1,8 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-// import sendRequest from "services";
+import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
 import { buildQueryStringFromParams } from "utilities/url";
-
-// Mock API requests to be used in developing FE for #7766 in parallel with BE development
-import { sendRequest } from "services/mock_service/service/service";
 
 export interface ISortOption {
   key: string;
@@ -42,8 +39,7 @@ export default {
 
     const queryString = buildQueryStringFromParams(queryParams);
 
-    // const endpoint = `${QUERIES}/${id}/report`;
-    const endpoint = `${QUERIES}/113/report`;
+    const endpoint = `${QUERIES}/${id}/report`;
     const path = `${endpoint}?${queryString}`;
     return sendRequest("GET", path);
   },
