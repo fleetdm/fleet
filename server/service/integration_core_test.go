@@ -8183,4 +8183,48 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"version":        "5.9.1",
 		"watcher":        "95636",
 	}, gqrr.Results[1].Columns)
+
+	// verify that certain modifications to queries don't cause result deletion
+	modifyQueryResp := modifyQueryResponse{}
+	updatedDesc := "Updated description"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{Description: &updatedDesc}}, http.StatusOK, &modifyQueryResp)
+	require.Equal(t, updatedDesc, modifyQueryResp.Query.Description)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 2)
+
+	// now cause deletions and verify that results are deleted
+	updatedQuery := "SELECT * FROM some_new_table;"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{Query: &updatedQuery}}, http.StatusOK, &modifyQueryResp)
+	require.Equal(t, updatedQuery, modifyQueryResp.Query.Query)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", usbDevicesQuery.ID), modifyQueryRequest{ID: usbDevicesQuery.ID, QueryPayload: fleet.QueryPayload{Logging: &fleet.LoggingDifferential}}, http.StatusOK, &modifyQueryResp)
+	require.Equal(t, fleet.LoggingDifferential, modifyQueryResp.Query.Logging)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", usbDevicesQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// Re-add results to our query and check that they're actually there
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	discardData := true
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{DiscardData: &discardData}}, http.StatusOK, &modifyQueryResp)
+	require.True(t, modifyQueryResp.Query.DiscardData)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// check that now that discardData is set, we don't add new results
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// TODO: add a global flag deletion test (POST to /trigger endpoint)
+	// - should delete whole table, across diff queries
+	// - should prevent results data from being written
+
+	// TODO: add 1000 row limit test
 }
