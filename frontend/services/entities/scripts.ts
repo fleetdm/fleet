@@ -73,10 +73,14 @@ export interface IHostScriptsResponse {
 }
 
 export default {
-  // TODO: pagination
-  getHostScripts(id: number) {
+  getHostScripts(id: number, page?: number) {
     const { HOST_SCRIPTS } = endpoints;
-    return sendRequest("GET", HOST_SCRIPTS(id));
+
+    let path = HOST_SCRIPTS(id);
+    if (page) {
+      path = `${path}?${buildQueryStringFromParams({ page })}`;
+    }
+    return sendRequest("GET", path);
   },
 
   getScripts(params: IListScriptsApiParams): Promise<IScriptsResponse> {

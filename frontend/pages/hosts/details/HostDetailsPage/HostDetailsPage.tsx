@@ -695,6 +695,8 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
+  const page = (location.query.page && parseInt(location.query.page, 10)) || 0;
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -779,6 +781,8 @@ const HostDetailsPage = ({
               <TabPanel>
                 <ScriptsCard
                   hostId={host?.id}
+                  page={page}
+                  router={router}
                   isHostOnline={host?.status === "online"}
                 />
               </TabPanel>
