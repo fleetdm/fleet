@@ -83,7 +83,9 @@ const countHostProfilesByStatus = (
  * If any profile has a status of "failed", the status will be displayed as "Failed" and
  * continues to fall through to "Pending" and "Verifying" if any profiles have those statuses.
  * If all profiles have a status of "verified", the status will be displayed as "Verified".
+ *
  * The default status will be displayed as "Failed".
+ * https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks
  */
 const getHostProfilesStatusForDisplay = (
   hostMacSettings: IHostMdmProfile[]
@@ -99,6 +101,7 @@ const getHostProfilesStatusForDisplay = (
     case counts.verified === hostMacSettings.length:
       return "Verified";
     default:
+      // something is broken
       return "Failed";
   }
 };
