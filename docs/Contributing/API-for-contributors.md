@@ -2707,12 +2707,14 @@ _Available in Fleet Premium_
 
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_id   | number | query | The team ID to add the scripts to. Only one of team_name/team_id can be provided.                                                                                     |
-| team_name | string | query | The name of the team to add the scripts to. Only one of team_name/team_id can be provided.                                                                            |
+| team_id | number | query | The ID of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. 
+| team_id | number | query | The ID of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. 
 | dry_run   | bool   | query | Validate the provided scripts and return any validation errors, but do not apply the changes.                                                                         |
 | scripts   | array  | body  | An array of objects with the scripts payloads. Each item must contain `name` with the script name and `script_contents` with the script contents encoded in base64    |
 
-If no team (id or name) is provided, the scripts are applied for all hosts. After the call, the provided list of `scripts` will be the active scripts for that team (or no team) - that is, any existing script that is not part of that list will be removed, and an existing script with the same name as a new script will be edited. If the list of provided `scripts` is empty, all scripts are removed for that team (or no team).
+If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
+
+> Note that this endpoint replaces all the active scripts for the specified team (or no team). Any existing script that is not included in the list will be removed, and existing scripts with the same name as a new script will be edited. Providing an empty list of scripts will remove existing scripts.
 
 #### Example
 

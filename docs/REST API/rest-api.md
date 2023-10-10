@@ -6422,10 +6422,10 @@ Creates a script execution request and returns the execution identifier to retri
 
 | Name            | Type    | In   | Description                                                                                    |
 | ----            | ------- | ---- | --------------------------------------------                                                   |
-| host_id         | integer | body | **Required**. The host id to run the script on.                                                |
-| script_id       | integer | body | The script to run. The current contents of this saved script will be executed on the host. Only one of script_id and script_contents must be provided.  |
-| script_contents | string  | body | The contents of the script to run. Only one of script_id and script_contents must be provided. |
-
+| host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
+Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
 #### Example
 
 `POST /api/v1/fleet/scripts/run`
@@ -6518,7 +6518,7 @@ Gets the result of a script that was executed.
 
 _Available in Fleet Premium_
 
-Uploads a script, making it available to run on hosts of the specified team (or no team).
+Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
 
 `POST /api/v1/fleet/scripts`
 
@@ -6527,7 +6527,7 @@ Uploads a script, making it available to run on hosts of the specified team (or 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | script          | file    | form | **Required**. The file containing the script.    |
-| team_id         | integer | form | The team id for the script. If specified, the script is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied only to hosts not assigned to any team. |
+| team_id         | integer | form | The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
 
 #### Example
 
@@ -6578,7 +6578,7 @@ Deletes an existing script.
 
 | Name            | Type    | In   | Description                                           |
 | ----            | ------- | ---- | --------------------------------------------          |
-| id              | integer | path | **Required**. The identifier of the script to delete. |
+| id              | integer | path | **Required**. The ID of the script to delete. |
 
 #### Example
 

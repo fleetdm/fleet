@@ -332,7 +332,7 @@ spec:
       # the team-specific mdm options go here
 ```
 
-### Scripts for teams
+### Team scripts
 
 List of saved scripts that can be run on hosts that are part of the team.
 
