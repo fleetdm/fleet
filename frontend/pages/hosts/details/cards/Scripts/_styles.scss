@@ -12,4 +12,11 @@
   .table-container__header-left {
     display: block;
   }
+
+  .dropdown__option {
+    [data-id="tooltip"][id^="run-script"] {
+      font-size: $xx-small;
+      font-style: normal;
+    }
+  }
 }
