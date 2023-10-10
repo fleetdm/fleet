@@ -13,7 +13,7 @@ Fleet's source code, website, documentation, company handbook, and internal tool
 
 Meanwhile, the [company behind Fleet](https://twitter.com/fleetctl) is built on the [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) business model.  Openness is one of our core [values](https://fleetdm.com/handbook/company#values), and everything we do is [public by default](https://handbook.gitlab.com/handbook/values/#public-by-default).  Even the [company handbook](https://fleetdm.com/handbook) is open to the world.
 
-Is open-source collaboration _really_ worth all that?  Is it any good?
+Is open-source collaboration _all that_?  Is it any good?
 
 Here are some of the reasons we build in the open:
 
