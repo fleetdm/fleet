@@ -625,19 +625,24 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 		{"pack/team-12345/Another Query", ptr.Uint(12345), "Another Query", false},
 		{"pack/PackName/Query", nil, "Query", false}, // Legacy Pack support
 		{"pack/team-foo/Query", nil, "", true},
+		{"pack/Global/QueryWith/Slash", nil, "QueryWith/Slash", false},
+		{"pack/team-1/QueryWith/Slash", ptr.Uint(1), "QueryWith/Slash", false},
+		{"pack/PackName/QueryWith/Slash", nil, "QueryWith/Slash", false}, // Legacy Pack support
 		{"InvalidString", nil, "", true},
 		{"Invalid/Query", nil, "", true},
 	}
 
 	for _, tt := range tests {
-		id, str, err := getQueryNameAndTeamIDFromResult(tt.input)
-		assert.Equal(t, tt.expectedID, id)
-		assert.Equal(t, tt.expectedName, str)
-		if tt.hasErr {
-			assert.Error(t, err)
-		} else {
-			assert.NoError(t, err)
-		}
+		t.Run(tt.input, func(t *testing.T) {
+			id, str, err := getQueryNameAndTeamIDFromResult(tt.input)
+			assert.Equal(t, tt.expectedID, id)
+			assert.Equal(t, tt.expectedName, str)
+			if tt.hasErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
 }
 

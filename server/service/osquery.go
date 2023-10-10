@@ -1464,12 +1464,12 @@ func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQu
 
 	teamID, queryName, err := getQueryNameAndTeamIDFromResult(result.QueryName)
 	if err != nil {
-		return newOsqueryError("getting query name and team ID: " + err.Error())
+		return ctxerr.Wrap(ctx, err, "querying name and team ID from result")
 	}
 
 	query, err := svc.ds.QueryByName(ctx, teamID, queryName)
 	if err != nil {
-		return newOsqueryError("getting query by Name: " + err.Error())
+		return nil // not logging here due to a known issue when renaming queries
 	}
 
 	// Discard Result if query is marked as discard data or if logging is not snapshot
@@ -1479,7 +1479,7 @@ func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQu
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return newOsqueryError("internal error: missing host from request context")
+		return ctxerr.Wrap(ctx, err, "getting host from context")
 	}
 
 	return svc.overwriteResultRows(ctx, result, query.ID, host.ID)
@@ -1507,7 +1507,7 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result fleet.Schedu
 	}
 
 	if err := svc.ds.OverwriteQueryResultRows(ctx, rows); err != nil {
-		return newOsqueryError("saving query result row: " + err.Error())
+		return ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
 
 	return nil
@@ -1546,7 +1546,7 @@ func getMostRecentResults(results []fleet.ScheduledQueryResult) []fleet.Schedule
 func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 	// For pattern: pack/Global/Name
 	if strings.HasPrefix(path, "pack/Global/") {
-		return nil, lastItemFromPath(path), nil
+		return nil, strings.TrimPrefix(path, "pack/Global/"), nil
 	}
 
 	// For pattern: pack/team-<ID>/Name
@@ -1567,18 +1567,14 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 	}
 
 	// For pattern: pack/PackName/Query (legacy pack)
-	if strings.Count(path, "/") == 2 && strings.HasPrefix(path, "pack/") {
-		return nil, lastItemFromPath(path), nil
+	if strings.HasPrefix(path, "pack/") {
+		parts := strings.SplitN(path, "/", 3)
+		if len(parts) != 3 {
+			return nil, "", fmt.Errorf("unknown format: %s", path)
+		}
+		return nil, parts[2], nil
 	}
 
 	// If none of the above patterns match, return error
 	return nil, "", fmt.Errorf("unknown format: %s", path)
-}
-
-func lastItemFromPath(path string) string {
-	parts := strings.Split(path, "/")
-	if len(parts) == 0 {
-		return ""
-	}
-	return parts[len(parts)-1]
 }

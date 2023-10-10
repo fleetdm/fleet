@@ -22,18 +22,19 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "starting a transaction")
 	}
-	defer func() {
-		if err != nil {
-			err := tx.Rollback()
-			if err != nil {
-				ds.logger.Log("err", err, "msg", "rolling back transaction")
-			}
-		}
-	}()
 
 	// Since we assume all rows have the same queryID, take it from the first row
 	queryID := rows[0].QueryID
 	hostID := rows[0].HostID
+
+	defer func() {
+		if err != nil {
+			err := tx.Rollback()
+			if err != nil {
+				ds.logger.Log("err", err, "msg", "rolling back transaction", "query_id", queryID, "host_id", hostID)
+			}
+		}
+	}()
 
 	// Count how many rows are already in the database for the given queryID
 	var countExisting int
