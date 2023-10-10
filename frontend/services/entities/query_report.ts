@@ -1,11 +1,11 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-// import sendRequest from "services";
+import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
 import { buildQueryStringFromParams } from "utilities/url";
 
 // Mock API requests to be used in developing FE for #7766 in parallel with BE development
-import { sendRequest } from "services/mock_service/service/service";
+// import { sendRequest } from "services/mock_service/service/service";
 
 export interface ISortOption {
   key: string;
