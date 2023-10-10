@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230918221115, Down_20230918221115)
+	MigrationClient.AddMigration(Up_20231004144339, Down_20231004144339)
 }
 
-func Up_20230918221115(tx *sql.Tx) error {
+func Up_20231004144339(tx *sql.Tx) error {
 	stmt := `
 UPDATE teams
 SET
@@ -27,6 +27,6 @@ WHERE
 	return nil
 }
 
-func Down_20230918221115(tx *sql.Tx) error {
+func Down_20231004144339(tx *sql.Tx) error {
 	return nil
 }
