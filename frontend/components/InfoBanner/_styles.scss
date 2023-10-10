@@ -54,6 +54,8 @@
     color: $core-fleet-black;
     text-align: right;
     gap: $pad-small;
+    min-width: max-content;
+    margin-left: $pad-small;
 
     button {
       margin-left: $pad-small;

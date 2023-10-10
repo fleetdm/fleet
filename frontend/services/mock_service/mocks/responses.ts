@@ -924,6 +924,9 @@ const queryReport = {
       columns: {
         model: "Display Audio",
         vendor: "Apple Inc.",
+        version: "5.11",
+        vender_id: "05ac",
+        usb_address: "6",
       },
     },
     {
