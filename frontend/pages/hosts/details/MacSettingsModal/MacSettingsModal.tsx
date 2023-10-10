@@ -19,14 +19,14 @@ const MacSettingsModal = ({
   hostMDMData,
   onClose,
 }: IMacSettingsModalProps) => {
+  // the caller should ensure that hostMDMData is not undefined and that platform is "windows" or
+  // "darwin", otherwise we will allow an empty modal will be rendered.
+  // https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks
+
   const memoizedTableData = useMemo(
     () => generateTableData(hostMDMData, platform),
     [hostMDMData, platform]
   );
-
-  if (!memoizedTableData) {
-    return null;
-  }
 
   return (
     <Modal
@@ -36,7 +36,7 @@ const MacSettingsModal = ({
       width="large"
     >
       <>
-        <MacSettingsTable tableData={memoizedTableData} />
+        <MacSettingsTable tableData={memoizedTableData || []} />
         <div className="modal-cta-wrap">
           <Button variant="brand" onClick={onClose}>
             Done
