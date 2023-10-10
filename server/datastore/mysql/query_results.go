@@ -17,91 +17,74 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		return nil
 	}
 
-	// Start a transaction
-	tx, err := ds.writer(ctx).BeginTx(ctx, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "starting a transaction")
-	}
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Since we assume all rows have the same queryID, take it from the first row
+		queryID := rows[0].QueryID
+		hostID := rows[0].HostID
 
-	// Since we assume all rows have the same queryID, take it from the first row
-	queryID := rows[0].QueryID
-	hostID := rows[0].HostID
-
-	defer func() {
-		if err != nil {
-			err := tx.Rollback()
-			if err != nil {
-				ds.logger.Log("err", err, "msg", "rolling back transaction", "query_id", queryID, "host_id", hostID)
-			}
-		}
-	}()
-
-	// Count how many rows are already in the database for the given queryID
-	var countExisting int
-	countStmt := `
+		// Count how many rows are already in the database for the given queryID
+		var countExisting int
+		countStmt := `
 		SELECT COUNT(*) FROM query_results WHERE query_id = ?
 	`
-	err = tx.QueryRowContext(ctx, countStmt, queryID).Scan(&countExisting)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "counting existing query results")
-	}
+		err = sqlx.GetContext(ctx, tx, &countExisting, countStmt, queryID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "counting existing query results")
+		}
 
-	if countExisting == fleet.MaxQueryReportRows {
-		// do not delete any rows if we are already at the limit
-		return nil
-	}
+		if countExisting == fleet.MaxQueryReportRows {
+			// do not delete any rows if we are already at the limit
+			return nil
+		}
 
-	// Delete rows based on the specific queryID and hostID
-	deleteStmt := `
+		// Delete rows based on the specific queryID and hostID
+		deleteStmt := `
 		DELETE FROM query_results WHERE host_id = ? AND query_id = ?
 	`
-	result, err := tx.ExecContext(ctx, deleteStmt, hostID, queryID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting query results for host")
-	}
+		result, err := tx.ExecContext(ctx, deleteStmt, hostID, queryID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting query results for host")
+		}
 
-	// Count how many rows we deleted
-	countDeleted, err := result.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching deleted row count")
-	}
+		// Count how many rows we deleted
+		countDeleted, err := result.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fetching deleted row count")
+		}
 
-	// Calculate how many new rows can be added given the maximum limit
-	netRowsAfterDeletion := countExisting - int(countDeleted)
-	allowedNewRows := fleet.MaxQueryReportRows - netRowsAfterDeletion
-	if allowedNewRows == 0 {
-		return nil
-	}
+		// Calculate how many new rows can be added given the maximum limit
+		netRowsAfterDeletion := countExisting - int(countDeleted)
+		allowedNewRows := fleet.MaxQueryReportRows - netRowsAfterDeletion
+		if allowedNewRows == 0 {
+			return nil
+		}
 
-	if len(rows) > allowedNewRows {
-		rows = rows[:allowedNewRows]
-	}
+		if len(rows) > allowedNewRows {
+			rows = rows[:allowedNewRows]
+		}
 
-	// Insert the new rows
-	valueStrings := make([]string, 0, len(rows))
-	valueArgs := make([]interface{}, 0, len(rows)*4)
-	for _, row := range rows {
-		valueStrings = append(valueStrings, "(?, ?, ?, ?)")
-		valueArgs = append(valueArgs, queryID, hostID, row.LastFetched, row.Data)
-	}
+		// Insert the new rows
+		valueStrings := make([]string, 0, len(rows))
+		valueArgs := make([]interface{}, 0, len(rows)*4)
+		for _, row := range rows {
+			valueStrings = append(valueStrings, "(?, ?, ?, ?)")
+			valueArgs = append(valueArgs, queryID, hostID, row.LastFetched, row.Data)
+		}
 
-	//nolint:gosec // SQL query is constructed using constant strings
-	insertStmt := `
+		//nolint:gosec // SQL query is constructed using constant strings
+		insertStmt := `
 		INSERT INTO query_results (query_id, host_id, last_fetched, data) VALUES
 	` + strings.Join(valueStrings, ",")
 
-	_, err = tx.ExecContext(ctx, insertStmt, valueArgs...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting new rows")
-	}
+		_, err = tx.ExecContext(ctx, insertStmt, valueArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting new rows")
+		}
 
-	// Commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "committing the transaction")
-	}
+		return nil
+	})
 
-	return nil
+	return ctxerr.Wrap(ctx, err, "overwriting query result rows")
 }
 
 // TODO(lucas): Any chance we can store hostname in the query_results table?
