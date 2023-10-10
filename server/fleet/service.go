@@ -813,11 +813,34 @@ type Service interface {
 	// result if waitForResult is > 0. If it times out waiting for a result, it
 	// fails with a 504 Gateway Timeout error.
 	RunHostScript(ctx context.Context, request *HostScriptRequestPayload, waitForResult time.Duration) (*HostScriptResult, error)
+
 	// GetHostScript returns information about a host script execution.
 	GetHostScript(ctx context.Context, execID string) (*HostScriptResult, error)
+
 	// SaveHostScriptResult saves information about execution of a script on a host.
 	SaveHostScriptResult(ctx context.Context, result *HostScriptResultPayload) error
 
 	// GetScriptResult returns the result of a script run
 	GetScriptResult(ctx context.Context, execID string) (*HostScriptResult, error)
+
+	// NewScript creates a new (saved) script with its content provided by the
+	// io.Reader r.
+	NewScript(ctx context.Context, teamID *uint, name string, r io.Reader) (*Script, error)
+
+	// DeleteScript deletes an existing (saved) script.
+	DeleteScript(ctx context.Context, scriptID uint) error
+
+	// ListScripts returns a list of paginated saved scripts.
+	ListScripts(ctx context.Context, teamID *uint, opt ListOptions) ([]*Script, *PaginationMetadata, error)
+
+	// GetScript returns the script corresponding to the provided id. If the
+	// download is requested, it also returns the script's contents.
+	GetScript(ctx context.Context, scriptID uint, downloadRequested bool) (*Script, []byte, error)
+
+	// GetHostScriptDetails returns a list of scripts that apply to the provided host.
+	GetHostScriptDetails(ctx context.Context, hostID uint, opt ListOptions) ([]*HostScriptDetail, *PaginationMetadata, error)
+
+	// BatchSetScripts replaces the scripts for a specified team or for
+	// hosts with no team.
+	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) error
 }

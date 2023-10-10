@@ -690,6 +690,20 @@ type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (
 
 type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error)
 
+type NewScriptFunc func(ctx context.Context, script *fleet.Script) (*fleet.Script, error)
+
+type ScriptFunc func(ctx context.Context, id uint) (*fleet.Script, error)
+
+type GetScriptContentsFunc func(ctx context.Context, id uint) ([]byte, error)
+
+type DeleteScriptFunc func(ctx context.Context, id uint) error
+
+type ListScriptsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error)
+
+type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error)
+
+type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1698,6 +1712,27 @@ type DataStore struct {
 
 	ListPendingHostScriptExecutionsFunc        ListPendingHostScriptExecutionsFunc
 	ListPendingHostScriptExecutionsFuncInvoked bool
+
+	NewScriptFunc        NewScriptFunc
+	NewScriptFuncInvoked bool
+
+	ScriptFunc        ScriptFunc
+	ScriptFuncInvoked bool
+
+	GetScriptContentsFunc        GetScriptContentsFunc
+	GetScriptContentsFuncInvoked bool
+
+	DeleteScriptFunc        DeleteScriptFunc
+	DeleteScriptFuncInvoked bool
+
+	ListScriptsFunc        ListScriptsFunc
+	ListScriptsFuncInvoked bool
+
+	GetHostScriptDetailsFunc        GetHostScriptDetailsFunc
+	GetHostScriptDetailsFuncInvoked bool
+
+	BatchSetScriptsFunc        BatchSetScriptsFunc
+	BatchSetScriptsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4052,4 +4087,53 @@ func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID 
 	s.ListPendingHostScriptExecutionsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, ignoreOlder)
+}
+
+func (s *DataStore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
+	s.mu.Lock()
+	s.NewScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewScriptFunc(ctx, script)
+}
+
+func (s *DataStore) Script(ctx context.Context, id uint) (*fleet.Script, error) {
+	s.mu.Lock()
+	s.ScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScriptFunc(ctx, id)
+}
+
+func (s *DataStore) GetScriptContents(ctx context.Context, id uint) ([]byte, error) {
+	s.mu.Lock()
+	s.GetScriptContentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetScriptContentsFunc(ctx, id)
+}
+
+func (s *DataStore) DeleteScript(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteScriptFunc(ctx, id)
+}
+
+func (s *DataStore) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListScriptsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListScriptsFunc(ctx, teamID, opt)
+}
+
+func (s *DataStore) GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.GetHostScriptDetailsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostScriptDetailsFunc(ctx, hostID, teamID, opts)
+}
+
+func (s *DataStore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+	s.mu.Lock()
+	s.BatchSetScriptsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchSetScriptsFunc(ctx, tmID, scripts)
 }

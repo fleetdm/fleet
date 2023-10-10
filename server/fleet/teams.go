@@ -134,11 +134,12 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 
 type TeamConfig struct {
 	// AgentOptions is the options for osquery and Orbit.
-	AgentOptions    *json.RawMessage    `json:"agent_options,omitempty"`
-	WebhookSettings TeamWebhookSettings `json:"webhook_settings"`
-	Integrations    TeamIntegrations    `json:"integrations"`
-	Features        Features            `json:"features"`
-	MDM             TeamMDM             `json:"mdm"`
+	AgentOptions    *json.RawMessage      `json:"agent_options,omitempty"`
+	WebhookSettings TeamWebhookSettings   `json:"webhook_settings"`
+	Integrations    TeamIntegrations      `json:"integrations"`
+	Features        Features              `json:"features"`
+	MDM             TeamMDM               `json:"mdm"`
+	Scripts         optjson.Slice[string] `json:"scripts,omitempty"`
 }
 
 type TeamWebhookSettings struct {
@@ -343,9 +344,10 @@ type TeamSpec struct {
 	// set to the agent options JSON object.
 	AgentOptions json.RawMessage `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
 
-	Secrets  []EnrollSecret   `json:"secrets,omitempty"`
-	Features *json.RawMessage `json:"features"`
-	MDM      TeamSpecMDM      `json:"mdm"`
+	Secrets  []EnrollSecret        `json:"secrets,omitempty"`
+	Features *json.RawMessage      `json:"features"`
+	MDM      TeamSpecMDM           `json:"mdm"`
+	Scripts  optjson.Slice[string] `json:"scripts"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.

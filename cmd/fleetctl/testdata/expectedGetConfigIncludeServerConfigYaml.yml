@@ -39,6 +39,7 @@ spec:
       metadata: ""
       metadata_url: ""
       entity_id: ""
+  scripts: null
   license:
     expiration: "0001-01-01T00:00:00Z"
     tier: free

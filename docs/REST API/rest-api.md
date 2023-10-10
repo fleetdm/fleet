@@ -875,6 +875,7 @@ None.
       "custom_settings": ["path/to/profile1.mobileconfig"],
       "enable_disk_encryption": true
     },
+    "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
       "entity_id": "",
       "issuer_uri": "",
@@ -1074,6 +1075,7 @@ Modifies the Fleet's configuration with the supplied information.
 | webhook_url                          | string  | body  | _mdm.macos_migration settings_. The webhook url configured to receive requests to unenroll devices migrating from your old MDM solution. **Requires Fleet Premium license** |
 | custom_settings                   | list    | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
 | enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
+| scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
 | enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
@@ -6401,7 +6403,12 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script asynchronously](#run-script-asynchronously)
 - [Run script synchronously](#run-script-synchronously)
-
+- [Get script result](#get-script-result)
+- [Upload a script](#upload-a-script)
+- [Delete a script](#delete-a-script)
+- [List scripts](#list-scripts)
+- [Get or download a script](#get-or-download-a-script)
+- [Get script details by host](#get-script-details-by-host)
 
 ### Run script asynchronously
 
@@ -6413,10 +6420,13 @@ Creates a script execution request and returns the execution identifier to retri
 
 #### Parameters
 
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| host_id         | integer | body | **Required**. The host id to run the script on.  |
-| script_contents | string  | body | **Required**. The contents of the script to run. |
+| Name            | Type    | In   | Description                                                                                    |
+| ----            | ------- | ---- | --------------------------------------------                                                   |
+| host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
+
+> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
 
 #### Example
 
@@ -6446,7 +6456,10 @@ Creates a script execution request and waits for a result to return (up to a 1 m
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | host_id         | integer | body | **Required**. The host id to run the script on.  |
-| script_contents | string  | body | **Required**. The contents of the script to run. |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
+
+> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
 
 #### Example
 
@@ -6504,6 +6517,239 @@ Gets the result of a script that was executed.
 ```
 
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
+
+### Upload a script
+
+_Available in Fleet Premium_
+
+Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
+
+`POST /api/v1/fleet/scripts`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| script          | file    | form | **Required**. The file containing the script.    |
+| team_id         | integer | form | The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
+
+#### Example
+
+`POST /api/v1/fleet/scripts`
+
+##### Request headers
+
+```http
+Content-Length: 306
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="script"; filename="myscript.sh"
+Content-Type: application/octet-stream
+
+echo "hello"
+--------------------------f02md47480und42y--
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "script_id": 1227
+}
+```
+
+### Delete a script
+
+_Available in Fleet Premium_
+
+Deletes an existing script.
+
+`DELETE /api/v1/fleet/scripts/{id}`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                           |
+| ----            | ------- | ---- | --------------------------------------------          |
+| id              | integer | path | **Required**. The ID of the script to delete. |
+
+#### Example
+
+`DELETE /api/v1/fleet/scripts/1`
+
+##### Default response
+
+`Status: 204`
+
+### List scripts
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/scripts`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                                                                                   |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| page            | integer | query | Page number of the results to fetch.                                                                                          |
+| per_page        | integer | query | Results per page.                                                                                                             |
+
+#### Example
+
+`GET /api/v1/fleet/scripts`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scripts": [
+    {
+      "id": 1,
+      "team_id": null,
+      "name": "script_1.sh",
+      "created_at": "2023-07-30T13:41:07Z",
+      "updated_at": "2023-07-30T13:41:07Z"
+    },
+    {
+      "id": 2,
+      "team_id": null,
+      "name": "script_2.sh",
+      "created_at": "2023-08-30T13:41:07Z",
+      "updated_at": "2023-08-30T13:41:07Z"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+
+```
+
+### Get or download a script
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/scripts/{id}`
+
+#### Parameters
+
+| Name | Type    | In    | Description                                                       |
+| ---- | ------- | ----  | -------------------------------------                             |
+| id   | integer | path  | **Required.** The desired script's ID.                            |
+| alt  | string  | query | If specified and set to "media", downloads the script's contents. |
+
+#### Example (get a script)
+
+`GET /api/v1/fleet/scripts/123`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 123,
+  "team_id": null,
+  "name": "script_1.sh",
+  "created_at": "2023-07-30T13:41:07Z",
+  "updated_at": "2023-07-30T13:41:07Z"
+}
+
+```
+
+#### Example (download a script's contents)
+
+`GET /api/v1/fleet/scripts/123?alt=media`
+
+##### Example response headers
+
+```http
+Content-Length: 13
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
+```
+
+###### Example response body
+
+`Status: 200`
+
+```
+echo "hello"
+```
+
+### Get script details by host
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/hosts/{id}/scripts`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                                                                                   |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| page            | integer | query | Page number of the results to fetch.                                                                                          |
+| per_page        | integer | query | Results per page.                                                                                                             |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/{id}/scripts`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scripts": [
+    {
+      "script_id": 3,
+      "name": "remove-zoom-artifacts.sh",
+      "last_execution": {
+        "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "error"
+      }
+    },
+    {
+      "script_id": 5,
+      "name": "set-timezone.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "pending"
+      }
+    },
+    {
+      "script_id": 8,
+      "name": "uninstall-zoom.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "ran"
+      }
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+
+```
 
 ---
 
