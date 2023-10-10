@@ -5746,6 +5746,11 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		Query: "select * from time",
 	})
 	require.NoError(t, err)
+
+	// update policy_results
+	_, err = ds.writer(context.Background()).Exec(`INSERT INTO query_results (host_id, query_id, last_fetched, data) VALUES (?, ?, ?, ?)`, host.ID, policy.ID, time.Now(), `{"foo": "bar"}`)
+	require.NoError(t, err)
+
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false))
 	// Update host_mdm.
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", false, "")

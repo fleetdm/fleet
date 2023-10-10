@@ -804,6 +804,20 @@ func newCleanupsAndAggregationSchedule(
 				return verifyDiskEncryptionKeys(ctx, logger, ds, config)
 			},
 		),
+		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
+			config, err := ds.AppConfig(ctx)
+			if err != nil {
+				return err
+			}
+
+			if config.ServerSettings.QueryReportsDisabled {
+				if err = ds.CleanupGlobalDiscardQueryResults(ctx); err != nil {
+					return err
+				}
+			}
+
+			return nil
+		}),
 	)
 
 	return s, nil

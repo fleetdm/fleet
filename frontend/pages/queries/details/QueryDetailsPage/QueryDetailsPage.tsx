@@ -142,7 +142,7 @@ const QueryDetailsPage = ({
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
   const isClipped =
-    queryReport && queryReport.results.length >= QUERY_REPORT_RESULTS_LIMIT;
+    (queryReport?.results?.length ?? 0) >= QUERY_REPORT_RESULTS_LIMIT;
 
   const renderHeader = () => {
     const canEditQuery =
