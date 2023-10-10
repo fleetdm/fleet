@@ -26,6 +26,20 @@
     width: auto;
   }
 
+  &__border-radius-large {
+    border-radius: $border-radius-large;
+  }
+
+  &__border-radius-xlarge {
+    border-radius: $border-radius-xlarge;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
   &__cta {
     display: flex;
     align-items: center;
@@ -50,5 +64,9 @@
         stroke: $core-vibrant-blue;
       }
     }
+  }
+
+  p {
+    margin: 0;
   }
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -82,7 +83,7 @@ func TestHostDetails(t *testing.T) {
 	require.Nil(t, hostDetail.MDM.MacOSSettings)
 }
 
-func TestHostDetailsMDMDiskEncryption(t *testing.T) {
+func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{ds: ds}
 
@@ -307,7 +308,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			}
 			require.NoError(t, mdmData.Scan([]byte(fmt.Sprintf(`{"raw_decryptable": %s}`, rawDecrypt))))
 
-			host := &fleet.Host{ID: 3, MDM: mdmData, UUID: "abc"}
+			host := &fleet.Host{ID: 3, MDM: mdmData, UUID: "abc", Platform: "darwin"}
 			opts := fleet.HostDetailOptions{
 				IncludeCVEScores: false,
 				IncludePolicies:  false,
@@ -321,12 +322,16 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			}
 			hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), host, opts)
 			require.NoError(t, err)
+			require.NotNil(t, hostDetail.MDM.MacOSSettings)
 
 			if c.wantState == "" {
 				require.Nil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
+				require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
 			} else {
 				require.NotNil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
 				require.Equal(t, c.wantState, *hostDetail.MDM.MacOSSettings.DiskEncryption)
+				require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+				require.Equal(t, c.wantState, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
 			}
 			if c.wantAction == "" {
 				require.Nil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
@@ -340,6 +345,100 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 				require.Equal(t, c.wantStatus, profs[0].Status)
 			} else {
 				require.Nil(t, *hostDetail.MDM.Profiles)
+			}
+		})
+	}
+}
+
+func TestHostDetailsOSSettings(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+
+	ctx := context.Background()
+
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hid uint) (*fleet.HostMDMMacOSSetup, error) {
+		return nil, nil
+	}
+
+	type testCase struct {
+		name        string
+		host        *fleet.Host
+		licenseTier string
+		wantStatus  fleet.DiskEncryptionStatus
+	}
+	cases := []testCase{
+		{"windows", &fleet.Host{ID: 42, Platform: "windows"}, fleet.TierPremium, fleet.DiskEncryptionEnforcing},
+		{"darwin", &fleet.Host{ID: 42, Platform: "darwin"}, fleet.TierPremium, ""},
+		{"ubuntu", &fleet.Host{ID: 42, Platform: "ubuntu"}, fleet.TierPremium, ""},
+		{"not premium", &fleet.Host{ID: 42, Platform: "windows"}, fleet.TierFree, ""},
+	}
+
+	setupDS := func(c testCase) {
+		ds.AppConfigFuncInvoked = false
+		ds.GetMDMWindowsBitLockerStatusFuncInvoked = false
+		ds.GetHostMDMProfilesFuncInvoked = false
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.DiskEncryptionStatus, error) {
+			if c.wantStatus == "" {
+				return nil, nil
+			}
+			return &c.wantStatus, nil
+		}
+		ds.GetHostMDMProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
+			return nil, nil
+		}
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			setupDS(c)
+
+			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: c.licenseTier})
+
+			hostDetail, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin), c.host, fleet.HostDetailOptions{
+				IncludeCVEScores: false,
+				IncludePolicies:  false,
+			})
+			require.NoError(t, err)
+			require.NotNil(t, hostDetail)
+			require.True(t, ds.AppConfigFuncInvoked)
+
+			switch c.host.Platform {
+			case "windows":
+				require.False(t, ds.GetHostMDMProfilesFuncInvoked)
+				if c.wantStatus != "" {
+					require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
+					require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+					require.Equal(t, c.wantStatus, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
+				} else {
+					require.False(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
+					require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+				}
+			case "darwin":
+				require.True(t, ds.GetHostMDMProfilesFuncInvoked)
+				require.False(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
+				require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+			default:
+				require.False(t, ds.GetHostMDMProfilesFuncInvoked)
+				require.False(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
 			}
 		})
 	}
@@ -901,9 +1000,18 @@ func TestHostEncryptionKey(t *testing.T) {
 	require.NoError(t, err)
 	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
 
+	wstep, _, _, err := fleetCfg.MDM.MicrosoftWSTEP()
+	require.NoError(t, err)
+	winEncryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{wstep.Leaf})
+	require.NoError(t, err)
+	winBase64EncryptedKey := base64.StdEncoding.EncodeToString(winEncryptedKey)
+
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			ds := new(mock.Store)
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+			}
 			svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 
 			ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
@@ -950,7 +1058,10 @@ func TestHostEncryptionKey(t *testing.T) {
 
 	t.Run("test error cases", func(t *testing.T) {
 		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		hostErr := errors.New("host error")
@@ -980,6 +1091,56 @@ func TestHostEncryptionKey(t *testing.T) {
 		_, err = svc.HostEncryptionKey(ctx, 1)
 		require.Error(t, err)
 	})
+
+	t.Run("host platform mdm enabled", func(t *testing.T) {
+		cases := []struct {
+			hostPlatform  string
+			macMDMEnabled bool
+			winMDMEnabled bool
+			shouldFail    bool
+		}{
+			{"windows", true, false, true},
+			{"windows", false, true, false},
+			{"windows", true, true, false},
+			{"darwin", true, false, false},
+			{"darwin", false, true, true},
+			{"darwin", true, true, false},
+		}
+		for _, c := range cases {
+			t.Run(fmt.Sprintf("%s: mac mdm: %t; win mdm: %t", c.hostPlatform, c.macMDMEnabled, c.winMDMEnabled), func(t *testing.T) {
+				ds := new(mock.Store)
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: c.macMDMEnabled, WindowsEnabledAndConfigured: c.winMDMEnabled}}, nil
+				}
+				ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+					return &fleet.Host{Platform: c.hostPlatform}, nil
+				}
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+					key := base64EncryptedKey
+					if c.hostPlatform == "windows" {
+						key = winBase64EncryptedKey
+					}
+					return &fleet.HostDiskEncryptionKey{
+						Base64Encrypted: key,
+						Decryptable:     ptr.Bool(true),
+					}, nil
+				}
+				ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+					return nil
+				}
+
+				svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+				ctx = test.UserContext(ctx, test.UserAdmin)
+				_, err := svc.HostEncryptionKey(ctx, 1)
+				if c.shouldFail {
+					require.Error(t, err)
+					require.ErrorContains(t, err, fleet.ErrMDMNotConfigured.Error())
+				} else {
+					require.NoError(t, err)
+				}
+			})
+		}
+	})
 }
 
 func TestHostMDMProfileDetail(t *testing.T) {
@@ -1004,7 +1165,8 @@ func TestHostMDMProfileDetail(t *testing.T) {
 
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &fleet.Host{
-			ID: 1,
+			ID:       1,
+			Platform: "darwin",
 		}, nil
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {

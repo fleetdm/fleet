@@ -549,8 +549,10 @@ Use with caution as this may break Fleet ingestion of hosts data.
   ```yaml
   features:
     detail_query_overrides:
-      # null allows to disable the "users" query from running on hosts.
+      # null disables the "users" query from running on hosts.
       users: null
+      # "" disables the "disk_encryption_linux" query from running on hosts.
+      disk_encryption_linux: ""
       # this replaces the hardcoded "mdm" detail query.
       mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
   ```

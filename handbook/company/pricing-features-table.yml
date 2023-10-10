@@ -1,193 +1,268 @@
+- categoryName: Other
+  features:
+    - industryName: File integrity monitoring (FIM) # Short industry phrase
+      friendlyName: Detect changes to critical files # Short, Fleet one-liner for the feature, written in the imperative mood.  (If easy to do, base this off of the words that an actual customer is saying.)
+      description: Specify files to monitor for changes or deletions, then log those events to your SIEM or data lake, including key information such as filepath and checksum. # Clear Mr. Rogers description
+      documentationUrl: https://fleetdm.com/guides/osquery-evented-tables-overview#file-integrity-monitoring-fim # URL of the single-best page within the docs which serves as a "jumping-off point" for this feature.
+      screenshotSrc: "" # A screenshot of the single, best, simplifying, obvious example 
+      tier: Free # Either "Free" or "Premium"
+      usualDepartment: Security # or omit if there isn't a particular departmental leaning we've noticed
+      productCategories: [Endpoint operations] # or omit if this isn't associated with a single product category
+      dri: mikermcneil #GitHub user name
+      demos:
+        - description: A top gaming company needed a way to monitor critical files on production Debian servers.
+          quote: The FIM features are kind of a top priority.
+          moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
+      cues:
+        - description: Monitor critical files on production Debian servers
+        - description: Detect illicit activity
+          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+        - description: Pinpoint unintended changes
+          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+        - description: Verify update status and monitoring system health
+          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+        - description: Meet compliance mandates
+          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+    - industryName: Human-endpoint mapping
+      friendlyName: See who logs in on every computer
+      description: Identify who logs in to any system, including login history and current sessions.  Look up any host by the email address of the person using it.
+      documentationUrl: "" # todo
+      screenshotSrc: ""
+      tier: Free
+      productCategories: [Endpoint operations]
+      dri: mikermcneil
+      demos:
+        - description: Security engineers at a top gaming company wanted to get demographics off their macOS, Windows, and Linux machines about who the user is and who's logged in.
+          moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
+      cues:
+        - description: Human-to-device mapping
+        - description: Look up computer by ActiveDirectory account
+        - description: Find device by Google Chrome user
+        - description: Check user login history
+          moreInfoUrl: https://www.lepide.com/how-to/audit-who-logged-into-a-computer-and-when.html#:~:text=To%20find%20out%20the%20details,logs%20in%20%E2%80%9CWindows%20Logs%E2%80%9D.
+        - description: See currently logged in users
+          moreInfoUrl: https://www.top-password.com/blog/see-currently-logged-in-users-in-windows/
+        - description: Get demographics off of our machines about who the user is and who's logged in
+          moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
+        - description: See what servers someone is logged-in on
+          moreInfoUrl: https://community.spiceworks.com/topic/138171-is-there-a-way-to-see-what-servers-someone-is-logged-in-on
+    - industryName: REST API
+      friendlyName: Automate any feature  
+      description: ""
+      documentationUrl: https://fleetdm.com/docs/rest-api/rest-api 
+      screenshotSrc: ""
+      tier: Free
+      dri: rachaelshaw
+    - industryName: Command line tool (CLI)
+      tier: Free
 - categoryName: Device management
   features:
-    - name: User-initiated enrollment of macOS computers
+    - industryName: User-initiated enrollment of macOS computers
       tier: Free
-      comingSoon: false
-    - name: Remotely enforce macOS settings
+      usualDepartment: IT
+      productCategories: [Device management]
+    - industryName: Remotely enforce macOS settings
       tier: Free
-      comingSoon: false
-    - name: Low-level macOS MDM commands (e.g. remote restart)
+      usualDepartment: IT
+      productCategories: [Device management]
+    - industryName: Low-level macOS MDM commands (e.g. remote restart)
       tier: Free
-      comingSoon: false
-    - name: Native macOS update reminders
+      usualDepartment: IT
+      productCategories: [Device management]
+    - industryName: Native macOS update reminders
       tier: Free
-      comingSoon: false
-    - name: Zero-touch setup for macOS computers
+      usualDepartment: IT
+      productCategories: [Device management]
+    - industryName: Zero-touch setup for macOS computers
       tier: Premium
-      comingSoon: false
-    - name: Safely execute custom scripts
+      usualDepartment: IT
+      productCategories: [Device management]
+    - industryName: Safely execute custom scripts (macOS, Windows, and Linux)
       tier: Premium
-      comingSoon: false      
-    - name: End-user macOS update reminders (via Nudge)
+      productCategories: [Device management,Endpoint operations]
+    - industryName: End-user macOS update reminders (via Nudge)
       tier: Premium
-      comingSoon: false
-    - name: Encrypt macOS hard disks with FileVault
+      usualDepartment: IT
+      productCategories: [Device management]
+    - industryName: Encrypt macOS hard disks with FileVault
       tier: Premium
-      comingSoon: false
-    - name: Manage queued MDM commands on macOS
+      usualDepartment: IT
+      productCategories: [Device management]
+    - industryName: Manage queued MDM commands on macOS
       tier: Premium
-      comingSoon: true
-    - name: Remotely lock and wipe macOS computers
+      comingSoonOn: 2023-12-31
+      usualDepartment: IT
+      productCategories: [Device management]
+    - industryName: Remotely lock and wipe macOS computers
       tier: Premium
-      comingSoon: false
-    - name: Update apps on macOS computers
+      usualDepartment: IT
+      productCategories: [Device management]
+    - industryName: Update apps on macOS computers
       tier: Premium
-      comingSoon: true
-    - name: Puppet integration #   « Map macOS settings to computers with Puppet module
+      comingSoonOn: 2024-03-31
+      usualDepartment: IT
+      productCategories: [Device management]
+    - industryName: Puppet integration
+      friendlyName: Map macOS settings to computers with Puppet module
       tier: Premium
-      comingSoon: false
-    - name: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
+      usualDepartment: IT
+      productCategories: [Device management]
+    - industryName: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
       tier: Premium
-      comingSoon: false
+      usualDepartment: IT
+      productCategories: [Device management]
 - categoryName: Support
   features:
-    - name: Public issue tracker (GitHub)
+    - industryName: Public issue tracker (GitHub)
       tier: Free
-      comingSoon: false
-    - name: Community Slack channel
+    - industryName: Community Slack channel
       tier: Free
-      comingSoon: false
-    - name: Unlimited email support (confidential)
+    - industryName: Unlimited email support (confidential)
       tier: Premium
-      comingSoon: false
-    - name: Phone and video call support
-      tier: Premium
-      comingSoon: false    
+    - industryName: Phone and video call support
+      tier: Premium    
 - categoryName: Inventory management
   features:
-    - name: Secure REST API
+    - industryName: Device inventory dashboard
       tier: Free
-      comingSoon: false
-    - name: Command line tool (CLI)
+    - industryName: Browse installed software packages
       tier: Free
-      comingSoon: false
-    - name: Realtime device inventory dashboard
+    - industryName: Search devices by IP, serial, hostname, UUID
       tier: Free
-      comingSoon: false
-    - name: Browse installed software packages
-      tier: Free
-      comingSoon: false
-    - name: Search devices by IP, serial, hostname, UUID
-      tier: Free
-      comingSoon: false
-    - name: Target and configure specific groups of devices
+    - industryName: Target and configure specific groups of devices
       tier: Premium
-      comingSoon: false
-    - name: Aggregate insights for groups of devices
+    - industryName: Generate reports for groups of devices
       tier: Premium
-      comingSoon: false
 - categoryName: Collaboration
   features:
-    - name: Shareable device health reports
+    - industryName: Shareable device health reports
       tier: Free
-      comingSoon: false
-    - name: Versionable queries and config (GitOps)
+    - industryName: Versionable queries and config (GitOps)
       tier: Free
-      comingSoon: false
-    - name: Human-to-device mapping
+      demos:
+        - description: A top financial services company needed to set up rolling deployments for changes to osquery agents running on their production servers.
+          moreInfoUrl: https://docs.google.com/document/d/1UdzZMyBLbs9SUXfSXN2x2wZQCbjZZUetYlNWH6-ryqQ/edit#heading=h.2lh6ehprpvl6
+    - industryName: Scope transparency
       tier: Free
-      comingSoon: false
-    - name: Scope transparency
-      tier: Free
-      comingSoon: false
+      moreInfoUrl: https://fleetdm.com/transparency
 - categoryName: Security and compliance
   features:
-    - name: Single sign on (SSO, SAML)
+    - industryName: Single sign on (SSO, SAML)
       tier: Free
-      comingSoon: false
-    - name: Report on disk encryption status (FileVault)
+    - industryName: Disk encryption
+      friendlyName: Ensure hard disks are encrypted
+      description: Encrypt hard disks of macOS and Windows computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker).
       tier: Free
-      comingSoon: false
-    - name: Audit queries and user activities
+      cues:
+        - description: Report on disk encryption status
+        - description: Encrypt hard disks on macOS with FileVault
+        - description: Escrow FileVault keys on macOS
+        - description: Encrypt hard disks on Windows with BitLocker
+    - industryName: Audit queries and user activities
       tier: Free
-      comingSoon: false
-    - name: Grant API-only access
+      usualDepartment: Security
+    - industryName: Grant API-only access
       tier: Free
-      comingSoon: false
-    - name: Role-based access control
-      tier: Free
-      comingSoon: false
-    - name: Ship logs to Splunk, Snowflake, and more
-      tier: Free
-      comingSoon: false
-    - name: Programmable audit log
+    - industryName: Programmable audit log
       tier: Premium
-      comingSoon: false
-    - name: Just-in-time (JIT) provisioning
+      usualDepartment: Security
+      cues:
+        - description: Export activity of Fleet admins to your SIEM or data lake
+    - industryName: Just-in-time (JIT) provisioning
       tier: Premium
-      comingSoon: false
-    - name: Automated user role sync via Okta, AD, or any IDP
+    - industryName: Automated user role sync via Okta, AD, or any IDP
       tier: Premium
-      comingSoon: false
-    - name: Vanta integration
+      cue:
+        - description: Automatically set admin access to Fleet based on your IDP
+    - industryName: Vanta integration
       tier: Premium
-      comingSoon: false
-    - name: Trigger a workflow based on a failing policy
+    - industryName: Trigger a workflow based on a failing policy
       tier: Premium
-      comingSoon: true
-    - name: Granular role-based access control
+    - industryName: Role-based access control
       tier: Premium
-      comingSoon: false
 - categoryName: Monitoring
   features:
-    - name: Schedule and automate custom queries
+    - industryName: Schedule and automate custom queries
       tier: Free
-      comingSoon: false
-    - name: Detect vulnerable software
+      usualDepartment: Security
+      cues:
+        - description: Ship logs to Splunk, Snowflake, and more
+        - description: Export the data to other systems
+          moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
+        - description: Export data to a third-party SIEM tool
+          moreInfoUrl: https://www.websense.com/content/support/library/web/hosted/admin_guide/siem_integration_explain.aspx
+    - industryName: Detect vulnerable software
       tier: Free
-      comingSoon: false
-    - name: Query performance monitoring
+      usualDepartment: Security
+      productCategories: [Vulnerability management]
+      demos:
+        - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
+          quote: So we have some stuff today through Qualys, but it's just not very good. A lot of it is...it's just really noisy.  I'm trying to find out specifically, actually what packages are installed where, and then the ability to live query them.
+          moreInfoUrl: https://docs.google.com/document/d/1JWtRsW1FUTCkZEESJj9-CvXjLXK4219by-C6vvVVyBY/edit
+    - industryName: Query performance monitoring
       tier: Free
-      comingSoon: false
-    - name: Standard query and policy library
+      demos:
+        - description: A top software company needed to understand the performance impact of osquery queries before running them on all of their production Linux servers.
+          moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
+        - description: A top software company wanted to detect regressions when adding/changing queries and fail builds if queries were too expensive.
+          moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
+    - industryName: Device trust
       tier: Free
-      comingSoon: false
-    - name: Policy and vulnerability automations (webhook, Zendesk, JIRA, ServiceNow*)
+      cue:
+        - description: Standard query and policy library
+        - description: Beyondcorp
+        - description: Zero trust
+        - description: Conditional access
+    - industryName: Policy and vulnerability automations (webhook, Zendesk, JIRA, ServiceNow*)
       tier: Free
-      comingSoon: false
-    - name: Detect and surface issues with devices (policies)
+    - industryName: Detect and surface issues with devices (policies)
       tier: Free
-      comingSoon: false
-    - name: Mark policies as critical
+    - industryName: Mark policies as critical
       tier: Premium
-      comingSoon: false
-    - name: Vulnerability scores (EPSS and CVSS)
+    - industryName: Vulnerability scores (EPSS and CVSS)
       tier: Premium
-      comingSoon: false
-    - name: CISA known exploited vulnerabilities
+      usualDepartment: Security
+      productCategories: [Vulnerability management]
+    - industryName: CISA known exploited vulnerabilities
       tier: Premium
-      comingSoon: false
-    - name: End-user self-service
+      usualDepartment: Security
+      productCategories: [Vulnerability management]
+    - industryName: End-user self-service
       tier: Premium
-      comingSoon: false
+      usualDepartment: IT
+      productCategories: [Device management,Endpoint operations]
 - categoryName: Data outputs
   features:
-    - name: Flexible log destinations (AWS Kinesis, Lambda, GCP, Kafka)
+    - industryName: Flexible log destinations (AWS Kinesis, Lambda, GCP, Kafka)
       tier: Free
-      comingSoon: false
-    - name: File carving (AWS S3)
+      usualDepartment: Security
+      productCategories: [Endpoint operations]
+    - industryName: File carving (AWS S3)
       tier: Free
-      comingSoon: false
+      usualDepartment: Security
+      productCategories: [Endpoint operations]
 - categoryName: Deployment
   features:
-    - name: Self-hosted
+    - industryName: Self-hosted
       tier: Free
-      comingSoon: false
-    - name: Deployment tools (Helm, Terraform)
+      cues:
+        - description: Self-managed
+        - description: Host it yourself
+    - industryName: Deployment tools (Terraform, Helm)
       tier: Free
-      comingSoon: false
-    - name: Configure osquery startup flags remotely
+    - industryName: Configure osquery startup flags remotely
       tier: Free
-      comingSoon: false
-    - name: Auto-update osquery agents
+      usualDepartment: Security
+      productCategories: [Endpoint operations]
+    - industryName: Auto-update osquery agents
       tier: Free
-      comingSoon: false
-    - name: Self-managed auto-update registry
+      productCategories: [Endpoint operations]
+    - industryName: Self-managed auto-update registry
       tier: Premium
-      comingSoon: false
-    - name: Manage osquery extensions remotely
+      usualDepartment: Security
+      productCategories: [Endpoint operations]
+    - industryName: Manage osquery extensions remotely
       tier: Premium
-      comingSoon: false
-    - name: Managed Cloud
+      productCategories: [Endpoint operations]
+    - industryName: Managed Cloud
       tier: Premium
-      comingSoon: false

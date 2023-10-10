@@ -1,0 +1,98 @@
+-
+  task: "Pull request review" # Title that will actually show in rituals table
+  startedOn: "2023-08-09" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
+  frequency: "Daily" # must be supported by
+  description: "Engineers go through pull requests for which their review has been requested." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
+  dri: "lukeheath" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
+  #autoIssue:   # Enables automation of GitHub issues
+    #labels: [ "#g-cx" ] # label to be applied to issue
+-
+  task: "Engineering group discussions"
+  startedOn: "2023-08-09" 
+  frequency: "Daily"
+  description: "Engineers go through pull requests for which their review has been requested."
+  moreInfoUrl: 
+  dri: "lukeheath"
+- 
+  task: "Oncall handoff"
+  startedOn: "2023-08-09" 
+  frequency: "Weekly"
+  description: "Hand off the oncall engineering responsibilities to the next oncall engineer."
+  moreInfoUrl: 
+  dri: "lukeheath"
+- 
+  task: "Vulnerability alerts (fleetdm.com)"
+  startedOn: "2023-08-09" 
+  frequency: "Weekly"
+  description: "Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the fleetdm.com codebase on GitHub."
+  moreInfoUrl: 
+  dri: "eashaw"
+- 
+  task: "Vulnerability alerts (frontend)"
+  startedOn: "2023-08-09" 
+  frequency: "Weekly"
+  description: "Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet frontend codebase (and related JS) on GitHub."
+  moreInfoUrl: 
+  dri: "zwass"
+- 
+  task: "Vulnerability alerts (backend)"
+  startedOn: "2023-08-09" 
+  frequency: "Weekly"
+  description: "Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet backend codebase (and all Go code) on GitHub."
+  moreInfoUrl: 
+  dri: "zwass"
+- 
+  task: "Freeze ritual"
+  startedOn: "2023-08-09" 
+  frequency: "Triweekly"
+  description: "Go through the process of freezing the `main` branch to prepare for the next release."
+  moreInfoUrl: "https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#patch-releases"
+  dri: "lukeheath"
+- 
+  task: "Release ritual"
+  startedOn: "2023-08-09" 
+  frequency: "Triweekly"
+  description: "Go through the process of releasing the next iteration of Fleet."
+  moreInfoUrl: "https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md"
+  dri: "lukeheath"
+- 
+  task: "Create patch release branch"
+  startedOn: "2023-08-09" 
+  frequency: "Every patch release"
+  description: "Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet."
+  moreInfoUrl: "https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#patch-releases"
+  dri: "lukeheath"
+- 
+  task: "Bug review"
+  startedOn: "2023-08-09" 
+  frequency: "Weekly"
+  description: "Review bugs that are in QA's inbox."
+  moreInfoUrl:
+  dri: "xpkoala"
+- 
+  task: "QA report"
+  startedOn: "2023-08-09" 
+  frequency: "Triweekly"
+  description: "Every release cycle, on the Monday of release week, the DRI for the release ritual is updated on status of testing."
+  moreInfoUrl:
+  dri: "xpkoala"
+- 
+  task: "Release QA"
+  startedOn: "2023-08-09" 
+  frequency: "Triweekly"
+  description: "Every release cycle, by end of day Friday of release week, all issues move to Ready for release on the #g-mdm and #g-cx sprint boards."
+  moreInfoUrl:
+  dri: "xpkoala"
+
+
+
+
+
+
+
+
+
+
+
+

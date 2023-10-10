@@ -1044,13 +1044,13 @@ spec:
           foo: qux
     name: Team1
     mdm:
+      enable_disk_encryption: false
       macos_updates:
         minimum_version: 10.10.10
         deadline: 1992-03-01
       macos_settings:
         custom_settings:
           - %s
-        enable_disk_encryption: false
     secrets:
       - secret: BBB
 `, mobileConfigPath))
@@ -1062,9 +1062,9 @@ spec:
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.JSONEq(t, string(json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)), string(*savedTeam.Config.AgentOptions))
 	assert.Equal(t, fleet.TeamMDM{
+		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:       []string{mobileConfigPath},
-			EnableDiskEncryption: false,
+			CustomSettings: []string{mobileConfigPath},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1097,9 +1097,9 @@ spec:
 	require.True(t, ds.NewJobFuncInvoked)
 	// all left untouched, only setup assistant added
 	assert.Equal(t, fleet.TeamMDM{
+		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:       []string{mobileConfigPath},
-			EnableDiskEncryption: false,
+			CustomSettings: []string{mobileConfigPath},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1129,9 +1129,9 @@ spec:
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// all left untouched, only bootstrap package added
 	assert.Equal(t, fleet.TeamMDM{
+		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:       []string{mobileConfigPath},
-			EnableDiskEncryption: false,
+			CustomSettings: []string{mobileConfigPath},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1887,7 +1887,7 @@ spec:
 			expectedErr error
 		}{
 			{"signed.pkg", nil},
-			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/docs/using-fleet/mdm-macos-setup#step-2-sign-the-package")},
+			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#step-2-sign-the-package")},
 			{"invalid.tar.gz", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The file must be a package (.pkg).")},
 			{"wrong-toc.pkg", errors.New("applying fleet config: checking package signature: decompressing TOC: unexpected EOF")},
 		}
@@ -2886,7 +2886,7 @@ spec:
     macos_settings:
       enable_disk_encryption: true
 `,
-			wantErr: `Couldn't update macos_settings because MDM features aren't turned on in Fleet.`,
+			wantErr: `Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on`,
 		},
 		{
 			desc: "app config macos_settings.enable_disk_encryption false",

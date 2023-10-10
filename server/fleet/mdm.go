@@ -135,3 +135,16 @@ type HostMDMProfileRetryCount struct {
 	ProfileIdentifier string `db:"profile_identifier"`
 	Retries           uint   `db:"retries"`
 }
+
+type MDMPlatformsCounts struct {
+	MacOS   uint `db:"macos" json:"macos"`
+	Windows uint `db:"windows" json:"windows"`
+}
+type MDMDiskEncryptionSummary struct {
+	Verified            MDMPlatformsCounts `db:"verified" json:"verified"`
+	Verifying           MDMPlatformsCounts `db:"verifying" json:"verifying"`
+	ActionRequired      MDMPlatformsCounts `db:"action_required" json:"action_required"`
+	Enforcing           MDMPlatformsCounts `db:"enforcing" json:"enforcing"`
+	Failed              MDMPlatformsCounts `db:"failed" json:"failed"`
+	RemovingEnforcement MDMPlatformsCounts `db:"removing_enforcement" json:"removing_enforcement"`
+}

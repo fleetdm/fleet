@@ -10,9 +10,11 @@
 - [Setup](#setup)
 - [Scripts](#scripts)
 
-This document includes the Fleet API routes that are helpful when developing or contributing to Fleet.
+This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
-Unlike the [Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api), only the Fleet UI, Fleet Desktop, and `fleetctl` clients use the API routes in this document:
+These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and will frequently change to reflect current functionality.
+
+If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
 
 ## Packs
 
@@ -532,6 +534,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
+- [Get FileVault statistics](#get-filevault-statistics)
 
 ### Generate Apple DEP Key Pair
 
@@ -699,6 +702,44 @@ This endpoint stores a profile to be assigned to a host at some point in the fut
 ##### Default response
 
 `Status: 204`
+
+### Get FileVault statistics
+
+_Available in Fleet Premium_
+
+Get aggregate status counts of disk encryption enforced on macOS hosts.
+
+The summary can optionally be filtered by team id.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter the summary.            |
+
+#### Example
+
+Get aggregate status counts of Apple disk encryption profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "verified": 123,
+  "verifying": 123,
+  "action_required": 123,
+  "enforcing": 123,
+  "failed": 123,
+  "removing_enforcement": 123
+}
+```
+
 
 ### Match preassigned profiles
 
@@ -2292,7 +2333,9 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 {
   "failing_policies_count": 3,
   "notifications": {
-    "needs_mdm_migration": true
+    "needs_mdm_migration": true,
+    "renew_enrollment_profile": false,
+    "enforce_bitlocker_encryption": false,
   },
   "config": {
     "org_info": {
@@ -2314,6 +2357,7 @@ In regards to the `notifications` key:
 
 - `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
 - `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
+- `enforce_bitlocker_encryption` applies only to Windows devices and means that it should encrypt the disk and report the encryption key back to Fleet.
 
 
 #### Get device's policies

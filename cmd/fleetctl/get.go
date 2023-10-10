@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"gopkg.in/guregu/null.v3"
@@ -167,12 +168,15 @@ func (eacp enrichedAppConfigPresenter) MarshalJSON() ([]byte, error) {
 		*fleet.VulnerabilitiesConfig
 	}
 
-	return json.Marshal(&struct {
-		fleet.EnrichedAppConfig
+	enrichedJSON, err := json.Marshal(fleet.EnrichedAppConfig(eacp))
+	if err != nil {
+		return nil, err
+	}
+
+	extraFieldsJSON, err := json.Marshal(&struct {
 		UpdateInterval  UpdateIntervalConfigPresenter  `json:"update_interval,omitempty"`
 		Vulnerabilities VulnerabilitiesConfigPresenter `json:"vulnerabilities,omitempty"`
 	}{
-		EnrichedAppConfig: fleet.EnrichedAppConfig(eacp),
 		UpdateInterval: UpdateIntervalConfigPresenter{
 			eacp.UpdateInterval.OSQueryDetail.String(),
 			eacp.UpdateInterval.OSQueryPolicy.String(),
@@ -184,6 +188,13 @@ func (eacp enrichedAppConfigPresenter) MarshalJSON() ([]byte, error) {
 			eacp.Vulnerabilities,
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	// we need to marshal and combine both groups separately because
+	// enrichedAppConfig has a custom marshaler.
+	return rawjson.CombineRoots(enrichedJSON, extraFieldsJSON)
 }
 
 func printConfig(c *cli.Context, config interface{}) error {
@@ -1303,10 +1314,10 @@ func getMDMAppleCommand() *cli.Command {
 			warnDate := time.Now().Add(expirationWarning)
 			if mdm.RenewDate.Before(time.Now()) {
 				// certificate is expired, print an error
-				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/docs/using-fleet/mdm-setup#apple-push-notification-service-apns")
+				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-push-notification-service-apns")
 			} else if mdm.RenewDate.Before(warnDate) {
 				// certificate will soon expire, print a warning
-				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/docs/using-fleet/mdm-setup#renewing-apns")
+				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/docs/using-fleet/mdm-macos-setup#renewing-apns")
 			}
 
 			return nil
