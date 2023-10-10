@@ -40,7 +40,13 @@ The 🚀 Engineering department at Fleet is directly responsible for writing and
 
 -->
 
-## Responsibilities
+
+## Scrum at Fleet
+- [Sprint ceremonies](#sprint-ceremonies)
+- [Scrum boards](#scrum-boards)
+- [Scrum items](#scrum-items)
+
+Fleet [product groups](https://fleetdm.com/handbook/company/development-groups#what-are-product-groups) employ scrum, an agile methodology, as a core practice in software development. This process is designed around sprints, which last three weeks to align with our release cadence.
 
 New tickets are estimated, specified, and prioritized on the roadmap:
 - [Roadmap](https://app.zenhub.com/workspaces/-roadmap-ships-in-6-weeks-6192dd66ea2562000faea25c/board)
@@ -58,12 +64,6 @@ Our scrum boards are exclusively composed of four types of scrum items:
 
 > Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these four types of scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
 
-## Scrum at Fleet
-- [Sprint ceremonies](#sprint-ceremonies)
-- [Scrum boards](#scrum-boards)
-- [Scrum items](#scrum-items)
-
-Fleet [product groups](https://fleetdm.com/handbook/company/development-groups#what-are-product-groups) employ scrum, an agile methodology, as a core practice in software development. This process is designed around sprints, which last three weeks to align with our release cadence.
 
 ### Sprint ceremonies
 Each sprint is marked by five essential ceremonies:
@@ -739,26 +739,15 @@ When this occurs, we will begin receiving the following error message when attem
 4. Complete the 2FA process to log in.
 
 5. Accept the new terms of service.
-<!---
+
+
+## Responsibilities
+
+TODO
+
+> work in progress, contributions welcome, please just make only one small change at a time per PR.  See https://fleetdm.com/handbook/company/leadership#vision-for-dept-handbook-pages for info
+
 ## Rituals
-The following rituals are engaged in by the directly responsible individual (DRI) and at the frequency specified for the ritual.
-
-| Ritual                        | Frequency           | Description                                                                                                                            | DRI            |
-| :---------------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| Pull request review           | Daily               | Engineers go through pull requests for which their review has been requested.                                                          | Luke Heath |
-| Engineering group discussions | Weekly              | See "Group Weeklies".                                                                                                                  | Zach Wasserman |
-| Oncall handoff                | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                          | Luke Heath |
-| Vulnerability alerts (fleetdm.com)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the fleetdm.com codebase on GitHub. | Eric Shaw |
-| Vulnerability alerts (frontend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet frontend codebase (and related JS) on GitHub. | Zach Wasserman |
-| Vulnerability alerts (backend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet backend codebase (and all Go code) on GitHub. | Zach Wasserman |
-| Freeze ritual                 | Every three weeks   | Go through [the process of freezing](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#patch-releases) the `main` branch to prepare for the next release.                                                  | Luke Heath |
-| Release ritual                | Every three weeks   | Go through [the process of releasing](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md) the next iteration of Fleet.              | Luke Heath |
-| Create patch release branch   | Every patch release | Go through the process of [creating a patch release](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#patch-releases) branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath |
-| Bug review                    | Weekly              | Review bugs that are in QA's inbox. | Reed Haynes     |
-| QA report                     | Every three weeks | Every release cycle, on the Monday of release week, the DRI for the release ritual is updated on status of testing. | Reed Haynes |
-| Release QA                    | Every three weeks | Every release cycle, by end of day Friday of release week, all issues move to "Ready for release" on the #g-mdm and #g-cx sprint boards. | Reed Haynes |
---->
-
 <rituals :rituals="rituals['handbook/engineering/engineering.rituals.yml']"></rituals>
 
 
