@@ -254,7 +254,7 @@ const QueryDetailsPage = ({
     const loggingSnapshot = storedQuery?.logging === "snapshot";
     const disabledCaching =
       disabledCachingGlobally || discardDataEnabled || !loggingSnapshot;
-    const emptyCache = queryReport?.results.length === 0;
+    const emptyCache = (queryReport?.results?.length ?? 0) === 0;
 
     // Loading state
     if (isLoading) {
