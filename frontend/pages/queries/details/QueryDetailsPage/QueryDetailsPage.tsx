@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
@@ -6,7 +6,6 @@ import { useErrorHandler } from "react-error-boundary";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import useTeamIdParam from "hooks/useTeamIdParam";
 
 import {
   IGetQueryResponse,
@@ -57,7 +56,7 @@ const QueryDetailsPage = ({
   const queryParams = location.query;
 
   // Functions to avoid race conditions
-  const initialSortBy: ISortOption[] = (() => {
+  const serverSortBy: ISortOption[] = (() => {
     return [
       {
         key: queryParams?.order_key ?? DEFAULT_SORT_HEADER,
@@ -65,18 +64,6 @@ const QueryDetailsPage = ({
       },
     ];
   })();
-
-  const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
-
-  const {
-    currentTeamName: teamNameForQuery,
-    teamIdForApi: apiTeamIdForQuery,
-  } = useTeamIdParam({
-    location,
-    router,
-    includeAllTeams: true,
-    includeNoTeam: false,
-  });
 
   const handlePageError = useErrorHandler();
   const {
@@ -142,7 +129,7 @@ const QueryDetailsPage = ({
     [],
     () =>
       queryReportAPI.load({
-        sortBy,
+        sortBy: serverSortBy,
         id: queryId,
       }),
     {
