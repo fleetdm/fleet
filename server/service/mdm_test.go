@@ -365,3 +365,53 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 		})
 	}
 }
+
+func TestRunMDMCommandValidations(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	enrolledMDMInfo := &fleet.HostMDM{Enrolled: true, InstalledFromDep: false, Name: fleet.WellKnownMDMFleet, IsServer: false}
+	singleUnenrolledHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a"}}
+	differentPlatformsHosts := []*fleet.Host{
+		{ID: 1, UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "darwin"},
+		{ID: 2, UUID: "b", MDMInfo: enrolledMDMInfo, Platform: "windows"},
+	}
+	linuxSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "linux"}}
+	windowsSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "windows"}}
+	macosSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "darwin"}}
+
+	cases := []struct {
+		desc          string
+		hosts         []*fleet.Host
+		mdmConfigured bool
+		wantErr       string
+	}{
+		{"no hosts", []*fleet.Host{}, false, "No hosts targeted."},
+		{"unenrolled host", singleUnenrolledHost, false, "Can't run the MDM command because one or more hosts have MDM turned off."},
+		{"different platforms", differentPlatformsHosts, false, "All hosts must be on the same platform."},
+		{"invalid platform", linuxSingleHost, false, "Invalid platform."},
+		{"mdm not configured (windows)", windowsSingleHost, false, "Windows MDM isn't turned on."},
+		{"mdm not configured (macos)", macosSingleHost, false, "macOS MDM isn't turned on."},
+		{"invalid base64 encoding", macosSingleHost, true, "unable to decode base64 command"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+				return c.hosts, nil
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						EnabledAndConfigured:        c.mdmConfigured,
+						WindowsEnabledAndConfigured: c.mdmConfigured,
+					},
+				}, nil
+			}
+			ctx = test.UserContext(ctx, test.UserAdmin)
+			_, err := svc.RunMDMCommand(ctx, "!@#", []string{"unused for this test"})
+			require.Error(t, err)
+			require.ErrorContains(t, err, c.wantErr)
+		})
+	}
+}
