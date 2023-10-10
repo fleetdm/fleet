@@ -19,7 +19,7 @@ The 🚀 Engineering department at Fleet is directly responsible for writing and
 -->
 
 ## Contact us
-- Any community memeber can file a 🦟 ["Bug report"](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=)
+- Any community member can file a 🦟 ["Bug report"](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=).
   - Any Fleet team member can view the 🦟 ["Bugs" kanban board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board) including the status on all reported bugs.
 - If urgent, or if you need help submiting an issue, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel.
 - Any Fleet team member can view the dedicated sprint boards managed by this department:
