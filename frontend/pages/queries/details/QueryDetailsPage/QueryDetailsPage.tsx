@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
@@ -6,7 +6,6 @@ import { useErrorHandler } from "react-error-boundary";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import useTeamIdParam from "hooks/useTeamIdParam";
 
 import {
   IGetQueryResponse,
@@ -57,7 +56,7 @@ const QueryDetailsPage = ({
   const queryParams = location.query;
 
   // Functions to avoid race conditions
-  const initialSortBy: ISortOption[] = (() => {
+  const serverSortBy: ISortOption[] = (() => {
     return [
       {
         key: queryParams?.order_key ?? DEFAULT_SORT_HEADER,
@@ -65,18 +64,6 @@ const QueryDetailsPage = ({
       },
     ];
   })();
-
-  const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
-
-  const {
-    currentTeamName: teamNameForQuery,
-    teamIdForApi: apiTeamIdForQuery,
-  } = useTeamIdParam({
-    location,
-    router,
-    includeAllTeams: true,
-    includeNoTeam: false,
-  });
 
   const handlePageError = useErrorHandler();
   const {
@@ -142,7 +129,7 @@ const QueryDetailsPage = ({
     [],
     () =>
       queryReportAPI.load({
-        sortBy,
+        sortBy: serverSortBy,
         id: queryId,
       }),
     {
@@ -171,68 +158,70 @@ const QueryDetailsPage = ({
         <div className={`${baseClass}__header-links`}>
           <BackLink text="Back to queries" path={backToQueriesPath()} />
         </div>
-        {!isLoading && !isApiError && (
-          <div className={`${baseClass}__title-bar`}>
-            <div className="name-description">
-              <h1 className={`${baseClass}__query-name`}>
-                {lastEditedQueryName}
-              </h1>
-              <p className={`${baseClass}__query-description`}>
-                {lastEditedQueryDescription}
-              </p>
-            </div>
-            <div className={`${baseClass}__action-button-container`}>
-              <Button
-                onClick={() => {
-                  queryId && router.push(PATHS.EDIT_QUERY(queryId));
-                }}
-                className={`${baseClass}__manage-automations button`}
-                variant="brand"
-              >
-                {canEditQuery ? "Edit query" : "More details"}
-              </Button>
-              {(lastEditedQueryObserverCanRun ||
-                isObserverPlus ||
-                isAnyTeamObserverPlus ||
-                canEditQuery) && (
-                <div
-                  className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
+        <div className={`${baseClass}__header-details`}>
+          {!isLoading && !isApiError && (
+            <div className={`${baseClass}__title-bar`}>
+              <div className="name-description">
+                <h1 className={`${baseClass}__query-name`}>
+                  {lastEditedQueryName}
+                </h1>
+                <p className={`${baseClass}__query-description`}>
+                  {lastEditedQueryDescription}
+                </p>
+              </div>
+              <div className={`${baseClass}__action-button-container`}>
+                <Button
+                  onClick={() => {
+                    queryId && router.push(PATHS.EDIT_QUERY(queryId));
+                  }}
+                  className={`${baseClass}__manage-automations button`}
+                  variant="brand"
                 >
-                  <Button
-                    className={`${baseClass}__run`}
-                    variant="blue-green"
-                    onClick={() => {
-                      queryId && router.push(PATHS.LIVE_QUERY(queryId));
-                    }}
+                  {canEditQuery ? "Edit query" : "More details"}
+                </Button>
+                {(lastEditedQueryObserverCanRun ||
+                  isObserverPlus ||
+                  isAnyTeamObserverPlus ||
+                  canEditQuery) && (
+                  <div
+                    className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
                   >
-                    Live query
-                  </Button>
-                </div>
-              )}
+                    <Button
+                      className={`${baseClass}__run`}
+                      variant="blue-green"
+                      onClick={() => {
+                        queryId && router.push(PATHS.LIVE_QUERY(queryId));
+                      }}
+                    >
+                      Live query
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-        {!isLoading && !isApiError && (
-          <div className={`${baseClass}__settings`}>
-            <div className={`${baseClass}__automations`}>
-              <TooltipWrapper
-                tipContent={`Query automations let you send data to your log destination on a schedule. When automations are <b>on</b>, data is sent according to a query’s frequency.`}
-              >
-                Automations:
-              </TooltipWrapper>
-              <QueryAutomationsStatusIndicator
-                automationsEnabled={storedQuery?.automations_enabled || false}
-                interval={storedQuery?.interval || 0}
-              />
+          )}
+          {!isLoading && !isApiError && (
+            <div className={`${baseClass}__settings`}>
+              <div className={`${baseClass}__automations`}>
+                <TooltipWrapper
+                  tipContent={`Query automations let you send data to your log destination on a schedule. When automations are <b>on</b>, data is sent according to a query’s frequency.`}
+                >
+                  Automations:
+                </TooltipWrapper>
+                <QueryAutomationsStatusIndicator
+                  automationsEnabled={storedQuery?.automations_enabled || false}
+                  interval={storedQuery?.interval || 0}
+                />
+              </div>
+              <div className={`${baseClass}__log-destination`}>
+                <strong>Log destination:</strong>{" "}
+                <LogDestinationIndicator
+                  logDestination={config?.logging.result.plugin || ""}
+                />
+              </div>
             </div>
-            <div className={`${baseClass}__log-destination`}>
-              <strong>Log destination:</strong>{" "}
-              <LogDestinationIndicator
-                logDestination={config?.logging.result.plugin || ""}
-              />
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </>
     );
   };
