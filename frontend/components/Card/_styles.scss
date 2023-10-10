@@ -3,6 +3,25 @@
   border: 1px solid $ui-fleet-black-10;
   padding: $pad-large;
 
+  // radius styles
+  &__radius-small {
+    border-radius: $border-radius;
+  }
+
+  &__radius-medium {
+    border-radius: $border-radius-large;
+  }
+
+  &__radius-large {
+    border-radius: $border-radius-xlarge;
+  }
+
+  // box shadow styles
+  &__shadow {
+    box-shadow: $box-shadow;
+  }
+
+  // color styles
   &__white {
     background-color: $core-white;
   }

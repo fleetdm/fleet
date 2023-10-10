@@ -42,6 +42,7 @@ interface IManageControlsPageProps {
     hash?: string;
     query: {
       team_id?: string;
+      page?: string;
     };
   };
   router: InjectedRouter; // v3
@@ -64,6 +65,8 @@ const ManageControlsPage = ({
   location,
   router,
 }: IManageControlsPageProps): JSX.Element => {
+  const page = parseInt(location?.query?.page || "", 10) || 0;
+
   const {
     isFreeTier,
     isOnGlobalTeam,
@@ -118,7 +121,7 @@ const ManageControlsPage = ({
             </TabList>
           </Tabs>
         </TabsWrapper>
-        {React.cloneElement(children, { teamIdForApi })}
+        {React.cloneElement(children, { teamIdForApi, currentPage: page })}
       </div>
     );
   };

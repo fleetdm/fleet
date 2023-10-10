@@ -1,6 +1,3 @@
-import { createMockScript } from "__mocks__/scriptMock";
-import team from "interfaces/team";
-import { create } from "lodash";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -25,6 +22,16 @@ export interface IScriptsResponse {
   };
 }
 
+export interface IListScriptsApiParams {
+  page?: number;
+  per_page?: number;
+  team_id?: number;
+}
+
+export interface IListScriptsQueryKey extends IListScriptsApiParams {
+  scope: "scripts";
+}
+
 /**
  * Script Result response from GET /scripts/results/:id
  */
@@ -40,12 +47,45 @@ export interface IScriptResultResponse {
   host_timeout: boolean;
 }
 
+export type IScriptExecutionStatus = "ran" | "pending" | "error";
+
+export interface ILastExecution {
+  execution_id: string;
+  executed_at: string;
+  status: IScriptExecutionStatus;
+}
+
+export interface IHostScript {
+  script_id: number;
+  name: string;
+  last_execution: ILastExecution | null;
+}
+
+/**
+ * Script response from GET /hosts/:id/scripts
+ */
+export interface IHostScriptsResponse {
+  scripts: IHostScript[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
+
 export default {
-  getScripts(teamId?: number) {
+  getHostScripts(id: number, page?: number) {
+    const { HOST_SCRIPTS } = endpoints;
+
+    let path = HOST_SCRIPTS(id);
+    if (page) {
+      path = `${path}?${buildQueryStringFromParams({ page })}`;
+    }
+    return sendRequest("GET", path);
+  },
+
+  getScripts(params: IListScriptsApiParams): Promise<IScriptsResponse> {
     const { SCRIPTS } = endpoints;
-    const path = teamId
-      ? `${SCRIPTS}?${buildQueryStringFromParams({ team_id: teamId })}`
-      : SCRIPTS;
+    const path = `${SCRIPTS}?${buildQueryStringFromParams({ ...params })}`;
 
     return sendRequest("GET", path);
   },
@@ -84,5 +124,10 @@ export default {
   getScriptResult(executionId: string) {
     const { SCRIPT_RESULT } = endpoints;
     return sendRequest("GET", SCRIPT_RESULT(executionId));
+  },
+
+  runScript(id: number) {
+    const { SCRIPT_RUN } = endpoints;
+    return sendRequest("POST", SCRIPT_RUN, { script_id: id });
   },
 };

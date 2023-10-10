@@ -1,9 +1,12 @@
-import React, { useContext, useRef, useState } from "react";
+import React, { useCallback, useContext, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
+import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
+import PATHS from "router/paths";
 import scriptAPI, {
+  IListScriptsQueryKey,
   IScript,
   IScriptsResponse,
 } from "services/entities/scripts";
@@ -15,36 +18,63 @@ import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import ScriptListHeading from "./components/ScriptListHeading";
 import ScriptListItem from "./components/ScriptListItem";
+import ScriptListPagination from "./components/ScriptListPagination";
 import DeleteScriptModal from "./components/DeleteScriptModal";
 import UploadList from "../components/UploadList";
 import ScriptUploader from "./components/ScriptUploader";
 
 const baseClass = "scripts";
 
+const SCRIPTS_PER_PAGE = 10; // TODO: confirm this is the desired default
+
 interface IScriptsProps {
+  router: InjectedRouter; // v3
   teamIdForApi: number;
+  currentPage: number;
 }
 
-const Scripts = ({ teamIdForApi }: IScriptsProps) => {
+const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   const { isPremiumTier } = useContext(AppContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
 
   const selectedScript = useRef<IScript | null>(null);
 
   const {
-    data: scripts,
+    data: { scripts, meta } = {},
     isLoading,
     isError,
     refetch: refetchScripts,
-  } = useQuery<IScriptsResponse, AxiosError, IScript[]>(
-    ["scripts", teamIdForApi],
-    () => scriptAPI.getScripts(teamIdForApi),
+  } = useQuery<
+    IScriptsResponse,
+    AxiosError,
+    IScriptsResponse,
+    IListScriptsQueryKey[]
+  >(
+    [
+      {
+        scope: "scripts",
+        team_id: teamIdForApi,
+        page: currentPage,
+        per_page: SCRIPTS_PER_PAGE,
+      },
+    ],
+    ({ queryKey: [{ team_id, page, per_page }] }) =>
+      scriptAPI.getScripts({ team_id, page, per_page }),
     {
       retry: false,
       refetchOnWindowFocus: false,
-      select: (data) => data.scripts,
+      staleTime: 3000,
     }
   );
+
+  // pagination controls
+  const path = PATHS.CONTROLS_SCRIPTS.concat(`?team_id=${teamIdForApi}`);
+  const onPrevPage = useCallback(() => {
+    router.push(path.concat(`&page=${currentPage - 1}`));
+  }, [router, path, currentPage]);
+  const onNextPage = useCallback(() => {
+    router.push(path.concat(`&page=${currentPage + 1}`));
+  }, [router, path, currentPage]);
 
   // The user is not a premium tier, so show the premium feature message.
   if (!isPremiumTier) {
@@ -84,17 +114,26 @@ const Scripts = ({ teamIdForApi }: IScriptsProps) => {
       return <DataError />;
     }
 
+    if (currentPage === 0 && !scripts?.length) {
+      return null;
+    }
+
     return (
-      scripts &&
-      scripts.length !== 0 && (
+      <>
         <UploadList
-          listItems={scripts}
+          listItems={scripts || []}
           HeadingComponent={ScriptListHeading}
           ListItemComponent={({ listItem }) => (
             <ScriptListItem script={listItem} onDelete={onClickDelete} />
           )}
         />
-      )
+        <ScriptListPagination
+          meta={meta}
+          isLoading={isLoading}
+          onPrevPage={onPrevPage}
+          onNextPage={onNextPage}
+        />
+      </>
     );
   };
 
