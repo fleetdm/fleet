@@ -2082,7 +2082,7 @@ func (ds *Datastore) GetMDMIdPAccount(ctx context.Context, uuid string) (*fleet.
 	return &acct, nil
 }
 
-func subqueryDiskEncryptionVerifying() (string, []interface{}) {
+func subqueryFileVaultVerifying() (string, []interface{}) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -2100,7 +2100,7 @@ func subqueryDiskEncryptionVerifying() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryDiskEncryptionVerified() (string, []interface{}) {
+func subqueryFileVaultVerified() (string, []interface{}) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -2118,7 +2118,7 @@ func subqueryDiskEncryptionVerified() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryDiskEncryptionActionRequired() (string, []interface{}) {
+func subqueryFileVaultActionRequired() (string, []interface{}) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -2138,7 +2138,7 @@ func subqueryDiskEncryptionActionRequired() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryDiskEncryptionEnforcing() (string, []interface{}) {
+func subqueryFileVaultEnforcing() (string, []interface{}) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -2168,7 +2168,7 @@ func subqueryDiskEncryptionEnforcing() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryDiskEncryptionFailed() (string, []interface{}) {
+func subqueryFileVaultFailed() (string, []interface{}) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -2180,7 +2180,7 @@ func subqueryDiskEncryptionFailed() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryDiskEncryptionRemovingEnforcement() (string, []interface{}) {
+func subqueryFileVaultRemovingEnforcement() (string, []interface{}) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -2224,20 +2224,20 @@ FROM
     hosts h
     LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
 WHERE
-    %s`
+    h.platform = 'darwin' AND %s`
 
 	var args []interface{}
-	subqueryVerified, subqueryVerifiedArgs := subqueryDiskEncryptionVerified()
+	subqueryVerified, subqueryVerifiedArgs := subqueryFileVaultVerified()
 	args = append(args, subqueryVerifiedArgs...)
-	subqueryVerifying, subqueryVerifyingArgs := subqueryDiskEncryptionVerifying()
+	subqueryVerifying, subqueryVerifyingArgs := subqueryFileVaultVerifying()
 	args = append(args, subqueryVerifyingArgs...)
-	subqueryActionRequired, subqueryActionRequiredArgs := subqueryDiskEncryptionActionRequired()
+	subqueryActionRequired, subqueryActionRequiredArgs := subqueryFileVaultActionRequired()
 	args = append(args, subqueryActionRequiredArgs...)
-	subqueryEnforcing, subqueryEnforcingArgs := subqueryDiskEncryptionEnforcing()
+	subqueryEnforcing, subqueryEnforcingArgs := subqueryFileVaultEnforcing()
 	args = append(args, subqueryEnforcingArgs...)
-	subqueryFailed, subqueryFailedArgs := subqueryDiskEncryptionFailed()
+	subqueryFailed, subqueryFailedArgs := subqueryFileVaultFailed()
 	args = append(args, subqueryFailedArgs...)
-	subqueryRemovingEnforcement, subqueryRemovingEnforcementArgs := subqueryDiskEncryptionRemovingEnforcement()
+	subqueryRemovingEnforcement, subqueryRemovingEnforcementArgs := subqueryFileVaultRemovingEnforcement()
 	args = append(args, subqueryRemovingEnforcementArgs...)
 
 	teamFilter := "h.team_id IS NULL"

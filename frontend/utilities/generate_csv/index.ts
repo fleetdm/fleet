@@ -14,7 +14,7 @@ export const generateCSVFilename = (descriptor: string) => {
   return `${descriptor} (${format(new Date(), "MM-dd-yy hh-mm-ss")}).csv`;
 };
 
-// Query results and query errors
+// Live query results, live query errors, and query report
 export const generateCSVQueryResults = (
   rows: Row[],
   filename: string,
@@ -35,7 +35,7 @@ export const generateCSVQueryResults = (
   );
 };
 
-// Policy results only
+// Live policy results only
 export const generateCSVPolicyResults = (
   rows: { host: string; status: string }[],
   filename: string
@@ -45,7 +45,7 @@ export const generateCSVPolicyResults = (
   });
 };
 
-// Policy errors only
+// Live policy errors only
 export const generateCSVPolicyErrors = (
   rows: ICampaignError[],
   filename: string

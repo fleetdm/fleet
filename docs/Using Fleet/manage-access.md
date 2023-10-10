@@ -75,7 +75,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View Apple mobile device management (MDM) certificate information                                                                          |          |            |            | ✅    |         |
 | View Apple business manager (BM) information                                                                                               |          |            |            | ✅    |         |
 | Generate Apple mobile device management (MDM) certificate signing request (CSR)                                                            |          |            |            | ✅    |         |
-| View disk encryption key for macOS hosts                                                                                                   | ✅       | ✅         | ✅         | ✅    |         |
+| View disk encryption key for macOS and Windows hosts                                                                                              | ✅       | ✅         | ✅         | ✅    |         |
 | Create edit and delete configuration profiles for macOS hosts                                                                              |          |            | ✅         | ✅    | ✅      |
 | Execute MDM commands on macOS and Windows hosts***                                                                                         |          |            | ✅         | ✅    |         |
 | View results of MDM commands executed on macOS and Windows hosts***                                                                        | ✅       | ✅         | ✅         | ✅    |         |

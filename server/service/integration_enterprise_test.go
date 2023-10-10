@@ -239,7 +239,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
 	require.Empty(t, team.Config.MDM.MacOSSettings.CustomSettings)         // unchanged
-	require.False(t, team.Config.MDM.MacOSSettings.EnableDiskEncryption)   // unchanged
+	require.False(t, team.Config.MDM.EnableDiskEncryption)                 // unchanged
 
 	// apply without agent options specified
 	teamSpecs = map[string]any{
@@ -764,7 +764,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	// modify team's disk encryption, impossible without mdm enabled
 	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
-			MacOSSettings: &fleet.MacOSSettings{EnableDiskEncryption: true},
+			EnableDiskEncryption: optjson.SetBool(true),
 		},
 	}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
@@ -2539,14 +2539,14 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.Nil(t, summaryResp.LowDiskSpaceCount)
 }
 
-func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
+func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 	t := s.T()
 
 	// create a host with device token to test device authenticated routes
 	tkn := "D3V1C370K3N"
 	createHostAndDeviceToken(t, s.ds, tkn)
 
-	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
+	for _, route := range mdmConfigurationRequiredEndpoints() {
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
 		path := route.path
 		if route.deviceAuthenticated {

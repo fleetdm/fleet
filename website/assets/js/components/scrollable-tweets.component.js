@@ -20,7 +20,7 @@ parasails.registerComponent('scrollableTweets', {
   data: function () {
     return {
       currentTweetPage: 0,
-      numberOfTweetCards: 6,
+      numberOfTweetCards: 7,
       numberOfTweetPages: 0,
       numberOfTweetsPerPage: 0,
       tweetCardWidth: 0,
@@ -110,6 +110,19 @@ parasails.registerComponent('scrollableTweets', {
           </div>
         </div>
       </div>
+
+      <div purpose="tweet-card" class="card">
+        <div class="mb-4">
+          <a href="https://www.linkedin.com/company/deloitte/"><img width="166" height="36" alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"/></a>
+        </div>
+        <p class="pb-2 mb-1">One of the best teams out there to go work for and help shape security platforms.</p>
+        <div class="row px-3 pt-2">
+          <div>
+            <p class="font-weight-bold m-0">Dhruv Majumdar</p>
+            <p class="m-0">Director Of Cyber Risk & Advisory <a href="https://www.linkedin.com/company/deloitte/">@Deloitte</a></p>
+          </div>
+        </div>
+      </div>
     </div>
     <div purpose="" class="mx-auto d-flex flex-row justify-content-center">
       <nav aria-label="..." >
@@ -160,9 +173,9 @@ parasails.registerComponent('scrollableTweets', {
       // Find out the width of a page of tweet cards
       let tweetPageWidth;
       if(this.numberOfTweetPages === 2 && this.numberOfTweetsPerPage > 3){
-        tweetPageWidth = this.tweetCardWidth;
+        tweetPageWidth = (this.tweetCardWidth - 32);
       } else {
-        tweetPageWidth = this.tweetCardWidth * this.numberOfTweetsPerPage;
+        tweetPageWidth = (this.tweetCardWidth - 32) * this.numberOfTweetsPerPage;
       }
       // Set the maximum number of pages as the maximum value
       let currentPage = Math.min(Math.round(tweetsDiv.scrollLeft / tweetPageWidth), (this.numberOfTweetPages - 1));
@@ -182,7 +195,11 @@ parasails.registerComponent('scrollableTweets', {
       // subtract the amount the current page has been scrolled from the baseAmountToScroll
       let amountToScroll = baseAmountToScroll - amountCurrentPageHasBeenScrolled;
       // Scroll the div to the specified 'page'
-      tweetsDiv.scrollBy(amountToScroll, 0);
+      if(page !== this.numberOfTweetPages - 1){
+        tweetsDiv.scrollBy(amountToScroll, 0);
+      } else {
+        tweetsDiv.scrollBy(tweetsDiv.scrollWidth, 0);
+      }
     },
 
 
