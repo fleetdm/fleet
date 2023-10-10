@@ -1406,6 +1406,17 @@ WHERE
 		profileIntersection := apple_mdm.NewProfileBimap()
 		profileIntersection.IntersectByIdentifierAndHostUUID(wantedProfiles, currentProfiles)
 
+		// start by deleting any that are already in the desired state
+		var hostProfilesToClean []*fleet.MDMAppleProfilePayload
+		for _, p := range currentProfiles {
+			if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
+				hostProfilesToClean = append(hostProfilesToClean, p)
+			}
+		}
+		if err := bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, hostProfilesToClean); err != nil {
+			return err
+		}
+
 		executeUpsertBatch := func(valuePart string, args []any) error {
 			baseStmt := fmt.Sprintf(`
 				INSERT INTO host_mdm_apple_profiles (
@@ -1481,10 +1492,8 @@ WHERE
 			}
 		}
 
-		hostProfilesToClean := []*fleet.MDMAppleProfilePayload{}
 		for _, p := range currentProfiles {
 			if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
-				hostProfilesToClean = append(hostProfilesToClean, p)
 				continue
 			}
 			pargs = append(pargs, p.ProfileID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum,
@@ -1504,11 +1513,6 @@ WHERE
 			if err := executeUpsertBatch(psb.String(), pargs); err != nil {
 				return err
 			}
-		}
-
-		// TODO(mna): is that an issue that some upsert batches now get executed before this call?
-		if err := bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, hostProfilesToClean); err != nil {
-			return err
 		}
 		return nil
 	})
