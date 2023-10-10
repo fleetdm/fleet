@@ -1094,6 +1094,9 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 		prof1, prof2, prof4,
 	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm4.ID))
 
+	// trigger the schedule so profiles are set in their state
+	s.awaitTriggerProfileSchedule(t, 1*time.Second)
+
 	// preassign the MDM host to prof1 and prof4, should match existing team tm2
 	//
 	// additionally, use external host identifiers with different
@@ -1111,10 +1114,14 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NotNil(t, h.TeamID)
 	require.Equal(t, tm2.ID, *h.TeamID)
 
-	// the host's profiles are the same as the team's and are pending, and prof2 + old filevault are pending removal
+	// the host's profiles are:
+	// - the same as the team's and are pending
+	// - prof2 + old filevault are pending removal
+	// - fleetd config being reinstalled (to update the enroll secret)
+	s.awaitTriggerProfileSchedule(t, 1*time.Second)
 	hostProfs, err := s.ds.GetHostMDMProfiles(ctx, mdmHost.UUID)
 	require.NoError(t, err)
-	require.Len(t, hostProfs, 4)
+	require.Len(t, hostProfs, 5)
 
 	sort.Slice(hostProfs, func(i, j int) bool {
 		l, r := hostProfs[i], hostProfs[j]
@@ -1124,18 +1131,22 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NotNil(t, hostProfs[0].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[0].Status)
 	require.Equal(t, fleet.MDMAppleOperationTypeRemove, hostProfs[0].OperationType)
-	require.Equal(t, "n1", hostProfs[1].Name)
+	require.Equal(t, "Fleetd configuration", hostProfs[1].Name)
 	require.NotNil(t, hostProfs[1].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[1].Status)
 	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfs[1].OperationType)
-	require.Equal(t, "n2", hostProfs[2].Name)
+	require.Equal(t, "n1", hostProfs[2].Name)
 	require.NotNil(t, hostProfs[2].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[2].Status)
-	require.Equal(t, fleet.MDMAppleOperationTypeRemove, hostProfs[2].OperationType)
-	require.Equal(t, "n4", hostProfs[3].Name)
+	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfs[2].OperationType)
+	require.Equal(t, "n2", hostProfs[3].Name)
 	require.NotNil(t, hostProfs[3].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[3].Status)
-	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfs[3].OperationType)
+	require.Equal(t, fleet.MDMAppleOperationTypeRemove, hostProfs[3].OperationType)
+	require.Equal(t, "n4", hostProfs[4].Name)
+	require.NotNil(t, hostProfs[4].Status)
+	require.Equal(t, fleet.MDMAppleDeliveryPending, *hostProfs[4].Status)
+	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hostProfs[4].OperationType)
 
 	// create a new mdm host enrolled in fleet
 	mdmHost2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -1163,20 +1174,24 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.Equal(t, tm2.ID, *h.TeamID)
 
 	// and its profiles have been left untouched
+	s.awaitTriggerProfileSchedule(t, 1*time.Second)
 	hostProfs, err = s.ds.GetHostMDMProfiles(ctx, mdmHost2.UUID)
 	require.NoError(t, err)
-	require.Len(t, hostProfs, 2)
+	require.Len(t, hostProfs, 3)
 
 	sort.Slice(hostProfs, func(i, j int) bool {
 		l, r := hostProfs[i], hostProfs[j]
 		return l.Name < r.Name
 	})
-	require.Equal(t, "n1", hostProfs[0].Name)
+	require.Equal(t, "Fleetd configuration", hostProfs[0].Name)
 	require.NotNil(t, hostProfs[0].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryVerifying, *hostProfs[0].Status)
-	require.Equal(t, "n4", hostProfs[1].Name)
+	require.Equal(t, "n1", hostProfs[1].Name)
 	require.NotNil(t, hostProfs[1].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryVerifying, *hostProfs[1].Status)
+	require.Equal(t, "n4", hostProfs[2].Name)
+	require.NotNil(t, hostProfs[2].Status)
+	require.Equal(t, fleet.MDMAppleDeliveryVerifying, *hostProfs[2].Status)
 }
 
 // while s.TestPuppetMatchPreassignProfiles focuses on many edge cases/extra
