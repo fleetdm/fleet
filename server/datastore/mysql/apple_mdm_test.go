@@ -2441,16 +2441,20 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 
 func testBulkSetPendingMDMAppleHostProfilesBatch2(t *testing.T, ds *Datastore) {
 	testUpsertMDMAppleDesiredProfilesBatchSize = 2
+	testDeleteMDMAppleProfilesBatchSize = 2
 	t.Cleanup(func() {
 		testUpsertMDMAppleDesiredProfilesBatchSize = 0
+		testDeleteMDMAppleProfilesBatchSize = 0
 	})
 	testBulkSetPendingMDMAppleHostProfiles(t, ds)
 }
 
 func testBulkSetPendingMDMAppleHostProfilesBatch3(t *testing.T, ds *Datastore) {
 	testUpsertMDMAppleDesiredProfilesBatchSize = 3
+	testDeleteMDMAppleProfilesBatchSize = 3
 	t.Cleanup(func() {
 		testUpsertMDMAppleDesiredProfilesBatchSize = 0
+		testDeleteMDMAppleProfilesBatchSize = 0
 	})
 	testBulkSetPendingMDMAppleHostProfiles(t, ds)
 }

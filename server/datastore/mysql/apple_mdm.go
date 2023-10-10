@@ -1188,23 +1188,57 @@ func (ds *Datastore) BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, 
 	})
 }
 
+// for tests, set to override the default batch size.
+var testDeleteMDMAppleProfilesBatchSize int
+
 func bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, profs []*fleet.MDMAppleProfilePayload) error {
 	if len(profs) == 0 {
 		return nil
 	}
 
-	// TODO: if a very large number (~65K) of host+profile tuples are provided,
-	// could result in too many placeholders (not an immediate concern?).
-	var args []any
-	var argStr strings.Builder
-	for _, p := range profs {
-		args = append(args, p.ProfileIdentifier, p.HostUUID)
-		argStr.WriteString("(?, ?),")
+	executeDeleteBatch := func(valuePart string, args []any) error {
+		stmt := fmt.Sprintf(`DELETE FROM host_mdm_apple_profiles WHERE (profile_identifier, host_uuid) IN (%s)`, strings.TrimSuffix(valuePart, ","))
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "error deleting host_mdm_apple_profiles")
+		}
+		return nil
 	}
 
-	stmt := fmt.Sprintf(`DELETE FROM host_mdm_apple_profiles WHERE (profile_identifier, host_uuid) IN (%s)`, strings.Trim(argStr.String(), ","))
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "error executing query")
+	var (
+		args       []any
+		sb         strings.Builder
+		batchCount int
+	)
+
+	const defaultBatchSize = 1000 // results in this times 2 placeholders
+	batchSize := defaultBatchSize
+	if testDeleteMDMAppleProfilesBatchSize > 0 {
+		batchSize = testDeleteMDMAppleProfilesBatchSize
+	}
+
+	resetBatch := func() {
+		batchCount = 0
+		args = args[:0]
+		sb.Reset()
+	}
+
+	for _, p := range profs {
+		args = append(args, p.ProfileIdentifier, p.HostUUID)
+		sb.WriteString("(?, ?),")
+		batchCount++
+
+		if batchCount >= batchSize {
+			if err := executeDeleteBatch(sb.String(), args); err != nil {
+				return err
+			}
+			resetBatch()
+		}
+	}
+
+	if batchCount > 0 {
+		if err := executeDeleteBatch(sb.String(), args); err != nil {
+			return err
+		}
 	}
 	return nil
 }
