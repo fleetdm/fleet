@@ -643,12 +643,12 @@ const HostDetailsPage = ({
     },
   ];
 
-  // we want the scripts tabs on the list for only mac hosts atm. We filter it out
-  // for other platforms.
+  // we want the scripts tabs on the list for only mac hosts and premium tier atm.
+  // We filter it out for other platforms and non premium.
   // TODO: improve this code. We can pull the tab list component out
   // into its own component later.
   const filteredSubNavTabs =
-    host?.platform === "darwin"
+    host?.platform === "darwin" && isPremiumTier
       ? hostDetailsSubNav
       : hostDetailsSubNav.filter((navItem) => navItem.title !== "scripts");
 
@@ -777,7 +777,7 @@ const HostDetailsPage = ({
                 hostUsersEnabled={featuresConfig?.enable_host_users}
               />
             </TabPanel>
-            {host?.platform === "darwin" && (
+            {host?.platform === "darwin" && isPremiumTier && (
               <TabPanel>
                 <ScriptsCard
                   hostId={host?.id}
