@@ -24,7 +24,9 @@ const MacSettingsModal = ({
     [hostMDMData, platform]
   );
 
-  if (!platform) return null;
+  if (!memoizedTableData) {
+    return null;
+  }
 
   return (
     <Modal

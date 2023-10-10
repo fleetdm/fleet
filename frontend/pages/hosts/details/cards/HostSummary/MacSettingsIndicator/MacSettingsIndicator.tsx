@@ -1,7 +1,7 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 
-import { IHostMdmProfile } from "interfaces/mdm";
+import { IHostMdmProfile, MdmProfileStatus } from "interfaces/mdm";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
@@ -9,7 +9,11 @@ import { IconNames } from "components/icons";
 
 const baseClass = "mac-settings-indicator";
 
-type MacProfileStatus = "Failed" | "Verifying" | "Pending" | "Verified";
+type MdmProfileStatusForDisplay =
+  | "Failed"
+  | "Pending"
+  | "Verifying"
+  | "Verified";
 
 interface IStatusDisplayOption {
   iconName: Extract<
@@ -18,7 +22,10 @@ interface IStatusDisplayOption {
   >;
   tooltipText: string;
 }
-type StatusDisplayOptions = Record<MacProfileStatus, IStatusDisplayOption>;
+type StatusDisplayOptions = Record<
+  MdmProfileStatusForDisplay,
+  IStatusDisplayOption
+>;
 
 const STATUS_DISPLAY_OPTIONS: StatusDisplayOptions = {
   Verified: {
@@ -44,27 +51,56 @@ const STATUS_DISPLAY_OPTIONS: StatusDisplayOptions = {
   },
 };
 
+const countHostProfilesByStatus = (
+  hostSettings: IHostMdmProfile[]
+): Record<MdmProfileStatus, number> => {
+  return hostSettings.reduce(
+    (acc, { status }) => {
+      if (status === "failed") {
+        acc.failed += 1;
+      } else if (status === "pending") {
+        acc.pending += 1;
+      } else if (status === "verifying") {
+        acc.verifying += 1;
+      } else if (status === "verified") {
+        acc.verified += 1;
+      }
+
+      return acc;
+    },
+    {
+      failed: 0,
+      pending: 0,
+      verifying: 0,
+      verified: 0,
+    }
+  );
+};
+
 /**
  * Returns the displayed status of the macOS settings field based on the
  * profile statuses.
  * If any profile has a status of "failed", the status will be displayed as "Failed" and
  * continues to fall through to "Pending" and "Verifying" if any profiles have those statuses.
- * Finally if all profiles have a status of "verified", the status will be displayed as "Verified".
+ * If all profiles have a status of "verified", the status will be displayed as "Verified".
+ * The default status will be displayed as "Failed".
  */
-const getMacProfileStatus = (
+const getHostProfilesStatusForDisplay = (
   hostMacSettings: IHostMdmProfile[]
-): MacProfileStatus => {
-  const statuses = hostMacSettings.map((setting) => setting.status);
-  if (statuses.includes("failed")) {
-    return "Failed";
+): MdmProfileStatusForDisplay => {
+  const counts = countHostProfilesByStatus(hostMacSettings);
+  switch (true) {
+    case !!counts.failed:
+      return "Failed";
+    case !!counts.pending:
+      return "Pending";
+    case !!counts.verifying:
+      return "Verifying";
+    case counts.verified === hostMacSettings.length:
+      return "Verified";
+    default:
+      return "Failed";
   }
-  if (statuses.includes("pending")) {
-    return "Pending";
-  }
-  if (statuses.includes("verifying")) {
-    return "Verifying";
-  }
-  return "Verified";
 };
 
 interface IMacSettingsIndicatorProps {
@@ -75,9 +111,9 @@ const MacSettingsIndicator = ({
   profiles,
   onClick,
 }: IMacSettingsIndicatorProps): JSX.Element => {
-  const macProfileStatus = getMacProfileStatus(profiles);
+  const displayStatus = getHostProfilesStatusForDisplay(profiles);
 
-  const statusDisplayOption = STATUS_DISPLAY_OPTIONS[macProfileStatus];
+  const statusDisplayOption = STATUS_DISPLAY_OPTIONS[displayStatus];
 
   return (
     <span className={`${baseClass} info-flex__data`}>
@@ -93,7 +129,7 @@ const MacSettingsIndicator = ({
           variant="text-link"
           className={`${baseClass}__button`}
         >
-          {macProfileStatus}
+          {displayStatus}
         </Button>
       </span>
       <ReactTooltip

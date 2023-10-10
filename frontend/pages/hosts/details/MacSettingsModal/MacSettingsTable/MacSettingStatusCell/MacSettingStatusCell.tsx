@@ -12,7 +12,7 @@ import {
 
 import {
   isMdmProfileStatus,
-  MacSettingsTableStatusValue,
+  OsSettingsTableStatusValue,
 } from "../MacSettingsTableConfig";
 import TooltipContent, {
   TooltipInnerContentFunc,
@@ -29,7 +29,7 @@ type ProfileDisplayOption = {
 } | null;
 
 type OperationTypeOption = Record<
-  MacSettingsTableStatusValue,
+  OsSettingsTableStatusValue,
   ProfileDisplayOption
 >;
 type ProfileDisplayConfig = Record<
@@ -135,7 +135,7 @@ const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDisplayConfig
 };
 
 interface IMacSettingStatusCellProps {
-  status: MacSettingsTableStatusValue;
+  status: OsSettingsTableStatusValue;
   operationType: MacMdmProfileOperationType | null;
   profileName: string;
 }
