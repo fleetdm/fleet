@@ -943,63 +943,6 @@ func (svc *Service) EnqueueMDMAppleCommand(
 	}
 
 	return svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, deviceIDs)
-
-	/*
-		cmd, err := mdm.DecodeCommand(rawXMLCmd)
-		if err != nil {
-			err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
-			return 0, nil, ctxerr.Wrap(ctx, err, "decode plist command")
-		}
-
-		if appleMDMPremiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
-			lic, err := svc.License(ctx)
-			if err != nil {
-				return 0, nil, ctxerr.Wrap(ctx, err, "get license")
-			}
-			if !lic.IsPremium() {
-				return 0, nil, fleet.ErrMissingLicense
-			}
-		}
-
-		if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd)); err != nil {
-			// if at least one UUID enqueued properly, return success, otherwise return
-			// error
-			var apnsErr *apple_mdm.APNSDeliveryError
-			var mysqlErr *mysql.MySQLError
-			if errors.As(err, &apnsErr) {
-				if len(apnsErr.FailedUUIDs) < len(deviceIDs) {
-					// some hosts properly received the command, so return success, with the list
-					// of failed uuids.
-					return http.StatusOK, &fleet.CommandEnqueueResult{
-						CommandUUID: cmd.CommandUUID,
-						RequestType: cmd.Command.RequestType,
-						FailedUUIDs: apnsErr.FailedUUIDs,
-					}, nil
-				}
-				// push failed for all hosts
-				err := fleet.NewBadGatewayError("Apple push notificiation service", err)
-				return http.StatusBadGateway, nil, ctxerr.Wrap(ctx, err, "enqueue command")
-
-			} else if errors.As(err, &mysqlErr) {
-				// enqueue may fail with a foreign key constraint error 1452 when one of
-				// the hosts provided is not enrolled in nano_enrollments. Detect when
-				// that's the case and add information to the error.
-				if mysqlErr.Number == mysqlerr.ER_NO_REFERENCED_ROW_2 {
-					err := fleet.NewInvalidArgumentError(
-						"device_ids",
-						fmt.Sprintf("at least one of the hosts is not enrolled in MDM: %v", err),
-					).WithStatus(http.StatusConflict)
-					return http.StatusConflict, nil, ctxerr.Wrap(ctx, err, "enqueue command")
-				}
-			}
-
-			return http.StatusInternalServerError, nil, ctxerr.Wrap(ctx, err, "enqueue command")
-		}
-		return http.StatusOK, &fleet.CommandEnqueueResult{
-			CommandUUID: cmd.CommandUUID,
-			RequestType: cmd.Command.RequestType,
-		}, nil
-	*/
 }
 
 type mdmAppleEnrollRequest struct {

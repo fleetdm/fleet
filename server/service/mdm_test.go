@@ -17,6 +17,7 @@ import (
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/micromdm/scep/v2/cryptoutil/x509util"
 	"github.com/stretchr/testify/require"
@@ -252,4 +253,115 @@ func TestMicrosoftWSTEPConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "test-client", parsedCert.Subject.CommonName)
 	require.Equal(t, "FleetDM", parsedCert.Subject.OrganizationalUnit[0])
+}
+
+func TestRunMDMCommandAuthz(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	singleUnenrolledHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a"}}
+	team1And2UnenrolledHosts := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a"}, {ID: 2, TeamID: ptr.Uint(2), UUID: "b"}}
+	team2And3UnenrolledHosts := []*fleet.Host{{ID: 2, TeamID: ptr.Uint(2), UUID: "b"}, {ID: 3, TeamID: ptr.Uint(3), UUID: "c"}}
+
+	userTeamMaintainerTeam1And2 := &fleet.User{
+		ID: 100,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: 1},
+				Role: fleet.RoleMaintainer,
+			},
+			{
+				Team: fleet.Team{ID: 2},
+				Role: fleet.RoleMaintainer,
+			},
+		},
+	}
+	userTeamAdminTeam1And2 := &fleet.User{
+		ID: 101,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: 1},
+				Role: fleet.RoleAdmin,
+			},
+			{
+				Team: fleet.Team{ID: 2},
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	userTeamAdminTeam1ObserverTeam2 := &fleet.User{
+		ID: 102,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: 1},
+				Role: fleet.RoleAdmin,
+			},
+			{
+				Team: fleet.Team{ID: 2},
+				Role: fleet.RoleObserver,
+			},
+		},
+	}
+
+	checkAuthErr := func(t *testing.T, shouldFailWithAuth bool, err error) {
+		t.Helper()
+
+		if shouldFailWithAuth {
+			require.Error(t, err)
+			require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+		} else {
+			// call always fails, but due to the host not being enrolled in MDM
+			require.Error(t, err)
+			require.NotContains(t, err.Error(), authz.ForbiddenErrorMessage)
+		}
+	}
+
+	enqueueCmdCases := []struct {
+		desc               string
+		user               *fleet.User
+		hosts              []*fleet.Host
+		shouldFailWithAuth bool
+	}{
+		{"no role", test.UserNoRoles, singleUnenrolledHost, true},
+		{"maintainer", test.UserMaintainer, singleUnenrolledHost, false},
+		{"admin", test.UserAdmin, singleUnenrolledHost, false},
+		{"observer", test.UserObserver, singleUnenrolledHost, true},
+		{"observer+", test.UserObserverPlus, singleUnenrolledHost, true},
+		{"gitops", test.UserGitOps, singleUnenrolledHost, true},
+		{"team 1 admin", test.UserTeamAdminTeam1, singleUnenrolledHost, false},
+		{"team 2 admin", test.UserTeamAdminTeam2, singleUnenrolledHost, true},
+		{"team 1 maintainer", test.UserTeamMaintainerTeam1, singleUnenrolledHost, false},
+		{"team 2 maintainer", test.UserTeamMaintainerTeam2, singleUnenrolledHost, true},
+		{"team 1 observer", test.UserTeamObserverTeam1, singleUnenrolledHost, true},
+		{"team 2 observer", test.UserTeamObserverTeam2, singleUnenrolledHost, true},
+		{"team 1 observer+", test.UserTeamObserverPlusTeam1, singleUnenrolledHost, true},
+		{"team 2 observer+", test.UserTeamObserverPlusTeam2, singleUnenrolledHost, true},
+		{"team 1 gitops", test.UserTeamGitOpsTeam1, singleUnenrolledHost, true},
+		{"team 2 gitops", test.UserTeamGitOpsTeam2, singleUnenrolledHost, true},
+		{"team 1 admin mix of teams", test.UserTeamAdminTeam1, team1And2UnenrolledHosts, true},
+		{"team 1 maintainer mix of teams", test.UserTeamMaintainerTeam1, team1And2UnenrolledHosts, true},
+		{"admin mix of teams", test.UserAdmin, team1And2UnenrolledHosts, false},
+		{"team 1 admin 2 other teams", test.UserTeamAdminTeam1, team2And3UnenrolledHosts, true},
+		{"team 1 maintainer 2 other teams", test.UserTeamMaintainerTeam1, team2And3UnenrolledHosts, true},
+		{"admin mix of teams", test.UserAdmin, team1And2UnenrolledHosts, false},
+		{"admin mix of 2 other teams", test.UserAdmin, team2And3UnenrolledHosts, false},
+		{"team 1 and 2 admin on allowed teams", userTeamAdminTeam1And2, team1And2UnenrolledHosts, false},
+		{"team 1 and 2 maintainer on allowed teams", userTeamMaintainerTeam1And2, team1And2UnenrolledHosts, false},
+		{"team 1 and 2 admin on other teams", userTeamAdminTeam1And2, team2And3UnenrolledHosts, true},
+		{"team 1 and 2 maintainer on other teams", userTeamMaintainerTeam1And2, team2And3UnenrolledHosts, true},
+		{"team 1 admin and 2 observer on team 1", userTeamAdminTeam1ObserverTeam2, singleUnenrolledHost, false},
+		{"team 1 admin and 2 observer on team 2 and 3", userTeamAdminTeam1ObserverTeam2, team2And3UnenrolledHosts, true},
+		{"team 1 admin and 2 observer on team 1 and 2", userTeamAdminTeam1ObserverTeam2, team1And2UnenrolledHosts, true},
+	}
+	for _, c := range enqueueCmdCases {
+		t.Run(c.desc, func(t *testing.T) {
+			ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+				return c.hosts, nil
+			}
+
+			ctx = test.UserContext(ctx, c.user)
+			_, err := svc.RunMDMCommand(ctx, "base64command", []string{"uuid"})
+			checkAuthErr(t, c.shouldFailWithAuth, err)
+		})
+	}
 }

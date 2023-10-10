@@ -439,7 +439,7 @@ func (svc *Service) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error
 
 type runMDMCommandRequest struct {
 	Command   string   `json:"command"`
-	DeviceIDs []string `json:"device_ids"`
+	HostUUIDs []string `json:"host_uuids"`
 }
 
 type runMDMCommandResponse struct {
@@ -452,7 +452,7 @@ func (r runMDMCommandResponse) error() error { return r.Err }
 
 func runMDMCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runMDMCommandRequest)
-	result, err := svc.RunMDMCommand(ctx, req.Command, req.DeviceIDs)
+	result, err := svc.RunMDMCommand(ctx, req.Command, req.HostUUIDs)
 	if err != nil {
 		return runMDMCommandResponse{Err: err}, nil
 	}
@@ -461,30 +461,26 @@ func runMDMCommandEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}, nil
 }
 
-func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
-	// TODO(mna): epic mentions "GitOps users can run commands", check that it is what we want
-	// (how can gitops run a command?). This complicates a lot of things, as gitops has no read
-	// permissions at all (e.g. HostByIdentifier call in fleetctl, list permission here, etc.).
-
-	hosts, err := svc.authorizeAllHostsTeams(ctx, deviceIDs, false, fleet.ActionWrite, &fleet.MDMCommandAuthz{})
+func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, hostUUIDs []string) (result *fleet.CommandEnqueueResult, err error) {
+	hosts, err := svc.authorizeAllHostsTeams(ctx, hostUUIDs, false, fleet.ActionWrite, &fleet.MDMCommandAuthz{})
 	if err != nil {
 		return nil, err
 	}
 	if len(hosts) == 0 {
-		err := fleet.NewInvalidArgumentError("device_ids", "No hosts targeted. Make sure you provide a valid UUID.").WithStatus(http.StatusNotFound)
+		err := fleet.NewInvalidArgumentError("host_uuids", "No hosts targeted. Make sure you provide a valid UUID.").WithStatus(http.StatusNotFound)
 		return nil, ctxerr.Wrap(ctx, err, "no host received")
 	}
 
 	platforms := make(map[string]bool)
 	for _, h := range hosts {
 		if !h.MDMInfo.IsFleetEnrolled() {
-			err := fleet.NewInvalidArgumentError("device_ids", "Can't run the MDM command because one or more hosts have MDM turned off. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm.").WithStatus(http.StatusPreconditionFailed)
+			err := fleet.NewInvalidArgumentError("host_uuids", "Can't run the MDM command because one or more hosts have MDM turned off. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm.").WithStatus(http.StatusPreconditionFailed)
 			return nil, ctxerr.Wrap(ctx, err, "check host mdm enrollment")
 		}
 		platforms[h.FleetPlatform()] = true
 	}
 	if len(platforms) != 1 {
-		err := fleet.NewInvalidArgumentError("device_ids", "All hosts must be on the same platform.")
+		err := fleet.NewInvalidArgumentError("host_uuids", "All hosts must be on the same platform.")
 		return nil, ctxerr.Wrap(ctx, err, "check host platform")
 	}
 
@@ -494,7 +490,7 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, devi
 		commandPlatform = platform
 	}
 	if commandPlatform != "windows" && commandPlatform != "darwin" {
-		err := fleet.NewInvalidArgumentError("device_ids", "Invalid platform. You can only run MDM commands on Windows or macOS hosts.")
+		err := fleet.NewInvalidArgumentError("host_uuids", "Invalid platform. You can only run MDM commands on Windows or macOS hosts.")
 		return nil, ctxerr.Wrap(ctx, err, "check host platform")
 	}
 
@@ -504,12 +500,12 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, devi
 	switch commandPlatform {
 	case "windows":
 		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-			err := fleet.NewInvalidArgumentError("device_ids", "Windows MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.").WithStatus(http.StatusBadRequest)
+			err := fleet.NewInvalidArgumentError("host_uuids", "Windows MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.").WithStatus(http.StatusBadRequest)
 			return nil, ctxerr.Wrap(ctx, err, "check windows MDM enabled")
 		}
 	default:
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-			err := fleet.NewInvalidArgumentError("device_ids", "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.").WithStatus(http.StatusBadRequest)
+			err := fleet.NewInvalidArgumentError("host_uuids", "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.").WithStatus(http.StatusBadRequest)
 			return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
 		}
 	}
@@ -524,9 +520,9 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, devi
 	// the rest is platform-specific (validation of command payload, enqueueing, etc.)
 	switch commandPlatform {
 	case "windows":
-		return svc.enqueueMicrosoftMDMCommand(ctx, rawXMLCmd, deviceIDs)
+		return svc.enqueueMicrosoftMDMCommand(ctx, rawXMLCmd, hostUUIDs)
 	default:
-		return svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, deviceIDs)
+		return svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, hostUUIDs)
 	}
 }
 
