@@ -4171,7 +4171,7 @@ This endpoint tells Fleet to run a custom MDM command, on the targeted macOS or 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
 | command                   | string | json  | A Base64 encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) or [Windows's documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/0353f3d6-dbe2-42b6-b8d5-50db9333bba4). Supported formats are standard and raw (unpadded). You can paste your Base64 code to the [online decoder](https://devpal.co/base64-decode/) to check if you're using the valid format. |
-| host_ids                | array  | json  | An array of host UUIDs enrolled in Fleet on which the command should run. |
+| host_uuids                | array  | json  | An array of host UUIDs enrolled in Fleet on which the command should run. |
 
 Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
 
@@ -4217,7 +4217,7 @@ This endpoint returns the results for a specific custom MDM command.
 {
   "results": [
     {
-      "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
       "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
       "platform": "darwin",
       "status": "Acknowledged",
@@ -4259,7 +4259,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 {
   "results": [
     {
-      "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
       "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
       "platform": "darwin",
       "status": "Acknowledged",
@@ -4268,7 +4268,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
       "hostname": "mycomputer"
     },
     {
-      "device_id": "322vghee-12c7-8976-83a1-e2118a927342",
+      "host_uuid": "322vghee-12c7-8976-83a1-e2118a927342",
       "command_uuid": "d76d69b7-d806-45a9-8e49-9d6dc533485c",
       "platform": "windows",
       "status": "200",
