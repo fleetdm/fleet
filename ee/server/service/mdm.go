@@ -859,7 +859,7 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 
 	// assign host to that team via the service call, which will trigger
 	// deployment of the profiles.
-	if err := svc.AddHostsToTeam(ctx, &team.ID, []uint{host.ID}); err != nil {
+	if err := svc.AddHostsToTeam(ctx, &team.ID, []uint{host.ID}, true); err != nil {
 		return err
 	}
 
