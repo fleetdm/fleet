@@ -76,13 +76,13 @@ const generateResultsTableHeaders = (results: any[]): Column[] => {
       ),
       accessor: key as string,
       Cell: (cellProps: ICellProps) => {
-        // Filters chronologically by date, but UI displays readable last fetched
+        // Sorts chronologically by date, but UI displays readable last fetched
         if (cellProps.column.id === "last_fetched") {
           return humanHostLastSeen(cellProps?.cell?.value);
         }
         return cellProps?.cell?.value || null;
       },
-      Filter: DefaultColumnFilter,
+      Filter: DefaultColumnFilter, // Component hides filter for last_fetched
       filterType: "text",
       disableSortBy: false,
     };
