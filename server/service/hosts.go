@@ -637,7 +637,7 @@ func (r addHostsToTeamResponse) error() error { return r.Err }
 
 func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addHostsToTeamRequest)
-	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs)
+	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs, false)
 	if err != nil {
 		return addHostsToTeamResponse{Err: err}, nil
 	}
@@ -645,7 +645,7 @@ func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return addHostsToTeamResponse{}, err
 }
 
-func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
 	// This is currently treated as a "team write". If we ever give users
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
@@ -657,8 +657,10 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
 		return err
 	}
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	if !skipBulkPending {
+		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+		}
 	}
 	serials, err := svc.ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
 	if err != nil {
