@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -166,12 +167,15 @@ func (eacp enrichedAppConfigPresenter) MarshalJSON() ([]byte, error) {
 		*fleet.VulnerabilitiesConfig
 	}
 
-	return json.Marshal(&struct {
-		fleet.EnrichedAppConfig
+	enrichedJSON, err := json.Marshal(fleet.EnrichedAppConfig(eacp))
+	if err != nil {
+		return nil, err
+	}
+
+	extraFieldsJSON, err := json.Marshal(&struct {
 		UpdateInterval  UpdateIntervalConfigPresenter  `json:"update_interval,omitempty"`
 		Vulnerabilities VulnerabilitiesConfigPresenter `json:"vulnerabilities,omitempty"`
 	}{
-		EnrichedAppConfig: fleet.EnrichedAppConfig(eacp),
 		UpdateInterval: UpdateIntervalConfigPresenter{
 			eacp.UpdateInterval.OSQueryDetail.String(),
 			eacp.UpdateInterval.OSQueryPolicy.String(),
@@ -183,6 +187,13 @@ func (eacp enrichedAppConfigPresenter) MarshalJSON() ([]byte, error) {
 			eacp.Vulnerabilities,
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	// we need to marshal and combine both groups separately because
+	// enrichedAppConfig has a custom marshaler.
+	return rawjson.CombineRoots(enrichedJSON, extraFieldsJSON)
 }
 
 func printConfig(c *cli.Context, config interface{}) error {
