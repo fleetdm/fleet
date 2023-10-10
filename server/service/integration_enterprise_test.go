@@ -5073,7 +5073,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_disk_encryption_linux")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_linux")
-	require.Contains(t, dqResp.Queries, "fleet_distributed_query_17")
+	require.Contains(t, dqResp.Queries, "fleet_distributed_query_21")
 
 	spec = []byte(fmt.Sprintf(`
   name: %s
@@ -5101,5 +5101,5 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_disk_encryption_linux")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_linux")
-	require.Contains(t, dqResp.Queries, "fleet_distributed_query_17")
+	require.Contains(t, dqResp.Queries, "fleet_distributed_query_21")
 }
