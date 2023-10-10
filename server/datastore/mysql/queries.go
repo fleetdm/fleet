@@ -545,7 +545,8 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 			q.platform,
 			q.min_osquery_version,
 			q.automations_enabled,
-			q.logging_type
+			q.logging_type,
+			q.discard_data
 		FROM queries q
 		WHERE q.saved = true 
 			AND (q.schedule_interval > 0 AND %s AND (q.automations_enabled OR (NOT q.discard_data AND NOT ?)))

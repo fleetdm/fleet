@@ -65,7 +65,7 @@ func TestGetClientConfig(t *testing.T) {
 			return []*fleet.ScheduledQuery{}, nil
 		}
 	}
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		if teamID == nil {
 			return nil, nil
 		}
@@ -535,6 +535,32 @@ func TestSubmitResultLogs(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		switch {
+		case teamID == nil && (name == "time" || name == "system_info" || name == "encrypted" || name == "hosts"):
+			return &fleet.Query{
+				Name:               name,
+				AutomationsEnabled: true,
+			}, nil
+		case teamID != nil && *teamID == 1 && name == "hosts":
+			return &fleet.Query{
+				Name:               name,
+				AutomationsEnabled: true,
+				TeamID:             teamID,
+			}, nil
+		case teamID == nil && (name == "query_not_automated"):
+			return &fleet.Query{
+				Name:               name,
+				AutomationsEnabled: false,
+			}, nil
+		default:
+			return nil, newNotFoundError()
+		}
+	}
+
 	// Hack to get at the service internals and modify the writer
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
 
@@ -542,14 +568,20 @@ func TestSubmitResultLogs(t *testing.T) {
 	serv.osqueryLogWriter = &OsqueryLogger{Result: testLogger}
 
 	logs := []string{
-		`{"name":"system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":"1475258115","decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
-		`{"name":"encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:15 2016 UTC","unixTime":"1475270355","decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
-		`{"diffResults":{"removed":[{"address":"127.0.0.1","hostnames":"kl.groob.io"}],"added":""},"name":"pack\/test\/hosts","hostIdentifier":"FA01680E-98CA-5557-8F59-7716ECFEE964","calendarTime":"Sun Nov 19 00:02:08 2017 UTC","unixTime":"1511049728","epoch":"0","counter":"10","decorations":{"host_uuid":"FA01680E-98CA-5557-8F59-7716ECFEE964","hostname":"kl.groob.io"}}`,
-		// fleet will accept anything in the "data" field of a log request.
-		`{"unknown":{"foo": [] }}`,
+		`{"name":"pack/Global/system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":"1475258115","decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
+		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:15 2016 UTC","unixTime":"1475270355","decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"diffResults":{"removed":[{"address":"127.0.0.1","hostnames":"kl.groob.io"}],"added":""},"name":"pack\/team-1/hosts","hostIdentifier":"FA01680E-98CA-5557-8F59-7716ECFEE964","calendarTime":"Sun Nov 19 00:02:08 2017 UTC","unixTime":"1511049728","epoch":"0","counter":"10","decorations":{"host_uuid":"FA01680E-98CA-5557-8F59-7716ECFEE964","hostname":"kl.groob.io"}}`,
 	}
 	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
+
+	resultWithInvalidJSON := []byte("foobar:\n\t123")
+	// The "name" field will be empty, so this result will be ignored.
+	resultWithoutName := []byte(`{"unknown":{"foo": [] }}`)
+	// The query doesn't exist, so this result will be ignored.
+	resultWithQueryDoesNotExist := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/doesntexist","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
+	// The query was configured with automations disabled, so this result will be ignored.
+	resultWithQueryNotAutomated := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/query_not_automated","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
 
 	var results []json.RawMessage
 	err := json.Unmarshal([]byte(logJSON), &results)
@@ -557,7 +589,7 @@ func TestSubmitResultLogs(t *testing.T) {
 
 	host := fleet.Host{}
 	ctx = hostctx.NewContext(ctx, &host)
-	err = serv.SubmitResultLogs(ctx, results)
+	err = serv.SubmitResultLogs(ctx, append(results, resultWithInvalidJSON, resultWithoutName, resultWithQueryDoesNotExist, resultWithQueryNotAutomated))
 	require.NoError(t, err)
 
 	assert.Equal(t, results, testLogger.logs)
@@ -578,13 +610,13 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: true}}, nil
 	}
-	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
+	svc.SubmitResultLogs(ctx, logRawMessages)
 
 	// Result not saved if result is not a snapshot
 	logRawMessages = []json.RawMessage{
 		json.RawMessage(`{"name":"pack/Global/Uptime","hostIdentifier":"2e23c347-da72-4e72-b6a8-a6b8a9a46ab7","calendarTime":"Fri Oct  6 14:19:15 2023 UTC","unixTime":1696601955,"epoch":0,"counter":10,"numerics":false,"decorations":{"host_uuid":"550eb898-c522-410b-8855-d74d94fdfcd2","hostname":"0025ad6e71fb"},"columns":{"days":"0","hours":"4","minutes":"52","seconds":"25","total_seconds":"17545"},"action":"removed"}`),
 	}
-	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
+	svc.SubmitResultLogs(ctx, logRawMessages)
 
 	// Results not saved if Logging is not snapshot in the query config
 	logRawMessages = []json.RawMessage{
@@ -600,7 +632,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 		return &fleet.Query{ID: 1, DiscardData: true, Logging: fleet.LoggingSnapshot}, nil
 	}
 
-	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
+	svc.SubmitResultLogs(ctx, logRawMessages)
 
 	// Happy Path: Results saved
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
@@ -609,7 +641,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
 		return nil
 	}
-	svc.SaveResultLogsToQueryReports(ctx, logRawMessages)
+	svc.SubmitResultLogs(ctx, logRawMessages)
 	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
 
@@ -649,12 +681,12 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 func TestGetMostRecentResults(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    []fleet.ScheduledQueryResult
-		expected []fleet.ScheduledQueryResult
+		input    []*fleet.ScheduledQueryResult
+		expected []*fleet.ScheduledQueryResult
 	}{
 		{
 			name: "basic test",
-			input: []fleet.ScheduledQueryResult{
+			input: []*fleet.ScheduledQueryResult{
 				{QueryName: "test1", UnixTime: 1},
 				{QueryName: "test1", UnixTime: 2},
 				{QueryName: "test1", UnixTime: 3},
@@ -662,14 +694,14 @@ func TestGetMostRecentResults(t *testing.T) {
 				{QueryName: "test2", UnixTime: 2},
 				{QueryName: "test2", UnixTime: 3},
 			},
-			expected: []fleet.ScheduledQueryResult{
+			expected: []*fleet.ScheduledQueryResult{
 				{QueryName: "test1", UnixTime: 3},
 				{QueryName: "test2", UnixTime: 3},
 			},
 		},
 		{
 			name: "out of order test",
-			input: []fleet.ScheduledQueryResult{
+			input: []*fleet.ScheduledQueryResult{
 				{QueryName: "test1", UnixTime: 2},
 				{QueryName: "test1", UnixTime: 3},
 				{QueryName: "test1", UnixTime: 1},
@@ -677,7 +709,7 @@ func TestGetMostRecentResults(t *testing.T) {
 				{QueryName: "test2", UnixTime: 2},
 				{QueryName: "test2", UnixTime: 1},
 			},
-			expected: []fleet.ScheduledQueryResult{
+			expected: []*fleet.ScheduledQueryResult{
 				{QueryName: "test1", UnixTime: 3},
 				{QueryName: "test2", UnixTime: 3},
 			},
@@ -2132,7 +2164,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		return nil, nil
 	}
 

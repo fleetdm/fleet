@@ -1571,6 +1571,10 @@ func getMostRecentResults(results []*fleet.ScheduledQueryResult) []*fleet.Schedu
 	latestResults := make(map[string]*fleet.ScheduledQueryResult)
 
 	for _, result := range results {
+		if result == nil {
+			// This is a result that failed to unmarshal.
+			continue
+		}
 		if existing, ok := latestResults[result.QueryName]; ok {
 			// Compare the UnixTime time and update the map if the current result is more recent
 			if result.UnixTime > existing.UnixTime {
