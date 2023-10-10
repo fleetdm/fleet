@@ -8,26 +8,21 @@ The 🚀 Engineering department at Fleet is directly responsible for writing and
 ## Team
 | Role                            | Contributor(s)           |
 |:--------------------------------|:-----------------------------------------------------------------------------------------------------------|
-| Chief Technical Officer         | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 | Director of Product Devleopment | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-| Infrasturcture Engineer         | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_
-| Engineering Manager (MDM)       | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
-| Engineering Manager (CX)        | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
-| Product Quality Specialist      | [Reed Haynes](https://www.linkedin.com/in/george-karr-4977b441/) _([@xpkoala](https://github.com/xpkoala))_, [Sabrina Coy](https://www.linkedin.com/in/bricoy/) _([@sabrinabuckets](https://github.com/sabrinabuckets))_
-| Software Engineer               | [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_, [Jacob Shandling](https://www.linkedin.com/in/jacob-shandling/) _([@jacobshandling](https://github.com/jacobshandling))_, [Tim Lee](https://www.linkedin.com/in/mostlikelee/) _([@mostlikelee](https://github.com/mostlikelee))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_, [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, [Roberto Dip](https://www.linkedin.com/in/roperzh) _([@roperzh](https://github.com/roperzh))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Marcos Oviedo](https://www.linkedin.com/in/marcosoviedo/) _([@marcosd4h](https://github.com/marcosd4h))_
+| Infrastructure Engineers        | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_
+| Engineering Managers            | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_, [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
+| Product Quality Specialists     | [Reed Haynes](https://www.linkedin.com/in/george-karr-4977b441/) _([@xpkoala](https://github.com/xpkoala))_, [Sabrina Coy](https://www.linkedin.com/in/bricoy/) _([@sabrinabuckets](https://github.com/sabrinabuckets))_
+| Software Engineers              | [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_, [Jacob Shandling](https://www.linkedin.com/in/jacob-shandling/) _([@jacobshandling](https://github.com/jacobshandling))_, [Tim Lee](https://www.linkedin.com/in/mostlikelee/) _([@mostlikelee](https://github.com/mostlikelee))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_, [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, [Roberto Dip](https://www.linkedin.com/in/roperzh) _([@roperzh](https://github.com/roperzh))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Marcos Oviedo](https://www.linkedin.com/in/marcosoviedo/) _([@marcosd4h](https://github.com/marcosd4h))_
 
 
 ## Contact us
-- Any Fleet team member can view the dedicated sprint boards:
-  - 💻 [MDM (#g-cx)](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board)
-  - 🌟 [CX](https://app.zenhub.com/workspaces/-g-cx-current-sprint-63bd7e0bf75dba002a2343ac/board)
-  - 🦢 [Website](https://app.zenhub.com/workspaces/-g-website-6451748b4eb15200131d4bab/board)
-  - ⚙️ [Infra](https://app.zenhub.com/workspaces/-g-infra-642c83a53e96760014c978bd/board)
-
-for each team inside this department, including pending tasks and the status of new requests.
 - Any community memeber can file a 🦟 ["Bug report"](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=)
   - Any Fleet team member can view the 🦟 ["Bugs" kanban board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board) including the status on all reported bugs.
-- If urgent, or if you need help submiting an issue, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel.  
+- If urgent, or if you need help submiting an issue, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel.
+- Any Fleet team member can view the dedicated sprint boards managed by this department:
+  - 💻 [MDM (#g-mdm)](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board)
+  - 🌟 [Customer experience (#g-cx)](https://app.zenhub.com/workspaces/-g-cx-current-sprint-63bd7e0bf75dba002a2343ac/board)
+  - ⚙️ [Infra (#g-infra)](https://app.zenhub.com/workspaces/-g-infra-642c83a53e96760014c978bd/board)
 
 <!--
 
