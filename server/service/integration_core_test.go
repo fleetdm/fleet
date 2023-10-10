@@ -4974,9 +4974,16 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	// set the macos disk encryption field, fails due to license
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
+		"mdm": { "enable_disk_encryption": true }
   }`), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "missing or invalid license")
+
+	// legacy config
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
+  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "missing or invalid license")
 
 	// try to set the apple bm default team, which is premium only
@@ -6429,6 +6436,16 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	// the orbit endpoint to set the disk encryption key always fails in this
+	// suite because MDM is not configured.
+	orbitHost := createOrbitEnrolledHost(t, "windows", "diskenc", s.ds)
+	res := s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+		OrbitNodeKey:  *orbitHost.OrbitNodeKey,
+		EncryptionKey: []byte("testkey"),
+	}, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 }
 
 func (s *integrationTestSuite) TestOSVersions() {
@@ -6481,14 +6498,14 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 	s.DoRawNoAuth("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
 }
 
-func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
+func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 	t := s.T()
 
 	// create a host with device token to test device authenticated routes
 	tkn := "D3V1C370K3N"
 	createHostAndDeviceToken(t, s.ds, tkn)
 
-	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
+	for _, route := range mdmConfigurationRequiredEndpoints() {
 		which := fmt.Sprintf("%s %s", route.method, route.path)
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
 		if route.premiumOnly && route.deviceAuthenticated {

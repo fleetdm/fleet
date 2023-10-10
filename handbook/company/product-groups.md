@@ -51,7 +51,7 @@ The goal of the customer experience (CX) group is to make users and customers ha
 | Engineering manager               | Sharon Katz
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Mo Zhu
-| Software engineers (developers)   | Jacob Shandling, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Tim Lee
+| Software engineers (developers)   | Jacob Shandling, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Tim Lee, Victor Lyuboslavsky
 
 > The Slack channel, kanban release board, and label for this product group is `#g-cx`.
 
