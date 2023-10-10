@@ -4021,7 +4021,7 @@
       },
       {
         "name": "path",
-        "description": "Defaults to '' on ChromeOS",
+        "description": "Path to extension folder. Defaults to '' on ChromeOS",
         "type": "STRING",
         "notes": "",
         "hidden": false,
@@ -4208,6 +4208,166 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/cis_audit",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cis_audit.yml"
+  },
+  {
+    "name": "connected_displays",
+    "description": "Provides information about the connected displays of the machine.",
+    "url": "https://fleetdm.com/tables/connected_displays",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "examples": [],
+    "columns": [
+      {
+        "name": "name",
+        "description": "The name of the display.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "product_id",
+        "description": "The product ID of the display.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "serial_number",
+        "description": "The serial number of the display.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "vendor_id",
+        "description": "The vendor ID of the display.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "manufactured_week",
+        "description": "The manufacture week of the display. This field is 0 if not supported",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "manufactured_year",
+        "description": "The manufacture year of the display. This field is 0 if not supported",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "display_id",
+        "description": "The display ID.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "pixels",
+        "description": "The number of pixels of the display.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "resolution",
+        "description": "The resolution of the display.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "ambient_brightness_enabled",
+        "description": "The ambient brightness setting associated with the display. This will be 1 if enabled and is 0 if disabled or not supported.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "connection_type",
+        "description": "The connection type associated with the display.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "display_type",
+        "description": "The type of display.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "main",
+        "description": "If the display is the main display.",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "mirror",
+        "description": "If the display is mirrored or not. This field is 1 if mirrored and 0 if not mirrored.",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "online",
+        "description": "The online status of the display. This field is 1 if the display is online and 0 if it is offline.",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "rotation",
+        "description": "The orientation of the display.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/darwin/connected_displays.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fconnected_displays.yml&value=name%3A%20connected_displays%0Adescription%3A%20%7C%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "connectivity",
@@ -4758,7 +4918,7 @@
         "description": "The number of efficiency cores of the CPU. Only available on Apple Silicon",
         "type": "integer",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
@@ -4770,7 +4930,7 @@
         "description": "The number of performance cores of the CPU. Only available on Apple Silicon",
         "type": "integer",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
@@ -9390,7 +9550,7 @@
   },
   {
     "name": "es_process_file_events",
-    "description": "Process execution events from EndpointSecurity.",
+    "description": "File integrity monitoring events from EndpointSecurity including process context.",
     "url": "https://fleetdm.com/tables/es_process_file_events",
     "platforms": [
       "darwin"
@@ -12777,6 +12937,15 @@
       {
         "name": "type",
         "description": "Keychain item type (class)",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "pk_hash",
+        "description": "Hash of associated public key (SHA1 of subjectPublicKey, see RFC 8520 4.2.1.2)",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -17331,6 +17500,18 @@
         "index": false
       },
       {
+        "name": "extra",
+        "description": "Optional extra release specification",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "darwin"
+        ]
+      },
+      {
         "name": "install_date",
         "description": "The install date of the OS.",
         "type": "bigint",
@@ -21220,7 +21401,7 @@
         "description": "The full hierarchical path of the process's control group",
         "type": "text",
         "notes": "",
-        "hidden": true,
+        "hidden": false,
         "required": false,
         "index": false,
         "platforms": [
@@ -22354,6 +22535,7 @@
     "cacheable": false,
     "notes": "- Includes installed extensions for all system users.",
     "examples": [
+      "select * from safari_extensions where uid=501",
       "select count(*) from users JOIN safari_extensions using (uid)"
     ],
     "columns": [
@@ -22442,6 +22624,33 @@
       {
         "name": "path",
         "description": "Path to extension XAR bundle",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "bundle_version",
+        "description": "The version of the build that identifies an iteration of the bundle",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "copyright",
+        "description": "A human-readable copyright notice for the bundle",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "extension_type",
+        "description": "Extension Type: WebOrAppExtension or LegacyExtension",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -22840,7 +23049,7 @@
         "description": "Secure mode for Intel-based macOS: 0 disabled, 1 full security, 2 medium security",
         "type": "integer",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
@@ -22852,7 +23061,7 @@
         "description": "Whether setup mode is enabled",
         "type": "integer",
         "notes": "",
-        "hidden": true,
+        "hidden": false,
         "required": false,
         "index": false,
         "platforms": [
@@ -25014,7 +25223,7 @@
     "columns": [
       {
         "name": "hostname",
-        "description": "For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
+        "description": "Network hostname including domain. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
         "type": "STRING",
         "notes": "",
         "hidden": false,
@@ -25091,6 +25300,15 @@
         ]
       },
       {
+        "name": "cpu_sockets",
+        "description": "Number of processor sockets in the system",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
         "name": "cpu_microcode",
         "description": "Microcode version",
         "type": "text",
@@ -25115,7 +25333,7 @@
       },
       {
         "name": "hardware_vendor",
-        "description": "For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
+        "description": "Hardware vendor. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
         "type": "STRING",
         "notes": "",
         "hidden": false,
@@ -25124,7 +25342,7 @@
       },
       {
         "name": "hardware_model",
-        "description": "For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
+        "description": "Hardware model. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
         "type": "STRING",
         "notes": "",
         "hidden": false,
@@ -25147,7 +25365,7 @@
       },
       {
         "name": "hardware_serial",
-        "description": "The device's serial number (For chromeos, this is only available if the extension was force-installed by an enterprise policy)",
+        "description": "The device's serial number. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
         "type": "STRING",
         "notes": "",
         "hidden": false,
@@ -25212,7 +25430,7 @@
       },
       {
         "name": "computer_name",
-        "description": "For ChromeOS, if the extension wasn't force-installed by an enterprise policy this will default to 'ChromeOS' only",
+        "description": "Friendly computer name (optional). For ChromeOS, if the extension wasn't force-installed by an enterprise policy this will default to 'ChromeOS' only",
         "type": "STRING",
         "notes": "",
         "hidden": false,
@@ -25848,7 +26066,7 @@
   },
   {
     "name": "unified_log",
-    "description": "Queries the OSLog framework for entries in the system log. The maximum number of rows returned is limited for performance issues. This table introduces a new idiom for extracting sequential data in batches using multiple queries, ordered by timestamp. To trigger it, the user should include the condition \"timestamp > -1\", and the table will handle pagination.",
+    "description": "Queries the OSLog framework for entries in the system log. The maximum number of rows returned is limited for performance issues. Use timestamp > or >= constraints to optimize query performance. This table introduces a new idiom for extracting sequential data in batches using multiple queries, ordered by timestamp. To trigger it, the user should include the condition \"timestamp > -1\", and the table will handle pagination. Note that the saved pagination counter is incremented globally across all queries and table invocations within a query. To avoid multiple table invocations within a query, use only AND and = constraints in WHERE clause.",
     "url": "https://fleetdm.com/tables/unified_log",
     "platforms": [
       "darwin"
@@ -25856,7 +26074,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": "```\nselect * from unified_log where timestamp > -1 and max_rows = 500\n```",
+    "examples": "```\nselect * from unified_log where timestamp > -1 and timestamp > (select unix_time - 86400 from time)\n```",
     "columns": [
       {
         "name": "timestamp",
@@ -25961,6 +26179,15 @@
         "name": "max_rows",
         "description": "the max number of rows returned (defaults to 100)",
         "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "predicate",
+        "description": "predicate to search (see `log help predicates`), note that this is merged into the predicate created from the column constraints",
+        "type": "text",
         "notes": "",
         "hidden": true,
         "required": false,
@@ -28089,6 +28316,130 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/windows_optional_features.yml"
+  },
+  {
+    "name": "windows_search",
+    "description": "Run searches against the Windows system index database using Advanced Query Syntax. See https://learn.microsoft.com/en-us/windows/win32/search/-search-3x-advancedquerysyntax for details.",
+    "url": "https://fleetdm.com/tables/windows_search",
+    "platforms": [
+      "windows"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "examples": "```\nselect *, datetime(date_created, 'unixepoch') as datetime from windows_search WHERE query = 'folder:documents' AND datetime BETWEEN '2022-11-18 16:40:00' AND '2023-11-18 16:50:00'\n```",
+    "columns": [
+      {
+        "name": "name",
+        "description": "The name of the item",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "path",
+        "description": "The full path of the item.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "size",
+        "description": "The item size in bytes.",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "date_created",
+        "description": "The unix timestamp of when the item was created.",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "date_modified",
+        "description": "The unix timestamp of when the item was last modified",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "owner",
+        "description": "The owner of the item",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "type",
+        "description": "The item type",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "properties",
+        "description": "Additional property values JSON",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "query",
+        "description": "Windows search query",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "sort",
+        "description": "Sort for windows api",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "max_results",
+        "description": "Maximum number of results returned by windows api, set to -1 for unlimited",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "additional_properties",
+        "description": "Comma separated list of columns to include in properties JSON",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/windows_search.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fwindows_search.yml&value=name%3A%20windows_search%0Adescription%3A%20%7C%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "windows_security_center",
