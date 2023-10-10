@@ -132,7 +132,7 @@ const QueryReport = ({
         <span>{`${count} result${count === 1 ? "" : "s"}`}</span>
       </div>
     );
-  }, [filteredResults]);
+  }, [filteredResults.length, isClipped]);
 
   const renderTable = () => {
     return (
