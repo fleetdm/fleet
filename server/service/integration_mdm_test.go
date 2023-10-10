@@ -1177,18 +1177,21 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	s.awaitTriggerProfileSchedule(t, 1*time.Second)
 	hostProfs, err = s.ds.GetHostMDMProfiles(ctx, mdmHost2.UUID)
 	require.NoError(t, err)
-	require.Len(t, hostProfs, 2)
+	require.Len(t, hostProfs, 3)
 
 	sort.Slice(hostProfs, func(i, j int) bool {
 		l, r := hostProfs[i], hostProfs[j]
 		return l.Name < r.Name
 	})
-	require.Equal(t, "n1", hostProfs[0].Name)
+	require.Equal(t, "Fleetd configuration", hostProfs[0].Name)
 	require.NotNil(t, hostProfs[0].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryVerifying, *hostProfs[0].Status)
-	require.Equal(t, "n4", hostProfs[1].Name)
+	require.Equal(t, "n1", hostProfs[1].Name)
 	require.NotNil(t, hostProfs[1].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryVerifying, *hostProfs[1].Status)
+	require.Equal(t, "n4", hostProfs[2].Name)
+	require.NotNil(t, hostProfs[2].Status)
+	require.Equal(t, fleet.MDMAppleDeliveryVerifying, *hostProfs[2].Status)
 }
 
 // while s.TestPuppetMatchPreassignProfiles focuses on many edge cases/extra
