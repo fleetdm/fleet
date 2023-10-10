@@ -74,9 +74,9 @@ func testMDMWindowsPendingCommand(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	deviceID := uuid.New().String()
-
+	commandUUID := uuid.New().String()
 	pendingCmd := &fleet.MDMWindowsPendingCommand{
-		CommandUUID:  uuid.New().String(),
+		CommandUUID:  commandUUID,
 		DeviceID:     deviceID,
 		CmdVerb:      fleet.CmdGet,
 		SettingURI:   "./test/uri",
@@ -93,16 +93,51 @@ func testMDMWindowsPendingCommand(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &ae)
 
 	// Getting pending commands first
-	gotPendingCmds, err := ds.MDMWindowsGetAndRemovePendingCommands(ctx, deviceID)
+	gotPendingCmds, err := ds.MDMWindowsGetPendingCommands(ctx, deviceID)
 	require.NoError(t, err)
 	require.NotZero(t, gotPendingCmds)
 	require.NotZero(t, gotPendingCmds[0].CreatedAt)
 	require.Equal(t, gotPendingCmds[0].DeviceID, deviceID)
 
-	// Then double checking that pending commands for the device were actually removed
-	gotPendingCmdsRetry, err := ds.MDMWindowsGetAndRemovePendingCommands(ctx, deviceID)
+	// Now inserting commands in the tracking table
+	newCmd1 := &fleet.MDMWindowsCommand{
+		CommandUUID:  commandUUID,
+		DeviceID:     deviceID,
+		SessionID:    "2",
+		MessageID:    "3",
+		CommandID:    "4",
+		CmdVerb:      fleet.CmdGet,
+		SettingURI:   "./test/uri",
+		SettingValue: "testdata",
+		SystemOrigin: false,
+	}
+
+	newCmd2 := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.New().String(),
+		DeviceID:     deviceID,
+		SessionID:    "6",
+		MessageID:    "7",
+		CommandID:    "8",
+		CmdVerb:      fleet.CmdGet,
+		SettingURI:   "./test/uri",
+		SettingValue: "testdata",
+		SystemOrigin: false,
+	}
+
+	err = ds.MDMWindowsInsertCommand(ctx, newCmd1)
 	require.NoError(t, err)
-	require.Zero(t, gotPendingCmdsRetry)
+
+	err = ds.MDMWindowsInsertCommand(ctx, newCmd2)
+	require.NoError(t, err)
+
+	gotCmds, err := ds.MDMWindowsListCommands(ctx, deviceID)
+	require.NoError(t, err)
+	require.NotZero(t, gotCmds)
+
+	// Now checking if pendings table returns empty as commands are inserted in tracking table
+	gotPendingCmds, err = ds.MDMWindowsGetPendingCommands(ctx, deviceID)
+	require.NoError(t, err)
+	require.Zero(t, gotPendingCmds)
 }
 
 func testMDMWindowCommand(t *testing.T, ds *Datastore) {

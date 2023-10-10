@@ -1230,7 +1230,7 @@ func (cmd *SyncMLCmd) IsValid() bool {
 
 // IsEmpty checks if there are not items in the command
 func (cmd *SyncMLCmd) IsEmpty() bool {
-	if (cmd.Items == nil) || (len(cmd.Items) == 0) {
+	if len(cmd.Items) == 0 {
 		return true
 	}
 

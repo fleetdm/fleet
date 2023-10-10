@@ -1250,8 +1250,8 @@ func (svc *Service) processIncomingMDMCmds(deviceID string, reqMsg *fleet.SyncML
 // getPendingMDMCmds returns the list of pending MDM commands for the device
 func (svc *Service) getPendingMDMCmds(ctx context.Context, deviceID string) ([]*mdm_types.SyncMLCmd, error) {
 	// Getting the list of pending commands
-	// Pending commands will be removed from the DB
-	pendingCmds, err := svc.ds.MDMWindowsGetAndRemovePendingCommands(ctx, deviceID)
+	// Only commands that are not currently tracked will be retrieved
+	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, deviceID)
 	if err != nil {
 		return nil, fmt.Errorf("getting incoming cmds %w", err)
 	}

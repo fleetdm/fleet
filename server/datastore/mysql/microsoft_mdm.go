@@ -135,8 +135,8 @@ func (ds *Datastore) MDMWindowsInsertPendingCommand(ctx context.Context, cmd *fl
 	return nil
 }
 
-// MDMWindowsGetAndRemovePendingCommands retrieves all commands for a given device ID from the windows_mdm_pending_commands table
-func (ds *Datastore) MDMWindowsGetAndRemovePendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error) {
+// MDMWindowsGetPendingCommands retrieves all commands for a given device ID from the windows_mdm_pending_commands table
+func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error) {
 	var commands []*fleet.MDMWindowsPendingCommand
 
 	query := `
@@ -161,12 +161,27 @@ func (ds *Datastore) MDMWindowsGetAndRemovePendingCommands(ctx context.Context, 
 		return nil, ctxerr.Wrap(ctx, err, "get pending Windows MDM commands by device id")
 	}
 
-	// Then delete pending commands
-	if err := ds.MDMWindowsDeletePendingCommands(ctx, deviceID); err != nil {
-		return nil, err
+	// Then check which commands are not currently tracked in the windows_mdm_commands table
+	trackedCmds, err := ds.MDMWindowsListCommands(ctx, deviceID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error querying MDMWindowsListCommands")
 	}
 
-	return commands, nil
+	// Create a map of not tracked commands
+	trackedCmdsMap := make(map[string]bool)
+	for _, cmd := range trackedCmds {
+		trackedCmdsMap[cmd.CommandUUID] = true
+	}
+
+	// Filter out tracked commands
+	var filteredCmds []*fleet.MDMWindowsPendingCommand
+	for _, cmd := range commands {
+		if _, ok := trackedCmdsMap[cmd.CommandUUID]; !ok {
+			filteredCmds = append(filteredCmds, cmd)
+		}
+	}
+
+	return filteredCmds, nil
 }
 
 // MDMWindowsInsertCommand inserts a new WindowMDMCommand in the database

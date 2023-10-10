@@ -4010,7 +4010,7 @@ func (s *DataStore) MDMWindowsInsertPendingCommand(ctx context.Context, cmd *fle
 	return s.MDMWindowsInsertPendingCommandFunc(ctx, cmd)
 }
 
-func (s *DataStore) MDMWindowsGetAndRemovePendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error) {
+func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error) {
 	s.mu.Lock()
 	s.MDMWindowsListPendingCommandsFuncInvoked = true
 	s.mu.Unlock()
