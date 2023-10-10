@@ -45,7 +45,7 @@ func TestUp_20230918221115(t *testing.T) {
 		gotConfigs = append(gotConfigs, gotConfig)
 	}
 
-	// simulate the ideal behavior with the oldConfigs
+	// simulate ideal behavior with the oldConfigs
 	for i, config := range wantConfigs {
 		if mdmMap, ok := config["mdm"].(map[string]interface{}); ok {
 			// Delete 'mdm.macos_settings.enable_disk_encryption'
