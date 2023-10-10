@@ -111,6 +111,12 @@ const MacSettingsIndicator = ({
   profiles,
   onClick,
 }: IMacSettingsIndicatorProps): JSX.Element => {
+  if (!profiles.length) {
+    // the caller should ensure that this never happens, but just in case we return a default
+    // to make it more obvious that something is wrong.
+    return <span className={`${baseClass} info-flex__data`}>Unavailable</span>;
+  }
+
   const displayStatus = getHostProfilesStatusForDisplay(profiles);
 
   const statusDisplayOption = STATUS_DISPLAY_OPTIONS[displayStatus];
