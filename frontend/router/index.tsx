@@ -57,6 +57,7 @@ import OSSettings from "pages/ManageControlsPage/OSSettings";
 import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExperience";
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
 import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
+import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
 
 import PATHS from "router/paths";
@@ -179,6 +180,7 @@ const routes = (
             <IndexRedirect to=":host_id" />
             <Route component={HostDetailsPage}>
               <Route path=":host_id" component={HostDetailsPage}>
+                <Route path="scripts" component={HostDetailsPage} />
                 <Route path="software" component={HostDetailsPage} />
                 <Route path="policies" component={HostDetailsPage} />
                 <Route path="schedule" component={HostDetailsPage} />
@@ -194,6 +196,7 @@ const routes = (
                 <Route path="os-settings" component={OSSettings} />
                 <Route path="os-settings/:section" component={OSSettings} />
                 <Route path="setup-experience" component={SetupExperience} />
+                <Route path="scripts" component={Scripts} />
                 <Route
                   path="setup-experience/:section"
                   component={SetupExperience}

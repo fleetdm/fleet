@@ -39,6 +39,7 @@ spec:
       metadata: ""
       metadata_url: ""
       entity_id: ""
+  scripts: null
   org_info:
     org_logo_url: ""
     org_logo_url_light_background: ""

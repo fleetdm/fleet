@@ -8,6 +8,7 @@
 - [Device-authenticated routes](#device-authenticated-routes)
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
+- [Scripts](#scripts)
 
 This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
@@ -1276,6 +1277,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
 | mdm.macos_settings                        | object | body  | The macOS-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.macos_settings.custom_settings        | list   | body  | The list of .mobileconfig files to apply to hosts that belong to this team.                                                                                                                                                         |
+| scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
@@ -1337,7 +1339,8 @@ If the `name` is not already associated with an existing team, this API route cr
           "custom_settings": ["path/to/profile1.mobileconfig"],
           "enable_disk_encryption": true
         }
-      }
+      },
+      "scripts": ["path/to/script.sh"],
     }
   ]
 }
@@ -2691,6 +2694,35 @@ If the Fleet instance is provided required parameters to complete setup.
 }
 
 ```
+
+## Scripts
+
+### Batch-apply scripts 
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/scripts/batch`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_id | number | query | The ID of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. 
+| team_id | number | query | The ID of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. 
+| dry_run   | bool   | query | Validate the provided scripts and return any validation errors, but do not apply the changes.                                                                         |
+| scripts   | array  | body  | An array of objects with the scripts payloads. Each item must contain `name` with the script name and `script_contents` with the script contents encoded in base64    |
+
+If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
+
+> Note that this endpoint replaces all the active scripts for the specified team (or no team). Any existing script that is not included in the list will be removed, and existing scripts with the same name as a new script will be edited. Providing an empty list of scripts will remove existing scripts.
+
+#### Example
+
+`POST /api/v1/fleet/mdm/scripts/batch`
+
+##### Default response
+
+`204`
 
 <meta name="pageOrderInSection" value="800">
 <meta name="description" value="Read about Fleet API routes that are helpful when developing or contributing to Fleet.">

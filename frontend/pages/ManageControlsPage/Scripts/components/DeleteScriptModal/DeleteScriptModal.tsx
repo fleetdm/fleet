@@ -1,4 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
+
+import scriptAPI from "services/entities/scripts";
+import { NotificationContext } from "context/notification";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -9,21 +12,33 @@ interface IDeleteScriptModalProps {
   scriptName: string;
   scriptId: number;
   onCancel: () => void;
-  onDelete: (scriptId: number) => void;
+  onDone: () => void;
 }
 
 const DeleteScriptModal = ({
   scriptName,
   scriptId,
   onCancel,
-  onDelete,
+  onDone,
 }: IDeleteScriptModalProps) => {
+  const { renderFlash } = useContext(NotificationContext);
+
+  const onClickDelete = async (id: number) => {
+    try {
+      await scriptAPI.deleteScript(id);
+      renderFlash("success", "Successfully deleted!");
+    } catch {
+      renderFlash("error", "Couldn’t delete. Please try again.");
+    }
+    onDone();
+  };
+
   return (
     <Modal
       className={baseClass}
       title={"Delete script"}
       onExit={onCancel}
-      onEnter={() => onDelete(scriptId)}
+      onEnter={() => onClickDelete(scriptId)}
     >
       <>
         <p>
@@ -34,7 +49,7 @@ const DeleteScriptModal = ({
         <div className="modal-cta-wrap">
           <Button
             type="button"
-            onClick={() => onDelete(scriptId)}
+            onClick={() => onClickDelete(scriptId)}
             variant="alert"
             className="delete-loading"
           >

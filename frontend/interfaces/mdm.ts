@@ -103,17 +103,6 @@ export const isWindowsDiskEncryptionStatus = (
 
 export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
 
-// TODO: update when we have API
-export interface IMdmScript {
-  id: number;
-  name: string;
-  ran: number;
-  pending: number;
-  errors: number;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface IMdmSSOReponse {
   url: string;
 }

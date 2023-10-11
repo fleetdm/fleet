@@ -79,6 +79,7 @@ func (s *integrationTestSuite) TestSlowOsqueryHost() {
 			SkipCreateTestUsers: true,
 			//nolint:gosec // G112: server is just run for testing this explicit config.
 			HTTPServerConfig: &http.Server{ReadTimeout: 2 * time.Second},
+			EnableCachedDS:   true,
 		},
 	)
 	defer func() {
@@ -4669,6 +4670,30 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// get script result
 	var scriptResultResp getScriptResultResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/test-id", nil, http.StatusPaymentRequired, &scriptResultResp)
+
+	// create a saved script
+	body, headers := generateNewScriptMultipartRequest(t, nil,
+		"myscript.sh", []byte(`echo "hello"`), s.token)
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusPaymentRequired, headers)
+
+	// delete a saved script
+	var delScriptResp deleteScriptResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/scripts/123", nil, http.StatusPaymentRequired, &delScriptResp)
+
+	// list saved scripts
+	var listScriptsResp listScriptsResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusPaymentRequired, &listScriptsResp, "per_page", "10")
+
+	// get a saved script
+	var getScriptResp getScriptResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/123", nil, http.StatusPaymentRequired, &getScriptResp)
+
+	// get host script details
+	var getHostScriptDetailsResp getHostScriptDetailsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/123/scripts", nil, http.StatusPaymentRequired, &getHostScriptDetailsResp)
+
+	// batch set scripts
+	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusPaymentRequired)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
