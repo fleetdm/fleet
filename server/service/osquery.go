@@ -335,6 +335,14 @@ func (r getClientConfigResponse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(r.Config)
 }
 
+// UnmarshalJSON implements json.Unmarshaler.
+//
+// Osquery expects the response for configs to be at the
+// top-level of the JSON response.
+func (r *getClientConfigResponse) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &r.Config)
+}
+
 func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	config, err := svc.GetClientConfig(ctx)
 	if err != nil {
@@ -1071,7 +1079,7 @@ func (svc *Service) ingestQueryResults(
 	var err error
 	switch {
 	case strings.HasPrefix(query, hostDistributedQueryPrefix):
-		err = svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query])
+		err = svc.ingestDistributedQuery(ctx, *host, query, rows, messages[query])
 	case strings.HasPrefix(query, hostPolicyQueryPrefix):
 		err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
 	case strings.HasPrefix(query, hostLabelQueryPrefix):
@@ -1139,7 +1147,7 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 
 // ingestDistributedQuery takes the results of a distributed query and modifies the
 // provided fleet.Host appropriately.
-func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host, name string, rows []map[string]string, failed bool, errMsg string) error {
+func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host, name string, rows []map[string]string, errMsg string) error {
 	trimmedQuery := strings.TrimPrefix(name, hostDistributedQueryPrefix)
 
 	campaignID, err := strconv.Atoi(osquery_utils.EmptyToZero(trimmedQuery))
@@ -1157,7 +1165,7 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 		},
 		Rows: rows,
 	}
-	if failed {
+	if errMsg != "" {
 		res.Error = &errMsg
 	}
 

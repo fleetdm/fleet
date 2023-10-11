@@ -112,9 +112,9 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     // Override Controls page title if MDM not configured
     if (
       !config?.mdm.enabled_and_configured &&
-      curTitle?.path === "/controls/mac-os-updates"
+      curTitle?.path === "/controls/os-updates"
     ) {
-      curTitle.title = "Manage macOS hosts | Fleet for osquery";
+      curTitle.title = "Manage OS hosts | Fleet for osquery";
     }
 
     if (curTitle && curTitle.title) {

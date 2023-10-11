@@ -47,6 +47,7 @@ import AboutCard from "../cards/About";
 import AgentOptionsCard from "../cards/AgentOptions";
 import LabelsCard from "../cards/Labels";
 import MunkiIssuesCard from "../cards/MunkiIssues";
+import ScriptsCard from "../cards/Scripts";
 import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
@@ -65,6 +66,7 @@ import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import MacSettingsModal from "../MacSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import SelectQueryModal from "./modals/SelectQueryModal";
+import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
 
 const baseClass = "host-details";
 
@@ -464,7 +466,9 @@ const HostDetailsPage = ({
     setLastEditedQueryBody(osPolicyQuery);
     setLastEditedQueryResolution("");
     setLastEditedQueryCritical(false);
-    router.replace(NEW_POLICY);
+    router.replace(
+      `${NEW_POLICY}${host?.team_id ? `?team_id=${host?.team_id}` : ""}`
+    );
   };
 
   const onDestroyHost = async () => {
@@ -612,6 +616,11 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_DETAILS(hostIdFromURL),
     },
     {
+      name: "Scripts",
+      title: "scripts",
+      pathname: PATHS.HOST_SCRIPTS(hostIdFromURL),
+    },
+    {
       name: "Software",
       title: "software",
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
@@ -635,15 +644,24 @@ const HostDetailsPage = ({
     },
   ];
 
+  // we want the scripts tabs on the list for only mac hosts and premium tier atm.
+  // We filter it out for other platforms and non premium.
+  // TODO: improve this code. We can pull the tab list component out
+  // into its own component later.
+  const filteredSubNavTabs =
+    host?.platform === "darwin" && isPremiumTier
+      ? hostDetailsSubNav
+      : hostDetailsSubNav.filter((navItem) => navItem.title !== "scripts");
+
   const getTabIndex = (path: string): number => {
-    return hostDetailsSubNav.findIndex((navItem) => {
+    return filteredSubNavTabs.findIndex((navItem) => {
       // tab stays highlighted for paths that ends with same pathname
       return path.endsWith(navItem.pathname);
     });
   };
 
   const navigateToNav = (i: number): void => {
-    const navPath = hostDetailsSubNav[i].pathname;
+    const navPath = filteredSubNavTabs[i].pathname;
     router.push(navPath);
   };
 
@@ -677,6 +695,8 @@ const HostDetailsPage = ({
     details: host?.mdm.macos_setup?.details,
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
+
+  const page = (location.query.page && parseInt(location.query.page, 10)) || 0;
 
   return (
     <MainContent className={baseClass}>
@@ -718,6 +738,7 @@ const HostDetailsPage = ({
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
+          osSettings={host?.mdm.os_settings}
         />
         <TabsWrapper>
           <Tabs
@@ -725,7 +746,7 @@ const HostDetailsPage = ({
             onSelect={(i) => navigateToNav(i)}
           >
             <TabList>
-              {hostDetailsSubNav.map((navItem) => {
+              {filteredSubNavTabs.map((navItem) => {
                 // Bolding text when the tab is active causes a layout shift
                 // so we add a hidden pseudo element with the same text string
                 return <Tab key={navItem.title}>{navItem.name}</Tab>;
@@ -758,6 +779,16 @@ const HostDetailsPage = ({
                 hostUsersEnabled={featuresConfig?.enable_host_users}
               />
             </TabPanel>
+            {host?.platform === "darwin" && isPremiumTier && (
+              <TabPanel>
+                <ScriptsCard
+                  hostId={host?.id}
+                  page={page}
+                  router={router}
+                  isHostOnline={host?.status === "online"}
+                />
+              </TabPanel>
+            )}
             <TabPanel>
               <SoftwareCard
                 isLoading={isLoadingHost}
@@ -843,6 +874,7 @@ const HostDetailsPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
+            platform={host?.platform}
             hostMDMData={host?.mdm}
             onClose={toggleMacSettingsModal}
           />
@@ -850,12 +882,15 @@ const HostDetailsPage = ({
         {showUnenrollMdmModal && !!host && (
           <UnenrollMdmModal hostId={host.id} onClose={toggleUnenrollMdmModal} />
         )}
-        {showDiskEncryptionModal && host && (
-          <DiskEncryptionKeyModal
-            hostId={host.id}
-            onCancel={() => setShowDiskEncryptionModal(false)}
-          />
-        )}
+        {showDiskEncryptionModal &&
+          host &&
+          isSupportedPlatform(host.platform) && (
+            <DiskEncryptionKeyModal
+              platform={host.platform}
+              hostId={host.id}
+              onCancel={() => setShowDiskEncryptionModal(false)}
+            />
+          )}
         {showBootstrapPackageModal &&
           bootstrapPackageData.details &&
           bootstrapPackageData.name && (

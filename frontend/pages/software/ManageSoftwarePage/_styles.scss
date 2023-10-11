@@ -16,6 +16,11 @@
     padding: $pad-small $pad-medium;
   }
 
+  &__count {
+    display: flex;
+    gap: 12px;
+  }
+
   &__header {
     display: flex;
     align-items: center;

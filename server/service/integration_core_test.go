@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -21,14 +21,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
+	"github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -74,6 +79,7 @@ func (s *integrationTestSuite) TestSlowOsqueryHost() {
 			SkipCreateTestUsers: true,
 			//nolint:gosec // G112: server is just run for testing this explicit config.
 			HTTPServerConfig: &http.Server{ReadTimeout: 2 * time.Second},
+			EnableCachedDS:   true,
 		},
 	)
 	defer func() {
@@ -670,7 +676,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.True(t, inserted)
 
 	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK)
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
 	expectedJSONSoft2 := `"name": "bar",
@@ -696,7 +702,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
 	resp = s.Do("GET", "/api/latest/fleet/software", nil, http.StatusOK, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
-	bodyBytes, err = ioutil.ReadAll(resp.Body)
+	bodyBytes, err = io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(bodyBytes), `"counts_updated_at": null`)
 
@@ -2173,7 +2179,7 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	require.NoError(t, err)
 
 	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host1.ID), nil, http.StatusOK)
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	var r struct {
 		Host *HostDetailResponse `json:"host"`
@@ -3084,6 +3090,11 @@ func (s *integrationTestSuite) TestLabels() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp)
 	assert.Len(t, listHostsResp.Hosts, len(hosts))
 
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "id", "after", fmt.Sprintf("%d", hosts[0].ID))
+	assert.Len(t, listHostsResp.Hosts, 2)
+	assert.Equal(t, hosts[1].ID, listHostsResp.Hosts[0].ID)
+	assert.Equal(t, hosts[2].ID, listHostsResp.Hosts[1].ID)
+
 	// list hosts in label searching by display_name
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "display_name", "order_direction", "desc")
 	assert.Len(t, listHostsResp.Hosts, len(hosts))
@@ -3608,6 +3619,16 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	require.Equal(t, "qux2", config.Integrations.Jira[1].ProjectKey)
 	require.False(t, config.Integrations.Jira[1].EnableSoftwareVulnerabilities)
 
+	// make an unrelated appconfig change, should not remove the integrations
+	var appCfgResp appConfigResponse
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"org_info": {
+			"org_name": "test-integrations"
+		}
+	}`), http.StatusOK, &appCfgResp)
+	require.Equal(t, "test-integrations", appCfgResp.OrgInfo.OrgName)
+	require.Len(t, appCfgResp.Integrations.Jira, 2)
+
 	// delete first Jira integration
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
 		"integrations": {
@@ -3929,13 +3950,22 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 		}
 	}`, srvURL)), http.StatusOK)
 
-	// remove all integrations
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+	// if no jira nor zendesk integrations are provided, does not remove integrations
+	appCfgResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"integrations": {}
+	}`), http.StatusOK, &appCfgResp)
+	require.Len(t, appCfgResp.Integrations.Jira, 1)
+
+	// if explicitly-empty arrays are provided, remove all integrations
+	appCfgResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"integrations": {
 			"jira": [],
 			"zendesk": []
 		}
-	}`), http.StatusOK)
+	}`), http.StatusOK, &appCfgResp)
+	require.Len(t, appCfgResp.Integrations.Jira, 0)
 
 	// set environmental varible to use Zendesk test client
 	t.Setenv("TEST_ZENDESK_CLIENT", "true")
@@ -4000,6 +4030,16 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	require.Equal(t, fleet.MaskedPassword, config.Integrations.Zendesk[1].APIToken)
 	require.Equal(t, int64(123), config.Integrations.Zendesk[1].GroupID)
 	require.False(t, config.Integrations.Zendesk[1].EnableSoftwareVulnerabilities)
+
+	// make an unrelated appconfig change, should not remove the integrations
+	appCfgResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"org_info": {
+			"org_name": "test-integrations-zendesk"
+		}
+	}`), http.StatusOK, &appCfgResp)
+	require.Equal(t, "test-integrations-zendesk", appCfgResp.OrgInfo.OrgName)
+	require.Len(t, appCfgResp.Integrations.Zendesk, 2)
 
 	// delete first Zendesk integration
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -4395,6 +4435,14 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 		}
 	}`, srvURL)), http.StatusUnprocessableEntity)
 
+	// if no jira nor zendesk integrations are provided, does not remove integrations
+	appCfgResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"integrations": {}
+	}`), http.StatusOK, &appCfgResp)
+	require.Len(t, appCfgResp.Integrations.Jira, 1)
+	require.Len(t, appCfgResp.Integrations.Zendesk, 1)
+
 	// remove all integrations on exit, so that other tests can enable the
 	// webhook as needed
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
@@ -4422,9 +4470,10 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 	defer cleanupQuery(s, existingQueryID)
 
 	for _, tc := range []struct {
-		tname string
-		name  string
-		query string
+		tname    string
+		name     string
+		query    string
+		platform string
 	}{
 		{
 			tname: "empty name",
@@ -4441,23 +4490,50 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 			name:  "Invalid query",
 			query: "",
 		},
+		{
+			tname:    "unsupported platform",
+			name:     "bad query",
+			query:    "select 1",
+			platform: "oops",
+		},
+		{
+			tname:    "unsupported platform",
+			name:     "bad query",
+			query:    "select 1",
+			platform: "charles,darwin",
+		},
+		{
+			tname:    "missing platform comma delimeter",
+			name:     "bad query",
+			query:    "select 1",
+			platform: "linuxdarwin",
+		},
+		{
+			tname:    "missing platform comma delimeter",
+			name:     "bad query",
+			query:    "select 1",
+			platform: "windows darwin",
+		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
 			reqQuery := &fleet.QueryPayload{
-				Name:  ptr.String(tc.name),
-				Query: ptr.String(tc.query),
+				Name:     ptr.String(tc.name),
+				Query:    ptr.String(tc.query),
+				Platform: ptr.String(tc.platform),
 			}
 			createQueryResp := createQueryResponse{}
 			s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
 			require.Nil(t, createQueryResp.Query)
 
 			payload := fleet.QueryPayload{
-				Name:  ptr.String(tc.name),
-				Query: ptr.String(tc.query),
+				Name:     ptr.String(tc.name),
+				Query:    ptr.String(tc.query),
+				Platform: ptr.String(tc.platform),
 			}
 			mResp := modifyQueryResponse{}
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", existingQueryID), &payload, http.StatusBadRequest, &mResp)
 			require.Nil(t, mResp.Query)
+			// TODO – add checks for specific errors
 		})
 	}
 }
@@ -4586,6 +4662,34 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 
 	// run a script sync
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusPaymentRequired, &runResp)
+
+	// get script result
+	var scriptResultResp getScriptResultResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/test-id", nil, http.StatusPaymentRequired, &scriptResultResp)
+
+	// create a saved script
+	body, headers := generateNewScriptMultipartRequest(t, nil,
+		"myscript.sh", []byte(`echo "hello"`), s.token)
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusPaymentRequired, headers)
+
+	// delete a saved script
+	var delScriptResp deleteScriptResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/scripts/123", nil, http.StatusPaymentRequired, &delScriptResp)
+
+	// list saved scripts
+	var listScriptsResp listScriptsResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusPaymentRequired, &listScriptsResp, "per_page", "10")
+
+	// get a saved script
+	var getScriptResp getScriptResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/123", nil, http.StatusPaymentRequired, &getScriptResp)
+
+	// get host script details
+	var getHostScriptDetailsResp getHostScriptDetailsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/123/scripts", nil, http.StatusPaymentRequired, &getHostScriptDetailsResp)
+
+	// batch set scripts
+	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusPaymentRequired)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -4890,9 +4994,16 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	// set the macos disk encryption field, fails due to license
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
+		"mdm": { "enable_disk_encryption": true }
   }`), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "missing or invalid license")
+
+	// legacy config
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
+  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "missing or invalid license")
 
 	// try to set the apple bm default team, which is premium only
@@ -4989,6 +5100,21 @@ func (s *integrationTestSuite) TestQuerySpecs() {
 			{Name: q3, Query: "SELECT 3"},
 		},
 	}, http.StatusOK, &applyResp)
+
+	// try to create a query with invalid platform, fail
+	q4 := q1 + "_4"
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{
+			{Name: q4, Query: "SELECT 4", Platform: "not valid"},
+		},
+	}, http.StatusBadRequest, &applyResp)
+
+	// try to edit a query with invalid platform, fail
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{
+			{Name: q3, Query: "SELECT 3", Platform: "charles darwin"},
+		},
+	}, http.StatusBadRequest, &applyResp)
 
 	// list specs - has 3, not 4 (one was an update)
 	s.DoJSON("GET", "/api/latest/fleet/spec/queries", nil, http.StatusOK, &getSpecsResp)
@@ -6014,7 +6140,6 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
 	require.Len(t, rows[0], 48)        // total number of cols
-	t.Log(rows[0])
 
 	const (
 		idCol       = 3
@@ -6109,7 +6234,6 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local1"}, rows[2][:2])
 	require.Len(t, rows[3], 3)
 	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local0"}, rows[3][:2])
-	t.Log(rows)
 }
 
 func (s *integrationTestSuite) TestSSODisabled() {
@@ -6332,6 +6456,16 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	// the orbit endpoint to set the disk encryption key always fails in this
+	// suite because MDM is not configured.
+	orbitHost := createOrbitEnrolledHost(t, "windows", "diskenc", s.ds)
+	res := s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
+		OrbitNodeKey:  *orbitHost.OrbitNodeKey,
+		EncryptionKey: []byte("testkey"),
+	}, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 }
 
 func (s *integrationTestSuite) TestOSVersions() {
@@ -6384,16 +6518,15 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 	s.DoRawNoAuth("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
 }
 
-func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
+func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 	t := s.T()
 
 	// create a host with device token to test device authenticated routes
 	tkn := "D3V1C370K3N"
 	createHostAndDeviceToken(t, s.ds, tkn)
 
-	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
+	for _, route := range mdmConfigurationRequiredEndpoints() {
 		which := fmt.Sprintf("%s %s", route.method, route.path)
-		log.Print(which)
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
 		if route.premiumOnly && route.deviceAuthenticated {
 			// user-authenticated premium-only routes will never see the ErrMissingLicense error
@@ -6889,3 +7022,922 @@ const (
   }
 }`
 )
+
+func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
+	t := s.T()
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "Foobar",
+	})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "Zoo",
+	})
+	require.NoError(t, err)
+	globalHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(uuid.New().String()),
+		NodeKey:         ptr.String(uuid.New().String()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	team1Host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(uuid.New().String()),
+		NodeKey:         ptr.String(uuid.New().String()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.team", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team1.ID,
+	})
+	require.NoError(t, err)
+	scheduledGlobalQuery, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Name:               "scheduled-global-query",
+		TeamID:             nil,
+		Interval:           10,
+		Platform:           "darwin",
+		AutomationsEnabled: true,
+		Logging:            "snapshot",
+		Description:        "foobar",
+		Query:              "SELECT * from time;",
+		Saved:              true,
+	})
+	require.NoError(t, err)
+	nonScheduledGlobalQuery, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Name:               "non-scheduled-global-query",
+		TeamID:             nil,
+		Interval:           0,
+		Platform:           "darwin",
+		AutomationsEnabled: false,
+		Logging:            "snapshot",
+		Description:        "foobar",
+		Query:              "SELECT * from osquery_info;",
+		Saved:              true,
+	})
+	require.NoError(t, err)
+	scheduledTeam1Query1, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Name:               "scheduled-team1-query1",
+		TeamID:             &team1.ID,
+		Interval:           20,
+		Platform:           "",
+		AutomationsEnabled: true,
+		Logging:            "snapshot",
+		Description:        "foobar",
+		Query:              "SELECT * from other;",
+		Saved:              true,
+	})
+	require.NoError(t, err)
+	scheduledTeam1Query2, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Name:               "scheduled-team1-query2",
+		TeamID:             &team1.ID,
+		Interval:           90,
+		Platform:           "",
+		AutomationsEnabled: true,
+		Logging:            "snapshot",
+		Description:        "foobar",
+		Query:              "SELECT * from other;",
+		Saved:              true,
+	})
+	require.NoError(t, err)
+	// Create a non-scheduled query to test that we filter it out when providing
+	// the queries in the osquery/config endpoint.
+	_, err = s.ds.NewQuery(context.Background(), &fleet.Query{
+		Name:               "non-scheduled-team1-query",
+		TeamID:             &team1.ID,
+		Interval:           0,
+		Platform:           "",
+		AutomationsEnabled: false,
+		Logging:            "snapshot",
+		Description:        "foobar",
+		Query:              "SELECT * from foobar;",
+		Saved:              true,
+	})
+	require.NoError(t, err)
+	// Create a scheduled query but on another team to test that we filter it
+	// out when providing the queries in the osquery/config endpoint.
+	_, err = s.ds.NewQuery(context.Background(), &fleet.Query{
+		Name:               "scheduled-team2-query",
+		TeamID:             &team2.ID,
+		Interval:           40,
+		Platform:           "",
+		AutomationsEnabled: true,
+		Logging:            "snapshot",
+		Description:        "foobar",
+		Query:              "SELECT * from other;",
+		Saved:              true,
+	})
+	require.NoError(t, err)
+	// Create a legacy 2017 user pack with one query.
+	userPack1TargetTeam1, err := s.ds.NewPack(context.Background(), &fleet.Pack{
+		Name:    "2017 Pack",
+		Type:    nil,
+		Teams:   []fleet.Target{{TargetID: team1.ID, Type: fleet.TargetTeam}},
+		TeamIDs: []uint{team1.ID},
+	})
+	require.NoError(t, err)
+	scheduledQueryOnPack1, err := s.ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
+		Name:     "scheduled-query-pack1",
+		PackID:   userPack1TargetTeam1.ID,
+		QueryID:  nonScheduledGlobalQuery.ID,
+		Interval: 60,
+		Snapshot: ptr.Bool(true),
+		Removed:  ptr.Bool(true),
+	})
+	require.NoError(t, err)
+
+	// Simulate the osquery instance of the global host calling the osquery/config endpoint
+	// and test the returned scheduled queries.
+	req := getClientConfigRequest{NodeKey: *globalHost.NodeKey}
+	var resp getClientConfigResponse
+	s.DoJSON("POST", "/api/osquery/config", req, http.StatusOK, &resp)
+	packs := resp.Config["packs"].(map[string]interface{})
+	require.Len(t, packs, 1)
+	globalQueries := packs["Global"].(map[string]interface{})["queries"].(map[string]interface{})
+	require.Len(t, globalQueries, 1)
+	require.Contains(t, globalQueries, scheduledGlobalQuery.Name)
+
+	// Simulate the osquery instance of the team host calling the osquery/config endpoint
+	// and test the returned scheduled queries.
+	req = getClientConfigRequest{NodeKey: *team1Host.NodeKey}
+	resp = getClientConfigResponse{}
+	s.DoJSON("POST", "/api/osquery/config", req, http.StatusOK, &resp)
+	packs = resp.Config["packs"].(map[string]interface{})
+	require.Len(t, packs, 3)
+	globalQueries = packs["Global"].(map[string]interface{})["queries"].(map[string]interface{})
+	require.Len(t, globalQueries, 1)
+	require.Contains(t, globalQueries, scheduledGlobalQuery.Name)
+	team1Queries := packs[fmt.Sprintf("team-%d", team1.ID)].(map[string]interface{})["queries"].(map[string]interface{})
+	require.Len(t, team1Queries, 2)
+	require.Contains(t, team1Queries, scheduledTeam1Query1.Name)
+	require.Contains(t, team1Queries, scheduledTeam1Query2.Name)
+	userPack1Queries := packs[userPack1TargetTeam1.Name].(map[string]interface{})["queries"].(map[string]interface{})
+	require.Len(t, userPack1Queries, 1)
+	require.Contains(t, userPack1Queries, scheduledQueryOnPack1.Name)
+
+	// Now let's simulate a osquery instance running in the team host returning the
+	// stats in the distributed/write (osquery_schedule table)
+	rows := []map[string]string{
+		{
+			"name":              "pack/Global/scheduled-global-query",
+			"query":             "SELECT * FROM time;",
+			"interval":          "10",
+			"executions":        "2",
+			"last_executed":     "1693476753",
+			"denylisted":        "0",
+			"output_size":       "576",
+			"wall_time":         "1",
+			"wall_time_ms":      "2",
+			"last_wall_time_ms": "3",
+			"user_time":         "4",
+			"last_user_time":    "5",
+			"system_time":       "6",
+			"last_system_time":  "7",
+			"average_memory":    "8",
+			"last_memory":       "9",
+			"delimiter":         "/",
+		},
+		{
+			"name":              "pack/2017 Pack/scheduled-query-pack1",
+			"query":             "SELECT * FROM osquery_info;",
+			"interval":          "60",
+			"executions":        "20",
+			"last_executed":     "1693476842",
+			"denylisted":        "0",
+			"output_size":       "9620",
+			"wall_time":         "9",
+			"wall_time_ms":      "8",
+			"last_wall_time_ms": "7",
+			"user_time":         "6",
+			"last_user_time":    "5",
+			"system_time":       "4",
+			"last_system_time":  "3",
+			"average_memory":    "2",
+			"last_memory":       "1",
+			"delimiter":         "/",
+		},
+		{
+			"name":              fmt.Sprintf("pack/team-%d/scheduled-team1-query1", team1.ID),
+			"query":             "SELECT * FROM other;",
+			"interval":          "20",
+			"executions":        "1",
+			"last_executed":     "1693476561",
+			"denylisted":        "0",
+			"output_size":       "10",
+			"wall_time":         "11",
+			"wall_time_ms":      "12",
+			"last_wall_time_ms": "13",
+			"user_time":         "14",
+			"last_user_time":    "15",
+			"system_time":       "16",
+			"last_system_time":  "17",
+			"average_memory":    "18",
+			"last_memory":       "19",
+			"delimiter":         "/",
+		},
+		{
+			"name":              fmt.Sprintf("pack/team-%d/scheduled-team1-query2", team1.ID),
+			"query":             "SELECT * FROM other;",
+			"interval":          "90",
+			"executions":        "5",
+			"last_executed":     "1693476666",
+			"denylisted":        "0",
+			"output_size":       "20",
+			"wall_time":         "21",
+			"wall_time_ms":      "22",
+			"last_wall_time_ms": "23",
+			"user_time":         "24",
+			"last_user_time":    "25",
+			"system_time":       "26",
+			"last_system_time":  "27",
+			"average_memory":    "28",
+			"last_memory":       "29",
+			"delimiter":         "/",
+		},
+	}
+
+	appConfig, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{
+		App: config.AppConfig{
+			EnableScheduledQueryStats: true,
+		},
+	}, appConfig, &appConfig.Features)
+	task := async.NewTask(s.ds, nil, clock.C, config.OsqueryConfig{})
+	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
+		context.Background(),
+		log.NewNopLogger(),
+		team1Host,
+		task,
+		rows,
+	)
+	require.NoError(t, err)
+
+	// Check that the received stats were stored in the DB as expected.
+	var scheduledQueriesStats []fleet.ScheduledQueryStats
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(context.Background(), q, &scheduledQueriesStats,
+			`SELECT
+				scheduled_query_id, q.name AS scheduled_query_name, average_memory, denylisted,
+				executions, q.schedule_interval, last_executed,
+				output_size, system_time, user_time, wall_time
+			FROM scheduled_query_stats sqs
+			JOIN queries q ON sqs.scheduled_query_id = q.id
+			WHERE host_id = ?;`,
+			team1Host.ID,
+		)
+	})
+	require.Len(t, scheduledQueriesStats, 4)
+	rowsMap := make(map[string]map[string]string)
+	for _, row := range rows {
+		parts := strings.Split(row["name"], "/")
+		queryName := parts[len(parts)-1]
+		// we need to map this because 2017 packs send the name of the schedule and not
+		// the name of the query.
+		if queryName == "scheduled-query-pack1" {
+			queryName = "non-scheduled-global-query"
+		}
+		rowsMap[queryName] = row
+	}
+	for _, sqs := range scheduledQueriesStats {
+		row := rowsMap[sqs.ScheduledQueryName]
+		require.Equal(t, strconv.FormatInt(int64(sqs.AverageMemory), 10), row["average_memory"])
+		require.Equal(t, strconv.FormatInt(int64(sqs.Executions), 10), row["executions"])
+		interval := row["interval"]
+		if sqs.ScheduledQueryName == "non-scheduled-global-query" {
+			interval = "0" // this query has metrics because it runs on a pack.
+		}
+		require.Equal(t, strconv.FormatInt(int64(sqs.Interval), 10), interval)
+		lastExecuted, err := strconv.ParseInt(row["last_executed"], 10, 64)
+		require.NoError(t, err)
+		require.WithinDuration(t, sqs.LastExecuted, time.Unix(lastExecuted, 0), 1*time.Second)
+		require.Equal(t, strconv.FormatInt(int64(sqs.OutputSize), 10), row["output_size"])
+		require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
+		require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
+		require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time"])
+	}
+
+	// Now let's simulate a osquery instance running in the global host returning the
+	// stats in the distributed/write (osquery_schedule table)
+	rows = []map[string]string{
+		{
+			"name":              "pack/Global/scheduled-global-query",
+			"query":             "SELECT * FROM time;",
+			"interval":          "10",
+			"executions":        "2",
+			"last_executed":     "1693476753",
+			"denylisted":        "0",
+			"output_size":       "576",
+			"wall_time":         "1",
+			"wall_time_ms":      "2",
+			"last_wall_time_ms": "3",
+			"user_time":         "4",
+			"last_user_time":    "5",
+			"system_time":       "6",
+			"last_system_time":  "7",
+			"average_memory":    "8",
+			"last_memory":       "9",
+			"delimiter":         "/",
+		},
+	}
+
+	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
+		context.Background(),
+		log.NewNopLogger(),
+		globalHost,
+		task,
+		rows,
+	)
+	require.NoError(t, err)
+
+	// Check that the received stats were stored in the DB as expected.
+	scheduledQueriesStats = []fleet.ScheduledQueryStats{}
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(context.Background(), q, &scheduledQueriesStats,
+			`SELECT
+				scheduled_query_id, q.name AS scheduled_query_name, average_memory, denylisted,
+				executions, q.schedule_interval, last_executed,
+				output_size, system_time, user_time, wall_time
+			FROM scheduled_query_stats sqs
+			JOIN queries q ON sqs.scheduled_query_id = q.id
+			WHERE host_id = ?;`,
+			globalHost.ID,
+		)
+	})
+	require.Len(t, scheduledQueriesStats, 1)
+	row := rows[0]
+	parts := strings.Split(row["name"], "/")
+	queryName := parts[len(parts)-1]
+	sqs := scheduledQueriesStats[0]
+	require.Equal(t, scheduledQueriesStats[0].ScheduledQueryName, queryName)
+	require.Equal(t, strconv.FormatInt(int64(sqs.AverageMemory), 10), row["average_memory"])
+	require.Equal(t, strconv.FormatInt(int64(sqs.Executions), 10), row["executions"])
+	require.Equal(t, strconv.FormatInt(int64(sqs.Interval), 10), row["interval"])
+	lastExecuted, err := strconv.ParseInt(row["last_executed"], 10, 64)
+	require.NoError(t, err)
+	require.WithinDuration(t, sqs.LastExecuted, time.Unix(lastExecuted, 0), 1*time.Second)
+	require.Equal(t, strconv.FormatInt(int64(sqs.OutputSize), 10), row["output_size"])
+	require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
+	require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
+	require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time"])
+}
+
+// TestDirectIngestSoftwareWithLongFields tests that software with reported long fields
+// are inserted properly and subsequent reports of the same software do not generate new
+// entries in the `software` table. (It mainly tests the comparison between the currenly
+// inserted software and the incoming software from a host.)
+func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
+	t := s.T()
+
+	appConfig, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	appConfig.Features.EnableSoftwareInventory = true
+
+	globalHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(uuid.New().String()),
+		NodeKey:         ptr.String(uuid.New().String()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Simulate a osquery agent on Windows reporting a software row for Wireshark.
+	rows := []map[string]string{
+		{
+			"name":           "Wireshark 4.0.8 64-bit",
+			"version":        "4.0.8",
+			"type":           "Program (Windows)",
+			"source":         "programs",
+			"vendor":         "The Wireshark developer community, https://www.wireshark.org",
+			"installed_path": "C:\\Program Files\\Wireshark",
+		},
+	}
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		log.NewNopLogger(),
+		globalHost,
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+
+	// Check that the software was properly ingested.
+	softwareQueryByName := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE name = ?;"
+	var wiresharkSoftware fleet.Software
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &wiresharkSoftware, softwareQueryByName, "Wireshark 4.0.8 64-bit")
+	})
+	require.NotZero(t, wiresharkSoftware.ID)
+	require.Equal(t, "Wireshark 4.0.8 64-bit", wiresharkSoftware.Name)
+	require.Equal(t, "4.0.8", wiresharkSoftware.Version)
+	require.Equal(t, "programs", wiresharkSoftware.Source)
+	require.Empty(t, wiresharkSoftware.BundleIdentifier)
+	require.Empty(t, wiresharkSoftware.Release)
+	require.Empty(t, wiresharkSoftware.Arch)
+	require.Equal(t, "The Wireshark developer community, https://www.wireshark.org", wiresharkSoftware.Vendor)
+	hostSoftwareInstalledPathsQuery := `SELECT installed_path FROM host_software_installed_paths WHERE software_id = ?;`
+	var wiresharkSoftwareInstalledPath string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &wiresharkSoftwareInstalledPath, hostSoftwareInstalledPathsQuery, wiresharkSoftware.ID)
+	})
+	require.Equal(t, "C:\\Program Files\\Wireshark", wiresharkSoftwareInstalledPath)
+
+	// We now check that the same software is not created again as a new row when it is received again during software ingestion.
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		log.NewNopLogger(),
+		globalHost,
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+	var wiresharkSoftware2 fleet.Software
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &wiresharkSoftware2, softwareQueryByName, "Wireshark 4.0.8 64-bit")
+	})
+	require.NotZero(t, wiresharkSoftware2.ID)
+	require.Equal(t, wiresharkSoftware.ID, wiresharkSoftware2.ID)
+
+	// Simulate a osquery agent on Windows reporting a software row with a longer than 114 chars vendor field.
+	rows = []map[string]string{
+		{
+			"name":           "Foobar" + strings.Repeat("A", fleet.SoftwareNameMaxLength),
+			"version":        "4.0.8" + strings.Repeat("B", fleet.SoftwareVersionMaxLength),
+			"type":           "Program (Windows)",
+			"source":         "programs" + strings.Repeat("C", fleet.SoftwareSourceMaxLength),
+			"vendor":         strings.Repeat("D", fleet.SoftwareVendorMaxLength+1),
+			"installed_path": "C:\\Program Files\\Foobar",
+			// Test UTF-8 encoded strings.
+			"bundle_identifier": strings.Repeat("⌘", fleet.SoftwareBundleIdentifierMaxLength+1),
+			"release":           strings.Repeat("F", fleet.SoftwareReleaseMaxLength-1) + "⌘⌘",
+			"arch":              strings.Repeat("G", fleet.SoftwareArchMaxLength+1),
+		},
+	}
+
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		log.NewNopLogger(),
+		globalHost,
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+
+	var foobarSoftware fleet.Software
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &foobarSoftware, softwareQueryByName, "Foobar"+strings.Repeat("A", fleet.SoftwareNameMaxLength-6))
+	})
+	require.NotZero(t, foobarSoftware.ID)
+	require.Equal(t, "Foobar"+strings.Repeat("A", fleet.SoftwareNameMaxLength-6), foobarSoftware.Name)
+	require.Equal(t, "4.0.8"+strings.Repeat("B", fleet.SoftwareNameMaxLength-5), foobarSoftware.Version)
+	require.Equal(t, "programs"+strings.Repeat("C", fleet.SoftwareSourceMaxLength-8), foobarSoftware.Source)
+	// Vendor field is currenty trimmed with a different method (... appended at the end)
+	require.Equal(t, strings.Repeat("D", fleet.SoftwareVendorMaxLength-3)+"...", foobarSoftware.Vendor)
+	require.Equal(t, strings.Repeat("⌘", fleet.SoftwareBundleIdentifierMaxLength), foobarSoftware.BundleIdentifier)
+	require.Equal(t, strings.Repeat("F", fleet.SoftwareReleaseMaxLength-1)+"⌘", foobarSoftware.Release)
+	require.Equal(t, strings.Repeat("G", fleet.SoftwareArchMaxLength), foobarSoftware.Arch)
+
+	// We now check that the same software with long (to be trimmed) fields is not created again as a new row.
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		log.NewNopLogger(),
+		globalHost,
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+
+	var foobarSoftware2 fleet.Software
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &foobarSoftware2, softwareQueryByName, "Foobar"+strings.Repeat("A", fleet.SoftwareNameMaxLength-6))
+	})
+	require.Equal(t, foobarSoftware.ID, foobarSoftware2.ID)
+}
+
+func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
+	t := s.T()
+
+	appConfig, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	appConfig.Features.EnableSoftwareInventory = true
+
+	globalHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(uuid.New().String()),
+		NodeKey:         ptr.String(uuid.New().String()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Ingesting software without name should not fail, but the software won't be inserted.
+	rows := []map[string]string{
+		{
+			"version":        "4.0.8",
+			"type":           "Program (Windows)",
+			"source":         "programs",
+			"vendor":         "The Wireshark developer community, https://www.wireshark.org",
+			"installed_path": "C:\\Program Files\\Wireshark",
+			"last_opened_at": "foobar",
+		},
+	}
+	var w1 bytes.Buffer
+	logger1 := log.NewJSONLogger(&w1)
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		logger1,
+		globalHost,
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+	logs1, err := io.ReadAll(&w1)
+	require.NoError(t, err)
+	require.Contains(t, string(logs1), "host reported software with empty name", fmt.Sprintf("%s", logs1))
+	require.Contains(t, string(logs1), "debug")
+
+	// Check that the software was not ingested.
+	softwareQueryByVendor := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE vendor = ?;"
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var wiresharkSoftware fleet.Software
+		if sqlx.GetContext(context.Background(), q, &wiresharkSoftware, softwareQueryByVendor, "The Wireshark developer community, https://www.wireshark.org") != sql.ErrNoRows {
+			return errors.New("expected no results")
+		}
+		return nil
+	})
+
+	// Ingesting software without source should not fail, but the software won't be inserted.
+	rows = []map[string]string{
+		{
+			"name":           "Wireshark 4.0.8 64-bit",
+			"version":        "4.0.8",
+			"type":           "Program (Windows)",
+			"vendor":         "The Wireshark developer community, https://www.wireshark.org",
+			"installed_path": "C:\\Program Files\\Wireshark",
+			"last_opened_at": "foobar",
+		},
+	}
+	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	var w2 bytes.Buffer
+	logger2 := log.NewJSONLogger(&w2)
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		logger2,
+		globalHost,
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+	logs2, err := io.ReadAll(&w2)
+	require.NoError(t, err)
+	require.Contains(t, string(logs2), "host reported software with empty source")
+	require.Contains(t, string(logs2), "debug")
+
+	// Check that the software was not ingested.
+	softwareQueryByName := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE name = ?;"
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var wiresharkSoftware fleet.Software
+		if sqlx.GetContext(context.Background(), q, &wiresharkSoftware, softwareQueryByName, "Wireshark 4.0.8 64-bit") != sql.ErrNoRows {
+			return errors.New("expected no results")
+		}
+		return nil
+	})
+
+	// Ingesting software with invalid last_opened_at should not fail (only log a debug error)
+	rows = []map[string]string{
+		{
+			"name":           "Wireshark 4.0.8 64-bit",
+			"version":        "4.0.8",
+			"type":           "Program (Windows)",
+			"source":         "programs",
+			"vendor":         "The Wireshark developer community, https://www.wireshark.org",
+			"installed_path": "C:\\Program Files\\Wireshark",
+			"last_opened_at": "foobar",
+		},
+	}
+	var w3 bytes.Buffer
+	logger3 := log.NewJSONLogger(&w3)
+	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	err = detailQueries["software_windows"].DirectIngestFunc(
+		context.Background(),
+		logger3,
+		globalHost,
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+	logs3, err := io.ReadAll(&w3)
+	require.NoError(t, err)
+	require.Contains(t, string(logs3), "host reported software with invalid last opened timestamp")
+	require.Contains(t, string(logs3), "debug")
+
+	// Check that the software was properly ingested.
+	var wiresharkSoftware fleet.Software
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &wiresharkSoftware, softwareQueryByName, "Wireshark 4.0.8 64-bit")
+	})
+	require.NotZero(t, wiresharkSoftware.ID)
+}
+
+func (s *integrationTestSuite) TestOrbitConfigExtensions() {
+	t := s.T()
+	ctx := context.Background()
+
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	defer func() {
+		err = s.ds.SaveAppConfig(ctx, appCfg)
+		require.NoError(t, err)
+	}()
+
+	// Orbit client gets no extensions if extensions are not configured.
+	orbitLinuxClient := createOrbitEnrolledHost(t, "linux", "foobar1", s.ds)
+	resp := orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, resp.Extensions)
+
+	// Attempt to add extensions (should succeed).
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+	"agent_options": {
+		"config": {
+			"options": {
+				"pack_delimiter": "/",
+				"logger_tls_period": 10,
+				"distributed_plugin": "tls",
+				"disable_distributed": false,
+				"logger_tls_endpoint": "/api/osquery/log",
+				"distributed_interval": 10,
+				"distributed_tls_max_attempts": 3
+			}
+		},
+		"extensions": {
+			"hello_world_linux": {
+				"channel": "stable",
+				"platform": "linux"
+			},
+			"hello_mars_linux": {
+				"channel": "stable",
+				"platform": "linux"
+			},
+			"hello_world_macos": {
+				"channel": "stable",
+				"platform": "macos"
+			}
+		}
+	}
+}`), http.StatusOK)
+
+	// Attempt to add labels to extensions (only available on premium).
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+  "agent_options": {
+	"config": {
+		"options": {
+		"pack_delimiter": "/",
+		"logger_tls_period": 10,
+		"distributed_plugin": "tls",
+		"disable_distributed": false,
+		"logger_tls_endpoint": "/api/osquery/log",
+		"distributed_interval": 10,
+		"distributed_tls_max_attempts": 3
+		}
+	},
+	"extensions": {
+		"hello_world_linux": {
+			"channel": "stable",
+			"platform": "linux"
+		},
+		"hello_world_macos": {
+			"labels": [
+				"All hosts",
+				"Some label"
+			],
+			"channel": "stable",
+			"platform": "macos"
+		},
+		"hello_world_windows": {
+			"channel": "stable",
+			"platform": "windows"
+		}
+	}
+  }
+}`), http.StatusBadRequest)
+
+	// Orbit client gets extensions configured for its platform.
+	orbitDarwinClient := createOrbitEnrolledHost(t, "darwin", "foobar2", s.ds)
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitDarwinClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+    "hello_world_macos": {
+      "platform": "macos",
+      "channel": "stable"
+    }
+  }`, string(resp.Extensions))
+
+	orbitWindowsClient := createOrbitEnrolledHost(t, "windows", "foobar3", s.ds)
+
+	// Orbit client gets no extensions if none of the platforms target it.
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitWindowsClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.Empty(t, resp.Extensions)
+
+	// Orbit client gets the two extensions configured for its platform.
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitLinuxClient.OrbitNodeKey)), http.StatusOK, &resp)
+	require.JSONEq(t, `{
+	"hello_world_linux": {
+		"channel": "stable",
+		"platform": "linux"
+	},
+	"hello_mars_linux": {
+		"channel": "stable",
+		"platform": "linux"
+	}
+  }`, string(resp.Extensions))
+}
+
+func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
+	t := s.T()
+	ctx := context.Background()
+
+	newHostFunc := func(name string) *fleet.Host {
+		host, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(name),
+			UUID:            name,
+			Hostname:        "foo.local." + name,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		return host
+	}
+
+	hostCount := 10
+	hosts := make([]*fleet.Host, 0, hostCount)
+	for i := 0; i < hostCount; i++ {
+		hosts = append(hosts, newHostFunc(fmt.Sprintf("h%d", i)))
+	}
+
+	globalPolicy0, err := s.ds.NewGlobalPolicy(ctx, &test.UserAdmin.ID, fleet.PolicyPayload{
+		Name:  "foobar0",
+		Query: "SELECT 0;",
+	})
+	require.NoError(t, err)
+	globalPolicy1, err := s.ds.NewGlobalPolicy(ctx, &test.UserAdmin.ID, fleet.PolicyPayload{
+		Name:  "foobar1",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	globalPolicy2, err := s.ds.NewGlobalPolicy(ctx, &test.UserAdmin.ID, fleet.PolicyPayload{
+		Name:  "foobar2",
+		Query: "SELECT 2;",
+	})
+	require.NoError(t, err)
+
+	for i, host := range hosts {
+		// All hosts pass the globalPolicy0
+		err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy0.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+
+		if i%2 == 0 {
+			// Half of the hosts pass the globalPolicy1 and fail the globalPolicy2
+			err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: ptr.Bool(true)}, time.Now(), false)
+			require.NoError(t, err)
+			err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: ptr.Bool(false)}, time.Now(), false)
+			require.NoError(t, err)
+		} else {
+			// Half of the hosts pass the globalPolicy2 and fail the globalPolicy1
+			err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: ptr.Bool(false)}, time.Now(), false)
+			require.NoError(t, err)
+			err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: ptr.Bool(true)}, time.Now(), false)
+			require.NoError(t, err)
+		}
+	}
+
+	// The hosts/report endpoint uses svc.ds.ListHosts with page=0, per_page=0, thus we are
+	// testing the non optimized for pagination queries for failing policies calculation.
+	res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv")
+	rows1, err := csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
+	require.Len(t, rows1[0], 48)        // total number of cols
+
+	var (
+		idIdx     int
+		issuesIdx int
+	)
+	for colIdx, column := range rows1[0] {
+		switch column {
+		case "issues":
+			issuesIdx = colIdx
+		case "id":
+			idIdx = colIdx
+		}
+	}
+
+	for i := 1; i < len(hosts)+1; i++ {
+		row := rows1[i]
+		require.Equal(t, row[issuesIdx], "1")
+	}
+
+	// Running with disable_failing_policies=true disable the counting of failed policies for a host.
+	// Thus, all "issues" values should be 0.
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "disable_failing_policies", "true")
+	rows2, err := csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
+	require.Len(t, rows2[0], 48)        // total number of cols
+
+	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
+	for i := 1; i < len(hosts)+1; i++ {
+		row := rows2[i]
+		require.Equal(t, row[issuesIdx], "0")
+		row1 := rows1[i]
+		require.Equal(t, row[idIdx], row1[idIdx])
+	}
+
+	for _, tc := range []struct {
+		name      string
+		args      []string
+		checkRows func(t *testing.T, rows [][]string)
+	}{
+		{
+			name: "get hosts that fail globalPolicy0",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy0.ID), "policy_response", "failure"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, 1) // just header row, all hosts pass such policy.
+			},
+		},
+		{
+			name: "get hosts that pass globalPolicy0",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy0.ID), "policy_response", "passing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)+1) // all hosts + header row, all hosts pass such policy.
+			},
+		},
+		{
+			name: "get hosts that fail globalPolicy1",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy1.ID), "policy_response", "failing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)/2+1) // half of hosts + header row.
+			},
+		},
+		{
+			name: "get hosts that pass globalPolicy1",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy1.ID), "policy_response", "passing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)/2+1) // half of hosts + header row.
+			},
+		},
+		{
+			name: "get hosts that fail globalPolicy2",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy2.ID), "policy_response", "failing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)/2+1) // half of hosts + header row.
+			},
+		},
+		{
+			name: "get hosts that pass globalPolicy2",
+			args: []string{"policy_id", fmt.Sprint(globalPolicy2.ID), "policy_response", "passing"},
+			checkRows: func(t *testing.T, rows [][]string) {
+				require.Len(t, rows, len(hosts)/2+1) // half of hosts + header row.
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, append(tc.args, "format", "csv")...)
+			rows, err := csv.NewReader(res.Body).ReadAll()
+			res.Body.Close()
+			require.NoError(t, err)
+			tc.checkRows(t, rows)
+			// Test the same with "disable_failing_policies=true" which should not change the result.
+			res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, append(tc.args, "format", "csv", "disable_failing_policies", "true")...)
+			rows, err = csv.NewReader(res.Body).ReadAll()
+			res.Body.Close()
+			require.NoError(t, err)
+			tc.checkRows(t, rows)
+		})
+	}
+}

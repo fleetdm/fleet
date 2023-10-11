@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -76,6 +77,31 @@ func (r *appConfigResponse) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	return nil
+}
+
+// MarshalJSON implements the json.Marshaler interface to make sure we serialize
+// both AppConfig and responseFields properly:
+//
+// - If this function is not defined, AppConfig.MarshalJSON gets promoted and
+// will be called instead.
+// - If we try to unmarshal everything in one go, AppConfig.MarshalJSON doesn't get
+// called.
+func (r appConfigResponse) MarshalJSON() ([]byte, error) {
+	// Marshal only the response fields
+	responseData, err := json.Marshal(r.appConfigResponseFields)
+	if err != nil {
+		return nil, err
+	}
+
+	// Marshal the base AppConfig
+	appConfigData, err := json.Marshal(r.AppConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// we need to marshal and combine both groups separately because
+	// AppConfig has a custom marshaler.
+	return rawjson.CombineRoots(responseData, appConfigData)
 }
 
 func (r appConfigResponse) error() error { return r.Err }
@@ -149,6 +175,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			WebhookSettings: appConfig.WebhookSettings,
 			Integrations:    appConfig.Integrations,
 			MDM:             appConfig.MDM,
+			Scripts:         appConfig.Scripts,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
@@ -329,7 +356,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if newAppConfig.AgentOptions != nil {
 		// if there were Agent Options in the new app config, then it replaced the
 		// agent options in the resulting app config, so validate those.
-		if err := fleet.ValidateJSONAgentOptions(*appConfig.AgentOptions); err != nil {
+		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, *appConfig.AgentOptions, license.IsPremium()); err != nil {
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOpts.Force && !applyOpts.DryRun {
 				level.Info(svc.logger).Log("err", err, "msg", "force-apply appConfig agent options with validation errors")
@@ -338,6 +365,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				return nil, ctxerr.Wrap(ctx, err, "validate agent options")
 			}
 		}
+	}
+
+	// TODO: move this logic to the AppConfig unmarshaller? we need to do
+	// this because we unmarshal twice into appConfig:
+	//
+	// 1. To get the JSON value from the database
+	// 2. To update fields with the incoming values
+	if newAppConfig.MDM.EnableDiskEncryption.Valid {
+		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
 	}
 
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
@@ -392,32 +428,42 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	delJira, err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira)
-	if err != nil {
-		if errors.As(err, &fleet.IntegrationTestError{}) {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: err.Error(),
-			})
+	// NOTE: the frontend will always send all integrations back when making
+	// changes, so as soon as Jira or Zendesk has something set, it's fair to
+	// assume that integrations are being modified and we have the full set of
+	// those integrations. When deleting, it does send empty arrays (not nulls),
+	// so this is fine - e.g. when deleting the last integration it sends:
+	//
+	//   {"integrations":{"zendesk":[],"jira":[]}}
+	//
+	if newAppConfig.Integrations.Jira != nil || newAppConfig.Integrations.Zendesk != nil {
+		delJira, err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira)
+		if err != nil {
+			if errors.As(err, &fleet.IntegrationTestError{}) {
+				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: err.Error(),
+				})
+			}
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Jira integration", err.Error()))
 		}
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Jira integration", err.Error()))
-	}
-	appConfig.Integrations.Jira = newAppConfig.Integrations.Jira
+		appConfig.Integrations.Jira = newAppConfig.Integrations.Jira
 
-	delZendesk, err := fleet.ValidateZendeskIntegrations(ctx, storedZendeskByGroupID, newAppConfig.Integrations.Zendesk)
-	if err != nil {
-		if errors.As(err, &fleet.IntegrationTestError{}) {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: err.Error(),
-			})
+		delZendesk, err := fleet.ValidateZendeskIntegrations(ctx, storedZendeskByGroupID, newAppConfig.Integrations.Zendesk)
+		if err != nil {
+			if errors.As(err, &fleet.IntegrationTestError{}) {
+				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: err.Error(),
+				})
+			}
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Zendesk integration", err.Error()))
 		}
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Zendesk integration", err.Error()))
-	}
-	appConfig.Integrations.Zendesk = newAppConfig.Integrations.Zendesk
+		appConfig.Integrations.Zendesk = newAppConfig.Integrations.Zendesk
 
-	// if any integration was deleted, remove it from any team that uses it
-	if len(delJira)+len(delZendesk) > 0 {
-		if err := svc.ds.DeleteIntegrationsFromTeams(ctx, fleet.Integrations{Jira: delJira, Zendesk: delZendesk}); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete integrations from teams")
+		// if any integration was deleted, remove it from any team that uses it
+		if len(delJira)+len(delZendesk) > 0 {
+			if err := svc.ds.DeleteIntegrationsFromTeams(ctx, fleet.Integrations{Jira: delJira, Zendesk: delZendesk}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "delete integrations from teams")
+			}
 		}
 	}
 
@@ -492,21 +538,23 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption != appConfig.MDM.MacOSSettings.EnableDiskEncryption {
-		var act fleet.ActivityDetails
-		if appConfig.MDM.MacOSSettings.EnableDiskEncryption {
-			act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
-			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
+	if appConfig.MDM.EnableDiskEncryption.Valid && oldAppConfig.MDM.EnableDiskEncryption.Value != appConfig.MDM.EnableDiskEncryption.Value {
+		if oldAppConfig.MDM.EnabledAndConfigured {
+			var act fleet.ActivityDetails
+			if appConfig.MDM.EnableDiskEncryption.Value {
+				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
+				if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
+				}
+			} else {
+				act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
+				if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
+				}
 			}
-		} else {
-			act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
-			if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
+			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 			}
-		}
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 		}
 	}
 
@@ -555,7 +603,7 @@ func (svc *Service) validateMDM(
 	mdm *fleet.MDM,
 	invalid *fleet.InvalidArgumentError,
 ) {
-	if mdm.MacOSSettings.EnableDiskEncryption && !license.IsPremium() {
+	if mdm.EnableDiskEncryption.Value && !license.IsPremium() {
 		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
 	}
 	if oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !license.IsPremium() {
@@ -573,11 +621,6 @@ func (svc *Service) validateMDM(
 	if !oldMdm.EnabledAndConfigured {
 		if len(mdm.MacOSSettings.CustomSettings) != len(oldMdm.MacOSSettings.CustomSettings) {
 			invalid.Append("macos_settings.custom_settings",
-				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
-		}
-
-		if mdm.MacOSSettings.EnableDiskEncryption {
-			invalid.Append("macos_settings.enable_disk_encryption",
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 
@@ -671,6 +714,14 @@ func (svc *Service) validateMDM(
 		if mdm.WindowsEnabledAndConfigured {
 			invalid.Append("mdm.windows_enabled_and_configured", "cannot enable Windows MDM without the feature flag explicitly enabled")
 			return
+		}
+	}
+
+	// if either macOS or Windows MDM is enabled, this setting can be set.
+	if !mdm.AtLeastOnePlatformEnabledAndConfigured() {
+		if mdm.EnableDiskEncryption.Valid && mdm.EnableDiskEncryption.Value != oldMdm.EnableDiskEncryption.Value {
+			invalid.Append("mdm.enable_disk_encryption",
+				`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
 		}
 	}
 }

@@ -154,7 +154,7 @@ module.exports.custom = {
     //'handbook/company': 'mikermcneil',
     //'handbook/business-operations': 'mikermcneil',
     //'handbook/engineering': 'lukeheath',
-    //'handbook/product': 'zhumo',
+    //'handbook/product': 'noahtalerman',
     //'handbook/customers': 'alexmitchelliii',
     //'handbook/marketing': 'mikermcneil',
 
@@ -193,7 +193,7 @@ module.exports.custom = {
     'ee/cis': ['sharon-fdm', 'lucasmrod', 'marcosd4h', 'rachelElysia', 'rachaelshaw'],
 
     // Articles and release notes
-    'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'zhumo', 'lukeheath'],
+    'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'lukeheath'],
     'articles': ['mike-j-thomas', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil', 'spokanemac'],
     'website/assets/images/articles': ['spokanemac', 'mike-j-thomas', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
 
@@ -233,15 +233,15 @@ module.exports.custom = {
     //'handbook/company/ceo.md': ['sampfluger88'],
     //'handbook/business-operations': ['jostableford'],
     //'handbook/engineering': ['lukeheath'],
-    //'handbook/product': ['zhumo'],
+    //'handbook/product': ['noahtalerman'],
     //'handbook/customers': ['alexmitchelliii'],
     //'handbook/marketing': ['mike-j-thomas'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'hollidayn'],
-    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','zhumo','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala', 'zhumo','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala', 'zhumo','lukeheath','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala','lukeheath','noahtalerman', 'lukeheath'],
   },
 
   confidentialGithubRepoMaintainersByPath: {// fleetdm/confidential
@@ -253,7 +253,7 @@ module.exports.custom = {
 
     // Repo automation and change control settings
     'CODEOWNERS': ['mikermcneil', 'zwass'],
-    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon', 'lukeheath', 'zwinnerman-fleetdm', 'rfairburn'],// « what files should not be checked in?
+    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon', 'lukeheath', 'rfairburn'],// « what files should not be checked in?
     'free-for-all': '*',//« Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
 
     // "Secret handbook"

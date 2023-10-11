@@ -1,16 +1,13 @@
 <div id="register" v-cloak>
   <div style="max-width:  800px; padding-top: 80px; padding-bottom: 80px;" class="container d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto px-4 px-md-3">
     <div>
-      <img purpose="sandbox-image" style="width: 300px; height: auto;" src="/images/fleet-sandbox-300x244@2x.png" alt="Play in Fleet sandbox">
+      <img purpose="sandbox-image" style="width: 300px; height: auto;" src="/images/fleet-sandbox-300x244@2x.png" alt="Try Fleet">
     </div>
     <div style="max-width: 400px;" class="flex-column d-flex">
-      <h2>Play in Fleet Sandbox</h2>
+      <h2>Try Fleet</h2>
       <p class="pt-3">
-        The fastest way to test Fleet. Get up and running in minutes. Ready for production deployments? <a href="https://fleetdm.com/docs/deploying">Learn how to deploy Fleet</a>.
+        The fastest way to test Fleet. Get up and running in minutes.
       </p>
-      <div purpose="sandbox-mdm-note" class="d-flex flex-column">
-        <p class="mb-0">Interested in testing Fleet’s MDM capabilities? <a target="_blank" href="https://fleetdm.com/docs/using-fleet/mdm-setup">Deploy your own Fleet</a></p>
-      </div>
       <div class="pt-3">
         <ajax-form :handle-submitting="handleSubmittingRegisterForm" class="sandbox-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedRegisterForm()">
           <div class="form-group mb-3">

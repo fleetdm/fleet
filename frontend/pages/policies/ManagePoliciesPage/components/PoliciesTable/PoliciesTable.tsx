@@ -137,60 +137,51 @@ const PoliciesTable = ({
         canAddOrDeletePolicy ? "" : "hide-selection-column"
       }`}
     >
-      {isLoading ? (
-        <Spinner />
-      ) : (
-        <TableContainer
-          resultsTitle="policies"
-          columns={generateTableHeaders(
-            {
-              selectedTeamId: currentTeam?.id,
-              canAddOrDeletePolicy,
-              tableType,
-            },
-            isPremiumTier,
-            isSandboxMode
-          )}
-          data={generateDataSet(
-            policiesList,
-            currentAutomatedPolicies,
-            config?.update_interval.osquery_policy
-          )}
-          // filters={{ global: searchQuery }}
-          isLoading={isLoading}
-          defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
-          defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
-          defaultSearchQuery={searchQuery}
-          defaultPageIndex={page}
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          primarySelectAction={{
-            name: "delete policy",
-            buttonText: "Delete",
-            iconSvg: "trash",
-            variant: "text-icon",
-            onActionButtonClick: onDeletePolicyClick,
-          }}
-          emptyComponent={() =>
-            EmptyTable({
-              iconName: emptyState().iconName,
-              header: emptyState().header,
-              info: emptyState().info,
-              additionalInfo: emptyState().additionalInfo,
-              primaryButton: emptyState().primaryButton,
-            })
-          }
-          disableCount={tableType === "inheritedPolicies"}
-          renderCount={renderPoliciesCount}
-          // isClientSidePagination
-          // onClientSidePaginationChange={onClientSidePaginationChange}
-          // isClientSideFilter
-          // searchQueryColumn="name"
-          onQueryChange={onTableQueryChange}
-          inputPlaceHolder="Search by name"
-          searchable={searchable}
-        />
-      )}
+      <TableContainer
+        resultsTitle="policies"
+        columns={generateTableHeaders(
+          {
+            selectedTeamId: currentTeam?.id,
+            canAddOrDeletePolicy,
+            tableType,
+          },
+          isPremiumTier,
+          isSandboxMode
+        )}
+        data={generateDataSet(
+          policiesList,
+          currentAutomatedPolicies,
+          config?.update_interval.osquery_policy
+        )}
+        isLoading={isLoading}
+        defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
+        defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
+        defaultSearchQuery={searchQuery}
+        defaultPageIndex={page}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        primarySelectAction={{
+          name: "delete policy",
+          buttonText: "Delete",
+          iconSvg: "trash",
+          variant: "text-icon",
+          onActionButtonClick: onDeletePolicyClick,
+        }}
+        emptyComponent={() =>
+          EmptyTable({
+            iconName: emptyState().iconName,
+            header: emptyState().header,
+            info: emptyState().info,
+            additionalInfo: emptyState().additionalInfo,
+            primaryButton: emptyState().primaryButton,
+          })
+        }
+        disableCount={tableType === "inheritedPolicies"}
+        renderCount={renderPoliciesCount}
+        onQueryChange={onTableQueryChange}
+        inputPlaceHolder="Search by name"
+        searchable={searchable}
+      />
     </div>
   );
 };

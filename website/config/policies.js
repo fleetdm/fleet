@@ -39,7 +39,6 @@ module.exports.policies = {
   'deliver-demo-signup': true,
   'articles/*': true,
   'reports/*': true,
-  'view-sales-one-pager': true,
   'try-fleet/view-register': true,
   'try-fleet/view-sandbox-login': true,
   'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist': true,
@@ -60,4 +59,5 @@ module.exports.policies = {
   'view-vulnerability-management': true,
   'deliver-mdm-demo-email': true,
   'view-support': true,
+  'view-integrations': true,
 };

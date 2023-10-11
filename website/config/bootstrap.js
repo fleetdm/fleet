@@ -40,6 +40,11 @@ module.exports.bootstrap = async function() {
     var lastRunBootstrapInfo = await sails.helpers.fs.readJson(bootstrapLastRunInfoPath)
     .tolerate('doesNotExist');// (it's ok if the file doesn't exist yet-- just keep going.)
 
+    let numberOfPlatformRecords = await Platform.count();
+    if(numberOfPlatformRecords > 1) {
+      throw new Error('Consistency error: More than one platform record exists. To accurately freeze and unfreeze GitHub pull requests when the main branch is frozen, only one of these records should exist. Number of platform records found'+numberOfPlatformRecords);
+    }
+
     if (lastRunBootstrapInfo && lastRunBootstrapInfo.lastRunVersion === HARD_CODED_DATA_VERSION) {
       sails.log('Skipping v'+HARD_CODED_DATA_VERSION+' bootstrap script...  (because it\'s already been run)');
       sails.log('(last run on this computer: @ '+(new Date(lastRunBootstrapInfo.lastRunAt))+')');
@@ -70,6 +75,8 @@ module.exports.bootstrap = async function() {
     fleetSandboxDemoKey: await sails.helpers.strings.uuid(),
     password: await sails.helpers.passwords.hashPassword('abc123')
   }).fetch();
+
+  // Note: We do not create a platform record to avoid potential consistency violations.
 
   if (sails.config.custom.enableBillingFeatures) {
     let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
