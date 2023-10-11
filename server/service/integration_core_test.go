@@ -7992,6 +7992,14 @@ func (s *integrationTestSuite) TestQueryReports() {
 	})
 	require.NoError(t, err)
 
+	// Should return no results.
+	var gqrr getQueryReportResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", usbDevicesQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.NoError(t, gqrr.Err)
+	require.Equal(t, usbDevicesQuery.ID, gqrr.QueryID)
+	require.NotNil(t, gqrr.Results)
+	require.Len(t, gqrr.Results, 0)
+
 	slreq := submitLogsRequest{
 		NodeKey: *host2Team1.NodeKey,
 		LogType: "result",
@@ -8113,7 +8121,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
 
-	var gqrr getQueryReportResponse
+	gqrr = getQueryReportResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", usbDevicesQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.NoError(t, gqrr.Err)
 	require.Equal(t, usbDevicesQuery.ID, gqrr.QueryID)
