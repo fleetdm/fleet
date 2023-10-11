@@ -13,7 +13,9 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -157,10 +159,21 @@ type MDM struct {
 	// with the similarly named macOS-specific fields.
 	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
 
+	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// AtLeastOnePlatformEnabledAndConfigured returns true if at least one supported platform
+// (macOS or Windows) has MDM enabled and configured.
+func (m MDM) AtLeastOnePlatformEnabledAndConfigured() bool {
+	// explicitly check for the feature flag to account for the edge case of:
+	// 1. FF enabled, windows is turned on
+	// 2. FF disabled on server restart
+	return m.EnabledAndConfigured || (config.IsMDMFeatureFlagEnabled() && m.WindowsEnabledAndConfigured)
 }
 
 // versionStringRegex is used to validate that a version string is in the x.y.z
@@ -222,10 +235,8 @@ type MacOSSettings struct {
 	//
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings []string `json:"custom_settings"`
-	// EnableDiskEncryption enables disk encryption on hosts such that the hosts'
-	// disk encryption keys will be stored in Fleet.
-	EnableDiskEncryption bool `json:"enable_disk_encryption"`
+	CustomSettings                 []string `json:"custom_settings"`
+	DeprecatedEnableDiskEncryption *bool    `json:"enable_disk_encryption,omitempty"`
 
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
@@ -233,7 +244,7 @@ type MacOSSettings struct {
 func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"custom_settings":        s.CustomSettings,
-		"enable_disk_encryption": s.EnableDiskEncryption,
+		"enable_disk_encryption": s.DeprecatedEnableDiskEncryption,
 	}
 }
 
@@ -274,11 +285,11 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			// error, must be a bool
 			return nil, &json.UnmarshalTypeError{
 				Value: fmt.Sprintf("%T", v),
-				Type:  reflect.TypeOf(s.EnableDiskEncryption),
+				Type:  reflect.TypeOf(s.DeprecatedEnableDiskEncryption).Elem(),
 				Field: "macos_settings.enable_disk_encryption",
 			}
 		}
-		s.EnableDiskEncryption = b
+		s.DeprecatedEnableDiskEncryption = ptr.Bool(b)
 	}
 
 	return set, nil
@@ -344,7 +355,8 @@ type AppConfig struct {
 	SMTPSettings       *SMTPSettings      `json:"smtp_settings,omitempty"`
 	HostExpirySettings HostExpirySettings `json:"host_expiry_settings"`
 	// Features allows to globally enable or disable features
-	Features Features `json:"features"`
+	Features               Features  `json:"features"`
+	DeprecatedHostSettings *Features `json:"host_settings,omitempty"`
 	// AgentOptions holds osquery configuration.
 	//
 	// This field is a pointer to avoid returning this information to non-global-admins.
@@ -390,12 +402,6 @@ func (c *AppConfig) Obfuscate() {
 	for _, zdIntegration := range c.Integrations.Zendesk {
 		zdIntegration.APIToken = MaskedPassword
 	}
-}
-
-// legacyConfig holds settings that have been replaced, superceded or
-// deprecated by other AppConfig settings.
-type legacyConfig struct {
-	HostSettings *Features `json:"host_settings"`
 }
 
 // Clone implements cloner.
@@ -507,6 +513,31 @@ func (e *EnrichedAppConfig) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	return nil
+}
+
+// MarshalJSON implements the json.Marshaler interface to make sure we serialize
+// both AppConfig and enrichedAppConfigFields properly:
+//
+// - If this function is not defined, AppConfig.MarshalJSON gets promoted and
+// will be called instead.
+// - If we try to unmarshal everything in one go, AppConfig.MarshalJSON doesn't get
+// called.
+func (e *EnrichedAppConfig) MarshalJSON() ([]byte, error) {
+	// Marshal only the enriched fields
+	enrichedData, err := json.Marshal(e.enrichedAppConfigFields)
+	if err != nil {
+		return nil, err
+	}
+
+	// Marshal the base AppConfig
+	appConfigData, err := json.Marshal(e.AppConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// we need to marshal and combine both groups separately because
+	// AppConfig has a custom marshaler.
+	return rawjson.CombineRoots(enrichedData, appConfigData)
 }
 
 type Duration struct {
@@ -628,16 +659,13 @@ func (c *AppConfig) DidUnmarshalLegacySettings() []string { return c.didUnmarsha
 func (c *AppConfig) UnmarshalJSON(b []byte) error {
 	// Define a new type, this is to prevent infinite recursion when
 	// unmarshalling the AppConfig struct.
-	type cfgStructUnmarshal AppConfig
+	type aliasConfig AppConfig
 	compatConfig := struct {
-		*legacyConfig
-		*cfgStructUnmarshal
+		*aliasConfig
 	}{
-		&legacyConfig{},
-		(*cfgStructUnmarshal)(c),
+		(*aliasConfig)(c),
 	}
 
-	c.didUnmarshalLegacySettings = nil
 	decoder := json.NewDecoder(bytes.NewReader(b))
 	if c.strictDecoding {
 		decoder.DisallowUnknownFields()
@@ -649,16 +677,56 @@ func (c *AppConfig) UnmarshalJSON(b []byte) error {
 		return errors.New("unexpected extra tokens found in config")
 	}
 
+	c.assignDeprecatedFields()
+
+	return nil
+}
+
+func (c AppConfig) MarshalJSON() ([]byte, error) {
+	// Define a new type, this is to prevent infinite recursion when
+	// marshalling the AppConfig struct.
+	c.assignDeprecatedFields()
+
+	// requirements are that if this value is not set, defaults to false.
+	// The default mashaler of optjson.Bool will convert this to `null` if
+	// it's not valid.
+	if !c.MDM.EnableDiskEncryption.Valid {
+		c.MDM.EnableDiskEncryption = optjson.SetBool(false)
+	}
+
+	type aliasConfig AppConfig
+	aa := aliasConfig(c)
+	return json.Marshal(aa)
+}
+
+func (c *AppConfig) assignDeprecatedFields() {
+	c.didUnmarshalLegacySettings = nil
 	// Define and assign legacy settings to new fields.
 	// This has the drawback of legacy fields taking precedence over new fields
 	// if both are defined.
-	if compatConfig.legacyConfig.HostSettings != nil {
+	//
+	// TODO: with optjson + the new approach we're using to handle legacy
+	// fields, legacy fields don't have to take precedence over new fields.
+	// Is it worth changing this behavior for `host_settings`/`features` at this point?
+	if c.DeprecatedHostSettings != nil {
 		c.didUnmarshalLegacySettings = append(c.didUnmarshalLegacySettings, "host_settings")
-		c.Features = *compatConfig.legacyConfig.HostSettings
+		c.Features = *c.DeprecatedHostSettings
 	}
-	sort.Strings(c.didUnmarshalLegacySettings)
 
-	return nil
+	// if disk encryption is not set in the root config
+	// try to read the value from the legacy config
+	if !c.MDM.EnableDiskEncryption.Valid {
+		if c.MDM.MacOSSettings.DeprecatedEnableDiskEncryption != nil {
+			c.didUnmarshalLegacySettings = append(c.didUnmarshalLegacySettings, "mdm.macos_settings.enable_disk_encryption")
+			c.MDM.EnableDiskEncryption = optjson.SetBool(*c.MDM.MacOSSettings.DeprecatedEnableDiskEncryption)
+		}
+	}
+
+	// ensure the legacy configs are always nil
+	c.DeprecatedHostSettings = nil
+	c.MDM.MacOSSettings.DeprecatedEnableDiskEncryption = nil
+
+	sort.Strings(c.didUnmarshalLegacySettings)
 }
 
 // OrgInfo contains general info about the organization using Fleet.

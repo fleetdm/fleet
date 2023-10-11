@@ -317,9 +317,9 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	}
 
 	macOSSettingsStatus := r.URL.Query().Get("macos_settings")
-	switch fleet.MacOSSettingsStatus(macOSSettingsStatus) {
-	case fleet.MacOSSettingsFailed, fleet.MacOSSettingsPending, fleet.MacOSSettingsVerifying, fleet.MacOSSettingsVerified:
-		hopt.MacOSSettingsFilter = fleet.MacOSSettingsStatus(macOSSettingsStatus)
+	switch fleet.OSSettingsStatus(macOSSettingsStatus) {
+	case fleet.OSSettingsFailed, fleet.OSSettingsPending, fleet.OSSettingsVerifying, fleet.OSSettingsVerified:
+		hopt.MacOSSettingsFilter = fleet.OSSettingsStatus(macOSSettingsStatus)
 	case "":
 		// No error when unset
 	default:
@@ -340,6 +340,32 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		// No error when unset
 	default:
 		return hopt, ctxerr.Errorf(r.Context(), "invalid macos_settings_disk_encryption status %s", macOSSettingsDiskEncryptionStatus)
+	}
+
+	osSettingsStatus := r.URL.Query().Get("os_settings")
+	switch fleet.OSSettingsStatus(osSettingsStatus) {
+	case fleet.OSSettingsFailed, fleet.OSSettingsPending, fleet.OSSettingsVerifying, fleet.OSSettingsVerified:
+		hopt.OSSettingsFilter = fleet.OSSettingsStatus(osSettingsStatus)
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid os_settings status %s", osSettingsStatus)
+	}
+
+	osSettingsDiskEncryptionStatus := r.URL.Query().Get("os_settings_disk_encryption")
+	switch fleet.DiskEncryptionStatus(osSettingsDiskEncryptionStatus) {
+	case
+		fleet.DiskEncryptionVerifying,
+		fleet.DiskEncryptionVerified,
+		fleet.DiskEncryptionActionRequired,
+		fleet.DiskEncryptionEnforcing,
+		fleet.DiskEncryptionFailed,
+		fleet.DiskEncryptionRemovingEnforcement:
+		hopt.OSSettingsDiskEncryptionFilter = fleet.DiskEncryptionStatus(osSettingsDiskEncryptionStatus)
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid os_settings_disk_encryption status %s", macOSSettingsDiskEncryptionStatus)
 	}
 
 	mdmBootstrapPackageStatus := r.URL.Query().Get("bootstrap_package")
