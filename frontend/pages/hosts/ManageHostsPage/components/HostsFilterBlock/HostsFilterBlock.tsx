@@ -7,7 +7,7 @@ import {
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
 import {
-  FileVaultProfileStatus,
+  DiskEncryptionStatus,
   BootstrapPackageStatus,
   IMdmSolution,
   MDM_ENROLLMENT_STATUS,
@@ -15,7 +15,10 @@ import {
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { ISoftware } from "interfaces/software";
 import { IPolicy } from "interfaces/policy";
-import { MacSettingsStatusQueryParam } from "services/entities/hosts";
+import {
+  DISK_ENCRYPTION_QUERY_PARAM_NAME,
+  MacSettingsStatusQueryParam,
+} from "services/entities/hosts";
 
 import {
   PLATFORM_LABEL_DISPLAY_NAMES,
@@ -60,7 +63,7 @@ interface IHostsFilterBlockProps {
     osVersions?: IOperatingSystemVersion[];
     softwareDetails: ISoftware | null;
     mdmSolutionDetails: IMdmSolution | null;
-    diskEncryptionStatus?: FileVaultProfileStatus;
+    diskEncryptionStatus?: DiskEncryptionStatus;
     bootstrapPackageStatus?: BootstrapPackageStatus;
   };
   selectedLabel?: ILabel;
@@ -68,9 +71,7 @@ interface IHostsFilterBlockProps {
   handleClearRouteParam: () => void;
   handleClearFilter: (omitParams: string[]) => void;
   onChangePoliciesFilter: (response: PolicyResponse) => void;
-  onChangeDiskEncryptionStatusFilter: (
-    response: FileVaultProfileStatus
-  ) => void;
+  onChangeDiskEncryptionStatusFilter: (response: DiskEncryptionStatus) => void;
   onChangeBootstrapPackageStatusFilter: (
     response: BootstrapPackageStatus
   ) => void;
@@ -376,8 +377,8 @@ const HostsFilterBlock = ({
           onChange={onChangeDiskEncryptionStatusFilter}
         />
         <FilterPill
-          label="macOS settings: Disk encryption"
-          onClear={() => handleClearFilter(["macos_settings_disk_encryption"])}
+          label="OS settings: Disk encryption"
+          onClear={() => handleClearFilter([DISK_ENCRYPTION_QUERY_PARAM_NAME])}
         />
       </>
     );

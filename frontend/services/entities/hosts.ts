@@ -11,7 +11,7 @@ import {
 import { SelectedPlatform } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import {
-  FileVaultProfileStatus,
+  DiskEncryptionStatus,
   BootstrapPackageStatus,
   IMdmSolution,
 } from "interfaces/mdm";
@@ -28,6 +28,11 @@ export interface ILoadHostsResponse {
   munki_issue: IMunkiIssuesAggregate;
   mobile_device_management_solution: IMdmSolution;
 }
+
+// the source of truth for the filter option names.
+// there are used on many other pages but we define them here.
+// TODO: add other filter options here.
+export const DISK_ENCRYPTION_QUERY_PARAM_NAME = "os_settings_disk_encryption";
 
 export interface ILoadHostsQueryKey extends ILoadHostsOptions {
   scope: "hosts";
@@ -57,7 +62,7 @@ export interface ILoadHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
-  diskEncryptionStatus?: FileVaultProfileStatus;
+  diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
@@ -83,7 +88,7 @@ export interface IExportHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
-  diskEncryptionStatus?: FileVaultProfileStatus;
+  diskEncryptionStatus?: DiskEncryptionStatus;
 }
 
 export interface IActionByFilter {

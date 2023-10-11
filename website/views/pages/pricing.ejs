@@ -3,134 +3,55 @@
     <div class="px-0 d-flex flex-column justify-content-center pt-5 mx-auto">
       <div purpose="hero-text">
         <h2 class="text-center mb-5">
-          Select the plan based on your needs
+          Compare plans and pricing
         </h2>
       </div>
-      <div purpose="pricing-switch" class="d-flex flex-row justify-content-center mx-auto mb-5" @click="displaySecurityPricingMode = !displaySecurityPricingMode">
-        <div purpose="pricing-switch-option" :class="[!displaySecurityPricingMode ? 'selected' : '']">IT</div>
-        <div purpose="pricing-switch-option" :class="[displaySecurityPricingMode ? 'selected' : '']">Security</div>
-        <div purpose="pricing-tier-switch" :class="[displaySecurityPricingMode ? 'security-selected' : '']"></div>
-      </div>
       <div purpose="pricing-tiers" class="d-flex flex-column flex-lg-row justify-content-center">
-
         <%// Fleet Free tier card %>
         <div purpose="free-tier-card" class="card d-flex flex-column">
           <div purpose="pricing-tier-title">
-            <div class="d-flex flex-row justify-content-between">
-              <div class="d-flex flex-column justify-content-start">
-                <h2>Free</h2>
+            <div class="d-flex flex-row justify-content-center">
+              <div class="d-flex flex-column justify-content-center">
+                <h2>Community</h2>
                 <h3>Unlimited hosts</h3>
-              </div>
-              <div class="d-flex flex-column align-items-center">
-                <h1>$0</h1>
+                <div class="d-flex flex-row align-items-center">
+                  <h1><span purpose="price-dollar-sign">$</span>0</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
+                </div>
               </div>
             </div>
           </div>
           <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" href="/try-fleet">Get started free</a>
-          <p class="mb-4 mt-4 pt-1"><strong>Includes:</strong></p>
-
-          <%// IT features (free) %>
-          <div purpose="features-list" v-if="!displaySecurityPricingMode">
-            <p>Opt-in macOS MDM</p>
-            <p>REST API and webhooks</p>
-            <p>YAML configuration</p>
-            <p>Enforce device configurations</p>
-            <p>Run MDM commands via CLI</p>
-            <p>End user transparency</p>
-            <p>Community support (MacAdmins Slack)</p>
-            <p>Self-hosted</p>
-          </div>
-
-          <%// Security features (free) %>
-          <div purpose="features-list" v-else>
-            <p>Manage osquery at enterprise scale</p>
-            <p>Monitor query performance</p>
-            <p>REST API and webhooks</p>
-            <p>YAML configuration</p>
-            <p>Detect vulnerabilities</p>
-            <p>Software inventory</p>
-            <p>Device health report</p>
-            <p>Ship logs to Splunk, Snowflake, and more</p>
-            <p>Self-hosted</p>
-          </div>
         </div>
-        <div purpose="premium-card" class="d-flex flex-column">
-
-          <%// Fleet Premium tier card %>
+        <%// Fleet Premium tier card %>
+        <div purpose="premium-card" class="d-flex flex-column justify-content-center">
           <div purpose="premium-tier-card" class="card d-flex h-100 flex-column">
             <div purpose="pricing-tier-title">
-              <div class="d-flex flex-sm-row flex-column justify-content-between">
-                <div class="d-flex flex-column justify-content-start">
+              <div class="d-flex flex-column justify-content-between">
+                <div class="d-flex flex-column justify-content-center">
                   <h2>Premium</h2>
                   <h3>Unlimited hosts</h3>
-                </div>
-                <div class="d-flex flex-row align-items-center">
-                  <div class="d-flex flex-row align-items-center ">
-                    <h4>Starting at </h4><h1 class="mb-2">$7.00</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
+                  <div class="d-flex flex-row align-items-center justify-content-center">
+                    <h4>From </h4><h1 class="mb-2"><span purpose="price-dollar-sign">$</span>7.00</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
                   </div>
                 </div>
               </div>
             </div>
             <div>
               <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/customers/register">Get started</a>
-              <p purpose="contact-sales-link">For organizations with large deployments, <a  @click="clickOpenChatWidget()">contact sales</a>.</p>
-            </div>
-            <p class="mb-4"><strong>All of Free plus:</strong></p>
-
-            <%// IT features (Premium) %>
-            <div class="d-flex flex-sm-row flex-column align-items-around" v-if="!displaySecurityPricingMode">
-              <div class="w-sm-50 w-100 mr-3" purpose="features-list">
-                <p>Zero-touch MDM for macOS</p>
-                <p>Windows MDM with Autopilot*</p>
-                <p>Safely execute remote scripts*</p>
-                <p>Programmable remediations*</p>
-                <p>Disk encryption key escrow</p>
-                <p>macOS update via Nudge</p>
-                <p>Remote lock and wipe</p>
-              </div>
-              <div class="w-sm-50 w-100" purpose="features-list">
-                <p>24x7 support</p>
-                <p>Self-managed or private cloud hosted</p>
-                <p>Dedicated Slack channel</p>
-                <p>End user sign-in with Okta, AD, or any IDP</p>
-                <p>Integrate with Munki, Chef, and Puppet</p>
-                <p>Enterprise-ready MDM migration</p>
-              </div>
-            </div>
-
-            <%// Security features (Premium) %>
-            <div class="d-flex flex-sm-row flex-column align-items-around" v-else>
-              <div class="w-sm-50 w-100" purpose="features-list">
-                <p>GitOps-ready</p>
-                <p>CIS for macOS and Windows</p>
-                <p>Custom vulnerability reporting</p>
-                <p>Phased rollouts (canaries)</p>
-                <p>Single-Sign On (SSO)</p>
-                <p>Version history for queries and config</p>
-                <p>Granular role-based access</p>
-                <p>Target and configure specific device groups</p>
-                <p>Programable audit log</p>
-                <p>Vulnerability scores (EPSS and CVSS)</p>
-                <p>CISA known exploited vulnerabilities</p>
-              </div>
-              <div class="w-sm-50 w-100" purpose="features-list">
-                <p>24x7 support</p>
-                <p>Self-managed or private cloud hosted</p>
-                <p>Sync user roles from Okta, AD, or any IDP</p>
-                <p>Just-in-time (JIT) provisioning</p>
-                <p>Aggregate insights for groups of devices</p>
-                <p>Agent auto-updates</p>
-                <p>Manage osquery extensions remotely</p>
-              </div>
-
+              <p purpose="contact-sales-link">Have a large deployment? <a @click="clickOpenChatWidget()">contact sales</a>.</p>
             </div>
           </div>
         </div>
       </div>
+      <div purpose="pricing-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
+        <div purpose="pricing-switch-option" class="all" :class="[pricingMode === 'all' ? 'selected' : '']" @click="pricingMode = 'all'">All features</div>
+        <div purpose="pricing-switch-option" class="security" :class="[pricingMode === 'security' ? 'selected' : '']" @click="pricingMode = 'security'">For security engineers</div>
+        <div purpose="pricing-switch-option" class="it" :class="[pricingMode === 'it' ? 'selected' : '']" @click="pricingMode = 'it'">For IT admins</div>
+        <div purpose="pricing-tier-switch" :class="pricingMode+'-selected'"></div>
+      </div>
     </div>
     <%// IT-focused features table %>
-    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-if="!displaySecurityPricingMode">
-      <h2 class="text-center pb-3 mb-4">Compare plans</h2>
+    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-if="pricingMode === 'all' || pricingMode === 'it'">
       <div class="d-flex flex-column justify-content-center p-0">
         <%// Desktop IT-focused features tables %>
         <div class="d-none d-md-block">
@@ -199,8 +120,7 @@
       </div>
     </div>
     <%// Security-focused features table %>
-    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-else>
-      <h2 class="text-center pb-3 mb-4">Compare plans</h2>
+    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-else-if="pricingMode === 'security'">
       <div class="d-flex flex-column justify-content-center p-0">
         <%// Desktop security-focused features tables %>
         <div class="d-none d-md-block">
