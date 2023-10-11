@@ -2566,8 +2566,17 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
       },
       "profiles": [
         {
-          "profile_id": 999,
+          "profile_id": 998,
           "name": "profile1",
+          "platform": "darwin",
+          "status": "verifying",
+          "operation_type": "install",
+          "detail": ""
+        },
+        {
+          "profile_id": 999,
+          "name": "profile2",
+          "platform": "windows",
           "status": "verifying",
           "operation_type": "install",
           "detail": ""
@@ -2754,8 +2763,17 @@ This is the API route used by the **My device** page in Fleet desktop to display
       },
       "profiles": [
         {
-          "profile_id": 999,
+          "profile_id": 998,
           "name": "profile1",
+          "platform": "darwin",
+          "status": "verifying",
+          "operation_type": "install",
+          "detail": ""
+        },
+        {
+          "profile_id": 999,
+          "name": "profile2",
+          "platform": "windows",
           "status": "verifying",
           "operation_type": "install",
           "detail": ""
