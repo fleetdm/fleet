@@ -67,7 +67,10 @@ const Scripts = ({ hostId, page = 0, isHostOnline, router }: IScriptsProps) => {
         break;
       case "run":
         try {
-          await scriptsAPI.runScript(script.script_id);
+          await scriptsAPI.runScript({
+            host_id: hostId,
+            script_id: script.script_id,
+          });
           refetchScriptsData();
         } catch (e) {
           const error = e as AxiosResponse<IApiError>;
