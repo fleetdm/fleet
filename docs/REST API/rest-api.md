@@ -2357,8 +2357,17 @@ Returns the information of the specified host.
       },
       "profiles": [
         {
-          "profile_id": 999,
+          "profile_id": 998,
           "name": "profile1",
+          "platform": "darwin",
+          "status": "verifying",
+          "operation_type": "install",
+          "detail": ""
+        },
+        {
+          "profile_id": 999,
+          "name": "profile2",
+          "platform": "windows",
           "status": "verifying",
           "operation_type": "install",
           "detail": ""
