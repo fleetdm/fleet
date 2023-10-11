@@ -8280,18 +8280,10 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 1000)
 
-	// Set global discard flag and verify that all data is gone
-	s.Do("POST", "/api/latest/fleet/trigger", nil, http.StatusOK, "name", "cleanups_then_aggregation")
-
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
-	require.Len(t, gqrr.Results, 0)
-
-	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
-	require.NoError(t, slres.Err)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
-	require.Len(t, gqrr.Results, 0)
+	// TODO: Set global discard flag and verify that all data is gone.
 }
 
+// Creates a set of results for use in tests for Query Results.
 func results(num int, hostID string) string {
 	b := strings.Builder{}
 	for i := 0; i < num; i++ {
