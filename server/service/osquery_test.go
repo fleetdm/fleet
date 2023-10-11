@@ -603,49 +603,73 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	logRawMessages := []json.RawMessage{
-		json.RawMessage(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/Uptime","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`),
-	}
-
 	host := fleet.Host{}
 	ctx = hostctx.NewContext(ctx, &host)
+
+	results := []*fleet.ScheduledQueryResult{
+		{
+			QueryName:     "pack/Global/Uptime",
+			OsqueryHostID: "1379f59d98f4",
+			Snapshot: []json.RawMessage{
+				json.RawMessage(`{"hour":"20","minutes":"8"}`),
+			},
+			UnixTime: 1484078931,
+		},
+	}
+
+	queriesDBData := map[string]*fleet.Query{
+		"pack/Global/Uptime": {
+			ID:          1,
+			DiscardData: false,
+			Logging:     fleet.LoggingSnapshot,
+		},
+	}
 
 	// Results not saved if query reports disabled globally
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: true}}, nil
 	}
-	svc.SubmitResultLogs(ctx, logRawMessages)
+	svc.SaveResultLogsToQueryReports(ctx, results, queriesDBData)
+	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Result not saved if result is not a snapshot
-	logRawMessages = []json.RawMessage{
-		json.RawMessage(`{"name":"pack/Global/Uptime","hostIdentifier":"2e23c347-da72-4e72-b6a8-a6b8a9a46ab7","calendarTime":"Fri Oct  6 14:19:15 2023 UTC","unixTime":1696601955,"epoch":0,"counter":10,"numerics":false,"decorations":{"host_uuid":"550eb898-c522-410b-8855-d74d94fdfcd2","hostname":"0025ad6e71fb"},"columns":{"days":"0","hours":"4","minutes":"52","seconds":"25","total_seconds":"17545"},"action":"removed"}`),
+	notSnapshotResult := []*fleet.ScheduledQueryResult{
+		{
+			QueryName:     "pack/Global/Uptime",
+			OsqueryHostID: "1379f59d98f4",
+			Snapshot:      []json.RawMessage{},
+			UnixTime:      1484078931,
+		},
 	}
-	svc.SubmitResultLogs(ctx, logRawMessages)
-
-	// Results not saved if Logging is not snapshot in the query config
-	logRawMessages = []json.RawMessage{
-		json.RawMessage(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/Uptime","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`),
-	}
-
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: false}}, nil
 	}
+	svc.SaveResultLogsToQueryReports(ctx, notSnapshotResult, queriesDBData)
+	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Results not saved if DiscardData is true in Query
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		return &fleet.Query{ID: 1, DiscardData: true, Logging: fleet.LoggingSnapshot}, nil
+	discardDataFalse := map[string]*fleet.Query{
+		"pack/Global/Uptime": {
+			ID:          1,
+			DiscardData: true,
+			Logging:     fleet.LoggingSnapshot,
+		},
 	}
-
-	svc.SubmitResultLogs(ctx, logRawMessages)
+	svc.SaveResultLogsToQueryReports(ctx, results, discardDataFalse)
+	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Happy Path: Results saved
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		return &fleet.Query{ID: 1, DiscardData: false, Logging: fleet.LoggingSnapshot}, nil
+	discardDataTrue := map[string]*fleet.Query{
+		"pack/Global/Uptime": {
+			ID:          1,
+			DiscardData: false,
+			Logging:     fleet.LoggingSnapshot,
+		},
 	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
 		return nil
 	}
-	svc.SubmitResultLogs(ctx, logRawMessages)
+	svc.SaveResultLogsToQueryReports(ctx, results, discardDataTrue)
 	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
 
