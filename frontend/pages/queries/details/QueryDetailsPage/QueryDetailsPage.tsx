@@ -248,12 +248,13 @@ const QueryDetailsPage = ({
   );
 
   const renderReport = () => {
-    const disabledCachingGlobally = true; // TODO: Update accordingly to config?.server_settings.query_reports_disabled
-    const discardDataEnabled = true; // TODO: Update accordingly to storedQuery?.discard_data
+    const disabledCachingGlobally =
+      config?.server_settings.query_reports_disabled || true;
+    const discardDataEnabled = storedQuery?.discard_data || true;
     const loggingSnapshot = storedQuery?.logging === "snapshot";
     const disabledCaching =
       disabledCachingGlobally || discardDataEnabled || !loggingSnapshot;
-    const emptyCache = (queryReport?.results?.length ?? 0) === 0; // TODO: Update with API response
+    const emptyCache = (queryReport?.results?.length ?? 0) === 0;
 
     // Loading state
     if (isLoading) {
