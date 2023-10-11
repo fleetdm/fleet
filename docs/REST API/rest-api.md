@@ -5121,7 +5121,7 @@ Triggers [automations](https://fleetdm.com/docs/using-fleet/automations#policy-a
 
 | Name        | Type     | In   | Description                                              |
 | ----------  | -------- | ---- | -------------------------------------------------------- |
-| policy_ids  | list     | body | The IDs of the policies to run policy automations for. |
+| policy_ids  | list     | body | Filters to only run policy automations for the specified policies. |
 | team_ids    | list     | body | _Available in Fleet Premium_. Filters to only run policy automations for hosts in the specified teams. |
 
 
