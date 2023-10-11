@@ -35,9 +35,9 @@
   }
 
   &__info {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-small;
+    p {
+      margin: $pad-small 0 0 0;
+    }
   }
 
   &__cta {
@@ -64,9 +64,5 @@
         stroke: $core-vibrant-blue;
       }
     }
-  }
-
-  p {
-    margin: 0;
   }
 }
