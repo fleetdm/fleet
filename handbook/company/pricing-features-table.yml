@@ -4,7 +4,7 @@
       friendlyName: Detect changes to critical files # Short, Fleet one-liner for the feature, written in the imperative mood.  (If easy to do, base this off of the words that an actual customer is saying.)
       description: Specify files to monitor for changes or deletions, then log those events to your SIEM or data lake, including key information such as filepath and checksum. # Clear Mr. Rogers description
       documentationUrl: https://fleetdm.com/guides/osquery-evented-tables-overview#file-integrity-monitoring-fim # URL of the single-best page within the docs which serves as a "jumping-off point" for this feature.
-      screenshotSrc: "" # A screenshot of the single, best, simplifying, obvious example
+      screenshotSrc: "" # A screenshot of the single, best, simplifying, obvious example 
       tier: Free # Either "Free" or "Premium"
       usualDepartment: Security # or omit if there isn't a particular departmental leaning we've noticed
       productCategories: [Endpoint operations] # or omit if this isn't associated with a single product category
@@ -47,9 +47,9 @@
         - description: See what servers someone is logged-in on
           moreInfoUrl: https://community.spiceworks.com/topic/138171-is-there-a-way-to-see-what-servers-someone-is-logged-in-on
     - industryName: REST API
-      friendlyName: Automate any feature
+      friendlyName: Automate any feature  
       description: ""
-      documentationUrl: https://fleetdm.com/docs/rest-api/rest-api
+      documentationUrl: https://fleetdm.com/docs/rest-api/rest-api 
       screenshotSrc: ""
       tier: Free
       dri: rachaelshaw
@@ -81,7 +81,7 @@
       fiendlyName: Safely execute custom scripts (macOS, Windows, and Linux)
       documentationUrl: https://fleetdm.com/docs/using-fleet/scripts
       tier: Premium
-      productCategories: [Device management, Endpoint operations]
+      productCategories: [Device management,Endpoint operations]
     - industryName: End-user macOS update reminders (via Nudge)
       tier: Premium
       usualDepartment: IT
@@ -122,7 +122,7 @@
     - industryName: Unlimited email support (confidential)
       tier: Premium
     - industryName: Phone and video call support
-      tier: Premium
+      tier: Premium    
 - categoryName: Inventory management
   features:
     - industryName: Device inventory dashboard
@@ -232,7 +232,7 @@
     - industryName: End-user self-service
       tier: Premium
       usualDepartment: IT
-      productCategories: [Device management, Endpoint operations]
+      productCategories: [Device management,Endpoint operations]
 - categoryName: Data outputs
   features:
     - industryName: Flexible log destinations (AWS Kinesis, Lambda, GCP, Kafka)
