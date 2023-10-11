@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 )
 
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
@@ -360,6 +361,16 @@ func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt f
 		return nil, nil, err
 	}
 
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: h.TeamID}, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	if h.Platform != "darwin" {
+		// only darwin is supported for now, all other platforms return empty results
+		level.Debug(svc.logger).Log("msg", "unsupported platform for host script details", "platform", h.Platform, "host_id", h.ID)
+		return []*fleet.HostScriptDetail{}, &fleet.PaginationMetadata{}, nil
+	}
+
 	// cursor-based pagination is not supported for scripts
 	opt.After = ""
 	// custom ordering is not supported, always by name
@@ -369,10 +380,6 @@ func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt f
 	opt.MatchQuery = ""
 	// always include metadata for scripts
 	opt.IncludeMetadata = true
-
-	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: h.TeamID}, fleet.ActionRead); err != nil {
-		return nil, nil, err
-	}
 
 	return svc.ds.GetHostScriptDetails(ctx, h.ID, h.TeamID, opt)
 }

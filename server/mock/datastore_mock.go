@@ -1691,9 +1691,9 @@ type DataStore struct {
 
 	MDMWindowsGetEnrolledDeviceWithDeviceIDFunc        MDMWindowsGetEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsGetEnrolledDeviceWithDeviceIDFuncInvoked bool
-	
+
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc        MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc
-	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked bool	
+	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked bool
 
 	GetMDMWindowsBitLockerSummaryFunc        GetMDMWindowsBitLockerSummaryFunc
 	GetMDMWindowsBitLockerSummaryFuncInvoked bool
@@ -4012,11 +4012,11 @@ func (s *DataStore) WSTEPAssociateCertHash(ctx context.Context, deviceUUID strin
 	return s.WSTEPAssociateCertHashFunc(ctx, deviceUUID, hash)
 }
 
-func (s *DataStore) MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceHWID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+func (s *DataStore) MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	s.mu.Lock()
 	s.MDMWindowsGetEnrolledDeviceFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsGetEnrolledDeviceFunc(ctx, mdmDeviceHWID)
+	return s.MDMWindowsGetEnrolledDeviceFunc(ctx, mdmDeviceID)
 }
 
 func (s *DataStore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
@@ -4026,11 +4026,11 @@ func (s *DataStore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *
 	return s.MDMWindowsInsertEnrolledDeviceFunc(ctx, device)
 }
 
-func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceHWID string) error {
+func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error {
 	s.mu.Lock()
 	s.MDMWindowsDeleteEnrolledDeviceFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceHWID)
+	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceID)
 }
 
 func (s *DataStore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {

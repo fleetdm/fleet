@@ -4564,7 +4564,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 		NodeKey:         ptr.String("host1"),
 		UUID:            uuid.New().String(),
 		Hostname:        "host1",
-		Platform:        "windows",
+		Platform:        "darwin",
 		TeamID:          &tm1.ID,
 	})
 	require.NoError(t, err)
@@ -4579,8 +4579,38 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 		NodeKey:         ptr.String("host2"),
 		UUID:            uuid.New().String(),
 		Hostname:        "host2",
-		Platform:        "linux",
+		Platform:        "darwin",
 		TeamID:          &tm3.ID,
+	})
+	require.NoError(t, err)
+
+	// create a Windows host (unsupported)
+	host3, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String("host3"),
+		NodeKey:         ptr.String("host3"),
+		UUID:            uuid.New().String(),
+		Hostname:        "host3",
+		Platform:        "windows",
+		TeamID:          nil,
+	})
+	require.NoError(t, err)
+
+	// create a Linux host (unsupported)
+	host4, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String("host4"),
+		NodeKey:         ptr.String("host4"),
+		UUID:            uuid.New().String(),
+		Hostname:        "host4",
+		Platform:        "ubuntu",
+		TeamID:          nil,
 	})
 	require.NoError(t, err)
 
@@ -4762,6 +4792,30 @@ VALUES
 	t.Run("no scripts", func(t *testing.T) {
 		var resp getHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host2.ID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.Scripts)
+		require.Len(t, resp.Scripts, 0)
+	})
+
+	t.Run("unsupported platform windows", func(t *testing.T) {
+		require.Nil(t, host3.TeamID)
+		noTeamScripts, _, err := s.ds.ListScripts(ctx, nil, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.True(t, len(noTeamScripts) > 0)
+
+		var resp getHostScriptDetailsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host3.ID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.Scripts)
+		require.Len(t, resp.Scripts, 0)
+	})
+
+	t.Run("unsupported platform linux", func(t *testing.T) {
+		require.Nil(t, host4.TeamID)
+		noTeamScripts, _, err := s.ds.ListScripts(ctx, nil, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.True(t, len(noTeamScripts) > 0)
+
+		var resp getHostScriptDetailsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host4.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.Scripts)
 		require.Len(t, resp.Scripts, 0)
 	})
