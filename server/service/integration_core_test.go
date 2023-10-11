@@ -8207,4 +8207,128 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"version":        "5.9.1",
 		"watcher":        "95636",
 	}, gqrr.Results[1].Columns)
+
+	// verify that certain modifications to queries don't cause result deletion
+	modifyQueryResp := modifyQueryResponse{}
+	updatedDesc := "Updated description"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{Description: &updatedDesc}}, http.StatusOK, &modifyQueryResp)
+	require.Equal(t, updatedDesc, modifyQueryResp.Query.Description)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 2)
+
+	// now cause deletions and verify that results are deleted
+	updatedQuery := "SELECT * FROM some_new_table;"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{Query: &updatedQuery}}, http.StatusOK, &modifyQueryResp)
+	require.Equal(t, updatedQuery, modifyQueryResp.Query.Query)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// Update logging type, which should cause results deletion
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", usbDevicesQuery.ID), modifyQueryRequest{ID: usbDevicesQuery.ID, QueryPayload: fleet.QueryPayload{Logging: &fleet.LoggingDifferential}}, http.StatusOK, &modifyQueryResp)
+	require.Equal(t, fleet.LoggingDifferential, modifyQueryResp.Query.Logging)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", usbDevicesQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// Re-add results to our query and check that they're actually there
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1)
+
+	discardData := true
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{DiscardData: &discardData}}, http.StatusOK, &modifyQueryResp)
+	require.True(t, modifyQueryResp.Query.DiscardData)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// check that now that discardData is set, we don't add new results
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 0)
+
+	// Verify that we can't have more than 1k results
+
+	discardData = false
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{DiscardData: &discardData}}, http.StatusOK, &modifyQueryResp)
+	require.False(t, modifyQueryResp.Query.DiscardData)
+
+	slreq = submitLogsRequest{
+		NodeKey: *host1Global.NodeKey,
+		LogType: "result",
+		Data: json.RawMessage(`[{
+  "snapshot": [` + results(1000, host1Global.UUID) + `
+  ],
+  "action": "snapshot",
+  "name": "pack/Global/` + osqueryInfoQuery.Name + `",
+  "hostIdentifier": "` + *host1Global.OsqueryHostID + `",
+  "calendarTime": "Fri Oct  6 18:13:04 2023 UTC",
+  "unixTime": 1696615984,
+  "epoch": 0,
+  "counter": 0,
+  "numerics": false,
+  "decorations": {
+    "host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
+    "hostname": "` + host1Global.Hostname + `"
+  }
+}]`),
+	}
+	slres = submitLogsResponse{}
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1000)
+
+	slreq.Data = json.RawMessage(`[{
+  "snapshot": [` + results(1, host1Global.UUID) + `
+  ],
+  "action": "snapshot",
+  "name": "pack/Global/` + osqueryInfoQuery.Name + `",
+  "hostIdentifier": "` + *host1Global.OsqueryHostID + `",
+  "calendarTime": "Fri Oct  6 18:13:04 2023 UTC",
+  "unixTime": 1696615984,
+  "epoch": 0,
+  "counter": 0,
+  "numerics": false,
+  "decorations": {
+    "host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
+    "hostname": "` + host1Global.Hostname + `"
+  }
+}]`)
+
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, 1000)
+
+	// TODO: Set global discard flag and verify that all data is gone.
+}
+
+// Creates a set of results for use in tests for Query Results.
+func results(num int, hostID string) string {
+	b := strings.Builder{}
+	for i := 0; i < num; i++ {
+		b.WriteString(`    {
+      "build_distro": "centos7",
+      "build_platform": "linux",
+      "config_hash": "eed0d8296e5f90b790a23814a9db7a127b13498d",
+      "config_valid": "1",
+      "extensions": "active",
+      "instance_id": "e5799132-85ab-4cfa-89f3-03e0dd3c509a",
+      "pid": "3574",
+      "platform_mask": "9",
+      "start_time": "1696502961",
+      "uuid": "` + hostID + `",
+      "version": "5.9.2",
+      "watcher": "3570"
+    }`)
+		if i != num-1 {
+			b.WriteString(",")
+		}
+	}
+
+	return b.String()
 }
