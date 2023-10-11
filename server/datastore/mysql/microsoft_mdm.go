@@ -151,9 +151,10 @@ func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID 
             created_at,
             updated_at
         FROM
-            windows_mdm_pending_commands
+            windows_mdm_pending_commands wmpc
         WHERE
-            device_id = ?
+            wmpc.device_id = ? AND
+            NOT EXISTS (SELECT 1 FROM windows_mdm_commands wmc WHERE wmpc.device_id = wmc.device_id AND wmpc.command_uuid = wmc.command_uuid)
     `
 
 	// Retrieve commands first
@@ -161,27 +162,7 @@ func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID 
 		return nil, ctxerr.Wrap(ctx, err, "get pending Windows MDM commands by device id")
 	}
 
-	// Then check which commands are not currently tracked in the windows_mdm_commands table
-	trackedCmds, err := ds.MDMWindowsListCommands(ctx, deviceID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "error querying MDMWindowsListCommands")
-	}
-
-	// Create a map of not tracked commands
-	trackedCmdsMap := make(map[string]bool)
-	for _, cmd := range trackedCmds {
-		trackedCmdsMap[cmd.CommandUUID] = true
-	}
-
-	// Filter out tracked commands
-	var filteredCmds []*fleet.MDMWindowsPendingCommand
-	for _, cmd := range commands {
-		if _, ok := trackedCmdsMap[cmd.CommandUUID]; !ok {
-			filteredCmds = append(filteredCmds, cmd)
-		}
-	}
-
-	return filteredCmds, nil
+	return commands, nil
 }
 
 // MDMWindowsInsertCommand inserts a new WindowMDMCommand in the database
