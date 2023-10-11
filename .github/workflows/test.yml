@@ -41,7 +41,7 @@ jobs:
 
     - name: JS Dependency Cache
       id: js-cache
-      uses: actions/cache@69d9d449aced6a2ede0bc19182fadc3a0a42d2b0 # v2
+      uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v2
       with:
         path: |
           **/node_modules
@@ -74,7 +74,7 @@ jobs:
 
     - name: JS Dependency Cache
       id: js-cache
-      uses: actions/cache@69d9d449aced6a2ede0bc19182fadc3a0a42d2b0 # v2
+      uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v2
       with:
         path: |
           **/node_modules
