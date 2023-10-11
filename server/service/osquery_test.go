@@ -718,7 +718,6 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	serv.saveResultLogsToQueryReports(ctx, notSnapshotResult, queriesDBData)
 	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
-
 	// Results not saved if DiscardData is true in Query
 	discardDataFalse := map[string]*fleet.Query{
 		"pack/Global/Uptime": {
