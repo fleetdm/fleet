@@ -79,6 +79,7 @@ const EditQueryPage = ({
     lastEditedQueryPlatforms,
     lastEditedQueryLoggingType,
     lastEditedQueryMinOsqueryVersion,
+    lastEditedQueryDiscardData,
     setLastEditedQueryId,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -88,6 +89,7 @@ const EditQueryPage = ({
     setLastEditedQueryLoggingType,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryPlatforms,
+    setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
   const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -136,6 +138,7 @@ const EditQueryPage = ({
         setLastEditedQueryPlatforms(returnedQuery.platform);
         setLastEditedQueryLoggingType(returnedQuery.logging);
         setLastEditedQueryMinOsqueryVersion(returnedQuery.min_osquery_version);
+        setLastEditedQueryDiscardData(returnedQuery.discard_data);
       },
       onError: (error) => handlePageError(error),
     }
@@ -159,6 +162,7 @@ const EditQueryPage = ({
       setLastEditedQueryLoggingType(DEFAULT_QUERY.logging);
       setLastEditedQueryMinOsqueryVersion(DEFAULT_QUERY.min_osquery_version);
       setLastEditedQueryPlatforms(DEFAULT_QUERY.platform);
+      setLastEditedQueryDiscardData(DEFAULT_QUERY.discard_data);
     }
   }, [queryId]);
 
@@ -222,6 +226,7 @@ const EditQueryPage = ({
       lastEditedQueryPlatforms,
       lastEditedQueryLoggingType,
       lastEditedQueryMinOsqueryVersion,
+      lastEditedQueryDiscardData,
     });
 
     try {
