@@ -1458,7 +1458,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	//
 
 	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs)
-	svc.SaveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData)
+	svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData)
 
 	var filteredLogs []json.RawMessage
 	for i, unmarshaledResult := range unmarshaledResults {
@@ -1487,7 +1487,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 // Query Reports
 ////////////////////////////////////////////////////////////////////////////////
 
-func (svc *Service) SaveResultLogsToQueryReports(ctx context.Context, unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
+func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 

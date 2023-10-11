@@ -603,6 +603,9 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
+	// Hack to get at the private methods
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
+
 	host := fleet.Host{}
 	ctx = hostctx.NewContext(ctx, &host)
 
@@ -629,7 +632,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: true}}, nil
 	}
-	svc.SaveResultLogsToQueryReports(ctx, results, queriesDBData)
+	serv.saveResultLogsToQueryReports(ctx, results, queriesDBData)
 	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Result not saved if result is not a snapshot
@@ -644,7 +647,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: false}}, nil
 	}
-	svc.SaveResultLogsToQueryReports(ctx, notSnapshotResult, queriesDBData)
+	serv.saveResultLogsToQueryReports(ctx, notSnapshotResult, queriesDBData)
 	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Results not saved if DiscardData is true in Query
@@ -655,7 +658,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	svc.SaveResultLogsToQueryReports(ctx, results, discardDataFalse)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse)
 	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Happy Path: Results saved
@@ -669,7 +672,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
 		return nil
 	}
-	svc.SaveResultLogsToQueryReports(ctx, results, discardDataTrue)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue)
 	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
 
