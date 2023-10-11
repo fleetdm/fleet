@@ -694,12 +694,12 @@ type Datastore interface {
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host
-	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key string) error
+	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error
 	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that
 	// are collected but their decryptable status is not known yet (ie:
 	// we're able to decrypt the key using a private key in the server)
 	GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]HostDiskEncryptionKey, error)
-	// SetHostDiskEncryptionKeyStatus sets the encryptable status for the set
+	// SetHostsDiskEncryptionKeyStatus sets the encryptable status for the set
 	// of encription keys provided
 	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
@@ -1023,12 +1023,26 @@ type Datastore interface {
 	// WSTEPAssociateCertHash associates a certificate hash with a device.
 	WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error
 
-	// MDMWindowsGetEnrolledDevice receives a Windows MDM device id and returns the device information.
+	// MDMWindowsGetEnrolledDevice receives a Windows MDM HW device id and returns the device information.
 	MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
 	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
-	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
+	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the HW device id.
 	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
+	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
+	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
+	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
+	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
+
+	// GetMDMWindowsBitLockerSummary summarizes the current state of Windows disk encryption on
+	// each Windows host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*MDMWindowsBitLockerSummary, error)
+	// GetMDMWindowsBitLockerStatus returns the disk encryption status for a given host
+	//
+	// Note that the returned status will be nil if the host is reported to be a Windows
+	// server or if disk encryption is disabled for the host's team (or no team, as applicable).
+	GetMDMWindowsBitLockerStatus(ctx context.Context, host *Host) (*DiskEncryptionStatus, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
@@ -1048,6 +1062,30 @@ type Datastore interface {
 	// older than the ignoreOlder duration are ignored, considered too old to be
 	// pending.
 	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*HostScriptResult, error)
+
+	// NewScript creates a new saved script.
+	NewScript(ctx context.Context, script *Script) (*Script, error)
+
+	// Script returns the saved script corresponding to id.
+	Script(ctx context.Context, id uint) (*Script, error)
+
+	// GetScriptContents returns the raw script contents of the corresponding
+	// script.
+	GetScriptContents(ctx context.Context, id uint) ([]byte, error)
+
+	// DeleteScript deletes the script identified by its id.
+	DeleteScript(ctx context.Context, id uint) error
+
+	// ListScripts returns a paginated list of scripts corresponding to the
+	// criteria.
+	ListScripts(ctx context.Context, teamID *uint, opt ListOptions) ([]*Script, *PaginationMetadata, error)
+
+	// GetHostScriptDetails returns the list of host script details for saved scripts applicable to
+	// a given host.
+	GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts ListOptions) ([]*HostScriptDetail, *PaginationMetadata, error)
+
+	// BatchSetScripts sets the scripts for the given team or no team.
+	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) error
 }
 
 const (

@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -158,4 +159,155 @@ func TestMacOSMigrationModeIsValid(t *testing.T) {
 	require.True(t, (MacOSMigrationMode("voluntary")).IsValid())
 	require.False(t, (MacOSMigrationMode("")).IsValid())
 	require.False(t, (MacOSMigrationMode("foo")).IsValid())
+}
+
+func TestAppConfigDeprecatedFields(t *testing.T) {
+	cases := []struct {
+		msg                string
+		in                 json.RawMessage
+		wantFeatures       Features
+		wantDiskEncryption bool
+	}{
+		{"both empty", json.RawMessage(`{}`), Features{}, false},
+		{"only one feature set", json.RawMessage(`{"host_settings": {"enable_host_users": true}}`), Features{EnableHostUsers: true}, false},
+		{
+			"a feature and disk encryption set",
+			json.RawMessage(`{"host_settings": {"enable_host_users": true}, "mdm": {"macos_settings": {"enable_disk_encryption": true}}}`),
+			Features{EnableHostUsers: true},
+			true,
+		},
+		{
+			"features legacy and new setting set",
+			json.RawMessage(`{"host_settings": {"enable_host_users": true}, "features": {"enable_host_users": false}}`),
+			Features{EnableHostUsers: true},
+			false,
+		},
+		{
+			"disk encryption legacy and new setting set",
+			json.RawMessage(`{"mdm": {"enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true}}}`),
+			Features{},
+			false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.msg, func(t *testing.T) {
+			ac := AppConfig{}
+			err := json.Unmarshal(c.in, &ac)
+			require.NoError(t, err)
+			require.Nil(t, ac.DeprecatedHostSettings)
+			require.Nil(t, ac.MDM.MacOSSettings.DeprecatedEnableDiskEncryption)
+			require.Equal(t, c.wantFeatures, ac.Features)
+			require.Equal(t, c.wantDiskEncryption, ac.MDM.EnableDiskEncryption.Value)
+
+			// marshalling the fields again doesn't contain deprecated fields
+			acJSON, err := json.Marshal(ac)
+			require.NoError(t, err)
+			var resultMap map[string]interface{}
+			err = json.Unmarshal(acJSON, &resultMap)
+			require.NoError(t, err)
+
+			// host_settings is not present
+			_, exists := resultMap["host_settings"]
+			require.False(t, exists)
+
+			// mdm.macos_settings.enable_disk_encryption is not present
+			mdm, ok := resultMap["mdm"].(map[string]interface{})
+			require.True(t, ok)
+			macosSettings, ok := mdm["macos_settings"].(map[string]interface{})
+			require.True(t, ok)
+			_, exists = macosSettings["enable_disk_encryption"]
+			require.False(t, exists)
+
+			diskEncryption, exists := mdm["enable_disk_encryption"]
+			require.True(t, exists)
+			require.EqualValues(t, c.wantDiskEncryption, diskEncryption)
+
+		})
+	}
+
+}
+
+func TestAtLeastOnePlatformEnabledAndConfigured(t *testing.T) {
+	tests := []struct {
+		name                        string
+		macOSEnabledAndConfigured   bool
+		windowsEnabledAndConfigured bool
+		isMDMFeatureFlagEnabled     bool
+		expectedResult              bool
+	}{
+		{
+			name:                        "None enabled, feature flag disabled",
+			macOSEnabledAndConfigured:   false,
+			windowsEnabledAndConfigured: false,
+			isMDMFeatureFlagEnabled:     false,
+			expectedResult:              false,
+		},
+		{
+			name:                        "MacOS enabled, feature flag disabled",
+			macOSEnabledAndConfigured:   true,
+			windowsEnabledAndConfigured: false,
+			isMDMFeatureFlagEnabled:     false,
+			expectedResult:              true,
+		},
+		{
+			name:                        "Windows enabled, feature flag disabled",
+			macOSEnabledAndConfigured:   false,
+			windowsEnabledAndConfigured: true,
+			isMDMFeatureFlagEnabled:     false,
+			expectedResult:              false,
+		},
+		{
+			name:                        "Both enabled, feature flag disabled",
+			macOSEnabledAndConfigured:   true,
+			windowsEnabledAndConfigured: true,
+			isMDMFeatureFlagEnabled:     false,
+			expectedResult:              true,
+		},
+		{
+			name:                        "None enabled, feature flag enabled",
+			macOSEnabledAndConfigured:   false,
+			windowsEnabledAndConfigured: false,
+			isMDMFeatureFlagEnabled:     true,
+			expectedResult:              false,
+		},
+		{
+			name:                        "MacOS enabled, feature flag enabled",
+			macOSEnabledAndConfigured:   true,
+			windowsEnabledAndConfigured: false,
+			isMDMFeatureFlagEnabled:     true,
+			expectedResult:              true,
+		},
+		{
+			name:                        "Windows enabled, feature flag enabled",
+			macOSEnabledAndConfigured:   false,
+			windowsEnabledAndConfigured: true,
+			isMDMFeatureFlagEnabled:     true,
+			expectedResult:              true,
+		},
+		{
+			name:                        "Both enabled, feature flag enabled",
+			macOSEnabledAndConfigured:   true,
+			windowsEnabledAndConfigured: true,
+			isMDMFeatureFlagEnabled:     true,
+			expectedResult:              true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.isMDMFeatureFlagEnabled {
+				t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
+			} else {
+				t.Setenv("FLEET_DEV_MDM_ENABLED", "0")
+			}
+
+			mdm := MDM{
+				EnabledAndConfigured:        test.macOSEnabledAndConfigured,
+				WindowsEnabledAndConfigured: test.windowsEnabledAndConfigured,
+			}
+			result := mdm.AtLeastOnePlatformEnabledAndConfigured()
+			require.Equal(t, test.expectedResult, result)
+		})
+	}
 }

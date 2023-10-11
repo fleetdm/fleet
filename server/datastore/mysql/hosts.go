@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -887,7 +886,11 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	}
 
 	leftJoinFailingPolicies := !useHostPaginationOptim
-	sql, params = ds.applyHostFilters(opt, sql, filter, params, leftJoinFailingPolicies)
+
+	sql, params, err := ds.applyHostFilters(ctx, opt, sql, filter, params, leftJoinFailingPolicies)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list hosts: apply host filters")
+	}
 
 	hosts := []*fleet.Host{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sql, params...); err != nil {
@@ -906,7 +909,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 }
 
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
-func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}, leftJoinFailingPolicies bool) (string, []interface{}) {
+func (ds *Datastore) applyHostFilters(ctx context.Context, opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}, leftJoinFailingPolicies bool) (string, []interface{}, error) {
 	opt.OrderKey = defaultHostColumnTableAlias(opt.OrderKey)
 
 	deviceMappingJoin := `LEFT JOIN (
@@ -1004,12 +1007,20 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByMDM(sql, opt, params)
 	sql, params = filterHostsByMacOSSettingsStatus(sql, opt, params)
 	sql, params = filterHostsByMacOSDiskEncryptionStatus(sql, opt, params)
+	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
+		return "", nil, err
+	} else if opt.OSSettingsFilter.IsValid() {
+		sql, params = ds.filterHostsByOSSettingsStatus(sql, opt, params, enableDiskEncryption)
+	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
+		sql, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(sql, opt, params, enableDiskEncryption)
+	}
+
 	sql, params = filterHostsByMDMBootstrapPackageStatus(sql, opt, params)
 	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params, _ = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, &opt.ListOptions)
 
-	return sql, params
+	return sql, params, nil
 }
 
 func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -1115,13 +1126,13 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	var subquery string
 	var subqueryParams []interface{}
 	switch opt.MacOSSettingsFilter {
-	case fleet.MacOSSettingsFailed:
+	case fleet.OSSettingsFailed:
 		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusFailing()
-	case fleet.MacOSSettingsPending:
+	case fleet.OSSettingsPending:
 		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusPending()
-	case fleet.MacOSSettingsVerifying:
+	case fleet.OSSettingsVerifying:
 		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusVerifying()
-	case fleet.MacOSSettingsVerified:
+	case fleet.OSSettingsVerified:
 		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusVerified()
 	}
 	if subquery != "" {
@@ -1140,20 +1151,129 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 	var subqueryParams []interface{}
 	switch opt.MacOSSettingsDiskEncryptionFilter {
 	case fleet.DiskEncryptionVerified:
-		subquery, subqueryParams = subqueryDiskEncryptionVerified()
+		subquery, subqueryParams = subqueryFileVaultVerified()
 	case fleet.DiskEncryptionVerifying:
-		subquery, subqueryParams = subqueryDiskEncryptionVerifying()
+		subquery, subqueryParams = subqueryFileVaultVerifying()
 	case fleet.DiskEncryptionActionRequired:
-		subquery, subqueryParams = subqueryDiskEncryptionActionRequired()
+		subquery, subqueryParams = subqueryFileVaultActionRequired()
 	case fleet.DiskEncryptionEnforcing:
-		subquery, subqueryParams = subqueryDiskEncryptionEnforcing()
+		subquery, subqueryParams = subqueryFileVaultEnforcing()
 	case fleet.DiskEncryptionFailed:
-		subquery, subqueryParams = subqueryDiskEncryptionFailed()
+		subquery, subqueryParams = subqueryFileVaultFailed()
 	case fleet.DiskEncryptionRemovingEnforcement:
-		subquery, subqueryParams = subqueryDiskEncryptionRemovingEnforcement()
+		subquery, subqueryParams = subqueryFileVaultRemovingEnforcement()
 	}
 
 	return sql + fmt.Sprintf(` AND EXISTS (%s)`, subquery), append(params, subqueryParams...)
+}
+
+func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}, isDiskEncryptionEnabled bool) (string, []interface{}) {
+	if !opt.OSSettingsFilter.IsValid() {
+		return sql, params
+	}
+
+	sqlFmt := ` AND h.platform IN('windows', 'darwin')`
+	if opt.TeamFilter == nil {
+		// macOS settings filter is not compatible with the "all teams" option so append the "no
+		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
+		sqlFmt += ` AND h.team_id IS NULL`
+	}
+	sqlFmt += ` AND ((h.platform = 'windows' AND (%s)) OR (h.platform = 'darwin' AND (%s)))`
+
+	var subqueryMacOS string
+	var subqueryParams []interface{}
+	whereWindows := "FALSE"
+	whereMacOS := "FALSE"
+
+	switch opt.OSSettingsFilter {
+	case fleet.OSSettingsFailed:
+		subqueryMacOS, subqueryParams = subqueryHostsMacOSSettingsStatusFailing()
+		if isDiskEncryptionEnabled {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionFailed)
+		}
+	case fleet.OSSettingsPending:
+		subqueryMacOS, subqueryParams = subqueryHostsMacOSSettingsStatusPending()
+		if isDiskEncryptionEnabled {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing)
+		}
+	case fleet.OSSettingsVerifying:
+		subqueryMacOS, subqueryParams = subqueryHostsMacOSSetttingsStatusVerifying()
+		if isDiskEncryptionEnabled {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying)
+		}
+	case fleet.OSSettingsVerified:
+		subqueryMacOS, subqueryParams = subqueryHostsMacOSSetttingsStatusVerified()
+		if isDiskEncryptionEnabled {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerified)
+		}
+	}
+
+	if subqueryMacOS != "" {
+		whereMacOS = "EXISTS (" + subqueryMacOS + ")"
+	}
+
+	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS), append(params, subqueryParams...)
+}
+
+func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}, enableDiskEncryption bool) (string, []interface{}) {
+	if !opt.OSSettingsDiskEncryptionFilter.IsValid() {
+		return sql, params
+	}
+
+	sqlFmt := " AND h.platform IN('windows', 'darwin')"
+	// TODO: Should we add no team filter here? It isn't included for the FileVault filter but is
+	// for the general macOS settings filter.
+	if opt.TeamFilter == nil {
+		// macOS settings filter is not compatible with the "all teams" option so append the "no
+		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
+		sqlFmt += ` AND h.team_id IS NULL`
+	}
+	sqlFmt += ` AND ((h.platform = 'windows' AND %s) OR (h.platform = 'darwin' AND %s))`
+
+	var subqueryMacOS string
+	var subqueryParams []interface{}
+	whereWindows := "FALSE"
+	whereMacOS := "FALSE"
+
+	switch opt.OSSettingsDiskEncryptionFilter {
+	case fleet.DiskEncryptionVerified:
+		if enableDiskEncryption {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerified)
+		}
+		subqueryMacOS, subqueryParams = subqueryFileVaultVerified()
+
+	case fleet.DiskEncryptionVerifying:
+		if enableDiskEncryption {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying)
+		}
+		subqueryMacOS, subqueryParams = subqueryFileVaultVerifying()
+
+	case fleet.DiskEncryptionActionRequired:
+		// Windows hosts cannot be action required status in the current implementation.
+		subqueryMacOS, subqueryParams = subqueryFileVaultActionRequired()
+
+	case fleet.DiskEncryptionEnforcing:
+		if enableDiskEncryption {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing)
+		}
+		subqueryMacOS, subqueryParams = subqueryFileVaultEnforcing()
+
+	case fleet.DiskEncryptionFailed:
+		if enableDiskEncryption {
+			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionFailed)
+		}
+		subqueryMacOS, subqueryParams = subqueryFileVaultFailed()
+
+	case fleet.DiskEncryptionRemovingEnforcement:
+		// Windows hosts cannot be removing enforcement status in the current implementation.
+		subqueryMacOS, subqueryParams = subqueryFileVaultRemovingEnforcement()
+	}
+
+	if subqueryMacOS != "" {
+		whereMacOS = "EXISTS (" + subqueryMacOS + ")"
+	}
+
+	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS), append(params, subqueryParams...)
 }
 
 func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -1210,7 +1330,11 @@ func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, op
 	leftJoinFailingPolicies := false
 
 	var params []interface{}
-	sql, params = ds.applyHostFilters(opt, sql, filter, params, leftJoinFailingPolicies)
+
+	sql, params, err := ds.applyHostFilters(ctx, opt, sql, filter, params, leftJoinFailingPolicies)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count hosts: apply host filters")
+	}
 
 	var count int
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, sql, params...); err != nil {
@@ -1742,13 +1866,14 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 
 type hostWithMDMInfo struct {
 	fleet.Host
-	HostID           *uint   `db:"host_id"`
-	Enrolled         *bool   `db:"enrolled"`
-	ServerURL        *string `db:"server_url"`
-	InstalledFromDep *bool   `db:"installed_from_dep"`
-	IsServer         *bool   `db:"is_server"`
-	MDMID            *uint   `db:"mdm_id"`
-	Name             *string `db:"name"`
+	HostID                 *uint   `db:"host_id"`
+	Enrolled               *bool   `db:"enrolled"`
+	ServerURL              *string `db:"server_url"`
+	InstalledFromDep       *bool   `db:"installed_from_dep"`
+	IsServer               *bool   `db:"is_server"`
+	MDMID                  *uint   `db:"mdm_id"`
+	Name                   *string `db:"name"`
+	EncryptionKeyAvailable *bool   `db:"encryption_key_available"`
 }
 
 // LoadHostByOrbitNodeKey loads the whole host identified by the node key.
@@ -1804,7 +1929,9 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       COALESCE(hm.is_server, false) AS is_server,
       COALESCE(mdms.name, ?) AS name,
       COALESCE(hdek.reset_requested, false) AS disk_encryption_reset_requested,
+      COALESCE(hdek.decryptable, false) as encryption_key_available,
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
+      hd.encrypted as disk_encryption_enabled,
       t.name as team_name
     FROM
       hosts h
@@ -1824,6 +1951,10 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       host_disk_encryption_keys hdek
     ON
       hdek.host_id = h.id
+    LEFT OUTER JOIN
+      host_disks hd
+    ON
+      hd.host_id = h.id
     LEFT OUTER JOIN
       teams t
     ON
@@ -1845,6 +1976,10 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
 				IsServer:         *hostWithMDM.IsServer,
 				MDMID:            hostWithMDM.MDMID,
 				Name:             *hostWithMDM.Name,
+			}
+
+			host.MDM = fleet.MDMHostData{
+				EncryptionKeyAvailable: *hostWithMDM.EncryptionKeyAvailable,
 			}
 		}
 		return &host, nil
@@ -3013,19 +3148,30 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 	)
 }
 
-func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key string) error {
+func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
-           INSERT INTO host_disk_encryption_keys (host_id, base64_encrypted)
-	   VALUES (?, ?)
-	   ON DUPLICATE KEY UPDATE
-   	     /* if the key has changed, NULLify this value so it can be calculated again */
-             decryptable = IF(base64_encrypted = VALUES(base64_encrypted), decryptable, NULL),
-   	     base64_encrypted = VALUES(base64_encrypted)
-      `, hostID, encryptedBase64Key)
+INSERT INTO host_disk_encryption_keys
+  (host_id, base64_encrypted, client_error, decryptable)
+VALUES
+  (?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+  /* if the key has changed, set decrypted to its initial value so it can be calculated again if necessary (if null) */
+  decryptable = IF(base64_encrypted = VALUES(base64_encrypted), decryptable, VALUES(decryptable)),
+  base64_encrypted = VALUES(base64_encrypted),
+  client_error = VALUES(client_error)
+`, hostID, encryptedBase64Key, clientError, decryptable)
 	return err
 }
 
 func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+	// NOTE(mna): currently we only verify encryption keys for macOS,
+	// Windows/bitlocker uses a different approach where orbit sends the
+	// encryption key and we encrypt it server-side with the WSTEP certificate,
+	// so it is always decryptable once received.
+	//
+	// To avoid sending Windows-related keys to verify as part of this call, we
+	// only return rows that have a non-empty encryption key (for Windows, the
+	// key is blanked if an error occurred trying to retrieve it on the host).
 	var keys []fleet.HostDiskEncryptionKey
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &keys, `
           SELECT
@@ -3035,7 +3181,8 @@ func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fle
           FROM
             host_disk_encryption_keys
           WHERE
-            decryptable IS NULL
+            decryptable IS NULL AND
+            base64_encrypted != ''
 	`)
 	return keys, err
 }
@@ -4216,110 +4363,4 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 	}
 
 	return result, nil
-}
-
-func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
-	const (
-		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output) VALUES (?, ?, ?, '')`
-		getStmt = `SELECT id, host_id, execution_id, script_contents, created_at FROM host_script_results WHERE id = ?`
-	)
-
-	execID := uuid.New().String()
-	result, err := ds.writer(ctx).ExecContext(ctx, insStmt,
-		request.HostID,
-		execID,
-		request.ScriptContents,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "new host script execution request")
-	}
-
-	var script fleet.HostScriptResult
-	id, _ := result.LastInsertId()
-	if err := ds.writer(ctx).GetContext(ctx, &script, getStmt, id); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting the created host script result to return")
-	}
-	return &script, nil
-}
-
-func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
-	const updStmt = `
-  UPDATE host_script_results SET
-    output = ?,
-    runtime = ?,
-    exit_code = ?
-  WHERE
-    host_id = ? AND
-    execution_id = ?`
-
-	const maxOutputRuneLen = 10000
-	output := result.Output
-	if len(output) > utf8.UTFMax*maxOutputRuneLen {
-		// truncate the bytes as we know the output is too long, no point
-		// converting more bytes than needed to runes.
-		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
-	}
-	if utf8.RuneCountInString(output) > maxOutputRuneLen {
-		outputRunes := []rune(output)
-		output = string(outputRunes[len(outputRunes)-maxOutputRuneLen:])
-	}
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, updStmt,
-		output,
-		result.Runtime,
-		result.ExitCode,
-		result.HostID,
-		result.ExecutionID,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "update host script result")
-	}
-	return nil
-}
-
-func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error) {
-	const listStmt = `
-  SELECT
-    id,
-    host_id,
-    execution_id,
-    script_contents
-  FROM
-    host_script_results
-  WHERE
-    host_id = ? AND
-    exit_code IS NULL AND
-    created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
-
-	var results []*fleet.HostScriptResult
-	seconds := int(ignoreOlder.Seconds())
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID, seconds); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list pending host script results")
-	}
-	return results, nil
-}
-
-func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
-	const getStmt = `
-  SELECT
-    id,
-    host_id,
-    execution_id,
-    script_contents,
-    output,
-    runtime,
-    exit_code,
-    created_at
-  FROM
-    host_script_results
-  WHERE
-    execution_id = ?`
-
-	var result fleet.HostScriptResult
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, getStmt, execID); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("HostScriptResult").WithName(execID))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get host script result")
-	}
-	return &result, nil
 }

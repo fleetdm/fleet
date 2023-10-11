@@ -246,6 +246,9 @@ spec:
           - path/to/profile1.mobileconfig
           - path/to/profile2.mobileconfig
         enable_disk_encryption: true
+    scripts:
+        - path/to/script1.sh
+        - path/to/script2.sh
 ```
 
 ### Team agent options
@@ -328,6 +331,23 @@ spec:
     mdm:
       # the team-specific mdm options go here
 ```
+
+### Team scripts
+
+List of saved scripts that can be run on hosts that are part of the team.
+
+- Default value: none
+- Config file format:
+  ```yaml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Client Platform Engineering
+    scripts:
+      - path/to/script1.sh
+      - path/to/script2.sh
+  ```
 
 ## Organization settings
 
@@ -529,8 +549,10 @@ Use with caution as this may break Fleet ingestion of hosts data.
   ```yaml
   features:
     detail_query_overrides:
-      # null allows to disable the "users" query from running on hosts.
+      # null disables the "users" query from running on hosts.
       users: null
+      # "" disables the "disk_encryption_linux" query from running on hosts.
+      disk_encryption_linux: ""
       # this replaces the hardcoded "mdm" detail query.
       mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
   ```
@@ -1143,6 +1165,20 @@ If you're using Fleet Premium, this enforces disk encryption on all hosts assign
   mdm:
     macos_settings:
       enable_disk_encryption: true
+  ```
+
+#### Scripts 
+
+List of saved scripts that can be run on all hosts.
+
+> If you want to add scripts to hosts on a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](#teams).
+
+- Default value: none
+- Config file format:
+  ```yaml
+  scripts:
+    - path/to/script1.sh
+    - path/to/script2.sh
   ```
 
 #### Advanced configuration

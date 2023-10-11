@@ -9,15 +9,32 @@ import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import DataError from "components/DataError";
+import { SupportedPlatform } from "interfaces/platform";
 
 const baseClass = "disk-encryption-key-modal";
 
+// currently these are the only supported platforms for the disk encryption
+// key modal.
+export type ModalSupportedPlatform = Extract<
+  SupportedPlatform,
+  "darwin" | "windows"
+>;
+
+// Checks to see if the platform is supported by the modal.
+export const isSupportedPlatform = (
+  platform: string
+): platform is ModalSupportedPlatform => {
+  return ["darwin", "windows"].includes(platform);
+};
+
 interface IDiskEncryptionKeyModal {
+  platform: ModalSupportedPlatform;
   hostId: number;
   onCancel: () => void;
 }
 
 const DiskEncryptionKeyModal = ({
+  platform,
   hostId,
   onCancel,
 }: IDiskEncryptionKeyModal) => {
@@ -33,6 +50,18 @@ const DiskEncryptionKeyModal = ({
     select: (data) => data.encryption_key.key,
   });
 
+  const isMacOS = platform === "darwin";
+  const descriptionText = isMacOS
+    ? "The disk encryption key refers to the FileVault recovery key for macOS."
+    : "The disk encryption key refers to the BitLocker recovery key for Windows.";
+
+  const recoveryText = isMacOS
+    ? "Use this key to log in to the host if you forgot the password."
+    : "Use this key to unlock the encrypted drive.";
+  const recoveryUrl = isMacOS
+    ? "https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#reset-a-macos-hosts-password-using-the-disk-encryption-key"
+    : "https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#unlock-a-windows-hosts-drive-using-the-disk-encryption-key";
+
   return (
     <Modal title="Disk encryption key" onExit={onCancel} className={baseClass}>
       {encryptionKeyError ? (
@@ -40,15 +69,12 @@ const DiskEncryptionKeyModal = ({
       ) : (
         <>
           <InputFieldHiddenContent value={encrpytionKey ?? ""} />
+          <p>{descriptionText}</p>
           <p>
-            The disk encryption key refers to the FileVault recovery key for
-            macOS.
-          </p>
-          <p>
-            Use this key to log in to the host if you forgot the password.{" "}
+            {recoveryText}{" "}
             <CustomLink
               text="View recovery instructions"
-              url="https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#reset-a-macos-hosts-password-using-the-disk-encryption-key"
+              url={recoveryUrl}
               newTab
             />
           </p>

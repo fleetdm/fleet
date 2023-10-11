@@ -1,7 +1,7 @@
 ## Terraform for Loadtesting Environment
 
 The interface into this code is designed to be minimal.
-If you require changes beyond whats described here, contact @zwinnerman-fleetdm.
+If you require changes beyond whats described here, contact #g-infra.
 
 ### Deploying your code to the loadtesting environment
 

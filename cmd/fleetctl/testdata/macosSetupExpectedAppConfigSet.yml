@@ -19,13 +19,13 @@ spec:
     apple_bm_terms_expired: false
     enabled_and_configured: true
     windows_enabled_and_configured: false
+    enable_disk_encryption: false
     macos_migration:
       enable: false
       mode: ""
       webhook_url: ""
     macos_settings:
       custom_settings: null
-      enable_disk_encryption: false
     macos_setup:
       bootstrap_package: %s
       enable_end_user_authentication: false
@@ -39,6 +39,7 @@ spec:
       metadata: ""
       metadata_url: ""
       entity_id: ""
+  scripts: null
   org_info:
     org_logo_url: ""
     org_logo_url_light_background: ""

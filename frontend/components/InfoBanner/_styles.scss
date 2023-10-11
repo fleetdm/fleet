@@ -26,6 +26,20 @@
     width: auto;
   }
 
+  &__border-radius-large {
+    border-radius: $border-radius-large;
+  }
+
+  &__border-radius-xlarge {
+    border-radius: $border-radius-xlarge;
+  }
+
+  &__info {
+    p {
+      margin: $pad-small 0 0 0;
+    }
+  }
+
   &__cta {
     display: flex;
     align-items: center;

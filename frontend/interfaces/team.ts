@@ -44,6 +44,7 @@ export interface ITeam extends ITeamSummary {
   secrets?: IEnrollSecret[];
   role?: UserRole; // role value is included when the team is in the context of a user
   mdm?: {
+    enable_disk_encryption: boolean;
     macos_updates: {
       minimum_version: string;
       deadline: string;
