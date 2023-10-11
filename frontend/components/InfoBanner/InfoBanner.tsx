@@ -11,7 +11,7 @@ export interface IInfoBannerProps {
   children?: React.ReactNode;
   className?: string;
   /** default light purple */
-  color?: "yellow" | "grey";
+  color?: "purple" | "purple-bold-border" | "yellow" | "grey";
   /** default 4px  */
   borderRadius?: "large" | "xlarge";
   pageLevel?: boolean;
@@ -26,7 +26,7 @@ export interface IInfoBannerProps {
 const InfoBanner = ({
   children,
   className,
-  color,
+  color = "purple",
   borderRadius,
   pageLevel,
   cta,
@@ -36,6 +36,7 @@ const InfoBanner = ({
 }: IInfoBannerProps): JSX.Element => {
   const wrapperClasses = classNames(
     baseClass,
+    `${baseClass}__${color}`,
     {
       [`${baseClass}__${color}`]: !!color,
       [`${baseClass}__border-radius-${borderRadius}`]: !!borderRadius,

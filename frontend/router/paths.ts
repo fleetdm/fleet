@@ -53,6 +53,16 @@ export default {
     return `${URL_PREFIX}/labels/${labelId}`;
   },
   EDIT_QUERY: (queryId: number, teamId?: number): string => {
+    return `${URL_PREFIX}/queries/${queryId}/edit${
+      teamId ? `?team_id=${teamId}` : ""
+    }`;
+  },
+  LIVE_QUERY: (queryId: number | null, teamId?: number): string => {
+    return `${URL_PREFIX}/queries/${queryId || "new"}/live${
+      teamId ? `?team_id=${teamId}` : ""
+    }`;
+  },
+  QUERY: (queryId: number, teamId?: number): string => {
     return `${URL_PREFIX}/queries/${queryId}${
       teamId ? `?team_id=${teamId}` : ""
     }`;

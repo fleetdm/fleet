@@ -1900,21 +1900,26 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 
 	// try with invalid token
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/policies", nil, http.StatusUnauthorized)
-	res.Body.Close()
+	err = res.Body.Close()
+	require.NoError(t, err)
 
 	// GET `/api/_version_/fleet/device/{token}/policies`
 	listDevicePoliciesResp := listDevicePoliciesResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusOK)
-	json.NewDecoder(res.Body).Decode(&listDevicePoliciesResp) //nolint:errcheck
-	res.Body.Close()                                          //nolint:errcheck
+	err = json.NewDecoder(res.Body).Decode(&listDevicePoliciesResp)
+	require.NoError(t, err)
+	err = res.Body.Close()
+	require.NoError(t, err)
 	require.Len(t, listDevicePoliciesResp.Policies, 2)
 	require.NoError(t, listDevicePoliciesResp.Err)
 
 	// GET `/api/_version_/fleet/device/{token}`
 	getDeviceHostResp := getDeviceHostResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
-	json.NewDecoder(res.Body).Decode(&getDeviceHostResp) //nolint:errcheck
-	res.Body.Close()                                     //nolint:errcheck
+	err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	require.NoError(t, err)
+	err = res.Body.Close()
+	require.NoError(t, err)
 	require.NoError(t, getDeviceHostResp.Err)
 	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
@@ -1924,8 +1929,10 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	// GET `/api/_version_/fleet/device/{token}/desktop`
 	getDesktopResp := fleetDesktopResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
-	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
-	require.NoError(t, res.Body.Close())
+	err = json.NewDecoder(res.Body).Decode(&getDesktopResp)
+	require.NoError(t, err)
+	err = res.Body.Close()
+	require.NoError(t, err)
 	require.NoError(t, getDesktopResp.Err)
 	require.Equal(t, *getDesktopResp.FailingPolicies, uint(1))
 	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)

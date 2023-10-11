@@ -24,7 +24,7 @@ func TestGlobalScheduleAuth(t *testing.T) {
 			Query: "SELECT 1;",
 		}, nil
 	}
-	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query) error {
+	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool) error {
 		return nil
 	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {

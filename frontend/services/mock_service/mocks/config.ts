@@ -33,6 +33,8 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     "queries/7": RESPONSES.globalQuery6,
     "queries/8": RESPONSES.teamQuery2,
     "queries?team_id=13": RESPONSES.teamQueries,
+    "queries/113/report?order_key=host_name&order_direction=asc":
+      RESPONSES.queryReport,
   },
   POST: {
     // request body is ISelectedTargets

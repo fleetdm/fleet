@@ -4,7 +4,7 @@ import { filter, uniqueId } from "lodash";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
-import { ISelectedTargets } from "interfaces/target";
+import { ISelectedTargetsForApi } from "interfaces/target";
 import targetsAPI from "services/entities/targets";
 
 export interface ITargetsLabels {
@@ -25,7 +25,7 @@ export interface ITargetsQueryKey {
   scope: string;
   query: string;
   queryId: number | null;
-  selected: ISelectedTargets;
+  selected: ISelectedTargetsForApi;
   includeLabels: boolean;
 }
 
