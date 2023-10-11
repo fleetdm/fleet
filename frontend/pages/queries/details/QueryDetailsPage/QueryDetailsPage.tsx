@@ -88,6 +88,7 @@ const QueryDetailsPage = ({
     setLastEditedQueryLoggingType,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryPlatforms,
+    setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
 
   // Title that shows up on browser tabs (e.g., Query details | Discover TLS certificates | Fleet for osquery)
@@ -116,6 +117,7 @@ const QueryDetailsPage = ({
         setLastEditedQueryPlatforms(returnedQuery.platform);
         setLastEditedQueryLoggingType(returnedQuery.logging);
         setLastEditedQueryMinOsqueryVersion(returnedQuery.min_osquery_version);
+        setLastEditedQueryDiscardData(returnedQuery.discard_data);
       },
       onError: (error) => handlePageError(error),
     }
