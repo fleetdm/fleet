@@ -38,12 +38,17 @@
     display: flex;
     gap: $pad-large;
     font-size: $x-small;
+    // TODO - remove once refactored tooltip wrapper is merged
+    .component__tooltip-wrapper__element__underline::after {
+      bottom: 0px;
+    }
   }
 
   &__automations,
   &__log-destination {
     display: flex;
     gap: $pad-small;
+    align-items: center;
 
     .component__tooltip-wrapper__element {
       font-weight: $bold;
