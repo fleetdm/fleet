@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20231009094540(t *testing.T) {
+func TestUp_20231009094542(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	idxExists := indexExists(db, "scripts", "idx_scripts_team_name")
