@@ -17,7 +17,6 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -289,13 +288,9 @@ type TestServerOpts struct {
 	UseMailService      bool
 	APNSTopic           string
 	ProfileMatcher      fleet.ProfileMatcher
-	EnableCachedDS      bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
-	if len(opts) > 0 && opts[0].EnableCachedDS {
-		ds = cached_mysql.New(ds)
-	}
 	var rs fleet.QueryResultStore
 	if len(opts) > 0 && opts[0].Rs != nil {
 		rs = opts[0].Rs
