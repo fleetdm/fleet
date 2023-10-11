@@ -234,7 +234,7 @@ the way that the Fleet server works.
 					"#\n"+
 					"#   To run the server without performing migrations:\n"+
 					"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
-					"#     - Set config updates.allow_mising_migrations to true, or,\n"+
+					"#     - Set config updates.allow_missing_migrations to true, or,\n"+
 					"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
 					"################################################################################\n",
 					migrationStatus.MissingTable, migrationStatus.MissingData, os.Args[0])

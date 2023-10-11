@@ -12,6 +12,37 @@ Fleet has implemented native support for CIS Benchmarks for the following platfo
 
 [Where possible](#limitations), each CIS Benchmark is implemented with a [policy query](./REST-API.md#policies) in Fleet. 
 
+These benchmarks are intended to gauge your organization's security posture, rather than the current state of a given host. A host may fail a CIS Benchmark policy despite having the correct settings enabled if there is not a specific policy in place to enforce that setting. For example, this is the query for  **CIS - Ensure FileVault Is Enabled (MDM Required)**:
+
+```sql
+SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.MCX' AND 
+            name='dontAllowFDEDisable' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.MCX' AND 
+            name='dontAllowFDEDisable' AND 
+            (value != 1 AND value != 'true')
+        )
+      AND EXISTS (
+        SELECT 1 FROM disk_encryption WHERE 
+            user_uuid IS NOT "" AND 
+            filevault_status = 'on' 
+        );  
+```
+
+Two things are being evaluated in this policy:
+
+1. Is FileVault currently enabled?
+2. Is there a profile in place that prevents FileVault from being disabled?
+
+If either of these conditions fails, the host is considered to be failing the policy.
+
 ## Requirements
 
 Following are the requirements to use the CIS Benchmarks in Fleet:
@@ -23,7 +54,7 @@ Following are the requirements to use the CIS Benchmarks in Fleet:
 
 ### MDM required
 Some of the policies created by Fleet use the [managed_policies](https://www.fleetdm.com/tables/managed_policies) table. This checks whether an MDM solution has turned on the setting to enforce the policy.
-Using MDM is the recommended way to manage and enforce CIS Benchmarks. To learn how to set up MDM in Fleet, visit [here](/docs/using-fleet/mdm-setup).
+Using MDM is the recommended way to manage and enforce CIS Benchmarks. To learn how to set up MDM in Fleet, visit [here](/docs/using-fleet/mdm-macos-setup).
 
 ### Fleetd required
 Fleet's CIS Benchmarks require our [osquery manager, Fleetd](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). This is because Fleetd includes tables which are not part of vanilla osquery in order to accomplish auditing the benchmarks.
@@ -84,6 +115,8 @@ Fleet only implements automated audit checks. Manual checks require administrato
 ## Levels 1 and 2
 CIS designates various benchmarks as Level 1 or Level 2 to describe the level of thoroughness and burden that each benchmark represents.
 
+Each benchmark is tagged as `CIS_Level1` or `CIS_Level2`. 
+
 ### Level 1
 
 Items in this profile intend to:
@@ -137,126 +170,10 @@ The following CIS benchmark checks cannot be automated and must be addressed man
 
 Fleet's policies have been written against v1.12.0 of the benchmark. You can refer to the [CIS website](https://www.cisecurity.org/cis-benchmarks) for full details about this version.
 
-### Checks that require a Group Policy Template
+### Checks that require a Group Policy template
 
-38 items require Group Policy Template in place in order to audit them.
+Several items require Group Policy templates in place in order to audit them.
 These items are tagged with the label `CIS_group_policy_template_required` in the YAML file, and details about the required Group Policy templates can be found in each item's `resolution`.
-
-```
-18.3.1 CIS - Ensure 'Apply UAC restrictions to local accounts on network logons' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Apply UAC restrictions to local accounts on network logons'
-
-18.3.2 CIS - Ensure 'Configure SMB v1 client driver' is set to 'Enabled: Disable driver (recommended)'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Configure SMB v1 client driver'
-
-18.3.3 CIS - Ensure 'Configure SMB v1 server' is set to 'Disabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Configure SMB v1 server'
-
-18.3.4 CIS - Ensure 'Enable Structured Exception Handling Overwrite Protection (SEHOP)' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Enable Structured Exception Handling Overwrite Protection (SEHOP)'
-
-18.3.5 CIS - Ensure 'Limits print driver installation to Administrators' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Limits print driver installation to Administrators'
-
-18.3.6 CIS - Ensure 'NetBT NodeType configuration' is set to 'Enabled: P-node (recommended)'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MS Security Guide\NetBT NodeType configuration'
-
-18.3.7 CIS - Ensure 'WDigest Authentication' is set to 'Disabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MS Security Guide\WDigest Authentication (disabling may require KB2871997)'
-
-18.4.1 CIS - Ensure 'MSS: (AutoAdminLogon) Enable Automatic Logon (not recommended)' is set to 'Disabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (AutoAdminLogon) Enable Automatic Logon (not recommended)'
-
-18.4.2 CIS - Ensure 'MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)' is set to 'Enabled: Highest protection, source routing is completely disabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)'
-
-18.4.3 CIS - Ensure 'MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)' is set to 'Enabled: Highest protection, source routing is completely disabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)'
-
-18.4.4 CIS - Ensure 'MSS: (DisableSavePassword) Prevent the dial-up password from being saved' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS:(DisableSavePassword) Prevent the dial-up password from being saved'
-
-18.4.5 CIS - Ensure 'MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes' is set to 'Disabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes'
-
-18.4.6 CIS - Ensure 'MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds' is set to 'Enabled: 300,000 or 5 minutes'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds'
-
-18.4.7 CIS - Ensure 'MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers'
-
-18.4.8 CIS - Ensure 'MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)' is set to 'Disabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)'
-
-18.4.9 CIS - Ensure 'MSS: (SafeDllSearchMode) Enable Safe DLL search mode (recommended)' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (SafeDllSearchMode) Enable Safe DLL search mode (recommended)'
-
-18.4.10 CIS - Ensure 'MSS: (ScreenSaverGracePeriod) The time in seconds before the screen saver grace period expires (0 recommended)' is set to 'Enabled: 5 or fewer seconds'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (ScreenSaverGracePeriod) The time in seconds before the screen saver grace period expires (0 recommended)'
-
-18.4.11 CIS - Ensure 'MSS: (TcpMaxDataRetransmissions IPv6) How many times unacknowledged data is retransmitted' is set to 'Enabled: 3'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS:(TcpMaxDataRetransmissions IPv6) How many times unacknowledged data is retransmitted'
-
-18.4.12 CIS - Ensure 'MSS: (TcpMaxDataRetransmissions) How many times unacknowledged data is retransmitted' is set to 'Enabled: 3'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS:(TcpMaxDataRetransmissions) How many times unacknowledged data is retransmitted'
-
-18.4.13 CIS - Ensure 'MSS: (WarningLevel) Percentage threshold for the security event log at which the system will generate a warning' is set to 'Enabled: 90% or less'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (WarningLevel) Percentage threshold for the security event log at which the system will generate a warning'
-
-18.8.21.2 CIS - Ensure 'Configure registry policy processing: Do not apply during periodic background processing' is set to 'Enabled: FALSE'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Configure registry policy processing'
-
-18.8.22.1.1 CIS - Ensure 'Turn off access to the Store' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off access to the Store'
-
-18.8.22.1.2 CIS - Ensure 'Turn off downloading of print drivers over HTTP' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off downloading of print drivers over HTTP'
-
-18.8.22.1.3 CIS - Ensure 'Turn off handwriting personalization data sharing' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off handwriting personalization data sharing'
-
-18.8.22.1.4 CIS - Ensure 'Turn off handwriting recognition error reporting' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off handwriting recognition error reporting'
-
-18.8.22.1.5 CIS - Ensure 'Turn off Internet Connection Wizard if URL connection is referring to Microsoft.com' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Internet Connection Wizard if URL connection is referring to Microsoft.com'
-
-18.8.22.1.6 CIS - Ensure 'Turn off Internet download for Web publishing and online ordering wizards' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Internet download for Web publishing and online ordering wizards'
-
-18.8.22.1.7 CIS - Ensure 'Turn off printing over HTTP' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off printing over HTTP'
-
-18.8.22.1.8 CIS - Ensure 'Turn off Registration if URL connection is referring to Microsoft.com' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Registration if URL connection is referring to Microsoft.com'
-
-18.8.22.1.9 CIS - Ensure 'Turn off Search Companion content file updates' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Search Companion content file updates'
-
-18.8.22.1.10 CIS - Ensure 'Turn off the "Order Prints" picture task' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the "Order Prints" picture task'
-
-18.8.22.1.11 CIS - Ensure 'Turn off the "Publish to Web" task for files and folders' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the "Publish to Web" task for files and folders'
-
-18.8.22.1.12 CIS - Ensure 'Turn off the Windows Messenger Customer Experience Improvement Program' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the Windows Messenger Customer Experience Improvement Program'
-
-18.8.22.1.13 CIS - Ensure 'Turn off Windows Customer Experience Improvement Program' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Windows Customer Experience Improvement Program'
-
-18.8.22.1.14 CIS - Ensure 'Turn off Windows Error Reporting' is set to 'Enabled'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Windows Error Reporting'
-
-18.8.25.1 CIS - Ensure 'Support device authentication using certificate' is set to 'Enabled: Automatic'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Kerberos\Support device authentication using certificate'
-
-18.8.26.1 CIS - Ensure 'Enumeration policy for external devices incompatible with Kernel DMA Protection' is set to 'Enabled: Block All'
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Kernel DMA Protection\Enumeration policy for external devices incompatible with Kernel DMA Protection'
-
-18.8.27.1 CIS - Ensure 'Disallow copying of user input methods to the system account for sign-in' is set to 'Enabled' (Automated)
-Requires this GPO in place: 'Computer Configuration\Policies\Administrative Templates\System\Locale Services\Disallow copying of user input methods to the system account for sign-in'
-```
 
 ## Performance testing
 In August 2023, we completed scale testing on 10k Windows hosts and 70k macOS hosts. Ultimately, we validated both server and host performance at that scale.

@@ -70,7 +70,6 @@ module.exports = {
       'ksatter',
       'hollidayn',
       'roperzh',
-      'zhumo',
       'ghernandez345',
       'rfairburn',
       'marcosd4h',
