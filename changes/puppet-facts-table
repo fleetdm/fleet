@@ -1,0 +1,1 @@
+* Added the `puppet_facts` table to the tables we bundle in from https://github.com/macadmins/osquery-extension

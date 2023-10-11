@@ -38,5 +38,6 @@ export const MACADMINS_EXTENSION_TABLES: Record<string, OsqueryPlatform[]> = {
   puppet_info: ["darwin", "linux", "windows"],
   puppet_logs: ["darwin", "linux", "windows"],
   puppet_state: ["darwin", "linux", "windows"],
+  puppet_facts: ["darwin", "linux", "windows"],
   macadmins_unified_log: ["darwin"],
 };
