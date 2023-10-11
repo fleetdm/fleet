@@ -46,8 +46,12 @@ const NoResults = ({
 
   // Collecting results state
   if (collectingResults) {
-    const collectingResultsInfo = () =>
-      `Fleet is collecting query results. Check back in about ${readableCheckbackTime}.`;
+    const collectingResultsInfo = () => (
+      <>
+        Fleet is collecting query results. <br />
+        Check back in about {readableCheckbackTime}.
+      </>
+    );
 
     return (
       <EmptyTable
