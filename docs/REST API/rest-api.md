@@ -4915,11 +4915,11 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 ### Add policy
 
 There are two ways of adding a policy:
-1. by setting "name", "query", "description". This is the preferred way.
-2. (Legacy) re-using the data of an existing query, by setting "query_id". If "query_id" is set,
-then "query" must not be set, and "name" and "description" are ignored.
+1. Preferred: By setting `name`, `query`, and `description`.
+2. Legacy: By setting `query_id` to reuse the data of an existing query. If `query_id` is set,
+then `query` must not be set, and `name` and `description` are ignored.
 
-An error is returned if both "query" and "query_id" are set on the request.
+An error is returned if both `query` and `query_id` are set on the request.
 
 `POST /api/v1/fleet/global/policies`
 
@@ -4933,11 +4933,11 @@ An error is returned if both "query" and "query_id" are set on the request.
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
+| critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
 
 Either `query` or `query_id` must be provided.
 
-#### Example Add Policy
+#### Example (preferred)
 
 `POST /api/v1/fleet/global/policies`
 
@@ -4980,7 +4980,7 @@ Either `query` or `query_id` must be provided.
 }
 ```
 
-#### Example Legacy Add Policy
+#### Example (legacy)
 
 `POST /api/v1/fleet/global/policies`
 
@@ -5068,7 +5068,7 @@ Where `query_id` references an existing `query`.
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
-#### Example Edit Policy
+#### Example
 
 `PATCH /api/v1/fleet/global/policies/42`
 
@@ -5125,7 +5125,7 @@ Triggers [automations](https://fleetdm.com/docs/using-fleet/automations#policy-a
 | team_ids    | list     | body | _Available in Fleet Premium_. Filters to only run policy automations for hosts in the specified teams. |
 
 
-#### Example Edit Policy
+#### Example
 
 `POST /api/v1/fleet/automations/reset`
 
@@ -5420,7 +5420,7 @@ Either `query` or `query_id` must be provided.
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
-#### Example Edit Policy
+#### Example
 
 `PATCH /api/v1/fleet/teams/2/policies/42`
 
