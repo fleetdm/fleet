@@ -65,7 +65,7 @@ const HostSummary = ({
   renderActionButtons,
   deviceUser,
 }: IHostSummaryProps): JSX.Element => {
-  const { status, id, platform } = titleData;
+  const { status, platform } = titleData;
 
   const renderRefetch = () => {
     const isOnline = titleData.status === "online";

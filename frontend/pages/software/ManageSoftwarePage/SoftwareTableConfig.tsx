@@ -8,7 +8,7 @@ import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
 import {
   formatFloatAsPercentage,
-  getSoftwareBundleTooltipMarkup,
+  getSoftwareBundleTooltipJSX,
 } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
@@ -67,22 +67,6 @@ const condenseVulnerabilities = (
     ? condensed.concat(`+${vulnerabilities.length - 3} more`)
     : condensed;
 };
-
-const renderBundleTooltip = (name: string, bundle: string) => (
-  <span className="name-container">
-    <TooltipWrapper
-      position="top-start"
-      tipContent={
-        <span>
-          <b>Bundle identifier:</b> <br />
-          {bundle}
-        </span>
-      }
-    >
-      {name}
-    </TooltipWrapper>
-  </span>
-);
 
 const getMaxProbability = (vulns: IVulnerability[]) =>
   vulns.reduce(
@@ -223,7 +207,7 @@ const generateTableHeaders = (
             customOnClick={onClickSoftware}
             value={name}
             tooltipContent={
-              bundle ? getSoftwareBundleTooltipMarkup(bundle) : undefined
+              bundle ? getSoftwareBundleTooltipJSX(bundle) : undefined
             }
           />
         );

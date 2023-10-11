@@ -1,3 +1,4 @@
+import React from "react";
 import {
   isEmpty,
   flatMap,
@@ -34,8 +35,8 @@ import {
   ISelectedTargets,
   IPackTargets,
 } from "interfaces/target";
-import { ITeam, ITeamSummary } from "interfaces/team";
-import { IUser, UserRole } from "interfaces/user";
+import { ITeam } from "interfaces/team";
+import { UserRole } from "interfaces/user";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
@@ -91,40 +92,6 @@ const labelSlug = (label: ILabel): string => {
 
   return `labels/${id}`;
 };
-
-const statusKey = [
-  {
-    id: "new",
-    count: 0,
-    description: "Hosts that have been enrolled to Fleet in the last 24 hours.",
-    display_text: "New",
-    title_description: "(added in last 24hrs)",
-    type: "status",
-  },
-  {
-    id: "online",
-    count: 0,
-    description: "Hosts that have recently checked-in to Fleet.",
-    display_text: "Online",
-    type: "status",
-  },
-  {
-    id: "missing",
-    count: 0,
-    description: "Hosts that have not been online in 30 days or more.",
-    display_text: "Missing",
-    slug: "missing",
-    statusLabelKey: "missing_count",
-    type: "status",
-  },
-  {
-    id: "offline",
-    count: 0,
-    description: "Hosts that have not checked-in to Fleet recently.",
-    display_text: "Offline",
-    type: "status",
-  },
-];
 
 const isLabel = (target: ISelectTargetsEntity) => {
   return "label_type" in target;
@@ -801,7 +768,7 @@ export const syntaxHighlight = (json: any): string => {
   /* eslint-disable no-useless-escape */
   return jsonStr.replace(
     /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
-    function (match) {
+    (match) => {
       let cls = "number";
       if (/^"/.test(match)) {
         if (/:$/.test(match)) {
@@ -900,15 +867,13 @@ export const getNextLocationPath = ({
   return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
 };
 
-export const getSoftwareBundleTooltipMarkup = (bundle: string) => {
-  return `
-        <span>
-          <b>Bundle identifier: </b>
-          <br />
-          ${bundle}
-        </span>
-      `;
-};
+export const getSoftwareBundleTooltipJSX = (bundle: string) => (
+  <span>
+    <b>Bundle identifier: </b>
+    <br />
+    {bundle}
+  </span>
+);
 
 export default {
   addGravatarUrlToResource,

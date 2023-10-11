@@ -14,7 +14,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { COLORS } from "styles/var/colors";
-import { getSoftwareBundleTooltipMarkup } from "utilities/helpers";
+import { getSoftwareBundleTooltipJSX } from "utilities/helpers";
 
 interface IHeaderProps {
   column: {
@@ -220,7 +220,7 @@ export const generateSoftwareTableHeaders = ({
             customOnClick={onClickSoftware}
             value={name}
             tooltipContent={
-              bundle ? getSoftwareBundleTooltipMarkup(bundle) : undefined
+              bundle ? getSoftwareBundleTooltipJSX(bundle) : undefined
             }
           />
         );
