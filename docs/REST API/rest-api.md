@@ -5113,7 +5113,7 @@ Where `query_id` references an existing `query`.
 
 ### Run automation for all failing hosts of a policy
 
-Triggers [automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations) for *all* hosts failing the specified policies, regardless of whether a policy was previously failing on a host.
+Triggers [automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations) for *all* hosts failing the specified policies, regardless of whether the policies were previously failing on those hosts.
 
 `POST /api/v1/fleet/automations/reset`
 
