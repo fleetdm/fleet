@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20231004144338, Down_20231004144338)
+	MigrationClient.AddMigration(Up_20231009094544, Down_20231009094544)
 }
 
-func Up_20231004144338(tx *sql.Tx) error {
+func Up_20231009094544(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE query_results (
 			id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -29,6 +29,6 @@ func Up_20231004144338(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20231004144338(tx *sql.Tx) error {
+func Down_20231009094544(tx *sql.Tx) error {
 	return nil
 }
