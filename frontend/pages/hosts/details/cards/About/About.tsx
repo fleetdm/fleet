@@ -103,7 +103,6 @@ const About = ({
           <span className="info-grid__header">MDM status</span>
           <span className="info-grid__data">
             <TooltipWrapper
-              position="bottom"
               tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
             >
               {mdm.enrollment_status}
