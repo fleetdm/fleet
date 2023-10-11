@@ -230,7 +230,7 @@ Set Fleet to be the MDM for all future Macs purchased via Apple or an authorized
 
 ### Step 6: set the default team for hosts enrolled via ABM
 
-All hosts that automatically enroll will be assigned to the default team. If no default team is set, then the host will be placed in "No Teams". 
+All hosts that automatically enroll will be assigned to the default team. If no default team is set, then the host will be placed in "No team". 
 
 > A host can be transferred to a new (not default) team before it enrolls. Learn how [here](./Teams.md#transfer-hosts-to-a-team).
 
