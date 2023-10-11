@@ -1413,6 +1413,10 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	}
 
 	// Track the response SyncML protocol commands
+	// TODO: We might need to add a cron job to look for commands that have not received a response
+	// for a long time so the commands could be retried. The cron job logic could use the session ID
+	// information to determine if retried should be performed (response for a given command should
+	// happen within a given session)
 	err = svc.storeSyncMLCmd(ctx, msg)
 	if err != nil {
 		return nil, fmt.Errorf("tracking response syncML msg %w", err)
