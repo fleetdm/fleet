@@ -1,6 +1,10 @@
-import { FileVaultProfileStatus, BootstrapPackageStatus } from "interfaces/mdm";
 import { isEmpty, reduce, omitBy, Dictionary } from "lodash";
-import { MacSettingsStatusQueryParam } from "services/entities/hosts";
+
+import { DiskEncryptionStatus, BootstrapPackageStatus } from "interfaces/mdm";
+import {
+  DISK_ENCRYPTION_QUERY_PARAM_NAME,
+  MacSettingsStatusQueryParam,
+} from "services/entities/hosts";
 
 type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
@@ -24,7 +28,7 @@ interface IMutuallyExclusiveHostParams {
   osId?: number;
   osName?: string;
   osVersion?: string;
-  diskEncryptionStatus?: FileVaultProfileStatus;
+  diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
@@ -123,7 +127,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
     case !!lowDiskSpaceHosts:
       return { low_disk_space: lowDiskSpaceHosts };
     case !!diskEncryptionStatus:
-      return { macos_settings_disk_encryption: diskEncryptionStatus };
+      return { [DISK_ENCRYPTION_QUERY_PARAM_NAME]: diskEncryptionStatus };
     case !!bootstrapPackageStatus:
       return { bootstrap_package: bootstrapPackageStatus };
     default:

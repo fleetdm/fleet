@@ -152,7 +152,7 @@ const generateTableHeaders = ({
                 )}
               </>
             }
-            path={PATHS.EDIT_QUERY(
+            path={PATHS.QUERY(
               cellProps.row.original.id,
               cellProps.row.original.team_id ?? undefined
             )}
@@ -183,10 +183,7 @@ const generateTableHeaders = ({
           <TextCell
             value={val}
             emptyCellTooltipText={
-              <>
-                Assign a frequency and turn <strong>automations</strong> on to
-                collect data at an interval.
-              </>
+              <>Assign a frequency to collect data at an interval.</>
             }
           />
         );

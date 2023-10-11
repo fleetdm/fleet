@@ -341,9 +341,7 @@ $base-class: "button";
   }
 
   &--disabled {
-    opacity: 0.5;
-    filter: grayscale(0.5);
-    cursor: default;
+    @include disabled;
 
     &:hover,
     &:focus {
