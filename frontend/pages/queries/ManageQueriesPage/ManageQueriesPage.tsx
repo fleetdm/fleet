@@ -10,6 +10,7 @@ import { useQuery } from "react-query";
 import { pick } from "lodash";
 
 import { AppContext } from "context/app";
+import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import { performanceIndicator } from "utilities/helpers";
@@ -20,8 +21,10 @@ import {
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
+import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import queriesAPI from "services/entities/queries";
 import PATHS from "router/paths";
+import { DEFAULT_QUERY } from "utilities/constants";
 import { checkPlatformCompatibility } from "utilities/sql_tools";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
@@ -87,6 +90,9 @@ const ManageQueriesPage = ({
     isSandboxMode,
     config,
   } = useContext(AppContext);
+  const { setLastEditedQueryBody, setSelectedQueryTargetsByType } = useContext(
+    QueryContext
+  );
 
   const { setResetSelectedRows } = useContext(TableContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -178,7 +184,15 @@ const ManageQueriesPage = ({
     }
   }, [location, filteredQueriesPath, setFilteredQueriesPath]);
 
-  const onCreateQueryClick = () => router.push(PATHS.NEW_QUERY(currentTeamId));
+  // Reset selected targets when returned to this page
+  useEffect(() => {
+    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
+  }, []);
+
+  const onCreateQueryClick = () => {
+    setLastEditedQueryBody(DEFAULT_QUERY.query);
+    router.push(PATHS.NEW_QUERY(currentTeamId));
+  };
 
   const toggleDeleteQueryModal = useCallback(() => {
     setShowDeleteQueryModal(!showDeleteQueryModal);

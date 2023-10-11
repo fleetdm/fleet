@@ -144,9 +144,14 @@ func getQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.
 	if err != nil {
 		return listQueriesResponse{Err: err}, nil
 	}
+	// Return an empty array if there are no results stored.
+	results := []fleet.HostQueryResultRow{}
+	if len(queryReportResults) > 0 {
+		results = queryReportResults
+	}
 	return getQueryReportResponse{
 		QueryID: req.ID,
-		Results: queryReportResults,
+		Results: results,
 	}, nil
 }
 

@@ -53,3 +53,42 @@ func (s *String) UnmarshalJSON(data []byte) error {
 	s.Valid = true
 	return nil
 }
+
+// Bool represents an optional boolean value.
+type Bool struct {
+	Set   bool
+	Valid bool
+	Value bool
+}
+
+func SetBool(b bool) Bool {
+	return Bool{Set: true, Valid: true, Value: b}
+}
+
+func (b Bool) MarshalJSON() ([]byte, error) {
+	if !b.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(b.Value)
+}
+
+func (b *Bool) UnmarshalJSON(data []byte) error {
+	// If this method was called, the value was set.
+	b.Set = true
+	b.Valid = false
+
+	if bytes.Equal(data, []byte("null")) {
+		// The key was set to null, blank the value
+		b.Value = false
+		return nil
+	}
+
+	// The key isn't set to null
+	var v bool
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	b.Value = v
+	b.Valid = true
+	return nil
+}

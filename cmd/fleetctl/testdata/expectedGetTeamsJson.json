@@ -24,13 +24,13 @@
 				"enable_software_inventory": true
 			},
 			"mdm": {
+				"enable_disk_encryption": false,
 				"macos_updates": {
 					"minimum_version": null,
 					"deadline": null
 				},
 				"macos_settings": {
-					"custom_settings": null,
-					"enable_disk_encryption": false
+					"custom_settings": null
 				},
 				"macos_setup": {
 					"bootstrap_package": null,
@@ -84,13 +84,13 @@
 				}
 			},
 			"mdm": {
+				"enable_disk_encryption": false,
 				"macos_updates": {
 					"minimum_version": "12.3.1",
 					"deadline": "2021-12-14"
 				},
 				"macos_settings": {
-					"custom_settings": null,
-					"enable_disk_encryption": false
+					"custom_settings": null
 				},
 				"macos_setup": {
 					"bootstrap_package": null,
