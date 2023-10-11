@@ -5527,6 +5527,12 @@ func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint,
 func generateNewProfileMultipartRequest(t *testing.T, tmID *uint,
 	fileName string, fileContent []byte, token string,
 ) (*bytes.Buffer, map[string]string) {
+	return generateMultipartRequest(t, tmID, "profile", fileName, fileContent, token)
+}
+
+func generateMultipartRequest(t *testing.T, tmID *uint,
+	uploadFileField, fileName string, fileContent []byte, token string,
+) (*bytes.Buffer, map[string]string) {
 	var body bytes.Buffer
 
 	writer := multipart.NewWriter(&body)
@@ -5535,7 +5541,7 @@ func generateNewProfileMultipartRequest(t *testing.T, tmID *uint,
 		require.NoError(t, err)
 	}
 
-	ff, err := writer.CreateFormFile("profile", fileName)
+	ff, err := writer.CreateFormFile(uploadFileField, fileName)
 	require.NoError(t, err)
 	_, err = io.Copy(ff, bytes.NewReader(fileContent))
 	require.NoError(t, err)

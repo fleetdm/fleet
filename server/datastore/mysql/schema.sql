@@ -347,6 +347,7 @@ CREATE TABLE `host_script_results` (
   UNIQUE KEY `idx_host_script_results_execution_id` (`execution_id`),
   KEY `idx_host_script_results_host_exit_created` (`host_id`,`exit_code`,`created_at`),
   KEY `fk_host_script_results_script_id` (`script_id`),
+  KEY `idx_host_script_created_at` (`host_id`,`script_id`,`created_at`),
   CONSTRAINT `fk_host_script_results_script_id` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1155,7 +1156,7 @@ CREATE TABLE `scripts` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_scripts_global_or_team_id_name` (`global_or_team_id`,`name`),
-  KEY `fk_scripts_team_id` (`team_id`),
+  UNIQUE KEY `idx_scripts_team_name` (`team_id`,`name`),
   CONSTRAINT `scripts_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

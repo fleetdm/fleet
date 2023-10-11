@@ -16,8 +16,8 @@ interface IDropdownCellProps {
 
 const DropdownCell = ({
   options,
-  onChange,
   placeholder,
+  onChange,
 }: IDropdownCellProps): JSX.Element => {
   return (
     <div className={baseClass}>

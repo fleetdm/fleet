@@ -1,7 +1,9 @@
-import React from "react";
-import { formatDistanceToNow } from "date-fns";
+import React, { useContext } from "react";
+import { format, formatDistanceToNow } from "date-fns";
+import FileSaver from "file-saver";
 
-import { IMdmScript } from "interfaces/mdm";
+import { NotificationContext } from "context/notification";
+import scriptAPI, { IScript } from "services/entities/scripts";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
@@ -9,14 +11,9 @@ import Button from "components/buttons/Button";
 const baseClass = "script-list-item";
 
 interface IScriptListItemProps {
-  script: IMdmScript;
-  onRerun: (script: IMdmScript) => void;
-  onDelete: (script: IMdmScript) => void;
+  script: IScript;
+  onDelete: (script: IScript) => void;
 }
-
-const getStatusClassName = (value: number) => {
-  return value !== 0 ? `${baseClass}__has-value` : "";
-};
 
 const getFileIconName = (fileName: string) => {
   const fileExtension = fileName.split(".").pop();
@@ -33,13 +30,19 @@ const getFileIconName = (fileName: string) => {
   }
 };
 
-const ScriptListItem = ({
-  script,
-  onRerun,
-  onDelete,
-}: IScriptListItemProps) => {
-  const onClickDownload = () => {
-    console.log("download");
+const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
+  const { renderFlash } = useContext(NotificationContext);
+
+  const onClickDownload = async () => {
+    try {
+      const content = await scriptAPI.downloadScript(script.id);
+      const formatDate = format(new Date(), "yyyy-MM-dd");
+      const filename = `${formatDate}_${script.name}`;
+      const file = new File([content], filename);
+      FileSaver.saveAs(file);
+    } catch {
+      renderFlash("error", "Couldn’t Download. Please try again.");
+    }
   };
 
   return (
@@ -53,26 +56,7 @@ const ScriptListItem = ({
           </span>
         </div>
       </div>
-      <div
-        className={`${baseClass}__value-group ${baseClass}__script-statuses`}
-      >
-        <span className={getStatusClassName(script.ran)}>{script.ran}</span>
-        <span className={getStatusClassName(script.pending)}>
-          {script.pending}
-        </span>
-        <span className={getStatusClassName(script.errors)}>
-          {script.errors}
-        </span>
-      </div>
-
       <div className={`${baseClass}__value-group ${baseClass}__script-actions`}>
-        <Button
-          className={`${baseClass}__refresh-button`}
-          variant="text-icon"
-          onClick={() => onRerun(script)}
-        >
-          <Icon name="refresh" />
-        </Button>
         <Button
           className={`${baseClass}__download-button`}
           variant="text-icon"

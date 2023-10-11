@@ -931,6 +931,10 @@ func (svc *Service) editTeamFromSpec(
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
+	if spec.Scripts.Set {
+		team.Config.Scripts = spec.Scripts
+	}
+
 	if len(secrets) > 0 {
 		team.Secrets = secrets
 	}

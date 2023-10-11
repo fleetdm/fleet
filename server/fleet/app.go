@@ -378,6 +378,12 @@ type AppConfig struct {
 
 	MDM MDM `json:"mdm"`
 
+	// Scripts is a slice of script file paths.
+	//
+	// NOTE: These are only present here for informational purposes.
+	// (The source of truth for scripts is in MySQL.)
+	Scripts optjson.Slice[string] `json:"scripts"`
+
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
 	strictDecoding bool
@@ -476,6 +482,12 @@ func (c *AppConfig) Copy() *AppConfig {
 	if c.MDM.MacOSSettings.CustomSettings != nil {
 		clone.MDM.MacOSSettings.CustomSettings = make([]string, len(c.MDM.MacOSSettings.CustomSettings))
 		copy(clone.MDM.MacOSSettings.CustomSettings, c.MDM.MacOSSettings.CustomSettings)
+	}
+
+	if c.Scripts.Set {
+		scripts := make([]string, len(c.Scripts.Value))
+		copy(scripts, c.Scripts.Value)
+		clone.Scripts = optjson.SetSlice[string](scripts)
 	}
 
 	return &clone
