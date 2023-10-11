@@ -4916,10 +4916,10 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 There are two ways of adding a policy:
 1. Preferred: By setting "name", "query", and "description".
-2. Legacy: By setting "query_id" to reuse the data of an existing query. If "query_id" is set,
-then "query" must not be set, and "name" and "description" are ignored.
+2. Legacy: By setting `query_id` to reuse the data of an existing query. If `query_id` is set,
+then `query` must not be set, and `name` and `description` are ignored.
 
-An error is returned if both "query" and "query_id" are set on the request.
+An error is returned if both `query` and `query_id` are set on the request.
 
 `POST /api/v1/fleet/global/policies`
 
