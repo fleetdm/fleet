@@ -535,8 +535,8 @@ func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (boo
 	return observerCanRun, nil
 }
 
-func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
-	sql := `
+func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+	sqlStmt := `
 		SELECT
 			q.name,
 			q.query,
@@ -545,22 +545,24 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 			q.platform,
 			q.min_osquery_version,
 			q.automations_enabled,
-			q.logging_type
+			q.logging_type,
+			q.discard_data
 		FROM queries q
 		WHERE q.saved = true 
-			AND (q.schedule_interval > 0 AND q.automations_enabled = 1)
+			AND (q.schedule_interval > 0 AND %s AND (q.automations_enabled OR (NOT q.discard_data AND NOT ?)))
 	`
 
 	args := []interface{}{}
+	teamSQL := " team_id IS NULL"
 	if teamID != nil {
 		args = append(args, *teamID)
-		sql += " AND team_id = ?"
-	} else {
-		sql += " AND team_id IS NULL"
+		teamSQL = " team_id = ?"
 	}
+	sqlStmt = fmt.Sprintf(sqlStmt, teamSQL)
+	args = append(args, queryReportsDisabled)
 
 	results := []*fleet.Query{}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sqlStmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list scheduled queries for agents")
 	}
 

@@ -54,10 +54,9 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		Pool:           s.redisPool,
-		Lq:             s.lq,
-		Logger:         log.NewLogfmtLogger(os.Stdout),
-		EnableCachedDS: true,
+		Pool:   s.redisPool,
+		Lq:     s.lq,
+		Logger: log.NewLogfmtLogger(os.Stdout),
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server

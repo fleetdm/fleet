@@ -355,7 +355,12 @@ func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) getScheduledQueries(ctx context.Context, teamID *uint) (fleet.Queries, error) {
-	queries, err := svc.ds.ListScheduledQueriesForAgents(ctx, teamID)
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load app config")
+	}
+
+	queries, err := svc.ds.ListScheduledQueriesForAgents(ctx, teamID, appConfig.ServerSettings.QueryReportsDisabled)
 	if err != nil {
 		return nil, err
 	}
@@ -536,7 +541,7 @@ func (svc *Service) AgentOptionsForHost(ctx context.Context, hostTeamID *uint, h
 	// Otherwise return the appropriate override for global options.
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load global agent options")
+		return nil, ctxerr.Wrap(ctx, err, "load app config")
 	}
 	var options fleet.AgentOptions
 	if appConfig.AgentOptions != nil {
@@ -1381,9 +1386,8 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 			break
 		}
 
-		// Not returning errors as it will trigger osqueryd to retry the request
-		svc.SaveResultLogsToQueryReports(ctx, results)
-
+		// We currently return errors to osqueryd if there are any issues submitting results
+		// to the configured external destinations.
 		if err = svc.SubmitResultLogs(ctx, results); err != nil {
 			break
 		}
@@ -1393,6 +1397,44 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	}
 
 	return submitLogsResponse{Err: err}, nil
+}
+
+func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults []json.RawMessage) (unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	for _, raw := range osqueryResults {
+		var result *fleet.ScheduledQueryResult
+		if err := json.Unmarshal(raw, &result); err != nil {
+			level.Error(svc.logger).Log("msg", "unmarshalling result", "err", err)
+			// Note we store a nil item if the result could not be unmarshaled.
+		}
+		unmarshaledResults = append(unmarshaledResults, result)
+	}
+
+	queriesDBData = make(map[string]*fleet.Query)
+	for _, queryResult := range unmarshaledResults {
+		if queryResult == nil {
+			// These are results that could not be unmarshaled.
+			continue
+		}
+		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
+			continue
+		}
+		if _, ok := queriesDBData[queryResult.QueryName]; ok {
+			// Already loaded.
+			continue
+		}
+		query, err := svc.ds.QueryByName(ctx, teamID, queryName)
+		if err != nil {
+			level.Debug(svc.logger).Log("msg", "loading query by name", "err", err, "team", teamID, "name", queryName)
+			continue
+		}
+		queriesDBData[queryResult.QueryName] = query
+	}
+	return unmarshaledResults, queriesDBData
 }
 
 func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
@@ -1409,7 +1451,32 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
+	//
+	// We do not return errors to osqueryd when processing results because
+	// otherwise the results will never clear from its local DB and
+	// will keep retrying forever.
+	//
+	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs)
+	svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData)
+
+	var filteredLogs []json.RawMessage
+	for i, unmarshaledResult := range unmarshaledResults {
+		if unmarshaledResult == nil {
+			// Ignore results that could not be unmarshaled.
+			continue
+		}
+		dbQuery, ok := queriesDBData[unmarshaledResult.QueryName]
+		if !ok {
+			// Ignore results for unknown queries.
+			continue
+		}
+		if !dbQuery.AutomationsEnabled {
+			// Ignore results for queries that have automations disabled.
+			continue
+		}
+		filteredLogs = append(filteredLogs, logs[i])
+	}
+	if err := svc.osqueryLogWriter.Result.Write(ctx, filteredLogs); err != nil {
 		return newOsqueryError("error writing result logs: " + err.Error())
 	}
 	return nil
@@ -1419,76 +1486,57 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 // Query Reports
 ////////////////////////////////////////////////////////////////////////////////
 
-func (svc *Service) SaveResultLogsToQueryReports(ctx context.Context, results []json.RawMessage) {
+func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		level.Error(svc.logger).Log("err", "getting host from context")
+		return
+	}
 
 	// Do not insert results if query reports are disabled globally
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		level.Error(svc.logger).Log("err", "getting app config", "err", err)
+		level.Error(svc.logger).Log("msg", "getting app config", "err", err)
 		return
 	}
 	if appConfig.ServerSettings.QueryReportsDisabled {
 		return
 	}
 
-	var queryResults []fleet.ScheduledQueryResult
-	for _, raw := range results {
-		var result fleet.ScheduledQueryResult
-		if err := json.Unmarshal(raw, &result); err != nil {
-			level.Error(svc.logger).Log("err", "unmarshalling result", "err", err)
-			continue
-		}
-		queryResults = append(queryResults, result)
-	}
-
-	// Filter results to only the most recent for each query
-	filtered := getMostRecentResults(queryResults)
+	// Filter results to only the most recent for each query.
+	filtered := getMostRecentResults(unmarshaledResults)
 
 	for _, result := range filtered {
-		if err := svc.processResults(ctx, result); err != nil {
-			level.Error(svc.logger).Log("err", "processing result", "err", err)
+		// Discard result if there is no snapshot
+		if len(result.Snapshot) == 0 {
+			continue
+		}
+
+		dbQuery, ok := queriesDBData[result.QueryName]
+		if !ok {
+			// Means the query does not exist with such name anymore. Thus we ignore its result.
+			continue
+		}
+
+		if dbQuery.DiscardData || dbQuery.Logging != fleet.LoggingSnapshot {
+			// Ignore result if query is marked as discard data or if logging is not snapshot
+			continue
+		}
+
+		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID); err != nil {
+			level.Error(svc.logger).Log("msg", "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
 		}
 	}
-
-	return
-}
-
-func (svc *Service) processResults(ctx context.Context, result fleet.ScheduledQueryResult) error {
-	// Discard result if there is no snapshot
-	if len(result.Snapshot) == 0 {
-		return nil
-	}
-
-	teamID, queryName, err := getQueryNameAndTeamIDFromResult(result.QueryName)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "querying name and team ID from result")
-	}
-
-	query, err := svc.ds.QueryByName(ctx, teamID, queryName)
-	if err != nil {
-		return nil // not logging here due to a known issue when renaming queries
-	}
-
-	// Discard Result if query is marked as discard data or if logging is not snapshot
-	if query.DiscardData || query.Logging != fleet.LoggingSnapshot {
-		return nil
-	}
-
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
-		return ctxerr.Wrap(ctx, err, "getting host from context")
-	}
-
-	return svc.overwriteResultRows(ctx, result, query.ID, host.ID)
 }
 
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.  Each
 // row is saved as a separate ScheduledQueryResultRow. ie. a result could contain
 // many USB Devices or a result could contain all User Accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result fleet.ScheduledQueryResult, queryID, hostID uint) error {
+func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint) error {
 	fetchTime := time.Now()
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
@@ -1517,11 +1565,15 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result fleet.Schedu
 // Osquery can send multiple results for the same query (ie. if an agent loses
 // network connectivity it will cache multiple results).  Query Reports only
 // save the most recent result for a given query.
-func getMostRecentResults(results []fleet.ScheduledQueryResult) []fleet.ScheduledQueryResult {
+func getMostRecentResults(results []*fleet.ScheduledQueryResult) []*fleet.ScheduledQueryResult {
 	// Use a map to track the most recent entry for each unique QueryName
-	latestResults := make(map[string]fleet.ScheduledQueryResult)
+	latestResults := make(map[string]*fleet.ScheduledQueryResult)
 
 	for _, result := range results {
+		if result == nil {
+			// This is a result that failed to unmarshal.
+			continue
+		}
 		if existing, ok := latestResults[result.QueryName]; ok {
 			// Compare the UnixTime time and update the map if the current result is more recent
 			if result.UnixTime > existing.UnixTime {
@@ -1533,7 +1585,7 @@ func getMostRecentResults(results []fleet.ScheduledQueryResult) []fleet.Schedule
 	}
 
 	// Convert the map back to a slice
-	var filteredResults []fleet.ScheduledQueryResult
+	var filteredResults []*fleet.ScheduledQueryResult
 	for _, v := range latestResults {
 		filteredResults = append(filteredResults, v)
 	}
