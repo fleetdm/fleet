@@ -910,13 +910,15 @@ type ProtoCmdOperation struct {
 
 // Protocol Command
 type SyncMLCmd struct {
-	XMLName xml.Name   `xml:",omitempty"`
-	CmdID   string     `xml:"CmdID"`
-	MsgRef  *string    `xml:"MsgRef,omitempty"`
-	CmdRef  *string    `xml:"CmdRef,omitempty"`
-	Cmd     *string    `xml:"Cmd,omitempty"`
-	Data    *string    `xml:"Data,omitempty"`
-	Items   *[]CmdItem `xml:"Item,omitempty"`
+	XMLName      xml.Name  `xml:",omitempty"`
+	CmdID        string    `xml:"CmdID"`
+	MsgRef       *string   `xml:"MsgRef,omitempty"`
+	CmdRef       *string   `xml:"CmdRef,omitempty"`
+	Cmd          *string   `xml:"Cmd,omitempty"`
+	Data         *string   `xml:"Data,omitempty"`
+	Items        []CmdItem `xml:"Item,omitempty"`
+	UUID         string    `xml:"-"`
+	SystemOrigin bool      `xml:"-"`
 }
 
 type CmdItem struct {
@@ -1087,6 +1089,49 @@ func (msg *SyncML) GetTarget() (string, error) {
 	return "", errors.New("message target is empty")
 }
 
+// GetOrderedCmds returns the commands in the order they are defined in the message.
+func (msg *SyncML) GetOrderedCmds() []ProtoCmdOperation {
+	var cmds []ProtoCmdOperation
+
+	// Helper function to add commands to the cmds slice
+	addCmds := func(cmdsList ProtoCmds, verb string) {
+		for _, cmd := range cmdsList {
+			cmds = append(cmds, ProtoCmdOperation{Verb: verb, Cmd: cmd})
+		}
+	}
+
+	// Process each command one by one
+	if msg.SyncBody.Add != nil {
+		addCmds(msg.SyncBody.Add, CmdAdd)
+	}
+	if msg.SyncBody.Alert != nil {
+		addCmds(msg.SyncBody.Alert, CmdAlert)
+	}
+	if msg.SyncBody.Atomic != nil {
+		addCmds(msg.SyncBody.Atomic, CmdAtomic)
+	}
+	if msg.SyncBody.Delete != nil {
+		addCmds(msg.SyncBody.Delete, CmdDelete)
+	}
+	if msg.SyncBody.Exec != nil {
+		addCmds(msg.SyncBody.Exec, CmdExec)
+	}
+	if msg.SyncBody.Get != nil {
+		addCmds(msg.SyncBody.Get, CmdGet)
+	}
+	if msg.SyncBody.Replace != nil {
+		addCmds(msg.SyncBody.Replace, CmdReplace)
+	}
+	if msg.SyncBody.Results != nil {
+		addCmds(msg.SyncBody.Results, CmdResults)
+	}
+	if msg.SyncBody.Status != nil {
+		addCmds(msg.SyncBody.Status, CmdStatus)
+	}
+
+	return cmds
+}
+
 type MDMCommandType int
 
 const (
@@ -1100,6 +1145,18 @@ const (
 	MDMReplace
 	MDMResults
 	MDMStatus
+)
+
+type SyncMLDataType uint16
+
+const (
+	SFEmpty SyncMLDataType = iota
+	SFNoFormat
+	SFText
+	SFXml
+	SFInteger
+	SFBoolean
+	SFBase64
 )
 
 func (msg *SyncML) AppendCommand(cmdType MDMCommandType, cmd SyncMLCmd) {
@@ -1164,9 +1221,92 @@ func (msg *SyncML) SetID(cmdID int) {
 
 // IsValid checks for required fields in the SyncML command
 func (cmd *SyncMLCmd) IsValid() bool {
-	if ((cmd.Items == nil) || (len(*cmd.Items) == 0)) && cmd.Data == nil {
+	if ((cmd.Items == nil) || (len(cmd.Items) == 0)) && cmd.Data == nil {
 		return false
 	}
 
 	return true
+}
+
+// IsEmpty checks if there are not items in the command
+func (cmd *SyncMLCmd) IsEmpty() bool {
+	if len(cmd.Items) == 0 {
+		return true
+	}
+
+	return false
+}
+
+// GetTargetURI returns the first protocol commands target URI from the items list
+// This is OK as the protocol commands only have one item when sent from the server
+func (cmd *SyncMLCmd) GetTargetURI() string {
+	if cmd.IsEmpty() {
+		return ""
+	}
+
+	if cmd.Items[0].Target != nil {
+		return *cmd.Items[0].Target
+	}
+
+	return ""
+}
+
+// GetTargetData returns the first protocol commands target data from the items list
+// This is OK as the protocol commands only have one item when sent from the server
+func (cmd *SyncMLCmd) GetTargetData() string {
+	if cmd.IsEmpty() {
+		return ""
+	}
+
+	if cmd.Items[0].Data != nil {
+		return *cmd.Items[0].Data
+	}
+
+	return ""
+}
+
+func (cmd *SyncMLCmd) ShouldBeTracked(cmdVerb string) bool {
+	if cmd.IsEmpty() {
+		return false
+	}
+
+	if (cmdVerb == "") || (cmdVerb == CmdResults) || (cmdVerb == CmdStatus) || (cmd.UUID == "") {
+		return false
+	}
+
+	return true
+}
+
+// /////////////////////////////////////////////////////////////
+// MDMWindowsPendingCommand type
+// Represents a command in the windows_mdm_pending_commands table
+type MDMWindowsPendingCommand struct {
+	CommandUUID  string    `db:"command_uuid"`
+	DeviceID     string    `db:"device_id"`
+	CmdVerb      string    `db:"cmd_verb"`
+	SettingURI   string    `db:"setting_uri"`
+	SettingValue string    `db:"setting_value"`
+	DataType     uint16    `db:"data_type"`
+	SystemOrigin bool      `db:"system_origin"`
+	CreatedAt    time.Time `db:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at"`
+}
+
+// /////////////////////////////////////////////////////////////
+// MDMWindowsCommand type
+// Represents a command that has been already sent and
+// that is stored in the windows_mdm_commands table
+type MDMWindowsCommand struct {
+	CommandUUID  string    `db:"command_uuid"`
+	DeviceID     string    `db:"device_id"`
+	SessionID    string    `db:"session_id"`
+	MessageID    string    `db:"message_id"`
+	CommandID    string    `db:"command_id"`
+	CmdVerb      string    `db:"cmd_verb"`
+	SettingURI   string    `db:"setting_uri"`
+	SettingValue string    `db:"setting_value"`
+	SystemOrigin bool      `db:"system_origin"`
+	ErrorCode    string    `db:"rx_error_code"`
+	CreatedAt    time.Time `db:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at"`
 }
