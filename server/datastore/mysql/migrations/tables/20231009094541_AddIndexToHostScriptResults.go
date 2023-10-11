@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230927111208, Down_20230927111208)
+	MigrationClient.AddMigration(Up_20231009094541, Down_20231009094541)
 }
 
-func Up_20230927111208(tx *sql.Tx) error {
+func Up_20231009094541(tx *sql.Tx) error {
 	sql := `
 ALTER TABLE 
     host_script_results 
@@ -23,6 +23,6 @@ ADD INDEX
 	return nil
 }
 
-func Down_20230927111208(tx *sql.Tx) error {
+func Down_20231009094541(tx *sql.Tx) error {
 	return nil
 }
