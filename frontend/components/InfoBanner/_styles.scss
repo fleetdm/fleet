@@ -36,7 +36,7 @@
 
   &__info {
     p {
-      margin-top: $pad-small;
+      margin: $pad-medium 0 0 0;
     }
   }
 
@@ -64,9 +64,5 @@
         stroke: $core-vibrant-blue;
       }
     }
-  }
-
-  p {
-    margin: 0;
   }
 }
