@@ -1406,7 +1406,7 @@ func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults
 	for _, raw := range osqueryResults {
 		var result *fleet.ScheduledQueryResult
 		if err := json.Unmarshal(raw, &result); err != nil {
-			level.Error(svc.logger).Log("err", "unmarshalling result", "err", err)
+			level.Error(svc.logger).Log("msg", "unmarshalling result", "err", err)
 			// Note we store a nil item if the result could not be unmarshaled.
 		}
 		unmarshaledResults = append(unmarshaledResults, result)
@@ -1420,7 +1420,7 @@ func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults
 		}
 		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
 		if err != nil {
-			level.Error(svc.logger).Log("err", "querying name and team ID from result", "err", err)
+			level.Error(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
 			continue
 		}
 		if _, ok := queriesDBData[queryResult.QueryName]; ok {
@@ -1429,7 +1429,7 @@ func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults
 		}
 		query, err := svc.ds.QueryByName(ctx, teamID, queryName)
 		if err != nil {
-			level.Debug(svc.logger).Log("err", "loading query by name", "err", err, "team", teamID, "name", queryName)
+			level.Debug(svc.logger).Log("msg", "loading query by name", "err", err, "team", teamID, "name", queryName)
 			continue
 		}
 		queriesDBData[queryResult.QueryName] = query
