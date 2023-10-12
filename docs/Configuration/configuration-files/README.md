@@ -691,6 +691,7 @@ If the live query feature is disabled or not.
 ##### server_settings.query_reports_disabled
 
 If the query reports feature is disabled or not.
+If this setting is changed from `false` to `true` then all stored query results will be deleted (this process can take up to one hour).
 
 Query reports are results of scheduled queries stored/cached (up to 1000) in Fleet.
 
