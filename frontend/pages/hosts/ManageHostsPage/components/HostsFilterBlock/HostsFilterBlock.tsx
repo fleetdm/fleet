@@ -11,12 +11,13 @@ import {
   BootstrapPackageStatus,
   IMdmSolution,
   MDM_ENROLLMENT_STATUS,
+  MdmProfileStatus,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { ISoftware } from "interfaces/software";
 import { IPolicy } from "interfaces/policy";
 import {
-  DISK_ENCRYPTION_QUERY_PARAM_NAME,
+  HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
 
@@ -32,7 +33,7 @@ import Icon from "components/Icon/Icon";
 
 import FilterPill from "../FilterPill";
 import PoliciesFilter from "../PoliciesFilter";
-import { MAC_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
+import { OS_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
 import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
 import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
 
@@ -63,6 +64,7 @@ interface IHostsFilterBlockProps {
     osVersions?: IOperatingSystemVersion[];
     softwareDetails: ISoftware | null;
     mdmSolutionDetails: IMdmSolution | null;
+    osSettingsStatus?: MdmProfileStatus;
     diskEncryptionStatus?: DiskEncryptionStatus;
     bootstrapPackageStatus?: BootstrapPackageStatus;
   };
@@ -71,6 +73,7 @@ interface IHostsFilterBlockProps {
   handleClearRouteParam: () => void;
   handleClearFilter: (omitParams: string[]) => void;
   onChangePoliciesFilter: (response: PolicyResponse) => void;
+  onChangeOsSettingsFilter: (newStatus: MdmProfileStatus) => void;
   onChangeDiskEncryptionStatusFilter: (response: DiskEncryptionStatus) => void;
   onChangeBootstrapPackageStatusFilter: (
     response: BootstrapPackageStatus
@@ -105,6 +108,7 @@ const HostsFilterBlock = ({
     softwareDetails,
     policy,
     mdmSolutionDetails,
+    osSettingsStatus,
     diskEncryptionStatus,
     bootstrapPackageStatus,
   },
@@ -113,6 +117,7 @@ const HostsFilterBlock = ({
   handleClearRouteParam,
   handleClearFilter,
   onChangePoliciesFilter,
+  onChangeOsSettingsFilter,
   onChangeDiskEncryptionStatusFilter,
   onChangeBootstrapPackageStatusFilter,
   onChangeMacSettingsFilter,
@@ -215,7 +220,7 @@ const HostsFilterBlock = ({
         <Dropdown
           value={macSettingsStatus}
           className={`${baseClass}__macsettings-dropdown`}
-          options={MAC_SETTINGS_FILTER_OPTIONS}
+          options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeMacSettingsFilter}
         />
         <FilterPill
@@ -367,6 +372,24 @@ const HostsFilterBlock = ({
     );
   };
 
+  const renderOsSettingsBlock = () => {
+    const label = "OS settings";
+    return (
+      <>
+        <Dropdown
+          value={osSettingsStatus}
+          className={`${baseClass}__os_settings-dropdown`}
+          options={OS_SETTINGS_FILTER_OPTIONS}
+          onChange={onChangeOsSettingsFilter}
+        />
+        <FilterPill
+          label={label}
+          onClear={() => handleClearFilter([HOSTS_QUERY_PARAMS.OS_SETTINGS])}
+        />
+      </>
+    );
+  };
+
   const renderDiskEncryptionStatusBlock = () => {
     if (!diskEncryptionStatus) return null;
 
@@ -378,7 +401,9 @@ const HostsFilterBlock = ({
         />
         <FilterPill
           label="OS settings: Disk encryption"
-          onClear={() => handleClearFilter([DISK_ENCRYPTION_QUERY_PARAM_NAME])}
+          onClear={() =>
+            handleClearFilter([HOSTS_QUERY_PARAMS.DISK_ENCRYPTION])
+          }
         />
       </>
     );
@@ -414,6 +439,7 @@ const HostsFilterBlock = ({
     osId ||
     (osName && osVersion) ||
     munkiIssueId ||
+    osSettingsStatus ||
     diskEncryptionStatus ||
     bootstrapPackageStatus
   ) {
@@ -458,6 +484,9 @@ const HostsFilterBlock = ({
           return renderMunkiIssueFilterBlock();
         case !!lowDiskSpaceHosts:
           return renderLowDiskSpaceFilterBlock();
+        case !!osSettingsStatus:
+          console.log("renderOsSettingsBlock");
+          return renderOsSettingsBlock();
         case !!diskEncryptionStatus:
           return renderDiskEncryptionStatusBlock();
         case !!bootstrapPackageStatus:

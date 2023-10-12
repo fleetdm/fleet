@@ -681,7 +681,7 @@ func TestSavedScripts(t *testing.T) {
 	}
 }
 
-func TestHostScriptDetails(t *testing.T) {
+func TestHostScriptDetailsAuth(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
@@ -830,6 +830,52 @@ func TestHostScriptDetails(t *testing.T) {
 					require.True(t, fleet.IsNotFound(err))
 				}
 			})
+		})
+	}
+}
+
+func TestHostScriptDetailsSupportedPlatform(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+		return []*fleet.HostScriptDetail{{HostID: hostID, ScriptID: 1337, Name: "some-script.sh"}}, nil, nil
+	}
+
+	for _, tt := range []struct {
+		platform  string
+		supported bool
+	}{
+		{"darwin", true},
+		{"ubuntu", false},
+		{"centos", false},
+		{"rhel", false},
+		{"debian", false},
+		{"windows", false},
+	} {
+		t.Run(tt.platform, func(t *testing.T) {
+			ds.GetHostScriptDetailsFuncInvoked = false
+			ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+				return &fleet.Host{ID: hostID, Platform: tt.platform}, nil
+			}
+
+			res, _, err := svc.GetHostScriptDetails(ctx, 42, fleet.ListOptions{})
+			require.NoError(t, err)
+			if tt.supported {
+				require.NotNil(t, res)
+				require.Len(t, res, 1)
+				require.True(t, ds.GetHostScriptDetailsFuncInvoked)
+			} else {
+				require.NotNil(t, res)
+				require.Len(t, res, 0)
+				require.False(t, ds.GetHostScriptDetailsFuncInvoked)
+			}
 		})
 	}
 }

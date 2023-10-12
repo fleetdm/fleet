@@ -37,7 +37,7 @@ const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
     try {
       const content = await scriptAPI.downloadScript(script.id);
       const formatDate = format(new Date(), "yyyy-MM-dd");
-      const filename = `${formatDate}_${script.name}`;
+      const filename = `${formatDate} ${script.name}`;
       const file = new File([content], filename);
       FileSaver.saveAs(file);
     } catch {
