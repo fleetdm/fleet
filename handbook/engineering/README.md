@@ -360,7 +360,9 @@ The oncall engineer is asked to read, understand, test, correct, and improve at 
 ### Clearing the plate
 Engineering managers are asked to be aware of the [oncall rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are oncall. While it varies week to week considerably, the oncall responsibilities can sometimes take up a substantial portion of the engineer's time.
 
-The remaining time after fulfilling the responsibilities of oncall is free for the engineer to choose their own path. Please choose something relevant to your work or Fleet's goals to focus on. If unsure, feel free to speak with your manager.
+We aspire to clear sprint work for the oncall engineer, but due to capacity or other constraints, sometimes the oncall engineer is required for sprint work. When this is the case, the EM will work with the oncall engineer to take over support requests or @oncall assignment completely when necessary.
+
+The remaining time after fulfilling the responsibilities of oncall is free for the engineer to choose their own path. Please choose something relevant to your work or Fleet's goals to focus on. If unsure, speak with your manager.
 
 Some ideas:
 
@@ -368,9 +370,7 @@ Some ideas:
 - Improve the Fleet developer experience.
 - Hack on a product idea. Note: Experiments are encouraged, but not all experiments will ship! Check in with the product team before shipping user-visible changes.
 - Create a blog post (or other content) for fleetdm.com.
-- Try out an experimental refactor.
-
-At the end of your oncall shift, you will be asked to share about how you spent your time.
+- Try out an experimental refactor. 
 
 ### How to reach the oncall engineer
 Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineering` to get the attention of the oncall engineer to continue discussing any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor. In others, the oncall engineer will communicate directly (team members should use their judgment and discuss on a case-by-case basis how to best communicate with community members and customers).
