@@ -66,6 +66,10 @@ go.mod @fleetdm/go
 /docs/Using-Fleet/REST-API.md                   @rachaelshaw # « REST API reference documentation
 /docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
 /schema                                         @rachaelshaw # « Data tables (osquery/fleetd schema) documentation
+/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @rachaelshaw # « Device health checks (https://fleetdm.com/queries)
+/docs/Configuration/agent-configuration.md         @rachaelshaw # « Configuration surface: Agent
+/docs/Configuration/fleet-server-configuration.md  @rachaelshaw # « Configuration surface: Fleet server
+/docs/Configuration/configuration-files/README.md  @rachaelshaw # « Configuration surface: Fleet server (even more things)  FUTURE: consolidate this.
 
 ##############################################################################################
 # 🫧 Pricing and features
