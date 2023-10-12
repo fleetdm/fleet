@@ -416,7 +416,7 @@ func (a *agent) isOrbit() bool {
 	return a.deviceAuthToken != nil
 }
 
-func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) 
+func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	if a.isOrbit() {
 		if err := a.orbitEnroll(); err != nil {
 			return
@@ -481,7 +481,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool)
 			}
 		}
 	}
-
+}
 
 func (a *agent) runOrbitLoop() {
 	orbitClient, err := service.NewOrbitClient(
@@ -834,24 +834,27 @@ func (a *agent) config() {
 	for packName, pack := range parsedResp.Packs {
 		for queryName, query := range pack.Queries {
 			scheduledQueries = append(scheduledQueries, packName+"_"+queryName)
-			if m, ok := query.(map[string]interface{}); ok {
-				q := scheduledQuery{}
-				q.Name = queryName
-				parts := strings.Split(q.Name, "_")
-				q.NumResults = 10
-				if len(parts) > 0 {
-					num, err := strconv.ParseInt(parts[1], 10, 32)
-					if err != nil {
-						log.Println("processing scheduled query failed: expected a number in the query name. Using default value")
-					}
-					q.NumResults = uint(num)
-				}
-				q.ScheduleInterval = m["interval"].(float64)
-				q.Query = m["query"].(string)
-				scheduledQueryData = append(scheduledQueryData, q)
-			} else {
+			m, ok := query.(map[string]interface{})
+			if !ok {
 				log.Fatalf("processing scheduled query failed: %v\n", query)
 			}
+
+			q := scheduledQuery{}
+			q.Name = queryName
+			q.NumResults = 1
+			parts := strings.Split(q.Name, "_")
+			if len(parts) > 0 {
+				num, err := strconv.ParseInt(parts[1], 10, 32)
+				if err != nil {
+					log.Println("processing scheduled query failed: expected a number in the query name. Using default value")
+					num = 1
+				}
+				q.NumResults = uint(num)
+			}
+			q.ScheduleInterval = m["interval"].(float64)
+			q.Query = m["query"].(string)
+			scheduledQueryData = append(scheduledQueryData, q)
+
 		}
 	}
 	a.scheduledQueries = scheduledQueries
