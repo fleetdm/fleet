@@ -66,14 +66,18 @@ const NoResults = ({
     // In order of empty page priority
     if (disabledCaching) {
       const tipContent = () => {
+        // TODO - change to JSX with refactor tooltipwrapper merge
         if (disabledCachingGlobally) {
-          return "The following setting prevents saving this query's results in Fleet:<ul><li>Query reports are globally disabled in organization settings.</li></ul>";
+          return `<div>The following setting prevents saving this query's results in Fleet:</div>\
+             <div>&nbsp; • Query reports are globally disabled in organization settings.</div>`;
         }
         if (discardDataEnabled) {
-          return "The following setting prevents saving this query's results in Fleet:<ul><li>This query has Discard data enabled.</li></ul>";
+          return `<div>The following setting prevents saving this query's results in Fleet:</div>\
+         <div>&nbsp; • This query has <b>Discard data</b> enabled.</div>`;
         }
         if (!loggingSnapshot) {
-          return "The following setting prevents saving this query's results in Fleet:<ul><li>The logging setting for this query is not Snapshot.</li></ul>";
+          return `<div>The following setting prevents saving this query's results in Fleet:</div>\
+          <div>&nbsp; • The logging setting for this query is not <b>Snapshot</b>.</div>`;
         }
         return "Unknown";
       };
