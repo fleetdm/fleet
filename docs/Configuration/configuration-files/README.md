@@ -688,6 +688,21 @@ If the live query feature is disabled or not.
     live_query_disabled: true
   ```
 
+##### server_settings.query_reports_disabled
+
+If the query reports feature is disabled or not.
+
+Query reports are results of scheduled queries stored/cached (up to 1000) in Fleet.
+
+- Optional setting (boolean)
+- Default value: `false`
+- Config file format:
+  ```yaml
+  server_settings:
+    query_reports_disabled: true
+  ```
+
+
 ##### server_settings.server_url
 
 The base URL of the fleet server, including the scheme (e.g. "https://").
