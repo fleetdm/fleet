@@ -51,7 +51,7 @@ The goal of the customer experience (CX) group is to make users and customers ha
 | Engineering manager               | Sharon Katz
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Mo Zhu
-| Software engineers (developers)   | Jacob Shandling, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Tim Lee
+| Software engineers (developers)   | Jacob Shandling, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Tim Lee, Victor Lyuboslavsky
 
 > The Slack channel, kanban release board, and label for this product group is `#g-cx`.
 
@@ -205,20 +205,8 @@ The product designer prepares proposed changes in the form of wireframes for thi
 
 #### Air guitar
 
-Air guitar is an optional, conceptual exercise that can sometimes happen before (or in lieu of) the formal design review stage, focusing on rapid iteration and exploration without immediate plans for engineering implementation. It's like strumming an imaginary guitar — full of movements and rhythm but without strings attached.
-
-The goal of the air guitar process is to explore the shape of an idea, feature, or customer request quickly, without affecting the engineering pipeline. This enables the team to:
-
-1. Validate or invalidate assumptions.
-2. Refine the scope and nature of the user story.
-3. Explore multiple avenues with low stakes.
-4. Quickly gather feedback for future planning.
-
-The air guitar process is particularly useful when:
-
-1. The team receives an interesting customer request that may not yet align with immediate development priorities.
-2. The team wishes to explore a new idea or feature without committing engineering effort.
-3. The product group needs to validate whether a user story is worth scheduling for formal development.
+1. Air guitar issues are always intended to be designed right away.
+2. If they can't be, the requestor is notified via at-mention in the issue.  (That person is either the CSM or AE.)  These comments (like every github comment) should at-mention the intended recipient.  GitHub comments without at-mentions do not notify anyone.
 
 ##### Initiate an air guitar session
 

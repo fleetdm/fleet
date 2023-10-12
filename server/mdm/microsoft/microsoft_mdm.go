@@ -1,7 +1,11 @@
 package microsoft_mdm
 
 import (
+	"crypto/x509"
+	"encoding/base64"
+
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
+	"go.mozilla.org/pkcs7"
 )
 
 const (
@@ -154,8 +158,14 @@ const (
 	// Certificate Renewal Period in seconds (180 days)
 	PolicyCertRenewalPeriodInSecs = "15552000"
 
-	// Supported Enroll Type
-	ReqSecTokenEnrollType = "Full"
+	// Supported Enroll types gathered from MS-MDE2 Spec Section 2.2.9.3
+	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/f7553554-b6e1-4a0d-abd6-6a2534503af7
+
+	// Supported Enroll Type Device
+	ReqSecTokenEnrollTypeDevice = "Device"
+
+	// Supported Enroll Type Full
+	ReqSecTokenEnrollTypeFull = "Full"
 
 	// Provisioning Doc Certificate Renewal Period (365 days)
 	WstepCertRenewalPeriodInDays = "365"
@@ -168,7 +178,7 @@ const (
 	WstepRenewRetryInterval = "4"
 
 	// The PROVIDER-ID paramer specifies the server identifier for a management server used in the current management session
-	DocProvisioningAppProviderID = "FleetDM"
+	DocProvisioningAppProviderID = "Fleet"
 
 	// The NAME parameter is used in the APPLICATION characteristic to specify a user readable application identity
 	DocProvisioningAppName = DocProvisioningAppProviderID
@@ -268,4 +278,15 @@ func ResolveWindowsMDMAuth(serverURL string) (string, error) {
 
 func ResolveWindowsMDMManagement(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2ManagementPath, false)
+}
+
+// Encrypt uses pkcs7 to encrypt a raw value using the provided certificate.
+// The returned encrypted value is base64-encoded.
+func Encrypt(rawValue string, cert *x509.Certificate) (string, error) {
+	encrypted, err := pkcs7.Encrypt([]byte(rawValue), []*x509.Certificate{cert})
+	if err != nil {
+		return "", err
+	}
+	b64Enc := base64.StdEncoding.EncodeToString(encrypted)
+	return b64Enc, nil
 }

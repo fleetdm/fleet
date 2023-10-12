@@ -12,7 +12,7 @@ Agent options are validated using the latest version of osquery.
 
 When updating agent options, you may see an error similar to this:
 
-```
+```sh
 [...] unsupported key provided: "logger_plugin"
 If you’re not using the latest osquery, use the fleetctl apply --force command to override validation.
 ```
@@ -21,7 +21,9 @@ This error indicates that you're providing a config option that isn't valid in t
 
 If you are not using the latest version of osquery, you can create a config YAML file and apply it with `fleetctl` using the `--force` flag to override the validation:
 
-```fleetctl apply --force -f config.yaml```
+```sh
+fleetctl apply --force -f config.yaml
+```
 
 You can verify that your agent options are valid by using [the fleetctl apply command](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleetctl-apply) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
 
@@ -160,7 +162,7 @@ If you prefer to deploy a new package with the updated enroll secret:
 
 > In order for these options to be applied to your hosts, the `osquery` agent must be configured to use the `tls` config plugin and pointed to the correct endpoint. If you are using Fleetd to enroll your hosts, this is done automatically.
 
-```
+```go
 "--config_plugin=tls",
 "--config_tls_endpoint=" + path.Join(prefix, "/api/v1/osquery/config")
 ```
@@ -178,32 +180,54 @@ spec:
 
 The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one.
 
-
 This is best illustrated with an example. Here is an example of using the `extensions` key:
-
 ```yaml
 apiVersion: v1
 kind: config
 spec:
   agent_options:
     extensions: # requires Fleet's osquery installer
-      hello_world:
+      hello_world_macos:
         channel: 'stable'
         platform: 'macos'
+      hello_world_linux:
+        channel: 'stable'
+        platform: 'linux'
+      hello_world_windows:
+        channel: 'stable'
+        platform: 'windows'
 ```
 
-In the above example, we are configuring our `hello_world` extension. We do this by creating a `hello_world` subkey under `extensions`, and then specifying the `channel` and `platform` keys for that extension.
+In the above example, we are configuring our `hello_world` extensions for all the supported operating systems. We do this by creating `hello_world_{macos|linux|windows}` subkeys under `extensions`, and then specifying the `channel` and `platform` keys for each extension entry.
 
-Next, you will need to make sure to push the binary file of our `hello_world` extension as a target on your TUF server. This step needs to follow these conventions:
-
-* The binary file of the extension must have the same name as the extension, followed by the `.ext`. In the above case, the filename should be `hello_world.ext`
-* The target name for the TUF server must be named as `extensions/<extension_name>`. For the above example, this would be `extensions/hello_world`
-* `platform` is one of `macos`, `linux`, or `windows`
+Next, you will need to make sure to push the binary files of our `hello_world_*` extension as a target on your TUF server. This step needs to follow these conventions:
+* The binary file of the extension must have the same name as the extension, followed by `.ext` for macOS and Linux extensions and by `.ext.exe` for Windows extensions.
+In the above case, the filename for macOS should be `hello_world_macos.ext`, for Linux it should be `hello_world_linux.ext` and for Windows it should be `hello_world_windows.ext.exe`.
+* The target name for the TUF server must be named as `extensions/<extension_name>`. For the above example, this would be `extensions/hello_world_{macos|linux|windows}`
+* The `platform` field is one of `macos`, `linux`, or `windows`.
 
 If you are using `fleetctl` to manage your TUF server, these same conventions apply. You can run the following command to add a new target:
-
 ```bash
-fleetctl updates add --path /path/to/local/TUF/repo --target /path/to/extensions/binary/hello_world.ext --name extensions/hello_world --platform macos --version 0.1
+fleetctl updates add \
+  --path /path/to/local/TUF/repo \
+  --target /path/to/extensions/binary/hello_world_macos.ext \
+  --name extensions/hello_world_macos \
+  --platform macos \
+  --version 0.1
+
+fleetctl updates add \
+  --path /path/to/local/TUF/repo
+  --target /path/to/extensions/binary/hello_world_linux.ext \
+  --name extensions/hello_world_linux \
+  --platform linux \
+  --version 0.1
+
+fleetctl updates add \
+  --path /path/to/local/TUF/repo \
+  --target /path/to/extensions/binary/hello_world_windows.ext.exe \
+  --name extensions/hello_world_windows \
+  --platform windows \
+  --version 0.1
 ```
 
 After successfully configuring the agent options, and pushing the extension as a target on your TUF server, Fleetd will periodically check with the TUF server for updates to these extensions.
@@ -211,6 +235,42 @@ After successfully configuring the agent options, and pushing the extension as a
 If you are using a self-hosted TUF server, you must also manage all of Fleetd's versions, including osquery, Fleet Desktop and osquery extensions.
 
 Fleet recommends deploying extensions created with osquery-go or natively with C++, instead of Python. Extensions written in Python require the user to compile it into a single packaged binary along with all the dependencies.
+
+### Targeting extensions with labels
+
+_Available in Fleet Premium v4.38.0_
+
+Fleet allows you to target extensions to hosts that belong to specific labels. To set these labels, you'll need to define a `labels` list under the extension name.
+The label names in the list:
+- must already exist (otherwise the `/api/latest/fleet/config` request will fail).
+- are case insensitive.
+- must **all** apply to a host in order to deploy the extension to that host.
+
+Example:
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    extensions: # requires Fleet's osquery installer
+      hello_world_macos:
+        channel: 'stable'
+        platform: 'macos'
+        labels:
+          - Zoom installed
+      hello_world_linux:
+        channel: 'stable'
+        platform: 'linux'
+        labels:
+          - Ubuntu Linux
+          - Zoom installed
+      hello_world_windows:
+        channel: 'stable'
+        platform: 'windows'
+```
+In the above example:
+- the `hello_world_macos` extension is deployed to macOS hosts that are members of the 'Zoom installed' label.
+- the `hello_world_linux` extension is deployed to Linux hosts that are members of the 'Ubuntu Linux' **and** 'Zoom installed' labels.
 
 ## Config
 

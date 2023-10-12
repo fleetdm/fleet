@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery } from "react-query";
 
-import scriptsAPI, { IScriptResult } from "services/entities/scripts";
+import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -166,7 +166,7 @@ const ScriptDetailsModal = ({
   scriptExecutionId,
   onCancel,
 }: IScriptDetailsModalProps) => {
-  const { data, isLoading, isError } = useQuery<IScriptResult>(
+  const { data, isLoading, isError } = useQuery<IScriptResultResponse>(
     ["scriptDetailsModal"],
     () => {
       return scriptsAPI.getScriptResult(scriptExecutionId);

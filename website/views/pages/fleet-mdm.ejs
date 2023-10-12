@@ -46,7 +46,32 @@
       </div>
     </div>
 
-    <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
+    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+      <div purpose="scope-tansparency-feature-image">
+        <img alt="Transparency for end users" src="/images/device-management-transparency-438x373@2x.png">
+      </div>
+      <div purpose="feature-right-text-block" class="d-flex flex-column">
+        <h3>Transparency for end users</h3>
+
+        <p>Provide assurance to your end users about what information is being collected from their device.</p>
+        <div class="d-flex flex-column pb-4">
+          <div purpose="checklist">
+            <img alt="A green circle containing a checkmark" src="/images/icon-checkmark-circle-green-16x16@2x.png">
+            <p>Let end users see the source code for exactly how they are being monitored.</p>
+          </div>
+          <div purpose="checklist">
+            <img alt="A green circle containing a checkmark" src="/images/icon-checkmark-circle-green-16x16@2x.png">
+            <p>Set clear expectations about what is and isn’t acceptable use of work computers.</p>
+          </div>
+          <div purpose="checklist">
+            <img alt="A green circle containing a checkmark" src="/images/icon-checkmark-circle-green-16x16@2x.png">
+            <p>Let users participate in fixing things.</p>
+          </div>
+        </div>
+        <a purpose="scope-transparency-animated-arrow-button" href="/docs/using-fleet/fleet-desktop">Learn more about scope transparency</a>
+      </div>
+    </div>
+    <div purpose="bottom-button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
       <a purpose="cta-button" @click="clickOpenMdmModal()">See GitOps in action</a>
       <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
     </div>
@@ -54,7 +79,7 @@
   </div>
   <%/* End of page gradient */%>
   <div purpose="bottom-gradient">
-    <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
+    <div purpose="tweets-container" class="container-fluid px-md-0 py-0 d-flex flex-column justify-content-center">
       <div purpose="section-heading" style="max-width: 720px" class="mx-auto text-center">
         <h4>Don’t know osquery?</h4>
         <h2>Dedicated support from osquery experts</h2>
@@ -117,11 +142,12 @@
             <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Submit</ajax-button>
           </div>
         </ajax-form>
+        <p class="mb-0 mt-4"><a href="/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else" target="_blank">We will never spam you</a>.</p>
       </div>
       <div purpose="modal-form" class="text-center" v-else>
         <h2 class="mb-2">Thank you!</h2>
         <p class="mb-4">We just sent you an email in case you need to watch it again.</p>
-        <a purpose="cta-button" class="btn btn-primary btn-block" href="https://play.goconsensus.com/ue5caa4fa" target="_blank"><p class="mb-0">Watch Dave's MDM demo</p></a>
+        <a purpose="cta-button" class="btn btn-primary btn-block" href="https://play.goconsensus.com/ue326b4dd" target="_blank"><p class="mb-0">Watch Dave's MDM demo</p></a>
       </div>
     </div>
   </modal>

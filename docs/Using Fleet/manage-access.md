@@ -75,7 +75,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View Apple mobile device management (MDM) certificate information                                                                          |          |            |            | ✅    |         |
 | View Apple business manager (BM) information                                                                                               |          |            |            | ✅    |         |
 | Generate Apple mobile device management (MDM) certificate signing request (CSR)                                                            |          |            |            | ✅    |         |
-| View disk encryption key for macOS hosts                                                                                                   | ✅       | ✅         | ✅         | ✅    |         |
+| View disk encryption key for macOS and Windows hosts                                                                                              | ✅       | ✅         | ✅         | ✅    |         |
 | Create edit and delete configuration profiles for macOS hosts                                                                              |          |            | ✅         | ✅    | ✅      |
 | Execute MDM commands on macOS and Windows hosts***                                                                                         |          |            | ✅         | ✅    |         |
 | View results of MDM commands executed on macOS and Windows hosts***                                                                        | ✅       | ✅         | ✅         | ✅    |         |
@@ -87,7 +87,10 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View metadata of MDM macOS bootstrap packages\*                                                                                            |          |            | ✅         | ✅    |         |
 | Edit/upload MDM macOS bootstrap packages\*                                                                                                 |          |            | ✅         | ✅    | ✅      |
 | Enable/disable MDM macOS setup end user authentication\*                                                                                   |          |            | ✅         | ✅    | ✅      |
-| Run scripts on hosts\*                                                                                                                     |          |            | ✅         | ✅    |         |
+| Run arbitrary scripts on hosts\*                                                                                                           |          |            | ✅         | ✅    |         |
+| View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
+| Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    |         |
+| Run saved scripts on hosts\*                                                                                                               | ✅       | ✅         | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium
 
@@ -149,7 +152,12 @@ Users that are members of multiple teams can be assigned different roles for eac
 | View metadata of MDM macOS bootstrap packages                                                                                    |               |                | ✅              | ✅         |             |
 | Edit/upload MDM macOS bootstrap packages                                                                                         |               |                | ✅              | ✅         | ✅          |
 | Enable/disable MDM macOS setup end user authentication                                                                           |               |                | ✅              | ✅         | ✅          |
-| Run scripts on hosts                                                                                                             |               |                | ✅              | ✅         |             |
+| Run arbitrary scripts on hosts                                                                                                   |               |                | ✅              | ✅         |             |
+| View saved scripts                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
+| Edit/upload saved scripts                                                                                                        |               |                | ✅              | ✅         |             |
+| Run saved scripts on hosts                                                                                                       | ✅            | ✅             | ✅              | ✅         |             |
+| View script details by host                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
+
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 

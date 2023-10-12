@@ -1005,6 +1005,66 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, serials []str
 	return nil
 }
 
+func (ds *Datastore) RestoreMDMApplePendingDEPHost(ctx context.Context, host *fleet.Host) error {
+	ac, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "restore pending dep host get app config")
+	}
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Insert a new host row with the same ID as the host that was deleted. We set only a
+		// limited subset of fields just as if the host were initially ingested from DEP sync;
+		// however, we also restore the UUID. Note that we are explicitly not restoring the
+		// osquery_host_id.
+		stmt := `
+INSERT INTO hosts (
+	id,
+	uuid,
+	hardware_serial,
+	hardware_model,
+	platform,
+	last_enrolled_at,
+	detail_updated_at,
+	osquery_host_id,
+	refetch_requested,
+	team_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+		args := []interface{}{
+			host.ID,
+			host.UUID,
+			host.HardwareSerial,
+			host.HardwareModel,
+			host.Platform,
+			host.LastEnrolledAt,
+			host.DetailUpdatedAt,
+			nil, // osquery_host_id is not restored
+			host.RefetchRequested,
+			host.TeamID,
+		}
+
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "restore pending dep host")
+		}
+
+		// Upsert related host tables for the restored host just as if it were initially ingested
+		// from DEP sync. Note we are not upserting host_dep_assignments in order to preserve the
+		// existing timestamps.
+		if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, *host); err != nil {
+			// TODO: Why didn't this work as expected?
+			return ctxerr.Wrap(ctx, err, "restore pending dep host display name")
+		}
+		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, *host); err != nil {
+			return ctxerr.Wrap(ctx, err, "restore pending dep host label membership")
+		}
+		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, ac.ServerSettings, true, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
+		}
+
+		return nil
+	})
+}
+
 func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
 	var nanoEnroll fleet.NanoEnrollment
 	// use writer as it is used just after creation in some cases
@@ -2022,7 +2082,7 @@ func (ds *Datastore) GetMDMIdPAccount(ctx context.Context, uuid string) (*fleet.
 	return &acct, nil
 }
 
-func subqueryDiskEncryptionVerifying() (string, []interface{}) {
+func subqueryFileVaultVerifying() (string, []interface{}) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -2040,7 +2100,7 @@ func subqueryDiskEncryptionVerifying() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryDiskEncryptionVerified() (string, []interface{}) {
+func subqueryFileVaultVerified() (string, []interface{}) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -2058,7 +2118,7 @@ func subqueryDiskEncryptionVerified() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryDiskEncryptionActionRequired() (string, []interface{}) {
+func subqueryFileVaultActionRequired() (string, []interface{}) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -2078,7 +2138,7 @@ func subqueryDiskEncryptionActionRequired() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryDiskEncryptionEnforcing() (string, []interface{}) {
+func subqueryFileVaultEnforcing() (string, []interface{}) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -2108,7 +2168,7 @@ func subqueryDiskEncryptionEnforcing() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryDiskEncryptionFailed() (string, []interface{}) {
+func subqueryFileVaultFailed() (string, []interface{}) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -2120,7 +2180,7 @@ func subqueryDiskEncryptionFailed() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryDiskEncryptionRemovingEnforcement() (string, []interface{}) {
+func subqueryFileVaultRemovingEnforcement() (string, []interface{}) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -2164,20 +2224,20 @@ FROM
     hosts h
     LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
 WHERE
-    %s`
+    h.platform = 'darwin' AND %s`
 
 	var args []interface{}
-	subqueryVerified, subqueryVerifiedArgs := subqueryDiskEncryptionVerified()
+	subqueryVerified, subqueryVerifiedArgs := subqueryFileVaultVerified()
 	args = append(args, subqueryVerifiedArgs...)
-	subqueryVerifying, subqueryVerifyingArgs := subqueryDiskEncryptionVerifying()
+	subqueryVerifying, subqueryVerifyingArgs := subqueryFileVaultVerifying()
 	args = append(args, subqueryVerifyingArgs...)
-	subqueryActionRequired, subqueryActionRequiredArgs := subqueryDiskEncryptionActionRequired()
+	subqueryActionRequired, subqueryActionRequiredArgs := subqueryFileVaultActionRequired()
 	args = append(args, subqueryActionRequiredArgs...)
-	subqueryEnforcing, subqueryEnforcingArgs := subqueryDiskEncryptionEnforcing()
+	subqueryEnforcing, subqueryEnforcingArgs := subqueryFileVaultEnforcing()
 	args = append(args, subqueryEnforcingArgs...)
-	subqueryFailed, subqueryFailedArgs := subqueryDiskEncryptionFailed()
+	subqueryFailed, subqueryFailedArgs := subqueryFileVaultFailed()
 	args = append(args, subqueryFailedArgs...)
-	subqueryRemovingEnforcement, subqueryRemovingEnforcementArgs := subqueryDiskEncryptionRemovingEnforcement()
+	subqueryRemovingEnforcement, subqueryRemovingEnforcementArgs := subqueryFileVaultRemovingEnforcement()
 	args = append(args, subqueryRemovingEnforcementArgs...)
 
 	teamFilter := "h.team_id IS NULL"

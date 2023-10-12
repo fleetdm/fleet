@@ -7,54 +7,29 @@ The Sales department is directly responsible for attaining the revenue goals of 
 
 
 ## Team
-| Role                                | Contributor(s)           |
-|:------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Chief Revenue Officer               | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| VP of Customer Success              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
-| Director of Solutions Consulting    | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
-| Solutions Consultant                | [Will Mayhone](https://www.linkedin.com/in/william-mayhone-671977b6/) _([@willmayhone88](https://github.com/willmayhone88))_
-| Head of Public Sector               | [Keith Barnes](https://www.linkedin.com/in/keith-barnes-8b666/) _([@KAB703](https://github.com/KAB703))_
-| Business Expansion Lead             | [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@TomOstertag](https://github.com/TomOstertag))_
-| Sales Development Rep               | [Tom "Ringo" Ringhofer](https://www.linkedin.com/in/tom-ringhofer/) _([@ringoshere](https://github.com/ringoshere))_
-| Account Executives                  | [Carlos Sanz](https://www.linkedin.com/in/carlos-sanz-53b28b/) _([@CarlosFleetDM](https://github.com/CarlosFleetDM))_,[Jin Yi](https://www.linkedin.com/in/jin-yi-743986196/) _([@jinny321](https://github.com/jinny321))_, [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_,[Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@AnthonySnyder8](https://github.com/AnthonySnyder8))_
-| Sr. Customer Success Manager        | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_
-| Senior Support Engineer             | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_
-| Software Engineer                   | Ben Edwards _([@edwardsb](https://github.com/edwardsb))_
-| Customer Support Engineer           | [Grant Bilstad](https://www.linkedin.com/in/grantbilstad/) _([@Pacamaster](https://github.com/Pacamaster))_
+| Role                                  | Contributor(s)           |
+|:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
+| Chief Revenue Officer (CRO)           | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
+| VP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
+| Customer Success Manager (CSM)        | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_
+| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_, [Grant Bilstad](https://www.linkedin.com/in/grantbilstad/) _([@Pacamaster](https://github.com/Pacamaster))_, Ben Edwards _([@edwardsb](https://github.com/edwardsb))_
+| Director of Solutions Consulting      | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
+| Solutions Consultant (SC)             | [Will Mayhone](https://www.linkedin.com/in/william-mayhone-671977b6/) _([@willmayhone88](https://github.com/willmayhone88))_
+| Head of Public Sector                 | [Keith Barnes](https://www.linkedin.com/in/keith-barnes-8b666/) _([@KAB703](https://github.com/KAB703))_
+| Account Executive (AE)                | [Carlos Sanz](https://www.linkedin.com/in/carlos-sanz-53b28b/) _([@CarlosFleetDM](https://github.com/CarlosFleetDM))_, [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@TomOstertag](https://github.com/TomOstertag))_, [Jin Yi](https://www.linkedin.com/in/jin-yi-743986196/) _([@jinny321](https://github.com/jinny321))_, [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_,[Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@AnthonySnyder8](https://github.com/AnthonySnyder8))_
+| Sales Development Rep (SDR)           | [Ringo Ringhofer](https://www.linkedin.com/in/tom-ringhofer/) _([@ringoshere](https://github.com/ringoshere))_, [Brad Macdowall](https://www.linkedin.com/in/bradmacdowall/) _([@bradmacd](https://github.com/bradmacd))_
 
 ## Contact us
 - To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board) for this department, including pending tasks in the active sprint and the status of new requests.
-  - Please use issue comments and GitHub mentions to communicate about your request, including follow-ups.  If you mention a team member in a GitHub comment, you will get a reply within one business day.
-- If urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel.
+  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board?sprints=none) for this department, including pending tasks and the status of new requests.
+  - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
+- If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel.
 
 
 ## Sales
 The Fleet Customer team embodies [our values](https://fleetdm.com/handbook/company#values) in every aspect of our work. We prioritize efficiency in our processes and operations. We succeed because of transparent, cross-functional collaboration. We are committed to hiring for and celebrating diversity, and we strive to create an environment of inclusiveness and belonging for all. We embrace a spirit of iteration, understanding that we can always improve.
 
 Fleet's main source for prospects to learn about the company and its offerings is our website, fleetdm.com. There are many places across the website for prospects to ask for more information, request merchandise, try the product and even purchase licenses directly. If the user experience in any of these locations asks for an email address or other contact information, Fleet may use that contact information for follow-up, including sales and marketing purposes. That contact information is for Fleet's sole use, and we do not give or sell that information to any third parties.
-
-
-## Contacting Fleet
-In the case of a prospect or customer request, we strive to adhere to the following response times:
-- Web chat: 1 hour response during working hours, 8 hours otherwise
-- Talk to an expert: prospects can schedule chats via our calendar tool
-- All other enquiries: 1-2 days
-
-If you're using a free version of Fleet, you can access free community support by opening an issue in the [Fleet GitHub repository](https://github.com/fleetdm/fleet/).
-
-Customers on a paid tier of Fleet can get in touch directly for commercial support:
-
-
-| Level of impact | Response time - premium tier | Response time - ultimate tier |
-| :--- | :--- | :--- |
-| Low to medium impact </br> Email/chat support during business hours </br> Email: Support email address </br> Chat: Dedicated Slack channel (confidential) </br>|  **1 business day** | **1 business day**  |
-| High to emergency impact </br> Expedited phone/chat/email support </br> Call or text: Fleet support phone number </br> Email: Emergency support email address </br> |  **4 business hours** | **≤1 hour during business hours** </br> **≤2 hours outside business hours** 
-
-| Level of impact | Type of support |
-| :--- | :--- |
-| Low to medium impact | Chat support during business hours Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
-| High to emergency impact | Expedited phone/chat support during business hours </br> Call or text [the Fleet phone number](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit) that was provided in the invoice. </br> Response time: **≤4 hours** |
 
 
 ## Customer codenames
@@ -74,7 +49,7 @@ Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https:/
 Fleet's intro video shows how to get started with Fleet as an admin. Find it on [YouTube](https://www.youtube.com/watch?v=rVxSgvKjrWo).
 
 
-## Customer support service level agreements (SLA's)
+## Contacting Fleet: customer support service level agreements (SLA's)
 
 ### Fleet Free
 | Impact Level | Definition | Preferred Contact | Response Time |
@@ -91,7 +66,7 @@ Note: If you're using Fleet Free, you can also access community support by openi
 | Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
 | Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | 1-2 business days | 
 
-Note: Fleet business hours for support are Monday-Friday, 7AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues.
+Note: Fleet business hours for support are Monday-Friday, 7AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues. Fleeties can find Fleet general contact information [here](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit).
 
 
 ### Fleet Ultimate
@@ -216,6 +191,15 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 
 ## Responsibilities
 
+### Send a quote
+During the buying cycle, the champion will need to start the process to secure funding in cooperation with the economic buyer and the finance org.
+
+All quotes and purchase orders must be approved by CRO before being sent to the prospect or customer. Often, the CRO will request Fleet business operations/legal of any unique terms required.
+
+The Fleet owner of the opportunity (usually AE or CSM) will prepare a quote and/or a Purchase Order when requested.
+- Because the champion may need to socialize "what is Fleet" or "what are we getting when buying Fleet," it is most often best to send the quote in [slide form](https://docs.google.com/presentation/d/15kbqm0OYPf1OmmTZvDp4F7VvMERnX4K6TMYqCYNr-wI/edit?usp=sharing).
+- Docusign can be used to create a [standard Purchase Order](https://www.loom.com/share/Loom-Message-16-January-2023-2ba8cf195ec645ebabac267d7df59823?sid=214f8c6b-beb3-427a-a3a8-e8c20b5dc350) if no special terms or pricing are needed.
+
 ### Review rep activity
 Following up with people interested in Fleet is an important part of finding out whether or not they'd like to continue the process of buying the product.  It is also very important not to be annoying.  At Fleet, team members follow up with people, but not too often.
 
@@ -314,7 +298,8 @@ This workflow outlines the process that sales and customer success can follow wh
 2. The Customer and Fleet sign the order form.
     - (AE) The AE adds the fully executed contract to the opportunity record.
     - (AE) The AE marks the opportunity 'Closed Won' and includes the 'Closing Date'.
-    - (BizOps) BizOps team member adds fully executed contract to the [subscriptions folder](https://drive.google.com/drive/u/0/folders/1kwwg8RmnT8DyPLDDYLiJ7w5legDEPc57) (internal drive) in Fleet drive 
+    - (BizOps) BizOps team member adds fully executed contract to the [subscriptions folder](https://drive.google.com/drive/u/0/folders/1kwwg8RmnT8DyPLDDYLiJ7w5legDEPc57) (internal drive) in Fleet drive
+    - (AE) Help BizOps secure a PO from the new customer to be referenced on invoice.
 3. (AE) The AE creates a 'New Sale Issue'
     - They complete the AE tasks listed at the top of the issue.
     - Then they assign the issue to BizOps and the Head of Customer Success (CS).
@@ -488,6 +473,9 @@ No further action is needed if the crawler successfully reindexes the Fleet webs
 
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
+
+### Extend sandbox trial
+If a Fleet user would like an extension on the 5 day sandbox trial, this can be accomplished by creating a new confidential issue with labels `g-infra` and `:release`. It is important to include the projected expiration date of the sandbox trial, as sandbox instances cannot be extended after they expire. Please note the user email address that is requesting the sandbox extension in the confidential issue.
 
 
 ## Rituals
