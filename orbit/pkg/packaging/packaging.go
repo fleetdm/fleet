@@ -8,7 +8,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -120,7 +119,7 @@ type Options struct {
 
 func initializeTempDir() (string, error) {
 	// Initialize directories
-	tmpDir, err := ioutil.TempDir("", "orbit-package")
+	tmpDir, err := os.MkdirTemp("", "orbit-package")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp dir: %w", err)
 	}

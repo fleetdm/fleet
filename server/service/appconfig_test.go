@@ -6,11 +6,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -319,7 +319,7 @@ func TestCertificateChain(t *testing.T) {
 	have, want := len(conn.ConnectionState().PeerCertificates), len(cert.Certificate)
 	require.Equal(t, have, want)
 
-	original, _ := ioutil.ReadFile(certFile)
+	original, _ := os.ReadFile(certFile)
 	returned, err := chain(context.Background(), conn.ConnectionState(), "")
 	require.Nil(t, err)
 	require.Equal(t, returned, original)
