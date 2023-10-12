@@ -5549,7 +5549,7 @@ Returns the query report specified by ID.
 
 | Name | Type    | In   | Description                                |
 | ---- | ------- | ---- | ------------------------------------------ |
-| id   | integer | path | **Required**. The id of the desired query. |
+| id   | integer | path | **Required**. The ID of the desired query. |
 
 #### Example
 
