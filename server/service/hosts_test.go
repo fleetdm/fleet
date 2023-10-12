@@ -394,7 +394,7 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		ds.GetHostMDMProfilesFuncInvoked = false
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
 		}
 		ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.DiskEncryptionStatus, error) {
 			if c.wantStatus == "" {
@@ -442,6 +442,53 @@ func TestHostDetailsOSSettings(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hid uint) (*fleet.HostMDMMacOSSetup, error) {
+		return nil, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
+	}
+	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.DiskEncryptionStatus, error) {
+		verified := fleet.DiskEncryptionVerified
+		return &verified, nil
+	}
+	ds.GetHostMDMProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
+		return nil, nil
+	}
+
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	hostDetail, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin), &fleet.Host{ID: 42, Platform: "windows"}, fleet.HostDetailOptions{
+		IncludeCVEScores: false,
+		IncludePolicies:  false,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, hostDetail)
+	require.True(t, ds.AppConfigFuncInvoked)
+	require.False(t, ds.GetHostMDMProfilesFuncInvoked)
+	require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
+	require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, fleet.DiskEncryptionVerified, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
 }
 
 func TestHostAuth(t *testing.T) {

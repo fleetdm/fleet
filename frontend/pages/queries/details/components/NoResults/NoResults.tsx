@@ -44,8 +44,8 @@ const NoResults = ({
     new Date()
   );
 
-  // Collecting results state
-  if (collectingResults) {
+  // Collecting results state only shows if caching is enabled
+  if (collectingResults && !disabledCaching) {
     const collectingResultsInfo = () => (
       <>
         Fleet is collecting query results. <br />
@@ -63,14 +63,7 @@ const NoResults = ({
   }
 
   const noResultsInfo = () => {
-    if (!queryInterval) {
-      return (
-        <>
-          This query does not collect data on a schedule. Add a{" "}
-          <strong>frequency</strong> or run this as a live query to see results.
-        </>
-      );
-    }
+    // In order of empty page priority
     if (disabledCaching) {
       const tipContent = () => {
         if (disabledCachingGlobally) {
@@ -91,6 +84,14 @@ const NoResults = ({
             not reported in Fleet
           </TooltipWrapper>
           .
+        </>
+      );
+    }
+    if (!queryInterval) {
+      return (
+        <>
+          This query does not collect data on a schedule. Add <br />a{" "}
+          <strong>frequency</strong> or run this as a live query to see results.
         </>
       );
     }
