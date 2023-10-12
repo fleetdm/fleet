@@ -80,8 +80,7 @@ const DiscardDataOption = ({
         <InfoBanner color="purple-bold-border">
           <>
             The <b>Discard data</b> setting is ignored when differential logging
-            is enabled. This <br />
-            query&apos;s results will not be saved in Fleet.
+            is enabled. This query&apos;s results will not be saved in Fleet.
           </>
         </InfoBanner>
       )}
