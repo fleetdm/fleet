@@ -14,3 +14,8 @@
     height: 100vh;
   }
 }
+
+// Ensures resizing viewport matches bottom of page color gradients-dark-gradient-vertical
+body {
+  background-color: #201e43;
+}
