@@ -63,7 +63,7 @@ jobs:
           CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
 
       - name: Upload
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v2
         with:
           name: orbit-macos
           path: dist
@@ -91,7 +91,7 @@ jobs:
         run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-linux.yml # v1.20.0
 
       - name: Upload
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v2
         with:
           name: orbit-linux
           path: dist
@@ -119,7 +119,7 @@ jobs:
         run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-windows.yml # v1.20.0
 
       - name: Upload
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v2
         with:
           name: orbit-windows
           path: dist

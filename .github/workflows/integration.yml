@@ -124,7 +124,7 @@ jobs:
 
     - name: Upload cloudflared logs
       if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v2
       with:
         name: cloudflared.log
         path: cloudflared.log
@@ -210,7 +210,7 @@ jobs:
 
     - name: Upload Orbit logs
       if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v2
       with:
         name: orbit-macos-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-logs
         path: |
@@ -275,7 +275,7 @@ jobs:
 
     - name: Upload Orbit logs
       if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v2
       with:
         name: orbit-ubuntu-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-logs
         path: |
@@ -316,7 +316,7 @@ jobs:
         mv fleet-osquery.msi orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
 
     - name: Upload MSI
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v2
       with:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
         path: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
@@ -359,14 +359,14 @@ jobs:
 
     - name: Upload orbit install log
       if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v2
       with:
         name: msiexec-install-log
         path: log.txt
 
     - name: Upload Orbit logs
       if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v2
       with:
         name: orbit-windows-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-logs
         path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log
