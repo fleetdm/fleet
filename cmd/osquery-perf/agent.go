@@ -468,7 +468,6 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 				a.DistributedWrite(resp.Queries)
 			}
 		case <-logTicker:
-			log.Println("sending logs for scheduled queries")
 			// check if we have any scheduled queries
 			for i, query := range a.scheduledQueryData {
 				log.Printf("sendings logs for %s", query.Name)
