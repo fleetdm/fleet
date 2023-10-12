@@ -764,7 +764,7 @@ Steps to renew the certificate:
 5. Note: `mdmctl` will generate a `VendorPrivateKey.key` and `VendorCertificateRequest.csr` using `billing@fleetdm.com` and a passphrase (suggested generation method with pwgen available in brew / apt / yum `pwgen -s 32 -1vcy`)
 6. Uploading `VendorCertificateRequest.csr` to Apple you will download a corresponding `mdm.cer` file
 7. Convert the downloaded cert to PEM with `openssl x509 -inform DER -outform PEM -in mdm.cer -out server.crt.pem`
-8. Update the "Config vars" in [Heroku](https://dashboard.heroku.com/apps/production-fleetdm-website/settings):
+8. Update the **Config vars** in [Heroku](https://dashboard.heroku.com/apps/production-fleetdm-website/settings):
 * Update `sails_custom__mdmVendorCertPem` with the results from step 7 `server.crt.pem`
 * Update `sails_custom__mdmVendorKeyPassphrase` with the passphrase used in step 4
 * Update `sails_custom__mdmVendorKeyPem` with `VendorPrivateKey.key` from step 4
