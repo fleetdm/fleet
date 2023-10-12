@@ -758,7 +758,7 @@ This certificate is currently set to expire Oct 2, 2024 and needs to be renewed 
 Steps to renew the certificate:
 
 1. Visit the [Apple developer account login page](https://appleid.apple.com/account?appId=632&returnUrl=https%3A%2F%2Fdeveloper.apple.com%2Fcontact%2F).
-2. Log in using the credentials stored in 1Password under "Apple developer account".
+2. Log in using the credentials stored in 1Password under **Apple developer account**.
 3. Verify you are using the **Enterprise** subaccount for Fleet Device Management Inc.
 4. Generate a new certificate following the instructions in [MicroMDM](https://github.com/micromdm/micromdm/blob/c7e70b94d0cfc7710e5c92be20d4534d9d5a0640/docs/user-guide/quickstart.md?plain=1#L103-L118).
 5. Note: `mdmctl` will generate a `VendorPrivateKey.key` and `VendorCertificateRequest.csr` using `billing@fleetdm.com` and a passphrase (suggested generation method with pwgen available in brew / apt / yum `pwgen -s 32 -1vcy`)
