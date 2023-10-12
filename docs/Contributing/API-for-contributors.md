@@ -824,6 +824,8 @@ Creates and/or modifies the queries included in the list. To modify an existing 
 | ----- | ---- | ---- | ---------------------------------------------------------------- |
 | specs | list | body | **Required.** The list of the queries to be created or modified. |
 
+For more information about the query fields, please refer to the [Create query endpoint](https://fleetdm.com/docs/using-fleet/rest-api#create-query).
+
 #### Example
 
 `POST /api/v1/fleet/spec/queries`

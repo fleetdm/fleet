@@ -5333,6 +5333,7 @@ Returns a list of global queries or team queries.
 ```
 
 ### Create query
+
 Creates a global query or team query.
 
 `POST /api/v1/fleet/queries`
@@ -5422,8 +5423,13 @@ Modifies the query specified by ID.
 | platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
-| logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential", or "differential_ignore_removals"`.                        |
+| logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
 | discard_data        | bool    | body | Whether to skip saving the latest query results for each host. |
+
+Any of the following conditions will cause the query report to be deleted:
+- Updating the `query` (SQL) field.
+- Changing `discard_data` from `false` to `true`.
+- Changing `logging` from `"snapshot"` to `"differential"` or `"differential_ignore_removals"`.
 
 #### Example
 
