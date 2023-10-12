@@ -5563,7 +5563,7 @@ Returns the query report specified by ID.
 }
 ```
 
-##### Empty Report response
+If a query has no results stored, then `results` will be an empty array:
 
 ```json
 {
