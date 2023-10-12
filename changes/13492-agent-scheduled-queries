@@ -1,1 +1,0 @@
-* Updated the `osquery-perf` tool to support load testing scheduled query result logs. You can now create a scheduled query in fleet and the `osquery-perf` agent will send back canned result logs. Adding an underscore and a number to a query's name return that number of result logs; e.g. `myquery_15` will return 15 result logs. The default number of results is 1.
