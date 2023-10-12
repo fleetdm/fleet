@@ -416,7 +416,7 @@ func (a *agent) isOrbit() bool {
 	return a.deviceAuthToken != nil
 }
 
-func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
+func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) 
 	if a.isOrbit() {
 		if err := a.orbitEnroll(); err != nil {
 			return
@@ -454,7 +454,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	configTicker := time.Tick(a.ConfigInterval)
 	liveQueryTicker := time.Tick(a.QueryInterval)
-	logTicker := time.Tick(a.QueryInterval)
+	// Since this is an internal timer, we don't need to configure it.
+	logTicker := time.Tick(1 * time.Second)
 	for {
 		select {
 		case <-configTicker:
@@ -480,7 +481,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 			}
 		}
 	}
-}
+
 
 func (a *agent) runOrbitLoop() {
 	orbitClient, err := service.NewOrbitClient(
