@@ -751,6 +751,27 @@ When this occurs, we will begin receiving the following error message when attem
 
 5. Accept the new terms of service.
 
+### Managing MDM CSR Certificate
+
+This certificate is currently set to expire Oct 2, 2024 and needs to be renewed prior to this. This is notified to the team by the MDM calendar event [IMPORTANT: Renew MDM CSR Certificate](https://calendar.google.com/calendar/event?action=TEMPLATE&tmeid=NHM3YzZja2FoZTA4bm9jZTE3NWFvMTduMTlfMjAyNDA5MTFUMTczMDAwWiBjXzI0YjkwMjZiZmIzZDVkMDk1ZGQzNzA2ZTEzMWQ3ZjE2YTJmNDhjN2E1MDU1NDcxNzA1NjlmMDc4ODNiNmU3MzJAZw&tmsrc=c_24b9026bfb3d5d095dd3706e131d7f16a2f48c7a505547170569f07883b6e732%40group.calendar.google.com&scp=ALL)
+
+Steps to renew the certificate:
+
+1. Visit the [Apple developer account login page](https://appleid.apple.com/account?appId=632&returnUrl=https%3A%2F%2Fdeveloper.apple.com%2Fcontact%2F).
+2. Log in using the credentials stored in 1Password under "Apple developer account".
+3. Verify you are using the "Enterprise" subaccount for Fleet Device Management Inc.
+4. Generate a new certificate following the instructions in [MicroMDM](https://github.com/micromdm/micromdm/blob/c7e70b94d0cfc7710e5c92be20d4534d9d5a0640/docs/user-guide/quickstart.md?plain=1#L103-L118).
+5. Note: `mdmctl` will generate a `VendorPrivateKey.key` and `VendorCertificateRequest.csr` using `billing@fleetdm.com` and a passphrase (suggested generation method with pwgen available in brew / apt / yum `pwgen -s 32 -1vcy`)
+6. Uploading `VendorCertificateRequest.csr` to Apple you will download a corresponding `mdm.cer` file
+7. Convert the downloaded cert to PEM with `openssl x509 -inform DER -outform PEM -in mdm.cer -out server.crt.pem`
+8. Update the "Config vars" in [Heroku](https://dashboard.heroku.com/apps/production-fleetdm-website/settings):
+* Update `sails_custom__mdmVendorCertPem` with the results from step 7 `server.crt.pem`
+* Update `sails_custom__mdmVendorKeyPassphrase` with the passphrase used in step 4
+* Update `sails_custom__mdmVendorKeyPem` with `VendorPrivateKey.key` from step 4
+9. Store updated values in [Confidential 1Password Vault](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=lcvkjobeheaqdgnz33ontpuhxq&i=byyfn2knejwh42a2cbc5war5sa&h=fleetdevicemanagement.1password.com)
+10. Verify by logging into a normal apple account (not billing@fleetdm.com) and Generate a new Push Certificate following our [setup MDM](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#step-2-generate-an-apns-certificate) steps and verify the Expiration date is 1 year from today.
+11. Adjust Calendar event to be between 2-4 weeks before the next expiration.
+
 
 ## Responsibilities
 
