@@ -5611,11 +5611,15 @@ Returns the query report specified by ID.
   ]
 }
 
+##### Empty Query Report Response
+
 ```
 {
-  "query_id": 31,
+  "query_id": 32,
   "results": []
 }
+```
+
 ### osquery scheduled queries do not return errors.
 
 osquery scheduled queries mechanism does not return errors. Hence those are not stored in the cache and are not part of this report.
