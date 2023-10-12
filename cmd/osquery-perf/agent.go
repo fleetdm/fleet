@@ -841,7 +841,7 @@ func (a *agent) config() {
 				if len(parts) > 0 {
 					num, err := strconv.ParseInt(parts[1], 10, 32)
 					if err != nil {
-						log.Fatal("bad result number")
+						log.Println("processing scheduled query failed: expected a number in the query name. Using default value")
 					}
 					q.NumResults = uint(num)
 				}
@@ -849,7 +849,7 @@ func (a *agent) config() {
 				q.Query = m["query"].(string)
 				scheduledQueryData = append(scheduledQueryData, q)
 			} else {
-				log.Printf("whoops cast failed: %v\n", query)
+				log.Fatalf("processing scheduled query failed: %v\n", query)
 			}
 		}
 	}
