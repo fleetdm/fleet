@@ -15,7 +15,7 @@ import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import CustomLink from "components/CustomLink";
 import NotSupported from "components/NotSupported";
 

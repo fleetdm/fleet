@@ -13,7 +13,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
-import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import {
   getHostDiskEncryptionTooltipMessage,

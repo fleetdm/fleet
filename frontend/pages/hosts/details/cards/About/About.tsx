@@ -1,7 +1,7 @@
 import React from "react";
 
 import ReactTooltip from "react-tooltip";
-import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 
