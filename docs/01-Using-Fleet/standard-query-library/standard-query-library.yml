@@ -1045,3 +1045,25 @@ spec:
   purpose: Informational
   tags: crowdstrike, plist, network, content filter
   contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get a list of Visual Studio Code extensions
+  platform: darwin
+  description: Get a list of installed VS Code extensions. Requires (fleetd)[https://fleetdm.com/docs/using-fleet/fleetd].
+  query: |
+    SELECT  split(user_path, '/', 1) as username,
+        json_extract(value, '$.identifier.id') as id,
+        json_extract(value, '$.identifier.uuid') as uuid,
+        json_extract(value, '$.location.path') as path,
+        json_extract(value, '$.version') as version,
+        json_extract(value, '$.metadata.publisherDisplayName') as publisher_display_name
+        FROM (
+          SELECT file_lines.path as user_path, value
+          FROM file_lines, json_each(line)
+          WHERE file_lines.path LIKE '/Users/%/.vscode/extensions/extensions.json'
+        );
+  purpose: Informational
+  tags: inventory
+  contributors: lucasmrod,sharon-fdm,zwass

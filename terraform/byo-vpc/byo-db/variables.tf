@@ -74,7 +74,7 @@ variable "fleet_config" {
   type = object({
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
-    image                        = optional(string, "fleetdm/fleet:v4.38.0")
+    image                        = optional(string, "fleetdm/fleet:v4.38.1")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
     depends_on                   = optional(list(any), [])
@@ -129,6 +129,7 @@ variable "fleet_config" {
       }), {
       arn = null
     })
+    extra_load_balancers = optional(list(any), [])
     networking = optional(object({
       subnets         = list(string)
       security_groups = optional(list(string), null)
@@ -206,6 +207,7 @@ variable "fleet_config" {
     loadbalancer = {
       arn = null
     }
+    extra_load_balancers = []
     networking = {
       subnets         = null
       security_groups = null
@@ -252,6 +254,7 @@ variable "alb_config" {
     access_logs          = optional(map(string), {})
     certificate_arn      = string
     allowed_cidrs        = optional(list(string), ["0.0.0.0/0"])
+    extra_target_groups  = optional(any, [])
     https_listener_rules = optional(any, [])
   })
 }

@@ -79,4 +79,7 @@
       overflow: auto;
     }
   }
+  .input-icon-field__icon {
+    top: 34px; // Override styling to include label header
+  }
 }

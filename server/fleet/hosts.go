@@ -1,15 +1,12 @@
 package fleet
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
-	"unicode/utf8"
 )
 
 type HostStatus string
@@ -53,20 +50,20 @@ const (
 	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual" and "automatic"
 )
 
-// MacOSSettingsStatus defines the possible statuses of the host's macOS settings, which is derived from the
-// status of MDM configuration profiles applied to the host.
-type MacOSSettingsStatus string
+// OSSettingsStatus defines the possible statuses of the host's OS settings, which is derived from the
+// status of MDM configuration profiles and non-profile settings applied the host.
+type OSSettingsStatus string
 
 const (
-	MacOSSettingsVerified  MacOSSettingsStatus = "verified"
-	MacOSSettingsVerifying MacOSSettingsStatus = "verifying"
-	MacOSSettingsPending   MacOSSettingsStatus = "pending"
-	MacOSSettingsFailed    MacOSSettingsStatus = "failed"
+	OSSettingsVerified  OSSettingsStatus = "verified"
+	OSSettingsVerifying OSSettingsStatus = "verifying"
+	OSSettingsPending   OSSettingsStatus = "pending"
+	OSSettingsFailed    OSSettingsStatus = "failed"
 )
 
-func (s MacOSSettingsStatus) IsValid() bool {
+func (s OSSettingsStatus) IsValid() bool {
 	switch s {
-	case MacOSSettingsFailed, MacOSSettingsPending, MacOSSettingsVerifying, MacOSSettingsVerified:
+	case OSSettingsFailed, OSSettingsPending, OSSettingsVerifying, OSSettingsVerified:
 		return true
 	default:
 		return false
@@ -139,11 +136,18 @@ type HostListOptions struct {
 
 	// MacOSSettingsFilter filters the hosts by the status of MDM configuration profiles
 	// applied to the hosts.
-	MacOSSettingsFilter MacOSSettingsStatus
+	MacOSSettingsFilter OSSettingsStatus
 
 	// MacOSSettingsDiskEncryptionFilter filters the hosts by the status of the disk encryption
 	// MDM profile.
 	MacOSSettingsDiskEncryptionFilter DiskEncryptionStatus
+
+	// OSSettingsFilter filters the hosts by the status of MDM configuration profiles and
+	// non-profile settings applied to the hosts.
+	OSSettingsFilter OSSettingsStatus
+	// OSSettingsDiskEncryptionFilter filters the hosts by the status of the disk encryption
+	// OS setting.
+	OSSettingsDiskEncryptionFilter DiskEncryptionStatus
 
 	// MDMBootstrapPackageFilter filters the hosts by the status of the MDM bootstrap package.
 	MDMBootstrapPackageFilter *MDMBootstrapPackageStatus
@@ -186,7 +190,9 @@ func (h HostListOptions) Empty() bool {
 		h.MDMNameFilter == nil &&
 		h.MDMEnrollmentStatusFilter == "" &&
 		h.MunkiIssueIDFilter == nil &&
-		h.LowDiskSpaceFilter == nil
+		h.LowDiskSpaceFilter == nil &&
+		h.OSSettingsFilter == "" &&
+		h.OSSettingsDiskEncryptionFilter == ""
 }
 
 type HostUser struct {
@@ -336,6 +342,12 @@ type MDMHostData struct {
 	// gets filled.
 	rawDecryptable *int
 
+	// OSSettings contains information related to operating systems settings that are managed for
+	// MDM-enrolled hosts.
+	//
+	// Note: Additional information for macOS hosts is currently stored in MacOSSettings.
+	OSSettings *HostMDMOSSettings `json:"os_settings,omitempty" db:"-" csv:"-"`
+
 	// Profiles is a list of HostMDMProfiles for the host. Note that as for many
 	// other host fields, it is not filled in by all host-returning datastore methods.
 	//
@@ -356,6 +368,14 @@ type MDMHostData struct {
 	//
 	// It is not filled in by all host-returning datastore methods.
 	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" db:"-" csv:"-"`
+}
+
+type HostMDMOSSettings struct {
+	DiskEncryption HostMDMDiskEncryption `json:"disk_encryption" db:"-" csv:"-"`
+}
+
+type HostMDMDiskEncryption struct {
+	Status *DiskEncryptionStatus `json:"status" db:"-" csv:"-"`
 }
 
 type DiskEncryptionStatus string
@@ -411,11 +431,11 @@ type HostMDMMacOSSetup struct {
 	BootstrapPackageName   string                    `db:"bootstrap_package_name" json:"bootstrap_package_name" csv:"-"`
 }
 
-// DetermineDiskEncryptionStatus determines the disk encryption status for the
+// DetermineMacOSDiskEncryptionStatus determines the disk encryption status for the
 // host based on the file-vault profile in its list of profiles and whether its
 // disk encryption key is available and decryptable. The file-vault profile
 // identifier is received as argument to avoid a circular dependency.
-func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfile, fileVaultIdentifier string) {
+func (d *MDMHostData) DetermineMacOSDiskEncryptionStatus(profiles []HostMDMAppleProfile, fileVaultIdentifier string) {
 	var settings MDMHostMacOSSettings
 
 	var fvprof *HostMDMAppleProfile
@@ -575,6 +595,24 @@ func (h *Host) IsEligibleForWindowsMDMUnenrollment() bool {
 		h.IsOsqueryEnrolled() &&
 		h.MDMInfo.IsFleetEnrolled() &&
 		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
+}
+
+// IsEligibleForBitLockerEncryption checks if the host needs to enforce disk
+// encryption using Fleet MDM features.
+//
+// Note: the *Host structs needs disk encryption data and MDM data filled in to
+// perform the check.
+func (h *Host) IsEligibleForBitLockerEncryption() bool {
+	isServer := h.MDMInfo != nil && h.MDMInfo.IsServer
+	isWindows := h.FleetPlatform() == "windows"
+	needsEncryption := h.DiskEncryptionEnabled != nil && !*h.DiskEncryptionEnabled
+	encryptedWithoutKey := h.DiskEncryptionEnabled != nil && *h.DiskEncryptionEnabled && !h.MDM.EncryptionKeyAvailable
+
+	return isWindows &&
+		h.IsOsqueryEnrolled() &&
+		h.MDMInfo.IsFleetEnrolled() &&
+		!isServer &&
+		(needsEncryption || encryptedWithoutKey)
 }
 
 // DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
@@ -829,6 +867,9 @@ func (h *HostMDM) IsManualFleetEnrolled() bool {
 // it is in enrolled state for Fleet MDM, regardless of automatic or manual
 // enrollment method.
 func (h *HostMDM) IsFleetEnrolled() bool {
+	if h == nil {
+		return false
+	}
 	return h.IsDEPFleetEnrolled() || h.IsManualFleetEnrolled()
 }
 
@@ -1076,135 +1117,4 @@ type HostMacOSProfile struct {
 	Identifier string `json:"identifier" db:"identifier"`
 	// InstallDate is the date the profile was installed on the host as reported by the host's clock.
 	InstallDate time.Time `json:"install_date" db:"install_date"`
-}
-
-type HostScriptRequestPayload struct {
-	HostID         uint   `json:"host_id"`
-	ScriptContents string `json:"script_contents"`
-}
-
-type HostScriptResultPayload struct {
-	HostID      uint   `json:"host_id"`
-	ExecutionID string `json:"execution_id"`
-	Output      string `json:"output"`
-	Runtime     int    `json:"runtime"`
-	ExitCode    int    `json:"exit_code"`
-}
-
-// HostScriptResult represents a script result that was requested to execute on
-// a specific host. If no result was received yet for a script, the ExitCode
-// field is null and the output is empty.
-type HostScriptResult struct {
-	// ID is the unique row identifier of the host script result.
-	ID uint `json:"-" db:"id"`
-	// HostID is the host on which the script was executed.
-	HostID uint `json:"host_id" db:"host_id"`
-	// ExecutionID is a unique identifier for a single execution of the script.
-	ExecutionID string `json:"execution_id" db:"execution_id"`
-	// ScriptContents is the content of the script to execute.
-	ScriptContents string `json:"script_contents" db:"script_contents"`
-	// Output is the combined stdout/stderr output of the script. It is empty
-	// if no result was received yet.
-	Output string `json:"output" db:"output"`
-	// Runtime is the running time of the script in seconds, rounded.
-	Runtime int `json:"runtime" db:"runtime"`
-	// ExitCode is null if script execution result was never received from the
-	// host. It is -1 if it was received but the script did not terminate
-	// normally (same as how Go handles this: https://pkg.go.dev/os#ProcessState.ExitCode)
-	ExitCode *int64 `json:"exit_code" db:"exit_code"`
-	// CreatedAt is the creation timestamp of the script execution request. It is
-	// not returned as part of the payloads, but is used to determine if the script
-	// is too old to still expect a response from the host.
-	CreatedAt time.Time `json:"-" db:"created_at"`
-
-	// TeamID is only used for authorization, it must be set to the team id of
-	// the host when checking authorization and is otherwise not set.
-	TeamID *uint `json:"team_id" db:"-"`
-
-	// Message is the UserMessage associated with a response from an execution.
-	// It may be set by the endpoint and included in the resulting JSON but it is
-	// not otherwise part of the host_script_results table.
-	Message string `json:"message" db:"-"`
-
-	// Hostname can be set by the endpoint as extra information to make available
-	// when generating the UserMessage associated with a response from an
-	// execution. It is otherwise not part of the host_script_results table and
-	// not returned as part of the resulting JSON.
-	Hostname string `json:"-" db:"-"`
-}
-
-func (hsr HostScriptResult) AuthzType() string {
-	return "host_script_result"
-}
-
-// UserMessage returns the user-friendly message to associate with the current
-// state of the HostScriptResult. This is returned as part of the API endpoints
-// for running a script synchronously (so that fleetctl can display it) and to
-// get the script results for an execution ID (e.g. when looking at the details
-// screen of a script execution activity in the website).
-func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
-	if hostTimeout {
-		return RunScriptHostTimeoutErrMsg
-	}
-
-	if hsr.ExitCode == nil {
-		if hsr.HostTimeout(1 * time.Minute) {
-			return RunScriptHostTimeoutErrMsg
-		}
-		return RunScriptAlreadyRunningErrMsg
-	}
-
-	switch *hsr.ExitCode {
-	case -1:
-		return "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
-	case -2:
-		return "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
-	default:
-		return ""
-	}
-}
-
-func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
-	return time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
-}
-
-const MaxScriptRuneLen = 10000
-
-func ValidateHostScriptContents(s string) error {
-	// anchored, so that it matches to the end of the line
-	scriptHashbangValidation := regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
-
-	if s == "" {
-		return errors.New("Script contents must not be empty.")
-	}
-
-	// look for the script length in bytes first, as rune counting a huge string
-	// can be expensive.
-	if len(s) > utf8.UTFMax*MaxScriptRuneLen {
-		return errors.New("Script is too large. It’s limited to 10,000 characters (approximately 125 lines).")
-	}
-
-	// now that we know that the script is at most 4*maxScriptRuneLen bytes long,
-	// we can safely count the runes for a precise check.
-	if utf8.RuneCountInString(s) > MaxScriptRuneLen {
-		return errors.New("Script is too large. It’s limited to 10,000 characters (approximately 125 lines).")
-	}
-
-	// script must be a "text file", but that's not so simple to validate, so we
-	// assume that if it is valid utf8 encoding, it is a text file (binary files
-	// will often have invalid utf8 byte sequences).
-	if !utf8.ValidString(s) {
-		return errors.New("Wrong data format. Only plain text allowed.")
-	}
-
-	if strings.HasPrefix(s, "#!") {
-		// read the first line in a portable way
-		s := bufio.NewScanner(strings.NewReader(s))
-		// if a hashbang is present, it can only be `/bin/sh` for now
-		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
-			return errors.New(`Interpreter not supported. Bash scripts must run in "#!/bin/sh”.`)
-		}
-	}
-
-	return nil
 }

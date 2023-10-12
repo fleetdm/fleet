@@ -6,6 +6,7 @@ import * as DOMPurify from "dompurify";
 interface ITooltipWrapperProps {
   children: string | JSX.Element;
   tipContent: string;
+  /** Default: bottom */
   position?: "top" | "bottom";
   isDelayed?: boolean;
   className?: string;

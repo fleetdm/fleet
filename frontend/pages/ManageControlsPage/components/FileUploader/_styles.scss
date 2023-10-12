@@ -8,11 +8,23 @@
   padding: $pad-xlarge $pad-large;
   font-size: $x-small;
   text-align: center;
+  gap: $pad-small;
+
+  &__message {
+    margin: 0;
+  }
+
+  &__additional-info {
+    margin: 0;
+    color: $ui-fleet-black-50;
+  }
 
   input {
     display: none;
   }
-  .button {
+
+  &__upload-button {
+    margin-top: 8px;
     padding: 0;
   }
 

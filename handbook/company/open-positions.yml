@@ -113,37 +113,6 @@
       - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
       - ➕ Bonus: Cybersecurity or IT background.
-- jobTitle: 🐋 Account Executive
-  department: Customers
-  hiringManagerName: Alex Mitchell
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/alexandercmitchell/
-  hiringManagerGithubUsername: alexmitchelliii
-  responsibilities: |
-    - 🎯 Direct and participate in prospecting target companies, identifying key decision makers and influencers, leading when assigned/necessary/appropriate
-    - 📈 Use available data to identify opportunities and trends with individual prospects
-    - 📣 Actively promote FleetDM product and services on social media
-    - 🖥️ Actively present and demonstrate the value of FleetDM products and services and upgrades targeting customer expansion opportunities
-    - ❔ Appropriately use and follow MEDDPPICC process to qualify and progress opportunities to best help prospects solve problems
-    - 🤔 Anticipate market trends and identify new opportunities for growth
-    - 🕴️ Utilize systems and tools such as salesforce to analyze pipeline and opportunity data and keep all information up to date for leadership reporting
-    - 🚀 Work collaboratively with the product management, customer support, and engineering teams to facilitate feature development based on customer asks
-    - 🧑‍💻 Collaborate with the marketing team to plan, execute and track impactful marketing campaigns, in order to meet and/or exceed quarterly pipeline and revenue targets
-    - 🤝 Work with prospects to find win-win commercial agreements
-  experience: |
-    - 🦉 5+ years experience selling to enterprise customers
-    - 📣 Have excellent communication and interpersonal skills
-    - 🧑‍💻 Love technology and can explain how things work in detail
-    - 🧪 Extensive experience with Slack, Salesforce, Zendesk, Google Suite, and GitHub
-    - ⏩ Thrive in a complex, fast-paced, results driven environment with the ability to pivot to organizational changes easily
-    - 🤝 Decisive with the ability to shift gears between thinking and doing
-    - 📈 Ability to partner with various teams and stakeholders to drive sales
-    - 👀 Strong understanding of the enterprise procurement process
-    - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with SRE,CPE, or SecOps teams
-    - 💭 You know how to manage complex sales, difficult escalations, and challenging procurement processes with the utmost care and organization
-    - 💖 You know how to manage your time and priorities between leads, opportunities other day-to-day responsibilities
-    - ✍ You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and drive Fleet's value with them
-    - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet
-    - ➕ Bonus: You are comfortable with concepts like security, APIs, and DevOps
 - jobTitle: 🐋 Sales Development Representative (SDR) 
   department: Customers
   hiringManagerName: Alex Mitchell
@@ -251,6 +220,25 @@
     - ➕ Bonus: Experienced with Go.
     - 💭 3-5 years' of experience in cloud infrastructure (AWS/GCP/Azure).
     - 🦉 Proficient in infrastructure as code and container deployments.
+- jobTitle: ⚗️ Product Manager, Security
+  department: Product
+  hiringManagerName: Mo Zhu
+  hiringManagerLinkedInUrl: linkedin.com/in/mo-zhu
+  hiringManagerGithubUsername: zhumo
+  responsibilities: |
+    - 🤝 Deeply understand customer needs and workflows through direct conversations
+    - 🛣️ Use gained customer understanding to inform product direction and strategy
+    - 💬 Translate between technical and business needs, orally and in writing
+    - 📝 Write user stories and requirements to guide design and engineering
+    - 🛫 Oversee product development lifecycle from concept to release to documentation and support
+    - 🎁 Develop go-to-market strategies and launch plans for new cybersecurity products, including pricing, positioning, and messaging.
+    - 🔎 Conduct competitive product analysis
+    - 👯 Communicate and build strong relationships with cross-functional teams and stakeholders
+  experience: |
+    - ⚗️  2+ years experience as a product manager at a software technology firm
+    - ⚙️  2+ years experience as a technical contributor at a software technology firm
+    - 🏃 Ability to work in a fast-paced startup environment
+    - 🔒 Bonus: experience in cybersecurity
 
 # Note: commenting out this open position because the page link did not exist in the current version of the company handbook page. (2023-08-31)
 # - jobTitle: 🐋 Solutions Consultant

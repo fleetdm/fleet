@@ -10,7 +10,8 @@ type OsqueryStatus int
 
 const (
 	// StatusOK is the success code returned by osquery
-	StatusOK OsqueryStatus = 0
+	StatusOK           OsqueryStatus = 0
+	MaxQueryReportRows int           = 1000
 )
 
 // QueryContent is the format of a query stanza in an osquery configuration.
