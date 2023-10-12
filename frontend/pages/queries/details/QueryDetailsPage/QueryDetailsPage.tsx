@@ -251,8 +251,8 @@ const QueryDetailsPage = ({
 
   const renderReport = () => {
     const disabledCachingGlobally =
-      config?.server_settings.query_reports_disabled || true;
-    const discardDataEnabled = storedQuery?.discard_data || true;
+      config?.server_settings.query_reports_disabled;
+    const discardDataEnabled = storedQuery?.discard_data;
     const loggingSnapshot = storedQuery?.logging === "snapshot";
     const disabledCaching =
       disabledCachingGlobally || discardDataEnabled || !loggingSnapshot;
