@@ -816,6 +816,8 @@ Returns the name, description, and SQL of the query specified by name.
 
 Creates and/or modifies the queries included in the list. To modify an existing query, the name of the query must already be used by an existing query. If a query with the specified name doesn't exist in Fleet, a new query will be created.
 
+If a query field is not specified in the "spec" then its default value depending on its type will be assumed, e.g. if `interval` is not set then `0` will be assumed, if `discard_data` is omitted then `false` will be assumed, etc.
+
 `POST /api/v1/fleet/spec/queries`
 
 #### Parameters
