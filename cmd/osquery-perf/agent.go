@@ -410,6 +410,7 @@ type scheduledQuery struct {
 	Snapshot         bool    `json:"snapshot"`
 	NextRun          float64
 	NumResults       uint
+	PackName         string
 }
 
 func (a *agent) isOrbit() bool {
@@ -470,11 +471,10 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		case <-logTicker:
 			// check if we have any scheduled queries
 			for i, query := range a.scheduledQueryData {
-				log.Printf("sendings logs for %s", query.Name)
 				time.Sleep(500 * time.Millisecond)
 				now := time.Now().Unix()
 				if query.NextRun == 0 || now >= int64(query.NextRun) {
-					a.SubmitLogs(query.Name, a.CachedString("id"), a.CachedString("hostname"), query.NumResults)
+					a.SubmitLogs(query.Name, a.CachedString("id"), a.CachedString("hostname"), query.PackName, query.NumResults)
 					a.scheduledQueryData[i].NextRun = float64(now + int64(query.ScheduleInterval))
 				}
 			}
@@ -839,13 +839,13 @@ func (a *agent) config() {
 			}
 
 			q := scheduledQuery{}
+			q.PackName = packName
 			q.Name = queryName
 			q.NumResults = 1
 			parts := strings.Split(q.Name, "_")
 			if len(parts) > 0 {
 				num, err := strconv.ParseInt(parts[1], 10, 32)
 				if err != nil {
-					log.Println("processing scheduled query failed: expected a number in the query name. Using default value")
 					num = 1
 				}
 				q.NumResults = uint(num)
@@ -1419,7 +1419,7 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	// No need to read the distributed write body
 }
 
-func (a *agent) SubmitLogs(queryName, hostID, hostName string, numResults uint) {
+func (a *agent) SubmitLogs(queryName, hostID, hostName, packName string, numResults uint) {
 	type submitLogsRequest struct {
 		NodeKey string          `json:"node_key"`
 		LogType string          `json:"log_type"`
@@ -1432,7 +1432,7 @@ func (a *agent) SubmitLogs(queryName, hostID, hostName string, numResults uint) 
   "snapshot": [` + results(int(numResults), a.UUID) + `
   ],
   "action": "snapshot",
-  "name": "pack/Global/` + queryName + `",
+  "name": "pack/` + packName + `/` + queryName + `",
   "hostIdentifier": "` + a.UUID + `",
   "calendarTime": "Fri Oct  6 18:13:04 2023 UTC",
   "unixTime": 1696615984,
