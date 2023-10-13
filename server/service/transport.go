@@ -238,8 +238,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		if hopt.PolicyIDFilter == nil {
 			return hopt, ctxerr.Wrap(
 				r.Context(), badRequest(
-					"Missing policy_id ("+
-						"it must be present when policy_response is specified",
+					"Missing policy_id (it must be present when policy_response is specified)",
 				),
 			)
 		}
@@ -296,14 +295,14 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	if hopt.OSNameFilter != nil && hopt.OSVersionFilter == nil {
 		return hopt, ctxerr.Wrap(
 			r.Context(), badRequest(
-				"Invalid os_version. os_version must be specified with os_name",
+				"Invalid os_version (os_version must be specified with os_name)",
 			),
 		)
 	}
 	if hopt.OSNameFilter == nil && hopt.OSVersionFilter != nil {
 		return hopt, ctxerr.Wrap(
 			r.Context(), badRequest(
-				"Invalid os_name. os_name must be specified with os_version",
+				"Invalid os_name (os_name must be specified with os_version)",
 			),
 		)
 	}
