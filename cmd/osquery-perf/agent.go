@@ -838,7 +838,7 @@ func (a *agent) config() {
 			q.Name = queryName
 			q.NumResults = 1
 			parts := strings.Split(q.Name, "_")
-			if len(parts) > 0 {
+			if len(parts) == 2 {
 				num, err := strconv.ParseInt(parts[1], 10, 32)
 				if err != nil {
 					num = 1
