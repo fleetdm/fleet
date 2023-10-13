@@ -501,14 +501,14 @@ func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fle
 		ClientError:   bitlockerError,
 	}
 
-	if err != nil {
-		log.Error().Err(err).Msg("failed to encrypt the volume")
-		return
-	}
-
 	err = w.EncryptionResult.SetOrUpdateDiskEncryptionKey(payload)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to send encryption result to Fleet Server")
+		return
+	}
+
+	if err != nil {
+		log.Error().Err(err).Msg("failed to encrypt the volume")
 		return
 	}
 
