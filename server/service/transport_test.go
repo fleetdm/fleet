@@ -221,7 +221,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			url:          "/foo?software_id=foo",
 			errorMessage: "Invalid software_id",
 		},
-		"error in od_id": {
+		"error in os_id": {
 			url:          "/foo?os_id=foo",
 			errorMessage: "Invalid os_id",
 		},

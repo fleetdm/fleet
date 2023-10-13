@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -504,7 +505,12 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 		if err != nil {
 			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", tid)))
 		}
-		userOpts.TeamID = uint(teamID)
+		if teamID <= math.MaxUint {
+			userOpts.TeamID = uint(teamID)
+		} else {
+			// This code is only reachable on a 32-bit machine. It is here to satisfy GitHub code scanning alert: Incorrect conversion between integer types
+			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id (too large): %s", tid)))
+		}
 	}
 
 	return userOpts, nil
