@@ -1,2 +1,0 @@
-* Add `GET /api/_version_/fleet/queries/{id}/report` API endpoint to retrieve the stored results of a given query.
-* Add `discard_data` field to API query endpoints.

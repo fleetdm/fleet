@@ -668,7 +668,7 @@ func TestHostAuth(t *testing.T) {
 			err = svc.DeleteHosts(ctx, []uint{2}, fleet.HostListOptions{}, nil)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
-			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1})
+			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1}, false)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), fleet.HostListOptions{}, nil)

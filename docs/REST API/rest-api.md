@@ -5468,6 +5468,7 @@ Either `query` or `query_id` must be provided.
 ## Queries
 
 - [Get query](#get-query)
+- [Get query report](#get-query-report)
 - [List queries](#list-queries)
 - [Create query](#create-query)
 - [Modify query](#modify-query)
@@ -5537,6 +5538,92 @@ Returns the query specified by ID.
   }
 }
 ```
+
+### Get query report
+
+Returns the query report specified by ID.
+
+`GET /api/v1/fleet/queries/{id}/report`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                |
+| ---- | ------- | ---- | ------------------------------------------ |
+| id   | integer | path | **Required**. The ID of the desired query. |
+
+#### Example
+
+`GET /api/v1/fleet/queries/31/report`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "query_id": 31,
+  "results": [
+    {
+      "host_id": 1,
+      "host_name": "foo",
+      "last_fetched": "2021-01-19T17:08:31Z",
+      "columns": {
+        "model": "USB 2.0 Hub",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "host_id": 1,
+      "host_name": "foo",
+      "last_fetched": "2021-01-19T17:08:31Z",
+      "columns": {
+        "model": "USB Keyboard",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "host_id": 2,
+      "host_name": "bar",
+      "last_fetched": "2021-01-19T17:20:00Z",
+      "columns": {
+        "model": "USB Reciever",
+        "vendor": "Logitech"
+      }
+    },
+    {
+      "host_id": 2,
+      "host_name": "bar",
+      "last_fetched": "2021-01-19T17:20:00Z",
+      "columns": {
+        "model": "USB Reciever",
+        "vendor": "Logitech"
+      }
+    },
+    {
+      "host_id": 2,
+      "host_name": "bar",
+      "last_fetched": "2021-01-19T17:20:00Z",
+      "columns": {
+        "model": "Display Audio",
+        "vendor": "Apple Inc."
+      }
+    }
+  ]
+}
+```
+
+If a query has no results stored, then `results` will be an empty array:
+
+```json
+{
+  "query_id": 32,
+  "results": []
+}
+```
+
+### osquery scheduled queries do not return errors.
+
+osquery scheduled queries mechanism does not return errors. Hence those are not stored in the cache and are not part of this report.
 
 ### List queries
 

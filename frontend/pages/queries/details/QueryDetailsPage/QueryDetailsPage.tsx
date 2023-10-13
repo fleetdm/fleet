@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
@@ -79,6 +79,8 @@ const QueryDetailsPage = ({
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryObserverCanRun,
+    lastEditedQueryDiscardData,
+    lastEditedQueryLoggingType,
     setLastEditedQueryId,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -93,6 +95,14 @@ const QueryDetailsPage = ({
 
   // Title that shows up on browser tabs (e.g., Query details | Discover TLS certificates | Fleet for osquery)
   document.title = `Query details | ${lastEditedQueryName} | Fleet for osquery`;
+
+  const [disabledCachingGlobally, setDisabledCachingGlobally] = useState(true);
+
+  useEffect(() => {
+    if (config) {
+      setDisabledCachingGlobally(config.server_settings.query_reports_disabled);
+    }
+  }, [config]);
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
@@ -208,7 +218,8 @@ const QueryDetailsPage = ({
             <div className={`${baseClass}__settings`}>
               <div className={`${baseClass}__automations`}>
                 <TooltipWrapper
-                  tipContent={`Query automations let you send data to your log destination on a schedule. When automations are <b>on</b>, data is sent according to a query’s frequency.`}
+                  // TODO - change to JSX after tooltip refactor
+                  tipContent={`Query automations let you send data to your log <br />destination on a schedule. When automations are <b>on</b>, <br />data is sent according to a query’s frequency.`}
                 >
                   Automations:
                 </TooltipWrapper>
@@ -250,12 +261,9 @@ const QueryDetailsPage = ({
   );
 
   const renderReport = () => {
-    const disabledCachingGlobally =
-      config?.server_settings.query_reports_disabled || true;
-    const discardDataEnabled = storedQuery?.discard_data || true;
-    const loggingSnapshot = storedQuery?.logging === "snapshot";
+    const loggingSnapshot = lastEditedQueryLoggingType === "snapshot";
     const disabledCaching =
-      disabledCachingGlobally || discardDataEnabled || !loggingSnapshot;
+      disabledCachingGlobally || lastEditedQueryDiscardData || !loggingSnapshot;
     const emptyCache = (queryReport?.results?.length ?? 0) === 0;
 
     // Loading state
@@ -276,7 +284,7 @@ const QueryDetailsPage = ({
           queryUpdatedAt={storedQuery?.updated_at}
           disabledCaching={disabledCaching}
           disabledCachingGlobally={disabledCachingGlobally}
-          discardDataEnabled={discardDataEnabled}
+          discardDataEnabled={lastEditedQueryDiscardData}
           loggingSnapshot={loggingSnapshot}
         />
       );
