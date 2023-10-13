@@ -5429,10 +5429,10 @@ Modifies the query specified by ID.
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
 | discard_data        | bool    | body | Whether to skip saving the latest query results for each host. |
 
-Any of the following conditions will cause the query report to be deleted:
-- Updating the `query` (SQL) field.
-- Changing `discard_data` from `false` to `true`.
-- Changing `logging` from `"snapshot"` to `"differential"` or `"differential_ignore_removals"`.
+> Note that any of the following conditions will cause the existing query report to be deleted:
+> - Updating the `query` (SQL) field
+> - Changing `discard_data` from `false` to `true`
+> - Changing `logging` from `"snapshot"` to `"differential"` or `"differential_ignore_removals"`
 
 #### Example
 
