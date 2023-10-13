@@ -36,7 +36,8 @@ const NoResults = ({
   };
 
   // Update status of collecting cached results
-  const collectingResults = secondsCheckbackTime() > 0;
+  const collectingResults =
+    (queryInterval ?? 0) > 0 && secondsCheckbackTime() > 0;
 
   // Converts seconds takes to update to human readable format
   const readableCheckbackTime = formatDistance(
