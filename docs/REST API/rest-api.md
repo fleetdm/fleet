@@ -4186,7 +4186,6 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 ```json
 {
   "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
-  "platform": "darwin",
   "request_type": "ProfileList"
 }
 ```
