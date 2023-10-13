@@ -8,10 +8,13 @@
 - [Device-authenticated routes](#device-authenticated-routes)
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
+- [Scripts](#scripts)
 
-This document includes the Fleet API routes that are helpful when developing or contributing to Fleet.
+This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
-Unlike the [Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api), only the Fleet UI, Fleet Desktop, and `fleetctl` clients use the API routes in this document:
+These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and will frequently change to reflect current functionality.
+
+If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
 
 ## Packs
 
@@ -531,6 +534,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
+- [Get FileVault statistics](#get-filevault-statistics)
 
 ### Generate Apple DEP Key Pair
 
@@ -698,6 +702,44 @@ This endpoint stores a profile to be assigned to a host at some point in the fut
 ##### Default response
 
 `Status: 204`
+
+### Get FileVault statistics
+
+_Available in Fleet Premium_
+
+Get aggregate status counts of disk encryption enforced on macOS hosts.
+
+The summary can optionally be filtered by team id.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter the summary.            |
+
+#### Example
+
+Get aggregate status counts of Apple disk encryption profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "verified": 123,
+  "verifying": 123,
+  "action_required": 123,
+  "enforcing": 123,
+  "failed": 123,
+  "removing_enforcement": 123
+}
+```
+
 
 ### Match preassigned profiles
 
@@ -1235,6 +1277,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
 | mdm.macos_settings                        | object | body  | The macOS-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.macos_settings.custom_settings        | list   | body  | The list of .mobileconfig files to apply to hosts that belong to this team.                                                                                                                                                         |
+| scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
@@ -1296,7 +1339,8 @@ If the `name` is not already associated with an existing team, this API route cr
           "custom_settings": ["path/to/profile1.mobileconfig"],
           "enable_disk_encryption": true
         }
-      }
+      },
+      "scripts": ["path/to/script.sh"],
     }
   ]
 }
@@ -2289,7 +2333,9 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 {
   "failing_policies_count": 3,
   "notifications": {
-    "needs_mdm_migration": true
+    "needs_mdm_migration": true,
+    "renew_enrollment_profile": false,
+    "enforce_bitlocker_encryption": false,
   },
   "config": {
     "org_info": {
@@ -2311,6 +2357,7 @@ In regards to the `notifications` key:
 
 - `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
 - `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
+- `enforce_bitlocker_encryption` applies only to Windows devices and means that it should encrypt the disk and report the encryption key back to Fleet.
 
 
 #### Get device's policies
@@ -2647,6 +2694,35 @@ If the Fleet instance is provided required parameters to complete setup.
 }
 
 ```
+
+## Scripts
+
+### Batch-apply scripts 
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/scripts/batch`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_id | number | query | The ID of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. 
+| team_id | number | query | The ID of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. 
+| dry_run   | bool   | query | Validate the provided scripts and return any validation errors, but do not apply the changes.                                                                         |
+| scripts   | array  | body  | An array of objects with the scripts payloads. Each item must contain `name` with the script name and `script_contents` with the script contents encoded in base64    |
+
+If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
+
+> Note that this endpoint replaces all the active scripts for the specified team (or no team). Any existing script that is not included in the list will be removed, and existing scripts with the same name as a new script will be edited. Providing an empty list of scripts will remove existing scripts.
+
+#### Example
+
+`POST /api/v1/fleet/mdm/scripts/batch`
+
+##### Default response
+
+`204`
 
 <meta name="pageOrderInSection" value="800">
 <meta name="description" value="Read about Fleet API routes that are helpful when developing or contributing to Fleet.">

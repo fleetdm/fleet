@@ -19,12 +19,16 @@ vagrant ssh
 
 ### Installing Fleet
 
-To install Fleet, [download](https://github.com/fleetdm/fleet/releases), unzip, and move the latest Fleet binary to your desired install location.
+To install Fleet, [download](https://github.com/fleetdm/fleet/releases) the latest release from GitHub. The binary is in an archive that uses this naming convention, including the current version: `fleet_<version>_linux.tar.gz`.
 
-For example, after downloading:
-```sh
-unzip fleet.zip 'linux/*' -d fleet
-sudo cp fleet/linux/fleet* /usr/bin/
+Once the file is downloaded, extract the Fleet binary from the archive and copy it in to your desired location.
+
+For example:
+```console
+> tar -xf fleet_<version>_linux.tar.gz
+> sudo cp fleet_<version>_linux/fleet /usr/bin/
+> /usr/bin/fleet version
+fleet version <version>
 ```
 
 ### Installing and configuring dependencies

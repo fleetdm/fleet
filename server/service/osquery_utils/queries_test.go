@@ -873,6 +873,18 @@ func TestAppConfigReplaceQuery(t *testing.T) {
 	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
 	_, exists := queries["users"]
 	assert.False(t, exists)
+
+	// put the query back again
+	replacementMap["users"] = ptr.String("select 1 from blah")
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	assert.NotEqual(t, originalQuery, queries["users"].Query)
+	assert.Equal(t, "select 1 from blah", queries["users"].Query)
+
+	// empty strings are also ignored
+	replacementMap["users"] = ptr.String("")
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	_, exists = queries["users"]
+	assert.False(t, exists)
 }
 
 func TestDirectIngestSoftware(t *testing.T) {
@@ -1118,7 +1130,7 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		}
 	}
 
-	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key string) error {
+	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
 			return errors.New("key mismatch")
 		}

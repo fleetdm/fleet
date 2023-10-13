@@ -133,141 +133,135 @@
     <%/* End Google Tag Manager (noscript) */%>
     <div style="padding-bottom: <%= optimizeForAppleWebview  ?  '0px' : '60px' %>; background-color: #FFF;" purpose="page-wrap">
       <div class="header <%= optimizeForAppleWebview  ?  'd-none' : '' %>" purpose="header-container" data-nosnippet>
-        <%// Page header%>
-        <div purpose="page-header" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
-          <a purpose="header-logo" href="/">
-            <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
-          </a>
-          <%/* Mobile Navigation menu */%>
-          <div class="d-flex d-lg-none">
-            <button purpose="mobile-nav-toggle-btn" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
-              <span class="mr-2">Menu</span>
-              <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png"/>
-            </button>
-          </div>
-          <div purpose="mobile-nav" class="collapse px-4 px-sm-5" id="navbarToggleExternalContent">
-            <div class="d-flex justify-content-between">
-              <a purpose="mobile-header-logo" href="/">
-                <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="" class="mt-3"/>
-              </a>
-              <button purpose="mobile-nav-close-btn" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
-                <img alt="An 'X' icon indicating that this can be interacted with to close the navigation menu." src="/images/icon-close-16x16@2x.png"/>
+        <div purpose="header-background">
+          <%// Page header%>
+          <div purpose="page-header" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
+            <a purpose="header-logo" href="/">
+              <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
+            </a>
+            <%/* Mobile Navigation menu */%>
+            <div class="d-flex d-lg-none">
+              <button purpose="mobile-nav-toggle-btn" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
+                <span class="mr-2">Menu</span>
+                <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png"/>
               </button>
             </div>
-            <div id="mobileDropdowns" class="py-2">
-              <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Platform</a>
-              <div class="d-block">
-                <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
-                  <a href="/device-management">Device management</a>
-                  <a href="/osquery-management">Osquery management</a>
-                  <a href="/compliance">Security compliance</a>
-                  <a href="/vulnerability-management">Vulnerability management</a>
-                  <span>SUCCESS STORIES</span>
-                  <a class="pl-3" href="/success-stories/fleet-user-stories-wayfair">Wayfair</a>
-                  <a class="pl-3" href="/success-stories/fleet-user-stories-schrodinger">Schrödinger</a>
-                  <a class="pl-3" href="/success-stories/fleet-user-stories-f100">F100 security & networking co.</a>
-                </div>
+            <div purpose="mobile-nav" class="collapse px-4 px-sm-5" id="navbarToggleExternalContent">
+              <div class="d-flex justify-content-between">
+                <a purpose="mobile-header-logo" href="/">
+                  <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="" class="mt-3"/>
+                </a>
+                <button purpose="mobile-nav-close-btn" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
+                  <img alt="An 'X' icon indicating that this can be interacted with to close the navigation menu." src="/images/icon-close-16x16@2x.png"/>
+                </button>
               </div>
-              <hr>
-              <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed"  data-toggle="collapse" data-target="#mobileNavbarToggleDocumentation" aria-haspopup="true" aria-expanded="false">Documentation</a>
-              <div class="d-block">
-                <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                  <a href="/docs">Docs</a>
-                  <a href="/releases">Releases</a>
-                  <a href="/queries">Health checks &amp; queries</a>
-                  <a href="/tables">Explore data</a>
-                  <a href="/support">Support</a>
-                  <span>GUIDES</span>
-                  <a class="pl-3" href="/deploy">Deployment guides</a>
-                  <a class="pl-3" href="/guides">How-to guides</a>
+              <div id="mobileDropdowns" class="py-2">
+                <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Platform</a>
+                <div class="d-block">
+                  <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
+                    <a href="/integrations">Integrations</a>
+                    <a href="/vulnerability-management">Vulnerability management</a>
+                    <a href="/osquery-management">Endpoint operations</a>
+                    <a href="/device-management">Device management (MDM)</a>
+                    <a href="/compliance">Reporting and automation</a>
+                  </div>
                 </div>
-              </div>
-              <hr>
-              <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Community</a>
-              <div class="d-block">
-                <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                  <a href="/announcements">Announcements</a>
-                  <a href="/securing">Security</a>
-                  <a href="/engineering">Engineering</a>
-                  <a href="/podcasts">Podcasts</a>
-                  <a href="/reports/state-of-device-management">Reports</a>
-                  <span>RESOURCES</span>
-                  <a href="/slack" target="_blank">Join the conversation</a>
-                  <a href="/contribute">Contribute to Fleet</a>
-                  <span>RESOURCES</span>
-                  <a href="/handbook">Handbook</a>
-                  <a href="/logos">Logos & artwork</a>
-                </div>
-              </div>
-              <hr>
-              <a purpose="mobile-nav-btn" href="/pricing" class="d-flex align-items-center">Pricing</a>
-              <% if(_.has(me, 'id')) {%>
                 <hr>
-                <a purpose="mobile-nav-btn"  href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
+                <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed"  data-toggle="collapse" data-target="#mobileNavbarToggleDocumentation" aria-haspopup="true" aria-expanded="false">Documentation</a>
+                <div class="d-block">
+                  <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                    <a href="/docs">Docs</a>
+                    <a href="/releases">Releases</a>
+                    <a href="/queries">Device health</a>
+                    <a href="/tables">Explore data</a>
+                    <a href="/support">Support</a>
+                    <span>GUIDES</span>
+                    <a class="pl-3" href="/deploy">Deployment guides</a>
+                    <a class="pl-3" href="/guides">How-to guides</a>
+                  </div>
+                </div>
+                <hr>
+                <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Community</a>
+                <div class="d-block">
+                  <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                    <a href="/announcements">Announcements</a>
+                    <a href="/securing">Security</a>
+                    <a href="/engineering">Engineering</a>
+                    <a href="/podcasts">Podcasts</a>
+                    <a href="/reports/state-of-device-management">Reports</a>
+                    <span>RESOURCES</span>
+                    <a href="/slack" target="_blank">Join the conversation</a>
+                    <a href="/contribute">Contribute to Fleet</a>
+                    <span>RESOURCES</span>
+                    <a href="/handbook">Handbook</a>
+                    <a href="/logos">Logos & artwork</a>
+                  </div>
+                </div>
+                <hr>
+                <a purpose="mobile-nav-btn" href="/pricing" class="d-flex align-items-center">Pricing</a>
+                <% if(_.has(me, 'id')) {%>
+                  <hr>
+                  <a purpose="mobile-nav-btn"  href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
+                <% }%>
+                  <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/try-fleet/register?tryitnow">Try it out</a>
+              </div>
+            </div>
+            <%/* Desktop Navigation bar */%>
+            <div purpose="header-nav" class="d-none d-lg-flex align-items-center justify-content-around">
+              <div purpose="dropdown-button" class="btn-group">
+                <a purpose="header-nav-btn" button-text="Platform" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Platform</a>
+                <div purpose="header-dropdown" class="dropdown-menu">
+                  <a class="dropdown-item mb-1" href="/integrations">Integrations</a>
+                  <a class="dropdown-item mb-1" href="/vulnerability-management">Vulnerability management</a>
+                  <a class="dropdown-item mb-1" href="/osquery-management">Endpoint operations</a>
+                  <a class="dropdown-item mb-1" href="/device-management">Device management (MDM)</a>
+                  <a class="dropdown-item mb-1" href="/compliance">Reporting and automation</a>
+                </div>
+              </div>
+              <div purpose="dropdown-button" class="btn-group">
+                <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+                <div purpose="header-dropdown" class="dropdown-menu">
+                  <a class="dropdown-item mb-1" href="/docs">Docs</a>
+                  <a class="dropdown-item mb-1" href="/releases">Releases</a>
+                  <a class="dropdown-item mb-1" href="/queries">Device health</a>
+                  <a class="dropdown-item mb-1" href="/tables">Explore data</a>
+                  <a class="dropdown-item mb-1" href="/support">Support</a>
+                  <div class="dropdown-divider"></div>
+                  <span class="muted dropdown-header">GUIDES</span>
+                  <a class="dropdown-item" href="/deploy">Deployment guides</a>
+                  <a class="dropdown-item" href="/guides">How-to guides</a>
+                </div>
+              </div>
+              <div purpose="dropdown-button" class="btn-group">
+                <a purpose="header-nav-btn" button-text="Community" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" data-toggle="dropdown">Community</a>
+                <div purpose="header-dropdown" class="dropdown-menu">
+                  <a class="dropdown-item mb-1" href="/announcements">Announcements</a>
+                  <a class="dropdown-item mb-1" href="/securing">Security</a>
+                  <a class="dropdown-item mb-1" href="/engineering">Engineering</a>
+                  <a class="dropdown-item mb-1" href="/podcasts">Podcasts</a>
+                  <a class="dropdown-item mb-1" href="/reports/state-of-device-management">Reports</a>
+                  <div class="dropdown-divider"></div>
+                  <span class="muted dropdown-header">CONTRIBUTE</span>
+                  <a class="dropdown-item mb-1" href="/slack" target="_blank">Join the conversation</a>
+                  <a class="dropdown-item mb-1" href="/contribute">Contribute to Fleet</a>
+                  <div class="dropdown-divider"></div>
+                  <span class="muted dropdown-header">RESOURCES</span>
+                  <a class="dropdown-item mb-1" href="/handbook">Handbook</a>
+                  <a class="dropdown-item" href="/logos">Logos & artwork</a>
+                </div>
+              </div>
+              <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class="d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="text-decoration: none; line-height: 23px;">Pricing</a>
+              <span class="d-flex align-items-center px-3">
+                <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
+                allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
+              </span>
+              <a purpose="glass-header-btn" class="align-items-center d-flex" href="/try-fleet/register?tryitnow" >Try it out</a>
+              <% if(_.has(me, 'id')) {%>
+              <a purpose="logout-btn" href="/logout" class="justify-content-end pl-4 py-2 text-decoration-none">Log out</a>
               <% }%>
-                <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/try-fleet/register?tryitnow">Try it out</a>
             </div>
-          </div>
-          <%/* Desktop Navigation bar */%>
-          <div purpose="header-nav" class="d-none d-lg-flex align-items-center justify-content-around">
-            <div purpose="dropdown-button" class="btn-group">
-              <a purpose="header-nav-btn" button-text="Platform" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Platform</a>
-              <div purpose="header-dropdown" class="dropdown-menu">
-                <a class="dropdown-item mb-1" href="/device-management">Device management</a>
-                <a class="dropdown-item mb-1" href="/osquery-management">Osquery management</a>
-                <a class="dropdown-item mb-1" href="/compliance">Security compliance</a>
-                <a class="dropdown-item mb-1" href="/vulnerability-management">Vulnerability management</a>
-                <div class="dropdown-divider"></div>
-                <h6 class="muted dropdown-header">SUCCESS STORIES</h6>
-                <a class="dropdown-item mb-1" href="/success-stories/fleet-user-stories-wayfair">Wayfair</a>
-                <a class="dropdown-item mb-1" href="/success-stories/fleet-user-stories-schrodinger">Schrödinger</a>
-                <a class="dropdown-item" href="/success-stories/fleet-user-stories-f100">F100 security & networking co.</a>
-              </div>
-            </div>
-            <div purpose="dropdown-button" class="btn-group">
-              <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
-              <div purpose="header-dropdown" class="dropdown-menu">
-                <a class="dropdown-item mb-1" href="/docs">Docs</a>
-                <a class="dropdown-item mb-1" href="/releases">Releases</a>
-                <a class="dropdown-item mb-1" href="/queries">Health checks &amp; queries</a>
-                <a class="dropdown-item mb-1" href="/tables">Explore data</a>
-                <a class="dropdown-item mb-1" href="/support">Support</a>
-                <div class="dropdown-divider"></div>
-                <span class="muted dropdown-header">GUIDES</span>
-                <a class="dropdown-item" href="/deploy">Deployment guides</a>
-                <a class="dropdown-item" href="/guides">How-to guides</a>
-              </div>
-            </div>
-            <div purpose="dropdown-button" class="btn-group">
-              <a purpose="header-nav-btn" button-text="Community" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" data-toggle="dropdown">Community</a>
-              <div purpose="header-dropdown" class="dropdown-menu">
-                <a class="dropdown-item mb-1" href="/announcements">Announcements</a>
-                <a class="dropdown-item mb-1" href="/securing">Security</a>
-                <a class="dropdown-item mb-1" href="/engineering">Engineering</a>
-                <a class="dropdown-item mb-1" href="/podcasts">Podcasts</a>
-                <a class="dropdown-item mb-1" href="/reports/state-of-device-management">Reports</a>
-                <div class="dropdown-divider"></div>
-                <span class="muted dropdown-header">CONTRIBUTE</span>
-                <a class="dropdown-item mb-1" href="/slack" target="_blank">Join the conversation</a>
-                <a class="dropdown-item mb-1" href="/contribute">Contribute to Fleet</a>
-                <div class="dropdown-divider"></div>
-                <span class="muted dropdown-header">RESOURCES</span>
-                <a class="dropdown-item mb-1" href="/handbook">Handbook</a>
-                <a class="dropdown-item" href="/logos">Logos & artwork</a>
-              </div>
-            </div>
-            <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class="d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="text-decoration: none; line-height: 23px;">Pricing</a>
-            <span class="d-flex align-items-center px-3">
-              <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
-              allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
-            </span>
-            <a purpose="glass-header-btn" class="align-items-center d-flex" href="/try-fleet/register?tryitnow" >Try it out</a>
-            <% if(_.has(me, 'id')) {%>
-            <a purpose="logout-btn" href="/logout" class="justify-content-end pl-4 py-2 text-decoration-none">Log out</a>
-            <% }%>
           </div>
         </div>
-
       </div>
 
       <%- body %>
@@ -367,6 +361,7 @@
     <script src="/js/pages/imagine/launch-party.page.js"></script>
     <script src="/js/pages/imagine/rapid-7-alternative.page.js"></script>
     <script src="/js/pages/imagine/unused-software.page.js"></script>
+    <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/landing.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>

@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/rs/zerolog/log"
 )
 
 // Device client is used consume the `device/...` endpoints and meant to be used by Fleet Desktop
@@ -22,6 +23,11 @@ type DeviceClient struct {
 	//
 	// This is needed when the host that Orbit will connect to is different from the host that will connect via the browser.
 	fleetAlternativeBrowserHost string
+
+	// if set and a request fails with ErrUnauthenticated, the client will call
+	// this function to get a fresh token and retry if it returns a different,
+	// non-empty token.
+	invalidTokenRetryFunc func() string
 }
 
 // NewDeviceClient instantiates a new client to perform requests against device endpoints.
@@ -38,7 +44,50 @@ func NewDeviceClient(addr string, insecureSkipVerify bool, rootCA string, fleetC
 	}, nil
 }
 
-func (dc *DeviceClient) request(verb string, path string, query string, params interface{}, responseDest interface{}) error {
+// WithInvalidTokenRetry sets the function to call if a request fails with
+// ErrUnauthenticated. The client will call this function to get a fresh token
+// and retry if it returns a different, non-empty token.
+func (dc *DeviceClient) WithInvalidTokenRetry(fn func() string) {
+	log.Debug().Msg("setting invalid token retry hook")
+	dc.invalidTokenRetryFunc = fn
+}
+
+// request performs the request, resolving the pathFmt that should contain a %s
+// verb to be replaced with the token, or no verb at all if the token is "-"
+// (the pathFmt is used as-is as path). It will retry if the request fails due
+// to an invalid token and the invalidTokenRetryFunc field is set.
+func (dc *DeviceClient) request(verb, pathFmt, token, query string, params interface{}, responseDest interface{}) error {
+	const maxAttempts = 4
+	var attempt int
+	for {
+		attempt++
+
+		path := pathFmt
+		if token != "-" {
+			path = fmt.Sprintf(pathFmt, token)
+		}
+		reqErr := dc.requestAttempt(verb, path, query, params, responseDest)
+		if attempt >= maxAttempts || dc.invalidTokenRetryFunc == nil || token == "-" || !errors.Is(reqErr, ErrUnauthenticated) {
+			// no retry possible, return the result
+			if reqErr != nil {
+				log.Debug().Msgf("not retrying API error; attempt=%d, hook set=%t, token unset=%t, error is auth=%t",
+					attempt, dc.invalidTokenRetryFunc != nil, token == "-", errors.Is(reqErr, ErrUnauthenticated))
+			}
+			return reqErr
+		}
+
+		delay := time.Duration(attempt) * time.Second
+		log.Debug().Msgf("retrying API error in %s", delay)
+		time.Sleep(delay)
+		newToken := dc.invalidTokenRetryFunc()
+		log.Debug().Msgf("retrying API error; token is different=%t", newToken != "" && newToken != token)
+		if newToken != "" {
+			token = newToken
+		}
+	}
+}
+
+func (dc *DeviceClient) requestAttempt(verb string, path string, query string, params interface{}, responseDest interface{}) error {
 	var bodyBytes []byte
 	var err error
 	if params != nil {
@@ -95,7 +144,7 @@ func (dc *DeviceClient) CheckToken(token string) error {
 // Ping sends a ping to the server using the device/ping endpoint
 func (dc *DeviceClient) Ping() error {
 	verb, path := "HEAD", "/api/fleet/device/ping"
-	err := dc.request(verb, path, "", nil, nil)
+	err := dc.request(verb, path, "-", "", nil, nil)
 
 	if err == nil || errors.Is(err, notFoundErr{}) {
 		// notFound is ok, it means an old server without the ping endpoint +
@@ -107,16 +156,16 @@ func (dc *DeviceClient) Ping() error {
 }
 
 func (dc *DeviceClient) getListDevicePolicies(token string) ([]*fleet.HostPolicy, error) {
-	verb, path := "GET", "/api/latest/fleet/device/"+token+"/policies"
+	verb, path := "GET", "/api/latest/fleet/device/%s/policies"
 	var responseBody listDevicePoliciesResponse
-	err := dc.request(verb, path, "", nil, &responseBody)
+	err := dc.request(verb, path, token, "", nil, &responseBody)
 	return responseBody.Policies, err
 }
 
 func (dc *DeviceClient) getMinDesktopPayload(token string) (fleetDesktopResponse, error) {
-	verb, path := "GET", "/api/latest/fleet/device/"+token+"/desktop"
+	verb, path := "GET", "/api/latest/fleet/device/%s/desktop"
 	var r fleetDesktopResponse
-	err := dc.request(verb, path, "", nil, &r)
+	err := dc.request(verb, path, token, "", nil, &r)
 	return r, err
 }
 
@@ -150,16 +199,16 @@ func (dc *DeviceClient) DesktopSummary(token string) (*fleetDesktopResponse, err
 }
 
 func (dc *DeviceClient) MigrateMDM(token string) error {
-	verb, path := "POST", "/api/latest/fleet/device/"+token+"/migrate_mdm"
-	return dc.request(verb, path, "", nil, nil)
+	verb, path := "POST", "/api/latest/fleet/device/%s/migrate_mdm"
+	return dc.request(verb, path, token, "", nil, nil)
 }
 
 func (dc *DeviceClient) ReportError(token string, fleetdErr fleet.FleetdError) error {
-	verb, path := "POST", "/api/latest/fleet/device/"+token+"/debug/errors"
+	verb, path := "POST", "/api/latest/fleet/device/%s/debug/errors"
 	req := fleetdErrorRequest{FleetdError: fleetdErr}
 	return retry.Do(
 		func() error {
-			err := dc.request(verb, path, "", req, nil)
+			err := dc.request(verb, path, token, "", req, nil)
 			scerr, ok := err.(*statusCodeErr)
 
 			// as backwards as this seems, this endpoint returns a

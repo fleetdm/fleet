@@ -167,7 +167,7 @@ const ScriptDetailsModal = ({
   onCancel,
 }: IScriptDetailsModalProps) => {
   const { data, isLoading, isError } = useQuery<IScriptResultResponse>(
-    ["scriptDetailsModal"],
+    ["scriptDetailsModal", scriptExecutionId],
     () => {
       return scriptsAPI.getScriptResult(scriptExecutionId);
     },
