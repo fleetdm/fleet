@@ -7209,6 +7209,11 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.NotNil(t, hdek.Decryptable)
 	require.True(t, *hdek.Decryptable)
 
+	// the disk encryption status of the host is not set with this request
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.Nil(t, hostResp.Host.DiskEncryptionEnabled)
+
 	// the key is encrypted the same way as the macOS keys (except with the WSTEP
 	// certificate), so it can be decrypted using the same decryption function.
 	wstepCert, _, _, err := s.fleetCfg.MDM.MicrosoftWSTEP()
