@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -383,8 +384,7 @@ func (f *fleetdErrorRequest) deviceAuthToken() string {
 // prevent a malicious actor.
 const maxFleetdErrorReportSize int64 = 5 * 1024 * 1024
 
-func (f *fleetdErrorRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
-
+func (f *fleetdErrorRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
 	limitedReader := io.LimitReader(r, maxFleetdErrorReportSize+1)
 	decoder := json.NewDecoder(limitedReader)
 

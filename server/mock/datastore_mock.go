@@ -674,6 +674,10 @@ type MDMWindowsInsertEnrolledDeviceFunc func(ctx context.Context, device *fleet.
 
 type MDMWindowsDeleteEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID string) error
 
+type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error)
+
+type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) error
+
 type MDMWindowsInsertPendingCommandFunc func(ctx context.Context, cmd *fleet.MDMWindowsPendingCommand) error
 
 type MDMWindowsListPendingCommandsFunc func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error)
@@ -1676,6 +1680,12 @@ type DataStore struct {
 
 	MDMWindowsDeleteEnrolledDeviceFunc        MDMWindowsDeleteEnrolledDeviceFunc
 	MDMWindowsDeleteEnrolledDeviceFuncInvoked bool
+
+	MDMWindowsGetEnrolledDeviceWithDeviceIDFunc        MDMWindowsGetEnrolledDeviceWithDeviceIDFunc
+	MDMWindowsGetEnrolledDeviceWithDeviceIDFuncInvoked bool
+
+	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc        MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc
+	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked bool
 
 	MDMWindowsInsertPendingCommandFunc        MDMWindowsInsertPendingCommandFunc
 	MDMWindowsInsertPendingCommandFuncInvoked bool
@@ -4001,6 +4011,20 @@ func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDevic
 	s.MDMWindowsDeleteEnrolledDeviceFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceID)
+}
+
+func (s *DataStore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	s.mu.Lock()
+	s.MDMWindowsGetEnrolledDeviceWithDeviceIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc(ctx, mdmDeviceID)
+}
+
+func (s *DataStore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error {
+	s.mu.Lock()
+	s.MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc(ctx, mdmDeviceID)
 }
 
 func (s *DataStore) MDMWindowsInsertPendingCommand(ctx context.Context, cmd *fleet.MDMWindowsPendingCommand) error {
