@@ -46,8 +46,12 @@ const NoResults = ({
 
   // Collecting results state only shows if caching is enabled
   if (collectingResults && !disabledCaching) {
-    const collectingResultsInfo = () =>
-      `Fleet is collecting query results. Check back in about ${readableCheckbackTime}.`;
+    const collectingResultsInfo = () => (
+      <>
+        Fleet is collecting query results. <br />
+        Check back in about {readableCheckbackTime}.
+      </>
+    );
 
     return (
       <EmptyTable
@@ -58,38 +62,44 @@ const NoResults = ({
     );
   }
 
-  const noResultsInfo = () => {
+  const getNoResultsInfo = () => {
     // In order of empty page priority
     if (disabledCaching) {
       const tipContent = () => {
+        // TODO - change to JSX with refactor tooltipwrapper merge
         if (disabledCachingGlobally) {
-          return "The following setting prevents saving this query's results in Fleet:<ul><li>Query reports are globally disabled in organization settings.</li></ul>";
+          return `<div>The following setting prevents saving this query's results in Fleet:</div>\
+             <div>&nbsp; • Query reports are globally disabled in organization settings.</div>`;
         }
         if (discardDataEnabled) {
-          return "The following setting prevents saving this query's results in Fleet:<ul><li>This query has Discard data enabled.</li></ul>";
+          return `<div>The following setting prevents saving this query's results in Fleet:</div>\
+         <div>&nbsp; • This query has <b>Discard data</b> enabled.</div>`;
         }
         if (!loggingSnapshot) {
-          return "The following setting prevents saving this query's results in Fleet:<ul><li>The logging setting for this query is not Snapshot.</li></ul>";
+          return `<div>The following setting prevents saving this query's results in Fleet:</div>\
+          <div>&nbsp; • The logging setting for this query is not <b>Snapshot</b>.</div>`;
         }
         return "Unknown";
       };
-      return (
+      return [
+        "Nothing to report",
         <>
           Results from this query are{" "}
           <TooltipWrapper tipContent={tipContent()}>
             not reported in Fleet
           </TooltipWrapper>
           .
-        </>
-      );
+        </>,
+      ];
     }
     if (!queryInterval) {
-      return (
+      return [
+        "Nothing to report",
         <>
           This query does not collect data on a schedule. Add <br />a{" "}
           <strong>frequency</strong> or run this as a live query to see results.
-        </>
-      );
+        </>,
+      ];
     }
     // No errors will be reported in V1
     // if (errorsOnly) {
@@ -100,15 +110,24 @@ const NoResults = ({
     //     </>
     //   );
     // }
-    return "This query has returned no data so far.";
+    return [
+      "Nothing to report yet",
+      <>
+        This query has returned no data so far. If you&apos;re <br />
+        expecting to see results, try running a live query to
+        <br />
+        get diagnostics.
+      </>,
+    ];
   };
 
+  const [emptyHeader, emptyDetails] = getNoResultsInfo();
   return (
     <EmptyTable
       className={baseClass}
       iconName="empty-software"
-      header={"Nothing to report yet"}
-      info={noResultsInfo()}
+      header={emptyHeader}
+      info={emptyDetails}
     />
   );
 };

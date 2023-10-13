@@ -117,7 +117,7 @@ module.exports.custom = {
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
     // 'docs/Contributing/API-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
     // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
+    //'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries « Covered in CODEOWNERS (2023-10-12)
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, Marcos, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // 🫧 Articles and release notes
