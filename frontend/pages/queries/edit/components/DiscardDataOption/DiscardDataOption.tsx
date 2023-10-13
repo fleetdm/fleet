@@ -84,6 +84,15 @@ const DiscardDataOption = ({
           </>
         </InfoBanner>
       )}
+      {selectedLoggingType === "" && (
+        <InfoBanner color="purple-bold-border">
+          <>
+            The <b>Discard data</b> setting is ignored when logging is not set
+            to <b>snapshot</b>. This query&apos;s results will not be saved in
+            Fleet.
+          </>
+        </InfoBanner>
+      )}
       <Checkbox
         name="discardData"
         onChange={setDiscardData}

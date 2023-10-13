@@ -126,4 +126,5 @@ export interface IEditQueryFormFields {
 export type QueryLoggingOption =
   | "snapshot"
   | "differential"
-  | "differential_ignore_removals";
+  | "differential_ignore_removals"
+  | ""; // Edge case where logging can be set to empty string using fleetctl prior to v4.39
