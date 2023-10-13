@@ -187,7 +187,7 @@ module "pre-provisioner" {
   prefix            = local.prefix
   vpc               = module.vpc
   kms_key           = aws_kms_key.main
-  installer_kms_key = module.SharedInfrastructure.installer_kms_key
+  installer_kms_key = module.shared-infrastructure.installer_kms_key
   dynamodb_table    = aws_dynamodb_table.lifecycle-table
   remote_state      = module.remote_state
   mysql_secret      = module.shared-infrastructure.mysql_secret
