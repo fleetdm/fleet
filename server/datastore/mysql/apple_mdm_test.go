@@ -46,6 +46,8 @@ func TestMDMApple(t *testing.T) {
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
+		{"TestMDMAppleProfileManagementBatch2", testMDMAppleProfileManagementBatch2},
+		{"TestMDMAppleProfileManagementBatch3", testMDMAppleProfileManagementBatch3},
 		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
 		{"TestAggregateMacOSSettingsStatusWithFileVault", testAggregateMacOSSettingsStatusWithFileVault},
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
@@ -53,6 +55,8 @@ func TestMDMApple(t *testing.T) {
 		{"TestIgnoreMDMClientError", testIgnoreMDMClientError},
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
 		{"TestBulkSetPendingMDMAppleHostProfiles", testBulkSetPendingMDMAppleHostProfiles},
+		{"TestBulkSetPendingMDMAppleHostProfilesBatch2", testBulkSetPendingMDMAppleHostProfilesBatch2},
+		{"TestBulkSetPendingMDMAppleHostProfilesBatch3", testBulkSetPendingMDMAppleHostProfilesBatch3},
 		{"TestGetMDMAppleCommandResults", testGetMDMAppleCommandResults},
 		{"TestBulkUpsertMDMAppleConfigProfiles", testBulkUpsertMDMAppleConfigProfile},
 		{"TestMDMAppleBootstrapPackageCRUD", testMDMAppleBootstrapPackageCRUD},
@@ -984,6 +988,22 @@ func teamConfigProfileForTest(t *testing.T, name, identifier, uuid string, teamI
 	sum := md5.Sum(prof) // nolint:gosec // used only to hash for efficient comparisons
 	cp.Checksum = sum[:]
 	return cp
+}
+
+func testMDMAppleProfileManagementBatch2(t *testing.T, ds *Datastore) {
+	testUpsertMDMAppleDesiredProfilesBatchSize = 2
+	t.Cleanup(func() {
+		testUpsertMDMAppleDesiredProfilesBatchSize = 0
+	})
+	testMDMAppleProfileManagement(t, ds)
+}
+
+func testMDMAppleProfileManagementBatch3(t *testing.T, ds *Datastore) {
+	testUpsertMDMAppleDesiredProfilesBatchSize = 3
+	t.Cleanup(func() {
+		testUpsertMDMAppleDesiredProfilesBatchSize = 0
+	})
+	testMDMAppleProfileManagement(t, ds)
 }
 
 func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
@@ -2438,6 +2458,26 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(0), allProfilesSummary.Failed)
 	require.Equal(t, uint(0), allProfilesSummary.Verifying)
 	require.Equal(t, uint(1), allProfilesSummary.Verified)
+}
+
+func testBulkSetPendingMDMAppleHostProfilesBatch2(t *testing.T, ds *Datastore) {
+	testUpsertMDMAppleDesiredProfilesBatchSize = 2
+	testDeleteMDMAppleProfilesBatchSize = 2
+	t.Cleanup(func() {
+		testUpsertMDMAppleDesiredProfilesBatchSize = 0
+		testDeleteMDMAppleProfilesBatchSize = 0
+	})
+	testBulkSetPendingMDMAppleHostProfiles(t, ds)
+}
+
+func testBulkSetPendingMDMAppleHostProfilesBatch3(t *testing.T, ds *Datastore) {
+	testUpsertMDMAppleDesiredProfilesBatchSize = 3
+	testDeleteMDMAppleProfilesBatchSize = 3
+	t.Cleanup(func() {
+		testUpsertMDMAppleDesiredProfilesBatchSize = 0
+		testDeleteMDMAppleProfilesBatchSize = 0
+	})
+	testBulkSetPendingMDMAppleHostProfiles(t, ds)
 }
 
 func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {

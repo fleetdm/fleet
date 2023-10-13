@@ -16,25 +16,26 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import DataError from "components/DataError";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 
 import { generateDataSet, generateTableHeaders } from "./ScriptsTableConfig";
 
 const baseClass = "host-scripts-section";
 
 interface IScriptsProps {
-  hostId?: number;
-  page?: number;
   isHostOnline: boolean;
   router: InjectedRouter;
+  hostId?: number;
+  page?: number;
+  onShowDetails: (scriptExecutionId: string) => void;
 }
 
-const Scripts = ({ hostId, page = 0, isHostOnline, router }: IScriptsProps) => {
-  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
-  // used to track the current script execution id we want to show in the show
-  // details modal.
-  const scriptExecutionId = useRef<string | null>(null);
-
+const Scripts = ({
+  hostId,
+  page = 0,
+  isHostOnline,
+  router,
+  onShowDetails,
+}: IScriptsProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const {
@@ -62,8 +63,7 @@ const Scripts = ({ hostId, page = 0, isHostOnline, router }: IScriptsProps) => {
     switch (action) {
       case "showDetails":
         if (!script.last_execution) return;
-        scriptExecutionId.current = script.last_execution.execution_id;
-        setShowScriptDetailsModal(true);
+        onShowDetails(script.last_execution.execution_id);
         break;
       case "run":
         try {
@@ -80,11 +80,6 @@ const Scripts = ({ hostId, page = 0, isHostOnline, router }: IScriptsProps) => {
       default:
         break;
     }
-  };
-
-  const onCancelScriptDetailsModal = () => {
-    setShowScriptDetailsModal(false);
-    scriptExecutionId.current = null;
   };
 
   if (isErrorScriptData) {
@@ -115,13 +110,6 @@ const Scripts = ({ hostId, page = 0, isHostOnline, router }: IScriptsProps) => {
           disableNextPage={hostScriptResponse?.meta.has_next_results}
           defaultPageIndex={page}
           disableCount
-        />
-      )}
-
-      {showScriptDetailsModal && scriptExecutionId.current && (
-        <ScriptDetailsModal
-          scriptExecutionId={scriptExecutionId.current}
-          onCancel={onCancelScriptDetailsModal}
         />
       )}
     </Card>
