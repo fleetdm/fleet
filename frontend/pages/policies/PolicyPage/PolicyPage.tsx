@@ -247,7 +247,7 @@ const PolicyPage = ({
   };
 
   const renderScreen = () => {
-    const step1Opts = {
+    const step1Props = {
       router,
       baseClass,
       policyIdForEdit: policyId,
@@ -265,14 +265,14 @@ const PolicyPage = ({
       renderLiveQueryWarning,
     };
 
-    const step2Opts = {
+    const step2Props = {
       baseClass,
       selectedTargets,
       targetedHosts,
       targetedLabels,
       targetedTeams,
       targetsTotalCount,
-      goToQueryEditor: () => setStep(LIVE_POLICY_STEPS[1]),
+      exitLiveFlow: () => setStep(LIVE_POLICY_STEPS[1]),
       goToRunQuery: () => setStep(LIVE_POLICY_STEPS[3]),
       setSelectedTargets,
       setTargetedHosts,
@@ -281,7 +281,7 @@ const PolicyPage = ({
       setTargetsTotalCount,
     };
 
-    const step3Opts = {
+    const step3Props = {
       selectedTargets,
       storedPolicy,
       setSelectedTargets,
@@ -291,11 +291,11 @@ const PolicyPage = ({
 
     switch (step) {
       case LIVE_POLICY_STEPS[2]:
-        return <SelectTargets {...step2Opts} />;
+        return <SelectTargets {...step2Props} />;
       case LIVE_POLICY_STEPS[3]:
-        return <RunQuery {...step3Opts} />;
+        return <RunQuery {...step3Props} />;
       default:
-        return <QueryEditor {...step1Opts} />;
+        return <QueryEditor {...step1Props} />;
     }
   };
 

@@ -136,7 +136,7 @@ const RunQueryPage = ({
     document.title = `Run live query | ${storedQuery?.name} | Fleet for osquery`;
   }, [location.pathname, storedQuery?.name]);
 
-  const exitLiveQueryFlow = useCallback(
+  const exitLiveFlow = useCallback(
     () =>
       queryId
         ? router.push(PATHS.QUERY(queryId))
@@ -153,7 +153,7 @@ const RunQueryPage = ({
       targetedLabels,
       targetedTeams,
       targetsTotalCount,
-      exitLiveQueryFlow,
+      exitLiveFlow,
       goToRunQuery: () => setStep(LIVE_QUERY_STEPS[2]),
       setSelectedTargets: setSelectedQueryTargets,
       setTargetedHosts,
@@ -167,7 +167,7 @@ const RunQueryPage = ({
       selectedTargets: selectedQueryTargets,
       storedQuery,
       setSelectedTargets: setSelectedQueryTargets,
-      exitLiveQueryFlow,
+      exitLiveFlow,
       targetsTotalCount,
     };
 

@@ -46,7 +46,7 @@ interface ISelectTargetsProps {
   targetedHosts: IHost[];
   targetedLabels: ILabel[];
   targetedTeams: ITeam[];
-  exitLiveQueryFlow: () => void;
+  exitLiveFlow: () => void;
   goToRunQuery: () => void;
   setSelectedTargets: // TODO: Refactor policy targets to streamline selectedTargets/selectedTargetsByType
   | React.Dispatch<React.SetStateAction<ITarget[]>> // Used for policies page level useState hook
@@ -132,7 +132,7 @@ const SelectTargets = ({
   targetedHosts,
   targetedLabels,
   targetedTeams,
-  exitLiveQueryFlow,
+  exitLiveFlow,
   goToRunQuery,
   setSelectedTargets,
   setTargetedHosts,
@@ -451,7 +451,7 @@ const SelectTargets = ({
         <Button
           className={`${baseClass}__btn`}
           onClick={() => {
-            exitLiveQueryFlow();
+            exitLiveFlow();
           }}
           variant="text-link"
         >

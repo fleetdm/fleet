@@ -30,7 +30,7 @@ interface IQueryResultsProps {
   onRunQuery: () => void;
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   setSelectedTargets: (value: ITarget[]) => void;
-  exitLiveQueryFlow: () => void;
+  exitLiveFlow: () => void;
   targetsTotalCount: number;
 }
 
@@ -48,7 +48,7 @@ const QueryResults = ({
   onRunQuery,
   onStopQuery,
   setSelectedTargets,
-  exitLiveQueryFlow,
+  exitLiveFlow,
   targetsTotalCount,
 }: IQueryResultsProps): JSX.Element => {
   const { lastEditedQueryBody } = useContext(QueryContext);
@@ -137,7 +137,7 @@ const QueryResults = ({
 
   const onQueryDone = () => {
     setSelectedTargets([]);
-    exitLiveQueryFlow();
+    exitLiveFlow();
   };
 
   const renderNoResults = () => {
