@@ -28,38 +28,40 @@ Dear onboardees: could you update broken links in the onboarding issue template 
 If you have any questions or feedback, please contact us: https://fleetdm.com/handbook/ceo#contact-us
 </blockquote>
 
+### Outline of departmental page structure
+
 - `# Name of department`
-  - "This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department." 
+  - "This handbook page details processes specific to working `[with](#contact-us)` and `[within](#responsibilities)` this department." 
     
   - `## What we do`
     - Outline the specific responsibilities of the department.  
 
   - `## Team`
-    - Table that displays each position and the team member(s) that fill that position, linking the Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/ceo#team](https://fleetdm.com/handbook/ceo#team) for example.
+    - Table that displays each position and the team member(s) that fill that position, linking each Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/ceo#team](https://fleetdm.com/handbook/ceo#team) for example.
 
 
   - `## Contact us`
     - "To make a request of this department, `[create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23{DEPARTMENTAL-GITHUB-LABEL}&projects=&template=custom-request.md&title=Request%3A+_______________________)` and a team member will get back to you within one business day."
       - "Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request."
       - "Any Fleet team member can `[view the kanban board](https://app.zenhub.com/workspaces/{DEPARTMENTAL-KANBAN-BOARD-LINK}/board?sprints=none)` for this department, including pending tasks and the status of new requests."
-    - Other common issue links or call to action (e.g.)
-    - "If urgent, or if you need help submiting your request, mention a `[team member](#team)` in the [#g-`DEPARTMENT`]`(DEPARTMENTAL-SLACK-CHANNEL-LINK)` Slack channel."
+    - Other common issue links or call to action
+    - "If urgent, or if you need help submitting your request, mention a `[team member](#team)` in the [#g-`DEPARTMENT`]`(DEPARTMENTAL-SLACK-CHANNEL-LINK)` Slack channel."
       - More specific Slack info if needed.
 
   - `## Some philosophical topic`
     -e.g. "CEO flaws"
 
 - `## Responsibilities`
-  - consisting of sub-headings written in imparative mood:
-  - e.g. `### Process CEO inbox`
+  - The "Responsibilities" section consists of sub-headings written in the imperative mood (e.g. "Process CEO inbox") and designed to be the internal "How-to" of each department.  
+
 
 - `## Rituals`
 
 
 ### Key reviews
-Every release cycle, each department leader discusses their [key performance indicators (KPIs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) (confidential) with the CEO.  KPIs are numbers measuring results and everyday excellence, usually accompanied by timebound goals.
+Every release cycle, each department leader discusses their [key performance indicators (KPIs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) (confidential) with the CEO.  KPIs are numbers measuring results and everyday excellence, usually accompanied by time-bound goals.
 
-In this meeting, the department leader discusses actual week-over-week progress towards the goals for a particular quarter with the CEO.
+In this meeting, the department leader discusses actual week-over-week progress toward the goals for a particular quarter with the CEO.
 
 - Key reviews are scheduled during the e-group time slot every three weeks and are not moved or rescheduled.  If a department leader is not available to lead a particular key review, another team member from their department will join the meeting and discuss their department's key performance indicators (KPIs).
 - Use this meeting to add, remove, or change the definitions or ownership of KPIs.  Otherwise, KPI definitions do not change, even if those definitions have problems.  For help with KPIs, get [input from the CEO](https://fleetdm.com/handbook/ceo#contact-us).
