@@ -1,9 +1,22 @@
 .edit-query-form {
-  &__wrapper {
-    position: relative;
-    font-size: $x-small;
+  position: relative;
+  font-size: $x-small;
 
-    .form-field--input {
+  .form-field--input {
+    margin: 0;
+  }
+
+  .form-field-with-help-text {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+
+    .form-field {
+      margin-bottom: 0;
+      font-weight: bold;
+    }
+
+    .help-text {
       margin: 0;
     }
   }

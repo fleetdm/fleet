@@ -84,17 +84,19 @@ const DiscardDataOption = ({
           </>
         </InfoBanner>
       )}
-      <Checkbox
-        name="discardData"
-        onChange={setDiscardData}
-        value={discardData}
-        wrapperClassName={
-          disable ? `${baseClass}__disabled-discard-data-checkbox` : ""
-        }
-      >
-        <b>Discard data</b>
-      </Checkbox>
-      {renderHelpText()}
+      <div className="form-field-with-help-text">
+        <Checkbox
+          name="discardData"
+          onChange={setDiscardData}
+          value={discardData}
+          wrapperClassName={
+            disable ? `${baseClass}__disabled-discard-data-checkbox` : ""
+          }
+        >
+          <b>Discard data</b>
+        </Checkbox>
+        {renderHelpText()}
+      </div>
     </div>
   );
 };
