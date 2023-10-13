@@ -159,9 +159,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	}
 
 	if orderKey == "" && orderDirectionString != "" {
-		return fleet.ListOptions{}, ctxerr.Wrap(
-			r.Context(), badRequest("order_key must be specified with order_direction"),
-		)
+		return fleet.ListOptions{}, ctxerr.Wrap(r.Context(), badRequest("order_key must be specified with order_direction"))
 	}
 
 	var orderDirection fleet.OrderDirection

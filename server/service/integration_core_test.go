@@ -1038,7 +1038,9 @@ func (s *integrationTestSuite) TestHostsCount() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "low_disk_space", "32")
 	require.Equal(t, len(hosts), resp.Count)
 	// but it is still validated for a correct value when provided (as that happens in a middleware before the handler)
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusInternalServerError, &resp, "low_disk_space", "123456") // TODO: status code to be fixed with #4406
+	s.DoJSON(
+		"GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &resp, "low_disk_space", "123456",
+	)
 
 	// filter by MDM criteria without any host having such information
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(999))
@@ -7889,7 +7891,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	}{
 		{
 			name: "get hosts that fail globalPolicy0",
-			args: []string{"policy_id", fmt.Sprint(globalPolicy0.ID), "policy_response", "failure"},
+			args: []string{"policy_id", fmt.Sprint(globalPolicy0.ID), "policy_response", "failing"},
 			checkRows: func(t *testing.T, rows [][]string) {
 				require.Len(t, rows, 1) // just header row, all hosts pass such policy.
 			},
