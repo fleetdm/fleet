@@ -22,7 +22,7 @@ interface IRunQueryProps {
   selectedTargets: ITarget[];
   queryId: number | null;
   setSelectedTargets: (value: ITarget[]) => void;
-  goToQueryEditor: () => void;
+  exitLiveQueryFlow: () => void;
   targetsTotalCount: number;
 }
 
@@ -31,7 +31,7 @@ const RunQuery = ({
   selectedTargets,
   queryId,
   setSelectedTargets,
-  goToQueryEditor,
+  exitLiveQueryFlow,
   targetsTotalCount,
 }: IRunQueryProps): JSX.Element | null => {
   const { lastEditedQueryBody } = useContext(QueryContext);
@@ -199,14 +199,16 @@ const RunQuery = ({
   const { campaign } = campaignState;
   return (
     <QueryResults
-      campaign={campaign}
-      onRunQuery={onRunQuery}
-      onStopQuery={onStopQuery}
-      isQueryFinished={isQueryFinished}
-      setSelectedTargets={setSelectedTargets}
-      goToQueryEditor={goToQueryEditor}
       queryName={storedQuery?.name}
-      targetsTotalCount={targetsTotalCount}
+      {...{
+        campaign,
+        onRunQuery,
+        onStopQuery,
+        isQueryFinished,
+        setSelectedTargets,
+        exitLiveQueryFlow,
+        targetsTotalCount,
+      }}
     />
   );
 };

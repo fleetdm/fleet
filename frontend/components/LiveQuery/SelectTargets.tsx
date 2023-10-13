@@ -46,7 +46,7 @@ interface ISelectTargetsProps {
   targetedHosts: IHost[];
   targetedLabels: ILabel[];
   targetedTeams: ITeam[];
-  goToQueryEditor: () => void;
+  exitLiveQueryFlow: () => void;
   goToRunQuery: () => void;
   setSelectedTargets: // TODO: Refactor policy targets to streamline selectedTargets/selectedTargetsByType
   | React.Dispatch<React.SetStateAction<ITarget[]>> // Used for policies page level useState hook
@@ -132,7 +132,7 @@ const SelectTargets = ({
   targetedHosts,
   targetedLabels,
   targetedTeams,
-  goToQueryEditor,
+  exitLiveQueryFlow,
   goToRunQuery,
   setSelectedTargets,
   setTargetedHosts,
@@ -261,10 +261,6 @@ const SelectTargets = ({
     setIsDebouncing(true);
     debounceSearch(searchText);
   }, [searchText]);
-
-  const handleClickCancel = () => {
-    goToQueryEditor();
-  };
 
   const handleButtonSelect = (selectedEntity: ISelectTargetsEntity) => (
     e: React.MouseEvent<HTMLButtonElement>
@@ -454,7 +450,9 @@ const SelectTargets = ({
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button
           className={`${baseClass}__btn`}
-          onClick={handleClickCancel}
+          onClick={() => {
+            exitLiveQueryFlow();
+          }}
           variant="text-link"
         >
           Cancel
