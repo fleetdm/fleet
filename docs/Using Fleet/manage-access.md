@@ -127,7 +127,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Run queries designated "**observer can run**" as live queries against hosts                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅              | ✅         | ✅          |
-| View all queries and their reports\*                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
+| View all queries and their reports\**                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
 | Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                       |               |                 | ✅              | ✅         | ✅          |
 | View policies                                                                                                                    | ✅            | ✅             | ✅              | ✅         |             |
 | View global (inherited) policies                                                                                                 | ✅            | ✅             | ✅              | ✅         |             |
