@@ -769,7 +769,7 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 
-		// Interval=1, AutomationsEnabled=0, DiscardData=0
+		// Interval=1, AutomationsEnabled=0, DiscardData=0, Logging=''
 		q6, err := ds.NewQuery(context.Background(), &fleet.Query{
 			Name:               fmt.Sprintf("%s query6", teamIDStr),
 			Query:              "select 1;",
@@ -778,6 +778,32 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 			AutomationsEnabled: false,
 			TeamID:             teamID,
 			DiscardData:        false,
+		})
+		require.NoError(t, err)
+
+		// Interval=1, AutomationsEnabled=0, DiscardData=0, Logging=snapshot
+		q6b, err := ds.NewQuery(context.Background(), &fleet.Query{
+			Name:               fmt.Sprintf("%s query6b", teamIDStr),
+			Query:              "select 1;",
+			Saved:              true,
+			Interval:           10,
+			AutomationsEnabled: false,
+			TeamID:             teamID,
+			DiscardData:        false,
+			Logging:            fleet.LoggingSnapshot,
+		})
+		require.NoError(t, err)
+
+		// Interval=1, AutomationsEnabled=0, DiscardData=0, Logging=differential
+		_, err = ds.NewQuery(context.Background(), &fleet.Query{
+			Name:               fmt.Sprintf("%s query6c", teamIDStr),
+			Query:              "select 1;",
+			Saved:              true,
+			Interval:           10,
+			AutomationsEnabled: false,
+			TeamID:             teamID,
+			DiscardData:        false,
+			Logging:            fleet.LoggingDifferential,
 		})
 		require.NoError(t, err)
 
@@ -805,7 +831,7 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 
-		// Interval=1, AutomationsEnabled=1, DiscardData=1
+		// Interval=1, AutomationsEnabled=1, DiscardData=1, LoggingType=''
 		q9, err := ds.NewQuery(context.Background(), &fleet.Query{
 			Name:               fmt.Sprintf("%s query9", teamIDStr),
 			Query:              "select 1;",
@@ -814,6 +840,33 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 			AutomationsEnabled: true,
 			TeamID:             teamID,
 			DiscardData:        true,
+			Logging:            fleet.LoggingSnapshot,
+		})
+		require.NoError(t, err)
+
+		// Interval=1, AutomationsEnabled=1, DiscardData=1, LoggingType=snapshot
+		q9b, err := ds.NewQuery(context.Background(), &fleet.Query{
+			Name:               fmt.Sprintf("%s query9b", teamIDStr),
+			Query:              "select 1;",
+			Saved:              true,
+			Interval:           10,
+			AutomationsEnabled: true,
+			TeamID:             teamID,
+			DiscardData:        true,
+			Logging:            fleet.LoggingSnapshot,
+		})
+		require.NoError(t, err)
+
+		// Interval=1, AutomationsEnabled=1, DiscardData=1, LoggingType=differential
+		q9c, err := ds.NewQuery(context.Background(), &fleet.Query{
+			Name:               fmt.Sprintf("%s query9c", teamIDStr),
+			Query:              "select 1;",
+			Saved:              true,
+			Interval:           10,
+			AutomationsEnabled: true,
+			TeamID:             teamID,
+			DiscardData:        true,
+			Logging:            fleet.LoggingDifferential,
 		})
 		require.NoError(t, err)
 
@@ -823,7 +876,7 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 		sort.Slice(result, func(i, j int) bool {
 			return result[i].ID < result[j].ID
 		})
-		test.QueryElementsMatch(t, result, []*fleet.Query{q6, q8, q9}, i)
+		test.QueryElementsMatch(t, result, []*fleet.Query{q6, q6b, q8, q9, q9b, q9c}, i)
 
 		queryReportsDisabled = true
 		result, err = ds.ListScheduledQueriesForAgents(ctx, teamID, queryReportsDisabled)
@@ -831,6 +884,6 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 		sort.Slice(result, func(i, j int) bool {
 			return result[i].ID < result[j].ID
 		})
-		test.QueryElementsMatch(t, result, []*fleet.Query{q8, q9}, i)
+		test.QueryElementsMatch(t, result, []*fleet.Query{q8, q9, q9b, q9c}, i)
 	}
 }

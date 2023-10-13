@@ -549,7 +549,12 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 			q.discard_data
 		FROM queries q
 		WHERE q.saved = true 
-			AND (q.schedule_interval > 0 AND %s AND (q.automations_enabled OR (NOT q.discard_data AND NOT ?)))
+			AND (q.schedule_interval > 0 AND %s AND (
+				q.automations_enabled
+				OR (
+					NOT q.discard_data AND NOT ? AND (q.logging_type = ? OR q.logging_type = '')
+				)
+			))
 	`
 
 	args := []interface{}{}
@@ -559,7 +564,7 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 		teamSQL = " team_id = ?"
 	}
 	sqlStmt = fmt.Sprintf(sqlStmt, teamSQL)
-	args = append(args, queryReportsDisabled)
+	args = append(args, queryReportsDisabled, fleet.LoggingSnapshot)
 
 	results := []*fleet.Query{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sqlStmt, args...); err != nil {

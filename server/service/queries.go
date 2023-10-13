@@ -348,7 +348,8 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		query.AutomationsEnabled = *p.AutomationsEnabled
 	}
 	if p.Logging != nil {
-		if query.Logging != *p.Logging && *p.Logging != fleet.LoggingSnapshot {
+		// If not set p.Logging default value is fleet.LoggingSnapshot.
+		if query.Logging != *p.Logging && (*p.Logging != fleet.LoggingSnapshot && *p.Logging != "") {
 			shouldDiscardQueryResults = true
 		}
 		query.Logging = *p.Logging
@@ -604,7 +605,7 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 		}
 
 		if (query.DiscardData && query.DiscardData != dbQuery.DiscardData) ||
-			(query.Logging != dbQuery.Logging && query.Logging != fleet.LoggingSnapshot) ||
+			(query.Logging != dbQuery.Logging && (query.Logging != fleet.LoggingSnapshot && query.Logging != "")) ||
 			query.Query != dbQuery.Query {
 			queriesToDiscardResults[dbQuery.ID] = true
 		}
