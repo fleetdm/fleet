@@ -50,7 +50,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Run queries designated "**observer can run**" as live queries against all hosts                                                            | ✅       | ✅         | ✅         | ✅    |         |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete queries                                                                                                           |          |            | ✅         | ✅    | ✅      |
-| View all queries\**                                                                                                                        | ✅       | ✅         | ✅         | ✅    |         |
+| View all queries and their report\**                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                                 |          |            |    ✅      | ✅    |   ✅    |
 | Create, edit, view, and delete packs                                                                                                       |          |            | ✅         | ✅    | ✅      |
 | View all policies                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
@@ -127,7 +127,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Run queries designated "**observer can run**" as live queries against hosts                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅              | ✅         | ✅          |
-| View all queries\**                                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
+| View all queries and their report\*                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
 | Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                       |               |                 | ✅              | ✅         | ✅          |
 | View policies                                                                                                                    | ✅            | ✅             | ✅              | ✅         |             |
 | View global (inherited) policies                                                                                                 | ✅            | ✅             | ✅              | ✅         |             |
