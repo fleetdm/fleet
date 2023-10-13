@@ -4219,7 +4219,6 @@ This endpoint returns the results for a specific custom MDM command.
     {
       "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
       "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
-      "platform": "darwin",
       "status": "Acknowledged",
       "updated_at": "2023-04-04:00:00Z",
       "request_type": "ProfileList",
@@ -4261,7 +4260,6 @@ This endpoint returns the list of custom MDM commands that have been executed.
     {
       "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
       "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
-      "platform": "darwin",
       "status": "Acknowledged",
       "updated_at": "2023-04-04:00:00Z",
       "request_type": "ProfileList",
