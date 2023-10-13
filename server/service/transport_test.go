@@ -84,15 +84,17 @@ func TestListOptionsFromRequest(t *testing.T) {
 			shouldErr400: true,
 		},
 		{
-			url:          "/foo?page=-1&per_page=-10",
+			url:          "/foo?page=1&per_page=-10",
 			shouldErr400: true,
 		},
+		// order_direction without order_key
 		{
 			url:          "/foo?page=1&order_direction=desc",
 			shouldErr400: true,
 		},
+		// bad order_direction
 		{
-			url:          "/foo?&order_direction=foo&order_key=",
+			url:          "/foo?&order_direction=foo&order_key=foo",
 			shouldErr400: true,
 		},
 	}
@@ -180,6 +182,13 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				LowDiskSpaceFilter:                ptr.Int(99),
 			},
 		},
+		"policy_id and policy_response params (for coverage)": {
+			url: "/foo?policy_id=100&policy_response=failing",
+			hostListOptions: fleet.HostListOptions{
+				PolicyIDFilter:       ptr.Uint(100),
+				PolicyResponseFilter: ptr.Bool(false),
+			},
+		},
 		"error in page (embedded list options)": {
 			url:          "/foo?page=-1",
 			errorMessage: "negative page value",
@@ -256,7 +265,6 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			url:          "/foo?munki_issue_id=foo",
 			errorMessage: "Invalid munki_issue_id",
 		},
-		// error in low_disk_space
 		"error in low_disk_space (not a number)": {
 			url:          "/foo?low_disk_space=foo",
 			errorMessage: "Invalid low_disk_space",
@@ -268,6 +276,14 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"error in low_disk_space (too high)": {
 			url:          "/foo?low_disk_space=101",
 			errorMessage: "Invalid low_disk_space",
+		},
+		"error in os_name/os_version (os_name missing)": {
+			url:          "/foo?os_version=1.0",
+			errorMessage: "Invalid os_name",
+		},
+		"error in os_name/os_version (os_version missing)": {
+			url:          "/foo?os_name=foo",
+			errorMessage: "Invalid os_version",
 		},
 	}
 
@@ -288,10 +304,8 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 					)
 					return
 				}
-
 				assert.Nil(t, err)
 				assert.Equal(t, tt.hostListOptions, opt)
-
 			},
 		)
 	}

@@ -293,6 +293,21 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.OSVersionFilter = &osVersion
 	}
 
+	if hopt.OSNameFilter != nil && hopt.OSVersionFilter == nil {
+		return hopt, ctxerr.Wrap(
+			r.Context(), badRequest(
+				"Invalid os_version. os_version must be specified with os_name",
+			),
+		)
+	}
+	if hopt.OSNameFilter == nil && hopt.OSVersionFilter != nil {
+		return hopt, ctxerr.Wrap(
+			r.Context(), badRequest(
+				"Invalid os_name. os_name must be specified with os_version",
+			),
+		)
+	}
+
 	disableFailingPolicies := r.URL.Query().Get("disable_failing_policies")
 	if disableFailingPolicies != "" {
 		boolVal, err := strconv.ParseBool(disableFailingPolicies)
