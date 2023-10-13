@@ -269,20 +269,8 @@ Here are some of the things you can anticipate throughout this process:
   - You may receive an invitation to "book with us."
 If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps.
 
-##### Engineering specific interview steps
-
-As a Hiring Manager we want to ensure the interview process follows these steps in order. For ease of managing this process additional details are located in [Hiring Pipeline](https://drive.google.com/drive/folders/1dLZaor9dQmAxcxyU6prm-MWNd-C-U8_1?usp=drive_link)
-
-1. **Reach out**: If you are not already the primary contact with this candidate send an email or linkedin message introducing yourself and the intent that you would like the start the interview process including the link to the position and asking if they are comfortable with completing a coding exercise.
-2. **Deliver code prompt**: After recieving confirmation that they are interested Download the zip of the [Code challenge](https://github.com/fleetdm/wordgame) and ask them to complete this and send their entry back within 5 business days.
-3. **Test code prompt**: Verify the code runs and can complete the challenge correctly. Check the code for good style and tests that match our standards here at fleet.
-4. **Schedule Manager Interview**: Send the candidate a calendly link for 1hr to talk to you and screen them if they are a good fit for this role and our culture.
-5. **Schedule Technical Interview**: Send the candidate a calendly link for 1hr to talk to a senior engineer on your team where the goal is to understand the thechnical capabilities of the candidate. An additional engineer can optionally join if available.
-6. **Schedule DOPD interview**: Send the candidate a calendly link for 30m talk to the Director of Product Development @lukeheath.
-7. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @zwass.
-
-If the candidate passes all of these steps then continue with the Hiring a new team member process below.
-
+Department specific interviewing instructions:
+- [Engineering](https://fleetdm.com/handbook/engineering#interview-a-developer-candidate)
 
 #### Hiring a new team member
 This section is about the hiring process a new core team member, or fleetie.
