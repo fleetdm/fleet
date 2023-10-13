@@ -472,19 +472,24 @@ func carveListOptionsFromRequest(r *http.Request) (fleet.CarveListOptions, error
 		return fleet.CarveListOptions{}, err
 	}
 
-	copt := fleet.CarveListOptions{ListOptions: opt}
+	carveOpts := fleet.CarveListOptions{ListOptions: opt}
 
+	// NOTE: This 'expired' parameter is NOT documented in rest-api.md
 	expired := r.URL.Query().Get("expired")
-	// TODO(mna): allow the same bool encodings as strconv.ParseBool and use it?
-	switch expired {
-	case "1", "true":
-		copt.Expired = true
-	case "0", "":
-		copt.Expired = false
-	default:
-		return copt, ctxerr.Errorf(r.Context(), "invalid expired value %s", expired)
+	if expired == "" {
+		carveOpts.Expired = false
+	} else {
+		boolVal, err := strconv.ParseBool(expired)
+		if err != nil {
+			return carveOpts, ctxerr.Wrap(
+				r.Context(), badRequest(
+					fmt.Sprintf("Invalid expired: %s", expired),
+				),
+			)
+		}
+		carveOpts.Expired = boolVal
 	}
-	return copt, nil
+	return carveOpts, nil
 }
 
 func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) {
@@ -493,17 +498,17 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 		return fleet.UserListOptions{}, err
 	}
 
-	uopt := fleet.UserListOptions{ListOptions: opt}
+	userOpts := fleet.UserListOptions{ListOptions: opt}
 
 	if tid := r.URL.Query().Get("team_id"); tid != "" {
 		teamID, err := strconv.ParseUint(tid, 10, 64)
 		if err != nil {
-			return uopt, ctxerr.Wrap(r.Context(), err, "parse team_id as int")
+			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", tid)))
 		}
-		uopt.TeamID = uint(teamID)
+		userOpts.TeamID = uint(teamID)
 	}
 
-	return uopt, nil
+	return userOpts, nil
 }
 
 type getGenericSpecRequest struct {

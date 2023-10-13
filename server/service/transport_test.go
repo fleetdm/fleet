@@ -310,3 +310,147 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		)
 	}
 }
+
+func TestCarveListOptionsFromRequest(t *testing.T) {
+	var carveListOptionsTests = map[string]struct {
+		// url string to parse
+		url string
+		// expected options
+		carveListOptions fleet.CarveListOptions
+		// expected error message, if any
+		errorMessage string
+	}{
+		"no params passed": {
+			url:              "/foo",
+			carveListOptions: fleet.CarveListOptions{},
+		},
+		"embedded list options params defined": {
+			url: "/foo?order_key=foo&order_direction=desc&page=1&per_page=100",
+			carveListOptions: fleet.CarveListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:       "foo",
+					OrderDirection: fleet.OrderDescending,
+					Page:           1,
+					PerPage:        100,
+				},
+			},
+		},
+		"all params defined": {
+			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&expired=true",
+			carveListOptions: fleet.CarveListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:       "foo",
+					OrderDirection: fleet.OrderAscending,
+					Page:           10,
+					PerPage:        1,
+				},
+				Expired: true,
+			},
+		},
+		"error in page (embedded list options)": {
+			url:          "/foo?page=-1",
+			errorMessage: "negative page value",
+		},
+		"error in expired": {
+			url:          "/foo?expired=foo",
+			errorMessage: "Invalid expired",
+		},
+	}
+
+	for name, tt := range carveListOptionsTests {
+		t.Run(
+			name, func(t *testing.T) {
+				urlStruct, _ := url.Parse(tt.url)
+				req := &http.Request{URL: urlStruct}
+				opt, err := carveListOptionsFromRequest(req)
+
+				if tt.errorMessage != "" {
+					assert.NotNil(t, err)
+					var be *fleet.BadRequestError
+					require.ErrorAs(t, err, &be)
+					assert.True(
+						t, strings.Contains(err.Error(), tt.errorMessage),
+						"error message '%v' should contain '%v'", err.Error(), tt.errorMessage,
+					)
+					return
+				}
+				assert.Nil(t, err)
+				assert.Equal(t, tt.carveListOptions, opt)
+			},
+		)
+	}
+}
+
+func TestUserListOptionsFromRequest(t *testing.T) {
+	var userListOptionsTests = map[string]struct {
+		// url string to parse
+		url string
+		// expected options
+		userListOptions fleet.UserListOptions
+		// expected error message, if any
+		errorMessage string
+	}{
+		"no params passed": {
+			url:             "/foo",
+			userListOptions: fleet.UserListOptions{},
+		},
+		"embedded list options params defined": {
+			url: "/foo?order_key=foo&order_direction=desc&page=1&per_page=100",
+			userListOptions: fleet.UserListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:       "foo",
+					OrderDirection: fleet.OrderDescending,
+					Page:           1,
+					PerPage:        100,
+				},
+			},
+		},
+		"all params defined": {
+			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&team_id=1",
+			userListOptions: fleet.UserListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:       "foo",
+					OrderDirection: fleet.OrderAscending,
+					Page:           10,
+					PerPage:        1,
+				},
+				TeamID: 1,
+			},
+		},
+		"error in page (embedded list options)": {
+			url:          "/foo?page=-1",
+			errorMessage: "negative page value",
+		},
+		"error in team_id (negative_number)": {
+			url:          "/foo?team_id=-1",
+			errorMessage: "Invalid team_id",
+		},
+		"error in team_id (not a number)": {
+			url:          "/foo?team_id=foo",
+			errorMessage: "Invalid team_id",
+		},
+	}
+
+	for name, tt := range userListOptionsTests {
+		t.Run(
+			name, func(t *testing.T) {
+				urlStruct, _ := url.Parse(tt.url)
+				req := &http.Request{URL: urlStruct}
+				opt, err := userListOptionsFromRequest(req)
+
+				if tt.errorMessage != "" {
+					assert.NotNil(t, err)
+					var be *fleet.BadRequestError
+					require.ErrorAs(t, err, &be)
+					assert.True(
+						t, strings.Contains(err.Error(), tt.errorMessage),
+						"error message '%v' should contain '%v'", err.Error(), tt.errorMessage,
+					)
+					return
+				}
+				assert.Nil(t, err)
+				assert.Equal(t, tt.userListOptions, opt)
+			},
+		)
+	}
+}

@@ -7795,14 +7795,14 @@ Returns a list of all enabled users
 #### Parameters
 
 | Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+|-----------------|---------|-------|-------------------------------------------------------------------------------------------------------------------------------|
 | query           | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
 | order_key       | string  | query | What to order results by. Can be any column in the users table.                                                               |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | query           | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| team_id         | string  | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                   |
+| team_id         | integer | query | _Available in Fleet Premium_ Filters the users to only include users in the specified team.                                   |
 
 #### Example
 
