@@ -70,6 +70,7 @@ go.mod @fleetdm/go
 /docs/Configuration/agent-configuration.md         @rachaelshaw # « Configuration surface: Agent
 /docs/Configuration/fleet-server-configuration.md  @rachaelshaw # « Configuration surface: Fleet server
 /docs/Configuration/configuration-files/README.md  @rachaelshaw # « Configuration surface: Fleet server (even more things)  FUTURE: consolidate this.
+/docs/Using-Fleet/manage-access.md                 @rachaelshaw # « Permissions table
 
 ##############################################################################################
 # 🫧 Pricing and features
