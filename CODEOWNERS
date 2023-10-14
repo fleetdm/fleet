@@ -62,7 +62,6 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                           @mikermcneil
 /docs/Using-Fleet/REST-API.md                   @rachaelshaw # « REST API reference documentation
 /docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
 /schema                                         @rachaelshaw # « Data tables (osquery/fleetd schema) documentation
