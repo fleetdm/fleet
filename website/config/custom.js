@@ -113,7 +113,7 @@ module.exports.custom = {
     'ee/tools/puppet': 'georgekarrv',//« Puppet integration (especially useful with macOS MDM turned on) -- FYI: Originally developed by request from "customer-eponym"
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
-    // 'docs': '',                                      // « Covered in CODEOWNERS (2023-07-22)
+     'docs': 'mikermcneil',                                      // « (specific paths covered in CODEOWNERS 2023-10-14)
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
     // 'docs/Contributing/API-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
     // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
