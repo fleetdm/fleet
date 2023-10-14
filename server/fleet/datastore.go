@@ -66,11 +66,11 @@ type Datastore interface {
 
 	// ApplyQueries applies a list of queries (likely from a yaml file) to the datastore. Existing queries are updated,
 	// and new queries are created.
-	ApplyQueries(ctx context.Context, authorID uint, queries []*Query) error
+	ApplyQueries(ctx context.Context, authorID uint, queries []*Query, queriesToDiscardResults map[uint]bool) error
 	// NewQuery creates a new query object in thie datastore. The returned query should have the ID updated.
 	NewQuery(ctx context.Context, query *Query, opts ...OptionalArg) (*Query, error)
 	// SaveQuery saves changes to an existing query object.
-	SaveQuery(ctx context.Context, query *Query) error
+	SaveQuery(ctx context.Context, query *Query, shouldDiscardResults bool) error
 	// DeleteQuery deletes an existing query object on a team. If teamID is nil, then the query is
 	// looked up in the 'global' team.
 	DeleteQuery(ctx context.Context, teamID *uint, name string) error
@@ -84,13 +84,15 @@ type Datastore interface {
 	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, error)
 	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
 	// given teamID. If teamID is nil, then all scheduled queries for the 'global' team are returned.
-	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*Query, error)
+	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*Query, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string, opts ...OptionalArg) (*Query, error)
 	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
 	// identified query
 	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
+	// CleanupGlobalDiscardQueryResults deletes all cached query results. Used in cleanups_then_aggregation cron.
+	CleanupGlobalDiscardQueryResults(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CampaignStore defines the distributed query campaign related datastore methods
@@ -390,6 +392,15 @@ type Datastore interface {
 	// packAndSchedQueryNames, with the ID set to 0 if the corresponding
 	// scheduled query did not exist.
 	ScheduledQueryIDsByName(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// QueryResultsStore
+
+	// QueryResultRows returns all the stored results of a query (from all hosts).
+	QueryResultRows(ctx context.Context, queryID uint) ([]*ScheduledQueryResultRow, error)
+	ResultCountForQuery(ctx context.Context, queryID uint) (int, error)
+	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
+	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore

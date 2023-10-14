@@ -637,7 +637,7 @@ func (r addHostsToTeamResponse) error() error { return r.Err }
 
 func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addHostsToTeamRequest)
-	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs)
+	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs, false)
 	if err != nil {
 		return addHostsToTeamResponse{Err: err}, nil
 	}
@@ -645,7 +645,7 @@ func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return addHostsToTeamResponse{}, err
 }
 
-func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
 	// This is currently treated as a "team write". If we ever give users
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
@@ -657,8 +657,10 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
 		return err
 	}
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	if !skipBulkPending {
+		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+		}
 	}
 	serials, err := svc.ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
 	if err != nil {
@@ -917,11 +919,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 
 	var profiles []fleet.HostMDMAppleProfile
-	if ac.MDM.EnabledAndConfigured {
+	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
 		case "windows":
-			if license.IsPremium(ctx) {
+			if ac.MDM.WindowsEnabledAndConfigured && license.IsPremium(ctx) {
 				bls, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm bitlocker status")
@@ -929,22 +931,24 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				host.MDM.OSSettings.DiskEncryption.Status = bls
 			}
 		case "darwin":
-			profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
-			}
-
-			// determine disk encryption and action required here based on profiles and
-			// raw decryptable key status.
-			host.MDM.DetermineMacOSDiskEncryptionStatus(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
-			host.MDM.OSSettings.DiskEncryption.Status = host.MDM.MacOSSettings.DiskEncryption
-
-			for _, p := range profs {
-				if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
-					p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+			if ac.MDM.EnabledAndConfigured {
+				profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
 				}
-				p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
-				profiles = append(profiles, p)
+
+				// determine disk encryption and action required here based on profiles and
+				// raw decryptable key status.
+				host.MDM.DetermineMacOSDiskEncryptionStatus(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
+				host.MDM.OSSettings.DiskEncryption.Status = host.MDM.MacOSSettings.DiskEncryption
+
+				for _, p := range profs {
+					if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
+						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+					}
+					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
+					profiles = append(profiles, p)
+				}
 			}
 		}
 	}

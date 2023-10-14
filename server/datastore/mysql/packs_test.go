@@ -145,7 +145,7 @@ func setupPackSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.PackSpec {
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
 	}
 	// Zach creates some queries
-	err := ds.ApplyQueries(context.Background(), zwass.ID, queries)
+	err := ds.ApplyQueries(context.Background(), zwass.ID, queries, nil)
 	require.Nil(t, err)
 
 	labels := []*fleet.LabelSpec{

@@ -72,6 +72,27 @@ export interface IHostScriptsResponse {
   };
 }
 
+/**
+ * Request body for POST /scripts/run
+ *
+ * https://fleetdm.com/docs/rest-api/rest-api#run-script-asynchronously
+ */
+export interface IScriptRunRequest {
+  host_id: number;
+  script_id: number; // script_id is not required by the API currently, but we require it here to ensure it is always provided
+  // script_contents: string; // script_contents is only supported for the CLI currently
+}
+
+/**
+ * Response body for POST /scripts/run
+ *
+ * https://fleetdm.com/docs/rest-api/rest-api#run-script-asynchronously
+ */
+export interface IScriptRunResponse {
+  host_id: number;
+  execution_id: string;
+}
+
 export default {
   getHostScripts(id: number, page?: number) {
     const { HOST_SCRIPTS } = endpoints;
@@ -126,8 +147,8 @@ export default {
     return sendRequest("GET", SCRIPT_RESULT(executionId));
   },
 
-  runScript(id: number) {
+  runScript(request: IScriptRunRequest): Promise<IScriptRunResponse> {
     const { SCRIPT_RUN } = endpoints;
-    return sendRequest("POST", SCRIPT_RUN, { script_id: id });
+    return sendRequest("POST", SCRIPT_RUN, request);
   },
 };

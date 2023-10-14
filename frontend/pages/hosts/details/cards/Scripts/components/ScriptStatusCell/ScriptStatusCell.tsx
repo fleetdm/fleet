@@ -30,7 +30,8 @@ const STATUS_DISPLAY_CONFIG: Record<
   pending: {
     displayText: "Pending",
     iconStatus: "pendingPartial",
-    tooltip: () => "Script will run when the host comes online.",
+    tooltip: () =>
+      "Script is running. To see if the script finished, refresh the page.",
   },
   error: {
     displayText: "Error",

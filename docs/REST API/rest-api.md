@@ -4915,11 +4915,11 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 ### Add policy
 
 There are two ways of adding a policy:
-1. by setting "name", "query", "description". This is the preferred way.
-2. (Legacy) re-using the data of an existing query, by setting "query_id". If "query_id" is set,
-then "query" must not be set, and "name" and "description" are ignored.
+1. Preferred: By setting `name`, `query`, and `description`.
+2. Legacy: By setting `query_id` to reuse the data of an existing query. If `query_id` is set,
+then `query` must not be set, and `name` and `description` are ignored.
 
-An error is returned if both "query" and "query_id" are set on the request.
+An error is returned if both `query` and `query_id` are set on the request.
 
 `POST /api/v1/fleet/global/policies`
 
@@ -4933,11 +4933,11 @@ An error is returned if both "query" and "query_id" are set on the request.
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
+| critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
 
 Either `query` or `query_id` must be provided.
 
-#### Example Add Policy
+#### Example (preferred)
 
 `POST /api/v1/fleet/global/policies`
 
@@ -4980,7 +4980,7 @@ Either `query` or `query_id` must be provided.
 }
 ```
 
-#### Example Legacy Add Policy
+#### Example (legacy)
 
 `POST /api/v1/fleet/global/policies`
 
@@ -5068,7 +5068,7 @@ Where `query_id` references an existing `query`.
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
-#### Example Edit Policy
+#### Example
 
 `PATCH /api/v1/fleet/global/policies/42`
 
@@ -5111,11 +5111,9 @@ Where `query_id` references an existing `query`.
 }
 ```
 
-### Run Automation for all failing hosts of a policy.
+### Run automation for all failing hosts of a policy
 
-Normally automations (Webhook/Integrations) runs on all hosts when a policy-check
-fails but didn't fail before. This feature to mark policies to call automation for
-all hosts that already fail the policy, too and possibly again.
+Triggers [automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations) for *all* hosts failing the specified policies, regardless of whether the policies were previously failing on those hosts.
 
 `POST /api/v1/fleet/automations/reset`
 
@@ -5123,12 +5121,11 @@ all hosts that already fail the policy, too and possibly again.
 
 | Name        | Type     | In   | Description                                              |
 | ----------  | -------- | ---- | -------------------------------------------------------- |
-| team_ids    | list     | body | Run automation for all hosts in policies of these teams  |
-| policy_ids  | list     | body | Run automations for all hosts these policies             |
+| policy_ids  | list     | body | Filters to only run policy automations for the specified policies. |
+| team_ids    | list     | body | _Available in Fleet Premium_. Filters to only run policy automations for hosts in the specified teams. |
 
-_Teams are available in Fleet Premium_
 
-#### Example Edit Policy
+#### Example
 
 `POST /api/v1/fleet/automations/reset`
 
@@ -5423,7 +5420,7 @@ Either `query` or `query_id` must be provided.
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
-#### Example Edit Policy
+#### Example
 
 `PATCH /api/v1/fleet/teams/2/policies/42`
 
@@ -5471,6 +5468,7 @@ Either `query` or `query_id` must be provided.
 ## Queries
 
 - [Get query](#get-query)
+- [Get query report](#get-query-report)
 - [List queries](#list-queries)
 - [Create query](#create-query)
 - [Modify query](#modify-query)
@@ -5540,6 +5538,92 @@ Returns the query specified by ID.
   }
 }
 ```
+
+### Get query report
+
+Returns the query report specified by ID.
+
+`GET /api/v1/fleet/queries/{id}/report`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                |
+| ---- | ------- | ---- | ------------------------------------------ |
+| id   | integer | path | **Required**. The ID of the desired query. |
+
+#### Example
+
+`GET /api/v1/fleet/queries/31/report`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "query_id": 31,
+  "results": [
+    {
+      "host_id": 1,
+      "host_name": "foo",
+      "last_fetched": "2021-01-19T17:08:31Z",
+      "columns": {
+        "model": "USB 2.0 Hub",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "host_id": 1,
+      "host_name": "foo",
+      "last_fetched": "2021-01-19T17:08:31Z",
+      "columns": {
+        "model": "USB Keyboard",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "host_id": 2,
+      "host_name": "bar",
+      "last_fetched": "2021-01-19T17:20:00Z",
+      "columns": {
+        "model": "USB Reciever",
+        "vendor": "Logitech"
+      }
+    },
+    {
+      "host_id": 2,
+      "host_name": "bar",
+      "last_fetched": "2021-01-19T17:20:00Z",
+      "columns": {
+        "model": "USB Reciever",
+        "vendor": "Logitech"
+      }
+    },
+    {
+      "host_id": 2,
+      "host_name": "bar",
+      "last_fetched": "2021-01-19T17:20:00Z",
+      "columns": {
+        "model": "Display Audio",
+        "vendor": "Apple Inc."
+      }
+    }
+  ]
+}
+```
+
+If a query has no results stored, then `results` will be an empty array:
+
+```json
+{
+  "query_id": 32,
+  "results": []
+}
+```
+
+### osquery scheduled queries do not return errors.
+
+osquery scheduled queries mechanism does not return errors. Hence those are not stored in the cache and are not part of this report.
 
 ### List queries
 

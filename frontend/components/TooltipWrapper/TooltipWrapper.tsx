@@ -6,6 +6,7 @@ import { uniqueId } from "lodash";
 
 interface ITooltipWrapper {
   children: React.ReactNode;
+  // default is bottom-start
   position?: PlacesType;
   isDelayed?: boolean;
   underline?: boolean;
