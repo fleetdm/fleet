@@ -23,6 +23,8 @@ Use the Fleet APIs to automate Fleet.
 
 This page includes a list of available resources and their API routes.
 
+
+
 ## Authentication
 
 - [Retrieve your API token](#retrieve-your-api-token)
