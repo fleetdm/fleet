@@ -218,15 +218,23 @@ const Advanced = ({
                 name="disableQueryReports"
                 value={disableQueryReports}
                 parseTarget
-                // TODO - update to JSX once tooltip wrapper refactor is merged
                 // TODO - once refactor is merged, have this and bove tooltips disappear more
                 // quickly to get out of users' way
-                tooltip={
-                  '<p>Disabling query reports will decrease database usage, <br />\
-                  but will prevent you from accessing query results in<br /> \
-                  Fleet and will delete existing reports. This can also be<br />\
-                  disabled on a per-query basis by enabling "Discard <br />\
-                  data". <em>(Default: <b>Off</b>)</em></p>'
+                tooltipContent={
+                  <>
+                    <p>
+                      Disabling query reports will decrease database usage,{" "}
+                      <br />\ but will prevent you from accessing query results
+                      in
+                      <br /> \ Fleet and will delete existing reports. This can
+                      also be
+                      <br />\ disabled on a per-query basis by enabling
+                      &quot;Discard <br />\ data&quot;.{" "}
+                      <em>
+                        (Default: <b>Off</b>)
+                      </em>
+                    </p>
+                  </>
                 }
               >
                 Disable query reports

@@ -355,7 +355,14 @@ export const generateSoftwareTableHeaders = ({
       title: "File path",
       Header: () => {
         return (
-          <TooltipWrapper tipContent="This is where the software is <br />located on this host.">
+          <TooltipWrapper
+            tipContent={
+              <>
+                This is where the software is <br />
+                located on this host.
+              </>
+            }
+          >
             File path
           </TooltipWrapper>
         );

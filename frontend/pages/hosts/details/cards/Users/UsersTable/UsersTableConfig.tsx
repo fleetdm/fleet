@@ -49,7 +49,17 @@ const generateUsersTableHeaders = (): IDataColumn[] => {
     {
       Header: () => {
         return (
-          <TooltipWrapper tipContent="The command line shell, such as bash,<br />that this user is equipped with by<br />default when they log in to the system.">
+          <TooltipWrapper
+            tipContent={
+              <>
+                The command line shell, such as bash,
+                <br />
+                that this user is equipped with by
+                <br />
+                default when they log in to the system.
+              </>
+            }
+          >
             Shell
           </TooltipWrapper>
         );

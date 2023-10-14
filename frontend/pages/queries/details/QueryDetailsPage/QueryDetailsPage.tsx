@@ -218,8 +218,15 @@ const QueryDetailsPage = ({
             <div className={`${baseClass}__settings`}>
               <div className={`${baseClass}__automations`}>
                 <TooltipWrapper
-                  // TODO - change to JSX after tooltip refactor
-                  tipContent={`Query automations let you send data to your log <br />destination on a schedule. When automations are <b>on</b>, <br />data is sent according to a query’s frequency.`}
+                  tipContent={
+                    <>
+                      Query automations let you send data to your log <br />
+                      destination on a schedule. When automations are <b>
+                        on
+                      </b>, <br />
+                      data is sent according to a query&apos;s frequency.
+                    </>
+                  }
                 >
                   Automations:
                 </TooltipWrapper>
