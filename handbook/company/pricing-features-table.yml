@@ -134,7 +134,23 @@
       fiendlyName: Safely execute custom scripts (macOS, Windows, and Linux)
       documentationUrl: https://fleetdm.com/docs/using-fleet/scripts
       tier: Premium
-      productCategories: [Device management,Endpoint operations]
+      dri: mikermcneil
+      productCategories: [Endpoint operations,Device management]
+      cues:
+        - description: Cloud security engineer: Listen to webhooks to perform autonomous self-healing (automated remediation)
+          moreInfoUrl: https://www.fugue.co/blog/automated-remediation-scripts-vs.-self-healing-infrastructure-two-approaches-to-cloud-security
+        - description: Client platform engineer: Execute custom macOS scripts
+          moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-mac-scripts-via-mdm/
+        - description: Client platform engineer: Execute custom Windows scripts
+          moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-windows-scripts-via-mdm/
+        - description: Use PowerShell scripts on Windows devices 
+          moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/apps/intune-management-extension
+        - description: Security engineer: Run PowerShell scripts for remediations
+          moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/fundamentals/powershell-scripts-remediation
+        - description: Download and run remediation scripts
+          moreInfoUrl: https://help.zscaler.com/deception/downloading-and-running-remediation-script
+        - description: Deploy custom scripts
+          moreInfoUrl: https://scalefusion.com/custom-scripting
     - industryName: End-user macOS update reminders (via Nudge)
       tier: Premium
       usualDepartment: IT
@@ -184,8 +200,15 @@
       tier: Free
     - industryName: Search devices by IP, serial, hostname, UUID
       tier: Free
-    - industryName: Target and configure specific groups of devices
+    - industryName: Labels (SQL-driven)
+      tier: Free
+    - industryName: Teams (device groups)
+      friendlyName: Manage different endpoints differently
+      description: Set baselines and strategies for hosts in different situations, and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
       tier: Premium
+      productCategories: [Endpoint operations,Device management,Vulnerability management]
+      cues:
+        - description: Cloud security engineer: Automate remediation for different applications with different security postures
     - industryName: Generate reports for groups of devices
       tier: Premium
 - categoryName: Collaboration
@@ -225,7 +248,7 @@
       tier: Premium
     - industryName: Automated user role sync via Okta, AD, or any IDP
       tier: Premium
-      cue:
+      cues:
         - description: Automatically set admin access to Fleet based on your IDP
     - industryName: Vanta integration
       tier: Premium
