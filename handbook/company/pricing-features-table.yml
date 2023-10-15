@@ -13,44 +13,63 @@
         - description: A top gaming company needed a way to monitor critical files on production Debian servers.
           quote: The FIM features are kind of a top priority.
           moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
-      cues:
+      waysToUse:
         - description: Monitor critical files on production Debian servers
         - description: Detect illicit activity
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
         - description: Pinpoint unintended changes
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
-        - description: Verify update status and monitoring system health
+        - description: Verify update status and monitor system health
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
         - description: Meet compliance mandates
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
     - industryName: Device health
-      friendlyName: 
-      description: 
+      friendlyName: Automate device health
+      description: Automatically report performance issues using webhooks or integrations, and quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
       documentationUrl:
       screenshotSrc:
-      usualDepartment: Security
       tier: Free
       productCategories: [Endpoint operations]
       dri: mikermcneil
       demos:
-        - description: 
+        - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
           quote: 
           moreInfoUrl: 
-      cues:
-        - description: Zero trust access (ZTA)
+      buzzwords: [Device trust,Zero trust,Beyondcorp,Device attestation,Conditional access]
+      waysToUse:
+        - description: Automatically manage the behavior of sick endpoints that are at higher risk of vulnerabilities.
+        - description: Implement conditional access based on device health using the Fleet API.
+        - description: Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.
         - description: Control and restore access to applications by restricting access when devices do not meet particular security requirements.
           moreInfoUrl: https://duo.com/docs/device-health
-        - description: Control which laptop and desktop devices can access corporate applications based on the security posture of the device or MDM enrollment status.
-        - description: Device attestation
-        - description: Variable trust access
+        - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems.
+        - description: Implement multivariate device trust
           moreInfoUrl: https://youtu.be/5sFOdpMLXQg?feature=shared&t=1445
-        - description: Device trust
-        - description: Implement conditional access based on device health
-        - description: Implement your own version of Google's implementation of the zero trust model (BeyondCorp)
+        - description: Implement your own version of Google's zero trust model (BeyondCorp)
           moreInfoUrl: https://cloud.google.com/beyondcorp
+    - industryName: Script execution
+      fiendlyName: Safely execute custom scripts (macOS, Windows, and Linux)
+      description: Deploy and execute custom scripts using a REST API, and manage your library of scripts in the UI or a git repo.
+      documentationUrl: https://fleetdm.com/docs/using-fleet/scripts
+      tier: Premium
+      dri: mikermcneil
+      productCategories: [Endpoint operations,Device management]
+      waysToUse:
+        - description: Execute custom macOS scripts (client platform engineering)
+          moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-mac-scripts-via-mdm/
+        - description: Execute custom Windows scripts (client platform engineering)
+          moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-windows-scripts-via-mdm/
+        - description: Use PowerShell scripts on Windows devices
+          moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/apps/intune-management-extension
+        - description: Run PowerShell scripts for remediations (security engineering)
+          moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/fundamentals/powershell-scripts-remediation
+        - description: Download and run remediation scripts
+          moreInfoUrl: https://help.zscaler.com/deception/downloading-and-running-remediation-script
+        - description: Deploy custom scripts
+          moreInfoUrl: https://scalefusion.com/custom-scripting
     - industryName: Flexible posture assessment
       friendlyName: Verify any security or compliance goal
-      description: Simplify security audits and verify ongoing compliance for every endpoint, from workstations to data centers.
+      description: Simplify security audits, build definitive reports, and verify ongoing compliance for every endpoint, from workstations to data centers.
       documentationUrl:
       screenshotSrc:
       usualDepartment: Security
@@ -61,34 +80,36 @@
         - description: 
           quote: 
           moreInfoUrl: 
-      cues:
+      buzzwords: [Attack surface management (ASM),Endpoint hardening,Posture hardening]
+      waysToUse:
         - description: Monitor devices that don't meet your organization's custom security policies
+        - description: Keep your devices compliant with customizable baselines, or use common benchmarks like CIS.
         - description: Detect and surface issues with devices
         - description: Share device health reports
-        - description: Attack surface management (ASM)
+        - description: Align endpoints with your security policies
+          moreInfoUrl: https://www.axonius.com/use-cases/cmdb-reconciliation
         - description: Maximize security control coverage
-        - description: Uncover gaps in security policies, configurations, and hygiene.
+        - description: Uncover gaps in security policies, configurations, and hygiene
           moreInfoUrl: https://www.axonius.com/use-cases/coverage-gap-discovery
         - description: Automatically apply security policies to protect endpoints against attack.
         - description: Surface security issues in all your deployed endpoints even data centers and factories.
-        - description: Continually validate controls and policies. 
-        - description: Align endpoints with your security policies. 
-          moreInfoUrl: https://www.axonius.com/use-cases/cmdb-reconciliation
+        - description: Continually validate controls and policies
     - industryName: Human-endpoint mapping
       friendlyName: See who logs in on every computer
       description: Identify who logs in to any system, including login history and current sessions.  Look up any host by the email address of the person using it.
-      documentationUrl: "" # todo
-      screenshotSrc: ""
+      documentationUrl:
+      screenshotSrc:
       tier: Free
       productCategories: [Endpoint operations]
       dri: mikermcneil
       demos:
         - description: Security engineers at a top gaming company wanted to get demographics off their macOS, Windows, and Linux machines about who the user is and who's logged in.
           moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
-      cues:
-        - description: Human-to-device mapping
+      waysToUse:
         - description: Look up computer by ActiveDirectory account
         - description: Find device by Google Chrome user
+        - description: Identify who logs in to any system, including login history and current sessions.
+        - description: Look up any host by the email address of the person using it.
         - description: Check user login history
           moreInfoUrl: https://www.lepide.com/how-to/audit-who-logged-into-a-computer-and-when.html#:~:text=To%20find%20out%20the%20details,logs%20in%20%E2%80%9CWindows%20Logs%E2%80%9D.
         - description: See currently logged in users
@@ -97,17 +118,57 @@
           moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
         - description: See what servers someone is logged-in on
           moreInfoUrl: https://community.spiceworks.com/topic/138171-is-there-a-way-to-see-what-servers-someone-is-logged-in-on
+    - industryName: Automated export/sync
+      friendlyName: Build custom query automations
+      description: Ship logs with snapshots of any imaginable report, or monitor results for changes.
+      tier: Free
+      usualDepartment: Security
+      waysToUse:
+        - description: Ship logs to Splunk, Snowflake, and more
+        - description: Synchronize live state of endpoints to a data lake or SIEM in a consistent shape.
+        - description: Export the data to other systems
+          moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
+        - description: Export data to a third-party SIEM tool
+          moreInfoUrl: https://www.websense.com/content/support/library/web/hosted/admin_guide/siem_integration_explain.aspx
 - categoryName: Integrations
   features:
     - industryName: REST API
-      friendlyName: Automate any feature  
-      description: ""
+      friendlyName: Automate any feature
+      description: 
       documentationUrl: https://fleetdm.com/docs/rest-api/rest-api 
-      screenshotSrc: ""
+      screenshotSrc:
       tier: Free
       dri: rachaelshaw
     - industryName: Command line tool (CLI)
+      friendlyName: fleetctl
       tier: Free
+    - industryName: Webhooks
+      friendlyName: 
+      tier: Free
+    - industryName: Deep automations
+      friendlyName: Trigger webhooks or run scripts
+      description: Fire off webhooks or run scripts on hosts when certain things happen in Fleet.
+      productCategories: [Endpoint operations,Device management,Vulnerability management]
+      comingSoonOn: 2024-06-30
+      tier: Free
+      buzzwords: [Automated remediation,Auto-remediation,Self-healing]
+      waysToUse:
+        - description: Use policy automations to automatically remediate issues and mitigate vulnerabilities.
+        - description: Use osquery and santa to work around inflexibilities in proprietary MDMs and other protection solutions.
+        - description: Listen to webhooks to perform autonomous self-healing (cloud security engineering)
+          moreInfoUrl: https://www.fugue.co/blog/automated-remediation-scripts-vs.-self-healing-infrastructure-two-approaches-to-cloud-security
+    - industryName: GitHub action
+      moreInfoUrl: https://github.com/fleetdm/fleet-mdm-gitops
+      productCategories: [Endpoint operations,Device management,Vulnerability management]
+      tier: Free
+    - industryName: Community integrations (Tines, Snowflake, Terraform, Chronicle, etc)
+      moreInfoUrl: https://fleetdm.com/integrations
+      tier: Free
+    - industryName: Premium integrations (Puppet, Jira, Zendesk, etc)
+      moreInfoUrl: https://fleetdm.com/integrations
+      tier: Premium
+      waysToUse:
+        - description: Map macOS settings to computers with the Puppet module.
 - categoryName: Device management
   features:
     - industryName: User-initiated enrollment of macOS computers
@@ -130,31 +191,10 @@
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Script execution
-      fiendlyName: Safely execute custom scripts (macOS, Windows, and Linux)
-      documentationUrl: https://fleetdm.com/docs/using-fleet/scripts
-      tier: Premium
-      dri: mikermcneil
-      productCategories: [Endpoint operations,Device management]
-      cues:
-        - description: Cloud security engineer: Listen to webhooks to perform autonomous self-healing (automated remediation)
-          moreInfoUrl: https://www.fugue.co/blog/automated-remediation-scripts-vs.-self-healing-infrastructure-two-approaches-to-cloud-security
-        - description: Client platform engineer: Execute custom macOS scripts
-          moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-mac-scripts-via-mdm/
-        - description: Client platform engineer: Execute custom Windows scripts
-          moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-windows-scripts-via-mdm/
-        - description: Use PowerShell scripts on Windows devices 
-          moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/apps/intune-management-extension
-        - description: Security engineer: Run PowerShell scripts for remediations
-          moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/fundamentals/powershell-scripts-remediation
-        - description: Download and run remediation scripts
-          moreInfoUrl: https://help.zscaler.com/deception/downloading-and-running-remediation-script
-        - description: Deploy custom scripts
-          moreInfoUrl: https://scalefusion.com/custom-scripting
     - industryName: End-user macOS update reminders (via Nudge)
       tier: Premium
       usualDepartment: IT
-      productCategories: [Device management]
+      productCategories: [Device management,Vulnerability management]
     - industryName: Encrypt macOS hard disks with FileVault
       tier: Premium
       usualDepartment: IT
@@ -173,7 +213,7 @@
       comingSoonOn: 2024-03-31
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Puppet integration
+    - industryName: Puppet module
       friendlyName: Map macOS settings to computers with Puppet module
       tier: Premium
       usualDepartment: IT
@@ -207,8 +247,8 @@
       description: Set baselines and strategies for hosts in different situations, and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
       tier: Premium
       productCategories: [Endpoint operations,Device management,Vulnerability management]
-      cues:
-        - description: Cloud security engineer: Automate remediation for different applications with different security postures
+      waysToUse:
+        - description: Automate remediation for different applications with different security postures (cloud security engineering)
     - industryName: Generate reports for groups of devices
       tier: Premium
 - categoryName: Collaboration
@@ -220,7 +260,7 @@
           moreInfoUrl: https://docs.google.com/document/d/1UdzZMyBLbs9SUXfSXN2x2wZQCbjZZUetYlNWH6-ryqQ/edit#heading=h.2lh6ehprpvl6
     - industryName: Scope transparency
       tier: Free
-      moreInfoUrl: https://fleetdm.com/transparency
+      documentationUrl: https://fleetdm.com/transparency
 - categoryName: Security and compliance
   features:
     - industryName: Single sign on (SSO, SAML)
@@ -229,7 +269,7 @@
       friendlyName: Ensure hard disks are encrypted
       description: Encrypt hard disks of macOS and Windows computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker).
       tier: Free
-      cues:
+      waysToUse:
         - description: Report on disk encryption status
         - description: Encrypt hard disks on macOS with FileVault
         - description: Escrow FileVault keys on macOS
@@ -242,13 +282,13 @@
     - industryName: Programmable audit log
       tier: Premium
       usualDepartment: Security
-      cues:
+      waysToUse:
         - description: Export activity of Fleet admins to your SIEM or data lake
     - industryName: Just-in-time (JIT) provisioning
       tier: Premium
     - industryName: Automated user role sync via Okta, AD, or any IDP
       tier: Premium
-      cues:
+      waysToUse:
         - description: Automatically set admin access to Fleet based on your IDP
     - industryName: Vanta integration
       tier: Premium
@@ -258,15 +298,6 @@
       tier: Premium
 - categoryName: Monitoring
   features:
-    - industryName: Schedule and automate custom queries
-      tier: Free
-      usualDepartment: Security
-      cues:
-        - description: Ship logs to Splunk, Snowflake, and more
-        - description: Export the data to other systems
-          moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
-        - description: Export data to a third-party SIEM tool
-          moreInfoUrl: https://www.websense.com/content/support/library/web/hosted/admin_guide/siem_integration_explain.aspx
     - industryName: Detect vulnerable software
       tier: Free
       usualDepartment: Security
@@ -282,15 +313,6 @@
           moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
         - description: A top software company wanted to detect regressions when adding/changing queries and fail builds if queries were too expensive.
           moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
-    - industryName: Device trust
-      tier: Free
-      cue:
-        - description: Standard query and policy library
-        - description: Beyondcorp
-        - description: Zero trust
-        - description: Conditional access
-    - industryName: Policy and vulnerability automations (webhook, Zendesk, JIRA, ServiceNow*)
-      tier: Free
     - industryName: Detect and surface issues with devices (policies)
       tier: Free
     - industryName: Mark policies as critical
@@ -319,11 +341,10 @@
       productCategories: [Endpoint operations]
 - categoryName: Deployment
   features:
-    - industryName: Self-hosted
+    - industryName: Self-managed
+      friendlyName: Host it yourself
       tier: Free
-      cues:
-        - description: Self-managed
-        - description: Host it yourself
+      buzzwords: [Self-hosted]
     - industryName: Deployment tools (Terraform, Helm)
       tier: Free
     - industryName: Configure osquery startup flags remotely
