@@ -150,6 +150,7 @@
       description: Fire off webhooks or run scripts on hosts when certain things happen in Fleet.
       productCategories: [Endpoint operations,Device management,Vulnerability management]
       comingSoonOn: 2024-06-30
+      tier: Free
       buzzwords: [Automated remediation,Auto-remediation,Self-healing]
       waysToUse:
         - description: Use policy automations to automatically remediate issues and mitigate vulnerabilities.
