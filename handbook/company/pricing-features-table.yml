@@ -48,6 +48,27 @@
           moreInfoUrl: https://youtu.be/5sFOdpMLXQg?feature=shared&t=1445
         - description: Implement your own version of Google's zero trust model (BeyondCorp)
           moreInfoUrl: https://cloud.google.com/beyondcorp
+    - industryName: Script execution
+      fiendlyName: Safely execute custom scripts (macOS, Windows, and Linux)
+      description: Deploy and execute custom scripts using a REST API, and manage your library of scripts in the UI or a git repo.
+      documentationUrl: https://fleetdm.com/docs/using-fleet/scripts
+      tier: Premium
+      dri: mikermcneil
+      productCategories: [Endpoint operations,Device management]
+      buzzwords: [Scripting]
+      waysToUse:
+        - description: Client platform engineer: Execute custom macOS scripts
+          moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-mac-scripts-via-mdm/
+        - description: Client platform engineer: Execute custom Windows scripts
+          moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-windows-scripts-via-mdm/
+        - description: Use PowerShell scripts on Windows devices 
+          moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/apps/intune-management-extension
+        - description: Security engineer: Run PowerShell scripts for remediations
+          moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/fundamentals/powershell-scripts-remediation
+        - description: Download and run remediation scripts
+          moreInfoUrl: https://help.zscaler.com/deception/downloading-and-running-remediation-script
+        - description: Deploy custom scripts
+          moreInfoUrl: https://scalefusion.com/custom-scripting
     - industryName: Flexible posture assessment
       friendlyName: Verify any security or compliance goal
       description: Simplify security audits, build definitive reports, and verify ongoing compliance for every endpoint, from workstations to data centers.
@@ -78,18 +99,19 @@
     - industryName: Human-endpoint mapping
       friendlyName: See who logs in on every computer
       description: Identify who logs in to any system, including login history and current sessions.  Look up any host by the email address of the person using it.
-      documentationUrl: "" # todo
-      screenshotSrc: ""
+      documentationUrl:
+      screenshotSrc:
       tier: Free
       productCategories: [Endpoint operations]
       dri: mikermcneil
       demos:
         - description: Security engineers at a top gaming company wanted to get demographics off their macOS, Windows, and Linux machines about who the user is and who's logged in.
           moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
-      cues:
-        - description: Human-to-device mapping
+      waysToUse:
         - description: Look up computer by ActiveDirectory account
         - description: Find device by Google Chrome user
+        - description: Identify who logs in to any system, including login history and current sessions.
+        - description: Look up any host by the email address of the person using it.
         - description: Check user login history
           moreInfoUrl: https://www.lepide.com/how-to/audit-who-logged-into-a-computer-and-when.html#:~:text=To%20find%20out%20the%20details,logs%20in%20%E2%80%9CWindows%20Logs%E2%80%9D.
         - description: See currently logged in users
@@ -98,6 +120,18 @@
           moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
         - description: See what servers someone is logged-in on
           moreInfoUrl: https://community.spiceworks.com/topic/138171-is-there-a-way-to-see-what-servers-someone-is-logged-in-on
+    - industryName: Automated export/sync
+      friendlyName: Build custom query automations
+      description: Ship logs with snapshots of any imaginable report, or monitor results for changes.
+      tier: Free
+      usualDepartment: Security
+      waysToUse:
+        - description: Ship logs to Splunk, Snowflake, and more
+        - description: Synchronize live state of endpoints to a data lake or SIEM in a consistent shape.
+        - description: Export the data to other systems
+          moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
+        - description: Export data to a third-party SIEM tool
+          moreInfoUrl: https://www.websense.com/content/support/library/web/hosted/admin_guide/siem_integration_explain.aspx
 - categoryName: Integrations
   features:
     - industryName: REST API
@@ -158,31 +192,10 @@
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Script execution
-      fiendlyName: Safely execute custom scripts (macOS, Windows, and Linux)
-      description: Deploy and execute custom scripts using a REST API, and manage your library of scripts in the UI or a git repo.
-      documentationUrl: https://fleetdm.com/docs/using-fleet/scripts
-      tier: Premium
-      dri: mikermcneil
-      productCategories: [Endpoint operations,Device management]
-      buzzwords: [Scripting]
-      waysToUse:
-        - description: Client platform engineer: Execute custom macOS scripts
-          moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-mac-scripts-via-mdm/
-        - description: Client platform engineer: Execute custom Windows scripts
-          moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-windows-scripts-via-mdm/
-        - description: Use PowerShell scripts on Windows devices 
-          moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/apps/intune-management-extension
-        - description: Security engineer: Run PowerShell scripts for remediations
-          moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/fundamentals/powershell-scripts-remediation
-        - description: Download and run remediation scripts
-          moreInfoUrl: https://help.zscaler.com/deception/downloading-and-running-remediation-script
-        - description: Deploy custom scripts
-          moreInfoUrl: https://scalefusion.com/custom-scripting
     - industryName: End-user macOS update reminders (via Nudge)
       tier: Premium
       usualDepartment: IT
-      productCategories: [Device management]
+      productCategories: [Device management,Vulnerability management]
     - industryName: Encrypt macOS hard disks with FileVault
       tier: Premium
       usualDepartment: IT
@@ -270,13 +283,13 @@
     - industryName: Programmable audit log
       tier: Premium
       usualDepartment: Security
-      cues:
+      waysToUse:
         - description: Export activity of Fleet admins to your SIEM or data lake
     - industryName: Just-in-time (JIT) provisioning
       tier: Premium
     - industryName: Automated user role sync via Okta, AD, or any IDP
       tier: Premium
-      cues:
+      waysToUse:
         - description: Automatically set admin access to Fleet based on your IDP
     - industryName: Vanta integration
       tier: Premium
@@ -286,15 +299,6 @@
       tier: Premium
 - categoryName: Monitoring
   features:
-    - industryName: Schedule and automate custom queries
-      tier: Free
-      usualDepartment: Security
-      cues:
-        - description: Ship logs to Splunk, Snowflake, and more
-        - description: Export the data to other systems
-          moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
-        - description: Export data to a third-party SIEM tool
-          moreInfoUrl: https://www.websense.com/content/support/library/web/hosted/admin_guide/siem_integration_explain.aspx
     - industryName: Detect vulnerable software
       tier: Free
       usualDepartment: Security
@@ -310,15 +314,6 @@
           moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
         - description: A top software company wanted to detect regressions when adding/changing queries and fail builds if queries were too expensive.
           moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
-    - industryName: Device trust
-      tier: Free
-      cue:
-        - description: Standard query and policy library
-        - description: Beyondcorp
-        - description: Zero trust
-        - description: Conditional access
-    - industryName: Policy and vulnerability automations (webhook, Zendesk, JIRA, ServiceNow*)
-      tier: Free
     - industryName: Detect and surface issues with devices (policies)
       tier: Free
     - industryName: Mark policies as critical
