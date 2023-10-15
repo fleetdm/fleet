@@ -55,13 +55,13 @@
       dri: mikermcneil
       productCategories: [Endpoint operations,Device management]
       waysToUse:
-        - description: Client platform engineer: Execute custom macOS scripts
+        - description: Execute custom macOS scripts (client platform engineering)
           moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-mac-scripts-via-mdm/
-        - description: Client platform engineer: Execute custom Windows scripts
+        - description: Execute custom Windows scripts (client platform engineering)
           moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-windows-scripts-via-mdm/
-        - description: Use PowerShell scripts on Windows devices 
+        - description: Use PowerShell scripts on Windows devices
           moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/apps/intune-management-extension
-        - description: Security engineer: Run PowerShell scripts for remediations
+        - description: Run PowerShell scripts for remediations (security engineering)
           moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/fundamentals/powershell-scripts-remediation
         - description: Download and run remediation scripts
           moreInfoUrl: https://help.zscaler.com/deception/downloading-and-running-remediation-script
@@ -150,11 +150,11 @@
       description: Fire off webhooks or run scripts on hosts when certain things happen in Fleet.
       productCategories: [Endpoint operations,Device management,Vulnerability management]
       comingSoonOn: 2024-06-30
-      buzzwords: [Auto-remediation,Self-healing]
+      buzzwords: [Automated remediation,Auto-remediation,Self-healing]
       waysToUse:
         - description: Use policy automations to automatically remediate issues and mitigate vulnerabilities.
         - description: Use osquery and santa to work around inflexibilities in proprietary MDMs and other protection solutions.
-        - description: Cloud security engineer: Listen to webhooks to perform autonomous self-healing (automated remediation)
+        - description: Listen to webhooks to perform autonomous self-healing (cloud security engineering)
           moreInfoUrl: https://www.fugue.co/blog/automated-remediation-scripts-vs.-self-healing-infrastructure-two-approaches-to-cloud-security
     - industryName: GitHub action
       moreInfoUrl: https://github.com/fleetdm/fleet-mdm-gitops
@@ -247,7 +247,7 @@
       tier: Premium
       productCategories: [Endpoint operations,Device management,Vulnerability management]
       waysToUse:
-        - description: Cloud security engineer: Automate remediation for different applications with different security postures
+        - description: Automate remediation for different applications with different security postures (cloud security engineering)
     - industryName: Generate reports for groups of devices
       tier: Premium
 - categoryName: Collaboration
