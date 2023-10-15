@@ -23,6 +23,31 @@
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
         - description: Meet compliance mandates
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+    - industryName: Device health
+      friendlyName: 
+      description: 
+      documentationUrl:
+      screenshotSrc:
+      usualDepartment: Security
+      tier: Free
+      productCategories: [Endpoint operations]
+      dri: mikermcneil
+      demos:
+        - description: 
+          quote: 
+          moreInfoUrl: 
+      cues:
+        - description: Zero trust access (ZTA)
+        - description: Control and restore access to applications by restricting access when devices do not meet particular security requirements.
+          moreInfoUrl: https://duo.com/docs/device-health
+        - description: Control which laptop and desktop devices can access corporate applications based on the security posture of the device or MDM enrollment status.
+        - description: Device attestation
+        - description: Variable trust access
+          moreInfoUrl: https://youtu.be/5sFOdpMLXQg?feature=shared&t=1445
+        - description: Device trust
+        - description: Implement conditional access based on device health
+        - description: Implement your own version of Google's implementation of the zero trust model (BeyondCorp)
+          moreInfoUrl: https://cloud.google.com/beyondcorp
     - industryName: Flexible posture assessment
       friendlyName: Verify any security or compliance goal
       description: Simplify security audits and verify ongoing compliance for every endpoint, from workstations to data centers.
@@ -37,9 +62,11 @@
           quote: 
           moreInfoUrl: 
       cues:
-        - description: Attack surface management (ASM)
+        - description: Monitor devices that don't meet your organization's custom security policies
+        - description: Detect and surface issues with devices
         - description: Share device health reports
-        - description: Maximize Security Control coverage
+        - description: Attack surface management (ASM)
+        - description: Maximize security control coverage
         - description: Uncover gaps in security policies, configurations, and hygiene.
           moreInfoUrl: https://www.axonius.com/use-cases/coverage-gap-discovery
         - description: Automatically apply security policies to protect endpoints against attack.
