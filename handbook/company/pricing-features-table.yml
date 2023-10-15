@@ -173,7 +173,7 @@
     #  ╚═╝╩ ╩ ╩ ╚═╝╩ ╩  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝
     - industryName: Batch installation (Chef, Ansible, Puppet, MDM)
       friendlyName: Install agents over the air
-      tier: free
+      tier: Free
       productCategories: [Endpoint operations]
     #  ╦═╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╔═╗╔╦╗╔╦╗╦╔╗╔╔═╗╔═╗
     #  ╠╦╝║╣ ║║║║ ║ ║ ║╣   ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
