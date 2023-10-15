@@ -248,7 +248,7 @@
       description: Set baselines and strategies for hosts in different situations, and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
       tier: Premium
       productCategories: [Endpoint operations,Device management,Vulnerability management]
-      cues:
+      waysToUse:
         - description: Cloud security engineer: Automate remediation for different applications with different security postures
     - industryName: Generate reports for groups of devices
       tier: Premium
@@ -261,7 +261,7 @@
           moreInfoUrl: https://docs.google.com/document/d/1UdzZMyBLbs9SUXfSXN2x2wZQCbjZZUetYlNWH6-ryqQ/edit#heading=h.2lh6ehprpvl6
     - industryName: Scope transparency
       tier: Free
-      moreInfoUrl: https://fleetdm.com/transparency
+      documentationUrl: https://fleetdm.com/transparency
 - categoryName: Security and compliance
   features:
     - industryName: Single sign on (SSO, SAML)
@@ -270,7 +270,7 @@
       friendlyName: Ensure hard disks are encrypted
       description: Encrypt hard disks of macOS and Windows computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker).
       tier: Free
-      cues:
+      waysToUse:
         - description: Report on disk encryption status
         - description: Encrypt hard disks on macOS with FileVault
         - description: Escrow FileVault keys on macOS
@@ -342,11 +342,10 @@
       productCategories: [Endpoint operations]
 - categoryName: Deployment
   features:
-    - industryName: Self-hosted
+    - industryName: Self-managed
+      friendlyName: Host it yourself
       tier: Free
-      cues:
-        - description: Self-managed
-        - description: Host it yourself
+      buzzwords: [Self-hosted]
     - industryName: Deployment tools (Terraform, Helm)
       tier: Free
     - industryName: Configure osquery startup flags remotely
