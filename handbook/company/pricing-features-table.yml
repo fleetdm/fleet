@@ -1,4 +1,4 @@
-- categoryName: Other
+- categoryName: Endpoint ops
   features:
     - industryName: File integrity monitoring (FIM) # Short industry phrase
       friendlyName: Detect changes to critical files # Short, Fleet one-liner for the feature, written in the imperative mood.  (If easy to do, base this off of the words that an actual customer is saying.)
@@ -23,6 +23,30 @@
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
         - description: Meet compliance mandates
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+    - industryName: Flexible posture assessment
+      friendlyName: Verify any security or compliance goal
+      description: Simplify security audits and verify ongoing compliance for every endpoint, from workstations to data centers.
+      documentationUrl:
+      screenshotSrc:
+      usualDepartment: Security
+      tier: Free
+      productCategories: [Endpoint operations]
+      dri: mikermcneil
+      demos:
+        - description: 
+          quote: 
+          moreInfoUrl: 
+      cues:
+        - description: Attack surface management (ASM)
+        - description: Share device health reports
+        - description: Maximize Security Control coverage
+        - description: Uncover gaps in security policies, configurations, and hygiene.
+          moreInfoUrl: https://www.axonius.com/use-cases/coverage-gap-discovery
+        - description: Automatically apply security policies to protect endpoints against attack.
+        - description: Surface security issues in all your deployed endpoints even data centers and factories.
+        - description: Continually validate controls and policies. 
+        - description: Align endpoints with your security policies. 
+          moreInfoUrl: https://www.axonius.com/use-cases/cmdb-reconciliation
     - industryName: Human-endpoint mapping
       friendlyName: See who logs in on every computer
       description: Identify who logs in to any system, including login history and current sessions.  Look up any host by the email address of the person using it.
@@ -46,6 +70,8 @@
           moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
         - description: See what servers someone is logged-in on
           moreInfoUrl: https://community.spiceworks.com/topic/138171-is-there-a-way-to-see-what-servers-someone-is-logged-in-on
+- categoryName: Integrations
+  features:
     - industryName: REST API
       friendlyName: Automate any feature  
       description: ""
@@ -137,8 +163,6 @@
       tier: Premium
 - categoryName: Collaboration
   features:
-    - industryName: Shareable device health reports
-      tier: Free
     - industryName: Versionable queries and config (GitOps)
       tier: Free
       demos:
