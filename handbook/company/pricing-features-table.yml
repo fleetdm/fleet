@@ -35,7 +35,7 @@
         - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
           quote: 
           moreInfoUrl: 
-      buzzwords: [device trust,zero trust,beyondcorp,device attestation,conditional access] #« cues < ways to use
+      buzzwords: [Device trust,Zero trust,Beyondcorp,Device attestation,Conditional access]
       waysToUse:
         - description: Automatically manage the behavior of sick endpoints that are at higher risk of vulnerabilities.
         - description: Implement conditional access based on device health using the Fleet API.
@@ -43,8 +43,7 @@
         - description: Control and restore access to applications by restricting access when devices do not meet particular security requirements.
           moreInfoUrl: https://duo.com/docs/device-health
         - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems.
-        - description: Implement device attestation
-        - description: Multivariate trust access
+        - description: Implement multivariate device trust
           moreInfoUrl: https://youtu.be/5sFOdpMLXQg?feature=shared&t=1445
         - description: Implement your own version of Google's zero trust model (BeyondCorp)
           moreInfoUrl: https://cloud.google.com/beyondcorp
@@ -55,7 +54,6 @@
       tier: Premium
       dri: mikermcneil
       productCategories: [Endpoint operations,Device management]
-      buzzwords: [Scripting]
       waysToUse:
         - description: Client platform engineer: Execute custom macOS scripts
           moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-mac-scripts-via-mdm/
@@ -82,7 +80,7 @@
         - description: 
           quote: 
           moreInfoUrl: 
-      buzzwords: [Attack surface management (ASM)]
+      buzzwords: [Attack surface management (ASM),Endpoint hardening,Posture hardening]
       waysToUse:
         - description: Monitor devices that don't meet your organization's custom security policies
         - description: Keep your devices compliant with customizable baselines, or use common benchmarks like CIS.
