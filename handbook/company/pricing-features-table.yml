@@ -1,5 +1,9 @@
 - categoryName: Endpoint ops
   features:
+    #
+    #  ╔═╗╦╔╦╗
+    #  ╠╣ ║║║║
+    #  ╚  ╩╩ ╩
     - industryName: File integrity monitoring (FIM) # Short industry phrase
       friendlyName: Detect changes to critical files # Short, Fleet one-liner for the feature, written in the imperative mood.  (If easy to do, base this off of the words that an actual customer is saying.)
       description: Specify files to monitor for changes or deletions, then log those events to your SIEM or data lake, including key information such as filepath and checksum. # Clear Mr. Rogers description
@@ -23,6 +27,10 @@
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
         - description: Meet compliance mandates
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+      #
+      #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦ ╦╔═╗╔═╗╦ ╔╦╗╦ ╦
+      #   ║║║╣ ╚╗╔╝║║  ║╣   ╠═╣║╣ ╠═╣║  ║ ╠═╣
+      #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╚═╝╩ ╩╩═╝╩ ╩ ╩
     - industryName: Device health
       friendlyName: Automate device health
       description: Automatically report performance issues using webhooks or integrations, and quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
@@ -47,6 +55,10 @@
           moreInfoUrl: https://youtu.be/5sFOdpMLXQg?feature=shared&t=1445
         - description: Implement your own version of Google's zero trust model (BeyondCorp)
           moreInfoUrl: https://cloud.google.com/beyondcorp
+    #
+    #  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗  ╔═╗═╗ ╦╔═╗╔═╗╦ ╦╔╦╗╦╔═╗╔╗╔
+    #  ╚═╗║  ╠╦╝║╠═╝ ║   ║╣ ╔╩╦╝║╣ ║  ║ ║ ║ ║║ ║║║║
+    #  ╚═╝╚═╝╩╚═╩╩   ╩   ╚═╝╩ ╚═╚═╝╚═╝╚═╝ ╩ ╩╚═╝╝╚╝
     - industryName: Script execution
       fiendlyName: Safely execute custom scripts (macOS, Windows, and Linux)
       description: Deploy and execute custom scripts using a REST API, and manage your library of scripts in the UI or a git repo.
@@ -67,7 +79,11 @@
           moreInfoUrl: https://help.zscaler.com/deception/downloading-and-running-remediation-script
         - description: Deploy custom scripts
           moreInfoUrl: https://scalefusion.com/custom-scripting
-    - industryName: Flexible posture assessment
+    #
+    #  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╔═╗╔╦╗╦ ╦╦═╗╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
+    #  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║    ╠═╝║ ║╚═╗ ║ ║ ║╠╦╝║╣   ╠═╣╚═╗╚═╗║╣ ╚═╗╚═╗║║║║╣ ║║║ ║
+    #  ╩ ╩╚═╝ ╩ ╚═╝╩ ╩╩ ╩ ╩ ╩╚═╝  ╩  ╚═╝╚═╝ ╩ ╚═╝╩╚═╚═╝  ╩ ╩╚═╝╚═╝╚═╝╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩
+    - industryName: Automatic posture assessment
       friendlyName: Verify any security or compliance goal
       description: Simplify security audits, build definitive reports, and verify ongoing compliance for every endpoint, from workstations to data centers.
       documentationUrl:
@@ -94,6 +110,10 @@
         - description: Automatically apply security policies to protect endpoints against attack.
         - description: Surface security issues in all your deployed endpoints even data centers and factories.
         - description: Continually validate controls and policies
+    #
+    #  ╦ ╦╦ ╦╔╦╗╔═╗╔╗╔   ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗  ╔╦╗╔═╗╔═╗╔═╗╦╔╗╔╔═╗
+    #  ╠═╣║ ║║║║╠═╣║║║───║╣ ║║║ ║║╠═╝║ ║║║║║ ║   ║║║╠═╣╠═╝╠═╝║║║║║ ╦
+    #  ╩ ╩╚═╝╩ ╩╩ ╩╝╚╝   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩   ╩ ╩╩ ╩╩  ╩  ╩╝╚╝╚═╝
     - industryName: Human-endpoint mapping
       friendlyName: See who logs in on every computer
       description: Identify who logs in to any system, including login history and current sessions.  Look up any host by the email address of the person using it.
@@ -118,11 +138,15 @@
           moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
         - description: See what servers someone is logged-in on
           moreInfoUrl: https://community.spiceworks.com/topic/138171-is-there-a-way-to-see-what-servers-someone-is-logged-in-on
+    #  ╔═╗═╗ ╦╔═╗╔═╗╦═╗╔╦╗   ┬   ╔═╗╦ ╦╔╗╔╔═╗
+    #  ║╣ ╔╩╦╝╠═╝║ ║╠╦╝ ║   ┌┼─  ╚═╗╚╦╝║║║║
+    #  ╚═╝╩ ╚═╩  ╚═╝╩╚═ ╩   └┘   ╚═╝ ╩ ╝╚╝╚═╝
     - industryName: Automated export/sync
       friendlyName: Build custom query automations
       description: Ship logs with snapshots of any imaginable report, or monitor results for changes.
       tier: Free
       usualDepartment: Security
+      productCategories: [Endpoint operations]
       waysToUse:
         - description: Ship logs to Splunk, Snowflake, and more
         - description: Synchronize live state of endpoints to a data lake or SIEM in a consistent shape.
@@ -130,8 +154,64 @@
           moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
         - description: Export data to a third-party SIEM tool
           moreInfoUrl: https://www.websense.com/content/support/library/web/hosted/admin_guide/siem_integration_explain.aspx
+    #  ╔═╗╔═╗╔═╗╔╗╔╔╦╗  ╔═╗╦ ╦╔╦╗╔═╗   ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗
+    #  ╠═╣║ ╦║╣ ║║║ ║   ╠═╣║ ║ ║ ║ ║───║ ║╠═╝ ║║╠═╣ ║ ║╣
+    #  ╩ ╩╚═╝╚═╝╝╚╝ ╩   ╩ ╩╚═╝ ╩ ╚═╝   ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝
+    - industryName: Agent auto-update
+      friendlyName: Keep agents and extensions up to date
+      descrption: Keep agents and extensions up to date by loading code from Fleet's free update registry.
+      tier: Free
+      productCategories: [Endpoint operations]
+    #  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╦═╗╔═╗
+    #  ║║║║╚═╗ ║ ╠═╣║  ║  ║╣ ╠╦╝╚═╗
+    #  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╚═╝╩╚═╚═╝
+    - industryName: Installers (self-service)
+      tier: Free
+      productCategories: [Endpoint operations]
+    #  ╔╗ ╔═╗╔╦╗╔═╗╦ ╦  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗╦╔═╗╔╗╔
+    #  ╠╩╗╠═╣ ║ ║  ╠═╣  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║
+    #  ╚═╝╩ ╩ ╩ ╚═╝╩ ╩  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝
+    - industryName: Batch installation (Chef, Ansible, Puppet, MDM)
+      friendlyName: Install agents over the air
+      tier: free
+      productCategories: [Endpoint operations]
+    #  ╦═╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╔═╗╔╦╗╔╦╗╦╔╗╔╔═╗╔═╗
+    #  ╠╦╝║╣ ║║║║ ║ ║ ║╣   ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
+    #  ╩╚═╚═╝╩ ╩╚═╝ ╩ ╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
+    - industryName: Remote settings
+      description: Configure agent options remotely, over the air.  (Includes osquery config, fleetd options, and osquery startup flags.)
+      tier: Free
+      usualDepartment: Security
+      productCategories: [Endpoint operations]
+    #  ╦  ╦╔═╗╦═╗╦╔═╗╔╗ ╦  ╔═╗  ╔═╗╔╗╔╦═╗╔═╗╦  ╦  ╔╦╗╔═╗╔╗╔╔╦╗
+    #  ╚╗╔╝╠═╣╠╦╝║╠═╣╠╩╗║  ║╣   ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║
+    #   ╚╝ ╩ ╩╩╚═╩╩ ╩╚═╝╩═╝╚═╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩
+    - industryName: Variable enrollment
+      description: Enroll hosts in different groups using different enrollment secrets and/or installers per-baseline.
+      tier: Premium
+    #  ╔═╗╦═╗╦╦  ╦╔═╗╔╦╗╔═╗  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╦═╗╔═╗╔═╗╦╔═╗╔╦╗╦═╗╦ ╦
+    #  ╠═╝╠╦╝║╚╗╔╝╠═╣ ║ ║╣   ║ ║╠═╝ ║║╠═╣ ║ ║╣   ╠╦╝║╣ ║ ╦║╚═╗ ║ ╠╦╝╚╦╝
+    #  ╩  ╩╚═╩ ╚╝ ╩ ╩ ╩ ╚═╝  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝  ╩╚═╚═╝╚═╝╩╚═╝ ╩ ╩╚═ ╩
+    - industryName: Private update registry
+      friendlyName: Update agents from a secret URL
+      description: Load agent code from a secret URL that you manage.
+      tier: Premium
+      usualDepartment: Security
+      productCategories: [Endpoint operations]
+    #  ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗  ╔╦╗╔═╗╔╗ ╦  ╔═╗╔═╗
+    #  ║  ║ ║╚═╗ ║ ║ ║║║║   ║ ╠═╣╠╩╗║  ║╣ ╚═╗
+    #  ╚═╝╚═╝╚═╝ ╩ ╚═╝╩ ╩   ╩ ╩ ╩╚═╝╩═╝╚═╝╚═╝
+    - industryName: Custom tables
+      friendlyName: Add tables to osquery with extensions
+      description: Install osquery extensions over the air. #  (GitOptional)
+      moreInfoUrl: https://github.com/trailofbits/osquery-extensions/blob/3df2b72ad78549e25344c79dbc9bce6808c4d92a/README.md#extensions
+      tier: Premium
 - categoryName: Integrations
   features:
+    #
+    #  ╦═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╦
+    #  ╠╦╝║╣ ╚═╗ ║   ╠═╣╠═╝║
+    #  ╩╚═╚═╝╚═╝ ╩   ╩ ╩╩  ╩
     - industryName: REST API
       friendlyName: Automate any feature
       description: 
@@ -139,12 +219,21 @@
       screenshotSrc:
       tier: Free
       dri: rachaelshaw
+    #  ╔═╗╔═╗╔╦╗╔╦╗╔═╗╔╗╔╔╦╗  ╦  ╦╔╗╔╔═╗  ╔╦╗╔═╗╔═╗╦    ┌─  ╔═╗╦  ╦  ─┐
+    #  ║  ║ ║║║║║║║╠═╣║║║ ║║  ║  ║║║║║╣    ║ ║ ║║ ║║    │   ║  ║  ║   │
+    #  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝  ╩═╝╩╝╚╝╚═╝   ╩ ╚═╝╚═╝╩═╝  └─  ╚═╝╩═╝╩  ─┘
     - industryName: Command line tool (CLI)
       friendlyName: fleetctl
       tier: Free
+    #  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
+    #  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
+    #  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝
     - industryName: Webhooks
       friendlyName: 
       tier: Free
+    #  ╔╦╗╔═╗╔═╗╔═╗  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
+    #   ║║║╣ ║╣ ╠═╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║╚═╗
+    #  ═╩╝╚═╝╚═╝╩    ╩ ╩╚═╝ ╩ ╚═╝╩ ╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
     - industryName: Deep automations
       friendlyName: Trigger webhooks or run scripts
       description: Fire off webhooks or run scripts on hosts when certain things happen in Fleet.
@@ -157,18 +246,77 @@
         - description: Use osquery and santa to work around inflexibilities in proprietary MDMs and other protection solutions.
         - description: Listen to webhooks to perform autonomous self-healing (cloud security engineering)
           moreInfoUrl: https://www.fugue.co/blog/automated-remediation-scripts-vs.-self-healing-infrastructure-two-approaches-to-cloud-security
-    - industryName: GitHub action
+    #  ╔═╗╦╔╦╗╔═╗╔═╗╔═╗
+    #  ║ ╦║ ║ ║ ║╠═╝╚═╗
+    #  ╚═╝╩ ╩ ╚═╝╩  ╚═╝
+    - industryName: GitOps
+      friendlyName: Manage endpoints in git
+      description: Fork the best practices repo and use the GitHub Action to hook it up to your Fleet instance in minutes.
       moreInfoUrl: https://github.com/fleetdm/fleet-mdm-gitops
       productCategories: [Endpoint operations,Device management,Vulnerability management]
       tier: Free
-    - industryName: Community integrations (Tines, Snowflake, Terraform, Chronicle, etc)
+      #  ╔═╗╦═╗╔═╗╔═╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
+      #  ╠╣ ╠╦╝║╣ ║╣   ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
+      #  ╚  ╩╚═╚═╝╚═╝  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
+    - industryName: Free integrations (Tines, Snowflake, Terraform, Chronicle, etc)
+      friendlyName: Borrow off-the-shelf tactics from the community
+      description:
       moreInfoUrl: https://fleetdm.com/integrations
       tier: Free
-    - industryName: Premium integrations (Puppet, Jira, Zendesk, etc)
+      waysToUse:
+        - description: (ActiveDirectory) Know who opened your computer and check their device posture before you let them log into anything.
+        - description: (Ansible) Easily issue MDM commands and standardize data across operating systems.
+        - description: (AWS) Deploy your own self-managed Fleet in any AWS environment in minutes.
+        - description: (Azure) Deploy your own self-managed Fleet in the Microsoft Cloud in minutes.
+        - description: (Chef) Easily issue MDM commands and standardize data across operating systems.
+        - description: (Elastic) Ingest osquery data and monitor for important changes or events.
+        - description: (GitHub) Version control using git, enabling collaboration and a GitOps workflow.
+        - description: (GitLab) Version control using git, enabling collaboration and a GitOps workflow.
+        - description: (Chronicle) Ingest osquery data and monitor for important changes or events.
+        - description: (Google Cloud) Deploy your own self-managed Fleet in any GCP environment in minutes.
+        - description: (Munki) Easily issue MDM commands and standardize data across operating systems.
+        - description: (Okta) Know who opened your computer and check their device posture before you let them log into anything.
+        - description: (Snowflake) Ingest osquery data and monitor for important changes or events.
+        - description: (Splunk) Ingest osquery data and monitor for important changes or events.
+        - description: (Tines) Build custom workflows that trigger in various situations.
+        - description: (Webhooks) Configure automations that send webhooks to specific URLs when Fleet detects changes to host, policy, and CVE statuses.
+      #  ╔═╗╦═╗╔═╗╔╦╗╦╦ ╦╔╦╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
+      #  ╠═╝╠╦╝║╣ ║║║║║ ║║║║  ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
+      #  ╩  ╩╚═╚═╝╩ ╩╩╚═╝╩ ╩  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
+    - industryName: Premium integrations (Puppet, Vanta, Jira, Zendesk, etc)
+      friendlyName: Borrow off-the-shelf tactics from legendary brands
+      description: Plug in to cutting edge frameworks from similar organizations.
       moreInfoUrl: https://fleetdm.com/integrations
       tier: Premium
+      buzzwords: [Vanta,Puppet,Jira,Zendesk,Custom IdP]
       waysToUse:
-        - description: Map macOS settings to computers with the Puppet module.
+        - description: (Vanta) Trigger a workflow based on a failing policy.
+        - description: (Puppet) Easily issue MDM commands, standardize data across operating systems, and map macOS+Windows settings to computers with the Puppet module.
+        - description: (Jira) Automatically create Jira tickets in various situations.
+        - description: (Torq) Build custom workflows that trigger in various situations.
+        - description: (Zendesk) Automatically create Zendesk tickets in various situations.
+        - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
+- categoryName: Support
+  features:
+    - industryName: Public issue tracker (GitHub)
+      tier: Free
+    - industryName: Community Slack channel
+      tier: Free
+    - industryName: Unlimited email support (confidential)
+      tier: Premium
+    - industryName: Phone and video call support
+      tier: Premium
+- categoryName: Deployment
+  features:
+    - industryName: Self-managed
+      friendlyName: Host it yourself
+      tier: Free
+      buzzwords: [Self-hosted]
+    - industryName: Deployment tools (Terraform, Helm)
+      tier: Free
+      productCategories: [Endpoint operations]
+    - industryName: Managed Cloud
+      tier: Premium
 - categoryName: Device management
   features:
     - industryName: User-initiated enrollment of macOS computers
@@ -222,16 +370,6 @@
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-- categoryName: Support
-  features:
-    - industryName: Public issue tracker (GitHub)
-      tier: Free
-    - industryName: Community Slack channel
-      tier: Free
-    - industryName: Unlimited email support (confidential)
-      tier: Premium
-    - industryName: Phone and video call support
-      tier: Premium    
 - categoryName: Inventory management
   features:
     - industryName: Device inventory dashboard
@@ -241,10 +379,11 @@
     - industryName: Search devices by IP, serial, hostname, UUID
       tier: Free
     - industryName: Labels (SQL-driven)
+      friendlyName: Filter hosts using SQL
       tier: Free
-    - industryName: Teams (device groups)
+    - industryName: Baselines (device groups)
       friendlyName: Manage different endpoints differently
-      description: Set baselines and strategies for hosts in different situations, and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
+      description: Set baselines and strategies for hosts in different situations called "teams", and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
       tier: Premium
       productCategories: [Endpoint operations,Device management,Vulnerability management]
       waysToUse:
@@ -339,27 +478,3 @@
       tier: Free
       usualDepartment: Security
       productCategories: [Endpoint operations]
-- categoryName: Deployment
-  features:
-    - industryName: Self-managed
-      friendlyName: Host it yourself
-      tier: Free
-      buzzwords: [Self-hosted]
-    - industryName: Deployment tools (Terraform, Helm)
-      tier: Free
-    - industryName: Configure osquery startup flags remotely
-      tier: Free
-      usualDepartment: Security
-      productCategories: [Endpoint operations]
-    - industryName: Auto-update osquery agents
-      tier: Free
-      productCategories: [Endpoint operations]
-    - industryName: Self-managed auto-update registry
-      tier: Premium
-      usualDepartment: Security
-      productCategories: [Endpoint operations]
-    - industryName: Manage osquery extensions remotely
-      tier: Premium
-      productCategories: [Endpoint operations]
-    - industryName: Managed Cloud
-      tier: Premium
