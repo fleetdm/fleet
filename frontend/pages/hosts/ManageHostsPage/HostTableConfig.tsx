@@ -394,9 +394,8 @@ const allHostTableHeaders: IDataColumn[] = [
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
-            Settings can be updated remotely on <br/>
-            hosts with MDM turned on. To filter by<br/>
-            MDM status, head to the Dashboard page.
+            Settings can be updated remotely on hosts with MDM turned<br/>
+            on. To filter by MDM status, head to the Dashboard page.
           `}
         >
           MDM status
@@ -429,9 +428,8 @@ const allHostTableHeaders: IDataColumn[] = [
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
-            The MDM server that updates settings<br/>
-            on the host. To filter by MDM server URL,<br/>
-            head to the Dashboard page.
+            The MDM server that updates settings on the host. To<br/>
+            filter by MDM server URL, head to the Dashboard page.
           `}
         >
           MDM server URL
