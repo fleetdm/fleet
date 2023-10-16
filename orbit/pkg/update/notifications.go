@@ -502,7 +502,7 @@ func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fle
 	}
 
 	errServerUpdate := w.EncryptionResult.SetOrUpdateDiskEncryptionKey(payload)
-	if err != nil {
+	if errServerUpdate != nil {
 		log.Error().Err(errServerUpdate).Msg("failed to send encryption result to Fleet Server")
 		return
 	}
