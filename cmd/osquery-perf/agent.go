@@ -496,12 +496,16 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		select {
 		case <-logTicker:
 			// check if we have any scheduled queries that should be returning results
+			var results []json.RawMessage
+			now := time.Now().Unix()
 			for i, query := range a.scheduledQueryData {
-				now := time.Now().Unix()
 				if query.NextRun == 0 || now >= int64(query.NextRun) {
-					a.SubmitLogs(query.Name, a.CachedString("id"), a.CachedString("hostname"), query.PackName, query.NumResults)
+					results = append(results, a.scheduledQueryResults(query.PackName, query.Name, int(query.NumResults)))
 					a.scheduledQueryData[i].NextRun = float64(now + int64(query.ScheduleInterval))
 				}
+			}
+			if len(results) > 0 {
+				a.SubmitLogs(results)
 			}
 		}
 	}
@@ -1444,16 +1448,8 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	// No need to read the distributed write body
 }
 
-func (a *agent) SubmitLogs(queryName, hostID, hostName, packName string, numResults uint) {
-	type submitLogsRequest struct {
-		NodeKey string          `json:"node_key"`
-		LogType string          `json:"log_type"`
-		Data    json.RawMessage `json:"data"`
-	}
-	r := submitLogsRequest{
-		NodeKey: a.nodeKey,
-		LogType: "result",
-		Data: json.RawMessage(`[{
+func (a *agent) scheduledQueryResults(packName, queryName string, numResults int) json.RawMessage {
+	return json.RawMessage(`{
   "snapshot": [` + results(int(numResults), a.UUID) + `
   ],
   "action": "snapshot",
@@ -1468,7 +1464,23 @@ func (a *agent) SubmitLogs(queryName, hostID, hostName, packName string, numResu
     "host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
     "hostname": "` + a.CachedString("hostname") + `"
   }
-}]`),
+}`)
+}
+
+func (a *agent) SubmitLogs(results []json.RawMessage) {
+	jsonResults, err := json.Marshal(results)
+	if err != nil {
+		panic(err)
+	}
+	type submitLogsRequest struct {
+		NodeKey string          `json:"node_key"`
+		LogType string          `json:"log_type"`
+		Data    json.RawMessage `json:"data"`
+	}
+	r := submitLogsRequest{
+		NodeKey: a.nodeKey,
+		LogType: "result",
+		Data:    jsonResults,
 	}
 
 	body, err := json.Marshal(r)
@@ -1491,7 +1503,7 @@ func (a *agent) SubmitLogs(queryName, hostID, hostName, packName string, numResu
 }
 
 // Creates a set of results for use in tests for Query Results.
-func results(num int, hostID string) string {
+func results(num int, hostUUID string) string {
 	b := strings.Builder{}
 	for i := 0; i < num; i++ {
 		b.WriteString(`    {
@@ -1504,7 +1516,7 @@ func results(num int, hostID string) string {
       "pid": "3574",
       "platform_mask": "9",
       "start_time": "1696502961",
-      "uuid": "` + hostID + `",
+      "uuid": "` + hostUUID + `",
       "version": "5.9.2",
       "watcher": "3570"
     }`)
@@ -1534,7 +1546,7 @@ func main() {
 		randSeed       = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
 		startPeriod    = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
 		configInterval = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
-		// This is how often to check for scheduled queries.
+		// Flag loginterval defines how often to check for sending scheduled query results.
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
 		logInterval         = flag.Duration("logger_interval", 1*time.Second, "Interval for scheduled queries log requests")
 		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
