@@ -300,6 +300,7 @@ type agent struct {
 	UUID                  string
 	SerialNumber          string
 	ConfigInterval        time.Duration
+	LogInterval           time.Duration
 	QueryInterval         time.Duration
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
@@ -326,7 +327,7 @@ func newAgent(
 	agentIndex int,
 	serverAddress, enrollSecret string,
 	templates *template.Template,
-	configInterval, queryInterval, mdmCheckInInterval time.Duration,
+	configInterval, logInterval, queryInterval, mdmCheckInInterval time.Duration,
 	softwareCount softwareEntityCount,
 	userCount entityCount,
 	policyPassProb float64,
@@ -383,6 +384,7 @@ func newAgent(
 
 		EnrollSecret:       enrollSecret,
 		ConfigInterval:     configInterval,
+		LogInterval:        logInterval,
 		QueryInterval:      queryInterval,
 		MDMCheckInInterval: mdmCheckInInterval,
 		UUID:               uuid,
@@ -453,27 +455,51 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		go a.runMDMLoop()
 	}
 
-	configTicker := time.Tick(a.ConfigInterval)
-	liveQueryTicker := time.Tick(a.QueryInterval)
-	// Since this is an internal timer, we don't need to configure it.
-	logTicker := time.Tick(1 * time.Second)
-	for {
-		select {
-		case <-configTicker:
-			a.config()
-		case <-liveQueryTicker:
-			resp, err := a.DistributedRead()
-			if err != nil {
-				log.Println(err)
-			} else if len(resp.Queries) > 0 {
-				a.DistributedWrite(resp.Queries)
+	//
+	// osquery runs three separate independent threads,
+	//	- a thread for getting, running and submitting results for distributed queries (distributed).
+	// 	- a thread for getting configuration from a remote server (config).
+	//	- a thread for submitting log results (logger).
+	//
+	// Thus we try to simulate that as much as we can.
+
+	// distributed thread:
+	go func() {
+		liveQueryTicker := time.Tick(a.QueryInterval)
+		for {
+			select {
+			case <-liveQueryTicker:
+				resp, err := a.DistributedRead()
+				if err != nil {
+					log.Println(err)
+				} else if len(resp.Queries) > 0 {
+					a.DistributedWrite(resp.Queries)
+				}
 			}
+		}
+	}()
+
+	// config thread:
+	go func() {
+		for {
+			configTicker := time.Tick(a.ConfigInterval)
+			select {
+			case <-configTicker:
+				a.config()
+			}
+		}
+	}()
+
+	// logger thread:
+	for {
+		logTicker := time.Tick(a.LogInterval)
+		select {
 		case <-logTicker:
 			// check if we have any scheduled queries
 			for i, query := range a.scheduledQueryData {
-				time.Sleep(500 * time.Millisecond)
 				now := time.Now().Unix()
 				if query.NextRun == 0 || now >= int64(query.NextRun) {
+					time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond) // Sleep to simulate a query being executed.
 					a.SubmitLogs(query.Name, a.CachedString("id"), a.CachedString("hostname"), query.PackName, query.NumResults)
 					a.scheduledQueryData[i].NextRun = float64(now + int64(query.ScheduleInterval))
 				}
@@ -1509,6 +1535,7 @@ func main() {
 		randSeed            = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
 		startPeriod         = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
 		configInterval      = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		logInterval         = flag.Duration("logger_interval", 1*time.Second, "Interval for scheduled queries log requests")
 		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 10*time.Second, "Interval for performing MDM check ins")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
@@ -1632,6 +1659,7 @@ func main() {
 			*enrollSecret,
 			tmpl,
 			*configInterval,
+			*logInterval,
 			*queryInterval,
 			*mdmCheckInInterval,
 			softwareEntityCount{
