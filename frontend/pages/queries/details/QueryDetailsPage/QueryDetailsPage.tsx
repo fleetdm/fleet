@@ -261,7 +261,11 @@ const QueryDetailsPage = ({
   );
 
   const renderReport = () => {
-    const loggingSnapshot = lastEditedQueryLoggingType === "snapshot";
+    // Includes edge case where logging can be set to empty string using fleetctl prior to v4.39
+    // Backend treats logging set to "" as "snapshot"
+    const loggingSnapshot =
+      lastEditedQueryLoggingType === "snapshot" ||
+      lastEditedQueryLoggingType === "";
     const disabledCaching =
       disabledCachingGlobally || lastEditedQueryDiscardData || !loggingSnapshot;
     const emptyCache = (queryReport?.results?.length ?? 0) === 0;
