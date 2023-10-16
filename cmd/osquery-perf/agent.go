@@ -1546,9 +1546,9 @@ func main() {
 		randSeed       = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
 		startPeriod    = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
 		configInterval = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
-		// Flag loginterval defines how often to check for sending scheduled query results.
+		// Flag logger_tls_period defines how often to check for sending scheduled query results.
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
-		logInterval         = flag.Duration("logger_interval", 1*time.Second, "Interval for scheduled queries log requests")
+		logInterval         = flag.Duration("logger_tls_period", 1*time.Second, "Interval for scheduled queries log requests")
 		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 10*time.Second, "Interval for performing MDM check ins")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
