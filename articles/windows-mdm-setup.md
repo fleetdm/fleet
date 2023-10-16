@@ -12,7 +12,7 @@ With Fleet connected to Entra, the end user will see Microsoft's default setup e
 
 ## Requirements
 To use Fleet's Windows MDM features you need to have:
-- A [deployed Fleet instance](../Deploying/Introduction.md).
+- A [deployed Fleet instance](https://fleetdm.com/docs/deploy/introduction).
 - A Fleet user with the admin role.
 
 ## Turning on Windows MDM
