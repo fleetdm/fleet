@@ -320,7 +320,12 @@ const EditQueryForm = ({
           interval: lastEditedQueryFrequency,
           platform: lastEditedQueryPlatforms,
           min_osquery_version: lastEditedQueryMinOsqueryVersion,
-          logging: lastEditedQueryLoggingType,
+          // Converts edge case where logging can be set to empty string using fleetctl prior to v4.39
+          // Backend treats logging set to "" as "snapshot"
+          logging:
+            lastEditedQueryLoggingType === ""
+              ? "snapshot"
+              : lastEditedQueryLoggingType,
         })
         .then((response: { query: ISchedulableQuery }) => {
           setIsSaveAsNewLoading(false);
@@ -730,7 +735,13 @@ const EditQueryForm = ({
                     options={LOGGING_TYPE_OPTIONS}
                     onChange={onChangeSelectLoggingType}
                     placeholder="Select"
-                    value={lastEditedQueryLoggingType}
+                    // Backend treats edge case logging set to ""  using fleetctl prior to v4.39 as "snapshot"
+                    // Displays logging set to empty string as snapshot
+                    value={
+                      lastEditedQueryLoggingType === ""
+                        ? "snapshot"
+                        : lastEditedQueryLoggingType
+                    }
                     label="Logging"
                     wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
                   />
