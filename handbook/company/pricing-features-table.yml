@@ -1,32 +1,5 @@
 - categoryName: Endpoint ops
   features:
-    #
-    #  ╔═╗╦╔╦╗
-    #  ╠╣ ║║║║
-    #  ╚  ╩╩ ╩
-    - industryName: File integrity monitoring (FIM) # Short industry phrase
-      friendlyName: Detect changes to critical files # Short, Fleet one-liner for the feature, written in the imperative mood.  (If easy to do, base this off of the words that an actual customer is saying.)
-      description: Specify files to monitor for changes or deletions, then log those events to your SIEM or data lake, including key information such as filepath and checksum. # Clear Mr. Rogers description
-      documentationUrl: https://fleetdm.com/guides/osquery-evented-tables-overview#file-integrity-monitoring-fim # URL of the single-best page within the docs which serves as a "jumping-off point" for this feature.
-      screenshotSrc: "" # A screenshot of the single, best, simplifying, obvious example 
-      tier: Free # Either "Free" or "Premium"
-      usualDepartment: Security # or omit if there isn't a particular departmental leaning we've noticed
-      productCategories: [Endpoint operations] # or omit if this isn't associated with a single product category
-      dri: mikermcneil #GitHub user name
-      demos:
-        - description: A top gaming company needed a way to monitor critical files on production Debian servers.
-          quote: The FIM features are kind of a top priority.
-          moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
-      waysToUse:
-        - description: Monitor critical files on production Debian servers
-        - description: Detect illicit activity
-          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
-        - description: Pinpoint unintended changes
-          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
-        - description: Verify update status and monitor system health
-          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
-        - description: Meet compliance mandates
-          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
       #
       #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦ ╦╔═╗╔═╗╦ ╔╦╗╦ ╦
       #   ║║║╣ ╚╗╔╝║║  ║╣   ╠═╣║╣ ╠═╣║  ║ ╠═╣
@@ -154,6 +127,48 @@
           moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
         - description: Export data to a third-party SIEM tool
           moreInfoUrl: https://www.websense.com/content/support/library/web/hosted/admin_guide/siem_integration_explain.aspx
+    #
+    #  ╔═╗╦╔╦╗
+    #  ╠╣ ║║║║
+    #  ╚  ╩╩ ╩
+    - industryName: File integrity monitoring (FIM) # Short industry phrase
+      friendlyName: Detect changes to critical files # Short, Fleet one-liner for the feature, written in the imperative mood.  (If easy to do, base this off of the words that an actual customer is saying.)
+      description: Specify files to monitor for changes or deletions, then log those events to your SIEM or data lake, including key information such as filepath and checksum. # Clear Mr. Rogers description
+      documentationUrl: https://fleetdm.com/guides/osquery-evented-tables-overview#file-integrity-monitoring-fim # URL of the single-best page within the docs which serves as a "jumping-off point" for this feature.
+      screenshotSrc: "" # A screenshot of the single, best, simplifying, obvious example 
+      tier: Free # Either "Free" or "Premium"
+      usualDepartment: Security # or omit if there isn't a particular departmental leaning we've noticed
+      productCategories: [Endpoint operations] # or omit if this isn't associated with a single product category
+      dri: mikermcneil #GitHub user name
+      demos:
+        - description: A top gaming company needed a way to monitor critical files on production Debian servers.
+          quote: The FIM features are kind of a top priority.
+          moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
+      waysToUse:
+        - description: Monitor critical files on production Debian servers
+        - description: Detect illicit activity
+          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+        - description: Pinpoint unintended changes
+          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+        - description: Verify update status and monitor system health
+          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+        - description: Meet compliance mandates
+          moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+    #  ╦ ╦╔═╗╦═╗╔═╗
+    #  ╚╦╝╠═╣╠╦╝╠═╣
+    #   ╩ ╩ ╩╩╚═╩ ╩
+    - industryName: YARA
+      fiendlyName: Scan files for malware
+      description: Look for files that match a YARA signature.
+      documentationUrl: https://fleetdm.com/tables/yara
+      tier: Free
+      dri: mikermcneil
+      usualDepartment: Security
+      productCategories: [Endpoint operations]
+      buzzwords: [Antivirus]
+      waysToUse:
+        - description: Write YARA rules to continuously scan host filesystems for malware signatures using policies.
+          moreInfoUrl: https://yara.readthedocs.io/en/stable/writingrules.html
     #  ╔═╗╔═╗╔═╗╔╗╔╔╦╗  ╔═╗╦ ╦╔╦╗╔═╗   ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗
     #  ╠═╣║ ╦║╣ ║║║ ║   ╠═╣║ ║ ║ ║ ║───║ ║╠═╝ ║║╠═╣ ║ ║╣
     #  ╩ ╩╚═╝╚═╝╝╚╝ ╩   ╩ ╩╚═╝ ╩ ╚═╝   ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝
