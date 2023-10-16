@@ -16,7 +16,7 @@ func Up_20231016091915(tx *sql.Tx) error {
 		UPDATE queries SET logging_type = ? WHERE logging_type = '';
     `, fleet.LoggingSnapshot)
 	if err != nil {
-		return fmt.Errorf("failed to create table query_results: %w", err)
+		return fmt.Errorf("failed to update queries logging_type: %w", err)
 	}
 
 	return nil
