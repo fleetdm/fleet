@@ -3,13 +3,12 @@ This script is intended to be used with AWS Lambda to monitor the various
 crons that live inside of Fleet.
 
 We will check to see if there are recent updates from the crons in the
-following tables:
+following table:
 
     - cron_stats
-    - locks
 
-If we have a stale lock, an old incomplete run in cron_stats, or
-missing entries in either table, throw an alert to an SNS topic.
+If we have an old/incomplete run in cron_stats or if we are missing a
+cron entry entirely, throw an alert to an SNS topic.
 
 Currently tested crons:
 
