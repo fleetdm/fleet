@@ -597,10 +597,12 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 		err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't valid XML: %v", err))
 		return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
 	}
-	if err := cmdMsg.IsValidHeader(); err != nil {
-		err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't a valid MDM command: %v", err))
-		return nil, ctxerr.Wrap(ctx, err, "validate SyncML header")
-	}
+	// TODO(mna): do we expect commands provided to this endpoint to have the
+	// full XML header or just start at <SyncBody>?
+	//if err := cmdMsg.IsValidHeader(); err != nil {
+	//	err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't a valid MDM command: %v", err))
+	//	return nil, ctxerr.Wrap(ctx, err, "validate SyncML header")
+	//}
 	if err := cmdMsg.IsValidBody(); err != nil {
 		err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't a valid MDM command: %v", err))
 		return nil, ctxerr.Wrap(ctx, err, "validate SyncML body")
@@ -644,7 +646,7 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 
 	return &fleet.CommandEnqueueResult{
 		CommandUUID: winCmd.CommandUUID,
-		RequestType: "", // TODO(mna): have we settled on what Request Type should be? CmdVerb or SettingURI?
+		RequestType: winCmd.SettingURI,
 		Platform:    "windows",
 	}, nil
 }

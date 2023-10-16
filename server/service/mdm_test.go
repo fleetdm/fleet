@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/xml"
 	"errors"
 	"math/big"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -412,6 +414,129 @@ func TestRunMDMCommandValidations(t *testing.T) {
 			_, err := svc.RunMDMCommand(ctx, "!@#", []string{"unused for this test"})
 			require.Error(t, err)
 			require.ErrorContains(t, err, c.wantErr)
+		})
+	}
+}
+
+func TestEnqueueWindowsMDMCommand(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ds.MDMWindowsInsertPendingCommandForDevicesFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsPendingCommand) error {
+		return nil
+	}
+
+	cases := []struct {
+		desc        string
+		premium     bool
+		xmlCmd      string
+		wantErr     string
+		wantReqType string
+	}{
+		{"invalid xml", false, `!!$$`, "The payload isn't valid XML", ""},
+		{"empty xml", false, xml.Header, "The payload isn't valid XML", ""},
+		{"unrelated xml", false, xml.Header + `<Unrelated></Unrelated>`, "The payload isn't valid XML", ""},
+		{"empty SyncML", false, xml.Header + `<SyncML></SyncML>`, "The payload isn't a valid MDM command", ""},
+		{"no command SyncBody", false, xml.Header + `<SyncML><SyncBody></SyncBody></SyncML>`, "The payload isn't a valid MDM command", ""},
+		{"non-exec command", false, xml.Header + `
+			<SyncML>
+				<SyncBody>
+				<Get>
+					<CmdID>1</CmdID>
+					<Item>
+						<Target>
+							<LocURI>./DevDetail/SwV</LocURI>
+						</Target>
+					</Item>
+				</Get>
+				</SyncBody>
+			</SyncML>`, "You can run only <Exec> command type", ""},
+		{"multi-exec command", false, xml.Header + `
+			<SyncML>
+				<SyncBody>
+				<Exec>
+					<CmdID>1</CmdID>
+					<Item>
+						<Target>
+							<LocURI>./DevDetail/SwV</LocURI>
+						</Target>
+					</Item>
+				</Exec>
+				<Exec>
+					<CmdID>2</CmdID>
+					<Item>
+						<Target>
+							<LocURI>./DevDetail/SwV</LocURI>
+						</Target>
+					</Item>
+				</Exec>
+				</SyncBody>
+			</SyncML>`, "You can run only a single <Exec> command", ""},
+		{"premium command, non premium license", false, xml.Header + `
+			<SyncML>
+				<SyncBody>
+				<Exec>
+					<CmdID>1</CmdID>
+					<Item>
+						<Target>
+							<LocURI>./RemoteWipe</LocURI>
+						</Target>
+					</Item>
+				</Exec>
+				</SyncBody>
+			</SyncML>`, "Requires Fleet Premium license", ""},
+		{"premium command, premium license", true, `
+			<SyncML>
+				<SyncBody>
+				<Exec>
+					<CmdID>1</CmdID>
+					<Item>
+						<Target>
+							<LocURI>./RemoteWipe</LocURI>
+						</Target>
+					</Item>
+				</Exec>
+				</SyncBody>
+			</SyncML>`, "", "./RemoteWipe"},
+		{"non-premium command", false, `
+			<SyncML>
+				<SyncBody>
+				<Exec>
+					<CmdID>1</CmdID>
+					<Item>
+						<Target>
+							<LocURI>./FooBar</LocURI>
+						</Target>
+					</Item>
+				</Exec>
+				</SyncBody>
+			</SyncML>`, "", "./FooBar"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			ctx = test.UserContext(ctx, test.UserAdmin)
+			if c.premium {
+				ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+			}
+
+			var svcImpl *Service
+			switch v := svc.(type) {
+			case validationMiddleware:
+				svcImpl = v.Service.(*Service)
+			case *Service:
+				svcImpl = v
+			}
+			res, err := svcImpl.enqueueMicrosoftMDMCommand(ctx, []byte(c.xmlCmd), []string{"uuid"})
+
+			if c.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, c.wantErr)
+			} else {
+				require.NoError(t, err)
+				require.NotEmpty(t, res.CommandUUID)
+				require.Equal(t, "windows", res.Platform)
+				require.Equal(t, c.wantReqType, res.RequestType)
+			}
 		})
 	}
 }
