@@ -790,7 +790,7 @@ type Service interface {
 	SignMDMMicrosoftClientCSR(ctx context.Context, subject string, csr *x509.CertificateRequest) ([]byte, string, error)
 
 	// GetMDMWindowsManagementResponse returns a valid SyncML response message
-	GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *SyncML) (*string, error)
+	GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *SyncML) (*SyncML, error)
 
 	// GetMDMWindowsTOSContent returns TOS content
 	GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error)

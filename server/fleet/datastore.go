@@ -1027,10 +1027,27 @@ type Datastore interface {
 
 	// MDMWindowsGetEnrolledDevice receives a Windows MDM device id and returns the device information.
 	MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
+
 	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
+
 	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
 	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
+
+	// MDMWindowsInsertPendingCommand inserts a command that will be sent to a device
+	MDMWindowsInsertPendingCommand(ctx context.Context, cmd *MDMWindowsPendingCommand) error
+
+	// MDMWindowsGetPendingCommands returns all the pending commands for a device
+	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsPendingCommand, error)
+
+	// MDMWindowsUpdatePendingCommand updates the status of a pending command
+	MDMWindowsInsertCommand(ctx context.Context, cmd *MDMWindowsCommand) error
+
+	// MDMWindowsUpdateCommandErrorCode updates the error code of a command
+	MDMWindowsUpdateCommandErrorCode(ctx context.Context, deviceID, sessionID, messageID, commandID, errorCode string) error
+
+	// MDMWindowsListCommands returns all the commands sent to a device
+	MDMWindowsListCommands(ctx context.Context, deviceID string) ([]*MDMWindowsCommand, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
