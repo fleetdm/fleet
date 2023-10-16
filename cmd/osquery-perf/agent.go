@@ -495,11 +495,10 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		logTicker := time.Tick(a.LogInterval)
 		select {
 		case <-logTicker:
-			// check if we have any scheduled queries
+			// check if we have any scheduled queries that should be returning results
 			for i, query := range a.scheduledQueryData {
 				now := time.Now().Unix()
 				if query.NextRun == 0 || now >= int64(query.NextRun) {
-					time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond) // Sleep to simulate a query being executed.
 					a.SubmitLogs(query.Name, a.CachedString("id"), a.CachedString("hostname"), query.PackName, query.NumResults)
 					a.scheduledQueryData[i].NextRun = float64(now + int64(query.ScheduleInterval))
 				}
@@ -1529,12 +1528,14 @@ func main() {
 	}
 
 	var (
-		serverURL           = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
-		enrollSecret        = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
-		hostCount           = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
-		randSeed            = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
-		startPeriod         = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
-		configInterval      = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		serverURL      = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
+		enrollSecret   = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
+		hostCount      = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
+		randSeed       = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
+		startPeriod    = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
+		configInterval = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		// This is how often to check for scheduled queries.
+		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
 		logInterval         = flag.Duration("logger_interval", 1*time.Second, "Interval for scheduled queries log requests")
 		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 10*time.Second, "Interval for performing MDM check ins")
