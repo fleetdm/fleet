@@ -77,7 +77,7 @@ import parseOsVersion from "./modals/OSPolicyModal/helpers";
 
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
-import MacSettingsModal from "../MacSettingsModal";
+import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
@@ -155,7 +155,7 @@ const HostDetailsPage = ({
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
-  const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
+  const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
@@ -452,9 +452,9 @@ const HostDetailsPage = ({
     setShowOSPolicyModal(!showOSPolicyModal);
   }, [showOSPolicyModal, setShowOSPolicyModal]);
 
-  const toggleMacSettingsModal = useCallback(() => {
-    setShowMacSettingsModal(!showMacSettingsModal);
-  }, [showMacSettingsModal, setShowMacSettingsModal]);
+  const toggleOSSettingsModal = useCallback(() => {
+    setShowOSSettingsModal(!showOSSettingsModal);
+  }, [showOSSettingsModal, setShowOSSettingsModal]);
 
   const toggleBootstrapPackageModal = useCallback(() => {
     setShowBootstrapPackageModal(!showBootstrapPackageModal);
@@ -759,7 +759,7 @@ const HostDetailsPage = ({
           isSandboxMode={isSandboxMode}
           isOnlyObserver={isOnlyObserver}
           toggleOSPolicyModal={toggleOSPolicyModal}
-          toggleMacSettingsModal={toggleMacSettingsModal}
+          toggleOSSettingsModal={toggleOSSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
           hostMdmProfiles={host?.mdm.profiles ?? []}
           mdmName={mdm?.name}
@@ -901,11 +901,11 @@ const HostDetailsPage = ({
             osPolicyLabel={osPolicyLabel}
           />
         )}
-        {showMacSettingsModal && (
-          <MacSettingsModal
+        {showOSSettingsModal && (
+          <OSSettingsModal
             platform={host?.platform}
             hostMDMData={host?.mdm}
-            onClose={toggleMacSettingsModal}
+            onClose={toggleOSSettingsModal}
           />
         )}
         {showUnenrollMdmModal && !!host && (

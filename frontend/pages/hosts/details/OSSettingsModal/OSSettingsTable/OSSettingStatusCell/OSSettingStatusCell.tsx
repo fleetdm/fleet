@@ -13,14 +13,14 @@ import {
 import {
   isMdmProfileStatus,
   OsSettingsTableStatusValue,
-} from "../MacSettingsTableConfig";
+} from "../OSSettingsTableConfig";
 import TooltipContent, {
   TooltipInnerContentFunc,
   TooltipInnerContentOption,
 } from "./components/Tooltip/TooltipContent";
 import TooltipInnerContentActionRequired from "./components/Tooltip/ActionRequired";
 
-const baseClass = "mac-setting-status-cell";
+const baseClass = "os-setting-status-cell";
 
 type ProfileDisplayOption = {
   statusText: string;
@@ -134,17 +134,17 @@ const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDisplayConfig
   },
 };
 
-interface IMacSettingStatusCellProps {
+interface IOSSettingStatusCellProps {
   status: OsSettingsTableStatusValue;
   operationType: MacMdmProfileOperationType | null;
   profileName: string;
 }
 
-const MacSettingStatusCell = ({
+const OSSettingStatusCell = ({
   status,
   operationType,
   profileName = "",
-}: IMacSettingStatusCellProps) => {
+}: IOSSettingStatusCellProps) => {
   let displayOption: ProfileDisplayOption = null;
 
   // windows hosts do not have an operation type at the moment and their display options are
@@ -213,4 +213,4 @@ const MacSettingStatusCell = ({
   // graceful error - this state should not be reached based on the API spec
   return <TextCell value="Unrecognized" />;
 };
-export default MacSettingStatusCell;
+export default OSSettingStatusCell;

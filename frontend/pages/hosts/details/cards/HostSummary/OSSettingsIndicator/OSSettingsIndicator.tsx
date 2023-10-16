@@ -7,7 +7,7 @@ import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import { IconNames } from "components/icons";
 
-const baseClass = "mac-settings-indicator";
+const baseClass = "os-settings-indicator";
 
 type MdmProfileStatusForDisplay =
   | "Failed"
@@ -106,14 +106,14 @@ const getHostProfilesStatusForDisplay = (
   }
 };
 
-interface IMacSettingsIndicatorProps {
+interface IOSSettingsIndicatorProps {
   profiles: IHostMdmProfile[];
   onClick?: () => void;
 }
-const MacSettingsIndicator = ({
+const OSSettingsIndicator = ({
   profiles,
   onClick,
-}: IMacSettingsIndicatorProps): JSX.Element => {
+}: IOSSettingsIndicatorProps): JSX.Element => {
   if (!profiles.length) {
     // the caller should ensure that this never happens, but just in case we return a default
     // to make it more obvious that something is wrong.
@@ -157,4 +157,4 @@ const MacSettingsIndicator = ({
   );
 };
 
-export default MacSettingsIndicator;
+export default OSSettingsIndicator;

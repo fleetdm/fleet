@@ -11,7 +11,7 @@ import {
 } from "interfaces/mdm";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
-import MacSettingStatusCell from "./MacSettingStatusCell";
+import OSSettingStatusCell from "./OSSettingStatusCell";
 import { generateWinDiskEncryptionProfile } from "../../helpers";
 
 export interface ITableRowOsSettings extends Omit<IHostMdmProfile, "status"> {
@@ -70,7 +70,7 @@ const tableHeaders: IDataColumn[] = [
     accessor: "statusText",
     Cell: (cellProps: ICellProps) => {
       return (
-        <MacSettingStatusCell
+        <OSSettingStatusCell
           status={cellProps.row.original.status}
           operationType={cellProps.row.original.operation_type}
           profileName={cellProps.row.original.name}

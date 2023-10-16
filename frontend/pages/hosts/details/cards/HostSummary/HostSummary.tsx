@@ -23,7 +23,7 @@ import {
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
 
-import MacSettingsIndicator from "./MacSettingsIndicator";
+import OSSettingsIndicator from "./OSSettingsIndicator";
 import HostSummaryIndicator from "./HostSummaryIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 import { generateWinDiskEncryptionProfile } from "../../helpers";
@@ -43,7 +43,7 @@ interface IHostSummaryProps {
   isSandboxMode?: boolean;
   isOnlyObserver?: boolean;
   toggleOSPolicyModal?: () => void;
-  toggleMacSettingsModal?: () => void;
+  toggleOSSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
   hostMdmProfiles?: IHostMdmProfile[];
   mdmName?: string;
@@ -64,7 +64,7 @@ const HostSummary = ({
   isSandboxMode = false,
   isOnlyObserver,
   toggleOSPolicyModal,
-  toggleMacSettingsModal,
+  toggleOSSettingsModal,
   toggleBootstrapPackageModal,
   hostMdmProfiles,
   mdmName,
@@ -232,9 +232,9 @@ const HostSummary = ({
           hostMdmProfiles &&
           hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
             <HostSummaryIndicator title="OS settings">
-              <MacSettingsIndicator
+              <OSSettingsIndicator
                 profiles={hostMdmProfiles}
-                onClick={toggleMacSettingsModal}
+                onClick={toggleOSSettingsModal}
               />
             </HostSummaryIndicator>
           )}
