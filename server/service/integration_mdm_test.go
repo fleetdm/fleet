@@ -7250,6 +7250,174 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 }
 
 // ///////////////////////////////////////////////////////////////////////////
+// Common MDM config test
+
+func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
+	t := s.T()
+	ctx := context.Background()
+
+	ac, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	ac.AgentOptions = nil
+
+	t.Run("apply app config spec", func(t *testing.T) {
+		acResp := appConfigResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.True(t, acResp.AppConfig.MDM.EnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.AppleBMEnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.WindowsEnabledAndConfigured)
+		require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+
+		// enable disk encryption
+		ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+		s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.True(t, acResp.AppConfig.MDM.EnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.AppleBMEnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.WindowsEnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+
+		// directly set MDM.EnabledAndConfigured to false
+		ac.MDM.EnabledAndConfigured = false
+		require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.False(t, acResp.AppConfig.MDM.EnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.AppleBMEnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.WindowsEnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+
+		// making an unrelated change should not cause validation error
+		ac.OrgInfo.OrgName = "f1337"
+		s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
+		require.False(t, acResp.AppConfig.MDM.EnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.AppleBMEnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.WindowsEnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+
+		// changing MDM config doesn't cause validation error because Windows is still enabled
+		ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+		s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.False(t, acResp.AppConfig.MDM.EnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.AppleBMEnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.WindowsEnabledAndConfigured)
+		require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+
+		// enabling disk encryption doesn't cause validation error because Windows is still enabled
+		ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+		s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
+		require.False(t, acResp.AppConfig.MDM.EnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.AppleBMEnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.WindowsEnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+
+		// directly set MDM.WindowsEnabledAndConfigured to false
+		ac.MDM.WindowsEnabledAndConfigured = false
+		require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.False(t, acResp.AppConfig.MDM.EnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.AppleBMEnabledAndConfigured)
+		require.False(t, acResp.AppConfig.MDM.WindowsEnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+
+		// changing unrelated config doesn't cause validation error
+		ac.OrgInfo.OrgName = "f1338"
+		s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.Equal(t, "f1338", acResp.AppConfig.OrgInfo.OrgName)
+		require.False(t, acResp.AppConfig.MDM.EnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.AppleBMEnabledAndConfigured)
+		require.False(t, acResp.AppConfig.MDM.WindowsEnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+
+		// changing MDM config causes validation error because neither Windows nor Apple are enabled
+		ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+		s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
+
+		// confirm that the config was not changed
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.Equal(t, "f1338", acResp.AppConfig.OrgInfo.OrgName)
+		require.False(t, acResp.AppConfig.MDM.EnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.AppleBMEnabledAndConfigured)
+		require.False(t, acResp.AppConfig.MDM.WindowsEnabledAndConfigured)
+		require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+	})
+
+	t.Run("create team", func(t *testing.T) {
+		// create new team
+		var tmResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{fleet.TeamPayload{Name: ptr.String("Ninjas")}}, http.StatusOK, &tmResp)
+		teamNinjasID := tmResp.Team.ID
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", teamNinjasID), nil, http.StatusOK, &tmResp)
+		require.Equal(t, "Ninjas", tmResp.Team.Name)
+		require.False(t, tmResp.Team.Config.MDM.EnableDiskEncryption) // TODO: confirm that app config defaults should only be applied to teams created from spec
+
+		// unrelated team config change doesn't cause validation error
+		payload := fleet.TeamPayload{
+			Name:        ptr.String("Ninjas"),
+			Description: ptr.String("Some description"),
+			MDM: &fleet.TeamPayloadMDM{
+				EnableDiskEncryption: optjson.SetBool(false),
+			},
+		}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teamNinjasID), payload, http.StatusOK, &tmResp)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", teamNinjasID), nil, http.StatusOK, &tmResp)
+		require.Equal(t, "Ninjas", tmResp.Team.Name)
+		require.Equal(t, "Some description", tmResp.Team.Description)
+		require.False(t, tmResp.Team.Config.MDM.EnableDiskEncryption)
+
+		// changing MDM config causes validation error because neither Windows nor Apple are enabled
+		payload.MDM.EnableDiskEncryption = optjson.SetBool(true)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teamNinjasID), payload, http.StatusUnprocessableEntity, &tmResp)
+
+		// including MDM config in the team spec doesn't causes validation error when settings are unchanged
+		tmSpec := fleet.TeamSpec{
+			Name: "Ninjas",
+			MDM: fleet.TeamSpecMDM{
+				EnableDiskEncryption: optjson.SetBool(false),
+			},
+			Secrets: []fleet.EnrollSecret{{TeamID: &teamNinjasID, Secret: "abc"}},
+		}
+		var tmSpecResp applyTeamSpecsResponse
+		tmSpecReq := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{&tmSpec}}
+		s.DoJSON("POST", "/api/latest/fleet/spec/teams", tmSpecReq, http.StatusOK, &tmSpecResp)
+		tmID, ok := tmSpecResp.TeamIDsByName["Ninjas"]
+		require.True(t, ok)
+		require.Equal(t, teamNinjasID, tmID)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", teamNinjasID), nil, http.StatusOK, &tmResp)
+		require.Equal(t, "Ninjas", tmResp.Team.Name)
+		require.Len(t, tmResp.Team.Secrets, 1)
+		require.Equal(t, "abc", tmResp.Team.Secrets[0].Secret)
+		require.False(t, tmResp.Team.Config.MDM.EnableDiskEncryption)
+
+		// TODO: Confirm the expected behavior
+		//
+		// modifying MDM config in the team spec causes validation error because neither Windows nor
+		// Apple are enabled
+		tmSpec.MDM.EnableDiskEncryption = optjson.SetBool(true)
+		s.DoJSON("POST", "/api/latest/fleet/spec/teams", tmSpecReq, http.StatusUnprocessableEntity, &tmSpecResp)
+	})
+
+	t.Run("create team from spec", func(t *testing.T) {
+		// create a team from spec
+		tmSpecReq := map[string][]fleet.TeamSpec{"specs": {fleet.TeamSpec{Name: "Pirates"}}}
+		var tmSpecResp applyTeamSpecsResponse
+		s.DoJSON("POST", "/api/latest/fleet/spec/teams", tmSpecReq, http.StatusOK, &tmSpecResp)
+		teamPiratesID, ok := tmSpecResp.TeamIDsByName["Pirates"]
+		require.True(t, ok)
+		var tmResp teamResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", teamPiratesID), nil, http.StatusOK, &tmResp)
+		require.Equal(t, "Pirates", tmResp.Team.Name)
+		fmt.Println(fmt.Sprintf("%+v", tmResp.Team.Config.MDM))
+		require.True(t, tmResp.Team.Config.MDM.EnableDiskEncryption)
+	})
+}
+
+// ///////////////////////////////////////////////////////////////////////////
 // Common helpers
 
 func (s *integrationMDMTestSuite) runWorker() {
