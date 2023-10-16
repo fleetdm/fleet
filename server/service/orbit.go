@@ -589,10 +589,6 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	if err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encryptedEncryptionKey, clientError, decryptable); err != nil {
 		return ctxerr.Wrap(ctx, err, "set or update disk encryption key")
 	}
-	if encryptedEncryptionKey != "" {
-		if err := svc.ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true); err != nil {
-			return ctxerr.Wrap(ctx, err, "set or update host disks encryption")
-		}
-	}
+
 	return nil
 }

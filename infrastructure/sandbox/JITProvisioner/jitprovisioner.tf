@@ -131,7 +131,7 @@ resource "aws_lambda_function" "jitprovisioner" {
   role                           = aws_iam_role.jitprovisioner.arn
   reserved_concurrent_executions = -1
   kms_key_arn                    = var.kms_key.arn
-  timeout                        = 5
+  timeout                        = 10
   memory_size                    = 512
   vpc_config {
     security_group_ids = [aws_security_group.jitprovisioner.id]

@@ -538,7 +538,7 @@ const EditQueryForm = ({
 
   // Observers and observer+ of existing query
   const renderNonEditableForm = (
-    <form className={`${baseClass}__wrapper`}>
+    <form className={`${baseClass}`}>
       <div className={`${baseClass}__title-bar`}>
         <div className="name-description">
           <h1 className={`${baseClass}__query-name no-hover`}>
@@ -638,7 +638,7 @@ const EditQueryForm = ({
 
     return (
       <>
-        <form className={`${baseClass}__wrapper`} autoComplete="off">
+        <form className={`${baseClass}`} autoComplete="off">
           <div className={`${baseClass}__title-bar`}>
             <div className="name-description">
               {renderName()}
@@ -680,13 +680,12 @@ const EditQueryForm = ({
                   This is how often your query collects data.
                 </div>
               </div>
-              <div className={`${baseClass}__observers-can-run`}>
+              <div className={"form-field-with-help-text"}>
                 <Checkbox
                   value={lastEditedQueryObserverCanRun}
                   onChange={(value: boolean) =>
                     setLastEditedQueryObserverCanRun(value)
                   }
-                  wrapperClassName={"observer-can-run-wrapper"}
                 >
                   Observers can run
                 </Checkbox>

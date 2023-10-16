@@ -1,4 +1,10 @@
-import React, { useContext, useState, useCallback, useEffect } from "react";
+import React, {
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -48,6 +54,7 @@ import {
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import { DEFAULT_QUERY } from "utilities/constants";
+import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -154,6 +161,8 @@ const HostDetailsPage = ({
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
+  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
+
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -167,6 +176,10 @@ const HostDetailsPage = ({
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
+
+  // used to track the current script execution id we want to show in the show
+  // details modal.
+  const scriptExecutionId = useRef<string | null>(null);
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IListQueriesResponse,
@@ -540,6 +553,16 @@ const HostDetailsPage = ({
     );
   };
 
+  const onCancelScriptDetailsModal = () => {
+    setShowScriptDetailsModal(false);
+    scriptExecutionId.current = null;
+  };
+
+  const onShowScriptDetails = (executionId: string) => {
+    scriptExecutionId.current = executionId;
+    setShowScriptDetailsModal(true);
+  };
+
   const onTransferHostSubmit = async (team: ITeam) => {
     setIsUpdatingHost(true);
 
@@ -791,6 +814,7 @@ const HostDetailsPage = ({
                   page={page}
                   router={router}
                   isHostOnline={host?.status === "online"}
+                  onShowDetails={onShowScriptDetails}
                 />
               </TabPanel>
             )}
@@ -905,6 +929,12 @@ const HostDetailsPage = ({
               onClose={() => setShowBootstrapPackageModal(false)}
             />
           )}
+        {showScriptDetailsModal && scriptExecutionId.current && (
+          <ScriptDetailsModal
+            scriptExecutionId={scriptExecutionId.current}
+            onCancel={onCancelScriptDetailsModal}
+          />
+        )}
       </div>
     </MainContent>
   );
