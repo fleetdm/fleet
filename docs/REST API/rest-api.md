@@ -4161,7 +4161,7 @@ Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to 
 
 ### Run custom macOS MDM command
 
-> This endpoint is deprecated as of Fleet 4.39. It is maintained for backwards compatibility.
+> This endpoint is deprecated as of Fleet 4.40. It is maintained for backwards compatibility.
 > Please use the [Run custom MDM command](#run-custom-mdm-command) endpoint instead.
 
 This endpoint tells Fleet to run a custom MDM command, on the targeted macOS hosts, the next time they come online.
