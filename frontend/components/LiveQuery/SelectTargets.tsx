@@ -389,7 +389,7 @@ const SelectTargets = ({
       const roundPercentage =
         Math.round((online / total) * 100) === 0
           ? "<1"
-          : Math.round((online / total) * 100) === 0;
+          : Math.round((online / total) * 100);
       return roundPercentage;
     };
 
