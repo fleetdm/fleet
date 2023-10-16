@@ -62,7 +62,6 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                           @mikermcneil
 /docs/Using-Fleet/REST-API.md                   @rachaelshaw # « REST API reference documentation
 /docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
 /schema                                         @rachaelshaw # « Data tables (osquery/fleetd schema) documentation
@@ -70,6 +69,7 @@ go.mod @fleetdm/go
 /docs/Configuration/agent-configuration.md         @rachaelshaw # « Configuration surface: Agent
 /docs/Configuration/fleet-server-configuration.md  @rachaelshaw # « Configuration surface: Fleet server
 /docs/Configuration/configuration-files/README.md  @rachaelshaw # « Configuration surface: Fleet server (even more things)  FUTURE: consolidate this.
+/docs/Using-Fleet/manage-access.md                 @rachaelshaw # « Permissions table
 
 ##############################################################################################
 # 🫧 Pricing and features

@@ -60,32 +60,6 @@
     - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving and creatively architechting new solutions while assisting external stakeholders.
     - ➕ Familiarity with osquery, SQLite, and GitOps workflows. Experience working with IT, SRE,CPE, or SecOps teams.
     - ✨ Nice to have: Ability to read and understand server-side code (GO), experience with Terraform or other infrastructure as code, experience with Tines/Torq or other no-code tool, 
-- jobTitle: 🫧 Head of Demand Generation
-  department: Marketing
-  hiringManagerName: Mike McNeil
-  hiringManagerGithubUsername: mikermcneil
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/mikermcneil/
-  responsibilities: |
-   - 🔗 Collaborate closely with the CEO and Head of Sales on all Demand Gen efforts.
-   - 🗺️ Lead and manage workflow for team contributors, particularly Fleet's existing field marketer and community+content marketer.
-   - 🥼 Learn and invest in the existing ABM and enterprise strategy by expanding it through rigorous experimentation.
-   - 🎥 Manage content marketing, community marketing, and enterprise events.
-   - ⚡️ Build and evolve strategies and systems around tightly coordinating physical events and digital events.
-  experience: |
-    - 🧙‍♂️ Wizardy abilities in demand generation campaigns
-      - ⛰️ Recent real-world GA4 experience in an enterprise setting.
-      - 👔 LinkedIn ads
-    - Strong opinions on Google and LinkedIn adds with recent (≥2020) hands-on experience.
-    - 🤘 Hands-on marketing operator and capability to manage tools expertly, personally by hand 
-    - 🎙️ Experience with open source and how to talk to technical people about it.
-    - 🧗‍♂️ Experience marketing to enterprise accounts; ideally bottom-up.
-    - ⭐️ An up-and-coming leader or someone with no ego who will get their hands dirty.
-    - 🤔 Systems thinker. Process-oriented. Analytical.
-    - 🤝 Collaboration: You work best in a participatory, team-based environment.
-    - 🧑‍🏭 Prototype-first: You embrace speed and failure as we iterate towards the right solution. 
-    - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity.
-    - 🟣 Openness: You are flexible and open to new ideas and ways of working
-    - ➕ Bonus: You are comfortable with concepts like security, APIs, and DevOps.
 - jobTitle: 🚀 Software Engineer
   department: Customers
   hiringManagerName: Luke Heath
@@ -113,25 +87,6 @@
       - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
       - ➕ Bonus: Cybersecurity or IT background.
-- jobTitle: 🐋 Sales Development Representative (SDR) 
-  department: Customers
-  hiringManagerName: Alex Mitchell
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/alexandercmitchell/
-  hiringManagerGithubUsername: alexmitchelliii
-  responsibilities: |
-    - 🎯 Direct and participate in prospecting target companies, identify key decision makers working closely with your AEs (Account Executives) to create opportunities
-    - 🧰 Update Salesforce, reply to emails, set and complete tasks
-    - 🙋 Happily jump in to help Marketing, BizOps, Product management and Engineering teams
-    - 📣 Actively promote FleetDM product and services on social media
-    - ✈️ Participating at events / conferences to generate leads and build customer relationships
-  experience: |
-    - 🦉 6+ months experience preferred
-    - 📣 Have excellent communication and interpersonal skills
-    - 🧑‍💻 Love technology, curious and a strong desire to learn
-    - 🧪 Experience with Slack, Salesforce, Google Suite, and GitHub are preferred
-    - ⏩ Thrive in a complex, fast-paced, results driven environment with the ability to adapt to new situations
-    - ⌚ Fleet is 100% remote. Efficiently manage your time between your day-to-day tasks including assigned projects
-    - 💝 Deliver outstanding customer experience, yes we want to build revenue, BUT at Fleet, we genuinely care (hence 100% customer retention)
 - jobTitle: 🚀 Software Engineer (Windows/Go)
   department: Engineering
   hiringManagerName: Luke Heath
@@ -160,34 +115,27 @@
     - 💭 3-5 years' of experience in backend/SaaS development.
     - 💭 1-2 years' of experience interfacing with Windows systems and Microsoft protocols.
     - 🦉 Proficient in backend development. You practice OOP design and are comfortable in a lean software development environment. 
-- jobTitle: 🚀 Infrastructure Engineer
-  department: Engineering
-  hiringManagerName: Luke Heath
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/lukeheath/
-  hiringManagerGithubUsername: lukeheath
-  responsibilities: |
-    - 🧑‍🔬 Lead the architecture, development, and implementation of Fleet's infrastructure.
-    - 💭 Manage and optimize scalable distributed systems in the cloud.
-    - 🛠️ Write code and tests, build prototypes, resolve issues, and profile and analyze bottlenecks.
-    - 🤝 Collaborate closely with product managers to understand requirements and translate them into actionable specifications.
-    - 🚀 Actively participate in all engineering scrum meetings, including sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
-    - 🌟 Contribute to the overall success of the [infrastructure](https://fleetdm.com/handbook/company/product-groups#infrastructure-group) product group by providing and supporting reliable and secure infrastructure for Fleet and Fleet's customers.
-  experience: |
-    - 🦉 Translate requirements into well-designed and functional infrastructure.
-    - 🤝 Communicate regularly with stakeholders, project managers, quality assurance teams, and other developers regarding progress on long-term technology roadmap.
-    - 🧪 Collaborate with QA team for testing software features.
-    - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
-    - 🛠️ Produce quality code, raising the bar for team performance and speed.
-    - 📖 Mentor junior team members.
-    - 🤝 Collaboration: You work best in a participatory, team-based environment.
-    - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
-    - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
-    - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
-    - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-    - ➕ Bonus: Cybersecurity or IT background.
-    - ➕ Bonus: Experienced with Go.
-    - 💭 3-5 years' of experience in cloud infrastructure (AWS/GCP/Azure).
-    - 🦉 Proficient in infrastructure as code and container deployments.
+# Note: commenting out this open position because the to make open-positions.yml the source of truth for positions Fleet is currently hiring for.
+#- jobTitle: 🐋 Sales Development Representative (SDR) 
+ # department: Customers
+  #hiringManagerName: Alex Mitchell
+  #hiringManagerLinkedInUrl: https://www.linkedin.com/in/alexandercmitchell/
+  #hiringManagerGithubUsername: alexmitchelliii
+  #responsibilities: |
+  #  - 🎯 Direct and participate in prospecting target companies, identify key decision makers working closely with your AEs (Account Executives) to create opportunities
+  #  - 🧰 Update Salesforce, reply to emails, set and complete tasks
+  #  - 🙋 Happily jump in to help Marketing, BizOps, Product management and Engineering teams
+  #  - 📣 Actively promote FleetDM product and services on social media
+  #  - ✈️ Participating at events / conferences to generate leads and build customer relationships
+ # experience: |
+  #  - 🦉 6+ months experience preferred
+  #  - 📣 Have excellent communication and interpersonal skills
+  #  - 🧑‍💻 Love technology, curious and a strong desire to learn
+  #  - 🧪 Experience with Slack, Salesforce, Google Suite, and GitHub are preferred
+  #  - ⏩ Thrive in a complex, fast-paced, results driven environment with the ability to adapt to new situations
+  #  - ⌚ Fleet is 100% remote. Efficiently manage your time between your day-to-day tasks including assigned projects
+  #  - 💝 Deliver outstanding customer experience, yes we want to build revenue, BUT at Fleet, we genuinely care (hence 100% customer retention)
+
 
 # Note: commenting out this open position because the page link did not exist in the current version of the company handbook page. (2023-08-31)
 # - jobTitle: 🐋 Solutions Consultant

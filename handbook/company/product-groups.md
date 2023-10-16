@@ -17,7 +17,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | Product group             | Goal _(value for customers and/or community)_                       | Capacity\* |
 |:--------------------------|:--------------------------------------------------------------------|:-----------------|
 | [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category. | 65       |
-| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.   | 65       |
+| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.   | 78       |
 | [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure. | 13 |
 | [Website](#website-group)                               | Make the website wonderful.                   | 13       |
 
@@ -51,7 +51,7 @@ The goal of the customer experience (CX) group is to make users and customers ha
 | Engineering manager               | Sharon Katz
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Mo Zhu
-| Software engineers (developers)   | Jacob Shandling, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Tim Lee, Victor Lyuboslavsky
+| Software engineers (developers)   | Jacob Shandling, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Tim Lee, Jahziel Villasana-Espinoza, Victor Lyuboslavsky
 
 > The Slack channel, kanban release board, and label for this product group is `#g-cx`.
 
