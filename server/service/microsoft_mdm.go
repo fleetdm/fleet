@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
@@ -541,7 +542,7 @@ func GetEncodedBinarySecurityToken(typeID fleet.WindowsMDMEnrollmentType, payloa
 	pld.Type = typeID
 
 	if typeID == fleet.WindowsMDMProgrammaticEnrollmentType {
-		pld.Payload.HostUUID = payload
+		pld.Payload.OrbitNodeKey = payload
 	} else if typeID == fleet.WindowsMDMAutomaticEnrollmentType {
 		pld.Payload.AuthToken = payload
 	} else {
@@ -934,7 +935,8 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 
 		// Validating the Binary Security Token Type used on Programmatic Enrollments
 		if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
-			host, err := svc.ds.HostByIdentifier(ctx, binSecToken.Payload.HostUUID)
+			host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
+			// host, err := svc.ds.HostByIdentifier(ctx, binSecToken.Payload.HostUUID)
 			if err != nil {
 				return "", fmt.Errorf("host data cannot be found %v", err)
 			}
@@ -945,7 +947,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			}
 
 			// No errors, token is authorized
-			return binSecToken.Payload.HostUUID, nil
+			return binSecToken.Payload.OrbitNodeKey, nil
 		}
 
 		// Validating the Binary Security Token Type used on Automatic Enrollments (returned by STS Auth Endpoint)
@@ -1183,6 +1185,29 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	return htmlBuf.String(), nil
 }
 
+// isValidUPN checks if the provided user ID is a valid UPN
+func isValidUPN(userID string) bool {
+	const upnRegex = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	re := regexp.MustCompile(upnRegex)
+	return re.MatchString(userID)
+}
+
+// isDeviceProgrammaticallyEnrolled checks if the device was enrolled through programmatic flow
+func (svc *Service) isDeviceProgrammaticallyEnrolled(ctx context.Context, deviceID string) (bool, error) {
+	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+
+	if err != nil || enrolledDevice == nil {
+		return false, errors.New("device not found")
+	}
+
+	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
+	if isValidUPN(enrolledDevice.MDMEnrollUserID) {
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (svc *Service) getManagementResponse(ctx context.Context, reqSyncML *fleet.SyncMLMessage) (*string, error) {
 	if reqSyncML == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
@@ -1211,9 +1236,15 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqSyncML *fleet.
 		return nil, err
 	}
 
+	// Checking if the device was enrolled through programmatic flow
+	isProgrammaticEnrollment, err := svc.isDeviceProgrammaticallyEnrolled(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Checking the SyncML message types
 	var response string
-	if isSessionInitializationMessage(reqSyncML.Body) {
+	if isSessionInitializationMessage(reqSyncML.Body) && !isProgrammaticEnrollment {
 		// Create response payload - MDM SyncML configuration profiles commands will be enforced here
 		response = `
 			<?xml version="1.0" encoding="UTF-8"?>
@@ -1504,7 +1535,7 @@ func GetContextItem(secTokenMsg *fleet.RequestSecurityToken, contextItem string)
 // GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
 func (svc *Service) GetAuthorizedSoapFault(ctx context.Context, eType string, origMsg int, errorMsg error) *fleet.SoapFault {
 	svc.authz.SkipAuthorization(ctx)
-
+	logging.WithErr(ctx, ctxerr.Wrap(ctx, errorMsg, "soap fault"))
 	soapFault := NewSoapFault(eType, origMsg, errorMsg)
 
 	return &soapFault

@@ -6,10 +6,9 @@ Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbo
 
 <!-- With great power comes great openness.  With agents come agency. -->
 
-We are dedicated to:
-
+We are dedicated to clearing the thicket:
 - 🔌 making security and IT interoperable and easy to automate
-- 🚪 an inviting (outsider-friendly) way to manage computers, vulnerabilities, and production infrastructure
+- 🚪 an inviting (outsider-friendly) way to manage computers, CVEs, and infrastructure
 - 🪟 clarity and trust through open-source software
 
 This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.com/handbook/company/communications#strategy), [operating principles](#why-this-way), and [brand](https://fleetdm.com/logos).
@@ -20,7 +19,7 @@ This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.co
 Fleet Device Management Inc. is an all-remote company with 40+ team members spread across four continents and nine time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
 
 ### Open source
-The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
+Fleet is open by design.  The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
 ### Every day
 When something is written down in the handbook, we actually mean it.  This helps us know what to expect from one another.  You can read more about what it's like to work at Fleet in ["📖Company/Communications"](https://fleetdm.com/handbook/company/communications).
@@ -34,11 +33,8 @@ At Fleet, we write things down.  Even when we might be wrong.  This helps us mov
 
 Fleet is currently hiring for the following positions:
 
-- [🐋 Head of Public Sector](https://fleetdm.com/handbook/company/head-of-public-sector)
-- [🐋 Customer Support Engineer](https://fleetdm.com/handbook/company/customer-support-engineer)
-- [🐋 Account Executive](https://fleetdm.com/handbook/company/account-executive)
-- [🚀 Software Engineer](https://fleetdm.com/handbook/company/software-engineer)
-- [🔦 Business Operations Engineer](https://fleetdm.com/handbook/company/business-operations-engineer)
+
+<open-positions :open-positions="openPositions"></open-positions>
 
 > **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
@@ -66,33 +62,34 @@ This way, everybody knows what to expect from the people they work with.
 ### 🔴 Empathy
 Empathy leads to smarter decisions.  Take an interest in what people are going through, so you can help make it better.
 
-- **Assume positive intent.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/), and [assume](https://about.gitlab.com/handbook/values/#assume-positive-intent) others are doing the same.
+- **Assume positive intent.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/), and [assume](https://about.gitlab.com/handbook/values/#assume-positive-intent) others are doing the same.  Keep it light.
 - **Be a helper.** Take care of customers first. But give hospitality and [service with a smile](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy) to everyone you can.
-- **Read what you write.**  [Shorten](http://www.paulgraham.com/writing44.html) it. [Repeat](http://www.paulgraham.com/useful.html). <!-- Roleplay. Use your imagination to see situations from different perspectives. -->
-- **Get curious.**  Wonder about things. Ask people genuine questions, and listen closely. Notice things.
+- **Read what you write.**  [Shorten](http://www.paulgraham.com/writing44.html) it. [Repeat](http://www.paulgraham.com/useful.html). <!-- Read it again, in context. Read it out loud.  Role play. Put yourself in the reader’s shoes.  Be clear and interesting. Write stuff worth reading.   Is ALL of it worth reading?  Roleplay. Use your imagination to see situations from different perspectives. -->
+- **Get curious.**  Wonder about things. Notice. Ask people genuine questions, and listen closely.
 
 ### 🟠 Ownership
 It takes a fully-activated mind to achieve ambitious goals, and remote work requires self-discipline.  Think like an owner of the company.
 
-- **Be reliable.**  Reply quickly to email, Slack, and GitHub.  Arrive in meetings [on time](https://fleetdm.com/handbook/company/communications#meetings).  Follow handbooked [processes](https://about.gitlab.com/handbook/leadership/#process-gets-a-bad-rep) and [decisions](https://fleetdm.com/handbook/company/why-this-way).
-- **Finish what you start.** Follow through on commitments.  Take responsibility for mistakes. There's no time for finger-pointing, [just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).
+- **Be reliable.**  Reply quickly to email, Slack, and GitHub.  Prepare for meetings.  Arrive [on time](https://fleetdm.com/handbook/company/communications#meetings).  Use handbooked [processes](https://about.gitlab.com/handbook/leadership/#process-gets-a-bad-rep) and [decisions](https://fleetdm.com/handbook/company/why-this-way).
+- **Finish what you start.** Follow through on commitments.  Take responsibility for mistakes.  There's no time for finger-pointing.  [Just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).
 - **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
-- **Think long term.** Understand [Fleet's priorities](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit), beyond your department's goals. Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose). <!-- Think [7 years ahead](https://fleetdm.com/handbook/company#strategy).  -->
+- **Think long term.** Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose), beyond your department's goals. Reduce maintenance.  Beware the thicket.  <!-- Think [7 years ahead](https://fleetdm.com/handbook/company#strategy). -->
 
 ### 🟢 Results
 We work to get results. How we work determines what we get.  Aim to deliver results daily.
 
-- **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make [smaller changes](https://about.gitlab.com/handbook/product/product-principles/#the-minimal-viable-change-mvc), more often.  Always publish.
-- **Start quickly.** Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  [Satisfice](https://longform.asmartbear.com/maximizing) first. Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) -->
-- **Keep it simple.** Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). <!-- Practicality over sophistication. -->
+- **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make [smaller changes](https://about.gitlab.com/handbook/product/product-principles/#the-minimal-viable-change-mvc), more often.  Always publish. <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)). -->
+- **Start quickly.** Be 70% sure.  Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- [Satisfice](https://longform.asmartbear.com/maximizing) before optimizing. -->
+- **Keep it simple.** [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). Reuse systems. Avoid adding steps, especially handoffs. <!-- Be efficient. Avoid creating multiple ways to do the same thing.  Practicality over sophistication. -->
 - **Be realistic.** Focus on one or two tasks at a time.  When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  Schedule [time off](https://fleetdm.com/handbook/business-operations#taking-time-off) to recharge. <!-- Practice self-care. -->
 
 ### 🔵 Objectivity
 To reach our goals, we need to [see reality clearly](https://en.wikipedia.org/wiki/Intellectual_honesty).
 
-- **Assume nothing.** When something isn't working, change only one variable at a time. Find [the bottleneck](https://en.wikipedia.org/wiki/Theory_of_constraints). <!-- Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research). -->
+- **Find the bottleneck.** When something isn't working, look for the worst part. 
+ [Fix that first](https://en.wikipedia.org/wiki/Theory_of_constraints).
 - **Change your mind.**  [Be willing to reconsider](https://about.gitlab.com/handbook/values/#articulate-when-you-change-your-mind) in the face of new evidence. Escape the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
-- **Interrogate luck.** A lucky fix can do more harm than good.  Understand why it's broken first. <!--  Don't say "just do XYZ". The road to failure is paved with ["happy paths"](https://en.wikipedia.org/wiki/Happy_path). -->
+- **Be rigorous.** A lucky streak can do more harm than good.  Understand why it works first.  Change one variable at a time. <!--  Certainty is overrated. Be a skeptic. Cultivate doubt. Interrogate luck. Check your assumptions.  “Fixes” are fleeting.  Don't say "just do XYZ".  Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research). The road to failure is paved with ["happy paths"](https://en.wikipedia.org/wiki/Happy_path). -->
 - **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.  <!-- Use first principles thinking](https://en.wikipedia.org/wiki/Ab_initio#Science_and_engineering) -->
 
 ### 🟣 Openness
@@ -101,7 +98,7 @@ Take the time to make [yourself](https://fleetdm.com/handbook/business-operatio
 - **Write it down.** Let people [find](https://about.gitlab.com/handbook/values/#findability) and [reproduce](https://about.gitlab.com/handbook/values/#reproducibility) your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
 - **Have short toes.** Everyone can contribute.  Get comfortable with [others contributing to your work](https://about.gitlab.com/handbook/values/#short-toes).
 - **Public by default.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality) carefully.
-- **Commit to candor.** Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way).  Interrupt and be interrupted.
+- **Speak freely.** Interrupt and be interrupted.  Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way).   <!-- Commit to candor.  Speak your mind. -->
 
 
 ## History

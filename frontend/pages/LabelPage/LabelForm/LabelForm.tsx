@@ -12,7 +12,7 @@ import InputField from "components/forms/fields/InputField";
 import FleetAce from "components/FleetAce";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
-import InfoIcon from "../../../../assets/images/icon-info-purple-14x14@2x.png";
+import Icon from "components/Icon/Icon";
 
 interface ILabelFormProps {
   baseError: string;
@@ -104,6 +104,7 @@ const LabelForm = ({
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
+      enableMultiselect: false, // Disables command + click creating multiple cursors
     });
 
     // @ts-expect-error
@@ -169,7 +170,7 @@ const LabelForm = ({
     return (
       <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
         <>
-          <img alt="" src={InfoIcon} />
+          <Icon name="info" size="small" />
           Show schema
         </>
       </Button>

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -131,6 +132,31 @@ func (oc *OrbitClient) SetOrUpdateDeviceToken(deviceAuthToken string) error {
 	return nil
 }
 
+// GetHostScript returns the script fetched from Fleet server to run on this
+// host.
+func (oc *OrbitClient) GetHostScript(execID string) (*fleet.HostScriptResult, error) {
+	verb, path := "POST", "/api/fleet/orbit/scripts/request"
+	var resp orbitGetScriptResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitGetScriptRequest{
+		ExecutionID: execID,
+	}, &resp); err != nil {
+		return nil, err
+	}
+	return resp.HostScriptResult, nil
+}
+
+// SaveHostScriptResult saves the result of running the script on this host.
+func (oc *OrbitClient) SaveHostScriptResult(result *fleet.HostScriptResultPayload) error {
+	verb, path := "POST", "/api/fleet/orbit/scripts/result"
+	var resp orbitPostScriptResultResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitPostScriptResultRequest{
+		HostScriptResultPayload: result,
+	}, &resp); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Ping sends a ping request to the orbit/ping endpoint.
 func (oc *OrbitClient) Ping() error {
 	verb, path := "HEAD", "/api/fleet/orbit/ping"
@@ -198,7 +224,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 				endpointDoesNotExist = true
 				return nil
 			default:
-				log.Info().Err(err).Msg("enroll failed, retrying")
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "enroll failed, retrying")
 				return err
 			}
 		},
@@ -211,6 +237,15 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 		return "", errors.New("enroll endpoint does not exist")
 	}
 	return orbitNodeKey_, nil
+}
+
+// GetNodeKey gets the orbit node key from file.
+func (oc *OrbitClient) GetNodeKey() (string, error) {
+	orbitNodeKey, err := os.ReadFile(oc.nodeKeyFilePath)
+	if err != nil {
+		return "", err
+	}
+	return string(orbitNodeKey), nil
 }
 
 func (oc *OrbitClient) enrollAndWriteNodeKeyFile() (string, error) {
@@ -302,4 +337,19 @@ func OrbitRetryInterval() time.Duration {
 		}
 	}
 	return constant.OrbitEnrollRetrySleep
+}
+
+// SetOrUpdateDiskEncryptionKey sends a request to the server to set or update the disk
+// encryption keys and result of the encryption process
+func (oc *OrbitClient) SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error {
+	verb, path := "POST", "/api/fleet/orbit/disk_encryption_key"
+
+	var resp orbitPostDiskEncryptionKeyResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitPostDiskEncryptionKeyRequest{
+		EncryptionKey: diskEncryptionStatus.EncryptionKey,
+		ClientError:   diskEncryptionStatus.ClientError,
+	}, &resp); err != nil {
+		return err
+	}
+	return nil
 }

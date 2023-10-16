@@ -30,7 +30,6 @@ import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
-import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
 
 const baseClass = "policy-form";
 
@@ -180,6 +179,7 @@ const PolicyForm = ({
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
+      enableMultiselect: false, // Disables command + click creating multiple cursors
     });
 
     // @ts-expect-error
@@ -292,7 +292,7 @@ const PolicyForm = ({
     return (
       <Button variant="small-icon" onClick={onOpenSchemaSidebar}>
         <>
-          <img alt="" src={InfoIcon} />
+          <Icon name="info" size="small" />
           Show schema
         </>
       </Button>

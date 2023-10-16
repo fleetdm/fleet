@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -78,7 +79,7 @@ func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage,
 			// Request.
 			msg := err.Error()
 			if authErr.StatusCode == http.StatusUnauthorized {
-				msg = "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm for help."
+				msg = "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-business-manager-abm for help."
 			}
 			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message:     msg,
@@ -727,6 +728,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		UUID:     uuid.New().String(),
 		Username: username,
 		Fullname: auth.UserDisplayName(),
+		Email:    auth.UserID(),
 	}
 	if err := svc.ds.InsertMDMIdPAccount(ctx, &idpAcc); err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "saving account data from IdP")
@@ -852,13 +854,13 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 
 	// create profiles for that team via the service call, so that uniqueness
 	// of profile identifier/name is verified, activity created, etc.
-	if err := svc.BatchSetMDMAppleProfiles(ctx, &team.ID, nil, rawProfiles, false); err != nil {
+	if err := svc.BatchSetMDMAppleProfiles(ctx, &team.ID, nil, rawProfiles, false, true); err != nil {
 		return err
 	}
 
 	// assign host to that team via the service call, which will trigger
 	// deployment of the profiles.
-	if err := svc.AddHostsToTeam(ctx, &team.ID, []uint{host.ID}); err != nil {
+	if err := svc.AddHostsToTeam(ctx, &team.ID, []uint{host.ID}, true); err != nil {
 		return err
 	}
 
@@ -889,13 +891,9 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 		}
 
 		payload.MDM = &fleet.TeamPayloadMDM{
-			MacOSSettings: &fleet.MacOSSettings{
-				// teams created by the match endpoint have disk encryption
-				// enabled by default.
-				// TODO: maybe make this configurable?
-				EnableDiskEncryption: true,
-			},
+			EnableDiskEncryption: optjson.SetBool(true),
 			MacOSSetup: &fleet.MacOSSetup{
+				MacOSSetupAssistant: ac.MDM.MacOSSetup.MacOSSetupAssistant,
 				// NOTE: BootstrapPackage is currently ignored by svc.ModifyTeam and gets set
 				// instead by CopyDefaultMDMAppleBootstrapPackage below
 				// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
@@ -912,6 +910,29 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 		}
 		if err := svc.ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, team.ID); err != nil {
 			return nil, err
+		}
+
+		// get the global setup assistant contents (this is different
+		// from MDM.MacOSSetup.MacOSSetupAssistant we set above, the
+		// prior is the path to the file, this is the actual file
+		// contents.
+		asst, err := svc.ds.GetMDMAppleSetupAssistant(ctx, nil)
+		if err != nil {
+			// if "no team" doesn't have custom setup assistant
+			// settings configured, this team won't have either.
+			if fleet.IsNotFound(err) {
+				return team, nil
+			}
+			return nil, ctxerr.Wrap(ctx, err, "get global setup assistant")
+
+		}
+		_, err = svc.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
+			TeamID:  &team.ID,
+			Name:    asst.Name,
+			Profile: asst.Profile,
+		})
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "set setup assistant for new team")
 		}
 	}
 	return team, nil
@@ -942,4 +963,52 @@ func teamNameFromPreassignGroups(groups []string) string {
 	}
 
 	return strings.Join(groups, " - ")
+}
+
+func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*fleet.MDMDiskEncryptionSummary, error) {
+	// TODO: Consider adding a new generic OSSetting type or Windows-specific type for authz checks
+	// like this.
+	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	var macOS fleet.MDMAppleFileVaultSummary
+	if m, err := svc.ds.GetMDMAppleFileVaultSummary(ctx, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting filevault summary")
+	} else if m != nil {
+		macOS = *m
+	}
+
+	var windows fleet.MDMWindowsBitLockerSummary
+	if w, err := svc.ds.GetMDMWindowsBitLockerSummary(ctx, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting bitlocker summary")
+	} else if w != nil {
+		windows = *w
+	}
+
+	return &fleet.MDMDiskEncryptionSummary{
+		Verified: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Verified,
+			Windows: windows.Verified,
+		},
+		Verifying: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Verifying,
+			Windows: windows.Verifying,
+		},
+		ActionRequired: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.ActionRequired,
+			Windows: windows.ActionRequired,
+		},
+		Enforcing: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Enforcing,
+			Windows: windows.Enforcing,
+		},
+		Failed: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Failed,
+			Windows: windows.Failed,
+		},
+		RemovingEnforcement: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.RemovingEnforcement,
+			Windows: windows.RemovingEnforcement,
+		},
+	}, nil
 }

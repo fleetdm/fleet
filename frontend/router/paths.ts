@@ -1,17 +1,21 @@
 import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
 
+// Note: changes to paths.ts should change page_titles.ts respectively
 export default {
   ROOT: `${URL_PREFIX}/`,
+
+  // Controls pages
   CONTROLS: `${URL_PREFIX}/controls`,
-  CONTROLS_MAC_OS_UPDATES: `${URL_PREFIX}/controls/mac-os-updates`,
-  CONTROLS_MAC_SETTINGS: `${URL_PREFIX}/controls/mac-settings`,
-  CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/mac-settings/custom-settings`,
-  CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/mac-settings/disk-encryption`,
-  CONTROLS_MAC_SETUP: `${URL_PREFIX}/controls/mac-setup`,
-  CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/mac-setup/end-user-auth`,
-  CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/mac-setup/bootstrap-package`,
-  CONTROLS_MAC_SCRIPTS: `${URL_PREFIX}/controls/mac-scripts`,
+  CONTROLS_OS_UPDATES: `${URL_PREFIX}/controls/os-updates`,
+  CONTROLS_OS_SETTINGS: `${URL_PREFIX}/controls/os-settings`,
+  CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/os-settings/custom-settings`,
+  CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
+  CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
+  CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
+  CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
+  CONTROLS_SCRIPTS: `${URL_PREFIX}/controls/scripts`,
+
   DASHBOARD: `${URL_PREFIX}/dashboard`,
   DASHBOARD_LINUX: `${URL_PREFIX}/dashboard/linux`,
   DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
@@ -49,6 +53,16 @@ export default {
     return `${URL_PREFIX}/labels/${labelId}`;
   },
   EDIT_QUERY: (queryId: number, teamId?: number): string => {
+    return `${URL_PREFIX}/queries/${queryId}/edit${
+      teamId ? `?team_id=${teamId}` : ""
+    }`;
+  },
+  LIVE_QUERY: (queryId: number | null, teamId?: number): string => {
+    return `${URL_PREFIX}/queries/${queryId || "new"}/live${
+      teamId ? `?team_id=${teamId}` : ""
+    }`;
+  },
+  QUERY: (queryId: number, teamId?: number): string => {
     return `${URL_PREFIX}/queries/${queryId}${
       teamId ? `?team_id=${teamId}` : ""
     }`;
@@ -71,6 +85,9 @@ export default {
   },
   HOST_DETAILS: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}`;
+  },
+  HOST_SCRIPTS: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/scripts`;
   },
   HOST_SOFTWARE: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/software`;

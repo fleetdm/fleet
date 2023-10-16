@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -36,6 +37,11 @@ type QueryPayload struct {
 	AutomationsEnabled *bool `json:"automations_enabled"`
 	// Logging is set to "snapshot" if not set when creating a query.
 	Logging *string `json:"logging"`
+	// DiscardData indicates if the scheduled query results should be discarded (true)
+	// or kept (false) in a query report.
+	//
+	// If not set during creation of a query, then the default value is false.
+	DiscardData *bool `json:"discard_data"`
 }
 
 // Query represents a osquery query to run on devices.
@@ -91,6 +97,9 @@ type Query struct {
 	//
 	// This field has null values if the query did not run as a schedule on any host.
 	AggregatedStats `json:"stats"`
+	// DiscardData indicates if the scheduled query results should be discarded (true)
+	// or kept (false) in a query report.
+	DiscardData bool `json:"discard_data" db:"discard_data"`
 }
 
 var (
@@ -142,6 +151,7 @@ func (q *Query) GetRemoved() *bool {
 }
 
 // Verify verifies the query payload is valid.
+// Called when creating or modifying a query
 func (q *QueryPayload) Verify() error {
 	if q.Name != nil {
 		if err := verifyQueryName(*q.Name); err != nil {
@@ -158,10 +168,16 @@ func (q *QueryPayload) Verify() error {
 			return err
 		}
 	}
+	if q.Platform != nil {
+		if err := verifyQueryPlatforms(*q.Platform); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 // Verify verifies the query fields are valid.
+// Called when creating queries by spec
 func (q *Query) Verify() error {
 	if err := verifyQueryName(q.Name); err != nil {
 		return err
@@ -170,6 +186,9 @@ func (q *Query) Verify() error {
 		return err
 	}
 	if err := verifyLogging(q.Logging); err != nil {
+		return err
+	}
+	if err := verifyQueryPlatforms(q.Platform); err != nil {
 		return err
 	}
 	return nil
@@ -196,9 +215,10 @@ func (tq *TargetedQuery) AuthzType() string {
 }
 
 var (
-	errQueryEmptyName  = errors.New("query name cannot be empty")
-	errQueryEmptyQuery = errors.New("query's SQL query cannot be empty")
-	errInvalidLogging  = fmt.Errorf("invalid logging value, must be one of '%s', '%s', '%s'", LoggingSnapshot, LoggingDifferential, LoggingDifferentialIgnoreRemovals)
+	errQueryEmptyName       = errors.New("query name cannot be empty")
+	errQueryEmptyQuery      = errors.New("query's SQL query cannot be empty")
+	ErrQueryInvalidPlatform = errors.New("query's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string")
+	errInvalidLogging       = fmt.Errorf("invalid logging value, must be one of '%s', '%s', '%s'", LoggingSnapshot, LoggingDifferential, LoggingDifferentialIgnoreRemovals)
 )
 
 func verifyQueryName(name string) error {
@@ -219,6 +239,23 @@ func verifyLogging(logging string) error {
 	// Empty string means snapshot.
 	if logging != "" && logging != LoggingSnapshot && logging != LoggingDifferential && logging != LoggingDifferentialIgnoreRemovals {
 		return errInvalidLogging
+	}
+	return nil
+}
+
+func verifyQueryPlatforms(platforms string) error {
+	if emptyString(platforms) {
+		return nil
+	}
+	platformsList := strings.Split(platforms, ",")
+	for _, platform := range platformsList {
+		// TODO(jacob) – should we accept these strings with spaces? If not, remove `TrimSpace`
+		switch strings.TrimSpace(platform) {
+		case "windows", "linux", "darwin", "chrome":
+			// OK
+		default:
+			return ErrQueryInvalidPlatform
+		}
 	}
 	return nil
 }
@@ -258,6 +295,11 @@ type QuerySpec struct {
 	AutomationsEnabled bool `json:"automations_enabled"`
 	// Logging is set to "snapshot" if not set.
 	Logging string `json:"logging"`
+	// DiscardData indicates if the scheduled query results should be discarded (true)
+	// or kept (false) in a query report.
+	//
+	// If not set, then the default value is false.
+	DiscardData bool `json:"discard_data"`
 }
 
 func LoadQueriesFromYaml(yml string) ([]*Query, error) {
@@ -326,4 +368,65 @@ type QueryStats struct {
 	SystemTime   int       `json:"system_time" db:"system_time"`
 	UserTime     int       `json:"user_time" db:"user_time"`
 	WallTime     int       `json:"wall_time" db:"wall_time"`
+}
+
+// MapQueryReportsResultsToRows converts the scheduled query results as stored in Fleet's database
+// to HostQueryResultRows to be exposed to the API.
+func MapQueryReportResultsToRows(rows []*ScheduledQueryResultRow) ([]HostQueryResultRow, error) {
+	var results []HostQueryResultRow
+	for _, row := range rows {
+		var columns map[string]string
+		if err := json.Unmarshal(row.Data, &columns); err != nil {
+			return nil, err
+		}
+		results = append(results, HostQueryResultRow{
+			HostID:      row.HostID,
+			Hostname:    row.Hostname,
+			LastFetched: row.LastFetched,
+			Columns:     columns,
+		})
+	}
+	return results, nil
+}
+
+// HostQueryResultRow contains a single scheduled query result row from a host.
+// This type is used to expose the results on the API.
+type HostQueryResultRow struct {
+	// HostID is the unique ID of the host.
+	HostID uint `json:"host_id"`
+	// Hostname is the host's hostname.
+	Hostname string `json:"host_name"`
+	// LastFetched is the time this result row was received.
+	LastFetched time.Time `json:"last_fetched"`
+	// Columns contains the key-value pairs of a result row.
+	// The map key is the name of the column, and the map value is the value.
+	Columns map[string]string `json:"columns"`
+}
+
+// ScheduledQueryResult holds results of a scheduled query received from a osquery agent.
+type ScheduledQueryResult struct {
+	// QueryName is the name of the query.
+	QueryName string `json:"name,omitempty"`
+	// OsqueryHostID is the identifier of the host.
+	OsqueryHostID string `json:"hostIdentifier"`
+	// Snapshot holds the result rows. It's an array of maps, where the map keys
+	// are column names and map values are the values.
+	Snapshot []json.RawMessage `json:"snapshot"`
+	// LastFetched is the time this result was received.
+	UnixTime uint `json:"unixTime"`
+}
+
+// ScheduledQueryResultRow is a scheduled query result row.
+type ScheduledQueryResultRow struct {
+	// QueryID is the unique identifier of the query.
+	QueryID uint `db:"query_id"`
+	// HostID is the unique identifier of the host.
+	HostID uint `db:"host_id"`
+	// Hostname is the host's hostname.
+	Hostname string `db:"hostname"`
+	// Data holds a single result row. It holds a map where the map keys
+	// are column names and map values are the values.
+	Data json.RawMessage `db:"data"`
+	// LastFetched is the time this result was received.
+	LastFetched time.Time `db:"last_fetched"`
 }

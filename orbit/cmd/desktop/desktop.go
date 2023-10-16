@@ -157,6 +157,16 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
+		client.WithInvalidTokenRetry(func() string {
+			log.Debug().Msg("refetching token from disk for API retry")
+			newToken, err := tokenReader.Read()
+			if err != nil {
+				log.Error().Err(err).Msg("refetch token from disk for API retry")
+				return ""
+			}
+			log.Debug().Msg("successfully refetched the token from disk for API retry")
+			return newToken
+		})
 
 		refetchToken := func() {
 			if _, err := tokenReader.Read(); err != nil {
@@ -245,6 +255,25 @@ func main() {
 					tokenReader: &tokenReader,
 				},
 			)
+		}
+
+		reportError := func(err error, info map[string]any) {
+			if !client.GetServerCapabilities().Has(fleet.CapabilityErrorReporting) {
+				log.Info().Msg("skipped reporting error to the server as it doesn't have the capability enabled")
+				return
+			}
+
+			fleetdErr := fleet.FleetdError{
+				ErrorSource:         "fleet-desktop",
+				ErrorSourceVersion:  version,
+				ErrorTimestamp:      time.Now(),
+				ErrorMessage:        err.Error(),
+				ErrorAdditionalInfo: info,
+			}
+
+			if err := client.ReportError(tokenReader.GetCached(), fleetdErr); err != nil {
+				log.Error().Err(err).EmbedObject(fleetdErr).Msg("reporting error to Fleet server")
+			}
 		}
 
 		// poll the server to check the policy status of the host and update the
@@ -341,6 +370,7 @@ func main() {
 						if isUnmanaged || forceModeEnabled {
 							log.Info().Msg("MDM device is unmanaged or force mode enabled, automatically showing dialog")
 							if err := mdmMigrator.ShowInterval(); err != nil {
+								go reportError(err, nil)
 								log.Error().Err(err).Msg("showing MDM migration dialog at interval")
 							}
 						}
@@ -367,6 +397,7 @@ func main() {
 					}
 				case <-migrateMDMItem.ClickedCh:
 					if err := mdmMigrator.Show(); err != nil {
+						go reportError(err, nil)
 						log.Error().Err(err).Msg("showing MDM migration dialog on user action")
 					}
 				}
@@ -398,11 +429,13 @@ func (m *mdmMigrationHandler) NotifyRemote() error {
 	return nil
 }
 
-func (m *mdmMigrationHandler) ShowInstructions() {
+func (m *mdmMigrationHandler) ShowInstructions() error {
 	openURL := m.client.BrowserDeviceURL(m.tokenReader.GetCached())
 	if err := open.Browser(openURL); err != nil {
 		log.Error().Err(err).Str("url", openURL).Msg("open browser")
+		return err
 	}
+	return nil
 }
 
 // setupLogs configures our logging system to write logs to rolling files and

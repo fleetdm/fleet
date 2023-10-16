@@ -16,9 +16,6 @@ At its core, Fleet Desktop gives your end users visibility into the security pos
    <iframe src="https://www.youtube.com/embed/cI2vDG3PbVo" allowfullscreen></iframe>
 </div>
 
-## OS support
-Fleet Desktop is supported on macOS 12+.
-
 ## Installing Fleet Desktop
 For information on how to install Fleet Desktop, visit: [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop).
 

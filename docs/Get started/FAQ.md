@@ -2,6 +2,11 @@
 
 ## Using Fleet
 
+### Can you host Fleet for me?
+
+Fleet offers managed cloud hosting for large deployments.  Unfortunately, while organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, we are not currently able to provide hosting for deployments smaller than 1000 hosts.  If you are comfortable doing so, you can still buy a license and host Fleet yourself.
+
+
 ### How can I switch to Fleet from Kolide Fleet?
 
 To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the [Upgrading Fleet section](https://fleetdm.com/docs/deploying/upgrading-fleet) of the documentation.
@@ -120,10 +125,6 @@ For example, let's say you want to retrieve a host's OS version, installed softw
 
 Each host’s OS version is available using the `api/v1/fleet/hosts` API endpoint. [Check out the API documentation for this endpoint](https://fleetdm.com/docs/using-fleet/rest-api#list-hosts).
 
-The ability to view each host’s installed software was released behind a feature flag in Fleet 3.11.0 and called Software inventory. [Check out the feature flag documentation for instructions on turning on Software inventory in Fleet](https://fleetdm.com/docs/deploying/configuration#feature-flags).
-
-Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/v1/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](https://fleetdm.com/docs/using-fleet/rest-api#get-host).
-
 It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options YAML file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleet-configuration-options).
 
 ### Why is my host not updating a policy's response?
@@ -152,14 +153,14 @@ Yes, fleetd can be run alongside an existing, separately-installed osqueryd. If 
 
 Yes, auto-updates can be disabled entirely by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
 
-```
+```sh
 fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --disable-updates
 ```
 
 You can also indicate the [channels you would like Fleetd to watch for updates](https://fleetdm.com/docs/using-fleet/fleetd#update-channels) using the `--orbit-channel`, `--desktop-channel` , and `--osqueryd-channel` flags:
 
-```
-fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --orbit-channel=edge --desktop-channel=stable --osquery-channel=4
+```sh
+fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --orbit-channel=edge --desktop-channel=stable --osqueryd-channel=4
 ```
 
 You can specify a major (4), minor (4.0) or patch (4.6.0) version as well as the `stable`  or `edge` channels.
@@ -188,7 +189,7 @@ Any extension table available in a host enrolled to Fleet can be queried by Flee
 
 If you are using a self-signed certificate on `localhost`, add the  `--insecure` flag when building your installation packages:
 
-```
+```sh
 fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --insecure
 ```
 
@@ -208,6 +209,13 @@ The [REST API](https://fleetdm.com/docs/using-fleet/rest-api) is somewhat simila
 
 The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human users to make interfacing with the Fleet server user-friendly and visually appealing. It also makes things simpler and more accessible to a broader range of users.
 
+### How do I issue MDM commands with `fleetctl` and an applied `--context` option?
+
+[fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli#logging-in-to-an-existing-fleet-instance) allows users to maintain a context for the environment that they are logging into. This is useful when maintaining a development / staging / production workflow. When issuing MDM commands in combination with the `--context` option, please use the following syntax:
+
+`fleetctl mdm --context dev run-command --payload=restart-device.xml --host=hostname`
+
+
 ### Why can't I run queries with `fleetctl` using a new API-only user?
 
 In versions prior to Fleet 4.13, a password reset is needed before a new API-only user can perform queries. You can find detailed instructions for setting that up [here](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password).
@@ -224,7 +232,7 @@ By default, Fleet will query hosts for software inventory hourly. If you'd like 
 
 There are a few ways you can go about getting counts of hosts that meet specific criteria using the REST API. You can use [`GET /api/v1/fleet/hosts`](https://fleetdm.com/docs/using-fleet/rest-api#list-hosts) or the [`fleetctl` CLI](https://fleetdm.com/docs/using-fleet/fleetctl-cli#available-commands) to gather a list of all hosts and then work with that data however you'd like. For example, you could retrieve all hosts using `fleetctl get hosts` and then use `jq` to pull out the data you need. The following example would give you a count of hosts by their OS version:
 
-```
+```sh
 $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
 
    1 "CentOS Stream 8.0.0"
@@ -321,7 +329,7 @@ Changes were introduced in Fleet v4.20.0 that caused the `features.additional_qu
 
 There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validation in some versions of Fleet when using the `created_at` and `updated_at` columns as `order_key` along with an `after` filter. Adding `h.` to the column in `order_key` will return your results.
 
-```
+```text
 {host}/api/v1/fleet/hosts?order_key=h.created_at&order_direction=desc&after=2022-10-22T20:22:03Z
 
 ```
@@ -337,9 +345,9 @@ There are many challenges to generating .msi packages on any OS but Windows. Err
 
 ### Where did the "Packs" page go?
 
-Packs are a function of osquery that provide a portable format to import/export queries in and out of platforms like Fleet. The "Packs" section of the UI that began with `kolide/fleet` c. 2017 was an early attempt at fulfilling this vision, but it soon became clear that it wasn't the right interface for segmenting and targeting hosts in Fleet. 
+Packs are a function of osquery that provide a portable format to import/export queries in and out of platforms like Fleet. The "Packs" section of the UI that began with `kolide/fleet` c. 2017 was an early attempt at fulfilling this vision, but it soon became clear that it wasn't the right interface for segmenting and targeting hosts in Fleet.
 
-Instead, 2017 "packs" functionality has been combined with the concept of queries. Queries now have built-in schedule features, and (in Fleet premium) can target specific groups of hosts via teams. 
+Instead, 2017 "packs" functionality has been combined with the concept of queries. Queries now have built-in schedule features, and (in Fleet premium) can target specific groups of hosts via teams.
 
 The "Packs" section of the UI has been removed, but access via the API and CLI is still available for backwards compatibility. The `fleetctl upgrade-packs` command can be used to convert existing 2017 "packs" to queries.
 
@@ -415,7 +423,7 @@ Osquery requires that all communication between the agent and Fleet are over a s
 
 ### What do I need to do to change the Fleet server TLS certificate?
 
-If the both the existing and new certificates verify with osquery's default root certificates (such as a certificate issued by a well-known Certificate Authority) and no certificate chain was deployed with osquery, there is no need to deploy a new certificate chain.
+If both the existing and new certificates verify with osquery's default root certificates (such as a certificate issued by a well-known Certificate Authority) and no certificate chain was deployed with osquery, there is no need to deploy a new certificate chain.
 
 If osquery has been deployed with the full certificate chain (using `--tls_server_certs`), deploying a new certificate chain is necessary to allow for verification of the new certificate.
 
@@ -428,7 +436,7 @@ To get your proxy server's HTTP client to work with a local Fleet when using a s
 
 The exact solution to this depends on the request client you are using. For example, when using Node.js ± Sails.js, you can work around this in the requests you're sending with `await sails.helpers.http.get()` by lifting your app with the `NODE_TLS_REJECT_UNAUTHORIZED` environment variable set to `0`:
 
-```
+```sh
 NODE_TLS_REJECT_UNAUTHORIZED=0 sails console
 ```
 
@@ -488,7 +496,7 @@ The next step is to make sure the credentials for the database match what is exp
 
 If you're successful connecting to the database and still receive a database connection error, you may need to specify your database credentials when running `fleet prepare db`. It's encouraged to put your database credentials in environment variables or a config file.
 
-```
+```sh
 fleet prepare db \
     --mysql_address=<database_address> \
     --mysql_database=<database_name> \
@@ -544,7 +552,7 @@ If you would like to manage hosts that can travel outside your VPN or intranet w
 
 If you are using Fleet Desktop and want it to work on remote devices, the bare minimum API to expose is `/api/latest/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies.
 
-For full Fleet Desktop functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
+For full Fleet Desktop and scripts functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
 
 If you would like to use the fleetctl CLI from outside of your network, the following endpoints will also need to be exposed for `fleetctl`:
 
@@ -579,22 +587,22 @@ Fleet is tested with Redis 5.0.14 and 6.2.7. Any version Redis after version 5 w
 
 Most likely, yes! While we'd definitely recommend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination so that you may run into some unforeseen hiccups.
 
-## What happened to the "Schedule" page? 
-Scheduled queries are not gone! Instead, the concept of a scheduled query has been merged with a saved query. After 4.35, scheduling now happens on the queries page: a query can be scheduled (via familiar attributes such as "interval," "platform") or it can simply be saved to be run ad-hoc. A query can now belong to a team, or it can be a global query which every team inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified query concept. 
+## What happened to the "Schedule" page?
+Scheduled queries are not gone! Instead, the concept of a scheduled query has been merged with a saved query. After 4.35, scheduling now happens on the queries page: a query can be scheduled (via familiar attributes such as "interval," "platform") or it can simply be saved to be run ad-hoc. A query can now belong to a team, or it can be a global query which every team inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified query concept.
 
-To achieve the above, 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and [2017 pack](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs) into the new merged query concept: 
+To achieve the above, 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and [2017 pack](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs) into the new merged query concept:
 - Any global scheduled query will have its query converted into a global query with the relevant schedule attributes (frequency, min. osquery version, logging, etc.).
 - Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
 - Any query that is referenced by a 2017 pack will be converted into a global query and the 2017 pack will reference it. The 2017 packs should continue functioning as before.
 
-Important: To avoid naming conflicts, a query must have a unique name within its team. Therefore, the migration will add a timestamp after each migrated query. If you are using gitops for queries, we recommend that you run `fleetctl get queries --yaml` after the migration to get the latest set of yaml files. Otherwise, if you run `fleetctl apply -f queries.yml`, it will result in the creation of new queries rather than updating the existing ones. To prevent this issue, we recommend you use `PATCH /api/v1/fleet/queries/{id}` for updating or changing query names. 
+Important: To avoid naming conflicts, a query must have a unique name within its team. Therefore, the migration will add a timestamp after each migrated query. If you are using gitops for queries, we recommend that you run `fleetctl get queries --yaml` after the migration to get the latest set of yaml files. Otherwise, if you run `fleetctl apply -f queries.yml`, it will result in the creation of new queries rather than updating the existing ones. To prevent this issue, we recommend you use `PATCH /api/v1/fleet/queries/{id}` for updating or changing query names.
 
 For any automated workflows that use the schedule endpoints on the API, we recommend consolidating to the query endpoints, which now accept the scheduled query attributes. The schedule endpoints in the API still function but are deprecated. To accommodate the new unified query concept, the schedule endpoints behave differently under-the-hood:
 - The POST endpoints will create a new query with the specified attributes
 - The PATCH endpoint will modify the specified query with the specified attributes
-- The DELETE endpoint will delete the specified query. 
+- The DELETE endpoint will delete the specified query.
 
-Finally, "shard" has been retired as an option for queries. In its place we recommend using a canary team or a live query to test the impact of a query before deploying it more broadly. 
+Finally, "shard" has been retired as an option for queries. In its place we recommend using a canary team or a live query to test the impact of a query before deploying it more broadly.
 
 
 

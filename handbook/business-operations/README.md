@@ -6,35 +6,36 @@ The BizOps department is directly responsible for these traditional functions: P
 
 ## Team
 | Role                          | Contributor(s)           |
-|:------------------------------|:------------------------------------------------------------------------------------------------------------------------|
+|:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Business Operations   | [Joanne Stableford](https://www.linkedin.com/in/joanne-stableford/) _([@jostableford](https://github.com/JoStableford))_
 | Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
 | Head of Revenue Operations    | [Taylor Hughes](https://www.linkedin.com/in/taylorhughes834/) _([@hughestaylor](https://github.com/hughestaylor))_
 
 
 ## Contact us
-- Submit legal questions and requests to Business Operations department.  (Business Operations will escalate first-of-its-kind agreements to the CEO.  The CEO will review business terms and consult with lawyers as necessary.)
-- If urgent, ask in [#g-business-operations](https://fleetdm.slack.com/archives/C047N5L6EGH).
-- If you need help during onboarding ask in [#help-onboarding](https://fleetdm.slack.com/archives/C02QG7P5571).
-- For all questions related to your company credit card, ask in [#help-brex](https://fleetdm.slack.com/archives/C0396TYH4EP).
-- To make any other request of the Business Operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, [create a custom request issue](https://github.com/fleetdm/confidential/issues/new/choose) and someone in business operations will reply within 1 business day.
-- Any Fleet team member can [view the 🔦#g-business-operations kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) (confidential) for this department, including pending tasks in the active sprint and any new requests.
+- To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
+  - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
+  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) for this department, including pending tasks and the status of new requests.
+  - Submit legal questions and requests to Business Operations department. (Business Operations will escalate first-of-its-kind agreements to the CEO.  The CEO will review business terms and consult with lawyers as necessary.)
+- If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-business-operations](https://fleetdm.slack.com/archives/C047N5L6EGH) Slack channel.
+  - If you need help during onboarding ask in [#help-onboarding](https://fleetdm.slack.com/archives/C02QG7P5571).
+  - For all questions related to your company credit card, ask in [#help-brex](https://fleetdm.slack.com/archives/C0396TYH4EP).
 
 
 ## Tools we use
-
 There are a number of tools that are used throughout Fleet. Some of these tools are used company-wide, while others are department-specific. You can see a list of those tools in ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing).
 
 ### Role-specific licenses
 Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from BizOps](https://fleetdm.com/handbook/business-operations#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
 
 | Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_ |
-|:-----------------|:--|:---|:---|:---|:--|
+|:-----------------|:---|:---|:----|:---|:---|
 | 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
 | 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
-| 🐋 SA            | ✅ | ✅ | ❌ | ❌ | ✅
+| 🐋 SC            | ✅ | ✅ | ❌ | ❌ | ✅
 | 🫧 SDR           | ✅ | ✅ | ✅ | ❌ | ❌
-| ⚗️ PM             | ❌ | ❌ | ❌ | ✅ | ✅
+| ⚗️ PM            | ❌ | ❌ | ❌ | ✅ | ✅
+| ⚗️ PD            | ❌ | ❌ | ❌ | ✅ | ✅
 | 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
 |   Other roles    | ❌ | ❌ | ❌ | ❌ | ❌
 
@@ -123,7 +124,7 @@ Then, send **the CEO** and **each manager** a direct message in Slack by copying
 > - 💁 Bombalurina: 0
 > - 💁 Jennyanydots: 0
 > - 💁 Skimbleshanks: 19
-> - 💁 Grizabella: 0
+> - 💁 Griza Bella: 0
 > 
 > More info: https://fleetdm.com/handbook/business-operations#inform-managers-about-hours-worked
 
@@ -217,6 +218,7 @@ The following table lists this department's rituals, frequency, and Directly Res
 | Vanta check | Monthly | Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time. | Nathan Holliday |
 | Investor reporting | Quarterly | Provide updated metrics for CRV in Chronograph. | Nathanael Holliday |
 | Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | Joanne Stableford |
+| KPI roundup + weekly update | Weekly | Update KPI spreadsheet with BizOps KPI data by 5pm US central time every Friday.  At 5pm check other department KPIs to make sure they have been updated, and if not, notify DRIs and the apprentice to the CEO which KPIs have not been updated. | Nathanael Holliday |
 
 
 <!--
