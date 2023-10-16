@@ -6,7 +6,7 @@
       #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╚═╝╩ ╩╩═╝╩ ╩ ╩
     - industryName: Device health
       friendlyName: Automate device health
-      description: Automatically report performance issues using webhooks or integrations, and quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
+      description: Automatically report system health issues using webhooks or integrations, to notify or quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
       documentationUrl:
       screenshotSrc:
       tier: Free
@@ -58,7 +58,7 @@
     #  ╩ ╩╚═╝ ╩ ╚═╝╩ ╩╩ ╩ ╩ ╩╚═╝  ╩  ╚═╝╚═╝ ╩ ╚═╝╩╚═╚═╝  ╩ ╩╚═╝╚═╝╚═╝╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩
     - industryName: Automatic posture assessment
       friendlyName: Verify any security or compliance goal
-      description: Simplify security audits, build definitive reports, and verify ongoing compliance for every endpoint, from workstations to data centers.
+      description: Simplify security audits, build definitive reports, and discover + verify ongoing compliance for every endpoint, from workstations to data centers.
       documentationUrl:
       screenshotSrc:
       usualDepartment: Security
@@ -69,10 +69,20 @@
         - description: 
           quote: 
           moreInfoUrl: 
-      buzzwords: [Attack surface management (ASM),Endpoint hardening,Posture hardening]
+      buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Threat hunting]
       waysToUse:
         - description: Monitor devices that don't meet your organization's custom security policies
         - description: Keep your devices compliant with customizable baselines, or use common benchmarks like CIS.
+        - description: Discover security misconfigurations that increase attack surface.
+        - description: Detect suspcious services listening on open ports that should not be connected to the internet, such as Remote Desktop Protocol (RDP).
+          moreInfoUrl: https://paraflare.com/articles/vulnerability-management-via-osquery/#:~:text=WHERE%20statename%20%3D%20%E2%80%9CEnabled%E2%80%9D-,OPEN%20SOCKETS,-Lastly%2C%20an%20examination
+        - description: Discover potentially unwanted programs that increase attack surface.
+          moreInfoUrl: https://paraflare.com/articles/vulnerability-management-via-osquery/
+        - description: Detect self-signed certifcates
+        - description: Detect legacy protocols with safer versions
+          moreInfoUrl: https://paraflare.com/articles/vulnerability-management-via-osquery/#:~:text=WHERE%20self_signed%20%3D%201%3B-,LEGACY%20PROTOCOLS,-This%20section%20will
+        - description: Detect exposed secrets on the command line
+          moreInfoUrl: https://paraflare.com/articles/vulnerability-management-via-osquery/#:~:text=WDigest%20is%20disabled.-,EXPOSED%20SECRETS,-Often%2C%20to%20create
         - description: Detect and surface issues with devices
         - description: Share device health reports
         - description: Align endpoints with your security policies
@@ -127,6 +137,8 @@
           moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
         - description: Export data to a third-party SIEM tool
           moreInfoUrl: https://www.websense.com/content/support/library/web/hosted/admin_guide/siem_integration_explain.aspx
+        - description: Gather data and log events from endpoints
+          moreInfoUrl: https://techbeacon.com/security/how-osquery-can-lift-your-security-teams-game#:~:text=%22If%20security%20teams%20didn%27t%20have%20osquery%2C%20they%20would%20have%20to%20find%20a%20way%20to%20manually%20go%20into%20each%20endpoint%20and%20gather%20data%2C%20or%20buy%20a%20third%2Dparty%20tool%20to%20do%20that%20for%20them
     #
     #  ╔═╗╦╔╦╗
     #  ╠╣ ║║║║
@@ -144,9 +156,10 @@
         - description: A top gaming company needed a way to monitor critical files on production Debian servers.
           quote: The FIM features are kind of a top priority.
           moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
+      buzzwords: [File integrity monitoring (FIM),Host-based intrusion detection system (HIDS),Anomaly detection]
       waysToUse:
         - description: Monitor critical files on production Debian servers
-        - description: Detect illicit activity
+        - description: Detect anomalous filesystem activity
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
         - description: Pinpoint unintended changes
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
@@ -157,18 +170,30 @@
     #  ╦ ╦╔═╗╦═╗╔═╗
     #  ╚╦╝╠═╣╠╦╝╠═╣
     #   ╩ ╩ ╩╩╚═╩ ╩
-    - industryName: YARA
-      fiendlyName: Scan files for malware
-      description: Look for files that match a YARA signature.
+    - industryName: Malware detection (YARA)
+      fiendlyName: Scan files for malware signatures
+      description: Trigger automations when a file matches a YARA signature.
       documentationUrl: https://fleetdm.com/tables/yara
       tier: Free
       dri: mikermcneil
       usualDepartment: Security
-      productCategories: [Endpoint operations]
-      buzzwords: [Antivirus]
+      productCategories: [Endpoint operations,Vulnerability management]
+      buzzwords: [YARA scanning,Antivirus (AV),Endpoint protection platform (EPP),Signature-based malware detection,Malware scanning,Malware analysis,Anomaly detection]
       waysToUse:
         - description: Write YARA rules to continuously scan host filesystems for malware signatures using policies.
           moreInfoUrl: https://yara.readthedocs.io/en/stable/writingrules.html
+        - description: Monitor for relevent filesystem changes (YARA events) and on-demand YARA signature scans.
+          moreInfoUrl: https://osquery.readthedocs.io/en/stable/deployment/yara/
+        - description: Use YARA for malware detection
+          moreInfoUrl: https://www.cisa.gov/sites/default/files/FactSheets/NCCIC%20ICS_FactSheet_YARA_S508C.pdf
+        - description: Scan for indicators of compromise (IoC) for common malware.
+          moreInfoUrl: https://github.com/Cisco-Talos/osquery_queries
+        - description: Analyze malware using data from osquery, such as endpoint certificates and launch daemons (launchd).
+          moreInfoUrl: https://medium.com/hackernoon/malware-analysis-using-osquery-part-3-9dc805b67d16
+        - description: Detect persistent malware (e.g. WireLurker) in endpoints by generating simple policies that search for their static indicators of compromise (IoCs).
+          moreInfoUrl: https://osquery.readthedocs.io/en/stable/deployment/anomaly-detection/
+        - description: Run a targeted YARA scan with osquery as a lightweight approach to scan anything on a host filesystem, with minimal performance impact.  Unlike full system YARA scans which consume considerable CPU resources, an equivalent YARA scan targeted in Fleet can be 8x cheaper (CPU %).
+          moreInfoUrl: https://www.tripwire.com/state-of-security/signature-socket-based-malware-detection-osquery-yara
     #  ╔═╗╔═╗╔═╗╔╗╔╔╦╗  ╔═╗╦ ╦╔╦╗╔═╗   ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗
     #  ╠═╣║ ╦║╣ ║║║ ║   ╠═╣║ ║ ║ ║ ║───║ ║╠═╝ ║║╠═╣ ║ ║╣
     #  ╩ ╩╚═╝╚═╝╝╚╝ ╩   ╩ ╩╚═╝ ╩ ╚═╝   ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝
@@ -334,11 +359,20 @@
       tier: Premium
 - categoryName: Device management
   features:
-    - industryName: User-initiated enrollment of macOS computers
+    - industryName: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
       tier: Free
       usualDepartment: IT
       productCategories: [Device management]
     - industryName: Remotely enforce macOS settings
+      tier: Free
+      usualDepartment: IT
+      productCategories: [Device management]
+    - industryName: Self service
+      description: Provide resolution instructions for end users through Fleet Desktop that suggest how an end user can fix a posture issue themselves.
+      tier: Premium
+      usualDepartment: IT
+      productCategories: [Device management]
+    - industryName: User-initiated enrollment of macOS computers
       tier: Free
       usualDepartment: IT
       productCategories: [Device management]
@@ -378,10 +412,6 @@
       productCategories: [Device management]
     - industryName: Puppet module
       friendlyName: Map macOS settings to computers with Puppet module
-      tier: Premium
-      usualDepartment: IT
-      productCategories: [Device management]
-    - industryName: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
@@ -450,7 +480,7 @@
       tier: Premium
     - industryName: Role-based access control
       tier: Premium
-- categoryName: Monitoring
+- categoryName: Vulnerability management
   features:
     - industryName: Detect vulnerable software
       tier: Free
@@ -469,20 +499,18 @@
           moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
     - industryName: Detect and surface issues with devices (policies)
       tier: Free
-    - industryName: Mark policies as critical
+    - industryName: Policy scoring
+      friendlyName: Mark policies as critical
       tier: Premium
+      comingSoonOn: 2023-12-31
     - industryName: Vulnerability scores (EPSS and CVSS)
       tier: Premium
       usualDepartment: Security
       productCategories: [Vulnerability management]
-    - industryName: CISA known exploited vulnerabilities
+    - industryName: CISA KEVs (known exploited vulnerabilities)
       tier: Premium
       usualDepartment: Security
       productCategories: [Vulnerability management]
-    - industryName: End-user self-service
-      tier: Premium
-      usualDepartment: IT
-      productCategories: [Device management,Endpoint operations]
 - categoryName: Data outputs
   features:
     - industryName: Flexible log destinations (AWS Kinesis, Lambda, GCP, Kafka)
