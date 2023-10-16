@@ -753,6 +753,21 @@ When this occurs, we will begin receiving the following error message when attem
 
 > work in progress, contributions welcome, please just make only one small change at a time per PR.  See https://fleetdm.com/handbook/company/leadership#vision-for-dept-handbook-pages for info
 
+### Interview a developer candidate
+
+As a hiring manager we want to ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications). Once the position is approved manage this process per candidate in [hiring pipeline](https://drive.google.com/drive/folders/1dLZaor9dQmAxcxyU6prm-MWNd-C-U8_1?usp=drive_link)
+
+1. **Reach out**: If you are not already the primary contact with this candidate send an email or linkedin message introducing yourself and the intent that you would like the start the interview process including the link to the position and asking if they are comfortable with completing a coding exercise.
+2. **Deliver code prompt**: After recieving confirmation that they are interested download the zip of the [code challenge](https://github.com/fleetdm/wordgame) and ask them to complete this and send their entry back within 5 business days.
+3. **Test code prompt**: Verify the code runs and can complete the challenge correctly. Check the code for good style and tests that match our standards here at Fleet.
+4. **Schedule manager interview**: Send the candidate a calendly link for 1hr to talk to you and screen them if they are a good fit for this role and our culture.
+5. **Schedule technical interview**: Send the candidate a calendly link for 1hr to talk to a senior engineer on your team where the goal is to understand the thechnical capabilities of the candidate. An additional engineer can optionally join if available.
+6. **Schedule DOPD interview**: Send the candidate a calendly link for 30m talk to the Director of Product Development @lukeheath.
+7. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @zwass.
+
+If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
+
+
 ### Renew MDM certificate signing request (CSR) 
 
 The certificate signing request (CSR) certificate expires every year. It needs to be renewed prior to expiring. This is notified to the team by the MDM calendar event [IMPORTANT: Renew MDM CSR certificate](https://calendar.google.com/calendar/event?action=TEMPLATE&tmeid=NHM3YzZja2FoZTA4bm9jZTE3NWFvMTduMTlfMjAyNDA5MTFUMTczMDAwWiBjXzI0YjkwMjZiZmIzZDVkMDk1ZGQzNzA2ZTEzMWQ3ZjE2YTJmNDhjN2E1MDU1NDcxNzA1NjlmMDc4ODNiNmU3MzJAZw&tmsrc=c_24b9026bfb3d5d095dd3706e131d7f16a2f48c7a505547170569f07883b6e732%40group.calendar.google.com&scp=ALL)
@@ -773,7 +788,6 @@ Steps to renew the certificate:
 9. Store updated values in [Confidential 1Password Vault](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=lcvkjobeheaqdgnz33ontpuhxq&i=byyfn2knejwh42a2cbc5war5sa&h=fleetdevicemanagement.1password.com)
 10. Verify by logging into a normal apple account (not billing@...) and Generate a new Push Certificate following our [setup MDM](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#step-2-generate-an-apns-certificate) steps and verify the Expiration date is 1 year from today.
 11. Adjust calendar event to be between 2-4 weeks before the next expiration.
-
 
 ## Rituals
 <rituals :rituals="rituals['handbook/engineering/engineering.rituals.yml']"></rituals>
