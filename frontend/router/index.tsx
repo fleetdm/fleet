@@ -232,9 +232,7 @@ const routes = (
             </Route>
             <Route path=":id">
               <IndexRoute component={QueryDetailsPage} />
-              <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-                <Route path="edit" component={EditQueryPage} />
-              </Route>
+              <Route path="edit" component={EditQueryPage} />
               <Route path="live" component={LiveQueryPage} />
             </Route>
           </Route>

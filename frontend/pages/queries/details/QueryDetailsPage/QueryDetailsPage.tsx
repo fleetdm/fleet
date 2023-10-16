@@ -69,7 +69,7 @@ const QueryDetailsPage = ({
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
-    isAnyTeamMaintainerOrTeamAdmin,
+    isTeamMaintainerOrTeamAdmin,
     isObserverPlus,
     isAnyTeamObserverPlus,
     config,
@@ -158,7 +158,7 @@ const QueryDetailsPage = ({
 
   const renderHeader = () => {
     const canEditQuery =
-      isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
+      isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backToQueriesPath = () => {
