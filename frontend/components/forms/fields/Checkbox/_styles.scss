@@ -1,7 +1,8 @@
 .fleet-checkbox {
   @include clearfix;
   position: relative;
-  display: inline-block;
+  display: flex;
+  align-items: center;
 
   &__input {
     opacity: 0;

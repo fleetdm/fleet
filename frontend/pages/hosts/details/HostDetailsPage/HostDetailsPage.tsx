@@ -1,4 +1,10 @@
-import React, { useContext, useState, useCallback, useEffect } from "react";
+import React, {
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -13,6 +19,7 @@ import queryAPI from "services/entities/queries";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
+import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 import {
   IHost,
@@ -26,6 +33,7 @@ import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
+import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import {
   IListQueriesResponse,
@@ -39,14 +47,21 @@ import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
 
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import {
+  normalizeEmptyValues,
+  wrapFleetHelper,
+  TAGGED_TEMPLATES,
+} from "utilities/helpers";
 import permissions from "utilities/permissions";
+import { DEFAULT_QUERY } from "utilities/constants";
+import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
 import AgentOptionsCard from "../cards/AgentOptions";
 import LabelsCard from "../cards/Labels";
 import MunkiIssuesCard from "../cards/MunkiIssues";
+import ScriptsCard from "../cards/Scripts";
 import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
@@ -65,6 +80,7 @@ import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import MacSettingsModal from "../MacSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import SelectQueryModal from "./modals/SelectQueryModal";
+import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
 
 const baseClass = "host-details";
 
@@ -99,12 +115,6 @@ interface IHostDetailsSubNavItem {
   pathname: string;
 }
 
-const TAGGED_TEMPLATES = {
-  queryByHostRoute: (hostId: number | undefined | null) => {
-    return `${hostId ? `?host_ids=${hostId}` : ""}`;
-  },
-};
-
 const HostDetailsPage = ({
   route,
   router,
@@ -135,6 +145,7 @@ const HostDetailsPage = ({
     setLastEditedQueryCritical,
     setPolicyTeamId,
   } = useContext(PolicyContext);
+  const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const handlePageError = useErrorHandler();
@@ -150,6 +161,8 @@ const HostDetailsPage = ({
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
+  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
+
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -163,6 +176,10 @@ const HostDetailsPage = ({
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
+
+  // used to track the current script execution id we want to show in the show
+  // details modal.
+  const scriptExecutionId = useRef<string | null>(null);
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IListQueriesResponse,
@@ -521,16 +538,29 @@ const HostDetailsPage = ({
   };
 
   const onQueryHostCustom = () => {
+    setLastEditedQueryBody(DEFAULT_QUERY.query);
+    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
       PATHS.NEW_QUERY() + TAGGED_TEMPLATES.queryByHostRoute(host?.id)
     );
   };
 
   const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
+    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
       PATHS.EDIT_QUERY(selectedQuery.id) +
         TAGGED_TEMPLATES.queryByHostRoute(host?.id)
     );
+  };
+
+  const onCancelScriptDetailsModal = () => {
+    setShowScriptDetailsModal(false);
+    scriptExecutionId.current = null;
+  };
+
+  const onShowScriptDetails = (executionId: string) => {
+    scriptExecutionId.current = executionId;
+    setShowScriptDetailsModal(true);
   };
 
   const onTransferHostSubmit = async (team: ITeam) => {
@@ -614,6 +644,11 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_DETAILS(hostIdFromURL),
     },
     {
+      name: "Scripts",
+      title: "scripts",
+      pathname: PATHS.HOST_SCRIPTS(hostIdFromURL),
+    },
+    {
       name: "Software",
       title: "software",
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
@@ -637,15 +672,24 @@ const HostDetailsPage = ({
     },
   ];
 
+  // we want the scripts tabs on the list for only mac hosts and premium tier atm.
+  // We filter it out for other platforms and non premium.
+  // TODO: improve this code. We can pull the tab list component out
+  // into its own component later.
+  const filteredSubNavTabs =
+    host?.platform === "darwin" && isPremiumTier
+      ? hostDetailsSubNav
+      : hostDetailsSubNav.filter((navItem) => navItem.title !== "scripts");
+
   const getTabIndex = (path: string): number => {
-    return hostDetailsSubNav.findIndex((navItem) => {
+    return filteredSubNavTabs.findIndex((navItem) => {
       // tab stays highlighted for paths that ends with same pathname
       return path.endsWith(navItem.pathname);
     });
   };
 
   const navigateToNav = (i: number): void => {
-    const navPath = hostDetailsSubNav[i].pathname;
+    const navPath = filteredSubNavTabs[i].pathname;
     router.push(navPath);
   };
 
@@ -679,6 +723,8 @@ const HostDetailsPage = ({
     details: host?.mdm.macos_setup?.details,
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
+
+  const page = (location.query.page && parseInt(location.query.page, 10)) || 0;
 
   return (
     <MainContent className={baseClass}>
@@ -720,6 +766,7 @@ const HostDetailsPage = ({
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
+          osSettings={host?.mdm.os_settings}
         />
         <TabsWrapper>
           <Tabs
@@ -727,7 +774,7 @@ const HostDetailsPage = ({
             onSelect={(i) => navigateToNav(i)}
           >
             <TabList>
-              {hostDetailsSubNav.map((navItem) => {
+              {filteredSubNavTabs.map((navItem) => {
                 // Bolding text when the tab is active causes a layout shift
                 // so we add a hidden pseudo element with the same text string
                 return <Tab key={navItem.title}>{navItem.name}</Tab>;
@@ -760,6 +807,17 @@ const HostDetailsPage = ({
                 hostUsersEnabled={featuresConfig?.enable_host_users}
               />
             </TabPanel>
+            {host?.platform === "darwin" && isPremiumTier && (
+              <TabPanel>
+                <ScriptsCard
+                  hostId={host?.id}
+                  page={page}
+                  router={router}
+                  isHostOnline={host?.status === "online"}
+                  onShowDetails={onShowScriptDetails}
+                />
+              </TabPanel>
+            )}
             <TabPanel>
               <SoftwareCard
                 isLoading={isLoadingHost}
@@ -845,6 +903,7 @@ const HostDetailsPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
+            platform={host?.platform}
             hostMDMData={host?.mdm}
             onClose={toggleMacSettingsModal}
           />
@@ -852,12 +911,15 @@ const HostDetailsPage = ({
         {showUnenrollMdmModal && !!host && (
           <UnenrollMdmModal hostId={host.id} onClose={toggleUnenrollMdmModal} />
         )}
-        {showDiskEncryptionModal && host && (
-          <DiskEncryptionKeyModal
-            hostId={host.id}
-            onCancel={() => setShowDiskEncryptionModal(false)}
-          />
-        )}
+        {showDiskEncryptionModal &&
+          host &&
+          isSupportedPlatform(host.platform) && (
+            <DiskEncryptionKeyModal
+              platform={host.platform}
+              hostId={host.id}
+              onCancel={() => setShowDiskEncryptionModal(false)}
+            />
+          )}
         {showBootstrapPackageModal &&
           bootstrapPackageData.details &&
           bootstrapPackageData.name && (
@@ -867,6 +929,12 @@ const HostDetailsPage = ({
               onClose={() => setShowBootstrapPackageModal(false)}
             />
           )}
+        {showScriptDetailsModal && scriptExecutionId.current && (
+          <ScriptDetailsModal
+            scriptExecutionId={scriptExecutionId.current}
+            onCancel={onCancelScriptDetailsModal}
+          />
+        )}
       </div>
     </MainContent>
   );
