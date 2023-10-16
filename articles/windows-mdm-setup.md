@@ -1,4 +1,4 @@
-# Windows setup
+# Windows MDM setup
 
 ## Overview
 
