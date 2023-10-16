@@ -925,7 +925,7 @@ type SyncMLCmd struct {
 func (cmd SyncMLCmd) IsPremium() bool {
 	for _, item := range cmd.Items {
 		// TODO(mna): is it correct to check that in Target, or is it Source? Not
-		// super clear from the MSMDM examples/docs.
+		// super clear from the MSMDM examples/docs. Should I just use cmd.GetTargetURI?
 		if item.Target != nil && strings.Contains(*item.Target, "RemoteWipe") {
 			return true
 		}

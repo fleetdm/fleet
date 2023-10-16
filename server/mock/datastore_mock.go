@@ -676,6 +676,8 @@ type MDMWindowsDeleteEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID st
 
 type MDMWindowsInsertPendingCommandFunc func(ctx context.Context, cmd *fleet.MDMWindowsPendingCommand) error
 
+type MDMWindowsInsertPendingCommandForDevicesFunc func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsPendingCommand) error
+
 type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error)
 
 type MDMWindowsInsertCommandFunc func(ctx context.Context, cmd *fleet.MDMWindowsCommand) error
@@ -1679,6 +1681,9 @@ type DataStore struct {
 
 	MDMWindowsInsertPendingCommandFunc        MDMWindowsInsertPendingCommandFunc
 	MDMWindowsInsertPendingCommandFuncInvoked bool
+
+	MDMWindowsInsertPendingCommandForDevicesFunc        MDMWindowsInsertPendingCommandForDevicesFunc
+	MDMWindowsInsertPendingCommandForDevicesFuncInvoked bool
 
 	MDMWindowsGetPendingCommandsFunc        MDMWindowsGetPendingCommandsFunc
 	MDMWindowsGetPendingCommandsFuncInvoked bool
@@ -4008,6 +4013,13 @@ func (s *DataStore) MDMWindowsInsertPendingCommand(ctx context.Context, cmd *fle
 	s.MDMWindowsInsertPendingCommandFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsInsertPendingCommandFunc(ctx, cmd)
+}
+
+func (s *DataStore) MDMWindowsInsertPendingCommandForDevices(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsPendingCommand) error {
+	s.mu.Lock()
+	s.MDMWindowsInsertPendingCommandForDevicesFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsInsertPendingCommandForDevicesFunc(ctx, deviceIDs, cmd)
 }
 
 func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error) {

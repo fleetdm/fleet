@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/go-sql-driver/mysql"
+	"github.com/google/uuid"
 	"github.com/micromdm/nanomdm/mdm"
 )
 
@@ -628,9 +629,22 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 		}
 	}
 
-	// TODO(mna): enqueue in the windows mdm command table
+	// TODO(mna): validate that those are correct/as expected.
+	winCmd := &fleet.MDMWindowsPendingCommand{
+		CommandUUID:  uuid.New().String(),
+		CmdVerb:      fleet.CmdExec,
+		SettingURI:   cmd.GetTargetURI(),
+		SettingValue: cmd.GetTargetData(),
+		DataType:     0, // TODO(mna): how do I get the data type? Should that be typed SyncMLDataType?
+		SystemOrigin: false,
+	}
+	if err := svc.ds.MDMWindowsInsertPendingCommandForDevices(ctx, deviceIDs, winCmd); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "insert pending windows mdm command")
+	}
 
 	return &fleet.CommandEnqueueResult{
-		Platform: "windows",
+		CommandUUID: winCmd.CommandUUID,
+		RequestType: "", // TODO(mna): have we settled on what Request Type should be? CmdVerb or SettingURI?
+		Platform:    "windows",
 	}, nil
 }

@@ -11,18 +11,18 @@ import (
 
 // MDMWindowsGetEnrolledDevice receives a Windows MDM device id and returns the device information.
 func (ds *Datastore) MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceHWID string) (*fleet.MDMWindowsEnrolledDevice, error) {
-	stmt := `SELECT 
-		mdm_device_id, 
-		mdm_hardware_id, 
+	stmt := `SELECT
+		mdm_device_id,
+		mdm_hardware_id,
 		device_state,
-		device_type, 
-		device_name, 
-		enroll_type, 
-		enroll_user_id, 
-		enroll_proto_version, 
-		enroll_client_version, 
+		device_type,
+		device_name,
+		enroll_type,
+		enroll_user_id,
+		enroll_proto_version,
+		enroll_client_version,
 		not_in_oobe,
-		created_at, 
+		created_at,
 		updated_at
 		FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?`
 
@@ -103,8 +103,24 @@ func (ds *Datastore) MDMWindowsDeletePendingCommands(ctx context.Context, device
 	return nil
 }
 
+func (ds *Datastore) MDMWindowsInsertPendingCommandForDevices(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsPendingCommand) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for _, deviceID := range deviceIDs {
+			cmd.DeviceID = deviceID
+			if err := ds.mdmWindowsInsertPendingCommandDB(ctx, tx, cmd); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // MDMWindowsInsertPendingCommand inserts a new WindowMDMPendingCommand in the database
 func (ds *Datastore) MDMWindowsInsertPendingCommand(ctx context.Context, cmd *fleet.MDMWindowsPendingCommand) error {
+	return ds.mdmWindowsInsertPendingCommandDB(ctx, ds.writer(ctx), cmd)
+}
+
+func (ds *Datastore) mdmWindowsInsertPendingCommandDB(ctx context.Context, tx sqlx.ExecerContext, cmd *fleet.MDMWindowsPendingCommand) error {
 	stmt := `
 		INSERT INTO windows_mdm_pending_commands (
 		command_uuid,
@@ -115,7 +131,7 @@ func (ds *Datastore) MDMWindowsInsertPendingCommand(ctx context.Context, cmd *fl
 		data_type,
 		system_origin ) VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := ds.writer(ctx).ExecContext(
+	_, err := tx.ExecContext(
 		ctx,
 		stmt,
 		cmd.CommandUUID,

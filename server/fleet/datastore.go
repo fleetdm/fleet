@@ -1037,6 +1037,11 @@ type Datastore interface {
 	// MDMWindowsInsertPendingCommand inserts a command that will be sent to a device
 	MDMWindowsInsertPendingCommand(ctx context.Context, cmd *MDMWindowsPendingCommand) error
 
+	// MDMWindowsInsertPendingCommandForDevices inserts a command that targets multiple devices,
+	// creating one pending command row for each device, with all of the rest of the command
+	// information the same for all devices.
+	MDMWindowsInsertPendingCommandForDevices(ctx context.Context, deviceIDs []string, cmd *MDMWindowsPendingCommand) error
+
 	// MDMWindowsGetPendingCommands returns all the pending commands for a device
 	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsPendingCommand, error)
 
