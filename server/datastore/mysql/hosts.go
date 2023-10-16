@@ -2168,23 +2168,54 @@ SELECT
 	h.last_enrolled_at,
 	h.policy_updated_at,
 	h.refetch_requested,
-	h.refetch_critical_queries_until
-	`+hostMDMSelect+`
+	h.refetch_critical_queries_until,
+	hm.host_id,
+	hm.enrolled,
+	hm.server_url,
+	hm.installed_from_dep,
+	hm.mdm_id,
+	COALESCE(hm.is_server, false) AS is_server,
+	COALESCE(mdms.name, ?) AS name
 FROM
 	hosts h
-	`+hostMDMJoin+`
+LEFT OUTER JOIN
+	host_mdm hm
+ON
+	hm.host_id = h.id
+LEFT OUTER JOIN
+	mobile_device_management_solutions mdms
+ON
+	hm.mdm_id = mdms.id
 WHERE h.uuid IN (?) AND %s
 		`, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	stmt, args, err := sqlx.In(stmt, uuids)
+	stmt, args, err := sqlx.In(stmt, fleet.UnknownMDMName, uuids)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to select hosts by uuid")
 	}
 
-	var hosts []*fleet.Host
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt, args...); err != nil {
+	var hostsWithMDM []*hostWithMDMInfo
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostsWithMDM, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by uuid")
+	}
+
+	hosts := make([]*fleet.Host, 0, len(hostsWithMDM))
+	for _, h := range hostsWithMDM {
+		host := h.Host
+		// leave MDMInfo nil unless it has mdm information
+		if h.HostID != nil {
+			host.MDMInfo = &fleet.HostMDM{
+				HostID:           *h.HostID,
+				Enrolled:         *h.Enrolled,
+				ServerURL:        *h.ServerURL,
+				InstalledFromDep: *h.InstalledFromDep,
+				IsServer:         *h.IsServer,
+				MDMID:            h.MDMID,
+				Name:             *h.Name,
+			}
+		}
+		hosts = append(hosts, &host)
 	}
 
 	return hosts, nil

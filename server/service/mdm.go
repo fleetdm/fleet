@@ -445,8 +445,7 @@ type runMDMCommandRequest struct {
 
 type runMDMCommandResponse struct {
 	*fleet.CommandEnqueueResult
-	Platform string `json:"platform"`
-	Err      error  `json:"error,omitempty"`
+	Err error `json:"error,omitempty"`
 }
 
 func (r runMDMCommandResponse) error() error { return r.Err }
