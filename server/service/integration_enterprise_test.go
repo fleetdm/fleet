@@ -481,6 +481,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 			Query:          "select * from osquery;",
 			ObserverCanRun: true,
 			Saved:          true,
+			Logging:        fleet.LoggingSnapshot,
 		},
 	)
 	require.NoError(t, err)
@@ -568,7 +569,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 		require.NoError(t, err)
 	}()
 
-	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{Name: "TestQuery2", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
+	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Name:           "TestQuery2",
+		Description:    "Some description",
+		Query:          "select * from osquery;",
+		ObserverCanRun: true,
+		Logging:        fleet.LoggingSnapshot,
+	})
 	require.NoError(t, err)
 
 	tpParams := teamPolicyRequest{
@@ -1846,6 +1853,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 		Description:    "Some description",
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
+		Logging:        fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -3010,8 +3018,9 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acr)
 	require.False(t, acr.WebhookSettings.VulnerabilitiesWebhook.Enable)
 	q1, err := s.ds.NewQuery(ctx, &fleet.Query{
-		Name:  "Foo",
-		Query: "SELECT * from time;",
+		Name:    "Foo",
+		Query:   "SELECT * from time;",
+		Logging: fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	ggsr := getGlobalScheduleResponse{}

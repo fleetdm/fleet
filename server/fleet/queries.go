@@ -236,8 +236,7 @@ func verifyQuerySQL(query string) error {
 }
 
 func verifyLogging(logging string) error {
-	// Empty string means snapshot.
-	if logging != "" && logging != LoggingSnapshot && logging != LoggingDifferential && logging != LoggingDifferentialIgnoreRemovals {
+	if logging != LoggingSnapshot && logging != LoggingDifferential && logging != LoggingDifferentialIgnoreRemovals {
 		return errInvalidLogging
 	}
 	return nil

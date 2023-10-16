@@ -41,8 +41,8 @@ func TestScheduledQueries(t *testing.T) {
 func testScheduledQueriesListInPackWithStats(t *testing.T, ds *Datastore) {
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
-		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
-		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
+		{Name: "foo", Description: "get the foos", Query: "select * from foo", Logging: fleet.LoggingSnapshot},
+		{Name: "bar", Description: "do some bars", Query: "select baz from bar", Logging: fleet.LoggingDifferential},
 	}
 	err := ds.ApplyQueries(context.Background(), zwass.ID, queries, nil)
 	require.NoError(t, err)
@@ -131,8 +131,8 @@ func testScheduledQueriesListInPackWithStats(t *testing.T, ds *Datastore) {
 func testScheduledQueriesListInPack(t *testing.T, ds *Datastore) {
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
-		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
-		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
+		{Name: "foo", Description: "get the foos", Query: "select * from foo", Logging: fleet.LoggingSnapshot},
+		{Name: "bar", Description: "do some bars", Query: "select baz from bar", Logging: fleet.LoggingSnapshot},
 	}
 	err := ds.ApplyQueries(context.Background(), zwass.ID, queries, nil)
 	require.NoError(t, err)
@@ -324,8 +324,8 @@ func testScheduledQueriesDelete(t *testing.T, ds *Datastore) {
 func testScheduledQueriesCascadingDelete(t *testing.T, ds *Datastore) {
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
-		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
-		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
+		{Name: "foo", Description: "get the foos", Query: "select * from foo", Logging: fleet.LoggingSnapshot},
+		{Name: "bar", Description: "do some bars", Query: "select baz from bar", Logging: fleet.LoggingSnapshot},
 	}
 	err := ds.ApplyQueries(context.Background(), zwass.ID, queries, nil)
 	require.Nil(t, err)
@@ -374,10 +374,10 @@ func testScheduledQueriesIDsByName(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user := test.NewUser(t, ds, "User", "user@example.com", true)
 	queries := []*fleet.Query{
-		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
-		{Name: "bar", Description: "do some bars", Query: "select * from bar"},
-		{Name: "foo2", Description: "get the foos", Query: "select * from foo2"},
-		{Name: "bar2", Description: "do some bars", Query: "select * from bar2"},
+		{Name: "foo", Description: "get the foos", Query: "select * from foo", Logging: fleet.LoggingSnapshot},
+		{Name: "bar", Description: "do some bars", Query: "select * from bar", Logging: fleet.LoggingSnapshot},
+		{Name: "foo2", Description: "get the foos", Query: "select * from foo2", Logging: fleet.LoggingSnapshot},
+		{Name: "bar2", Description: "do some bars", Query: "select * from bar2", Logging: fleet.LoggingSnapshot},
 	}
 	err := ds.ApplyQueries(ctx, user.ID, queries, nil)
 	require.NoError(t, err)
