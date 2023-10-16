@@ -642,7 +642,13 @@ Retrieves a list of the non expired carves. Carve contents remain available for 
 
 #### Parameters
 
-None.
+| Name            | Type    | In    | Description                                                                                                                   |
+|-----------------|---------|-------|-------------------------------------------------------------------------------------------------------------------------------|
+| page            | integer | query | Page number of the results to fetch.                                                                                          |
+| per_page        | integer | query | Results per page.                                                                                                             |
+| order_key       | string  | query | What to order results by. Can be any field listed in the `results` array example below.                                       |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| expired         | boolean | query | Include expired carves (default: false)                                                                                       |
 
 #### Example
 

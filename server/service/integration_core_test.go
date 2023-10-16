@@ -1038,9 +1038,7 @@ func (s *integrationTestSuite) TestHostsCount() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "low_disk_space", "32")
 	require.Equal(t, len(hosts), resp.Count)
 	// but it is still validated for a correct value when provided (as that happens in a middleware before the handler)
-	s.DoJSON(
-		"GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &resp, "low_disk_space", "123456",
-	)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &resp, "low_disk_space", "123456")
 
 	// filter by MDM criteria without any host having such information
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(999))

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -472,7 +471,6 @@ func carveListOptionsFromRequest(r *http.Request) (fleet.CarveListOptions, error
 
 	carveOpts := fleet.CarveListOptions{ListOptions: opt}
 
-	// NOTE: This 'expired' parameter is NOT documented in rest-api.md
 	expired := r.URL.Query().Get("expired")
 	if expired == "" {
 		carveOpts.Expired = false
@@ -503,12 +501,8 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 		if err != nil {
 			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", tid)))
 		}
-		if teamID <= math.MaxUint {
-			userOpts.TeamID = uint(teamID)
-		} else {
-			// This code is only reachable on a 32-bit machine. It is here to satisfy GitHub code scanning alert: Incorrect conversion between integer types
-			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id (too large): %s", tid)))
-		}
+		// GitHub CodeQL flags this as: Incorrect conversion between integer types. Previously waived: https://github.com/fleetdm/fleet/security/code-scanning/516
+		userOpts.TeamID = uint(teamID)
 	}
 
 	return userOpts, nil
