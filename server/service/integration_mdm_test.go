@@ -6761,8 +6761,6 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 
 	// create an enrolled and unenrolled macOS host
 	enrolledMac, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	//err = s.ds.SetOrUpdateMDMData(ctx, enrolledMac.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet)
-	//require.NoError(t, err)
 	unenrolledMac := createOrbitEnrolledHost(t, "darwin", "h4", s.ds)
 
 	macRawCmd := `<?xml version="1.0" encoding="UTF-8"?>
@@ -6780,21 +6778,21 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 </plist>`
 
 	winRawCmd := `<SyncML>
-	<SyncBody>
-	 <Exec>
-		 <CmdID>11</CmdID>
-		 <Item>
-			 <Target>
-				 <LocURI>./SetValues</LocURI>
-				</Target>
-				<Meta>
-					 <Format xmlns="syncml:metinf">chr</Format>
-					 <Type xmlns="syncml:metinf">text/plain</Type>
-				</Meta>
-				<Data>NamedValuesList=MinPasswordLength,8;</Data>
-		 </Item>
-	 </Exec>
-	</SyncBody>
+<SyncBody>
+	<Exec>
+		<CmdID>11</CmdID>
+		<Item>
+			<Target>
+				<LocURI>./SetValues</LocURI>
+			</Target>
+			<Meta>
+				<Format xmlns="syncml:metinf">chr</Format>
+				<Type xmlns="syncml:metinf">text/plain</Type>
+			</Meta>
+			<Data>NamedValuesList=MinPasswordLength,8;</Data>
+		</Item>
+	</Exec>
+</SyncBody>
 </SyncML>
 `
 
