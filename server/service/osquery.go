@@ -1385,7 +1385,6 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 			err = newOsqueryError("unmarshalling result logs: " + err.Error())
 			break
 		}
-		fmt.Printf("WTF: %d\n", len(results))
 
 		// We currently return errors to osqueryd if there are any issues submitting results
 		// to the configured external destinations.
