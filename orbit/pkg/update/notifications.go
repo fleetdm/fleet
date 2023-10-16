@@ -501,9 +501,9 @@ func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fle
 		ClientError:   bitlockerError,
 	}
 
-	err = w.EncryptionResult.SetOrUpdateDiskEncryptionKey(payload)
+	errServerUpdate := w.EncryptionResult.SetOrUpdateDiskEncryptionKey(payload)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to send encryption result to Fleet Server")
+		log.Error().Err(errServerUpdate).Msg("failed to send encryption result to Fleet Server")
 		return
 	}
 
