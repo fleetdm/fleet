@@ -175,6 +175,9 @@ func (ds *Datastore) NewQuery(
 	query *fleet.Query,
 	opts ...fleet.OptionalArg,
 ) (*fleet.Query, error) {
+	if err := query.Verify(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
 	sqlStatement := `
 		INSERT INTO queries (
 			name,
@@ -226,6 +229,10 @@ func (ds *Datastore) NewQuery(
 
 // SaveQuery saves changes to a Query.
 func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscardResults bool) (err error) {
+	if err := q.Verify(); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
 	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "begin SaveQuery transaction")
@@ -549,7 +556,15 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 			q.discard_data
 		FROM queries q
 		WHERE q.saved = true 
-			AND (q.schedule_interval > 0 AND %s AND (q.automations_enabled OR (NOT q.discard_data AND NOT ?)))
+			AND (
+				q.schedule_interval > 0 AND
+				%s AND
+				(
+					q.automations_enabled
+					OR
+					(NOT q.discard_data AND NOT ? AND q.logging_type = ?)
+				)
+			)
 	`
 
 	args := []interface{}{}
@@ -559,7 +574,7 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 		teamSQL = " team_id = ?"
 	}
 	sqlStmt = fmt.Sprintf(sqlStmt, teamSQL)
-	args = append(args, queryReportsDisabled)
+	args = append(args, queryReportsDisabled, fleet.LoggingSnapshot)
 
 	results := []*fleet.Query{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sqlStmt, args...); err != nil {
