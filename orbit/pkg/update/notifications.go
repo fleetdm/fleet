@@ -487,9 +487,13 @@ func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fle
 		// Otherwise, using the real one
 		fn = bitlocker.EncryptVolume
 	}
+
+	// Encryption operation is performed here, err will be captured if any
+	// Error will be returned if the encryption operation failed after sending it to Fleet Server
 	recoveryKey, err := fn(targetVolume)
 
 	// Getting Bitlocker encryption operation error message if any
+	// This is going to be sent to Fleet Server
 	bitlockerError := ""
 	if err != nil {
 		bitlockerError = err.Error()
@@ -501,14 +505,16 @@ func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fle
 		ClientError:   bitlockerError,
 	}
 
-	if err != nil {
-		log.Error().Err(err).Msg("failed to encrypt the volume")
+	errServerUpdate := w.EncryptionResult.SetOrUpdateDiskEncryptionKey(payload)
+	if errServerUpdate != nil {
+		log.Error().Err(errServerUpdate).Msg("failed to send encryption result to Fleet Server")
 		return
 	}
 
-	err = w.EncryptionResult.SetOrUpdateDiskEncryptionKey(payload)
+	// This is the error status of the Bitlocker encryption operation
+	// it is returned here after sending the result to Fleet Server
 	if err != nil {
-		log.Error().Err(err).Msg("failed to send encryption result to Fleet Server")
+		log.Error().Err(err).Msg("failed to encrypt the volume")
 		return
 	}
 
