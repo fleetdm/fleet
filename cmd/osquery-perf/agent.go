@@ -1452,7 +1452,7 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 
 func (a *agent) scheduledQueryResults(packName, queryName string, numResults int) json.RawMessage {
 	return json.RawMessage(`{
-  "snapshot": [` + results(int(numResults), a.UUID) + `
+  "snapshot": [` + results(numResults, a.UUID) + `
   ],
   "action": "snapshot",
   "name": "pack/` + packName + `/` + queryName + `",
