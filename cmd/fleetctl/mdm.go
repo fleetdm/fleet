@@ -32,11 +32,11 @@ func mdmRunCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "run-command",
 		Aliases: []string{"run_command"},
-		Usage:   "Run a custom MDM command on one macOS host. Head to Apple's documentation for a list of available commands and example payloads here:  https://developer.apple.com/documentation/devicemanagement/commands_and_queries",
+		Usage:   "Run a custom MDM command on macOS and Windows hosts.",
 		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:     "host",
-				Usage:    "The host, specified by hostname, uuid, osquery_host_id or node_key, that you want to run the MDM command on.",
+			&cli.StringSliceFlag{
+				Name:     "hosts",
+				Usage:    "Hosts specified by hostname, uuid, osquery_host_id or node_key that you want to target.",
 				Required: true,
 			},
 			&cli.StringFlag{
@@ -56,14 +56,14 @@ func mdmRunCommand() *cli.Command {
 				return err
 			}
 
-			hostIdent := c.String("host")
+			hostIdents := c.StringSlice("hosts")
 			payloadFile := c.String("payload")
 			payload, err := os.ReadFile(payloadFile)
 			if err != nil {
 				return fmt.Errorf("read payload: %w", err)
 			}
 
-			host, err := client.HostByIdentifier(hostIdent)
+			host, err := client.HostByIdentifier(hostIdents[0]) // TODO(mna): loop for all hosts
 			if err != nil {
 				var nfe service.NotFoundErr
 				if errors.As(err, &nfe) {

@@ -82,58 +82,58 @@ func TestMDMRunCommand(t *testing.T) {
 
 	_, err := runAppNoChecks([]string{"mdm", "run-command"})
 	require.Error(t, err)
-	require.ErrorContains(t, err, `Required flags "host, payload" not set`)
+	require.ErrorContains(t, err, `Required flags "hosts, payload" not set`)
 
-	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "abc"})
+	_, err = runAppNoChecks([]string{"mdm", "run-command", "--hosts", "abc"})
 	require.Error(t, err)
 	require.ErrorContains(t, err, `Required flag "payload" not set`)
 
-	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "abc", "--payload", "no-such-file"})
+	_, err = runAppNoChecks([]string{"mdm", "run-command", "--hosts", "abc", "--payload", "no-such-file"})
 	require.Error(t, err)
 	require.ErrorContains(t, err, `open no-such-file: no such file or directory`)
 
 	// pass a yaml file instead of xml
 	yamlFilePath := writeTmpYml(t, `invalid`)
-	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "valid", "--payload", yamlFilePath})
+	_, err = runAppNoChecks([]string{"mdm", "run-command", "--hosts", "valid", "--payload", yamlFilePath})
 	require.Error(t, err)
 	require.ErrorContains(t, err, `The payload isn't valid XML.`)
 
 	// pass valid xml plist that doesn't match the MDM command schema
 	mcFilePath := writeTmpMobileconfig(t, "Mobileconfig")
-	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "valid-host", "--payload", mcFilePath})
+	_, err = runAppNoChecks([]string{"mdm", "run-command", "--hosts", "valid-host", "--payload", mcFilePath})
 	require.Error(t, err)
 	require.ErrorContains(t, err, `The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file:`)
 
 	// host not found
 	cmdFilePath := writeTmpMDMCmd(t, "FooBar")
-	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "no-such-host", "--payload", cmdFilePath})
+	_, err = runAppNoChecks([]string{"mdm", "run-command", "--hosts", "no-such-host", "--payload", cmdFilePath})
 	require.Error(t, err)
 	require.ErrorContains(t, err, `The host doesn't exist.`)
 
 	// host not in mdm
-	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "no-mdm-host", "--payload", cmdFilePath})
+	_, err = runAppNoChecks([]string{"mdm", "run-command", "--hosts", "no-mdm-host", "--payload", cmdFilePath})
 	require.Error(t, err)
 	require.ErrorContains(t, err, `Can't run the MDM command because the host doesn't have MDM turned on.`)
 
 	// host not in fleet mdm
-	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "no-fleet-mdm-host", "--payload", cmdFilePath})
+	_, err = runAppNoChecks([]string{"mdm", "run-command", "--hosts", "no-fleet-mdm-host", "--payload", cmdFilePath})
 	require.Error(t, err)
 	require.ErrorContains(t, err, `Can't run the MDM command because the host doesn't have MDM turned on.`)
 
 	// host in fleet mdm but pending
-	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "fleet-mdm-pending-host", "--payload", cmdFilePath})
+	_, err = runAppNoChecks([]string{"mdm", "run-command", "--hosts", "fleet-mdm-pending-host", "--payload", cmdFilePath})
 	require.Error(t, err)
 	require.ErrorContains(t, err, `Can't run the MDM command because the host doesn't have MDM turned on.`)
 
 	// host enrolled in fleet mdm
-	buf, err := runAppNoChecks([]string{"mdm", "run-command", "--host", "valid-host", "--payload", cmdFilePath})
+	buf, err := runAppNoChecks([]string{"mdm", "run-command", "--hosts", "valid-host", "--payload", cmdFilePath})
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), `The hosts will run the command the next time it checks into Fleet.`)
 	require.Contains(t, buf.String(), `fleetctl get mdm-command-results --id=`)
 
 	// try to run a fleet premium command
 	cmdFilePath = writeTmpMDMCmd(t, "EraseDevice")
-	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "valid-host", "--payload", cmdFilePath})
+	_, err = runAppNoChecks([]string{"mdm", "run-command", "--hosts", "valid-host", "--payload", cmdFilePath})
 	require.Error(t, err)
 	require.ErrorContains(t, err, `missing or invalid license`)
 
@@ -146,7 +146,7 @@ func TestMDMRunCommand(t *testing.T) {
 </plist>`))
 	require.NoError(t, err)
 
-	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "valid-host", "--payload", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"mdm", "run-command", "--hosts", "valid-host", "--payload", tmpFile.Name()})
 	require.Error(t, err)
 	require.ErrorContains(t, err, `The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file.`)
 }
