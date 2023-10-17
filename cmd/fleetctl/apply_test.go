@@ -2968,7 +2968,7 @@ spec:
       macos_setup:
         macos_setup_assistant: %s
 `, macSetupFile),
-			wantErr: `MDM features aren't turned on.`,
+			wantErr: `macOS MDM isn't turned on.`,
 		},
 		{
 			desc: "app config macos setup assistant",
@@ -2980,7 +2980,7 @@ spec:
     macos_setup:
       macos_setup_assistant: %s
 `, macSetupFile),
-			wantErr: `MDM features aren't turned on.`,
+			wantErr: `macOS MDM isn't turned on.`,
 		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because

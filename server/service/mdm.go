@@ -501,12 +501,12 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	switch commandPlatform {
 	case "windows":
 		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-			err := fleet.NewInvalidArgumentError("host_uuids", "Windows MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.").WithStatus(http.StatusBadRequest)
+			err := fleet.NewInvalidArgumentError("host_uuids", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
 			return nil, ctxerr.Wrap(ctx, err, "check windows MDM enabled")
 		}
 	default:
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-			err := fleet.NewInvalidArgumentError("host_uuids", "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.").WithStatus(http.StatusBadRequest)
+			err := fleet.NewInvalidArgumentError("host_uuids", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
 			return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
 		}
 	}

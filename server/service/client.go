@@ -231,10 +231,19 @@ func (c *Client) authenticatedRequest(params interface{}, verb string, path stri
 	return c.authenticatedRequestWithQuery(params, verb, path, responseDest, "")
 }
 
-func (c *Client) CheckMDMEnabled() error {
+func (c *Client) CheckAnyMDMEnabled() error {
+	return c.runAppConfigChecks(func(ac *fleet.EnrichedAppConfig) error {
+		if !ac.MDM.EnabledAndConfigured && !ac.MDM.WindowsEnabledAndConfigured {
+			return errors.New(fleet.MDMNotConfiguredMessage)
+		}
+		return nil
+	})
+}
+
+func (c *Client) CheckAppleMDMEnabled() error {
 	return c.runAppConfigChecks(func(ac *fleet.EnrichedAppConfig) error {
 		if !ac.MDM.EnabledAndConfigured {
-			return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+			return errors.New(fleet.AppleMDMNotConfiguredMessage)
 		}
 		return nil
 	})
@@ -246,7 +255,7 @@ func (c *Client) CheckPremiumMDMEnabled() error {
 			return errors.New("missing or invalid license")
 		}
 		if !ac.MDM.EnabledAndConfigured {
-			return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+			return errors.New(fleet.AppleMDMNotConfiguredMessage)
 		}
 		return nil
 	})

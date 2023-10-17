@@ -236,7 +236,7 @@ func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstra
 }
 
 func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
-	if err := c.CheckMDMEnabled(); err != nil {
+	if err := c.CheckAppleMDMEnabled(); err != nil {
 		return nil, err
 	}
 
