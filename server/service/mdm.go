@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"errors"
@@ -590,37 +591,30 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 }
 
 func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []byte, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
-	// a command is a SyncML message
-	var cmdMsg fleet.SyncML
-	if err := xml.Unmarshal(rawXMLCmd, &cmdMsg); err != nil {
+	// a command must have the <Exec> element as top-level
+	var cmdMsg fleet.SyncMLCmd
+	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace(rawXMLCmd)))
+	if err := dec.Decode(&cmdMsg); err != nil {
 		err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't valid XML: %v", err))
 		return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
 	}
-	// TODO(mna): do we expect commands provided to this endpoint to have the
-	// full XML header or just start at <SyncBody>?
-	//if err := cmdMsg.IsValidHeader(); err != nil {
-	//	err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't a valid MDM command: %v", err))
-	//	return nil, ctxerr.Wrap(ctx, err, "validate SyncML header")
-	//}
-	if err := cmdMsg.IsValidBody(); err != nil {
-		err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't a valid MDM command: %v", err))
-		return nil, ctxerr.Wrap(ctx, err, "validate SyncML body")
+
+	// check if there were multiple top-level elements provided
+	if _, err := dec.Token(); err != io.EOF {
+		err = fleet.NewInvalidArgumentError("command", "You can run only a single <Exec> command.")
+		return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
 	}
 
-	// any non-exec commands provided?
-	if len(cmdMsg.SyncBody.Add)+len(cmdMsg.SyncBody.Alert)+len(cmdMsg.SyncBody.Atomic)+len(cmdMsg.SyncBody.Delete)+
-		len(cmdMsg.SyncBody.Get)+len(cmdMsg.SyncBody.Replace)+len(cmdMsg.SyncBody.Status)+len(cmdMsg.SyncBody.Results)+
-		len(cmdMsg.SyncBody.Raw) > 0 {
+	if cmdMsg.XMLName.Local != fleet.CmdExec {
 		err = fleet.NewInvalidArgumentError("command", "You can run only <Exec> command type.")
 		return nil, ctxerr.Wrap(ctx, err, "validate SyncML commands")
 	}
-	if len(cmdMsg.SyncBody.Exec) != 1 {
+	if len(cmdMsg.Items) != 1 {
 		err = fleet.NewInvalidArgumentError("command", "You can run only a single <Exec> command.")
 		return nil, ctxerr.Wrap(ctx, err, "validate SyncML Exec commands")
 	}
 
-	cmd := cmdMsg.SyncBody.Exec[0]
-	if cmd.IsPremium() {
+	if cmdMsg.IsPremium() {
 		lic, err := svc.License(ctx)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get license")
@@ -634,8 +628,8 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 	winCmd := &fleet.MDMWindowsPendingCommand{
 		CommandUUID:  uuid.New().String(),
 		CmdVerb:      fleet.CmdExec,
-		SettingURI:   cmd.GetTargetURI(),
-		SettingValue: cmd.GetTargetData(),
+		SettingURI:   cmdMsg.GetTargetURI(),
+		SettingValue: cmdMsg.GetTargetData(),
 		DataType:     0, // TODO(mna): how do I get the data type? Should that be typed SyncMLDataType?
 		SystemOrigin: false,
 	}

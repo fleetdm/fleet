@@ -6777,23 +6777,20 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 </dict>
 </plist>`
 
-	winRawCmd := `<SyncML>
-<SyncBody>
-	<Exec>
-		<CmdID>11</CmdID>
-		<Item>
-			<Target>
-				<LocURI>./SetValues</LocURI>
-			</Target>
-			<Meta>
-				<Format xmlns="syncml:metinf">chr</Format>
-				<Type xmlns="syncml:metinf">text/plain</Type>
-			</Meta>
-			<Data>NamedValuesList=MinPasswordLength,8;</Data>
-		</Item>
-	</Exec>
-</SyncBody>
-</SyncML>
+	winRawCmd := `
+<Exec>
+	<CmdID>11</CmdID>
+	<Item>
+		<Target>
+			<LocURI>./SetValues</LocURI>
+		</Target>
+		<Meta>
+			<Format xmlns="syncml:metinf">chr</Format>
+			<Type xmlns="syncml:metinf">text/plain</Type>
+		</Meta>
+		<Data>NamedValuesList=MinPasswordLength,8;</Data>
+	</Item>
+</Exec>
 `
 
 	var runResp runMDMCommandResponse
@@ -6825,7 +6822,7 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 		HostUUIDs: []string{enrolledWindows.UUID},
 	}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "The payload isn't valid XML")
+	require.Contains(t, errMsg, "You can run only <Exec> command type")
 
 	// macOS only, invalid command
 	res = s.Do("POST", "/api/latest/fleet/mdm/commands/run", &runMDMCommandRequest{

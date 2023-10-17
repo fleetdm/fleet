@@ -6,7 +6,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/xml"
 	"errors"
 	"math/big"
 	"os"
@@ -433,83 +432,76 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 		wantReqType string
 	}{
 		{"invalid xml", false, `!!$$`, "The payload isn't valid XML", ""},
-		{"empty xml", false, xml.Header, "The payload isn't valid XML", ""},
-		{"unrelated xml", false, xml.Header + `<Unrelated></Unrelated>`, "The payload isn't valid XML", ""},
-		{"empty SyncML", false, xml.Header + `<SyncML></SyncML>`, "The payload isn't a valid MDM command", ""},
-		{"no command SyncBody", false, xml.Header + `<SyncML><SyncBody></SyncBody></SyncML>`, "The payload isn't a valid MDM command", ""},
-		{"non-exec command", false, xml.Header + `
-			<SyncML>
-				<SyncBody>
-				<Get>
-					<CmdID>1</CmdID>
-					<Item>
-						<Target>
-							<LocURI>./DevDetail/SwV</LocURI>
-						</Target>
-					</Item>
-				</Get>
-				</SyncBody>
-			</SyncML>`, "You can run only <Exec> command type", ""},
-		{"multi-exec command", false, xml.Header + `
-			<SyncML>
-				<SyncBody>
-				<Exec>
-					<CmdID>1</CmdID>
-					<Item>
-						<Target>
-							<LocURI>./DevDetail/SwV</LocURI>
-						</Target>
-					</Item>
-				</Exec>
-				<Exec>
-					<CmdID>2</CmdID>
-					<Item>
-						<Target>
-							<LocURI>./DevDetail/SwV</LocURI>
-						</Target>
-					</Item>
-				</Exec>
-				</SyncBody>
-			</SyncML>`, "You can run only a single <Exec> command", ""},
-		{"premium command, non premium license", false, xml.Header + `
-			<SyncML>
-				<SyncBody>
-				<Exec>
-					<CmdID>1</CmdID>
-					<Item>
-						<Target>
-							<LocURI>./RemoteWipe</LocURI>
-						</Target>
-					</Item>
-				</Exec>
-				</SyncBody>
-			</SyncML>`, "Requires Fleet Premium license", ""},
+		{"empty xml", false, ``, "The payload isn't valid XML", ""},
+		{"unrelated xml", false, `<Unrelated></Unrelated>`, "You can run only <Exec> command type", ""},
+		{"no command Exec", false, `<Exec></Exec>`, "You can run only a single <Exec> command", ""},
+		{"non-exec command", false, `
+			<Get>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target>
+						<LocURI>./DevDetail/SwV</LocURI>
+					</Target>
+				</Item>
+			</Get>`, "You can run only <Exec> command type", ""},
+		{"multi-exec command", false, `
+			<Exec>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target>
+						<LocURI>./DevDetail/SwV</LocURI>
+					</Target>
+				</Item>
+				<Item>
+					<Target>
+						<LocURI>./DevDetail/SwV2</LocURI>
+					</Target>
+				</Item>
+			</Exec>`, "You can run only a single <Exec> command", ""},
+		{"premium command, non premium license", false, `
+			<Exec>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target>
+						<LocURI>./RemoteWipe</LocURI>
+					</Target>
+				</Item>
+			</Exec>`, "Requires Fleet Premium license", ""},
 		{"premium command, premium license", true, `
-			<SyncML>
-				<SyncBody>
-				<Exec>
-					<CmdID>1</CmdID>
-					<Item>
-						<Target>
-							<LocURI>./RemoteWipe</LocURI>
-						</Target>
-					</Item>
-				</Exec>
-				</SyncBody>
-			</SyncML>`, "", "./RemoteWipe"},
+			<Exec>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target>
+						<LocURI>./RemoteWipe</LocURI>
+					</Target>
+				</Item>
+			</Exec>`, "", "./RemoteWipe"},
 		{"non-premium command", false, `
-			<SyncML>
-				<SyncBody>
-				<Exec>
-					<CmdID>1</CmdID>
-					<Item>
-						<Target>
-							<LocURI>./FooBar</LocURI>
-						</Target>
-					</Item>
-				</Exec>
-				</SyncBody>
-			</SyncML>`, "", "./FooBar"},
+			<Exec>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target>
+						<LocURI>./FooBar</LocURI>
+					</Target>
+				</Item>
+			</Exec>`, "", "./FooBar"},
+		{"multi top-level Execs", false, `
+			<Exec>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target>
+						<LocURI>./FooBar</LocURI>
+					</Target>
+				</Item>
+			</Exec>
+			<Exec>
+				<CmdID>2</CmdID>
+				<Item>
+					<Target>
+						<LocURI>./FooBar2</LocURI>
+					</Target>
+				</Item>
+			</Exec>`, "You can run only a single <Exec> command", ""},
 	}
 
 	for _, c := range cases {
