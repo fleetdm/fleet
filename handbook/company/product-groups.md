@@ -4,7 +4,7 @@
 When creating software, handoffs between teams or contributors are one of the most common sources of miscommunication and waste.  Like [GitLab](https://docs.google.com/document/d/1RxqS2nR5K0vN6DbgaBw7SEgpPLi0Kr9jXNGzpORT-OY/edit#heading=h.7sfw1n9c1i2t), Fleet uses product groups to minimize handoffs and maximize iteration and efficiency in the way we build the product.
 
 ## What are product groups?
-Fleet organizes product development efforts into separate, cross-functional product groups that include members from Design, Engineering, Quality, and Product.  These product groups are organized by business goal, and designed to operate in parallel.
+Fleet organizes product development efforts into separate, cross-functional product groups that include product designers, developers, and quality engineers.  These product groups are organized by business goal, and designed to operate in parallel.
 
 Security, performance, stability, scalability, database migrations, release compatibility, usage documentation (such as REST API and configuration reference), contributor experience, and support escalation are the responsibility of every product group.
 
