@@ -1,4 +1,4 @@
-# REST API
+ # REST API
 
 - [Authentication](#authentication)
 - [Activities](#activities)
@@ -4051,7 +4051,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 #### Example (get a profile info)
 
-`GET /api/v1/fleet/mdm/profiles/42`
+`GET /api/v1/fleet/mdm/profiles/1337`
 
 ##### Default response
 
@@ -4072,7 +4072,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 #### Example (download a profile)
 
-`GET /api/v1/fleet/mdm/profiles/42?alt=media`
+`GET /api/v1/fleet/mdm/profiles/1337?alt=media`
 
 ##### Default response
 
