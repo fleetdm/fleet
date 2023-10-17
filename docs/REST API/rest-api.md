@@ -827,6 +827,7 @@ None.
   "server_settings": {
     "server_url": "https://localhost:8080",
     "live_query_disabled": false,
+    "query_reports_disabled": false,
     "enable_analytics": true
   },
   "smtp_settings": {
@@ -1021,6 +1022,7 @@ Modifies the Fleet's configuration with the supplied information.
 | contact_url                       | string  | body  | _Organization information_. A URL that can be used by end users to contact the organization.                                                                                          |
 | server_url                        | string  | body  | _Server settings_. The Fleet server URL.                                                                                                                                               |
 | live_query_disabled               | boolean | body  | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
+| query_reports_disabled            | boolean | body  | _Server settings_. Whether query report capabilities are disabled.                                                                                                                   |
 | enable_smtp                       | boolean | body  | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
 | sender_address                    | string  | body  | _SMTP settings_. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
 | server                            | string  | body  | _SMTP settings_. The SMTP server for the Fleet app.                                                                                                                                    |
@@ -1117,7 +1119,8 @@ Note that when making changes to the `integrations` object, all integrations mus
   },
   "server_settings": {
     "server_url": "https://localhost:8080",
-    "live_query_disabled": false
+    "live_query_disabled": false,
+    "query_reports_disabled": false
   },
   "smtp_settings": {
     "enable_smtp": true,
@@ -5514,6 +5517,7 @@ Returns the query specified by ID.
     "logging": "snapshot",
     "saved": true,
     "observer_can_run": true,
+    "discard_data": false,
     "author_id": 1,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -5666,6 +5670,7 @@ Returns a list of global queries or team queries.
     "logging": "snapshot",
     "saved": true,
     "observer_can_run": true,
+    "discard_data": false,
     "author_id": 1,
     "author_name": "noah",
     "author_email": "noah@example.com",
@@ -5703,6 +5708,7 @@ Returns a list of global queries or team queries.
     "logging": "differential",
     "saved": true,
     "observer_can_run": true,
+    "discard_data": true,
     "author_id": 1,
     "author_name": "noah",
     "author_email": "noah@example.com",
@@ -5729,6 +5735,7 @@ Returns a list of global queries or team queries.
 ```
 
 ### Create query
+
 Creates a global query or team query.
 
 `POST /api/v1/fleet/queries`
@@ -5746,7 +5753,9 @@ Creates a global query or team query.
 | platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
-| logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
+| logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential", or "differential_ignore_removals"`.                        |
+| discard_data        | bool    | body | Whether to skip saving the latest query results for each host. Default: `false`. |
+
 
 #### Example
 
@@ -5763,7 +5772,8 @@ Creates a global query or team query.
   "platform": "darwin,windows,linux",
   "min_osquery_version": "",
   "automations_enabled": true,
-  "logging": "snapshot"
+  "logging": "snapshot",
+  "discard_data": false
 }
 ```
 
@@ -5791,6 +5801,7 @@ Creates a global query or team query.
     "author_name": "",
     "author_email": "",
     "observer_can_run": true,
+    "discard_data": false,
     "packs": []
   }
 }
@@ -5815,7 +5826,13 @@ Modifies the query specified by ID.
 | platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
-| logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential", or "differential_ignore_removals"`.                        |
+| logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
+| discard_data        | bool    | body | Whether to skip saving the latest query results for each host. |
+
+> Note that any of the following conditions will cause the existing query report to be deleted:
+> - Updating the `query` (SQL) field
+> - Changing `discard_data` from `false` to `true`
+> - Changing `logging` from `"snapshot"` to `"differential"` or `"differential_ignore_removals"`
 
 #### Example
 
@@ -5829,7 +5846,8 @@ Modifies the query specified by ID.
   "interval": 3600, // Once per hour,
   "platform": "",
   "min_osquery_version": "",
-  "automations_enabled": false
+  "automations_enabled": false,
+  "discard_data": true
 }
 ```
 
@@ -5856,6 +5874,7 @@ Modifies the query specified by ID.
     "author_id": 1,
     "author_name": "noah",
     "observer_can_run": true,
+    "discard_data": true,
     "packs": []
   }
 }

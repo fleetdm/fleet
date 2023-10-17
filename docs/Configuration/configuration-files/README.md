@@ -742,6 +742,22 @@ If the live query feature is disabled or not.
     live_query_disabled: true
   ```
 
+##### server_settings.query_reports_disabled
+
+Whether the query reports feature is disabled.
+If this setting is changed from `false` to `true`, then all stored query results will be deleted (this process can take up to one hour).
+
+Query reports are cached results of scheduled queries stored in Fleet (up to 1000).
+
+- Optional setting (boolean)
+- Default value: `false`
+- Config file format:
+  ```yaml
+  server_settings:
+    query_reports_disabled: true
+  ```
+
+
 ##### server_settings.server_url
 
 The base URL of the fleet server, including the scheme (e.g. "https://").
