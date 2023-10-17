@@ -141,12 +141,12 @@ func testPacksList(t *testing.T, ds *Datastore) {
 func setupPackSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.PackSpec {
 	zwass := test.NewUser(t, ds, "Zach", "zwass@example.com", true)
 	queries := []*fleet.Query{
-		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
-		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
+		{Name: "foo", Description: "get the foos", Query: "select * from foo", Logging: fleet.LoggingSnapshot},
+		{Name: "bar", Description: "do some bars", Query: "select baz from bar", Logging: fleet.LoggingSnapshot},
 	}
 	// Zach creates some queries
-	err := ds.ApplyQueries(context.Background(), zwass.ID, queries)
-	require.Nil(t, err)
+	err := ds.ApplyQueries(context.Background(), zwass.ID, queries, nil)
+	require.NoError(t, err)
 
 	labels := []*fleet.LabelSpec{
 		{
@@ -268,7 +268,7 @@ func testPacksApplySpecRoundtrip(t *testing.T, ds *Datastore) {
 
 	gotSpec, err := ds.GetPackSpecs(context.Background())
 	require.Nil(t, err)
-	assert.Equal(t, expectedSpecs, gotSpec)
+	assert.EqualValues(t, expectedSpecs, gotSpec)
 }
 
 func testPacksGetSpec(t *testing.T, ds *Datastore) {

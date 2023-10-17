@@ -28,36 +28,44 @@ Dear onboardees: could you update broken links in the onboarding issue template 
 If you have any questions or feedback, please contact us: https://fleetdm.com/handbook/ceo#contact-us
 </blockquote>
 
+### Outline of departmental page structure
+
 - `# Name of department`
-  - "This handbook page details processes specific to working `[with](fleetdm.com/handbook/company/Name-of-department#contact-us)` and `[within](fleetdm.com/handbook/company/Name-of-department#responsibilities)` the (Name of department) department." 
+  - "This handbook page details processes specific to working `[with](#contact-us)` and `[within](#responsibilities)` this department." 
     
   - `## What we do`
     - Outline the specific responsibilities of the department.  
 
   - `## Team`
-    - Table that displays each position and the team member(s) that fill that position, linking the Fleetie's LinkedIn to their name and GitHub to GiHub user name. See [handbook/ceo#team](https://fleetdm.com/handbook/ceo#team) for example.
+    - Table that displays each position and the team member(s) that fill that position, linking each Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/ceo#team](https://fleetdm.com/handbook/ceo#team) for example.
+
 
   - `## Contact us`
-    - How to make requests of this department
-    - Link to kanban board
+    - "To make a request of this department, `[create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23{DEPARTMENTAL-GITHUB-LABEL}&projects=&template=custom-request.md&title=Request%3A+_______________________)` and a team member will get back to you within one business day."
+      - "Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request."
+      - "Any Fleet team member can `[view the kanban board](https://app.zenhub.com/workspaces/{DEPARTMENTAL-KANBAN-BOARD-LINK}/board?sprints=none)` for this department, including pending tasks and the status of new requests."
+    - Other common issue links or call to action
+    - "If urgent, or if you need help submitting your request, mention a `[team member](#team)` in the [#g-`DEPARTMENT`]`(DEPARTMENTAL-SLACK-CHANNEL-LINK)` Slack channel."
+      - More specific Slack info if needed.
 
   - `## Some philosophical topic`
     -e.g. "CEO flaws"
 
 - `## Responsibilities`
-  - consisting of sub-headings written in imparative mood:
-  - e.g. `### Process CEO inbox`
+  - The "Responsibilities" section consists of sub-headings written in the imperative mood (e.g. "Process CEO inbox") and designed to be the internal "How-to" of each department.  
+
 
 - `## Rituals`
 
 
 ### Key reviews
-Every release cycle, each department leader discusses their KPIs (key performance indicators; aka numbers measuring results and everyday excellence) with the CEO. 
+Every release cycle, each department leader discusses their [key performance indicators (KPIs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) (confidential) with the CEO.  KPIs are numbers measuring results and everyday excellence, usually accompanied by time-bound goals.
 
-In this meeting, we discuss actual week-over-week progress towards timebound goals for a particular quarter. 
+In this meeting, the department leader discusses actual week-over-week progress toward the goals for a particular quarter with the CEO.
 
-- Key reviews are scheduled during the e-group time slot every three weeks to promote consistant attention to results, and are not to be moved or rescheduled without [CEO approval](https://fleetdm.com/handbook/ceo#contact-us).
-- If a departmental leader is not available to attend a particular key review, they can send another team member that is able to communicate their department's key preformance indicators (KPI's).
+- Key reviews are scheduled during the e-group time slot every three weeks and are not moved or rescheduled.  If a department leader is not available to lead a particular key review, another team member from their department will join the meeting and discuss their department's key performance indicators (KPIs).
+- Use this meeting to add, remove, or change the definitions or ownership of KPIs.  Otherwise, KPI definitions do not change, even if those definitions have problems.  For help with KPIs, get [input from the CEO](https://fleetdm.com/handbook/ceo#contact-us).
+
 
 
 ## Hiring
@@ -161,13 +169,47 @@ Want to hire?  Here's how to open up a new position on the core team:
 
 1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department. Set the start date to the first Monday of the next month (This position is still only proposed (not approved), but would make it easier for the approver to have the date set).
 2. **Propose job description:** Copy, personalize, and publish the job description:
-   - _Duplicate file:_ Locate [one of the existing job description files inside `handbook/company/`](https://github.com/fleetdm/fleet/tree/main/handbook/company) and duplicate it into a new handbook subpage.  If no other open job descriptions currently exist, you can [copy and paste the raw text](https://raw.githubusercontent.com/fleetdm/fleet/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md) from an [old job description](https://github.com/fleetdm/fleet/blob/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md).
-     - _Filename:_ Use the [same style of filename](https://github.com/fleetdm/fleet/blob/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md), but based on the new job title.  (This filename will determine the living URL on fleetdm.com where candidates can apply.)
-     - _Contents:_ Keep the structure of the document [identical](https://raw.githubusercontent.com/fleetdm/fleet/586194b771aa4ff7aa18072bd061720f94719d29/handbook/company/product-designer.md).  Change only the job title, "Responsibilities", and "Experience".
-   - _Add to list of open positions:_ In [the same pull request](https://www.loom.com/share/75da64632a93415cbe0e7752107c1af2), add a link to your new job posting to the bottom of the list of ["📖 Company#Open positions"](https://fleetdm.com/handbook/company#open-positions) in the handbook.
-     - State the proposed job title, include the appropriate departmental emoji, and link to the "living" fleetdm.com URL; not the GitHub URL.
+  - Create an entry for the proposed position in the [open positions YAML file](https://github.com/fleetdm/fleet/tree/main/handbook/company/open-positions.yml). To do this, you can either duplicate an existing open position and update the values, or you can copy and paste the commented out template at the top of the file.
 
-- _**Note:** The "living" URL where the new page will eventually exist on fleetdm.com won't ACTUALLY exist until your pull request is merged.  For now, if you were to visit this URL, you'd just see a 404 error.  So how can you determine this URL?  To understand the pattern, visit other job description pages from the [live handbook](https://fleetdm.com/handbook/company#open-positions), and examine their URLs in your browser._
+  - Update the required values for the new entry:
+    - `jobTitle`: The job title of the proposed position. This will determine the living URL of the page on the Fleet website.
+    - `department`: The department of the proposed position.
+    - `hiringManagerName`: The full name of this proposed position's hiring manager.
+    - `hiringManagerGithubUsername`: The GitHub username of the proposed position's hiring manger. This is used to add the hiring manager as the open position page's maintainer.
+    - `hiringManagerLinkedInUrl`: The url of the hiring manger's LinkedIn profile. People applying for this position will be asked to reach out to the manager on LinkedIn.
+    - `responsibilities`: A Markdown list of the responsibilities of this proposed position.
+    - `experience`: A Markdown list of the experience that applicants should have when applying for the proposed position.
+
+
+A completed open position entry should look something like this:
+
+```
+- jobTitle: 🐈 Railway cat
+  department: Jellicle cats
+  hiringManagerName: Skimbleshanks
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/skimbleshanks-the-railway-cat
+  hiringManagerGithubUsername: skimbieshanks
+  responsibilities: |
+    - ⏫ Elevate the standard of train travel
+    - 📖 Learn the ins and outs of rail operations
+    - 🏃‍♂️ Dash through stations to ensure punctuality
+  experience: |
+    - 🎯 Punctuality is crucial
+    - 🌐 Familiarity with the Northern Line
+    - 👥 Excellent at commanding attention
+    - 🤝 Adept at coordinating with the Night Mail
+    - 🦉 Skilled at nocturnal operations
+    - 🛠️ Proficient in tap-dance communication
+    - 🟣 Ability to maintain railway order and standards
+    - 🐭 Can swiftly and silently eliminate any rodent problems
+    - 💭 Speak the language of timetable jargon
+    - 💖 Sing praises of a smooth rail journey
+    - 🐭 Can articulate effective rodent control strategies
+```
+
+  - Create a pull request to add the new position to the YAML file.
+
+- _**Note:** The "living" URL where the new page will eventually exist on fleetdm.com won't ACTUALLY exist until your pull request is merged. A link will be added in the ["Open positions" section](https://fleetdm.com/handbook/company#open-positions) of the company handbook page.
 
 3. **Link to pull request in "Fleeties:"** Include a link to your GitHub pull request in the "Job description" column for the new row you just added in "Fleeties".
 
@@ -220,13 +262,17 @@ Fleet maintains a list of companies with whom Fleet has do-not-solicit terms tha
 Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
 
 #### Interviewing
+> TODO: Rewrite this section for the hiring manager as our audience.
+
 We're glad you're interested in joining the team! 
 Here are some of the things you can anticipate throughout this process:
   - We will reply by email within one business day from the time when the application arrives.
   - You may receive a rejection email (Bummer, consider applying again in the future).
   - You may receive an invitation to "book with us."
-If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps. 
+If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps.
 
+Department specific interviewing instructions:
+- [Engineering](https://fleetdm.com/handbook/engineering#interview-a-developer-candidate)
 
 #### Hiring a new team member
 This section is about the hiring process a new core team member, or fleetie.
@@ -234,17 +280,15 @@ This section is about the hiring process a new core team member, or fleetie.
 > **_Note:_** _Employment classification isn't what makes someone a fleetie.  Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate employment classification and agreement for any given team member and the place where they work is determined by Head of Business Operations during the process of making an offer._
 
 Here are the steps hiring managers follow to get an offer out to a candidate:
-1. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
+1. **Call references:** Before proceeding, make sure you have 2-5+ references. Ask the candidate for at least 2-5+ references and contact each reference in parallel using the instructions in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
+2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
    - Start date
      > _**Tip:** No need to check with the candidate if you haven't already.  Just guess.  First Mondays tend to make good start dates.  When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date._
    - First and last name
    - Preferred pronoun _("them", "her", or "him")_
    - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
-   - GitHub username _(Every candidate must have a GitHub account in "Fleeties" before the company makes them an offer.  If the the candidate does not have a GitHub account, ask them to create one, and make sure it's tracked in "Fleeties".)_
-     > _**Tip:** A revealing live interview question can be to ask a candidate to quickly share their screen, sign up for GitHub, and then hit the "Edit" button on one of the pages in [the Fleet handbook](https://fleetdm.com/handbook) to make their first pull request.  This should not take more than 5 minutes._
-2. **Call references:** Ask the candidate for at least 2+ references and contact each reference in parallel using the instructions and tips in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
-3. **Schedule CEO interview:** Book a quick chat so our CEO can get to know the future Fleetie.
-   - No need to check with the CEO first.  Get this candidate set up for a meeting with the CEO by at-mentioning the Apprentice to the CEO in the #g-ceo Slack channel with your candidate's name, personal email, and role.
+   - Location of candidate
+3. **Schedule CEO interview:** [Book a quick chat](https://fleetdm.com/handbook/ceo#contact-us) so our CEO can get to know the future Fleetie.  (Please take care of all of the previous steps first.)
 4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
    - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
    - _Share_ this single document with the Head of Business Operations via email.
@@ -305,10 +349,8 @@ Once the new team member replies and accepts their offer in writing, 🔦 Head o
      ```
 2. **Ask hiring manager to send rejections:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/business-operations#candidate-correspondence-email-templates).
    >_**Note:** Send rejection emails quickly, within 1 business day.  It only gets harder if you wait._
-3. **Remove open position:** Take down the newly-filled position from the fleetdm.com website by making the following two changes:  (please only submit [one, single pull request that changes both of these files](https://www.loom.com/share/75da64632a93415cbe0e7752107c1af2):
-   - Edit the [list of open positions](https://fleetdm.com/handbook/company#open-positions) to remove the newly-filled position from the list.
-   - Remove the [job description file](https://github.com/fleetdm/fleet/tree/main/handbook/company) that corresponds with the newly-filled position.  (This is a Markdown file named after the role, with a filename ending in `.md`.)
-5. **Close Slack channel:** Then archive and close the channel.
+3. **Remove open position:** The hiring manager removes the newly-filled position from the fleetdm.com website by [making a pull request](https://fleetdm.com/handbook/company/communications#making-a-pull-request) to delete it from the [open-positions.yml](https://github.com/fleetdm/fleet/blob/main/handbook/company/open-positions.yml) file.
+4. **Close Slack channel:** Then archive and close the channel.
 
 Now what happens?  🔦 Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 
@@ -330,8 +372,13 @@ Although it's sad to see someone go, Fleet understands that not everything is me
 4. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 
+## Changing someone's position
 
+From time to time, someone's job title changes.  To do this, Business Operations follows these steps:
 
+1. Change "Fleeties" to reflect the new job title, manager, and/or department.
+2. If there is a compensation change, update "Equity plan".  Use the first day of a month as the date, and enter this in the corresponding column.
+3. If applicable, schedule the change in the appropriate payroll system.  (Don't worry about updating job titles in the payroll system.)
 
 
 

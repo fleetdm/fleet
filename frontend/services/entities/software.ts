@@ -74,7 +74,7 @@ export default {
     }
   },
 
-  count: async ({
+  getCount: async ({
     query,
     teamId,
     vulnerable,

@@ -39,6 +39,9 @@ export const FREQUENCY_DROPDOWN_OPTIONS = [
 export const GITHUB_NEW_ISSUE_LINK =
   "https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md";
 
+/**  July 28, 2016 is the date of the initial commit to fleet/fleet. */
+export const INITIAL_FLEET_DATE = "2016-07-28T00:00:00Z";
+
 export const LOGGING_TYPE_OPTIONS = [
   { label: "Snapshot", value: "snapshot" },
   { label: "Differential", value: "differential" },
@@ -93,10 +96,15 @@ export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "1.8.1 +", value: "1.8.1" },
 ];
 
-export const QUERIES_PAGE_STEPS = {
+export const LIVE_POLICY_STEPS = {
   1: "EDITOR",
   2: "TARGETS",
   3: "RUN",
+};
+
+export const LIVE_QUERY_STEPS = {
+  1: "TARGETS",
+  2: "RUN",
 };
 
 export const DEFAULT_QUERY: ISchedulableQuery = {
@@ -106,6 +114,7 @@ export const DEFAULT_QUERY: ISchedulableQuery = {
   id: 0,
   interval: 0,
   observer_can_run: false,
+  discard_data: false,
   platform: "",
   min_osquery_version: "",
   automations_enabled: false,

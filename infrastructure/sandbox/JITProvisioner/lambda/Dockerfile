@@ -1,4 +1,4 @@
-FROM golang:1.19.11-alpine@sha256:2baefdb9fe707846cd5482f2564ad2e4961735844b223707467db08829a21401 AS builder
+FROM golang:1.21.1-alpine@sha256:0c860c7ceba62231d0f99fb92e9d7c1577f26fea794a12c75756a8f64b146e45 AS builder
 WORKDIR /build
 COPY . .
 RUN go get -d -v

@@ -64,6 +64,8 @@ Learn more about configuration options for hosts that aren't assigned to a team 
 
 4. Run the `fleetctl apply -f workstations-canary-config.yml` command.
 
+> Fleet auto-configures `DeferForceAtUserLoginMaxBypassAttempts` to `1`, ensuring mandatory disk encryption during new Mac setup.
+
 ### Step 2: share migration instructions with your end users
 
 In order to complete the process of encrypting the hard drive and escrowing the key in Fleet, your end users must take action. If the host already had disk encryption turned on, the user will need to input their password. If the host did not already have disk encryption turned on, the user will need to log out or restart their computer.
@@ -74,15 +76,17 @@ Share [these guided instructions](./MDM-migration-guide.md#how-to-turn-on-disk-e
 
 In the Fleet UI, head to the **Controls > macOS settings > Disk encryption** tab. You will see a table that shows the status of disk encryption on your hosts. 
 
-* Applied: disk encryption is turned on and key stored in Fleet. See instructions for viewing the disk encryption key [here](#view-disk-encryption-key).
+* Verified: the host turned disk encryption on and sent their key to Fleet. Fleet verified with osquery. See instructions for viewing the disk encryption key [here](#view-disk-encryption-key).
 
-* Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. 
-
-* Enforcing (pending): disk encryption will be enforced and the disk encryption key will be sent to Fleet when the hosts come online.
+* Verifying: the host acknowledged the MDM command to install the disk encryption profile. Fleet is verifying with osquery and retrieving the disk encryption key.
 
 > It may take up to one hour for Fleet to collect and store the disk encryption keys from all hosts.
 
-* Removing enforcement (pending): disk encryption enforcement will be removed when the hosts come online. 
+* Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. 
+
+* Enforcing (pending): the host will receive the MDM command to install the configuration profile when the host comes online.
+
+* Removing enforcement (pending): the host will receive the MDM command to remove the disk encryption profile when the host comes online.
 
 * Failed: hosts that are failed to enforce disk encryption. 
 
@@ -114,7 +118,7 @@ How to reset a macOS host's password using the disk encryption key:
 
 4. The Mac will display a prompt to reset the password. Reset the password and save this password somewhere safe. If you plan to prepare this Mac for a new employee, you'll need this password to erase all content and settings on the Mac.
 
-<meta name="pageOrderInSection" value="1503">
-<meta name="title" value="MDM disk encryption">
+<meta name="pageOrderInSection" value="1504">
+<meta name="title" value="Disk encryption">
 <meta name="description" value="Learn how to enforce disk encryption on macOS hosts and manage encryption keys with Fleet Premium.">
 <meta name="navSection" value="Device management">

@@ -111,6 +111,11 @@ type Options struct {
 	// EnrollSecret from a system configuration that's present on the host.
 	// Currently only macOS profiles are supported.
 	UseSystemConfiguration bool
+	// EnableScripts enables script execution on the agent.
+	EnableScripts bool
+	// LocalWixDir uses a Windows machine's local WiX installation instead of a containerized
+	// emulation to build an MSI fleetd installer
+	LocalWixDir string
 }
 
 func initializeTempDir() (string, error) {

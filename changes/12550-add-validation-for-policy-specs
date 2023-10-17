@@ -1,2 +1,0 @@
-- added validation to `fleetctl apply` for duplicate policy names in the yml file and attempting to change the team of an existing policy
-- added validation in `/api/latest/fleet/spec/policies` to error when attempting to change the team of an existing policy

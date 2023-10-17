@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -141,7 +142,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx)
+	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 	if len(globalPolicies) > 0 {
 		var globalPolicyIDs []uint
@@ -152,9 +153,28 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	packs, err := ts.ds.ListPacks(ctx, fleet.PackListOptions{})
+	require.NoError(t, err)
+	for _, pack := range packs {
+		err := ts.ds.DeletePack(ctx, pack.Name)
+		require.NoError(t, err)
+	}
+
 	// SyncHostsSoftware performs a cleanup.
 	err = ts.ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
+
+	// delete orphaned scripts
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM scripts`)
+		return err
+	})
+
+	// delete orphaned host_script_results
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_script_results`)
+		return err
+	})
 }
 
 func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {
@@ -289,6 +309,17 @@ func (ts *withServer) getConfig() *appConfigResponse {
 	var responseBody *appConfigResponse
 	ts.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &responseBody)
 	return responseBody
+}
+
+func (ts *withServer) applyTeamSpec(yamlSpec []byte) {
+	var teamSpec any
+	err := yaml.Unmarshal(yamlSpec, &teamSpec)
+	require.NoError(ts.s.T(), err)
+
+	specsReq := map[string]any{
+		"specs": []any{teamSpec},
+	}
+	ts.Do("POST", "/api/latest/fleet/spec/teams", specsReq, http.StatusOK)
 }
 
 func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, string) {

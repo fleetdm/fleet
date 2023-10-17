@@ -873,6 +873,18 @@ func TestAppConfigReplaceQuery(t *testing.T) {
 	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
 	_, exists := queries["users"]
 	assert.False(t, exists)
+
+	// put the query back again
+	replacementMap["users"] = ptr.String("select 1 from blah")
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	assert.NotEqual(t, originalQuery, queries["users"].Query)
+	assert.Equal(t, "select 1 from blah", queries["users"].Query)
+
+	// empty strings are also ignored
+	replacementMap["users"] = ptr.String("")
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	_, exists = queries["users"]
+	assert.False(t, exists)
 }
 
 func TestDirectIngestSoftware(t *testing.T) {
@@ -1118,7 +1130,7 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		}
 	}
 
-	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key string) error {
+	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
 			return errors.New("key mismatch")
 		}
@@ -1230,12 +1242,13 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 		}
 		return expected, nil
 	}
-	ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, host *fleet.Host, verified, failed []string) error {
-		require.Equal(t, h.ID, host.ID)
-		require.Equal(t, len(installedProfiles), len(verified))
-		require.Len(t, failed, 0)
+	ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, hostUUID string, toVerify, toFailed, toRetry []string) error {
+		require.Equal(t, h.UUID, hostUUID)
+		require.Equal(t, len(installedProfiles), len(toVerify))
+		require.Len(t, toFailed, 0)
+		require.Len(t, toRetry, 0)
 		for _, p := range installedProfiles {
-			require.Contains(t, verified, p.Identifier)
+			require.Contains(t, toVerify, p.Identifier)
 		}
 		return nil
 	}
@@ -1266,4 +1279,61 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 	// expect error: install date format is not "2006-01-02 15:04:05 -0700"
 	rows[0]["install_date"] = time.Now().Format(time.UnixDate)
 	require.ErrorContains(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows), "parsing time")
+}
+
+func TestSanitizeSoftware(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		h         *fleet.Host
+		s         *fleet.Software
+		sanitized *fleet.Software
+	}{
+		{
+			name: "Microsoft Teams.app on macOS",
+			h: &fleet.Host{
+				Platform: "darwin",
+			},
+			s: &fleet.Software{
+				Name:    "Microsoft Teams.app",
+				Version: "1.00.622155",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams.app",
+				Version: "1.6.00.22155",
+			},
+		},
+		{
+			name: "Microsoft Teams not on macOS",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Microsoft Teams",
+				Version: "1.6.00.22378",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams",
+				Version: "1.6.00.22378",
+			},
+		},
+		{
+			name: "Other.app on macOS",
+			h: &fleet.Host{
+				Platform: "darwin",
+			},
+			s: &fleet.Software{
+				Name:    "Other.app",
+				Version: "1.2.3",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Other.app",
+				Version: "1.2.3",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sanitizeSoftware(tc.h, tc.s)
+			require.Equal(t, tc.sanitized, tc.s)
+		})
+	}
 }

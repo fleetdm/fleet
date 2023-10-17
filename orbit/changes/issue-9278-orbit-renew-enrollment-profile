@@ -1,1 +1,0 @@
-* Added support to `fleetd` to run the necessary command to renew the MDM enrollment profile on the devices that are pending automatic enrollment into Fleet MDM.

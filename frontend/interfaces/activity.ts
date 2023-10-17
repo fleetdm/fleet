@@ -49,6 +49,9 @@ export enum ActivityType {
   EnabledWindowsMdm = "enabled_windows_mdm",
   DisabledWindowsMdm = "disabled_windows_mdm",
   RanScript = "ran_script",
+  AddedScript = "added_script",
+  DeletedScript = "deleted_script",
+  EditedScript = "edited_script",
 }
 export interface IActivity {
   created_at: string;
@@ -90,4 +93,6 @@ export interface IActivityDetails {
   profile_identifier?: string;
   bootstrap_package_name?: string;
   name?: string;
+  script_execution_id?: string;
+  script_name?: string;
 }

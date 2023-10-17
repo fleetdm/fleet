@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -447,7 +446,7 @@ var extraDetailQueries = map[string]DetailQuery{
 			)
 			UNION ALL
 			SELECT * FROM (
-				SELECT "is_federated" AS "key", data as "value" FROM registry 
+				SELECT "is_federated" AS "key", data as "value" FROM registry
 				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\IsFederated'
 				LIMIT 1
 			)
@@ -610,7 +609,7 @@ var mdmQueries = map[string]DetailQuery{
 	// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
 	"mdm_disk_encryption_key_file_lines_darwin": {
 		Query: fmt.Sprintf(`
-	WITH 
+	WITH
 		de AS (SELECT IFNULL((%s), 0) as encrypted),
 		fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
 	SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;`, usesMacOSDiskEncryptionQuery),
@@ -1163,65 +1162,39 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	sPaths := map[string]struct{}{}
 
 	for _, row := range rows {
-		name := row["name"]
-		version := row["version"]
-		source := row["source"]
-		bundleIdentifier := row["bundle_identifier"]
-		vendor := row["vendor"]
-
-		if name == "" {
+		// Attempt to parse the last_opened_at and emit a debug log if it fails.
+		if _, err := fleet.ParseSoftwareLastOpenedAtRowValue(row["last_opened_at"]); err != nil {
 			level.Debug(logger).Log(
-				"msg", "host reported software with empty name",
-				"host", host.Hostname,
-				"version", version,
-				"source", source,
+				"msg", "host reported software with invalid last opened timestamp",
+				"host_id", host.ID,
+				"row", row,
+			)
+		}
+
+		s, err := fleet.SoftwareFromOsqueryRow(
+			row["name"],
+			row["version"],
+			row["source"],
+			row["vendor"],
+			row["installed_path"],
+			row["release"],
+			row["arch"],
+			row["bundle_identifier"],
+			row["last_opened_at"],
+		)
+		if err != nil {
+			level.Debug(logger).Log(
+				"msg", "failed to parse software row",
+				"host_id", host.ID,
+				"row", row,
+				"err", err,
 			)
 			continue
 		}
-		if source == "" {
-			level.Debug(logger).Log(
-				"msg", "host reported software with empty name",
-				"host", host.Hostname,
-				"version", version,
-				"name", name,
-			)
-			continue
-		}
 
-		var lastOpenedAt time.Time
-		if lastOpenedRaw := row["last_opened_at"]; lastOpenedRaw != "" {
-			if lastOpenedEpoch, err := strconv.ParseFloat(lastOpenedRaw, 64); err != nil {
-				level.Debug(logger).Log(
-					"msg", "host reported software with invalid last opened timestamp",
-					"host", host.Hostname,
-					"version", version,
-					"name", name,
-					"last_opened_at", lastOpenedRaw,
-				)
-			} else if lastOpenedEpoch > 0 {
-				lastOpenedAt = time.Unix(int64(lastOpenedEpoch), 0).UTC()
-			}
-		}
+		sanitizeSoftware(host, s)
 
-		// Check whether the vendor is longer than the max allowed width and if so, truncate it.
-		if utf8.RuneCountInString(vendor) >= fleet.SoftwareVendorMaxLength {
-			vendor = fmt.Sprintf(fleet.SoftwareVendorMaxLengthFmt, vendor)
-		}
-
-		s := fleet.Software{
-			Name:             name,
-			Version:          version,
-			Source:           source,
-			BundleIdentifier: bundleIdentifier,
-
-			Release: row["release"],
-			Vendor:  vendor,
-			Arch:    row["arch"],
-		}
-		if !lastOpenedAt.IsZero() {
-			s.LastOpenedAt = &lastOpenedAt
-		}
-		software = append(software, s)
+		software = append(software, *s)
 
 		installedPath := strings.TrimSpace(row["installed_path"])
 		if installedPath != "" &&
@@ -1243,6 +1216,40 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	}
 
 	return nil
+}
+
+var macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+
+// sanitizeSoftware performs any sanitization required to the ingested software fields.
+//
+// Some fields are reported with known incorrect values and we need to fix them before using them.
+func sanitizeSoftware(h *fleet.Host, s *fleet.Software) {
+	softwareSanitizers := []struct {
+		checkSoftware  func(*fleet.Host, *fleet.Software) bool
+		mutateSoftware func(*fleet.Software)
+	}{
+		// "Microsoft Teams" on macOS defines the `bundle_short_version` (CFBundleShortVersionString) in a different
+		// unexpected version format. Thus here we transform the version string to the expected format
+		// (see https://learn.microsoft.com/en-us/officeupdates/teams-app-versioning).
+		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed to `1.6.00.22155`.
+		{
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return h.Platform == "darwin" && s.Name == "Microsoft Teams.app"
+			},
+			mutateSoftware: func(s *fleet.Software) {
+				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
+					s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
+				}
+			},
+		},
+	}
+
+	for _, softwareSanitizer := range softwareSanitizers {
+		if softwareSanitizer.checkSoftware(h, s) {
+			softwareSanitizer.mutateSoftware(s)
+			return
+		}
+	}
 }
 
 func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -1453,7 +1460,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 
 	// it's okay if the key comes empty, this can happen and if the disk is
 	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"], "", nil)
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -1504,7 +1511,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 
 	// it's okay if the key comes empty, this can happen and if the disk is
 	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b))
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b), "", nil)
 }
 
 func directIngestMacOSProfiles(
@@ -1610,7 +1617,7 @@ func GetDetailQueries(
 				unknownQueries = append(unknownQueries, name)
 				continue
 			}
-			if override == nil {
+			if override == nil || *override == "" {
 				delete(generatedMap, name)
 			} else {
 				query.Query = *override

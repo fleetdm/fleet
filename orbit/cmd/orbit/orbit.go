@@ -170,6 +170,11 @@ func main() {
 			EnvVars: []string{"ORBIT_USE_SYSTEM_CONFIGURATION"},
 			Hidden:  true,
 		},
+		&cli.BoolFlag{
+			Name:    "enable-scripts",
+			Usage:   "Enable script execution",
+			EnvVars: []string{"ORBIT_ENABLE_SCRIPTS"},
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -266,8 +271,6 @@ func main() {
 				// alarms when users look into the orbit logs, it's perfectly normal to
 				// not have a configuration profile, or to get into this situation in
 				// operating systems that don't have profile support.
-				case errors.Is(err, profiles.ErrNotImplemented), errors.Is(err, profiles.ErrNotFound):
-					log.Debug().Msgf("reading configuration profile: %v", err)
 				case err != nil:
 					log.Error().Err(err).Msg("reading configuration profile")
 				case config.EnrollSecret == "" || config.FleetURL == "":
@@ -619,8 +622,10 @@ func main() {
 		const (
 			renewEnrollmentProfileCommandFrequency = time.Hour
 			windowsMDMEnrollmentCommandFrequency   = time.Hour
+			windowsMDMBitlockerCommandFrequency    = time.Hour
 		)
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL)
+		configFetcher = update.ApplyRunScriptsConfigFetcherMiddleware(configFetcher, c.Bool("enable-scripts"), orbitClient)
 
 		switch runtime.GOOS {
 		case "darwin":
@@ -634,6 +639,7 @@ func main() {
 			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
 		case "windows":
 			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient)
+			configFetcher = update.ApplyWindowsMDMBitlockerFetcherMiddleware(configFetcher, windowsMDMBitlockerCommandFrequency, orbitClient)
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
@@ -715,6 +721,9 @@ func main() {
 				return fmt.Errorf("writing token: %w", err)
 			}
 
+			// Note that the deviceClient used by orbit must not define a retry on
+			// invalid token, because its goal is to detect invalid tokens when
+			// making requests with this client.
 			deviceClient, err := service.NewDeviceClient(
 				fleetURL,
 				c.Bool("insecure"),
@@ -757,18 +766,31 @@ func main() {
 				for {
 					select {
 					case <-rotationTicker.C:
+						rotationTicker.Reset(rotationDuration)
+
 						log.Debug().Msgf("checking if token has changed or expired, cached mtime: %s", trw.GetMtime())
 						hasChanged, err := trw.HasChanged()
 						if err != nil {
 							log.Error().Err(err).Msg("error checking if token has changed")
 						}
-						if hasChanged || trw.HasExpired() {
+
+						exp, remain := trw.HasExpired()
+
+						// rotate if the token file has been modified, if the token is
+						// expired or if it is very close to expire.
+						if hasChanged || exp || remain <= time.Second {
 							log.Info().Msg("token TTL expired, rotating token")
 
 							if err := trw.Rotate(); err != nil {
 								log.Error().Err(err).Msg("error rotating token")
 							}
+						} else if remain > 0 && remain < rotationDuration {
+							// check again when the token will expire, which will happen
+							// before the next rotation check
+							rotationTicker.Reset(remain)
+							log.Debug().Msgf("token will expire soon, checking again in: %s", remain)
 						}
+
 					case <-remoteCheckTicker.C:
 						log.Debug().Msgf("initiating remote token check after %s", remoteCheckDuration)
 						if err := deviceClient.CheckToken(trw.GetCached()); err != nil {

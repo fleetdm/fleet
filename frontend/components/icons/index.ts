@@ -4,6 +4,7 @@ import ArrowInternalLink from "./ArrowInternalLink";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import Chevron from "./Chevron";
+import CollectingResults from "./CollectingResults";
 import Columns from "./Columns";
 import CriticalPolicy from "./CriticalPolicy";
 import Disable from "./Disable";
@@ -22,6 +23,7 @@ import EmptyTeams from "./EmptyTeams";
 import ExternalLink from "./ExternalLink";
 import Filter from "./Filter";
 import FilterAlt from "./FilterAlt";
+import FilterFunnel from "./FilterFunnel";
 import Info from "./Info";
 import Issue from "./Issue";
 import More from "./More";
@@ -83,6 +85,7 @@ export const ICON_MAP = {
   "calendar-check": CalendarCheck,
   chevron: Chevron,
   check: Check,
+  "collecting-results": CollectingResults,
   columns: Columns,
   "critical-policy": CriticalPolicy,
   disable: Disable,
@@ -101,6 +104,7 @@ export const ICON_MAP = {
   "external-link": ExternalLink,
   filter: Filter,
   "filter-alt": FilterAlt,
+  "filter-funnel": FilterFunnel,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
   lightbulb: Lightbulb,

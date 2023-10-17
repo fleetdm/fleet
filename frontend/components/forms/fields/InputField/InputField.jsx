@@ -39,6 +39,7 @@ class InputField extends Component {
       PropTypes.object,
     ]),
     enableCopy: PropTypes.bool,
+    ignore1password: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -56,6 +57,7 @@ class InputField extends Component {
     tooltip: "",
     hint: "",
     enableCopy: false,
+    ignore1password: false,
   };
 
   componentDidMount() {
@@ -97,6 +99,7 @@ class InputField extends Component {
       type,
       blockAutoComplete,
       value,
+      ignore1password,
     } = this.props;
 
     const { onInputChange } = this;
@@ -170,6 +173,7 @@ class InputField extends Component {
             {...inputOptions}
             value={value}
             autoComplete={blockAutoComplete ? "new-password" : ""}
+            data-1p-ignore={ignore1password}
           />
           <div className={`${baseClass}__copy-wrapper`}>
             {this.props.enableCopy && (

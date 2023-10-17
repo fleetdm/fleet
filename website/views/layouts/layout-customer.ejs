@@ -132,32 +132,34 @@
     <%/* End Google Tag Manager (noscript) */%>
     <div style="padding-bottom: 60px; background-color: #F9FAFC;" purpose="page-wrap">
 
-      <div class="header" purpose="header-container">
-        <div purpose="page-header" class="container-fluid d-flex align-items-center justify-content-between pt-3 pb-3 px-3 px-md-4">
-          <a purpose="header-logo" href="/">
-            <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
-          </a>
-          <div purpose="header-nav">
-            <a href="/logout" purpose="logout-btn" class="justify-content-end px-3 py-2 <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" style="text-decoration: none; line-height: 23px;">Log out</a>
+      <div class="header" purpose="header-container" data-nosnippet>
+        <div purpose="header-background">
+          <div purpose="page-header" class="container-fluid d-flex align-items-center justify-content-between pt-3 pb-3 px-3 px-md-4">
+            <a purpose="header-logo" href="/">
+              <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
+            </a>
+            <div purpose="header-nav">
+              <a href="/logout" purpose="logout-btn" class="justify-content-end px-3 py-2 <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" style="text-decoration: none; line-height: 23px;">Log out</a>
+            </div>
           </div>
+          <%if(me && me.isSuperAdmin) {%>
+          <div purpose="admin-nav" class="d-flex flex-row align-items-center px-5">
+            <div class=" justif-self-start">
+              <span>Admin pages</span>
+            </div>
+            <div class="d-flex flex-row align-self-end">
+              <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
+              <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
+              <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/sandbox-waitlist">Manage Fleet Sandbox waitlist</a>
+            </div>
+          </div>
+          <%} %>
         </div>
-        <%if(me && me.isSuperAdmin) {%>
-        <div purpose="admin-nav" class="d-flex flex-row align-items-center px-5">
-          <div class=" justif-self-start">
-            <span>Admin pages</span>
-          </div>
-          <div class="d-flex flex-row align-self-end">
-            <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
-            <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
-            <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/sandbox-waitlist">Manage Fleet Sandbox waitlist</a>
-          </div>
-        </div>
-        <%} %>
       </div>
 
       <%- body %>
 
-      <div purpose="footer" style="position: absolute; bottom:  0px; width: 100%; height:  60px; color: #515774;">
+      <div purpose="footer" style="position: absolute; bottom:  0px; width: 100%; height:  60px; color: #515774;" data-nosnippet>
         <div style="max-width: 500px;" class="container-fluid">
           <div style="font-size: 11px; line-height: 18px;" class="d-sm-flex d-block flex-sm-row justify-content-center mr-4 mr-md-auto">
             <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-160x30@2x.png" style="width: 80px; height: 15px;" class="mr-2 mb-2 mb-sm-0"/>
@@ -215,6 +217,7 @@
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
+    <script src="/js/components/open-positions.component.js"></script>
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
@@ -251,6 +254,7 @@
     <script src="/js/pages/imagine/launch-party.page.js"></script>
     <script src="/js/pages/imagine/rapid-7-alternative.page.js"></script>
     <script src="/js/pages/imagine/unused-software.page.js"></script>
+    <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/landing.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
@@ -261,7 +265,6 @@
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
-    <script src="/js/pages/sales-one-pager.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/register.page.js"></script>

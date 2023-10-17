@@ -1,10 +1,12 @@
 import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
+import { IconSizes, ICON_SIZES } from "styles/var/icon_sizes";
 
 interface IChevronProps {
   color?: Colors;
   /** Default direction "down" */
   direction?: "up" | "down" | "left" | "right";
+  size: IconSizes;
 }
 
 const SVG_PATH = {
@@ -17,11 +19,12 @@ const SVG_PATH = {
 const Chevron = ({
   color = "core-fleet-black",
   direction = "down",
+  size = "medium",
 }: IChevronProps) => {
   return (
     <svg
-      width="16"
-      height="16"
+      width={ICON_SIZES[size]}
+      height={ICON_SIZES[size]}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 16 16"

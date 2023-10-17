@@ -1,4 +1,4 @@
-# Deploying to Cloud.gov (Cloud Foundry)
+# Deploy Fleet on Cloud.gov (Cloud Foundry)
 
 Cloud.gov is a [FEDRAMP moderate Platform-as-a-Service
 (PaaS)](https://marketplace.fedramp.gov/#!/product/18f-cloudgov?sort=productName). This repository
@@ -14,7 +14,7 @@ values as appropriate.
 
 4. From your local fleetdm source directory.
 
-```
+```sh
 git clone https://github.com/fleetdm/fleet
 cd fleet
 cf login -a api.fr.cloud.gov  --sso
@@ -24,13 +24,13 @@ cf login -a api.fr.cloud.gov  --sso
 
 5. Setup a demo application space
 
-```
+```sh
 cf target -o sandbox-gsa create-space fleetdm-rename
 ```
 
 6. Create database(s)
 
-```
+```sh
 # Update manifest.yml file to rename application and database key names to match commands below.
 
 cf marketplace
@@ -110,7 +110,7 @@ variables](https://fleetdm.com/docs/deploying/configuration#using-only-environme
 }
 ```
 
-<meta name="title" value="Deploy Fleet on Cloud.gov">
+<meta name="title" value="Cloud.gov">
 <meta name="pageOrderInSection" value="700">
 <meta name="description" value="A guide for deploying Fleet on Cloud.gov.">
 <meta name="navSection" value="Deployment guides">

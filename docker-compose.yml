@@ -20,8 +20,7 @@ services:
         # Required for storage of Apple MDM installers.
         "--max_allowed_packet=536870912"
       ]
-    environment:
-      &mysql-default-environment
+    environment: &mysql-default-environment
       MYSQL_ROOT_PASSWORD: toor
       MYSQL_DATABASE: fleet
       MYSQL_USER: fleet
@@ -41,6 +40,7 @@ services:
         "--log_output=TABLE",
         "--log-queries-not-using-indexes",
         "--innodb-file-per-table=OFF",
+        "--table-definition-cache=8192",
         # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
         "--enforce-gtid-consistency=ON",
         "--log-bin=bin.log",
@@ -140,4 +140,5 @@ services:
 volumes:
   mysql-persistent-volume:
   data-minio:
+
 
