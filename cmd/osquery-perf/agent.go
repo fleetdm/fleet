@@ -1450,7 +1450,7 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 
 func (a *agent) scheduledQueryResults(packName, queryName string, numResults int) json.RawMessage {
 	return json.RawMessage(`{
-  "snapshot": [` + results(int(numResults), a.UUID) + `
+  "snapshot": [` + results(numResults, a.UUID) + `
   ],
   "action": "snapshot",
   "name": "pack/` + packName + `/` + queryName + `",
@@ -1548,7 +1548,7 @@ func main() {
 		configInterval = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
 		// Flag logger_tls_period defines how often to check for sending scheduled query results.
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
-		logInterval         = flag.Duration("logger_tls_period", 1*time.Second, "Interval for scheduled queries log requests")
+		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
 		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 10*time.Second, "Interval for performing MDM check ins")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
