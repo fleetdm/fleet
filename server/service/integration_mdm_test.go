@@ -664,17 +664,17 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 		"I1": {
 			Identifier:  "I1",
 			DisplayName: "N1",
-			InstallDate: time.Now(),
+			InstallDate: time.Now().Add(15 * time.Minute),
 		},
 		"I2": {
 			Identifier:  "I2",
 			DisplayName: "N2",
-			InstallDate: time.Now(),
+			InstallDate: time.Now().Add(15 * time.Minute),
 		},
 		mobileconfig.FleetdConfigPayloadIdentifier: {
 			Identifier:  mobileconfig.FleetdConfigPayloadIdentifier,
 			DisplayName: "Fleetd configuration",
-			InstallDate: time.Now(),
+			InstallDate: time.Now().Add(15 * time.Minute),
 		},
 	}
 	reportHostProfs := func(t *testing.T, identifiers ...string) {
@@ -1887,6 +1887,50 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// it should still get the post-enrollment commands
 	require.NoError(t, mdmDevice.Enroll())
 	checkPostEnrollmentCommands(mdmDevice, true)
+
+	// enroll a host into Fleet
+	eHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:             1,
+		OsqueryHostID:  ptr.String("Desktop-ABCQWE"),
+		NodeKey:        ptr.String("Desktop-ABCQWE"),
+		UUID:           uuid.New().String(),
+		Hostname:       fmt.Sprintf("%sfoo.local", s.T().Name()),
+		Platform:       "darwin",
+		HardwareSerial: uuid.New().String(),
+	})
+	require.NoError(t, err)
+
+	// on team transfer, we don't assign a DEP profile to the device
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{eHost.ID}}, http.StatusOK)
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runWorker()
+	require.Empty(t, profileAssignmentReqs)
+
+	// assign the host in ABM
+	devices = []godep.Device{
+		{SerialNumber: eHost.HardwareSerial, Model: "MacBook Pro", OS: "osx", OpType: "modified"},
+	}
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runDEPSchedule()
+	require.NotEmpty(t, profileAssignmentReqs)
+	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
+
+	// transfer to "no team", we assign a DEP profile to the device
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{eHost.ID}}, http.StatusOK)
+	s.runWorker()
+	require.NotEmpty(t, profileAssignmentReqs)
+	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
+
+	// transfer to the team back again, we assign a DEP profile to the device again
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{eHost.ID}}, http.StatusOK)
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runWorker()
+	require.NotEmpty(t, profileAssignmentReqs)
+	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
 }
 
 func loadEnrollmentProfileDEPToken(t *testing.T, ds *mysql.Datastore) string {
