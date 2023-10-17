@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
 	"github.com/google/go-github/v37/github"
 	"github.com/jmoiron/sqlx"
 )
@@ -168,7 +169,7 @@ func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, err
 // CPEFromSoftware attempts to find a matching cpe entry for the given software in the NVD CPE dictionary. `db` contains data from the NVD CPE dictionary
 // and is optimized for lookups, see `GenerateCPEDB`. `translations` are used to aid in cpe matching. When searching for cpes, we first check if it matches
 // any translations, and then lookup in the cpe database based on the title, product and vendor.
-func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETranslations, reCache *regexpCache) (string, error) {
+func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, translations CPETranslations, reCache *regexpCache) (string, error) {
 	translation, match, err := translations.Translate(reCache, software)
 	if err != nil {
 		return "", fmt.Errorf("translate software: %w", err)
@@ -176,6 +177,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 
 	if match {
 		if translation.Skip {
+			level.Debug(logger).Log("msg", "CPE match skipped", "software", software.Name, "version", software.Version, "source", software.Source)
 			return "", nil
 		}
 
@@ -397,7 +399,7 @@ func TranslateSoftwareToCPE(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting value from iterator")
 		}
-		cpe, err := CPEFromSoftware(db, software, cpeTranslations, reCache)
+		cpe, err := CPEFromSoftware(logger, db, software, cpeTranslations, reCache)
 		if err != nil {
 			level.Error(logger).Log("software->cpe", "error translating to CPE, skipping...", "err", err)
 			continue
