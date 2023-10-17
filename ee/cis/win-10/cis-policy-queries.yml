@@ -15,7 +15,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE password_history_size >= 24;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_2.0.0, CIS_bullet_1.1.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.1
   contributors: marcosd4h
 ---
 apiVersion: v1
