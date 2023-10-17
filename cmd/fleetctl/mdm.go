@@ -85,7 +85,7 @@ func mdmRunCommand() *cli.Command {
 				return errors.New("Can't run the MDM command because the host doesn't have MDM turned on. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm")
 			}
 
-			result, err := client.EnqueueCommand([]string{host.UUID}, payload)
+			result, err := client.RunMDMCommand([]string{host.UUID}, payload, host.Platform)
 			if err != nil {
 				var sce kithttp.StatusCoder
 				if errors.As(err, &sce) {

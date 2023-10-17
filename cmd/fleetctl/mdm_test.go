@@ -44,7 +44,7 @@ func TestMDMRunCommand(t *testing.T) {
 		case "fleet-mdm-pending-host":
 			return &fleet.Host{ID: 3, UUID: identifier, MDM: fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")}}, nil
 		default:
-			return &fleet.Host{ID: 4, UUID: identifier, MDM: fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")}}, nil
+			return &fleet.Host{ID: 4, Platform: "darwin", UUID: identifier, MDM: fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")}}, nil
 		}
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
@@ -73,7 +73,13 @@ func TestMDMRunCommand(t *testing.T) {
 			return nil, nil
 		}
 		return []*fleet.Host{
-			{ID: 4, UUID: uuids[0], MDM: fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")}},
+			{
+				ID:       4,
+				UUID:     uuids[0],
+				Platform: "darwin",
+				MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+				MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+			},
 		}, nil
 	}
 	enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {

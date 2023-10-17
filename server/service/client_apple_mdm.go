@@ -12,12 +12,37 @@ import (
 	"howett.net/plist"
 )
 
-func (c *Client) EnqueueCommand(deviceIDs []string, rawPlist []byte) (*fleet.CommandEnqueueResult, error) {
-	var commandPayload map[string]interface{}
-	if _, err := plist.Unmarshal(rawPlist, &commandPayload); err != nil {
-		return nil, fmt.Errorf("The payload isn't valid XML. Please provide a file with valid XML: %w", err)
+func (c *Client) RunMDMCommand(hostUUIDs []string, rawCmd []byte, forPlatform string) (*fleet.CommandEnqueueResult, error) {
+	switch forPlatform {
+	case "darwin":
+		b, err := c.prepareAppleMDMCommand(rawCmd)
+		if err != nil {
+			return nil, err
+		}
+		rawCmd = b
+
+	case "windows":
+
+	default:
+		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows or macOS hosts.", forPlatform)
 	}
 
+	request := runMDMCommandRequest{
+		Command:   base64.RawStdEncoding.EncodeToString(rawCmd),
+		HostUUIDs: hostUUIDs,
+	}
+	var response runMDMCommandResponse
+	if err := c.authenticatedRequest(request, "POST", "/api/latest/fleet/mdm/commands/run", &response); err != nil {
+		return nil, fmt.Errorf("run command request: %w", err)
+	}
+	return response.CommandEnqueueResult, nil
+}
+
+func (c *Client) prepareAppleMDMCommand(rawCmd []byte) ([]byte, error) {
+	var commandPayload map[string]interface{}
+	if _, err := plist.Unmarshal(rawCmd, &commandPayload); err != nil {
+		return nil, fmt.Errorf("The payload isn't valid XML. Please provide a file with valid XML: %w", err)
+	}
 	if commandPayload == nil {
 		return nil, errors.New("The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file.")
 	}
@@ -29,16 +54,7 @@ func (c *Client) EnqueueCommand(deviceIDs []string, rawPlist []byte) (*fleet.Com
 	if err != nil {
 		return nil, fmt.Errorf("marshal command plist: %w", err)
 	}
-
-	request := enqueueMDMAppleCommandRequest{
-		Command:   base64.RawStdEncoding.EncodeToString(b),
-		DeviceIDs: deviceIDs,
-	}
-	var response enqueueMDMAppleCommandResponse
-	if err := c.authenticatedRequest(request, "POST", "/api/latest/fleet/mdm/apple/enqueue", &response); err != nil {
-		return nil, fmt.Errorf("run command request: %w", err)
-	}
-	return response.CommandEnqueueResult, nil
+	return b, nil
 }
 
 func (c *Client) MDMAppleGetCommandResults(commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
