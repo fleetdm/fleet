@@ -19030,8 +19030,8 @@
         "required": false,
         "index": false,
         "platforms": [
-          "linux",
-          "darwin"
+          "Linux",
+          "macOS"
         ]
       },
       {
@@ -19043,8 +19043,8 @@
         "required": false,
         "index": false,
         "platforms": [
-          "linux",
-          "darwin"
+          "Linux",
+          "macOS"
         ]
       },
       {
@@ -19056,8 +19056,8 @@
         "required": false,
         "index": false,
         "platforms": [
-          "linux",
-          "darwin"
+          "Linux",
+          "macOS"
         ]
       }
     ],
@@ -23053,7 +23053,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "darwin"
+          "macOS"
         ]
       },
       {
@@ -23065,10 +23065,8 @@
         "required": false,
         "index": false,
         "platforms": [
-          "linux",
-          "windows",
-          "win32",
-          "cygwin"
+          "Linux",
+          "Windows"
         ]
       }
     ],
@@ -29267,7 +29265,7 @@
         "required": false,
         "index": false,
         "platforms": [
-          "linux"
+          "Linux"
         ]
       }
     ],
