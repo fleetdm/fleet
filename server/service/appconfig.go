@@ -367,6 +367,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if license.IsPremium() {
+		appConfig.ServerSettings.EnableAnalytics = true
+	}
+
 	// TODO: move this logic to the AppConfig unmarshaller? we need to do
 	// this because we unmarshal twice into appConfig:
 	//

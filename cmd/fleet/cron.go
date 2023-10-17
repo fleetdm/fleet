@@ -898,7 +898,8 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	if err != nil {
 		return err
 	}
-	if !ac.ServerSettings.EnableAnalytics {
+
+	if !ac.ServerSettings.EnableAnalytics && !license.IsPremium(ctx) {
 		return nil
 	}
 
