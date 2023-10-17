@@ -916,24 +916,25 @@ func (svc *Service) editTeamFromSpec(
 		didUpdateBootstrapPackage = oldMacOSSetup.BootstrapPackage.Value != spec.MDM.MacOSSetup.BootstrapPackage.Value
 		team.Config.MDM.MacOSSetup.BootstrapPackage = spec.MDM.MacOSSetup.BootstrapPackage
 	}
-	if !appCfg.MDM.EnabledAndConfigured && (didUpdateSetupAssistant || didUpdateBootstrapPackage) {
+	if !appCfg.MDM.EnabledAndConfigured &&
+		((didUpdateSetupAssistant && team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value != "") ||
+			(didUpdateBootstrapPackage && team.Config.MDM.MacOSSetup.BootstrapPackage.Value != "")) {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
 			`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 	}
 
-	var didUpdateMacOSEndUserAuth bool
-	if spec.MDM.MacOSSetup.EnableEndUserAuthentication != oldMacOSSetup.EnableEndUserAuthentication {
+	didUpdateMacOSEndUserAuth := spec.MDM.MacOSSetup.EnableEndUserAuthentication != oldMacOSSetup.EnableEndUserAuthentication
+	if didUpdateMacOSEndUserAuth && spec.MDM.MacOSSetup.EnableEndUserAuthentication {
 		if !appCfg.MDM.EnabledAndConfigured {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
 				`Couldn't update macos_setup.enable_end_user_authentication because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
-		if spec.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
+		if appCfg.MDM.EndUserAuthentication.IsEmpty() {
 			// TODO: update this error message to include steps to resolve the issue once docs for IdP
 			// config are available
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
 				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`))
 		}
-		didUpdateMacOSEndUserAuth = true
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
