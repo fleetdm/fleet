@@ -796,9 +796,7 @@ func (svc *Service) createTeamFromSpec(
 		return nil, err
 	}
 	macOSSetup := spec.MDM.MacOSSetup
-	if (macOSSetup.MacOSSetupAssistant.Set && macOSSetup.MacOSSetupAssistant.Value != "") ||
-		(macOSSetup.BootstrapPackage.Set && macOSSetup.MacOSSetupAssistant.Value != "") {
-		// TODO: Discuss if/what changes are needed here for this bugfix
+	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" {
 		if !appCfg.MDM.EnabledAndConfigured {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
@@ -811,7 +809,6 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
-	// TODO: Discuss if/what changes are needed here for this bugfix
 	if enableDiskEncryption && !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm",
 			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
@@ -840,6 +837,7 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	if enableDiskEncryption && appCfg.MDM.EnabledAndConfigured {
+		// TODO: Are we missing an activity or anything else for BitLocker here?
 		if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
 		}
@@ -855,7 +853,6 @@ func (svc *Service) createTeamFromSpec(
 	return tm, nil
 }
 
-// TODO: Confirm whether changes are needed for the edit team spec
 func (svc *Service) editTeamFromSpec(
 	ctx context.Context,
 	team *fleet.Team,
@@ -1024,7 +1021,8 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 			field = "enable_disk_encryption"
 		}
 		if !appCfg.MDM.EnabledAndConfigured {
-			// TODO: Discuss if/what changes are needed here for this bugfix
+			// TODO: Address potential edge cases when teams that previously utilized MDM features
+			// are edited later edited when MDM disabled
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("macos_settings.%s", field),
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}

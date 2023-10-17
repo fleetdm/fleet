@@ -7327,7 +7327,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 
 		// changing MDM config causes validation error because neither Windows nor Apple are enabled
 		ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
-		// TODO: Should it be ok to disable disk encryption when MDM is disabled?
+		// TODO: Shouldn't it be ok to disable disk encryption when MDM is disabled?
 		s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
 		acResp = checkAppConfig(t, false, false)                         // both mac and windows mdm disabled
 		require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // no change

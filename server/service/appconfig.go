@@ -256,7 +256,6 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	return response, nil
 }
 
-// TODO: Discuss if/what changes are needed here for this bugfix
 func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -597,7 +596,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	return obfuscatedAppConfig, nil
 }
 
-// TODO: Discuss if/what changes are needed here for this bugfix
 func (svc *Service) validateMDM(
 	ctx context.Context,
 	license *fleet.LicenseInfo,
