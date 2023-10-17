@@ -3999,6 +3999,8 @@ results (i.e., only profiles that are associated with "No team" are listed).
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
 | team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
+| page                      | integer | query | Page number of the results to fetch.                                     |
+| per_page                  | integer | query | Results per page.                                                        |
 
 #### Example
 
