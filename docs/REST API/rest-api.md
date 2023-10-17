@@ -4036,7 +4036,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 }
 ```
 
-### Download custom OS setting (configuration profile)
+### Get or download custom OS setting (configuration profile)
 
 > [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`) API endpoint is deprecated as of Fleet 4.40. It is maintained for backwards compatibility. Please use the API endpoint.
 
@@ -4044,13 +4044,35 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 #### Parameters
 
-| Name                      | Type    | In    | Description                                                               |
-| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
-| profile_id                | integer | url   | **Required** The id of the profile to download.                           |
+| Name                      | Type    | In    | Description                                             |
+| ------------------------- | ------- | ----- | ------------------------------------------------------- |
+| profile_id                | integer | url   | **Required** The id of the profile to download.         |
+| alt                       | string  | query | If specified and set to "media", downloads the profile. |
 
-#### Example
+#### Example (get a profile info)
 
 `GET /api/v1/fleet/mdm/profiles/42`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profile_id": 1337,
+  "team_id": 0,
+  "name": "Example profile",
+  "platform": "darwin",
+  "identifier": "com.example.profile",
+  "created_at": "2023-03-31T00:00:00Z",
+  "updated_at": "2023-03-31T00:00:00Z",
+  "checksum": "dGVzdAo="
+}
+```
+
+#### Example (download a profile)
+
+`GET /api/v1/fleet/mdm/profiles/42?alt=media`
 
 ##### Default response
 
