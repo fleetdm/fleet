@@ -1,10 +1,12 @@
 package fleet
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -919,6 +921,30 @@ type SyncMLCmd struct {
 	Items        []CmdItem `xml:"Item,omitempty"`
 	UUID         string    `xml:"-"`
 	SystemOrigin bool      `xml:"-"`
+}
+
+// ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
+// A single <Exec> command is accepted as input.
+func ParseWindowsMDMCommand(rawXMLCmd []byte) (*SyncMLCmd, error) {
+	// a command must have the <Exec> element as top-level
+	var cmdMsg SyncMLCmd
+	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace(rawXMLCmd)))
+	if err := dec.Decode(&cmdMsg); err != nil {
+		return nil, fmt.Errorf("The payload isn't valid XML: %w", err)
+	}
+
+	// check if there were multiple top-level elements provided
+	if _, err := dec.Token(); err != io.EOF {
+		return nil, errors.New("You can run only a single <Exec> command.")
+	}
+
+	if cmdMsg.XMLName.Local != CmdExec {
+		return nil, errors.New("You can run only <Exec> command type.")
+	}
+	if len(cmdMsg.Items) != 1 {
+		return nil, errors.New("You can run only a single <Exec> command.")
+	}
+	return &cmdMsg, nil
 }
 
 // IsPremium returns true if the command is available for Fleet premium only.
