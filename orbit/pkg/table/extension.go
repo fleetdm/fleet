@@ -41,6 +41,12 @@ type Extension interface {
 // Opt allows configuring a Runner.
 type Opt func(*Runner)
 
+// Global variables for osquery extension manager client and logger for Kolide tables
+var (
+	serverClient *osquery.ExtensionManagerClient
+	kolideLogger *Logger
+)
+
 // WithExtension registers the given Extension on the Runner.
 func WithExtension(t Extension) Opt {
 	return func(r *Runner) {
@@ -60,6 +66,8 @@ func NewRunner(socket string, opts ...Opt) *Runner {
 // Execute creates an osquery extension manager server and registers osquery plugins.
 func (r *Runner) Execute() error {
 	log.Debug().Msg("start osquery extension")
+
+	kolideLogger = NewKolideLogger()
 
 	if err := waitExtensionSocket(r.socket, 1*time.Minute); err != nil {
 		return err
@@ -123,6 +131,9 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 		// Orbit extensions.
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
+
+		// Kolide extensions.
+
 	}
 	return plugins
 }
