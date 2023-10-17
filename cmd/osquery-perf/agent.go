@@ -178,7 +178,7 @@ func (s *Stats) Log() {
 	defer s.l.Unlock()
 
 	fmt.Printf(
-		"%s :: error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/writes: %d, mdm commands received: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d\n",
+		"%s v.1.0.0 :: error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/writes: %d, mdm commands received: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d\n",
 		time.Now().Format("2006-01-02T15:04:05Z"),
 		float64(s.errors)/float64(s.osqueryEnrollments),
 		s.osqueryEnrollments,
