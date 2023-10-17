@@ -92,7 +92,7 @@ const EditQueryPage = ({
     setLastEditedQueryPlatforms,
     setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
-  const { setConfig } = useContext(AppContext);
+  const { setConfig, availableTeams, setCurrentTeam } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
@@ -145,6 +145,16 @@ const EditQueryPage = ({
     }
   );
 
+  // Used to set host's team in AppContext for RBAC actions
+  useEffect(() => {
+    if (storedQuery?.team_id) {
+      const querysTeam = availableTeams?.find(
+        (team) => team.id === storedQuery.team_id
+      );
+      setCurrentTeam(querysTeam);
+    }
+  }, [storedQuery]);
+
   const detectIsFleetQueryRunnable = () => {
     statusAPI.live_query().catch(() => {
       setIsLiveQueryRunnable(false);
@@ -157,10 +167,15 @@ const EditQueryPage = ({
     const canEditExistingQuery =
       isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
 
-    if (queryId && queryId > 0 && !canEditExistingQuery) {
+    if (
+      !isStoredQueryLoading && // Confirms teamId for storedQuery before RBAC reroute
+      queryId &&
+      queryId > 0 &&
+      !canEditExistingQuery
+    ) {
       router.push(PATHS.QUERY(queryId));
     }
-  }, [queryId, isTeamMaintainerOrTeamAdmin]);
+  }, [queryId, isTeamMaintainerOrTeamAdmin, isStoredQueryLoading]);
 
   useEffect(() => {
     detectIsFleetQueryRunnable();
