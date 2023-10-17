@@ -771,19 +771,19 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 func (svc *Service) createTeamFromSpec(
 	ctx context.Context,
 	spec *fleet.TeamSpec,
-	defaults *fleet.AppConfig,
+	appCfg *fleet.AppConfig,
 	secrets []*fleet.EnrollSecret,
 	dryRun bool,
 ) (*fleet.Team, error) {
 	agentOptions := &spec.AgentOptions
 	if len(spec.AgentOptions) == 0 {
-		agentOptions = defaults.AgentOptions
+		agentOptions = appCfg.AgentOptions
 	}
 
 	// if a team spec is not provided, use the global features, otherwise
 	// build a new config from the spec with default values applied.
 	var err error
-	features := defaults.Features
+	features := appCfg.Features
 	if spec.Features != nil {
 		features, err = unmarshalWithGlobalDefaults(spec.Features)
 		if err != nil {
@@ -796,31 +796,23 @@ func (svc *Service) createTeamFromSpec(
 		return nil, err
 	}
 	macOSSetup := spec.MDM.MacOSSetup
-	if (macOSSetup.MacOSSetupAssistant.Set && macOSSetup.MacOSSetupAssistant.Value != defaults.MDM.MacOSSetup.MacOSSetupAssistant.Value) ||
-		(macOSSetup.BootstrapPackage.Set && macOSSetup.BootstrapPackage.Value != defaults.MDM.MacOSSetup.BootstrapPackage.Value) {
+	if (macOSSetup.MacOSSetupAssistant.Set && macOSSetup.MacOSSetupAssistant.Value != "") ||
+		(macOSSetup.BootstrapPackage.Set && macOSSetup.MacOSSetupAssistant.Value != "") {
 		// TODO: Discuss if/what changes are needed here for this bugfix
-		if !defaults.MDM.EnabledAndConfigured {
+		if !appCfg.MDM.EnabledAndConfigured {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
 	}
-
-	var enableDiskEncryption bool
-	isSetDE := spec.MDM.EnableDiskEncryption.Set && spec.MDM.EnableDiskEncryption.Valid
-	if isSetDE {
-		enableDiskEncryption = spec.MDM.EnableDiskEncryption.Value
-	} else {
-		if dde := macOSSettings.DeprecatedEnableDiskEncryption; dde != nil {
-			enableDiskEncryption = *dde
-			isSetDE = true
+	enableDiskEncryption := spec.MDM.EnableDiskEncryption.Value
+	if !spec.MDM.EnableDiskEncryption.Valid {
+		if de := macOSSettings.DeprecatedEnableDiskEncryption; de != nil {
+			enableDiskEncryption = *de
 		}
-	}
-	if !isSetDE && defaults.MDM.EnableDiskEncryption.Set {
-		enableDiskEncryption = defaults.MDM.EnableDiskEncryption.Value
 	}
 
 	// TODO: Discuss if/what changes are needed here for this bugfix
-	if enableDiskEncryption && enableDiskEncryption != defaults.MDM.EnableDiskEncryption.Value && !defaults.MDM.AtLeastOnePlatformEnabledAndConfigured() {
+	if enableDiskEncryption && !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm",
 			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
 	}
@@ -847,7 +839,7 @@ func (svc *Service) createTeamFromSpec(
 		return nil, err
 	}
 
-	if enableDiskEncryption && defaults.MDM.EnabledAndConfigured {
+	if enableDiskEncryption && appCfg.MDM.EnabledAndConfigured {
 		if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
 		}
@@ -909,7 +901,7 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.EnableDiskEncryption = *de
 	}
 	didUpdateDiskEncryption := team.Config.MDM.EnableDiskEncryption != oldEnableDiskEncryption
-	if !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() && didUpdateDiskEncryption {
+	if !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() && didUpdateDiskEncryption && team.Config.MDM.EnableDiskEncryption {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm",
 			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
 	}
