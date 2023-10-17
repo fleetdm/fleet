@@ -45,7 +45,7 @@ Save the SCEP certificate and SCEP key. These are your certificate and key. You 
 
 3. Restart the Fleet server.
 
-### Step 2: Turn on Windows MDM in Fleet
+### Step 3: Turn on Windows MDM in Fleet
 
 Fleet UI:
 

@@ -64,6 +64,7 @@ const EditQueryPage = ({
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
+    isTeamMaintainerOrTeamAdmin,
     isAnyTeamMaintainerOrTeamAdmin,
     isObserverPlus,
     isAnyTeamObserverPlus,
@@ -149,6 +150,17 @@ const EditQueryPage = ({
       setIsLiveQueryRunnable(false);
     });
   };
+
+  /* Observer/Observer+ cannot edit existing query (O+ has access to edit new query to run live),
+ reroute edit existing query page (/:queryId/edit) to query report page (/:queryId) */
+  useEffect(() => {
+    const canEditExistingQuery =
+      isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
+
+    if (queryId && queryId > 0 && !canEditExistingQuery) {
+      router.push(PATHS.QUERY(queryId));
+    }
+  }, [queryId, isTeamMaintainerOrTeamAdmin]);
 
   useEffect(() => {
     detectIsFleetQueryRunnable();
