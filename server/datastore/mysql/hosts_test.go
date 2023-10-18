@@ -1228,6 +1228,44 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMJamf)}, 0)
 	assert.Equal(t, 0, len(hosts))
+
+	// create a couple Windows host and ensure they are properly returned by that filter too
+	for i := 10; i < 12; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute * 2),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+			Platform:        "windows",
+		})
+		require.NoError(t, err)
+		hostIDs = append(hostIDs, h.ID)
+	}
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[10], false, true, "http://intuneexample.com", false, fleet.WellKnownMDMIntune) // enrolled in Intune
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[11], false, true, "http://example.com", false, fleet.WellKnownMDMFleet) // enrolled in Fleet
+	require.NoError(t, err)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMIntune)}, 1)
+	assert.Equal(t, 1, len(hosts))
+	assert.Equal(t, hostIDs[10], hosts[0].ID)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMFleet), MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusEnrolled}, 1)
+	assert.Equal(t, 1, len(hosts))
+	assert.Equal(t, hostIDs[11], hosts[0].ID)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusEnrolled}, 5)
+	// simplemdm, kandji, unknown, intune and fleet (both are Windows)
+	assert.Equal(t, 5, len(hosts))
+	gotIDs := make([]uint, 0, len(hosts))
+	for _, h := range hosts {
+		gotIDs = append(gotIDs, h.ID)
+	}
+	assert.ElementsMatch(t, []uint{hostIDs[0], hostIDs[1], hostIDs[2], hostIDs[10], hostIDs[11]}, gotIDs)
 }
 
 func testHostMDMSelect(t *testing.T, ds *Datastore) {
