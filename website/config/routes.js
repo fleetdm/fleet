@@ -30,7 +30,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /fleetctl-preview': {
+  'GET /try-fleet/fleetctl-preview': {
     action: 'view-get-started',
     locals: {
       pageTitleForMeta: 'fleetctl preview | Fleet for osquery',
@@ -166,8 +166,8 @@ module.exports.routes = {
     action: 'try-fleet/view-register',
     locals: {
       layout: 'layouts/layout-sandbox',
-      pageTitleForMeta: 'Fleet Sandbox | Fleet for osquery',
-      pageDescriptionForMeta: 'Fleet Sandbox - The fastest way to test Fleet. Get up and running in minutes to try out Fleet.',
+      pageTitleForMeta: 'Try Fleet | Fleet for osquery',
+      pageDescriptionForMeta: 'Get up and running in minutes to try out Fleet.',
     }
   },
 
@@ -175,8 +175,8 @@ module.exports.routes = {
     action: 'try-fleet/view-sandbox-login',
     locals: {
       layout: 'layouts/layout-sandbox',
-      pageTitleForMeta: 'Log in to Fleet Sandbox | Fleet for osquery',
-      pageDescriptionForMeta: 'Log in to Fleet Sandbox.',
+      pageTitleForMeta: 'Sign in | Fleet for osquery',
+      pageDescriptionForMeta: 'Log in to Fleet.',
     }
   },
 
@@ -496,13 +496,14 @@ module.exports.routes = {
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
-  'GET /get-started':            '/try-fleet/register',
+  'GET /get-started':            '/try-fleet/fleetctl-preview',
   'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
   'GET /test-fleet-sandbox':     '/try-fleet/register',
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
   'GET /tables':                 '/tables/account_policy_data',
   'GET /imagine/launch-party':   'https://www.eventbrite.com/e/601763519887',
   'GET /blackhat2023':   'https://github.com/fleetdm/fleet/tree/main/tools/blackhat-mdm', // Assets from @marcosd4h & @zwass Black Hat 2023 talk
+  'GET /fleetctl-preview':   '/try-fleet/fleetctl-preview',
 
   // Fleet UI
   // =============================================================================================================
