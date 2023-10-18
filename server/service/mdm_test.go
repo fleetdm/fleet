@@ -197,7 +197,7 @@ func TestMicrosoftWSTEPConfig(t *testing.T) {
 	ds.WSTEPStoreCertificateFunc = func(ctx context.Context, name string, crt *x509.Certificate) error {
 		require.Equal(t, "test-client", name)
 		require.Equal(t, "test-client", crt.Subject.CommonName)
-		require.Equal(t, "FleetDM", crt.Subject.OrganizationalUnit[0])
+		require.Equal(t, "Fleet", crt.Subject.OrganizationalUnit[0])
 		return nil
 	}
 
