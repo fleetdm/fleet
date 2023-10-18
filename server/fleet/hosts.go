@@ -376,6 +376,7 @@ type HostMDMOSSettings struct {
 
 type HostMDMDiskEncryption struct {
 	Status *DiskEncryptionStatus `json:"status" db:"-" csv:"-"`
+	Detail string                `json:"detail" db:"-" csv:"-"`
 }
 
 type DiskEncryptionStatus string
@@ -431,11 +432,14 @@ type HostMDMMacOSSetup struct {
 	BootstrapPackageName   string                    `db:"bootstrap_package_name" json:"bootstrap_package_name" csv:"-"`
 }
 
-// DetermineMacOSDiskEncryptionStatus determines the disk encryption status for the
+// DetermineHostMDMDiskEncryptionMacOS determines the disk encryption status for the
 // host based on the file-vault profile in its list of profiles and whether its
-// disk encryption key is available and decryptable. The file-vault profile
-// identifier is received as argument to avoid a circular dependency.
-func (d *MDMHostData) DetermineMacOSDiskEncryptionStatus(profiles []HostMDMAppleProfile, fileVaultIdentifier string) {
+// disk encryption key is available and decryptable. It sets the status value in MacOSSettings on
+// the HostMDMData struct. It also returns a pointer to a newly populated HostMDMDiskEncryption
+// struct intended for use in the host details response.
+//
+// The file-vault profile identifier is received as argument to avoid a circular dependency.
+func (d *MDMHostData) DetermineHostMDMDiskEncryptionMacOS(profiles []HostMDMAppleProfile, fileVaultIdentifier string) *HostMDMDiskEncryption {
 	var settings MDMHostMacOSSettings
 
 	var fvprof *HostMDMAppleProfile
@@ -503,6 +507,17 @@ func (d *MDMHostData) DetermineMacOSDiskEncryptionStatus(profiles []HostMDMApple
 		}
 	}
 	d.MacOSSettings = &settings
+
+	var status *DiskEncryptionStatus
+	if settings.DiskEncryption != nil {
+		status = settings.DiskEncryption
+	}
+	var detail string
+	if fvprof != nil {
+		detail = fvprof.Detail
+	}
+
+	return &HostMDMDiskEncryption{Status: status, Detail: detail}
 }
 
 func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMAppleDeliveryStatus) *MDMAppleDeliveryStatus {
