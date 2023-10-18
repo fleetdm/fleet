@@ -111,7 +111,7 @@ func TestMDMRunCommand(t *testing.T) {
 	appleCmdFilePath := writeTmpAppleMDMCmd(t, "FooBar")
 	winCmdFilePath := writeTmpWindowsMDMCmd(t, "FooBar")
 	applePremiumCmdFilePath := writeTmpAppleMDMCmd(t, "EraseDevice")
-	winPremiumCmdFilePath := writeTmpWindowsMDMCmd(t, "RemoteWipe")
+	winPremiumCmdFilePath := writeTmpWindowsMDMCmd(t, "./Device/Vendor/MSFT/RemoteWipe/doWipe")
 
 	emptyAppleCmdFilePath, err := os.CreateTemp(t.TempDir(), "*.xml")
 	require.NoError(t, err)
