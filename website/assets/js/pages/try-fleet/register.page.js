@@ -49,7 +49,7 @@ parasails.registerPage('register', {
       return await Cloud.signup.with(argins);
     },
 
-    // After the form is submitted, we'll redirect the user to their Fleet sandbox instance.
+    // After the form is submitted, we'll redirect the user to the fleetctl preview page.
     submittedRegisterForm: async function() {
       this.syncing = true;
       window.location = '/try-fleet/fleetctl-preview';
