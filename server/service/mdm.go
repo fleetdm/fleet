@@ -461,7 +461,7 @@ func runMDMCommandEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, hostUUIDs []string) (result *fleet.CommandEnqueueResult, err error) {
-	hosts, err := svc.authorizeAllHostsTeams(ctx, hostUUIDs, false, fleet.ActionWrite, &fleet.MDMCommandAuthz{})
+	hosts, err := svc.authorizeAllHostsTeams(ctx, hostUUIDs, fleet.ActionWrite, &fleet.MDMCommandAuthz{})
 	if err != nil {
 		return nil, err
 	}
