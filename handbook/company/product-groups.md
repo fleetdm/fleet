@@ -296,7 +296,7 @@ No API changes are merged without accompanying API documentation and approval fr
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
-##### Customer experience group
+##### Endpoint ops group
 Please see [📖handbook/company/product-groups#endpoint-ops-group](https://fleetdm.com/handbook/company/product-groups#endpoint-ops-group).
 
 
