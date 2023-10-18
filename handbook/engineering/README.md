@@ -50,7 +50,6 @@ Our scrum boards are exclusively composed of four types of scrum items:
 
 > Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these four types of scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
 
-
 ### Sprint ceremonies
 Each sprint is marked by five essential ceremonies:
 
@@ -67,8 +66,6 @@ Each sprint is marked by five essential ceremonies:
 - [User story discovery](#user-story-discovery)
 - [Eng together](#eng-together)
 - [Group weeklies](#group-weeklies)
-- [Eng leadership weekly](#eng-leadership)
-- [Eng product bi-weekly](#eng-product-bi-weekly)
 - [Product development process review](#product-development-process-review)
 
 ### Principles
@@ -122,54 +119,6 @@ Anyone who wishes to participate.
 - Discuss common patterns and conventions in the codebase
 - Review difficult frontend bugs
 - Write engineering-initiated stories
-
-### Eng leadership weekly
-Engineering leaders discuss topics of importance that week. Prepare agenda, announcements, and tech talks before the monthly [Eng Together](#eng-together) meeting.
-
-#### Participants
-- Engineering Managers
-- Director of Product Development
-- CTO
-
-#### Rituals
-1. Review Engineering KPIs.
-2. Review each product group's ZenHub board.
-3. Proceed to agenda. 
-
-#### Sample agenda
-- Engineer hiring
-- Process discussion
-- New documentation needs
-
-### Eng product bi-weekly
-Engineering and product bi-weekly sync to discuss process, roadmap, and scheduling.
-
-#### Participants
-- Head of Product
-- Product Managers (optional)
-- CTO
-- Director of Product Development
-- Engineering Managers (optional)
-
-#### Sample agenda
-- Product to engineering handoff process
-- Q4 product roadmap
-- Optimizing development processes
-
-### Product development process review
-A once-per-sprint review of the bugs, drafting, and sprint boards to make sure that the current state of the boards reflects the process as defined in the handbook, or if any changes are needed to the documented process. 
-
-#### Participants
-- CEO
-- Head of Product
-- Product Operations
-- Director of Product Development
-
-#### Sample agenda
-- Review bugs board
-- Review drafting board
-- Review sprint boards
-- How is the process working? Are any changes needed? 
 
 ## Engineering-initiated stories
 - [Creating an engineering-initiated story](#creating-an-engineering-initiated-story)
