@@ -231,27 +231,6 @@ type EnrolledAPIResult struct {
 // EnrolledAPIResults is a map of enrollments to a per-enrollment API result.
 type EnrolledAPIResults map[string]*EnrolledAPIResult
 
-// CommandEnqueueResult is the result of a command execution on enrolled Apple devices.
-type CommandEnqueueResult struct {
-	// CommandUUID is the unique identifier for the command.
-	CommandUUID string `json:"command_uuid,omitempty"`
-	// RequestType is the name of the command.
-	RequestType string `json:"request_type,omitempty"`
-	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
-	FailedUUIDs []string `json:"failed_uuids,omitempty"`
-}
-
-// MDMAppleCommandAuthz is used to check user authorization to read/write an
-// Apple MDM command.
-type MDMAppleCommandAuthz struct {
-	TeamID *uint `json:"team_id"` // required for authorization by team
-}
-
-// AuthzType implements authz.AuthzTyper.
-func (m MDMAppleCommandAuthz) AuthzType() string {
-	return "mdm_apple_command"
-}
-
 // MDMAppleHostDetails represents the device identifiers used to ingest an MDM device as a Fleet
 // host pending enrollment.
 // See also https://developer.apple.com/documentation/devicemanagement/authenticaterequest.

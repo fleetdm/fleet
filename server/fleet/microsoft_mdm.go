@@ -921,6 +921,38 @@ type SyncMLCmd struct {
 	SystemOrigin bool      `xml:"-"`
 }
 
+// IsPremium returns true if the command is available for Fleet premium only.
+// See e.g. https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipe
+// for details.
+func (cmd SyncMLCmd) IsPremium() bool {
+	return strings.Contains(cmd.GetTargetURI(), "/Device/Vendor/MSFT/RemoteWipe/")
+}
+
+// DataType returns the SyncMLDataType corresponding to the command's format.
+// This is the inverse of the NewTypedSyncMLCmd operation (regarding the
+// format part of the command).
+func (cmd SyncMLCmd) DataType() SyncMLDataType {
+	if cmd.IsEmpty() || cmd.Items[0].Meta == nil ||
+		cmd.Items[0].Meta.Format == nil || cmd.Items[0].Meta.Format.Content == nil {
+		return SFNoFormat
+	}
+
+	switch *cmd.Items[0].Meta.Format.Content {
+	case "chr":
+		return SFText
+	case "xml":
+		return SFXml
+	case "b64":
+		return SFBase64
+	case "int":
+		return SFInteger
+	case "bool":
+		return SFBoolean
+	default:
+		return SFNoFormat
+	}
+}
+
 type CmdItem struct {
 	Source *string `xml:"Source>LocURI,omitempty"`
 	Target *string `xml:"Target>LocURI,omitempty"`
@@ -1221,7 +1253,7 @@ func (msg *SyncML) SetID(cmdID int) {
 
 // IsValid checks for required fields in the SyncML command
 func (cmd *SyncMLCmd) IsValid() bool {
-	if ((cmd.Items == nil) || (len(cmd.Items) == 0)) && cmd.Data == nil {
+	if len(cmd.Items) == 0 && cmd.Data == nil {
 		return false
 	}
 

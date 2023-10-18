@@ -676,11 +676,13 @@ type MDMWindowsDeleteEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID st
 
 type MDMWindowsInsertPendingCommandFunc func(ctx context.Context, cmd *fleet.MDMWindowsPendingCommand) error
 
-type MDMWindowsListPendingCommandsFunc func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error)
+type MDMWindowsInsertPendingCommandForDevicesFunc func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsPendingCommand) error
+
+type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error)
 
 type MDMWindowsInsertCommandFunc func(ctx context.Context, cmd *fleet.MDMWindowsCommand) error
 
-type MDMWindowsUpdateCommandErrorCodeFunc func(ctx context.Context, deviceID, sessionID, messageID, commandID, errorCode string) error
+type MDMWindowsUpdateCommandErrorCodeFunc func(ctx context.Context, deviceID string, sessionID string, messageID string, commandID string, errorCode string) error
 
 type MDMWindowsListCommandsFunc func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error)
 
@@ -1680,17 +1682,20 @@ type DataStore struct {
 	MDMWindowsInsertPendingCommandFunc        MDMWindowsInsertPendingCommandFunc
 	MDMWindowsInsertPendingCommandFuncInvoked bool
 
-	MDMWindowsListPendingCommandsFunc        MDMWindowsListPendingCommandsFunc
-	MDMWindowsListPendingCommandsFuncInvoked bool
+	MDMWindowsInsertPendingCommandForDevicesFunc        MDMWindowsInsertPendingCommandForDevicesFunc
+	MDMWindowsInsertPendingCommandForDevicesFuncInvoked bool
+
+	MDMWindowsGetPendingCommandsFunc        MDMWindowsGetPendingCommandsFunc
+	MDMWindowsGetPendingCommandsFuncInvoked bool
 
 	MDMWindowsInsertCommandFunc        MDMWindowsInsertCommandFunc
 	MDMWindowsInsertCommandFuncInvoked bool
-	
+
 	MDMWindowsUpdateCommandErrorCodeFunc        MDMWindowsUpdateCommandErrorCodeFunc
 	MDMWindowsUpdateCommandErrorCodeFuncInvoked bool
 
 	MDMWindowsListCommandsFunc        MDMWindowsListCommandsFunc
-	MDMWindowsListCommandsFuncInvoked bool	
+	MDMWindowsListCommandsFuncInvoked bool
 
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
@@ -4010,11 +4015,18 @@ func (s *DataStore) MDMWindowsInsertPendingCommand(ctx context.Context, cmd *fle
 	return s.MDMWindowsInsertPendingCommandFunc(ctx, cmd)
 }
 
+func (s *DataStore) MDMWindowsInsertPendingCommandForDevices(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsPendingCommand) error {
+	s.mu.Lock()
+	s.MDMWindowsInsertPendingCommandForDevicesFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsInsertPendingCommandForDevicesFunc(ctx, deviceIDs, cmd)
+}
+
 func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error) {
 	s.mu.Lock()
-	s.MDMWindowsListPendingCommandsFuncInvoked = true
+	s.MDMWindowsGetPendingCommandsFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsListPendingCommandsFunc(ctx, deviceID)
+	return s.MDMWindowsGetPendingCommandsFunc(ctx, deviceID)
 }
 
 func (s *DataStore) MDMWindowsInsertCommand(ctx context.Context, cmd *fleet.MDMWindowsCommand) error {
@@ -4024,7 +4036,7 @@ func (s *DataStore) MDMWindowsInsertCommand(ctx context.Context, cmd *fleet.MDMW
 	return s.MDMWindowsInsertCommandFunc(ctx, cmd)
 }
 
-func (s *DataStore) MDMWindowsUpdateCommandErrorCode(ctx context.Context, deviceID, sessionID, messageID, commandID, errorCode string) error {
+func (s *DataStore) MDMWindowsUpdateCommandErrorCode(ctx context.Context, deviceID string, sessionID string, messageID string, commandID string, errorCode string) error {
 	s.mu.Lock()
 	s.MDMWindowsUpdateCommandErrorCodeFuncInvoked = true
 	s.mu.Unlock()

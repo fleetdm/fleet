@@ -197,10 +197,12 @@ type Datastore interface {
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
 
 	// ListHostsLiteByUUIDs returns the "lite" version of hosts corresponding to
-	// the provided uuids and filtered according to the provided team filters.
-	// The "lite" version is a subset of the fields related to the host. See
-	// documentation of Datastore.HostLite for more information, or the
-	// implementation for the exact list.
+	// the provided uuids and filtered according to the provided team filters. It
+	// does include the MDMInfo information (unlike HostLite and
+	// ListHostsLiteByIDs) because listing hosts by UUIDs is commonly used to
+	// support MDM-related operations, where the UUID is often the only available
+	// identifier. The "lite" version is a subset of the fields related to the
+	// host. See the implementation for the exact list.
 	ListHostsLiteByUUIDs(ctx context.Context, filter TeamFilter, uuids []string) ([]*Host, error)
 
 	// ListHostsLiteByIDs returns the "lite" version of hosts corresponding to
@@ -1034,6 +1036,11 @@ type Datastore interface {
 
 	// MDMWindowsInsertPendingCommand inserts a command that will be sent to a device
 	MDMWindowsInsertPendingCommand(ctx context.Context, cmd *MDMWindowsPendingCommand) error
+
+	// MDMWindowsInsertPendingCommandForDevices inserts a command that targets multiple devices,
+	// creating one pending command row for each device, with all of the rest of the command
+	// information the same for all devices.
+	MDMWindowsInsertPendingCommandForDevices(ctx context.Context, deviceIDs []string, cmd *MDMWindowsPendingCommand) error
 
 	// MDMWindowsGetPendingCommands returns all the pending commands for a device
 	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsPendingCommand, error)

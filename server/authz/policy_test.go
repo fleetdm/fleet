@@ -1724,11 +1724,11 @@ func runTestCasesGroups(t *testing.T, testCaseGroups []tcGroup) {
 	}
 }
 
-func TestAuthorizeMDMAppleCommand(t *testing.T) {
+func TestAuthorizeMDMCommand(t *testing.T) {
 	t.Parallel()
 
-	globalCommand := &fleet.MDMAppleCommandAuthz{}
-	team1Command := &fleet.MDMAppleCommandAuthz{
+	globalCommand := &fleet.MDMCommandAuthz{}
+	team1Command := &fleet.MDMCommandAuthz{
 		TeamID: ptr.Uint(1),
 	}
 	runTestCases(t, []authTestCase{

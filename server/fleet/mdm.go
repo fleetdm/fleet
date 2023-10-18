@@ -135,3 +135,37 @@ type HostMDMProfileRetryCount struct {
 	ProfileIdentifier string `db:"profile_identifier"`
 	Retries           uint   `db:"retries"`
 }
+
+// TeamIDSetter defines the method to set a TeamID value on a struct,
+// which helps define authorization helpers based on teams.
+type TeamIDSetter interface {
+	SetTeamID(tid *uint)
+}
+
+// CommandEnqueueResult is the result of a command execution on enrolled Apple devices.
+type CommandEnqueueResult struct {
+	// CommandUUID is the unique identifier for the command.
+	CommandUUID string `json:"command_uuid,omitempty"`
+	// RequestType is the name of the command.
+	RequestType string `json:"request_type,omitempty"`
+	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
+	FailedUUIDs []string `json:"failed_uuids,omitempty"`
+	// Platform is the platform of the hosts targeted by the command.
+	Platform string `json:"platform"`
+}
+
+// MDMCommandAuthz is used to check user authorization to read/write an
+// MDM command.
+type MDMCommandAuthz struct {
+	TeamID *uint `json:"team_id"` // required for authorization by team
+}
+
+// SetTeamID implements the TeamIDSetter interface.
+func (m *MDMCommandAuthz) SetTeamID(tid *uint) {
+	m.TeamID = tid
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (m MDMCommandAuthz) AuthzType() string {
+	return "mdm_command"
+}

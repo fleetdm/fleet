@@ -4011,6 +4011,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		}, http.StatusOK, &resp)
 	require.NotEmpty(t, resp.CommandUUID)
 	require.Contains(t, rawCmd, resp.CommandUUID)
+	require.Equal(t, resp.Platform, "darwin")
 	require.Empty(t, resp.FailedUUIDs)
 	require.Equal(t, "ProfileList", resp.RequestType)
 
@@ -6744,6 +6745,112 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 	require.True(t, s.isXMLTagPresent("Get", resMsg))
 	require.True(t, s.isXMLTagContentPresent("Type", resMsg))
 	require.True(t, s.isXMLTagContentPresent("Format", resMsg))
+}
+
+func (s *integrationMDMTestSuite) TestRunMDMCommands() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create a Windows host enrolled in MDM
+	enrolledWindows := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
+	err := s.ds.SetOrUpdateMDMData(ctx, enrolledWindows.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+
+	// create an unenrolled Windows host
+	unenrolledWindows := createOrbitEnrolledHost(t, "windows", "h2", s.ds)
+
+	// create an enrolled and unenrolled macOS host
+	enrolledMac, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	unenrolledMac := createOrbitEnrolledHost(t, "darwin", "h4", s.ds)
+
+	macRawCmd := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>ShutDownDevice</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>0001_ShutDownDevice</string>
+</dict>
+</plist>`
+
+	winRawCmd := `
+<Exec>
+	<CmdID>11</CmdID>
+	<Item>
+		<Target>
+			<LocURI>./SetValues</LocURI>
+		</Target>
+		<Meta>
+			<Format xmlns="syncml:metinf">chr</Format>
+			<Type xmlns="syncml:metinf">text/plain</Type>
+		</Meta>
+		<Data>NamedValuesList=MinPasswordLength,8;</Data>
+	</Item>
+</Exec>
+`
+
+	var runResp runMDMCommandResponse
+
+	// no host provided
+	s.DoJSON("POST", "/api/latest/fleet/mdm/commands/run", &runMDMCommandRequest{
+		Command: base64.StdEncoding.EncodeToString([]byte(macRawCmd)),
+	}, http.StatusNotFound, &runResp)
+
+	// mix of mdm and non-mdm hosts
+	s.DoJSON("POST", "/api/latest/fleet/mdm/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(macRawCmd)),
+		HostUUIDs: []string{enrolledMac.UUID, unenrolledMac.UUID},
+	}, http.StatusPreconditionFailed, &runResp)
+	s.DoJSON("POST", "/api/latest/fleet/mdm/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(winRawCmd)),
+		HostUUIDs: []string{enrolledWindows.UUID, unenrolledWindows.UUID},
+	}, http.StatusPreconditionFailed, &runResp)
+
+	// mix of windows and macos hosts
+	s.DoJSON("POST", "/api/latest/fleet/mdm/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(macRawCmd)),
+		HostUUIDs: []string{enrolledMac.UUID, enrolledWindows.UUID},
+	}, http.StatusUnprocessableEntity, &runResp)
+
+	// windows only, invalid command
+	res := s.Do("POST", "/api/latest/fleet/mdm/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(macRawCmd)),
+		HostUUIDs: []string{enrolledWindows.UUID},
+	}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "You can run only <Exec> command type")
+
+	// macOS only, invalid command
+	res = s.Do("POST", "/api/latest/fleet/mdm/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(winRawCmd)),
+		HostUUIDs: []string{enrolledMac.UUID},
+	}, http.StatusUnsupportedMediaType)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "unable to decode plist command")
+
+	// valid windows
+	runResp = runMDMCommandResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/mdm/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(winRawCmd)),
+		HostUUIDs: []string{enrolledWindows.UUID},
+	}, http.StatusOK, &runResp)
+	require.NotEmpty(t, runResp.CommandUUID)
+	require.Equal(t, "windows", runResp.Platform)
+	require.Equal(t, "./SetValues", runResp.RequestType)
+
+	// valid macOS
+	runResp = runMDMCommandResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/mdm/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(macRawCmd)),
+		HostUUIDs: []string{enrolledMac.UUID},
+	}, http.StatusOK, &runResp)
+	require.NotEmpty(t, runResp.CommandUUID)
+	require.Equal(t, "darwin", runResp.Platform)
+	require.Equal(t, "ShutDownDevice", runResp.RequestType)
 }
 
 // ///////////////////////////////////////////////////////////////////////////

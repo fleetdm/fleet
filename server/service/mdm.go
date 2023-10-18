@@ -1,7 +1,10 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -10,12 +13,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/go-sql-driver/mysql"
+	"github.com/google/uuid"
+	"github.com/micromdm/nanomdm/mdm"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -403,4 +411,234 @@ func (svc *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Apple or Windows MDM Middleware
+////////////////////////////////////////////////////////////////////////////////
+
+func (svc *Service) VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		// skipauth: Authorization is currently for user endpoints only.
+		svc.authz.SkipAuthorization(ctx)
+		return err
+	}
+
+	// Apple or Windows MDM configuration setting
+	if !appCfg.MDM.EnabledAndConfigured && !appCfg.MDM.WindowsEnabledAndConfigured {
+		// skipauth: Authorization is currently for user endpoints only.
+		svc.authz.SkipAuthorization(ctx)
+		return fleet.ErrMDMNotConfigured
+	}
+
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Run Apple or Windows MDM Command
+////////////////////////////////////////////////////////////////////////////////
+
+type runMDMCommandRequest struct {
+	Command   string   `json:"command"`
+	HostUUIDs []string `json:"host_uuids"`
+}
+
+type runMDMCommandResponse struct {
+	*fleet.CommandEnqueueResult
+	Err error `json:"error,omitempty"`
+}
+
+func (r runMDMCommandResponse) error() error { return r.Err }
+
+func runMDMCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*runMDMCommandRequest)
+	result, err := svc.RunMDMCommand(ctx, req.Command, req.HostUUIDs)
+	if err != nil {
+		return runMDMCommandResponse{Err: err}, nil
+	}
+	return runMDMCommandResponse{
+		CommandEnqueueResult: result,
+	}, nil
+}
+
+func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, hostUUIDs []string) (result *fleet.CommandEnqueueResult, err error) {
+	hosts, err := svc.authorizeAllHostsTeams(ctx, hostUUIDs, false, fleet.ActionWrite, &fleet.MDMCommandAuthz{})
+	if err != nil {
+		return nil, err
+	}
+	if len(hosts) == 0 {
+		err := fleet.NewInvalidArgumentError("host_uuids", "No hosts targeted. Make sure you provide a valid UUID.").WithStatus(http.StatusNotFound)
+		return nil, ctxerr.Wrap(ctx, err, "no host received")
+	}
+
+	platforms := make(map[string]bool)
+	for _, h := range hosts {
+		if !h.MDMInfo.IsFleetEnrolled() {
+			err := fleet.NewInvalidArgumentError("host_uuids", "Can't run the MDM command because one or more hosts have MDM turned off. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm.").WithStatus(http.StatusPreconditionFailed)
+			return nil, ctxerr.Wrap(ctx, err, "check host mdm enrollment")
+		}
+		platforms[h.FleetPlatform()] = true
+	}
+	if len(platforms) != 1 {
+		err := fleet.NewInvalidArgumentError("host_uuids", "All hosts must be on the same platform.")
+		return nil, ctxerr.Wrap(ctx, err, "check host platform")
+	}
+
+	// it's a for loop but at this point it's guaranteed that the map has a single value.
+	var commandPlatform string
+	for platform := range platforms {
+		commandPlatform = platform
+	}
+	if commandPlatform != "windows" && commandPlatform != "darwin" {
+		err := fleet.NewInvalidArgumentError("host_uuids", "Invalid platform. You can only run MDM commands on Windows or macOS hosts.")
+		return nil, ctxerr.Wrap(ctx, err, "check host platform")
+	}
+
+	// check that the platform-specific MDM is enabled (not sure this check can
+	// ever happen, since we verify that the hosts are enrolled, but just to be
+	// safe)
+	switch commandPlatform {
+	case "windows":
+		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+			err := fleet.NewInvalidArgumentError("host_uuids", "Windows MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.").WithStatus(http.StatusBadRequest)
+			return nil, ctxerr.Wrap(ctx, err, "check windows MDM enabled")
+		}
+	default:
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			err := fleet.NewInvalidArgumentError("host_uuids", "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.").WithStatus(http.StatusBadRequest)
+			return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
+		}
+	}
+
+	// We're supporting both padded and unpadded base64.
+	rawXMLCmd, err := server.Base64DecodePaddingAgnostic(rawBase64Cmd)
+	if err != nil {
+		err = fleet.NewInvalidArgumentError("command", "unable to decode base64 command").WithStatus(http.StatusBadRequest)
+		return nil, ctxerr.Wrap(ctx, err, "decode base64 command")
+	}
+
+	// the rest is platform-specific (validation of command payload, enqueueing, etc.)
+	switch commandPlatform {
+	case "windows":
+		return svc.enqueueMicrosoftMDMCommand(ctx, rawXMLCmd, hostUUIDs)
+	default:
+		return svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, hostUUIDs)
+	}
+}
+
+var appleMDMPremiumCommands = map[string]bool{
+	"EraseDevice": true,
+	"DeviceLock":  true,
+}
+
+func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
+	cmd, err := mdm.DecodeCommand(rawXMLCmd)
+	if err != nil {
+		err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
+		return nil, ctxerr.Wrap(ctx, err, "decode plist command")
+	}
+
+	if appleMDMPremiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get license")
+		}
+		if !lic.IsPremium() {
+			return nil, fleet.ErrMissingLicense
+		}
+	}
+
+	if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd)); err != nil {
+		// if at least one UUID enqueued properly, return success, otherwise return
+		// error
+		var apnsErr *apple_mdm.APNSDeliveryError
+		var mysqlErr *mysql.MySQLError
+		if errors.As(err, &apnsErr) {
+			if len(apnsErr.FailedUUIDs) < len(deviceIDs) {
+				// some hosts properly received the command, so return success, with the list
+				// of failed uuids.
+				return &fleet.CommandEnqueueResult{
+					CommandUUID: cmd.CommandUUID,
+					RequestType: cmd.Command.RequestType,
+					FailedUUIDs: apnsErr.FailedUUIDs,
+				}, nil
+			}
+			// push failed for all hosts
+			err := fleet.NewBadGatewayError("Apple push notificiation service", err)
+			return nil, ctxerr.Wrap(ctx, err, "enqueue command")
+
+		} else if errors.As(err, &mysqlErr) {
+			// enqueue may fail with a foreign key constraint error 1452 when one of
+			// the hosts provided is not enrolled in nano_enrollments. Detect when
+			// that's the case and add information to the error.
+			if mysqlErr.Number == mysqlerr.ER_NO_REFERENCED_ROW_2 {
+				err := fleet.NewInvalidArgumentError(
+					"device_ids",
+					fmt.Sprintf("at least one of the hosts is not enrolled in MDM: %v", err),
+				).WithStatus(http.StatusConflict)
+				return nil, ctxerr.Wrap(ctx, err, "enqueue command")
+			}
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "enqueue command")
+	}
+	return &fleet.CommandEnqueueResult{
+		CommandUUID: cmd.CommandUUID,
+		RequestType: cmd.Command.RequestType,
+		Platform:    "darwin",
+	}, nil
+}
+
+func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []byte, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
+	// a command must have the <Exec> element as top-level
+	var cmdMsg fleet.SyncMLCmd
+	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace(rawXMLCmd)))
+	if err := dec.Decode(&cmdMsg); err != nil {
+		err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't valid XML: %v", err))
+		return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
+	}
+
+	// check if there were multiple top-level elements provided
+	if _, err := dec.Token(); err != io.EOF {
+		err = fleet.NewInvalidArgumentError("command", "You can run only a single <Exec> command.")
+		return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
+	}
+
+	if cmdMsg.XMLName.Local != fleet.CmdExec {
+		err = fleet.NewInvalidArgumentError("command", "You can run only <Exec> command type.")
+		return nil, ctxerr.Wrap(ctx, err, "validate SyncML commands")
+	}
+	if len(cmdMsg.Items) != 1 {
+		err = fleet.NewInvalidArgumentError("command", "You can run only a single <Exec> command.")
+		return nil, ctxerr.Wrap(ctx, err, "validate SyncML Exec commands")
+	}
+
+	if cmdMsg.IsPremium() {
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get license")
+		}
+		if !lic.IsPremium() {
+			return nil, fleet.ErrMissingLicense
+		}
+	}
+
+	winCmd := &fleet.MDMWindowsPendingCommand{
+		CommandUUID:  uuid.New().String(),
+		CmdVerb:      fleet.CmdExec,
+		SettingURI:   cmdMsg.GetTargetURI(),
+		SettingValue: cmdMsg.GetTargetData(),
+		DataType:     uint16(cmdMsg.DataType()),
+		SystemOrigin: false,
+	}
+	if err := svc.ds.MDMWindowsInsertPendingCommandForDevices(ctx, deviceIDs, winCmd); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "insert pending windows mdm command")
+	}
+
+	return &fleet.CommandEnqueueResult{
+		CommandUUID: winCmd.CommandUUID,
+		RequestType: winCmd.SettingURI,
+		Platform:    "windows",
+	}, nil
 }

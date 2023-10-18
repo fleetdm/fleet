@@ -160,6 +160,33 @@ func testMDMWindowsPendingCommand(t *testing.T, ds *Datastore) {
 	gotPendingCmds, err = ds.MDMWindowsGetPendingCommands(ctx, notTrackedDeviceID)
 	require.NoError(t, err)
 	require.Equal(t, len(gotPendingCmds), 1)
+
+	// insert a command for multiple devices
+	pendingCmd3 := &fleet.MDMWindowsPendingCommand{
+		CommandUUID:  uuid.New().String(),
+		CmdVerb:      fleet.CmdGet,
+		SettingURI:   "./test/uri3",
+		SettingValue: "testdata3",
+		DataType:     3,
+		SystemOrigin: false,
+	}
+	err = ds.MDMWindowsInsertPendingCommandForDevices(ctx, []string{trackedDeviceID, notTrackedDeviceID}, pendingCmd3)
+	require.NoError(t, err)
+
+	// the command can be retrieved as pending for both devices
+	gotPendingCmds, err = ds.MDMWindowsGetPendingCommands(ctx, trackedDeviceID)
+	require.NoError(t, err)
+	require.Len(t, gotPendingCmds, 1)
+	require.Equal(t, pendingCmd3.CommandUUID, gotPendingCmds[0].CommandUUID)
+
+	gotPendingCmds, err = ds.MDMWindowsGetPendingCommands(ctx, notTrackedDeviceID)
+	require.NoError(t, err)
+	require.Len(t, gotPendingCmds, 2)
+	gotCmdUUIDs := make([]string, len(gotPendingCmds))
+	for i, cmd := range gotPendingCmds {
+		gotCmdUUIDs[i] = cmd.CommandUUID
+	}
+	require.ElementsMatch(t, []string{pendingCmd2.CommandUUID, pendingCmd3.CommandUUID}, gotCmdUUIDs)
 }
 
 func testMDMWindowCommand(t *testing.T, ds *Datastore) {
