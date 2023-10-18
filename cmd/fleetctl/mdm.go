@@ -114,6 +114,9 @@ func mdmRunCommand() *cli.Command {
 				// enrollment indication we have right now...
 				if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
 					host.MDM.Name != fleet.WellKnownMDMFleet {
+					// TODO(mna): on my manual QA with a Windows VM, the mdm name was
+					// FleetDM, not Fleet. If that is correct and expected, we should
+					// change the WellKnown constant (or accept both)?
 					return errors.New(`Can't run the MDM command because one or more hosts have MDM turned off. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm.`)
 				}
 
@@ -139,6 +142,12 @@ func mdmRunCommand() *cli.Command {
 				if errors.As(err, &sce) {
 					if sce.StatusCode() == http.StatusUnsupportedMediaType && platform == "darwin" {
 						return fmt.Errorf("The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file: %w", err)
+					}
+					// this condition needs to be repeated here: maybe the user has
+					// access to fetch the host when calling HostByIdentifier above, but
+					// they don't have access to execute a command on it.
+					if sce.StatusCode() == http.StatusForbidden {
+						return fmt.Errorf("You don't have permission to run an MDM command on one or more specified hosts: %w", err)
 					}
 				}
 				return err
