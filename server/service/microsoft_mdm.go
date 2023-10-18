@@ -1199,10 +1199,6 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 		return fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
-	if reqCerts == nil {
-		return fleet.NewInvalidArgumentError("syncml req message", "tls certs are not present")
-	}
-
 	// Checking if calling request is coming from an already MDM enrolled device
 	deviceID, err := reqSyncML.GetSource()
 	if err != nil || deviceID == "" {
@@ -1211,7 +1207,7 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 
 	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil || enrolledDevice == nil {
-		return errors.New("calling device was not MDM enrolled")
+		return errors.New("device was not MDM enrolled")
 	}
 
 	// Check if TLS certs contains device ID on its common name
@@ -1225,8 +1221,26 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 
 	// TODO: Latest version of the MDM client stack don't populate TLS.PeerCertificates array
 	// This is a temporary workaround to allow the management request to proceed
-	// Transport-level security should be replaced for application level security specification
-	// defined here https://www.openmobilealliance.org/release/DM/V1_2_1-20080617-A/OMA-TS-DM_Security-V1_2_1-20080617-A.pdf
+	// Transport-level security should be replaced for Application-level security
+	// Transport-level security is defined in the MS-MDM spec in section 1.3.1
+	// On the other hand, Application-level security is defined here
+	// https://www.openmobilealliance.org/release/DM/V1_2_1-20080617-A/OMA-TS-DM_Security-V1_2_1-20080617-A.pdf
+	// The initial values for Application-level security configuration are defined in the
+	// WAP Profile blob that is sent to the device during the enrollment process. Example below
+	//	<characteristic type="APPAUTH">
+	//		<parm name="AAUTHLEVEL" value="CLIENT"/>
+	//		<parm name="AAUTHTYPE" value="DIGEST"/>
+	//		<parm name="AAUTHSECRET" value="2jsidqgffx"/>
+	//		<parm name="AAUTHDATA" value="aGVsbG8gd29ybGQ="/>
+	//	</characteristic>
+	//	<characteristic type="APPAUTH">
+	//		<parm name="AAUTHLEVEL" value="APPSRV"/>
+	//		<parm name="AAUTHTYPE" value="DIGEST"/>
+	//		<parm name="AAUTHNAME" value="43f8bf591b8557346021"/>
+	//		<parm name="AAUTHSECRET" value="crbr3w2cab"/>
+	//		<parm name="AAUTHDATA" value="aGVsbG8gd29ybGQ="/>
+	//	</characteristic>
+
 	if len(reqCerts) == 0 {
 		return nil
 	}
@@ -1250,8 +1264,8 @@ func (svc *Service) processIncomingResultsCommands(deviceID string, cmd mdm_type
 
 // processIncomingStatusCommands will process the incoming Status commands.
 // These commands requires don't require an status response.
-func (svc *Service) processIncomingStatusCommands(ctx context.Context, sessionID string, messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
-	err := svc.ds.MDMWindowsUpdateCommandErrorCode(ctx, deviceID, sessionID, messageID, cmd.Cmd.CmdID, *cmd.Cmd.Data)
+func (svc *Service) processIncomingStatusCommands(ctx context.Context, sessionID string, deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
+	err := svc.ds.MDMWindowsUpdateCommandErrorCode(ctx, deviceID, sessionID, *cmd.Cmd.MsgRef, cmd.Cmd.CmdID, *cmd.Cmd.Data)
 	if err != nil {
 		return nil, fmt.Errorf("process incoming command: %w", err)
 	}
@@ -1268,7 +1282,7 @@ func (svc *Service) processIncomingProtocolCommands(ctx context.Context, session
 	case mdm_types.CmdResults:
 		return svc.processIncomingResultsCommands(deviceID, cmd)
 	case mdm_types.CmdStatus:
-		return svc.processIncomingStatusCommands(ctx, sessionID, messageID, deviceID, cmd)
+		return svc.processIncomingStatusCommands(ctx, sessionID, deviceID, cmd)
 	}
 
 	// CmdStatusOK is returned for the rest of the operations
