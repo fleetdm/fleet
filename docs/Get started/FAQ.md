@@ -127,6 +127,10 @@ Each host’s OS version is available using the `api/v1/fleet/hosts` API endpoin
 
 It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options YAML file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleet-configuration-options).
 
+### How does Fleet set the `name` attribute for scheduled queries?
+For global scheduled queries in Fleet, use the naming convention: `pack_global_queryName`. For team-specific scheduled queries, use the naming convention: `pack_team-teamID_queryName`.
+
+
 ### Why is my host not updating a policy's response?
 
 The following are reasons why a host may not be updating a policy's response:
