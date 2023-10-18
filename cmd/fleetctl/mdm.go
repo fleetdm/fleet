@@ -87,7 +87,7 @@ func mdmRunCommand() *cli.Command {
 				notFoundCount int
 				platform      string
 			)
-			for i, ident := range hostIdents {
+			for _, ident := range hostIdents {
 				host, err := client.HostByIdentifier(ident)
 				if err != nil {
 					var nfe service.NotFoundErr
@@ -105,7 +105,7 @@ func mdmRunCommand() *cli.Command {
 					return err
 				}
 
-				if host.Platform != platform && i > 0 {
+				if host.Platform != platform && platform != "" {
 					return errors.New(`Command can't run on hosts with different platforms. Make sure the hosts specified in the "hosts" flag are either all macOS or all Windows hosts.`)
 				}
 				platform = host.Platform
@@ -114,7 +114,7 @@ func mdmRunCommand() *cli.Command {
 				// enrollment indication we have right now...
 				if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
 					host.MDM.Name != fleet.WellKnownMDMFleet {
-					return errors.New("Can't run the MDM command because the host doesn't have MDM turned on. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm")
+					return errors.New(`Can't run the MDM command because one or more hosts have MDM turned off. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm.`)
 				}
 
 				hostUUIDs = append(hostUUIDs, host.UUID)
