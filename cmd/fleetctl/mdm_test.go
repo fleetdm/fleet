@@ -114,7 +114,7 @@ func TestMDMRunCommand(t *testing.T) {
 	cmdFilePath := writeTmpMDMCmd(t, "FooBar")
 	_, err = runAppNoChecks([]string{"mdm", "run-command", "--hosts", "no-such-host", "--payload", cmdFilePath})
 	require.Error(t, err)
-	require.ErrorContains(t, err, `The host doesn't exist.`)
+	require.ErrorContains(t, err, `No hosts targeted.`)
 
 	// host not in mdm
 	_, err = runAppNoChecks([]string{"mdm", "run-command", "--hosts", "no-mdm-host", "--payload", cmdFilePath})
@@ -134,7 +134,7 @@ func TestMDMRunCommand(t *testing.T) {
 	// host enrolled in fleet mdm
 	buf, err := runAppNoChecks([]string{"mdm", "run-command", "--hosts", "valid-host", "--payload", cmdFilePath})
 	require.NoError(t, err)
-	require.Contains(t, buf.String(), `The hosts will run the command the next time it checks into Fleet.`)
+	require.Contains(t, buf.String(), `Hosts will run the command the next time they check into Fleet.`)
 	require.Contains(t, buf.String(), `fleetctl get mdm-command-results --id=`)
 
 	// try to run a fleet premium command

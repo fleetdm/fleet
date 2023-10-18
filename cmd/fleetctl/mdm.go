@@ -76,6 +76,12 @@ func mdmRunCommand() *cli.Command {
 			}
 
 			// fetch all specified hosts by their identifier
+			//
+			// Note that this retrieves all hosts sequentially as it assumes the
+			// number of hosts will typically be small. If we need to improve on
+			// this, we could use something like the errgroup package to retrieve
+			// them concurrently or better yet add a batch endpoint to get hosts by
+			// the loose "identifier".
 			var (
 				hostUUIDs     []string
 				notFoundCount int
@@ -89,10 +95,11 @@ func mdmRunCommand() *cli.Command {
 						notFoundCount++
 						continue
 					}
+
 					var sce kithttp.StatusCoder
 					if errors.As(err, &sce) {
 						if sce.StatusCode() == http.StatusForbidden {
-							return fmt.Errorf("Permission denied. You don't have permission to run an MDM command on this host: %w", err)
+							return fmt.Errorf("You don't have permission to run an MDM command on one or more specified hosts: %w", err)
 						}
 					}
 					return err
@@ -114,6 +121,7 @@ func mdmRunCommand() *cli.Command {
 			}
 
 			if len(hostUUIDs) == 0 {
+				// all hosts were not found
 				return errors.New("No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.")
 			}
 			if notFoundCount > 0 {
@@ -123,13 +131,13 @@ func mdmRunCommand() *cli.Command {
 
 			result, err := client.RunMDMCommand(hostUUIDs, payload, platform)
 			if err != nil {
+				if errors.Is(err, service.ErrMissingLicense) && platform == "windows" {
+					return errors.New("Missing or invalid license. Wipe command is available in Fleet Premium only.")
+				}
+
 				var sce kithttp.StatusCoder
 				if errors.As(err, &sce) {
-					if sce.StatusCode() == http.StatusForbidden {
-						return fmt.Errorf("Permission denied. You don't have permission to run an MDM command on this host: %w", err)
-					}
-					if sce.StatusCode() == http.StatusUnsupportedMediaType {
-						// this status code is only returned for an Apple MDM command, so this message is correct.
+					if sce.StatusCode() == http.StatusUnsupportedMediaType && platform == "darwin" {
 						return fmt.Errorf("The payload isn't valid. Please provide a valid MDM command in the form of a plist-encoded XML file: %w", err)
 					}
 				}
