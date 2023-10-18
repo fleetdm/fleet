@@ -209,6 +209,10 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		return nil, err
 	}
 
+	if p.Logging == nil || (p.Logging != nil && *p.Logging == "") {
+		p.Logging = ptr.String(fleet.LoggingSnapshot)
+	}
+
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("query payload verification: %s", err),
@@ -315,6 +319,10 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	}
 	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+
+	if p.Logging != nil && *p.Logging == "" {
+		p.Logging = ptr.String(fleet.LoggingSnapshot)
 	}
 
 	if err := p.Verify(); err != nil {
@@ -640,6 +648,10 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 		}
 		teamID = &team.ID
 	}
+	logging := spec.Logging
+	if logging == "" {
+		logging = fleet.LoggingSnapshot
+	}
 	return &fleet.Query{
 		Name:        spec.Name,
 		Description: spec.Description,
@@ -651,7 +663,7 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 		Platform:           spec.Platform,
 		MinOsqueryVersion:  spec.MinOsqueryVersion,
 		AutomationsEnabled: spec.AutomationsEnabled,
-		Logging:            spec.Logging,
+		Logging:            logging,
 		DiscardData:        spec.DiscardData,
 	}, nil
 }

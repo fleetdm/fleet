@@ -49,11 +49,12 @@ const baseClass = "query-details-page";
 
 const QueryDetailsPage = ({
   router,
-  params: { id: paramsQueryId },
+  params: { id: paramsQueryId, team_id: paramsTeamId },
   location,
 }: IQueryDetailsPageProps): JSX.Element => {
   const queryId = parseInt(paramsQueryId, 10);
   const queryParams = location.query;
+  const teamId = parseInt(paramsTeamId, 10);
 
   // Functions to avoid race conditions
   const serverSortBy: ISortOption[] = (() => {
@@ -69,11 +70,13 @@ const QueryDetailsPage = ({
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
-    isAnyTeamMaintainerOrTeamAdmin,
+    isTeamMaintainerOrTeamAdmin,
     isObserverPlus,
     isAnyTeamObserverPlus,
     config,
     filteredQueriesPath,
+    availableTeams,
+    setCurrentTeam,
   } = useContext(AppContext);
   const {
     lastEditedQueryName,
@@ -151,6 +154,16 @@ const QueryDetailsPage = ({
     }
   );
 
+  // Used to set host's team in AppContext for RBAC action buttons
+  useEffect(() => {
+    if (storedQuery?.team_id) {
+      const querysTeam = availableTeams?.find(
+        (team) => team.id === storedQuery.team_id
+      );
+      setCurrentTeam(querysTeam);
+    }
+  }, [storedQuery]);
+
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
   const isClipped =
@@ -158,7 +171,7 @@ const QueryDetailsPage = ({
 
   const renderHeader = () => {
     const canEditQuery =
-      isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
+      isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backToQueriesPath = () => {

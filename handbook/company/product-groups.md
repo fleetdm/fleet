@@ -4,7 +4,7 @@
 When creating software, handoffs between teams or contributors are one of the most common sources of miscommunication and waste.  Like [GitLab](https://docs.google.com/document/d/1RxqS2nR5K0vN6DbgaBw7SEgpPLi0Kr9jXNGzpORT-OY/edit#heading=h.7sfw1n9c1i2t), Fleet uses product groups to minimize handoffs and maximize iteration and efficiency in the way we build the product.
 
 ## What are product groups?
-Fleet organizes product development efforts into separate, cross-functional product groups that include members from Design, Engineering, Quality, and Product.  These product groups are organized by business goal, and designed to operate in parallel.
+Fleet organizes product development efforts into separate, cross-functional product groups that include product designers, developers, and quality engineers.  These product groups are organized by business goal, and designed to operate in parallel.
 
 Security, performance, stability, scalability, database migrations, release compatibility, usage documentation (such as REST API and configuration reference), contributor experience, and support escalation are the responsibility of every product group.
 
@@ -17,7 +17,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | Product group             | Goal _(value for customers and/or community)_                       | Capacity\* |
 |:--------------------------|:--------------------------------------------------------------------|:-----------------|
 | [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category. | 65       |
-| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.   | 65       |
+| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.   | 78       |
 | [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure. | 13 |
 | [Website](#website-group)                               | Make the website wonderful.                   | 13       |
 
@@ -51,7 +51,7 @@ The goal of the customer experience (CX) group is to make users and customers ha
 | Engineering manager               | Sharon Katz
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Mo Zhu
-| Software engineers (developers)   | Jacob Shandling, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Tim Lee, Victor Lyuboslavsky
+| Software engineers (developers)   | Jacob Shandling, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Tim Lee, Jahziel Villasana-Espinoza, Victor Lyuboslavsky
 
 > The Slack channel, kanban release board, and label for this product group is `#g-cx`.
 

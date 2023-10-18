@@ -64,6 +64,7 @@ const EditQueryPage = ({
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
+    isTeamMaintainerOrTeamAdmin,
     isAnyTeamMaintainerOrTeamAdmin,
     isObserverPlus,
     isAnyTeamObserverPlus,
@@ -91,7 +92,7 @@ const EditQueryPage = ({
     setLastEditedQueryPlatforms,
     setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
-  const { setConfig } = useContext(AppContext);
+  const { setConfig, availableTeams, setCurrentTeam } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
@@ -144,11 +145,37 @@ const EditQueryPage = ({
     }
   );
 
+  // Used to set host's team in AppContext for RBAC actions
+  useEffect(() => {
+    if (storedQuery?.team_id) {
+      const querysTeam = availableTeams?.find(
+        (team) => team.id === storedQuery.team_id
+      );
+      setCurrentTeam(querysTeam);
+    }
+  }, [storedQuery]);
+
   const detectIsFleetQueryRunnable = () => {
     statusAPI.live_query().catch(() => {
       setIsLiveQueryRunnable(false);
     });
   };
+
+  /* Observer/Observer+ cannot edit existing query (O+ has access to edit new query to run live),
+ reroute edit existing query page (/:queryId/edit) to query report page (/:queryId) */
+  useEffect(() => {
+    const canEditExistingQuery =
+      isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
+
+    if (
+      !isStoredQueryLoading && // Confirms teamId for storedQuery before RBAC reroute
+      queryId &&
+      queryId > 0 &&
+      !canEditExistingQuery
+    ) {
+      router.push(PATHS.QUERY(queryId));
+    }
+  }, [queryId, isTeamMaintainerOrTeamAdmin, isStoredQueryLoading]);
 
   useEffect(() => {
     detectIsFleetQueryRunnable();

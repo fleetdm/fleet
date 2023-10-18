@@ -1,4 +1,4 @@
-# Product
+# Product design
 
 Contributors in Fleet's product department [prioritize](#prioritizing-improvements) and [define](https://fleetdm.com/handbook/company/product-groups#drafting) the [changes we make to the product](https://fleetdm.com/handbook/company/product-groups#making-changes).
 
@@ -6,11 +6,13 @@ Changes begin as [ideas](#intake) or [code](#outside-contributions) that can be 
 
 > You can read what's coming in the next 3-6 weeks in Fleet's [⚗️ Drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
 
-## Product design
+## Making changes to the product
 
-The product team is responsible for product design tasks like drafting [changes to the Fleet product](https://fleetdm.com/handbook/company/development-groups#making-changes), reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering these changes to the engineering team. 
+Fleet's product designers are responsible for [prioritizing and shaping changes to the Fleet product](https://fleetdm.com/handbook/company/development-groups#making-changes), from the outside-in,  reviewing and collecting feedback from users, would-be users, and future users, prioritizing changes, designing the changes, and delivering these changes to the engineering team.
 
-> Learn more about Fleet's philosophy and process for [making iterative changes to the product](https://fleetdm.com/handbook/company/development-groups#making-changes), or [why we use a wireframe-first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
+The scope of product design at Fleet is any change that involves changes to functionality or usage, including the UI, REST API, command line, and webhooks.
+
+> Learn more about Fleet's philosophy and process for [making interface changes to the product](https://fleetdm.com/handbook/company/development-groups#making-changes), or [why we use a wireframe-first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
 ### Wireframing
 
@@ -454,5 +456,5 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 | `#g-mdm`                            | Noah Talerman                                                       |
 | `#g-cx`                             | Mo Zhu                                                              |
 
-<meta name="maintainedBy" value="zhumo">
-<meta name="title" value="⚗️ Product">
+<meta name="maintainedBy" value="noahtalerman">
+<meta name="title" value="🦢 Product design">

@@ -559,6 +559,7 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
 		Saved:          true,
+		Logging:        fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -788,6 +789,7 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 		Description:    "Some description",
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
+		Logging:        fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -1795,6 +1797,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 		Description:    "Some description",
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
+		Logging:        fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	// Cannot set both QueryID and Query.
@@ -4478,6 +4481,7 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 		name     string
 		query    string
 		platform string
+		logging  string
 	}{
 		{
 			tname: "empty name",
@@ -4518,12 +4522,19 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 			query:    "select 1",
 			platform: "windows darwin",
 		},
+		{
+			tname:   "invalid logging value",
+			name:    "bad query",
+			query:   "select 1",
+			logging: "foobar",
+		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
 			reqQuery := &fleet.QueryPayload{
 				Name:     ptr.String(tc.name),
 				Query:    ptr.String(tc.query),
 				Platform: ptr.String(tc.platform),
+				Logging:  ptr.String(tc.logging),
 			}
 			createQueryResp := createQueryResponse{}
 			s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
@@ -4533,6 +4544,7 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 				Name:     ptr.String(tc.name),
 				Query:    ptr.String(tc.query),
 				Platform: ptr.String(tc.platform),
+				Logging:  ptr.String(tc.logging),
 			}
 			mResp := modifyQueryResponse{}
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", existingQueryID), &payload, http.StatusBadRequest, &mResp)
@@ -6729,6 +6741,7 @@ func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
 		Saved:          true,
+		Logging:        fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -7069,7 +7082,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Interval:           10,
 		Platform:           "darwin",
 		AutomationsEnabled: true,
-		Logging:            "snapshot",
+		Logging:            fleet.LoggingSnapshot,
 		Description:        "foobar",
 		Query:              "SELECT * from time;",
 		Saved:              true,
@@ -7081,7 +7094,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Interval:           0,
 		Platform:           "darwin",
 		AutomationsEnabled: false,
-		Logging:            "snapshot",
+		Logging:            fleet.LoggingSnapshot,
 		Description:        "foobar",
 		Query:              "SELECT * from osquery_info;",
 		Saved:              true,
@@ -7093,7 +7106,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Interval:           20,
 		Platform:           "",
 		AutomationsEnabled: true,
-		Logging:            "snapshot",
+		Logging:            fleet.LoggingSnapshot,
 		Description:        "foobar",
 		Query:              "SELECT * from other;",
 		Saved:              true,
@@ -7105,7 +7118,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Interval:           90,
 		Platform:           "",
 		AutomationsEnabled: true,
-		Logging:            "snapshot",
+		Logging:            fleet.LoggingSnapshot,
 		Description:        "foobar",
 		Query:              "SELECT * from other;",
 		Saved:              true,
@@ -7133,7 +7146,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Interval:           40,
 		Platform:           "",
 		AutomationsEnabled: true,
-		Logging:            "snapshot",
+		Logging:            fleet.LoggingSnapshot,
 		Description:        "foobar",
 		Query:              "SELECT * from other;",
 		Saved:              true,

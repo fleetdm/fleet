@@ -51,7 +51,7 @@ fleetctl CLI:
     ...
   ```
 
-2. Fill in the relevant information from your IdP under the `mdm.end_user_authentication` key. 
+2. Fill in the relevant information from your IdP under the `mdm.end_user_authentication` key.
 
 3. Run the fleetctl `apply -f fleet-config.yml` command to add your IdP credentials.
 
@@ -77,7 +77,7 @@ Fleet UI:
 
 3. Select the **On** checkbox and select **Save**.
 
-fleetctl CLI: 
+fleetctl CLI:
 
 1. Choose which team you want to enable end user authentication on.
 
@@ -125,7 +125,7 @@ Learn more about "No team" configuration options [here](./configuration-files/RE
 
 ## Bootstrap package
 
-Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. 
+Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet.
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
@@ -148,7 +148,7 @@ To add a bootstrap package to Fleet, we will do the following steps:
 
 Whether you have to download or generate a package depends on what you want to deploy using your bootstrap package:
 
-* A single client or agent, like Munki or Puppet, can usually be downloaded from the tool's GitHub repository or website. For example, you can download Munki, the Munki client on their [releases page on GitHub](https://github.com/munki/munki/releases). 
+* A single client or agent, like Munki or Puppet, can usually be downloaded from the tool's GitHub repository or website. For example, you can download Munki, the Munki client on their [releases page on GitHub](https://github.com/munki/munki/releases).
 
 * To deploy custom scripts, you need to generate a package. The [munkipkg tool](https://github.com/munki/munki-pkg) is a popular tool for generating packages.
 
@@ -249,7 +249,7 @@ fleetctl CLI:
 
   Learn more about "No team" configuration options [here](./configuration-files/README.md#organization-settings).
 
-3. Add an `mdm.macos_setup.bootstrap_package` key to your YAML document. This key accepts the URL for the storage location of the bootstrap package. 
+3. Add an `mdm.macos_setup.bootstrap_package` key to your YAML document. This key accepts the URL for the storage location of the bootstrap package.
 
 4. Run the fleetctl `apply -f workstations-canary-config.yml` command to upload your bootstrap package to Fleet.
 
@@ -273,7 +273,7 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 ### Step 1: create an automatic enrollment profile
 
-1. Download Fleet's example automatic enrollment profile by navigating to the example [here on GitHub](https://github.com/fleetdm/fleet/blob/main/mdm_profiles/setup_assistant.json) and clicking the download icon.
+1. Download Fleet's example automatic enrollment profile by navigating to the example [here on GitHub](https://github.com/fleetdm/fleet/blob/main/mdm_profiles/automatic_enrollment.json) and clicking the download icon.
 
 2. Open the automatic enrollment profile and replace the `profile_name` key with your organization's name.
 
@@ -287,7 +287,7 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 1. Choose which team you want to add the automatic enrollment profile to.
 
-  In this example, let's assume you have a "Workstations" team as your [default team](./mdm-macos-setup.md#step-6-optional-set-the-default-team-for-hosts-enrolled-via-abm) in Fleet and you want to test your profile before it's used in production. 
+  In this example, let's assume you have a "Workstations" team as your [default team](./mdm-macos-setup.md#step-6-optional-set-the-default-team-for-hosts-enrolled-via-abm) in Fleet and you want to test your profile before it's used in production.
 
   To do this, we'll create a new "Workstations (canary)" team and add the automatic enrollment profile to it. Only hosts that automatically enroll to this team will see the custom macOS Setup Assistant.
 
