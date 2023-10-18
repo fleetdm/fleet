@@ -31,7 +31,7 @@ module.exports.routes = {
   },
 
   'GET /try-fleet/fleetctl-preview': {
-    action: 'view-get-started',
+    action: 'view-fleetctl-preview',
     locals: {
       pageTitleForMeta: 'fleetctl preview | Fleet for osquery',
       pageDescriptionForMeta: 'Learn about getting started with Fleet using fleetctl.'
