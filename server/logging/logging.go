@@ -166,6 +166,8 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 			return nil, fmt.Errorf("create kafka rest %s logger: %w", name, err)
 		}
 		return fleet.JSONLogger(writer), nil
+	case "null":
+		return fleet.JSONLogger(&nullLogging{}), nil
 	default:
 		return nil, fmt.Errorf(
 			"unknown %s log plugin: %s", name, config.Plugin,

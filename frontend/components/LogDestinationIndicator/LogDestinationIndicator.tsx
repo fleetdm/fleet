@@ -25,6 +25,8 @@ const LogDestinationIndicator = ({
   );
   const readableLogDestination = () => {
     switch (logDestination) {
+      case "null":
+        return "Discarded";
       case "filesystem":
         return "Filesystem";
       case "firehose":
@@ -48,10 +50,12 @@ const LogDestinationIndicator = ({
 
   const tooltipText = () => {
     switch (logDestination) {
+      case "null":
+        return `Each time a query runs, the data is received <br />
+            by the Fleet server and discarded.`;
       case "filesystem":
-        return `Each time a query runs, the data is sent to <br />
-            /var/log/osquery/osqueryd.snapshots.log <br />
-            in each host&apos;s filesystem.`;
+        return `Each time a query runs, the data is sent to < br />
+            a file on the Fleet server.`;
       case "firehose":
         return `Each time a query runs, the data is sent to <br />
             Amazon Kinesis Data Firehose.`;

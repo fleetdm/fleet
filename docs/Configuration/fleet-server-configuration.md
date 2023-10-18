@@ -986,8 +986,8 @@ Valid time units are `s`, `m`, `h`.
 
 This is the log output plugin that should be used for osquery status logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
-
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), `stdout` and `null`.
+Using `null` will make Fleet discard logs. For `stdout` and `null` there's no additional configuration needed.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
@@ -1001,7 +1001,8 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 
 This is the log output plugin that should be used for osquery result logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), `stdout` and `null`.
+Using `null` will make Fleet discard logs. For `stdout` and `null` there's no additional configuration needed.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
@@ -1211,7 +1212,8 @@ This flag only has effect if `activity_enable_audit_log` is set to `true`.
 
 Each plugin has additional configuration options. Please see the configuration section linked below for your logging plugin.
 
-Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), and `stdout` (no additional configuration needed).
+Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), `stdout` and `null`.
+Using `null` will make Fleet discard logs. For `stdout` and `null` there's no additional configuration needed.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_ACTIVITY_AUDIT_LOG_PLUGIN`

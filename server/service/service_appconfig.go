@@ -227,6 +227,10 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 					ProxyHost:   conf.KafkaREST.ProxyHost,
 				},
 			}
+		case "null":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "null",
+			}
 		default:
 			return nil, ctxerr.Errorf(ctx, "unrecognized logging plugin: %s", lp.plugin)
 		}
