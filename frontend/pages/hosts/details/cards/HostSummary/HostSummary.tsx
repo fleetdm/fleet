@@ -197,7 +197,8 @@ const HostSummary = ({
       isWindowsDiskEncryptionStatus(osSettings.disk_encryption.status)
     ) {
       const winDiskEncryptionProfile: IHostMdmProfile = generateWinDiskEncryptionProfile(
-        osSettings.disk_encryption.status
+        osSettings.disk_encryption.status,
+        osSettings.disk_encryption.detail
       );
       hostMdmProfiles = hostMdmProfiles
         ? [...hostMdmProfiles, winDiskEncryptionProfile]
