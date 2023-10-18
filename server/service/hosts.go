@@ -928,7 +928,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm bitlocker status")
 				}
-				fmt.Println("hde", hde)
 				host.MDM.OSSettings.DiskEncryption = *hde
 			}
 		case "darwin":
