@@ -23,7 +23,7 @@ module.exports.policies = {
   'view-homepage-or-redirect': true,
   'view-faq': true,
   'view-contact': true,
-  'view-get-started': true,
+  'view-fleetctl-preview': true,// Redirects not-logged-in users to /try-fleet/login
   'view-pricing': true,
   'legal/view-terms': true,
   'legal/view-privacy': true,
@@ -41,7 +41,7 @@ module.exports.policies = {
   'reports/*': true,
   'try-fleet/view-register': true,
   'try-fleet/view-sandbox-login': true,
-  'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist': true,
+  'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist': true,// Redirects not-logged-in users to /try-fleet/login
   'create-or-update-one-newsletter-subscription': true,
   'unsubscribe-from-all-newsletters': true,
   'view-osquery-table-details': true,
