@@ -12,7 +12,7 @@ resource "aws_ecs_service" "fleet" {
   launch_type                        = "FARGATE"
   cluster                            = aws_ecs_cluster.fleet.id
   task_definition                    = aws_ecs_task_definition.backend.arn
-  desired_count                      = 10
+  desired_count                      = 20
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
   health_check_grace_period_seconds  = 30
@@ -99,8 +99,8 @@ resource "aws_ecs_task_definition" "backend" {
         ]
         ulimits = [
           {
-            softLimit = 9999,
-            hardLimit = 9999,
+            softLimit = 999999,
+            hardLimit = 999999,
             name      = "nofile"
           }
         ]
@@ -186,7 +186,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_OSQUERY_RESULT_LOG_PLUGIN"
-            value = "firehose"
+            value = "stdout"
           },
           {
             name  = "FLEET_SERVER_TLS"
@@ -288,8 +288,8 @@ resource "aws_ecs_task_definition" "migration" {
 }
 
 resource "aws_appautoscaling_target" "ecs_target" {
-  max_capacity       = 10
-  min_capacity       = 10
+  max_capacity       = 20
+  min_capacity       = 20
   resource_id        = "service/${aws_ecs_cluster.fleet.name}/${aws_ecs_service.fleet.name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
