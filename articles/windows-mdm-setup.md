@@ -45,11 +45,11 @@ Save the SCEP certificate and SCEP key. These are your certificate and key. You 
 - [FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-windows-wstep-identity-cert-bytes)
 - [FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-windows-wstep-identity-key-bytes)
 
-2. Set the `FLEET_MDM_WINDOWS_ENABLED_AND_CONFIGURED` environment variable to `true`.
+2. Set the `FLEET_DEV_MDM_ENABLED` environment variable to `1`.
 
 3. Restart the Fleet server.
 
-### Step 2: Turn on Windows MDM in Fleet
+### Step 3: Turn on Windows MDM in Fleet
 
 Fleet UI:
 
