@@ -130,7 +130,7 @@ What is it like to be a Solutions Consultant at Fleet? What do you do every day?
 * Be a prospect. Sign up for a sandbox trial. What makes sense? What doesn't? Document. 
 * Understand Fleet value drivers. Why do Fleet Community users want to give us money to upgrade to Premium? 
 * Complete consensus training videos (see the "Description" field in the `#help-consensus-tool` slack channel.
-* Review [gong](gong.io) calls.
+* Review [gong](https://gong.io) calls.
 * Get trained on [Demo2Win](https://2winglobal.com/about-you/pre-sales/)
 
 ### Within 60 days -- synthesize
