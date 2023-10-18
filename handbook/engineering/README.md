@@ -638,7 +638,7 @@ Note that the bug finder here is NOT necessarily the **first** person who sees t
 Once raised, product confirms whether or not it's critical and defines expected behavior.
 When outside of working hours for the product team or if no one from product responds within 1 hour, then fall back to the #help-p1.
 
-Once the critical bug is confirmed, Customer success needs to ping both customers and the community to warn them. If Customer success ops is not available, the oncall engineer is responsible for doing this.
+Once the critical bug is confirmed, Customer success needs to ping both customers and the community to warn them. If Customer success is not available, the oncall engineer is responsible for doing this.
 If a quick fix workaround exists, that should be communicated as well for those who are already upgraded.
 
 When a critical bug is identified, we will then follow the patch release process in [our documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#patch-releases).
