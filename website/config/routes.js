@@ -180,20 +180,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /try-fleet/sandbox': {
-    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist',
-    locals: {
-      layout: 'layouts/layout-sandbox',
-    },
-  },
-
-  'GET /try-fleet/sandbox-expired': {
-    action: 'try-fleet/view-sandbox-expired',
-    locals: {
-      layout: 'layouts/layout-sandbox',
-    },
-  },
-
   'GET /try-fleet/waitlist': {
     action: 'try-fleet/view-waitlist',
     locals: {
@@ -470,7 +456,8 @@ module.exports.routes = {
   'GET /handbook/communications': '/handbook/company/communications',
   'GET /handbook/leadership': '/handbook/company/leadership',
   'GET /handbook/product-groups': '/handbook/company/product-groups',
-
+  'GET /try-fleet/sandbox': '/try-fleet/fleetctl-preview',
+  'GET /try-fleet/sandbox-expired': '/try-fleet/fleetctl-preview',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
