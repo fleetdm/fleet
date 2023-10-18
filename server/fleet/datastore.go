@@ -1053,7 +1053,7 @@ type Datastore interface {
 	//
 	// Note that the returned status will be nil if the host is reported to be a Windows
 	// server or if disk encryption is disabled for the host's team (or no team, as applicable).
-	GetMDMWindowsBitLockerStatus(ctx context.Context, host *Host) (*DiskEncryptionStatus, error)
+	GetMDMWindowsBitLockerStatus(ctx context.Context, host *Host) (*HostMDMDiskEncryption, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results

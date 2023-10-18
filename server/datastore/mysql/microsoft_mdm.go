@@ -254,31 +254,32 @@ WHERE
 	return &res, nil
 }
 
-func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fleet.Host) (*fleet.DiskEncryptionStatus, error) {
+func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+	hde := &fleet.HostMDMDiskEncryption{}
 	if host == nil {
-		return nil, errors.New("host cannot be nil")
+		return hde, errors.New("host cannot be nil")
 	}
 
 	if host.Platform != "windows" {
 		// Generally, the caller should have already checked this, but just in case we log and
 		// return nil
 		level.Debug(ds.logger).Log("msg", "cannot get bitlocker status for non-windows host", "host_id", host.ID)
-		return nil, nil
+		return hde, nil
 	}
 
 	if host.MDMInfo != nil && host.MDMInfo.IsServer {
 		// It is currently expected that server hosts do not have a bitlocker status so we can skip
 		// the query and return nil. We log for potential debugging in case this changes in the future.
 		level.Debug(ds.logger).Log("msg", "no bitlocker status for server host", "host_id", host.ID)
-		return nil, nil
+		return hde, nil
 	}
 
 	enabled, err := ds.getConfigEnableDiskEncryption(ctx, host.TeamID)
 	if err != nil {
-		return nil, err
+		return hde, err
 	}
 	if !enabled {
-		return nil, nil
+		return hde, nil
 	}
 
 	// Note action_required and removing_enforcement are not applicable to Windows hosts
@@ -289,7 +290,8 @@ SELECT
 		WHEN (%s) THEN '%s'
 		WHEN (%s) THEN '%s'
 		WHEN (%s) THEN '%s'
-	END AS status
+	END AS status,
+	COALESCE(client_error, '') as detail
 FROM
 	host_mdm hmdm
 	LEFT JOIN host_disk_encryption_keys hdek ON hmdm.host_id = hdek.host_id
@@ -306,17 +308,22 @@ WHERE
 		fleet.DiskEncryptionFailed,
 	)
 
-	var des fleet.DiskEncryptionStatus
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &des, stmt, host.ID); err != nil {
-		if err == sql.ErrNoRows {
-			// At this point we know disk encryption is enabled so if we don't have a record for the
-			// host then we treat it as enforcing and log for potential debugging
-			level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID)
-			des = fleet.DiskEncryptionEnforcing
-			return &des, nil
+	var dest struct {
+		Status fleet.DiskEncryptionStatus `db:"status"`
+		Detail string                     `db:"detail"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, host.ID); err != nil {
+		if err != sql.ErrNoRows {
+			return &fleet.HostMDMDiskEncryption{}, err
 		}
-		return nil, err
+		// At this point we know disk encryption is enabled so if there are no rows for the
+		// host then we treat it as enforcing and log for potential debugging
+		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID)
+		dest.Status = fleet.DiskEncryptionEnforcing
 	}
 
-	return &des, nil
+	return &fleet.HostMDMDiskEncryption{
+		Status: &dest.Status,
+		Detail: dest.Detail,
+	}, nil
 }
