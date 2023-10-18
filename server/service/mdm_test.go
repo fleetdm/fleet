@@ -253,7 +253,7 @@ func TestMicrosoftWSTEPConfig(t *testing.T) {
 	parsedCert, err := x509.ParseCertificate(rawDER)
 	require.NoError(t, err)
 	require.Equal(t, "test-client", parsedCert.Subject.CommonName)
-	require.Equal(t, "FleetDM", parsedCert.Subject.OrganizationalUnit[0])
+	require.Equal(t, "Fleet", parsedCert.Subject.OrganizationalUnit[0])
 }
 
 func TestRunMDMCommandAuthz(t *testing.T) {
