@@ -463,7 +463,7 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 				<CmdID>1</CmdID>
 				<Item>
 					<Target>
-						<LocURI>./RemoteWipe</LocURI>
+						<LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipe</LocURI>
 					</Target>
 				</Item>
 			</Exec>`, "Requires Fleet Premium license", ""},
@@ -472,10 +472,10 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 				<CmdID>1</CmdID>
 				<Item>
 					<Target>
-						<LocURI>./RemoteWipe</LocURI>
+						<LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipe</LocURI>
 					</Target>
 				</Item>
-			</Exec>`, "", "./RemoteWipe"},
+			</Exec>`, "", "./Device/Vendor/MSFT/RemoteWipe/doWipe"},
 		{"non-premium command", false, `
 			<Exec>
 				<CmdID>1</CmdID>

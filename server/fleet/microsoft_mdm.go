@@ -922,15 +922,35 @@ type SyncMLCmd struct {
 }
 
 // IsPremium returns true if the command is available for Fleet premium only.
+// See e.g. https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipe
+// for details.
 func (cmd SyncMLCmd) IsPremium() bool {
-	for _, item := range cmd.Items {
-		// TODO(mna): is it correct to check that in Target, or is it Source? Not
-		// super clear from the MSMDM examples/docs. Should I just use cmd.GetTargetURI?
-		if item.Target != nil && strings.Contains(*item.Target, "RemoteWipe") {
-			return true
-		}
+	return strings.Contains(cmd.GetTargetURI(), "/Device/Vendor/MSFT/RemoteWipe/")
+}
+
+// DataType returns the SyncMLDataType corresponding to the command's format.
+// This is the inverse of the NewTypedSyncMLCmd operation (regarding the
+// format part of the command).
+func (cmd SyncMLCmd) DataType() SyncMLDataType {
+	if cmd.IsEmpty() || cmd.Items[0].Meta == nil ||
+		cmd.Items[0].Meta.Format == nil || cmd.Items[0].Meta.Format.Content == nil {
+		return SFNoFormat
 	}
-	return false
+
+	switch *cmd.Items[0].Meta.Format.Content {
+	case "chr":
+		return SFText
+	case "xml":
+		return SFXml
+	case "b64":
+		return SFBase64
+	case "int":
+		return SFInteger
+	case "bool":
+		return SFBoolean
+	default:
+		return SFNoFormat
+	}
 }
 
 type CmdItem struct {

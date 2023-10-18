@@ -624,13 +624,12 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 		}
 	}
 
-	// TODO(mna): validate that those are correct/as expected.
 	winCmd := &fleet.MDMWindowsPendingCommand{
 		CommandUUID:  uuid.New().String(),
 		CmdVerb:      fleet.CmdExec,
 		SettingURI:   cmdMsg.GetTargetURI(),
 		SettingValue: cmdMsg.GetTargetData(),
-		DataType:     0, // TODO(mna): how do I get the data type? Should that be typed SyncMLDataType?
+		DataType:     uint16(cmdMsg.DataType()),
 		SystemOrigin: false,
 	}
 	if err := svc.ds.MDMWindowsInsertPendingCommandForDevices(ctx, deviceIDs, winCmd); err != nil {
