@@ -14,12 +14,12 @@ type Logger struct {
 
 // Fatal logs a fatal message, just like Kolide's logutil.Fatal.
 func (l *Logger) Fatal(args ...interface{}) {
-	l.Logger.Fatal().Msg(fmt.Sprintln(args...))
+	l.Logger.Fatal().Msg(fmt.Sprint(args...))
 }
 
 // Log logs a message, implementing log.Logger interface
 func (l *Logger) Log(keyValuePairs ...interface{}) error {
-	log.Logger.Info().Msg(fmt.Sprint(keyValuePairs))
+	log.Logger.Info().Msg(fmt.Sprint(keyValuePairs...))
 	return nil
 }
 
