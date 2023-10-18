@@ -963,7 +963,7 @@ func (cmd SyncMLCmd) DataType() SyncMLDataType {
 		return SFNoFormat
 	}
 
-	switch *cmd.Items[0].Meta.Format.Content {
+	switch strings.TrimSpace(*cmd.Items[0].Meta.Format.Content) {
 	case "chr":
 		return SFText
 	case "xml":
