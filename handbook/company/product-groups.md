@@ -16,7 +16,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Product group             | Goal _(value for customers and/or community)_                       | Capacity\* |
 |:--------------------------|:--------------------------------------------------------------------|:-----------------|
-| [Endpoint ops](#endpoint-ops-group)                     | Make customers happier and more successful.             | 78       |
+| [Endpoint ops](#endpoint-ops-group)                     | Increase and exceed maturity in the "Endpoint operations" category.             | 78       |
 | [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.           | 65       |
 | [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure. | 13 |
 | [Website](#website-group)                               | Make the website wonderful.                             | 13       |
