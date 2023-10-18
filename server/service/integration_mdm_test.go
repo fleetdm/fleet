@@ -7438,7 +7438,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 
 				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
 					Name:        &team.Name,
-					Description: &c.name,
+					Description: ptr.String(c.name),
 					MDM:         c.mdm,
 				}, c.expectedStatus, &getTeamResp)
 
