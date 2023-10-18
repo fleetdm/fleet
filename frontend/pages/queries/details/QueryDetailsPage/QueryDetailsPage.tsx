@@ -15,10 +15,6 @@ import { IQueryReport } from "interfaces/query_report";
 
 import queryAPI from "services/entities/queries";
 import queryReportAPI, { ISortOption } from "services/entities/query_report";
-import teamsAPI, {
-  ILoadTeamResponse,
-  ITeamConfig,
-} from "services/entities/teams";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
