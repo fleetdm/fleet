@@ -186,7 +186,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_OSQUERY_RESULT_LOG_PLUGIN"
-            value = "firehose"
+            value = "stdout"
           },
           {
             name  = "FLEET_SERVER_TLS"
