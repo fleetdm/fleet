@@ -15,7 +15,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE password_history_size >= 24;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1,  CIS_bullet_1.1.1
+  tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -33,7 +33,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE (maximum_password_age <= 365 AND maximum_password_age != 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_1.1.2
+  tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -52,7 +52,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE minimum_password_age >= 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_1.1.3
+  tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -70,7 +70,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE minimum_password_length >= 14;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_1.1.4
+  tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -90,7 +90,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE password_complexity = 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_1.1.5
+  tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -108,7 +108,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SAM\\RelaxMinimumPasswordLengthLimits' AND data != 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_1.1.6
+  tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -129,7 +129,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE clear_text_password = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_1.1.7
+  tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -150,7 +150,7 @@ spec:
   query: |
     SELECT 1 FROM cis_audit where item = "1.2.1" and CAST(value as integer) >= 15;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_1.2.1
+  tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -170,7 +170,7 @@ spec:
   query: |
     SELECT 1 FROM cis_audit where item = "1.2.2" and CAST(value as integer) <= 5 and CAST(value as integer) > 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_1.2.2
+  tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -191,7 +191,7 @@ spec:
   query: |
     SELECT 1 FROM cis_audit where item = "1.2.3" and CAST(value as integer) >= 15;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_1.2.3
+  tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h  
 ---
 apiVersion: v1
@@ -231,7 +231,7 @@ spec:
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/AccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" 
     AND mdm_command_output  LIKE "Administrators_REMOTE INTERACTIVE LOGON";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.2, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -270,7 +270,7 @@ spec:
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.4" AND (regex_match(value,".*(?=.*Administrators)(?=.*LOCAL SERVICE)(?=.*NETWORK SERVICE).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.4, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.4
   contributors: marcosd4h  
 ---
 apiVersion: v1
@@ -296,7 +296,7 @@ spec:
         mdm_command_output LIKE "Users_Administrators"
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.5, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.5
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -318,7 +318,7 @@ spec:
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.6" AND (regex_match(value,".*(?=.*Administrators)(?=.*Remote Desktop Users).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.6, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.6
   contributors: marcosd4h  
 ---
 apiVersion: v1
@@ -338,7 +338,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/BackupFilesAndDirectories</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output = "Administrators";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.7, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.7
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -359,7 +359,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ChangeSystemTime</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output LIKE "Administrators%" AND mdm_command_output LIKE "%LOCAL SERVICE";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.8, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.8
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -377,7 +377,7 @@ spec:
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.9" AND (regex_match(value,".*(?=.*Administrators)(?=.*Users)(?=.*LOCAL SERVICE).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.9, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.9
   contributors: marcosd4h  
 ---
 apiVersion: v1
@@ -395,7 +395,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ChangeSystemTime</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output LIKE "%Administrators%";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.10, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.10
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -431,7 +431,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/CreateGlobalObjects</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Administrators|LOCAL SERVICE|NETWORK SERVICE|([^\w\s]SERVICE)).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.12, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.12
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -479,7 +479,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/CreateSymbolicLinks</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Administrators|Virtual Machines).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.14, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.14
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -500,7 +500,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DebugPrograms</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.15, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.15
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -522,7 +522,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyAccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.16, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.16
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -541,7 +541,7 @@ spec:
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.17" AND (regex_match(value,".*(?=.*Guests).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.17, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.17
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -560,7 +560,7 @@ spec:
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.18" AND (regex_match(value,".*(?=.*Guests).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.18, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.18
   contributors: marcosd4h  
 ---
 apiVersion: v1
@@ -580,7 +580,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyLocalLogOn</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.19, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.19
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -598,7 +598,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyRemoteDesktopServicesLogOn</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.20, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.20
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -638,7 +638,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/RemoteShutdown</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.22, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.22
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -656,7 +656,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/GenerateSecurityAudits</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(LOCAL SERVICE|NETWORK SERVICE).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.23, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.23
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -678,7 +678,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ImpersonateClient</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Administrators|LOCAL SERVICE|NETWORK SERVICE|([^\w\s]SERVICE)).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.24, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.24
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -698,7 +698,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/IncreaseSchedulingPriority</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Administrators|Window Manager Group).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.25, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.25
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -719,7 +719,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/LoadUnloadDeviceDrivers</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.26, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.26
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -759,7 +759,7 @@ spec:
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.28" AND (regex_match(value,".*(?=.*Administrators).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.28, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.28
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -781,7 +781,7 @@ spec:
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.29" AND value = ",";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.29, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.29
   contributors: marcosd4h  
 ---
 apiVersion: v1
@@ -799,7 +799,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ManageAuditingAndSecurityLog</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.30, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.30
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -839,7 +839,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ModifyFirmwareEnvironment</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.32, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.32
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -857,7 +857,7 @@ spec:
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.33" AND (regex_match(value,".*(?=.*Administrators).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.33, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.33
   contributors: marcosd4h  
 ---
 apiVersion: v1
@@ -880,7 +880,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ProfileSingleProcess</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.34, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.34
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -900,7 +900,7 @@ spec:
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.35" AND (regex_match(value,".*(?=.*Administrators)(?=.*WdiServiceHost).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.35, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.35
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -919,7 +919,7 @@ spec:
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.36" AND (regex_match(value,".*(?=.*LOCAL SERVICE)(?=.*NETWORK SERVICE).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.36, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.36
   contributors: marcosd4h  
 ---
 apiVersion: v1
@@ -941,7 +941,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/RestoreFilesAndDirectories</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.37, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.37
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -960,7 +960,7 @@ spec:
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.38" AND (regex_match(value,".*(?=.*Administrators)(?=.*Users).*",0) is not null);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.38, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.38
   contributors: marcosd4h  
 ---
 apiVersion: v1
@@ -979,7 +979,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/TakeOwnership</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.39, english-support-only
+ , english-support-only tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.39
   contributors: marcosd4h
 ---
 apiVersion: v1
