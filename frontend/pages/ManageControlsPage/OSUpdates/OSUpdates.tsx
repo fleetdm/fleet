@@ -5,7 +5,6 @@ import { AppContext } from "context/app";
 
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
-import OsMinVersionForm from "./components/OsMinVersionForm";
 import NudgePreview from "./components/NudgePreview";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
 import CurrentVersionSection from "./components/CurrentVersionSection";

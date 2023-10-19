@@ -13,7 +13,7 @@ interface ITargetSectionProps {
 const TargetSection = ({ currentTeamId }: ITargetSectionProps) => {
   return (
     <div className={baseClass}>
-      <SectionHeader title="Target" />
+      {/* <SectionHeader title="Target" /> */}
       <OsMinVersionForm currentTeamId={currentTeamId} key={currentTeamId} />
     </div>
   );

@@ -30,7 +30,7 @@ const CurrentVersionSection = ({
   });
   return (
     <div className={baseClass}>
-      <SectionHeader
+      {/* <SectionHeader
         title="Current versions"
         subTitle={
           <LastUpdatedText
@@ -38,7 +38,7 @@ const CurrentVersionSection = ({
             whatToRetrieve={"operating systems"}
           />
         }
-      />
+      /> */}
       {OperatingSystemCard}
     </div>
   );
