@@ -376,7 +376,7 @@ CREATE TABLE `host_software_installed_paths` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `host_id` int(10) unsigned NOT NULL,
   `software_id` bigint(20) unsigned NOT NULL,
-  `installed_path` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `installed_path` text COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `host_id_software_id_idx` (`host_id`,`software_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
