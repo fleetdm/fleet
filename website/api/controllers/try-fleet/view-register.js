@@ -23,9 +23,10 @@ module.exports = {
 
   fn: async function () {
 
-    // If the user is logged in, redirect them to the fleetctl preview page.
+    // If the user is logged in, redirect them to the Fleet sandbox page.
+    // FUTURE: once all Sandbox instances have expired, redirect users to the fleetctl-preview page.
     if (this.req.me) {
-      throw {redirect: '/try-fleet/fleetctl-preview'};
+      throw {redirect: '/try-fleet/sandbox'};
     }
 
     // Respond with view.

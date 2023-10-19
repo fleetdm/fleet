@@ -180,6 +180,13 @@ module.exports.routes = {
     }
   },
 
+  'GET /try-fleet/sandbox': {
+    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    },
+  },
+
   'GET /try-fleet/waitlist': {
     action: 'try-fleet/view-waitlist',
     locals: {
@@ -456,8 +463,7 @@ module.exports.routes = {
   'GET /handbook/communications': '/handbook/company/communications',
   'GET /handbook/leadership': '/handbook/company/leadership',
   'GET /handbook/product-groups': '/handbook/company/product-groups',
-  'GET /try-fleet/sandbox': '/try-fleet/fleetctl-preview',
-  'GET /try-fleet/sandbox-expired': '/try-fleet/fleetctl-preview',
+
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -488,9 +494,10 @@ module.exports.routes = {
   'GET /test-fleet-sandbox':     '/try-fleet/register',
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
   'GET /tables':                 '/tables/account_policy_data',
-  'GET /imagine/launch-party':   'https://www.eventbrite.com/e/601763519887',
+  'GET /imagine/launch-party':  'https://www.eventbrite.com/e/601763519887',
   'GET /blackhat2023':   'https://github.com/fleetdm/fleet/tree/main/tools/blackhat-mdm', // Assets from @marcosd4h & @zwass Black Hat 2023 talk
   'GET /fleetctl-preview':   '/try-fleet/fleetctl-preview',
+  'GET /try-fleet/sandbox-expired':   '/try-fleet/fleetctl-preview',
 
   // Fleet UI
   // =============================================================================================================
