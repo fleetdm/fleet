@@ -1797,6 +1797,7 @@ None.
 - [Get host's macadmin mobile device management (MDM) and Munki information](#get-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
 - [Get host's scripts](#get-hosts-scripts)
+- [Get host's activities](#get-hosts-activities)
 - [Get host OS versions](#get-host-os-versions)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
@@ -3278,6 +3279,64 @@ _Available in Fleet Premium_
 }
 
 ```
+
+### Get host's activities
+
+Returns a list of the activities that have been performed in Fleet related for the current host.
+
+GET /api/v1/fleet/hosts/{id}/activities
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| id | integer | path | **Required**. The ID of the host to get the details for. |
+| page | integer | query | Page number of the results to fetch. |
+| per_page | integer | query | Results per page. |
+| order_key | string | query | What to order results by. Can be any column in the `activites` table. |
+| order_direction | string | query | Requires `order_key`. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+
+##### Example
+
+`GET /api/v1/fleet/hosts/154/activities?page=0&per_page=2&order_key=created_at&order_direction=desc`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2021-07-30T13:41:07Z",
+      "id": 24,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "live_query",
+      "details": {
+        "targets_count": 231
+      }
+    },
+    {
+      "created_at": "2021-07-27T13:25:21Z",
+      "id": 19,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "live_query",
+      "details": {
+        "targets_count": 14
+      }
+    },
+  ]
+}
+```
+
+
+
 
 ### Get host OS versions
 
