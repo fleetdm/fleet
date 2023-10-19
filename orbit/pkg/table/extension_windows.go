@@ -8,8 +8,6 @@ import (
 	"github.com/kolide/launcher/pkg/osquery/tables/dsim_default_associations"
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
-
-	"github.com/kolide/launcher/pkg/osquery/tables/dsim_default_associations"
 )
 
 func PlatformTables() []osquery.OsqueryPlugin {
