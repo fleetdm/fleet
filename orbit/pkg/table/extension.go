@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
+	"github.com/kolide/launcher/pkg/osquery/tables/firefox_preferences"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
 	"github.com/macadmins/osquery-extension/tables/puppet"
@@ -133,7 +134,7 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
 
 		// Kolide extensions.
-		// dsim_default_associations.TablePlugin(kolideLogger), //this is a windows table. needed here???
+		firefox_preferences.TablePlugin(kolideLogger),
 	}
 	return plugins
 }
