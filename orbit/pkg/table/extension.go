@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 	"github.com/kolide/launcher/pkg/osquery/tables/firefox_preferences"
+	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
 	"github.com/macadmins/osquery-extension/tables/puppet"
@@ -135,6 +136,7 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 		// Kolide extensions.
 		firefox_preferences.TablePlugin(kolideLogger),
+		firmwarepasswd.TablePlugin(kolideLogger),
 	}
 	return plugins
 }
