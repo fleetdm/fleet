@@ -133,7 +133,8 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 			bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
 			require.NoError(t, err)
 			require.NotNil(t, bls)
-			require.Equal(t, expected, *bls)
+			require.NotNil(t, bls.Status)
+			require.Equal(t, expected, *bls.Status)
 		}
 	}
 

@@ -4,6 +4,7 @@ import ArrowInternalLink from "./ArrowInternalLink";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import Chevron from "./Chevron";
+import CollectingResults from "./CollectingResults";
 import Columns from "./Columns";
 import CriticalPolicy from "./CriticalPolicy";
 import Disable from "./Disable";
@@ -84,6 +85,7 @@ export const ICON_MAP = {
   "calendar-check": CalendarCheck,
   chevron: Chevron,
   check: Check,
+  "collecting-results": CollectingResults,
   columns: Columns,
   "critical-policy": CriticalPolicy,
   disable: Disable,

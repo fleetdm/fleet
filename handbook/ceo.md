@@ -12,6 +12,8 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 | Apprentice to the CEO           | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 
 
+
+
 ## Contact us
 - To **ask a question** or **make a request** of the CEO or Apprentice, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=custom-request.md&title=%7BNAME%7D%C2%BB______________________) and he or the Apprentice will get back to you within one business day.
   - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.

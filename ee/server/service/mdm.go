@@ -854,13 +854,13 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 
 	// create profiles for that team via the service call, so that uniqueness
 	// of profile identifier/name is verified, activity created, etc.
-	if err := svc.BatchSetMDMAppleProfiles(ctx, &team.ID, nil, rawProfiles, false); err != nil {
+	if err := svc.BatchSetMDMAppleProfiles(ctx, &team.ID, nil, rawProfiles, false, true); err != nil {
 		return err
 	}
 
 	// assign host to that team via the service call, which will trigger
 	// deployment of the profiles.
-	if err := svc.AddHostsToTeam(ctx, &team.ID, []uint{host.ID}); err != nil {
+	if err := svc.AddHostsToTeam(ctx, &team.ID, []uint{host.ID}, true); err != nil {
 		return err
 	}
 

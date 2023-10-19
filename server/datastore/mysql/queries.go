@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query) (err error) {
+func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]bool) (err error) {
 	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "begin ApplyQueries transaction")
@@ -29,7 +29,7 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 		}
 	}()
 
-	sql := `
+	insertSql := `
 		INSERT INTO queries (
 			name,
 			description,
@@ -43,8 +43,9 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 			min_osquery_version,
 			schedule_interval,
 			automations_enabled,
-			logging_type 
-		) VALUES ( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ? )
+			logging_type,
+			discard_data
+		) VALUES ( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
@@ -58,13 +59,25 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 			min_osquery_version = VALUES(min_osquery_version),
 			schedule_interval = VALUES(schedule_interval),
 			automations_enabled = VALUES(automations_enabled),
-			logging_type = VALUES(logging_type)
+			logging_type = VALUES(logging_type),
+			discard_data = VALUES(discard_data)
 	`
-	stmt, err := tx.PrepareContext(ctx, sql)
+	stmt, err := tx.PrepareContext(ctx, insertSql)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare ApplyQueries insert")
 	}
 	defer stmt.Close()
+
+	var resultsStmt *sql.Stmt
+	if len(queriesToDiscardResults) > 0 {
+		resultsSql := `DELETE FROM query_results WHERE query_id = ?`
+		resultsStmt, err = tx.PrepareContext(ctx, resultsSql)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare ApplyQueries delete query results")
+		}
+		defer resultsStmt.Close()
+
+	}
 
 	for _, q := range queries {
 		if err := q.Verify(); err != nil {
@@ -84,9 +97,20 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 			q.Interval,
 			q.AutomationsEnabled,
 			q.Logging,
+			q.DiscardData,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "exec ApplyQueries insert")
+		}
+	}
+
+	for id := range queriesToDiscardResults {
+		_, err := resultsStmt.ExecContext(
+			ctx,
+			id,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "exec ApplyQueries delete query results")
 		}
 	}
 
@@ -115,6 +139,7 @@ func (ds *Datastore) QueryByName(
 			min_osquery_version,
 			automations_enabled,
 			logging_type,
+			discard_data,
 			created_at,
 			updated_at
 		FROM queries
@@ -150,6 +175,9 @@ func (ds *Datastore) NewQuery(
 	query *fleet.Query,
 	opts ...fleet.OptionalArg,
 ) (*fleet.Query, error) {
+	if err := query.Verify(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
 	sqlStatement := `
 		INSERT INTO queries (
 			name,
@@ -164,8 +192,9 @@ func (ds *Datastore) NewQuery(
 			min_osquery_version,
 			schedule_interval,
 			automations_enabled,
-			logging_type 
-		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+			logging_type,
+			discard_data
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -183,6 +212,7 @@ func (ds *Datastore) NewQuery(
 		query.Interval,
 		query.AutomationsEnabled,
 		query.Logging,
+		query.DiscardData,
 	)
 
 	if err != nil && isDuplicate(err) {
@@ -198,8 +228,30 @@ func (ds *Datastore) NewQuery(
 }
 
 // SaveQuery saves changes to a Query.
-func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
-	sql := `
+func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscardResults bool) (err error) {
+	if err := q.Verify(); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "begin SaveQuery transaction")
+	}
+
+	defer func() {
+		if err != nil {
+			rbErr := tx.Rollback()
+			// It seems possible that there might be a case in
+			// which the error we are dealing with here was thrown
+			// by the call to tx.Commit(), and the docs suggest
+			// this call would then result in sql.ErrTxDone.
+			if rbErr != nil && rbErr != sql.ErrTxDone {
+				panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
+			}
+		}
+	}()
+
+	updateSql := `
 		UPDATE queries
 		SET name                = ?,
 			description         = ?,
@@ -213,12 +265,30 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 			min_osquery_version = ?,
 			schedule_interval   = ?,
 			automations_enabled = ?,
-			logging_type        = ?
+			logging_type        = ?,
+			discard_data        = ?
 		WHERE id = ?
 	`
-	result, err := ds.writer(ctx).ExecContext(
+
+	stmt, err := tx.PrepareContext(ctx, updateSql)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare SaveQuery update")
+	}
+	defer stmt.Close()
+
+	var resultsStmt *sql.Stmt
+	if shouldDiscardResults {
+		resultsSql := `DELETE FROM query_results WHERE query_id = ?`
+		resultsStmt, err = tx.PrepareContext(ctx, resultsSql)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare SaveQuery delete query results")
+		}
+		defer resultsStmt.Close()
+
+	}
+
+	_, err = stmt.ExecContext(
 		ctx,
-		sql,
 		q.Name,
 		q.Description,
 		q.Query,
@@ -232,19 +302,25 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query) error {
 		q.Interval,
 		q.AutomationsEnabled,
 		q.Logging,
-		q.ID)
+		q.DiscardData,
+		q.ID,
+	)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating query")
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "rows affected updating query")
-	}
-	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("Query").WithID(q.ID))
+		return ctxerr.Wrap(ctx, err, "exec SaveQuery update")
 	}
 
-	return nil
+	if resultsStmt != nil {
+		_, err := resultsStmt.ExecContext(
+			ctx,
+			q.ID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "exec SaveQuery delete query results")
+		}
+	}
+
+	err = tx.Commit()
+	return ctxerr.Wrap(ctx, err, "commit SaveQuery transaction")
 }
 
 func (ds *Datastore) DeleteQuery(
@@ -299,8 +375,10 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 			q.min_osquery_version,
 			q.automations_enabled,
 			q.logging_type,
+			q.discard_data,
 			q.created_at,
 			q.updated_at,
+			q.discard_data,
 			COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name, 
 			COALESCE(u.email, '') AS author_email,
 			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
@@ -348,8 +426,10 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 			q.min_osquery_version,
 			q.automations_enabled,
 			q.logging_type,
+			q.discard_data,
 			q.created_at,
 			q.updated_at,
+			q.discard_data,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
 			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
@@ -462,8 +542,8 @@ func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (boo
 	return observerCanRun, nil
 }
 
-func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
-	sql := `
+func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+	sqlStmt := `
 		SELECT
 			q.name,
 			q.query,
@@ -472,24 +552,44 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 			q.platform,
 			q.min_osquery_version,
 			q.automations_enabled,
-			q.logging_type
+			q.logging_type,
+			q.discard_data
 		FROM queries q
 		WHERE q.saved = true 
-			AND (q.schedule_interval > 0 AND q.automations_enabled = 1)
+			AND (
+				q.schedule_interval > 0 AND
+				%s AND
+				(
+					q.automations_enabled
+					OR
+					(NOT q.discard_data AND NOT ? AND q.logging_type = ?)
+				)
+			)
 	`
 
 	args := []interface{}{}
+	teamSQL := " team_id IS NULL"
 	if teamID != nil {
 		args = append(args, *teamID)
-		sql += " AND team_id = ?"
-	} else {
-		sql += " AND team_id IS NULL"
+		teamSQL = " team_id = ?"
 	}
+	sqlStmt = fmt.Sprintf(sqlStmt, teamSQL)
+	args = append(args, queryReportsDisabled, fleet.LoggingSnapshot)
 
 	results := []*fleet.Query{}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sqlStmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list scheduled queries for agents")
 	}
 
 	return results, nil
+}
+
+func (ds *Datastore) CleanupGlobalDiscardQueryResults(ctx context.Context) error {
+	deleteStmt := "DELETE FROM query_results"
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "delete all from query_result")
+	}
+
+	return nil
 }

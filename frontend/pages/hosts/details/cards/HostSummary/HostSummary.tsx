@@ -13,7 +13,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
-import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import {
   getHostDiskEncryptionTooltipMessage,
@@ -197,7 +197,8 @@ const HostSummary = ({
       isWindowsDiskEncryptionStatus(osSettings.disk_encryption.status)
     ) {
       const winDiskEncryptionProfile: IHostMdmProfile = generateWinDiskEncryptionProfile(
-        osSettings.disk_encryption.status
+        osSettings.disk_encryption.status,
+        osSettings.disk_encryption.detail
       );
       hostMdmProfiles = hostMdmProfiles
         ? [...hostMdmProfiles, winDiskEncryptionProfile]
@@ -299,7 +300,9 @@ const HostSummary = ({
   };
 
   const lastFetched = titleData.detail_updated_at ? (
-    <HumanTimeDiffWithDateTip timeString={titleData.detail_updated_at} />
+    <HumanTimeDiffWithFleetLaunchCutoff
+      timeString={titleData.detail_updated_at}
+    />
   ) : (
     ": unavailable"
   );

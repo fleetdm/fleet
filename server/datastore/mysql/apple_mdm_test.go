@@ -46,6 +46,8 @@ func TestMDMApple(t *testing.T) {
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
+		{"TestMDMAppleProfileManagementBatch2", testMDMAppleProfileManagementBatch2},
+		{"TestMDMAppleProfileManagementBatch3", testMDMAppleProfileManagementBatch3},
 		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
 		{"TestAggregateMacOSSettingsStatusWithFileVault", testAggregateMacOSSettingsStatusWithFileVault},
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
@@ -53,6 +55,8 @@ func TestMDMApple(t *testing.T) {
 		{"TestIgnoreMDMClientError", testIgnoreMDMClientError},
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
 		{"TestBulkSetPendingMDMAppleHostProfiles", testBulkSetPendingMDMAppleHostProfiles},
+		{"TestBulkSetPendingMDMAppleHostProfilesBatch2", testBulkSetPendingMDMAppleHostProfilesBatch2},
+		{"TestBulkSetPendingMDMAppleHostProfilesBatch3", testBulkSetPendingMDMAppleHostProfilesBatch3},
 		{"TestGetMDMAppleCommandResults", testGetMDMAppleCommandResults},
 		{"TestBulkUpsertMDMAppleConfigProfiles", testBulkUpsertMDMAppleConfigProfile},
 		{"TestMDMAppleBootstrapPackageCRUD", testMDMAppleBootstrapPackageCRUD},
@@ -984,6 +988,22 @@ func teamConfigProfileForTest(t *testing.T, name, identifier, uuid string, teamI
 	sum := md5.Sum(prof) // nolint:gosec // used only to hash for efficient comparisons
 	cp.Checksum = sum[:]
 	return cp
+}
+
+func testMDMAppleProfileManagementBatch2(t *testing.T, ds *Datastore) {
+	testUpsertMDMAppleDesiredProfilesBatchSize = 2
+	t.Cleanup(func() {
+		testUpsertMDMAppleDesiredProfilesBatchSize = 0
+	})
+	testMDMAppleProfileManagement(t, ds)
+}
+
+func testMDMAppleProfileManagementBatch3(t *testing.T, ds *Datastore) {
+	testUpsertMDMAppleDesiredProfilesBatchSize = 3
+	t.Cleanup(func() {
+		testUpsertMDMAppleDesiredProfilesBatchSize = 0
+	})
+	testMDMAppleProfileManagement(t, ds)
 }
 
 func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
@@ -2440,6 +2460,26 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(1), allProfilesSummary.Verified)
 }
 
+func testBulkSetPendingMDMAppleHostProfilesBatch2(t *testing.T, ds *Datastore) {
+	testUpsertMDMAppleDesiredProfilesBatchSize = 2
+	testDeleteMDMAppleProfilesBatchSize = 2
+	t.Cleanup(func() {
+		testUpsertMDMAppleDesiredProfilesBatchSize = 0
+		testDeleteMDMAppleProfilesBatchSize = 0
+	})
+	testBulkSetPendingMDMAppleHostProfiles(t, ds)
+}
+
+func testBulkSetPendingMDMAppleHostProfilesBatch3(t *testing.T, ds *Datastore) {
+	testUpsertMDMAppleDesiredProfilesBatchSize = 3
+	testDeleteMDMAppleProfilesBatchSize = 3
+	t.Cleanup(func() {
+		testUpsertMDMAppleDesiredProfilesBatchSize = 0
+		testDeleteMDMAppleProfilesBatchSize = 0
+	})
+	testBulkSetPendingMDMAppleHostProfiles(t, ds)
+}
+
 func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -3759,10 +3799,10 @@ func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// create a mix of DEP-enrolled hosts, non-Fleet-MDM, pending DEP-enrollment
-	hosts := make([]*fleet.Host, 10)
+	hosts := make([]*fleet.Host, 7)
 	for i := 0; i < len(hosts); i++ {
 		serial := fmt.Sprintf("serial-%d", i)
-		if i == 9 {
+		if i == 6 {
 			serial = ""
 		}
 		h, err := ds.NewHost(ctx, &fleet.Host{
@@ -3776,30 +3816,21 @@ func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		switch {
 		case i <= 3:
-			// dep-enrolled in fleet
-			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet)
+			// assigned in ABM to Fleet
+			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+			require.NoError(t, err)
 		case i == 4:
-			// pending dep enrollment in fleet
-			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, false, "https://example.com", true, fleet.WellKnownMDMFleet)
+			// not ABM assigned
 		case i == 5:
-			// manually enrolled in fleet
-			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet)
+			// ABM assignment was deleted
+			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+			require.NoError(t, err)
+			err = ds.DeleteHostDEPAssignments(ctx, []string{h.HardwareSerial})
+			require.NoError(t, err)
 		case i == 6:
-			// dep enrolled in fleet but is a server
-			err = ds.SetOrUpdateMDMData(ctx, h.ID, true, true, "https://example.com", true, fleet.WellKnownMDMFleet)
-		case i == 7:
-			// dep enrolled in non-Fleet
-			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://simplemdm.com", true, fleet.WellKnownMDMSimpleMDM)
-		case i == 8:
-			// not mdm-enrolled at all
-			err = nil
-		case i == 9:
-			// dep-enrolled in fleet, but empty serial so not returned
-			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet)
-		}
-		require.NoError(t, err)
-		if i <= 3 {
-			nanoEnroll(t, ds, h, false)
+			// assigned in ABM, but we don't have a serial
+			err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+			require.NoError(t, err)
 		}
 		hosts[i] = h
 		t.Logf("host [%d]: %s - %s", i, h.UUID, h.HardwareSerial)
@@ -3811,8 +3842,8 @@ func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 	tm2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
-	// assign hosts[2,7,8] to tm1
-	err = ds.AddHostsToTeam(ctx, &tm1.ID, []uint{hosts[2].ID, hosts[7].ID, hosts[8].ID})
+	// assign hosts[2,4,5] to tm1
+	err = ds.AddHostsToTeam(ctx, &tm1.ID, []uint{hosts[2].ID, hosts[4].ID, hosts[5].ID})
 	require.NoError(t, err)
 
 	// list serials in team 2, has none
@@ -3825,33 +3856,33 @@ func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{"serial-2"}, serials)
 
-	// list serials in no-team, has 4 (hosts[0,1,3,4]), hosts[4] is pending, the others enrolled
+	// list serials in no-team, has 3 (hosts[0,1,3]), hosts[6] doesn't have a serial number
 	serials, err = ds.ListMDMAppleDEPSerialsInTeam(ctx, nil)
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"serial-0", "serial-1", "serial-3", "serial-4"}, serials)
+	require.ElementsMatch(t, []string{"serial-0", "serial-1", "serial-3"}, serials)
 
 	// list serials with no host IDs returns empty
 	serials, err = ds.ListMDMAppleDEPSerialsInHostIDs(ctx, nil)
 	require.NoError(t, err)
 	require.Empty(t, serials)
 
-	// list serials in hosts[0,1,2,3,4] returns all of them
-	serials, err = ds.ListMDMAppleDEPSerialsInHostIDs(ctx, []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID})
+	// list serials in hosts[0,1,2,3] returns all of them
+	serials, err = ds.ListMDMAppleDEPSerialsInHostIDs(ctx, []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID})
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"serial-0", "serial-1", "serial-2", "serial-3", "serial-4"}, serials)
+	require.ElementsMatch(t, []string{"serial-0", "serial-1", "serial-2", "serial-3"}, serials)
 
-	// list serials in hosts[5,6,7,8,9] returns none
-	serials, err = ds.ListMDMAppleDEPSerialsInHostIDs(ctx, []uint{hosts[5].ID, hosts[6].ID, hosts[7].ID, hosts[8].ID, hosts[9].ID})
+	// list serials in hosts[4,5,6] returns none
+	serials, err = ds.ListMDMAppleDEPSerialsInHostIDs(ctx, []uint{hosts[4].ID, hosts[5].ID, hosts[6].ID})
 	require.NoError(t, err)
 	require.Empty(t, serials)
 
-	// list serials in all hosts returns [0-4]
+	// list serials in all hosts returns [0-3]
 	serials, err = ds.ListMDMAppleDEPSerialsInHostIDs(ctx, []uint{
 		hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID,
-		hosts[5].ID, hosts[6].ID, hosts[7].ID, hosts[8].ID, hosts[9].ID,
+		hosts[5].ID, hosts[6].ID,
 	})
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"serial-0", "serial-1", "serial-2", "serial-3", "serial-4"}, serials)
+	require.ElementsMatch(t, []string{"serial-0", "serial-1", "serial-2", "serial-3"}, serials)
 }
 
 func testMDMAppleDefaultSetupAssistant(t *testing.T, ds *Datastore) {

@@ -481,6 +481,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 			Query:          "select * from osquery;",
 			ObserverCanRun: true,
 			Saved:          true,
+			Logging:        fleet.LoggingSnapshot,
 		},
 	)
 	require.NoError(t, err)
@@ -568,7 +569,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 		require.NoError(t, err)
 	}()
 
-	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{Name: "TestQuery2", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
+	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Name:           "TestQuery2",
+		Description:    "Some description",
+		Query:          "select * from osquery;",
+		ObserverCanRun: true,
+		Logging:        fleet.LoggingSnapshot,
+	})
 	require.NoError(t, err)
 
 	tpParams := teamPolicyRequest{
@@ -1846,6 +1853,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 		Description:    "Some description",
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
+		Logging:        fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -1900,21 +1908,26 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 
 	// try with invalid token
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/policies", nil, http.StatusUnauthorized)
-	res.Body.Close()
+	err = res.Body.Close()
+	require.NoError(t, err)
 
 	// GET `/api/_version_/fleet/device/{token}/policies`
 	listDevicePoliciesResp := listDevicePoliciesResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusOK)
-	json.NewDecoder(res.Body).Decode(&listDevicePoliciesResp) //nolint:errcheck
-	res.Body.Close()                                          //nolint:errcheck
+	err = json.NewDecoder(res.Body).Decode(&listDevicePoliciesResp)
+	require.NoError(t, err)
+	err = res.Body.Close()
+	require.NoError(t, err)
 	require.Len(t, listDevicePoliciesResp.Policies, 2)
 	require.NoError(t, listDevicePoliciesResp.Err)
 
 	// GET `/api/_version_/fleet/device/{token}`
 	getDeviceHostResp := getDeviceHostResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
-	json.NewDecoder(res.Body).Decode(&getDeviceHostResp) //nolint:errcheck
-	res.Body.Close()                                     //nolint:errcheck
+	err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	require.NoError(t, err)
+	err = res.Body.Close()
+	require.NoError(t, err)
 	require.NoError(t, getDeviceHostResp.Err)
 	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
@@ -1924,8 +1937,10 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	// GET `/api/_version_/fleet/device/{token}/desktop`
 	getDesktopResp := fleetDesktopResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
-	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
-	require.NoError(t, res.Body.Close())
+	err = json.NewDecoder(res.Body).Decode(&getDesktopResp)
+	require.NoError(t, err)
+	err = res.Body.Close()
+	require.NoError(t, err)
 	require.NoError(t, getDesktopResp.Err)
 	require.Equal(t, *getDesktopResp.FailingPolicies, uint(1))
 	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
@@ -3003,8 +3018,9 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acr)
 	require.False(t, acr.WebhookSettings.VulnerabilitiesWebhook.Enable)
 	q1, err := s.ds.NewQuery(ctx, &fleet.Query{
-		Name:  "Foo",
-		Query: "SELECT * from time;",
+		Name:    "Foo",
+		Query:   "SELECT * from time;",
+		Logging: fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	ggsr := getGlobalScheduleResponse{}
@@ -4564,7 +4580,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 		NodeKey:         ptr.String("host1"),
 		UUID:            uuid.New().String(),
 		Hostname:        "host1",
-		Platform:        "windows",
+		Platform:        "darwin",
 		TeamID:          &tm1.ID,
 	})
 	require.NoError(t, err)
@@ -4579,8 +4595,38 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 		NodeKey:         ptr.String("host2"),
 		UUID:            uuid.New().String(),
 		Hostname:        "host2",
-		Platform:        "linux",
+		Platform:        "darwin",
 		TeamID:          &tm3.ID,
+	})
+	require.NoError(t, err)
+
+	// create a Windows host (unsupported)
+	host3, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String("host3"),
+		NodeKey:         ptr.String("host3"),
+		UUID:            uuid.New().String(),
+		Hostname:        "host3",
+		Platform:        "windows",
+		TeamID:          nil,
+	})
+	require.NoError(t, err)
+
+	// create a Linux host (unsupported)
+	host4, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String("host4"),
+		NodeKey:         ptr.String("host4"),
+		UUID:            uuid.New().String(),
+		Hostname:        "host4",
+		Platform:        "ubuntu",
+		TeamID:          nil,
 	})
 	require.NoError(t, err)
 
@@ -4762,6 +4808,30 @@ VALUES
 	t.Run("no scripts", func(t *testing.T) {
 		var resp getHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host2.ID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.Scripts)
+		require.Len(t, resp.Scripts, 0)
+	})
+
+	t.Run("unsupported platform windows", func(t *testing.T) {
+		require.Nil(t, host3.TeamID)
+		noTeamScripts, _, err := s.ds.ListScripts(ctx, nil, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.True(t, len(noTeamScripts) > 0)
+
+		var resp getHostScriptDetailsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host3.ID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.Scripts)
+		require.Len(t, resp.Scripts, 0)
+	})
+
+	t.Run("unsupported platform linux", func(t *testing.T) {
+		require.Nil(t, host4.TeamID)
+		noTeamScripts, _, err := s.ds.ListScripts(ctx, nil, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.True(t, len(noTeamScripts) > 0)
+
+		var resp getHostScriptDetailsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host4.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.Scripts)
 		require.Len(t, resp.Scripts, 0)
 	})
@@ -5066,14 +5136,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 	require.NoError(t, err)
 
 	// get distributed queries for the host
-	s.lq.On("QueriesForHost", linuxHost.ID).Return(map[string]string{fmt.Sprintf("%d", linuxHost.ID): "select 1 from osquery;"}, nil)
+	s.lq.On("QueriesForHost", linuxHost.ID).Return(map[string]string{t.Name(): "select 1 from osquery;"}, nil)
 	req := getDistributedQueriesRequest{NodeKey: *linuxHost.NodeKey}
 	var dqResp getDistributedQueriesResponse
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_disk_encryption_linux")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_linux")
-	require.Contains(t, dqResp.Queries, "fleet_distributed_query_21")
+	require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_distributed_query_%s", t.Name()))
 
 	spec = []byte(fmt.Sprintf(`
   name: %s
@@ -5101,5 +5171,5 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_disk_encryption_linux")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_linux")
-	require.Contains(t, dqResp.Queries, "fleet_distributed_query_21")
+	require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_distributed_query_%s", t.Name()))
 }

@@ -300,9 +300,11 @@ type agent struct {
 	UUID                  string
 	SerialNumber          string
 	ConfigInterval        time.Duration
+	LogInterval           time.Duration
 	QueryInterval         time.Duration
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
+	scheduledQueryData    []scheduledQuery
 }
 
 type entityCount struct {
@@ -325,7 +327,7 @@ func newAgent(
 	agentIndex int,
 	serverAddress, enrollSecret string,
 	templates *template.Template,
-	configInterval, queryInterval, mdmCheckInInterval time.Duration,
+	configInterval, logInterval, queryInterval, mdmCheckInInterval time.Duration,
 	softwareCount softwareEntityCount,
 	userCount entityCount,
 	policyPassProb float64,
@@ -382,6 +384,7 @@ func newAgent(
 
 		EnrollSecret:       enrollSecret,
 		ConfigInterval:     configInterval,
+		LogInterval:        logInterval,
 		QueryInterval:      queryInterval,
 		MDMCheckInInterval: mdmCheckInInterval,
 		UUID:               uuid,
@@ -398,6 +401,18 @@ type enrollResponse struct {
 
 type distributedReadResponse struct {
 	Queries map[string]string `json:"queries"`
+}
+
+type scheduledQuery struct {
+	Query            string  `json:"query"`
+	Name             string  `json:"name"`
+	ScheduleInterval float64 `json:"interval"`
+	Platform         string  `json:"platform"`
+	Version          string  `json:"version"`
+	Snapshot         bool    `json:"snapshot"`
+	NextRun          float64
+	NumResults       uint
+	PackName         string
 }
 
 func (a *agent) isOrbit() bool {
@@ -440,18 +455,57 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		go a.runMDMLoop()
 	}
 
-	configTicker := time.Tick(a.ConfigInterval)
-	liveQueryTicker := time.Tick(a.QueryInterval)
+	//
+	// osquery runs three separate independent threads,
+	//	- a thread for getting, running and submitting results for distributed queries (distributed).
+	// 	- a thread for getting configuration from a remote server (config).
+	//	- a thread for submitting log results (logger).
+	//
+	// Thus we try to simulate that as much as we can.
+
+	// distributed thread:
+	go func() {
+		liveQueryTicker := time.Tick(a.QueryInterval)
+		for {
+			select {
+			case <-liveQueryTicker:
+				resp, err := a.DistributedRead()
+				if err != nil {
+					log.Println(err)
+				} else if len(resp.Queries) > 0 {
+					a.DistributedWrite(resp.Queries)
+				}
+			}
+		}
+	}()
+
+	// config thread:
+	go func() {
+		for {
+			configTicker := time.Tick(a.ConfigInterval)
+			select {
+			case <-configTicker:
+				a.config()
+			}
+		}
+	}()
+
+	// logger thread:
 	for {
+		logTicker := time.Tick(a.LogInterval)
 		select {
-		case <-configTicker:
-			a.config()
-		case <-liveQueryTicker:
-			resp, err := a.DistributedRead()
-			if err != nil {
-				log.Println(err)
-			} else if len(resp.Queries) > 0 {
-				a.DistributedWrite(resp.Queries)
+		case <-logTicker:
+			// check if we have any scheduled queries that should be returning results
+			var results []json.RawMessage
+			now := time.Now().Unix()
+			for i, query := range a.scheduledQueryData {
+				if query.NextRun == 0 || now >= int64(query.NextRun) {
+					results = append(results, a.scheduledQueryResults(query.PackName, query.Name, int(query.NumResults)))
+					a.scheduledQueryData[i].NextRun = float64(now + int64(query.ScheduleInterval))
+				}
+			}
+			if len(results) > 0 {
+				a.SubmitLogs(results)
 			}
 		}
 	}
@@ -804,12 +858,35 @@ func (a *agent) config() {
 	}
 
 	var scheduledQueries []string
+	var scheduledQueryData []scheduledQuery
 	for packName, pack := range parsedResp.Packs {
-		for queryName := range pack.Queries {
+		for queryName, query := range pack.Queries {
 			scheduledQueries = append(scheduledQueries, packName+"_"+queryName)
+			m, ok := query.(map[string]interface{})
+			if !ok {
+				log.Fatalf("processing scheduled query failed: %v\n", query)
+			}
+
+			q := scheduledQuery{}
+			q.PackName = packName
+			q.Name = queryName
+			q.NumResults = 1
+			parts := strings.Split(q.Name, "_")
+			if len(parts) == 2 {
+				num, err := strconv.ParseInt(parts[1], 10, 32)
+				if err != nil {
+					num = 1
+				}
+				q.NumResults = uint(num)
+			}
+			q.ScheduleInterval = m["interval"].(float64)
+			q.Query = m["query"].(string)
+			scheduledQueryData = append(scheduledQueryData, q)
+
 		}
 	}
 	a.scheduledQueries = scheduledQueries
+	a.scheduledQueryData = scheduledQueryData
 }
 
 const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
@@ -1371,6 +1448,86 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	// No need to read the distributed write body
 }
 
+func (a *agent) scheduledQueryResults(packName, queryName string, numResults int) json.RawMessage {
+	return json.RawMessage(`{
+  "snapshot": [` + results(numResults, a.UUID) + `
+  ],
+  "action": "snapshot",
+  "name": "pack/` + packName + `/` + queryName + `",
+  "hostIdentifier": "` + a.UUID + `",
+  "calendarTime": "Fri Oct  6 18:13:04 2023 UTC",
+  "unixTime": 1696615984,
+  "epoch": 0,
+  "counter": 0,
+  "numerics": false,
+  "decorations": {
+    "host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
+    "hostname": "` + a.CachedString("hostname") + `"
+  }
+}`)
+}
+
+func (a *agent) SubmitLogs(results []json.RawMessage) {
+	jsonResults, err := json.Marshal(results)
+	if err != nil {
+		panic(err)
+	}
+	type submitLogsRequest struct {
+		NodeKey string          `json:"node_key"`
+		LogType string          `json:"log_type"`
+		Data    json.RawMessage `json:"data"`
+	}
+	r := submitLogsRequest{
+		NodeKey: a.nodeKey,
+		LogType: "result",
+		Data:    jsonResults,
+	}
+
+	body, err := json.Marshal(r)
+	if err != nil {
+		panic(err)
+	}
+
+	req := fasthttp.AcquireRequest()
+	req.SetBody(body)
+	req.Header.SetMethod("POST")
+	req.Header.SetContentType("application/json")
+	req.Header.Add("User-Agent", "osquery/5.0.1")
+	req.SetRequestURI(a.serverAddress + "/api/osquery/log")
+	res := fasthttp.AcquireResponse()
+
+	a.waitingDo(req, res)
+
+	fasthttp.ReleaseRequest(req)
+	defer fasthttp.ReleaseResponse(res)
+}
+
+// Creates a set of results for use in tests for Query Results.
+func results(num int, hostUUID string) string {
+	b := strings.Builder{}
+	for i := 0; i < num; i++ {
+		b.WriteString(`    {
+      "build_distro": "centos7",
+      "build_platform": "linux",
+      "config_hash": "eed0d8296e5f90b790a23814a9db7a127b13498d",
+      "config_valid": "1",
+      "extensions": "active",
+      "instance_id": "e5799132-85ab-4cfa-89f3-03e0dd3c509a",
+      "pid": "3574",
+      "platform_mask": "9",
+      "start_time": "1696502961",
+      "uuid": "` + hostUUID + `",
+      "version": "5.9.2",
+      "watcher": "3570"
+    }`)
+		if i != num-1 {
+			b.WriteString(",")
+		}
+	}
+
+	return b.String()
+}
+
 func main() {
 	validTemplateNames := map[string]bool{
 		"mac10.14.6.tmpl":   true,
@@ -1383,12 +1540,15 @@ func main() {
 	}
 
 	var (
-		serverURL           = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
-		enrollSecret        = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
-		hostCount           = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
-		randSeed            = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
-		startPeriod         = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
-		configInterval      = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		serverURL      = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
+		enrollSecret   = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
+		hostCount      = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
+		randSeed       = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
+		startPeriod    = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
+		configInterval = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		// Flag logger_tls_period defines how often to check for sending scheduled query results.
+		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
+		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
 		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 10*time.Second, "Interval for performing MDM check ins")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
@@ -1512,6 +1672,7 @@ func main() {
 			*enrollSecret,
 			tmpl,
 			*configInterval,
+			*logInterval,
 			*queryInterval,
 			*mdmCheckInInterval,
 			softwareEntityCount{

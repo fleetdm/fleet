@@ -39,6 +39,7 @@ const DEFAULT_HOST_MDM_DATA: IHostMdmData = {
   os_settings: {
     disk_encryption: {
       status: "verified",
+      detail: "",
     },
   },
   macos_settings: {

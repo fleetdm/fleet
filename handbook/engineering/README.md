@@ -24,22 +24,8 @@ The 🚀 Engineering department at Fleet is directly responsible for writing and
 - If urgent, or if you need help submiting an issue, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel.
 - Any Fleet team member can view the dedicated sprint boards managed by this department:
   - 💻 [MDM (#g-mdm)](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board)
-  - 🌟 [Customer experience (#g-cx)](https://app.zenhub.com/workspaces/-g-cx-current-sprint-63bd7e0bf75dba002a2343ac/board)
+  - 🌟 [Endpoint ops (#g-endpoint-ops)](https://app.zenhub.com/workspaces/-g-endpoint-ops-current-sprint-63bd7e0bf75dba002a2343ac/board)
   - ⚙️ [Infra (#g-infra)](https://app.zenhub.com/workspaces/-g-infra-642c83a53e96760014c978bd/board)
-
-<!--
-
-| Slack channel        | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels) |
-| :------------------- | :------------------------------------------------------------------- |
-| `#help-engineering`      | Zach Wasserman                                                   |
-| `#g-mdm`                 | George Karr                                                      |
-| `#g-customer-experience` | Sharon Katz                                                      |
-| `#g-infra`               | Luke Heath                                                       |
-| `#help-qa`               | Reed Haynes                                                      |
-| `#_pov-environments`     | Ben Edwards                                                      |
-
--->
-
 
 ## Scrum at Fleet
 - [Sprint ceremonies](#sprint-ceremonies)
@@ -64,17 +50,14 @@ Our scrum boards are exclusively composed of four types of scrum items:
 
 > Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these four types of scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
 
-
 ### Sprint ceremonies
 Each sprint is marked by five essential ceremonies:
 
 1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, select items from the backlog to work on. The team then commits to completing these items within the sprint.
 2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required partipants. 
 3. **Weekly estimation sessions**: The team estimates backlog items once a week (three times per sprint). These sessions help to schedule work completion and align the roadmap with business needs. They also provide estimated work units for upcoming sprints. The EM is responsible for the point values assigned to each item and ensures they are as realistic as possible.
-4. **Sprint demo**: On the last day of each sprint, all engineering teams and stakeholders come together to review completed work. Engineers are allotted 3-10 minutes to present their accomplishments, as well as any pending tasks. (These meetings are recorded and posted publicly to YouTube or other platforms, so participants should avoid mentioning customer names.  For example, instead of "Fastly", you can say "a publicly-traded hosting company", or use the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)
+4. **Sprint demo**: On the last day of each sprint, all engineering teams and stakeholders come together to review the next release. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they have contributed to the upcoming release. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. Features should show what is capable and bugs should identify how this might have impacted existing customers and how this resolution fixed that. (These meetings are recorded and posted publicly to YouTube or other platforms, so participants should avoid mentioning customer names.  For example, instead of "Fastly", you can say "a publicly-traded hosting company", or use the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)
 5. **Sprint retrospective**: Also held on the last day of the sprint, this meeting encourages discussions among the team and stakeholders around three key areas: what went well, what could have been better, and what the team learned during the sprint.
-
-
 
 ## Meetings
 - [Goals](#goals)
@@ -83,8 +66,6 @@ Each sprint is marked by five essential ceremonies:
 - [User story discovery](#user-story-discovery)
 - [Eng together](#eng-together)
 - [Group weeklies](#group-weeklies)
-- [Eng leadership weekly](#eng-leadership)
-- [Eng product bi-weekly](#eng-product-bi-weekly)
 - [Product development process review](#product-development-process-review)
 
 ### Principles
@@ -138,54 +119,6 @@ Anyone who wishes to participate.
 - Discuss common patterns and conventions in the codebase
 - Review difficult frontend bugs
 - Write engineering-initiated stories
-
-### Eng leadership weekly
-Engineering leaders discuss topics of importance that week. Prepare agenda, announcements, and tech talks before the monthly [Eng Together](#eng-together) meeting.
-
-#### Participants
-- Engineering Managers
-- Director of Product Development
-- CTO
-
-#### Rituals
-1. Review Engineering KPIs.
-2. Review each product group's ZenHub board.
-3. Proceed to agenda. 
-
-#### Sample agenda
-- Engineer hiring
-- Process discussion
-- New documentation needs
-
-### Eng product bi-weekly
-Engineering and product bi-weekly sync to discuss process, roadmap, and scheduling.
-
-#### Participants
-- Head of Product
-- Product Managers (optional)
-- CTO
-- Director of Product Development
-- Engineering Managers (optional)
-
-#### Sample agenda
-- Product to engineering handoff process
-- Q4 product roadmap
-- Optimizing development processes
-
-### Product development process review
-A once-per-sprint review of the bugs, drafting, and sprint boards to make sure that the current state of the boards reflects the process as defined in the handbook, or if any changes are needed to the documented process. 
-
-#### Participants
-- CEO
-- Head of Product
-- Product Operations
-- Director of Product Development
-
-#### Sample agenda
-- Review bugs board
-- Review drafting board
-- Review sprint boards
-- How is the process working? Are any changes needed? 
 
 ## Engineering-initiated stories
 - [Creating an engineering-initiated story](#creating-an-engineering-initiated-story)
@@ -249,7 +182,7 @@ Before kicking off release QA, confirm that we are using the latest versions of 
 Our goal is to keep these dependencies up-to-date with each release of Fleet. If a release is going out with an old dependency version, it should be treated as a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs) to make sure it is updated before the release is published.
 
 #### Create release QA issue
-Next, create a new GitHub issue using the [Release QA template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&projects=&template=smoke-tests.md&title=). Add the release version to the title, and assign the quality assurance members of the [MDM](https://fleetdm.com/handbook/company/development-groups#mdm-group) and [CX](https://fleetdm.com/handbook/company/development-groups#customer-experience-group) product groups.
+Next, create a new GitHub issue using the [Release QA template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&projects=&template=smoke-tests.md&title=). Add the release version to the title, and assign the quality assurance members of the [MDM](https://fleetdm.com/handbook/company/development-groups#mdm-group) and [Endpoint ops](https://fleetdm.com/handbook/company/product-groups#endpoint-ops-group) product groups.
 
 ### Merging during the freeze period
 We merge bug fixes and documentation changes during the freeze period, but we do not merge other code changes. This minimizes code churn and helps ensure a stable release. To merge a bug fix, you must first unfreeze the PR in [Merge Freeze](https://app.mergefreeze.com/installations/3704/branches), and click the "Unfreeze 1 pull request" text link. 
@@ -290,7 +223,7 @@ Immediately after publishing a new release, we close out the associated GitHub i
 1. **Rename current milestone**: In GitHub, [change the current milestone name](https://github.com/fleetdm/fleet/milestones) from `4.x.x-tentative` to `4.x.x`. `4.37.0-tentative` becomes `4.37.0`.
 
 ### ZenHub housekeeping
-2. **Update product group boards**: In ZenHub, go to each product group board tracking the current release. Usually, these are [#g-cx](https://app.zenhub.com/workspaces/-g-cx-current-sprint-63bd7e0bf75dba002a2343ac/board) and [#g-mdm](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board).
+2. **Update product group boards**: In ZenHub, go to each product group board tracking the current release. Usually, these are [#g-endpoint-ops](https://app.zenhub.com/workspaces/-g-endpoint-ops-current-sprint-63bd7e0bf75dba002a2343ac/board) and [#g-mdm](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board).
 
 3. **Remove milestone from unfinished items**: If you see any items in columns other than "Ready for release" tagged with the current milestone, remove that milestone tag. These items didn't make it into the release.
 
@@ -350,17 +283,19 @@ PRs should remain in draft until they are ready to be reviewed for final approva
 All PRs from the community are routed through the oncall engineer. For documentation changes, the community contact ([Kathy](https://github.com/ksatter)) is assigned by the oncall engineer. For code changes, if the oncall engineer has the knowledge and confidence to review, they should do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the oncall engineer's responsibility to monitor community PRs and make sure that they are moved forward (either by review with feedback or merge).
 
 #### Customer success meetings
-The oncall engineer is encouraged to attend some of the customer success meetings during the week. Post a message to the #g-cx Slack channel requesting invitations to upcoming meetings.
+The oncall engineer is encouraged to attend some of the customer success meetings during the week. Post a message to the #g-endpoint-ops Slack channel requesting invitations to upcoming meetings.
 
 This has a dual purpose of providing more context for how our customers use Fleet. The engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or organizer of the call).
 
 #### Improve documentation
-The oncall engineer is asked to read, understand, test, correct, and improve at least one doc page per week. Our goal is to 1, ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected. And 2, improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. See [Writing documentation](https://fleetdm.com/handbook/marketing#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. A backlog of documentation improvement needs is kept [here](https://github.com/orgs/fleetdm/projects/40/views/10).
+The oncall engineer is asked to read, understand, test, correct, and improve at least one doc page per week. Our goal is to 1, ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected. And 2, improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. See [Writing documentation](https://fleetdm.com/handbook/marketing#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. A backlog of documentation improvement needs is kept [here](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22).
 
 ### Clearing the plate
 Engineering managers are asked to be aware of the [oncall rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are oncall. While it varies week to week considerably, the oncall responsibilities can sometimes take up a substantial portion of the engineer's time.
 
-The remaining time after fulfilling the responsibilities of oncall is free for the engineer to choose their own path. Please choose something relevant to your work or Fleet's goals to focus on. If unsure, feel free to speak with your manager.
+We aspire to clear sprint work for the oncall engineer, but due to capacity or other constraints, sometimes the oncall engineer is required for sprint work. When this is the case, the EM will work with the oncall engineer to take over support requests or @oncall assignment completely when necessary.
+
+The remaining time after fulfilling the responsibilities of oncall is free for the engineer to choose their own path. Please choose something relevant to your work or Fleet's goals to focus on. If unsure, speak with your manager.
 
 Some ideas:
 
@@ -368,9 +303,7 @@ Some ideas:
 - Improve the Fleet developer experience.
 - Hack on a product idea. Note: Experiments are encouraged, but not all experiments will ship! Check in with the product team before shipping user-visible changes.
 - Create a blog post (or other content) for fleetdm.com.
-- Try out an experimental refactor.
-
-At the end of your oncall shift, you will be asked to share about how you spent your time.
+- Try out an experimental refactor. 
 
 ### How to reach the oncall engineer
 Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineering` to get the attention of the oncall engineer to continue discussing any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor. In others, the oncall engineer will communicate directly (team members should use their judgment and discuss on a case-by-case basis how to best communicate with community members and customers).
@@ -582,7 +515,7 @@ QA may also propose that a reported bug is not actually a bug. A bug is defined 
 #### Reproduced
 QA has reproduced the issue successfully. It should now be transferred to engineering.
 
-Remove the “reproduce” label, add the label of the relevant team (e.g. #g-cx, #g-mdm, #g-infra, #g-website), and assign it to the relevant engineering manager. (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+sort%3Aupdated-asc+).
+Remove the “reproduce” label, add the label of the relevant team (e.g. #g-endpoint-ops, #g-mdm, #g-infra, #g-website), and assign it to the relevant engineering manager. (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+sort%3Aupdated-asc+).
 
 ##### Fast track for Fleeties
 Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
@@ -599,12 +532,12 @@ When fixing the bug, if the proposed solution requires changes that would affect
 
 Engineering teams coordinate on bug fixes with the product team during the joint sprint kick-off review. If one team is at capacity and a bug needs attention, another team can step in to assist by following these steps:
 
-For MDM support on CX bugs:
-- Remove the `#g-cx` label and add `#g-mdm` label.
-- Add `~assisting g-cx` to clarify the bug’s origin.
+For MDM support on Endpoint ops bugs:
+- Remove the `#g-endpoint-ops` label and add `#g-mdm` label.
+- Add `~assisting g-endpoint-ops` to clarify the bug’s origin.
 
-For CX support on MDM bugs:
-- Remove the `#g-mdm` label and add `#g-cx` label.
+For Endpoint ops support on MDM bugs:
+- Remove the `#g-mdm` label and add `#g-endpoint-ops` label.
 - Add `~assisting g-mdm` to clarify the bug’s origin.
 
 
@@ -648,13 +581,13 @@ A critical bug is a bug with the `~critical bug` label. A critical bug is define
 We need to inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm.
 Raising an alarm means pinging @here in the #help-product channel with the filed bug.
 
-If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. (We would expect this to be customer experience in the community Slack or QA in the bug inbox, though it could be anyone.)
+If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. (We would expect this to be Customer success in the community Slack or QA in the bug inbox, though it could be anyone.)
 Note that the bug finder here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical, but it has not been escalated, raise the alarm!
 
 Once raised, product confirms whether or not it's critical and defines expected behavior.
 When outside of working hours for the product team or if no one from product responds within 1 hour, then fall back to the #help-p1.
 
-Once the critical bug is confirmed, customer experience needs to ping both customers and the community to warn them. If CX is not available, the oncall engineer is responsible for doing this.
+Once the critical bug is confirmed, Customer success needs to ping both customers and the community to warn them. If Customer success is not available, the oncall engineer is responsible for doing this.
 If a quick fix workaround exists, that should be communicated as well for those who are already upgraded.
 
 When a critical bug is identified, we will then follow the patch release process in [our documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#patch-releases).
@@ -751,12 +684,45 @@ When this occurs, we will begin receiving the following error message when attem
 
 5. Accept the new terms of service.
 
-
 ## Responsibilities
 
-TODO
-
 > work in progress, contributions welcome, please just make only one small change at a time per PR.  See https://fleetdm.com/handbook/company/leadership#vision-for-dept-handbook-pages for info
+
+### Interview a developer candidate
+
+As a hiring manager we want to ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications). Once the position is approved manage this process per candidate in [hiring pipeline](https://drive.google.com/drive/folders/1dLZaor9dQmAxcxyU6prm-MWNd-C-U8_1?usp=drive_link)
+
+1. **Reach out**: If you are not already the primary contact with this candidate send an email or linkedin message introducing yourself and the intent that you would like the start the interview process including the link to the position and asking if they are comfortable with completing a coding exercise.
+2. **Deliver code prompt**: After recieving confirmation that they are interested download the zip of the [code challenge](https://github.com/fleetdm/wordgame) and ask them to complete this and send their entry back within 5 business days.
+3. **Test code prompt**: Verify the code runs and can complete the challenge correctly. Check the code for good style and tests that match our standards here at Fleet.
+4. **Schedule manager interview**: Send the candidate a calendly link for 1hr to talk to you and screen them if they are a good fit for this role and our culture.
+5. **Schedule technical interview**: Send the candidate a calendly link for 1hr to talk to a senior engineer on your team where the goal is to understand the thechnical capabilities of the candidate. An additional engineer can optionally join if available.
+6. **Schedule DOPD interview**: Send the candidate a calendly link for 30m talk to the Director of Product Development @lukeheath.
+7. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @zwass.
+
+If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
+
+
+### Renew MDM certificate signing request (CSR) 
+
+The certificate signing request (CSR) certificate expires every year. It needs to be renewed prior to expiring. This is notified to the team by the MDM calendar event [IMPORTANT: Renew MDM CSR certificate](https://calendar.google.com/calendar/event?action=TEMPLATE&tmeid=NHM3YzZja2FoZTA4bm9jZTE3NWFvMTduMTlfMjAyNDA5MTFUMTczMDAwWiBjXzI0YjkwMjZiZmIzZDVkMDk1ZGQzNzA2ZTEzMWQ3ZjE2YTJmNDhjN2E1MDU1NDcxNzA1NjlmMDc4ODNiNmU3MzJAZw&tmsrc=c_24b9026bfb3d5d095dd3706e131d7f16a2f48c7a505547170569f07883b6e732%40group.calendar.google.com&scp=ALL)
+
+Steps to renew the certificate:
+
+1. Visit the [Apple developer account login page](https://appleid.apple.com/account?appId=632&returnUrl=https%3A%2F%2Fdeveloper.apple.com%2Fcontact%2F).
+2. Log in using the credentials stored in 1Password under **Apple developer account**.
+3. Verify you are using the **Enterprise** subaccount for Fleet Device Management Inc.
+4. Generate a new certificate following the instructions in [MicroMDM](https://github.com/micromdm/micromdm/blob/c7e70b94d0cfc7710e5c92be20d4534d9d5a0640/docs/user-guide/quickstart.md?plain=1#L103-L118).
+5. Note: `mdmctl` will generate a `VendorPrivateKey.key` and `VendorCertificateRequest.csr` using `billing@...` and a passphrase (suggested generation method with pwgen available in brew / apt / yum `pwgen -s 32 -1vcy`)
+6. Uploading `VendorCertificateRequest.csr` to Apple you will download a corresponding `mdm.cer` file
+7. Convert the downloaded cert to PEM with `openssl x509 -inform DER -outform PEM -in mdm.cer -out server.crt.pem`
+8. Update the **Config vars** in [Heroku](https://dashboard.heroku.com/apps/production-fleetdm-website/settings):
+* Update `sails_custom__mdmVendorCertPem` with the results from step 7 `server.crt.pem`
+* Update `sails_custom__mdmVendorKeyPassphrase` with the passphrase used in step 4
+* Update `sails_custom__mdmVendorKeyPem` with `VendorPrivateKey.key` from step 4
+9. Store updated values in [Confidential 1Password Vault](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=lcvkjobeheaqdgnz33ontpuhxq&i=byyfn2knejwh42a2cbc5war5sa&h=fleetdevicemanagement.1password.com)
+10. Verify by logging into a normal apple account (not billing@...) and Generate a new Push Certificate following our [setup MDM](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#step-2-generate-an-apns-certificate) steps and verify the Expiration date is 1 year from today.
+11. Adjust calendar event to be between 2-4 weeks before the next expiration.
 
 ## Rituals
 <rituals :rituals="rituals['handbook/engineering/engineering.rituals.yml']"></rituals>

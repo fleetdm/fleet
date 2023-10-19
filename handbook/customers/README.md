@@ -130,7 +130,7 @@ What is it like to be a Solutions Consultant at Fleet? What do you do every day?
 * Be a prospect. Sign up for a sandbox trial. What makes sense? What doesn't? Document. 
 * Understand Fleet value drivers. Why do Fleet Community users want to give us money to upgrade to Premium? 
 * Complete consensus training videos (see the "Description" field in the `#help-consensus-tool` slack channel.
-* Review [gong](gong.io) calls.
+* Review [gong](https://gong.io) calls.
 * Get trained on [Demo2Win](https://2winglobal.com/about-you/pre-sales/)
 
 ### Within 60 days -- synthesize
@@ -282,7 +282,7 @@ To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) 
     - Confirm that contact information is accurate and that the customer can receive and access meeting invites.
 
 ### Close a new customer deal
-To close a deal with a new customer (non-self-service), create a GitHub issue using the ["Sale" issue template](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn%2Czayhanlon&labels=project%2C%23cx%2C%23sales%2C%23business-operations&template=3-sale.md&title=New+customer%3A+_____________) and follow the steps.
+To close a deal with a new customer (non-self-service), create a GitHub issue using the ["Sale" issue template](https://github.com/fleetdm/confidential/issues/new?assignees=hughestaylor&labels=%23g-business-operations&projects=&template=3-sale.md&title=New+customer%3A+_____________) and follow the steps.
 
 > TODO: dedupe between this section and the "Sale" issue template
 

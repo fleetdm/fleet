@@ -56,11 +56,11 @@ type PendingEmailChangeFunc func(ctx context.Context, userID uint, newEmail stri
 
 type ConfirmPendingEmailChangeFunc func(ctx context.Context, userID uint, token string) (string, error)
 
-type ApplyQueriesFunc func(ctx context.Context, authorID uint, queries []*fleet.Query) error
+type ApplyQueriesFunc func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]bool) error
 
 type NewQueryFunc func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
-type SaveQueryFunc func(ctx context.Context, query *fleet.Query) error
+type SaveQueryFunc func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool) error
 
 type DeleteQueryFunc func(ctx context.Context, teamID *uint, name string) error
 
@@ -70,11 +70,13 @@ type QueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
 type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error)
 
-type ListScheduledQueriesForAgentsFunc func(ctx context.Context, teamID *uint) ([]*fleet.Query, error)
+type ListScheduledQueriesForAgentsFunc func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error)
 
 type QueryByNameFunc func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
 type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
+
+type CleanupGlobalDiscardQueryResultsFunc func(ctx context.Context) error
 
 type NewDistributedQueryCampaignFunc func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
 
@@ -293,6 +295,14 @@ type ScheduledQueryFunc func(ctx context.Context, id uint) (*fleet.ScheduledQuer
 type CleanupExpiredHostsFunc func(ctx context.Context) ([]uint, error)
 
 type ScheduledQueryIDsByNameFunc func(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
+
+type QueryResultRowsFunc func(ctx context.Context, queryID uint) ([]*fleet.ScheduledQueryResultRow, error)
+
+type ResultCountForQueryFunc func(ctx context.Context, queryID uint) (int, error)
+
+type ResultCountForQueryAndHostFunc func(ctx context.Context, queryID uint, hostID uint) (int, error)
+
+type OverwriteQueryResultRowsFunc func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error
 
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
@@ -680,7 +690,7 @@ type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, md
 
 type GetMDMWindowsBitLockerSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error)
 
-type GetMDMWindowsBitLockerStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.DiskEncryptionStatus, error)
+type GetMDMWindowsBitLockerStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error)
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
@@ -791,6 +801,9 @@ type DataStore struct {
 
 	ObserverCanRunQueryFunc        ObserverCanRunQueryFunc
 	ObserverCanRunQueryFuncInvoked bool
+
+	CleanupGlobalDiscardQueryResultsFunc        CleanupGlobalDiscardQueryResultsFunc
+	CleanupGlobalDiscardQueryResultsFuncInvoked bool
 
 	NewDistributedQueryCampaignFunc        NewDistributedQueryCampaignFunc
 	NewDistributedQueryCampaignFuncInvoked bool
@@ -1118,6 +1131,18 @@ type DataStore struct {
 
 	ScheduledQueryIDsByNameFunc        ScheduledQueryIDsByNameFunc
 	ScheduledQueryIDsByNameFuncInvoked bool
+
+	QueryResultRowsFunc        QueryResultRowsFunc
+	QueryResultRowsFuncInvoked bool
+
+	ResultCountForQueryFunc        ResultCountForQueryFunc
+	ResultCountForQueryFuncInvoked bool
+
+	ResultCountForQueryAndHostFunc        ResultCountForQueryAndHostFunc
+	ResultCountForQueryAndHostFuncInvoked bool
+
+	OverwriteQueryResultRowsFunc        OverwriteQueryResultRowsFunc
+	OverwriteQueryResultRowsFuncInvoked bool
 
 	NewTeamFunc        NewTeamFunc
 	NewTeamFuncInvoked bool
@@ -1691,9 +1716,9 @@ type DataStore struct {
 
 	MDMWindowsGetEnrolledDeviceWithDeviceIDFunc        MDMWindowsGetEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsGetEnrolledDeviceWithDeviceIDFuncInvoked bool
-	
+
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc        MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc
-	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked bool	
+	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked bool
 
 	GetMDMWindowsBitLockerSummaryFunc        GetMDMWindowsBitLockerSummaryFunc
 	GetMDMWindowsBitLockerSummaryFuncInvoked bool
@@ -1870,11 +1895,11 @@ func (s *DataStore) ConfirmPendingEmailChange(ctx context.Context, userID uint, 
 	return s.ConfirmPendingEmailChangeFunc(ctx, userID, token)
 }
 
-func (s *DataStore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query) error {
+func (s *DataStore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]bool) error {
 	s.mu.Lock()
 	s.ApplyQueriesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ApplyQueriesFunc(ctx, authorID, queries)
+	return s.ApplyQueriesFunc(ctx, authorID, queries, queriesToDiscardResults)
 }
 
 func (s *DataStore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
@@ -1884,11 +1909,11 @@ func (s *DataStore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fl
 	return s.NewQueryFunc(ctx, query, opts...)
 }
 
-func (s *DataStore) SaveQuery(ctx context.Context, query *fleet.Query) error {
+func (s *DataStore) SaveQuery(ctx context.Context, query *fleet.Query, shouldDiscardResults bool) error {
 	s.mu.Lock()
 	s.SaveQueryFuncInvoked = true
 	s.mu.Unlock()
-	return s.SaveQueryFunc(ctx, query)
+	return s.SaveQueryFunc(ctx, query, shouldDiscardResults)
 }
 
 func (s *DataStore) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
@@ -1919,11 +1944,11 @@ func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions)
 	return s.ListQueriesFunc(ctx, opt)
 }
 
-func (s *DataStore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+func (s *DataStore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 	s.mu.Lock()
 	s.ListScheduledQueriesForAgentsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListScheduledQueriesForAgentsFunc(ctx, teamID)
+	return s.ListScheduledQueriesForAgentsFunc(ctx, teamID, queryReportsDisabled)
 }
 
 func (s *DataStore) QueryByName(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
@@ -1938,6 +1963,13 @@ func (s *DataStore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool
 	s.ObserverCanRunQueryFuncInvoked = true
 	s.mu.Unlock()
 	return s.ObserverCanRunQueryFunc(ctx, queryID)
+}
+
+func (s *DataStore) CleanupGlobalDiscardQueryResults(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupGlobalDiscardQueryResultsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupGlobalDiscardQueryResultsFunc(ctx)
 }
 
 func (s *DataStore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
@@ -2701,6 +2733,34 @@ func (s *DataStore) ScheduledQueryIDsByName(ctx context.Context, batchSize int, 
 	s.ScheduledQueryIDsByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.ScheduledQueryIDsByNameFunc(ctx, batchSize, packAndSchedQueryNames...)
+}
+
+func (s *DataStore) QueryResultRows(ctx context.Context, queryID uint) ([]*fleet.ScheduledQueryResultRow, error) {
+	s.mu.Lock()
+	s.QueryResultRowsFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueryResultRowsFunc(ctx, queryID)
+}
+
+func (s *DataStore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
+	s.mu.Lock()
+	s.ResultCountForQueryFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResultCountForQueryFunc(ctx, queryID)
+}
+
+func (s *DataStore) ResultCountForQueryAndHost(ctx context.Context, queryID uint, hostID uint) (int, error) {
+	s.mu.Lock()
+	s.ResultCountForQueryAndHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResultCountForQueryAndHostFunc(ctx, queryID, hostID)
+}
+
+func (s *DataStore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	s.mu.Lock()
+	s.OverwriteQueryResultRowsFuncInvoked = true
+	s.mu.Unlock()
+	return s.OverwriteQueryResultRowsFunc(ctx, rows)
 }
 
 func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -4012,11 +4072,11 @@ func (s *DataStore) WSTEPAssociateCertHash(ctx context.Context, deviceUUID strin
 	return s.WSTEPAssociateCertHashFunc(ctx, deviceUUID, hash)
 }
 
-func (s *DataStore) MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceHWID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+func (s *DataStore) MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	s.mu.Lock()
 	s.MDMWindowsGetEnrolledDeviceFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsGetEnrolledDeviceFunc(ctx, mdmDeviceHWID)
+	return s.MDMWindowsGetEnrolledDeviceFunc(ctx, mdmDeviceID)
 }
 
 func (s *DataStore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
@@ -4026,11 +4086,11 @@ func (s *DataStore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *
 	return s.MDMWindowsInsertEnrolledDeviceFunc(ctx, device)
 }
 
-func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceHWID string) error {
+func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error {
 	s.mu.Lock()
 	s.MDMWindowsDeleteEnrolledDeviceFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceHWID)
+	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceID)
 }
 
 func (s *DataStore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
@@ -4054,7 +4114,7 @@ func (s *DataStore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *u
 	return s.GetMDMWindowsBitLockerSummaryFunc(ctx, teamID)
 }
 
-func (s *DataStore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fleet.Host) (*fleet.DiskEncryptionStatus, error) {
+func (s *DataStore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 	s.mu.Lock()
 	s.GetMDMWindowsBitLockerStatusFuncInvoked = true
 	s.mu.Unlock()

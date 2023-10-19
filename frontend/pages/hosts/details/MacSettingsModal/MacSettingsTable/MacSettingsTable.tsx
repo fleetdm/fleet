@@ -1,12 +1,12 @@
 import React from "react";
 import TableContainer from "components/TableContainer";
 
-import tableHeaders, { IMacSettingsTableRow } from "./MacSettingsTableConfig";
+import tableHeaders, { ITableRowOsSettings } from "./MacSettingsTableConfig";
 
 const baseClass = "macsettings-table";
 
 interface IMacSettingsTableProps {
-  tableData?: IMacSettingsTableRow[];
+  tableData?: ITableRowOsSettings[];
 }
 
 const MacSettingsTable = ({ tableData }: IMacSettingsTableProps) => {

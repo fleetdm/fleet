@@ -96,6 +96,7 @@ type MacDiskEncryptionActionRequired = "log_out" | "rotate_key" | null;
 export interface IOSSettings {
   disk_encryption: {
     status: DiskEncryptionStatus | null;
+    detail: string;
   };
 }
 

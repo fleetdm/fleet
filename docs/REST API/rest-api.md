@@ -827,6 +827,7 @@ None.
   "server_settings": {
     "server_url": "https://localhost:8080",
     "live_query_disabled": false,
+    "query_reports_disabled": false,
     "enable_analytics": true
   },
   "smtp_settings": {
@@ -1021,6 +1022,7 @@ Modifies the Fleet's configuration with the supplied information.
 | contact_url                       | string  | body  | _Organization information_. A URL that can be used by end users to contact the organization.                                                                                          |
 | server_url                        | string  | body  | _Server settings_. The Fleet server URL.                                                                                                                                               |
 | live_query_disabled               | boolean | body  | _Server settings_. Whether the live query capabilities are disabled.                                                                                                                   |
+| query_reports_disabled            | boolean | body  | _Server settings_. Whether query report capabilities are disabled.                                                                                                                   |
 | enable_smtp                       | boolean | body  | _SMTP settings_. Whether SMTP is enabled for the Fleet app.                                                                                                                            |
 | sender_address                    | string  | body  | _SMTP settings_. The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
 | server                            | string  | body  | _SMTP settings_. The SMTP server for the Fleet app.                                                                                                                                    |
@@ -1117,7 +1119,8 @@ Note that when making changes to the `integrations` object, all integrations mus
   },
   "server_settings": {
     "server_url": "https://localhost:8080",
-    "live_query_disabled": false
+    "live_query_disabled": false,
+    "query_reports_disabled": false
   },
   "smtp_settings": {
     "enable_smtp": true,
@@ -4915,11 +4918,11 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 ### Add policy
 
 There are two ways of adding a policy:
-1. by setting "name", "query", "description". This is the preferred way.
-2. (Legacy) re-using the data of an existing query, by setting "query_id". If "query_id" is set,
-then "query" must not be set, and "name" and "description" are ignored.
+1. Preferred: By setting `name`, `query`, and `description`.
+2. Legacy: By setting `query_id` to reuse the data of an existing query. If `query_id` is set,
+then `query` must not be set, and `name` and `description` are ignored.
 
-An error is returned if both "query" and "query_id" are set on the request.
+An error is returned if both `query` and `query_id` are set on the request.
 
 `POST /api/v1/fleet/global/policies`
 
@@ -4933,11 +4936,11 @@ An error is returned if both "query" and "query_id" are set on the request.
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
+| critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
 
 Either `query` or `query_id` must be provided.
 
-#### Example Add Policy
+#### Example (preferred)
 
 `POST /api/v1/fleet/global/policies`
 
@@ -4980,7 +4983,7 @@ Either `query` or `query_id` must be provided.
 }
 ```
 
-#### Example Legacy Add Policy
+#### Example (legacy)
 
 `POST /api/v1/fleet/global/policies`
 
@@ -5068,7 +5071,7 @@ Where `query_id` references an existing `query`.
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
-#### Example Edit Policy
+#### Example
 
 `PATCH /api/v1/fleet/global/policies/42`
 
@@ -5111,11 +5114,9 @@ Where `query_id` references an existing `query`.
 }
 ```
 
-### Run Automation for all failing hosts of a policy.
+### Run automation for all failing hosts of a policy
 
-Normally automations (Webhook/Integrations) runs on all hosts when a policy-check
-fails but didn't fail before. This feature to mark policies to call automation for
-all hosts that already fail the policy, too and possibly again.
+Triggers [automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations) for *all* hosts failing the specified policies, regardless of whether the policies were previously failing on those hosts.
 
 `POST /api/v1/fleet/automations/reset`
 
@@ -5123,12 +5124,11 @@ all hosts that already fail the policy, too and possibly again.
 
 | Name        | Type     | In   | Description                                              |
 | ----------  | -------- | ---- | -------------------------------------------------------- |
-| team_ids    | list     | body | Run automation for all hosts in policies of these teams  |
-| policy_ids  | list     | body | Run automations for all hosts these policies             |
+| policy_ids  | list     | body | Filters to only run policy automations for the specified policies. |
+| team_ids    | list     | body | _Available in Fleet Premium_. Filters to only run policy automations for hosts in the specified teams. |
 
-_Teams are available in Fleet Premium_
 
-#### Example Edit Policy
+#### Example
 
 `POST /api/v1/fleet/automations/reset`
 
@@ -5423,7 +5423,7 @@ Either `query` or `query_id` must be provided.
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
-#### Example Edit Policy
+#### Example
 
 `PATCH /api/v1/fleet/teams/2/policies/42`
 
@@ -5471,6 +5471,7 @@ Either `query` or `query_id` must be provided.
 ## Queries
 
 - [Get query](#get-query)
+- [Get query report](#get-query-report)
 - [List queries](#list-queries)
 - [Create query](#create-query)
 - [Modify query](#modify-query)
@@ -5516,6 +5517,7 @@ Returns the query specified by ID.
     "logging": "snapshot",
     "saved": true,
     "observer_can_run": true,
+    "discard_data": false,
     "author_id": 1,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -5540,6 +5542,92 @@ Returns the query specified by ID.
   }
 }
 ```
+
+### Get query report
+
+Returns the query report specified by ID.
+
+`GET /api/v1/fleet/queries/{id}/report`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                |
+| ---- | ------- | ---- | ------------------------------------------ |
+| id   | integer | path | **Required**. The ID of the desired query. |
+
+#### Example
+
+`GET /api/v1/fleet/queries/31/report`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "query_id": 31,
+  "results": [
+    {
+      "host_id": 1,
+      "host_name": "foo",
+      "last_fetched": "2021-01-19T17:08:31Z",
+      "columns": {
+        "model": "USB 2.0 Hub",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "host_id": 1,
+      "host_name": "foo",
+      "last_fetched": "2021-01-19T17:08:31Z",
+      "columns": {
+        "model": "USB Keyboard",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "host_id": 2,
+      "host_name": "bar",
+      "last_fetched": "2021-01-19T17:20:00Z",
+      "columns": {
+        "model": "USB Reciever",
+        "vendor": "Logitech"
+      }
+    },
+    {
+      "host_id": 2,
+      "host_name": "bar",
+      "last_fetched": "2021-01-19T17:20:00Z",
+      "columns": {
+        "model": "USB Reciever",
+        "vendor": "Logitech"
+      }
+    },
+    {
+      "host_id": 2,
+      "host_name": "bar",
+      "last_fetched": "2021-01-19T17:20:00Z",
+      "columns": {
+        "model": "Display Audio",
+        "vendor": "Apple Inc."
+      }
+    }
+  ]
+}
+```
+
+If a query has no results stored, then `results` will be an empty array:
+
+```json
+{
+  "query_id": 32,
+  "results": []
+}
+```
+
+### osquery scheduled queries do not return errors.
+
+osquery scheduled queries mechanism does not return errors. Hence those are not stored in the cache and are not part of this report.
 
 ### List queries
 
@@ -5582,6 +5670,7 @@ Returns a list of global queries or team queries.
     "logging": "snapshot",
     "saved": true,
     "observer_can_run": true,
+    "discard_data": false,
     "author_id": 1,
     "author_name": "noah",
     "author_email": "noah@example.com",
@@ -5619,6 +5708,7 @@ Returns a list of global queries or team queries.
     "logging": "differential",
     "saved": true,
     "observer_can_run": true,
+    "discard_data": true,
     "author_id": 1,
     "author_name": "noah",
     "author_email": "noah@example.com",
@@ -5645,6 +5735,7 @@ Returns a list of global queries or team queries.
 ```
 
 ### Create query
+
 Creates a global query or team query.
 
 `POST /api/v1/fleet/queries`
@@ -5663,6 +5754,8 @@ Creates a global query or team query.
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential", or "differential_ignore_removals"`.                        |
+| discard_data        | bool    | body | Whether to skip saving the latest query results for each host. Default: `false`. |
+
 
 #### Example
 
@@ -5679,7 +5772,8 @@ Creates a global query or team query.
   "platform": "darwin,windows,linux",
   "min_osquery_version": "",
   "automations_enabled": true,
-  "logging": "snapshot"
+  "logging": "snapshot",
+  "discard_data": false
 }
 ```
 
@@ -5707,6 +5801,7 @@ Creates a global query or team query.
     "author_name": "",
     "author_email": "",
     "observer_can_run": true,
+    "discard_data": false,
     "packs": []
   }
 }
@@ -5731,7 +5826,13 @@ Modifies the query specified by ID.
 | platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
-| logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential", or "differential_ignore_removals"`.                        |
+| logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
+| discard_data        | bool    | body | Whether to skip saving the latest query results for each host. |
+
+> Note that any of the following conditions will cause the existing query report to be deleted:
+> - Updating the `query` (SQL) field
+> - Changing `discard_data` from `false` to `true`
+> - Changing `logging` from `"snapshot"` to `"differential"` or `"differential_ignore_removals"`
 
 #### Example
 
@@ -5745,7 +5846,8 @@ Modifies the query specified by ID.
   "interval": 3600, // Once per hour,
   "platform": "",
   "min_osquery_version": "",
-  "automations_enabled": false
+  "automations_enabled": false,
+  "discard_data": true
 }
 ```
 
@@ -5772,6 +5874,7 @@ Modifies the query specified by ID.
     "author_id": 1,
     "author_name": "noah",
     "observer_can_run": true,
+    "discard_data": true,
     "packs": []
   }
 }
