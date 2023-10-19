@@ -3282,7 +3282,7 @@ _Available in Fleet Premium_
 
 ### Get host's activities
 
-Returns a list of the activities that have been performed in Fleet related for the current host.
+Returns a list of the activities performed in Fleet affecting the current host.
 
 `GET /api/v1/fleet/hosts/{id}/activities`
 
@@ -3334,8 +3334,6 @@ Returns a list of the activities that have been performed in Fleet related for t
   ]
 }
 ```
-
-
 
 
 ### Get host OS versions
