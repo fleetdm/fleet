@@ -11,11 +11,6 @@
     display: flex;
     justify-content: space-between;
     gap: $pad-xxlarge;
-
-    h2 {
-      font-size: $small;
-      margin: 0;
-    }
   }
 
   &__os-versions-card {

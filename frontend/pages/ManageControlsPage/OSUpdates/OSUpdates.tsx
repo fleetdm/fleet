@@ -3,14 +3,13 @@ import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 
-import OperatingSystems from "pages/DashboardPage/cards/OperatingSystems";
-import useInfoCard from "pages/DashboardPage/components/InfoCard";
-
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 import OsMinVersionForm from "./components/OsMinVersionForm";
 import NudgePreview from "./components/NudgePreview";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
+import CurrentVersionSection from "./components/CurrentVersionSection";
+import TargetSection from "./components/TargetSection";
 
 const baseClass = "os-updates";
 
@@ -21,22 +20,6 @@ interface IOSUpdates {
 
 const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
   const { config, isPremiumTier } = useContext(AppContext);
-
-  const OperatingSystemCard = useInfoCard({
-    title: "macOS versions",
-    children: (
-      <OperatingSystems
-        currentTeamId={teamIdForApi}
-        selectedPlatform="darwin"
-        showTitle
-        showDescription={false}
-        includeNameColumn={false}
-        setShowTitle={() => {
-          return null;
-        }}
-      />
-    ),
-  });
 
   if (!config?.mdm.enabled_and_configured) {
     return <TurnOnMdmMessage router={router} />;
@@ -50,12 +33,8 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
       </p>
       <div className={`${baseClass}__content`}>
         <div className={`${baseClass}__form-table-content`}>
-          <div className={`${baseClass}__os-versions-card`}>
-            {OperatingSystemCard}
-          </div>
-          <div className={`${baseClass}__os-version-form`}>
-            <OsMinVersionForm currentTeamId={teamIdForApi} key={teamIdForApi} />
-          </div>
+          <CurrentVersionSection currentTeamId={teamIdForApi} />
+          <TargetSection currentTeamId={teamIdForApi} />
         </div>
         <div className={`${baseClass}__nudge-preview`}>
           <NudgePreview />

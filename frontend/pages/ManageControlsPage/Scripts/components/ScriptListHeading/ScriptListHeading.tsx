@@ -1,7 +1,6 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 
-import Icon from "components/Icon";
 import { COLORS } from "styles/var/colors";
 
 const baseClass = "script-list-heading";

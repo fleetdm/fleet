@@ -1,0 +1,17 @@
+.os-updates-current-version-section {
+  margin-bottom: $pad-xxlarge;
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    padding-bottom: $pad-medium;
+    border-bottom: 1px solid $ui-fleet-black-10;
+    margin-bottom: $pad-xxlarge;
+
+    h2 {
+      font-weight: normal;
+      font-size: 18px; // TODO: update font variables to include 18px;
+    }
+  }
+}
