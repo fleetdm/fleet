@@ -17,7 +17,7 @@ Please also see [Application security](https://fleetdm.com/docs/using-fleet/appl
 
 
 ## Data security
-Please also see [Data security](https://fleetdm.com/handbook/business-operations/security-policies#data-management-policy)
+Please also see ["Data security"](https://fleetdm.com/handbook/business-operations/security-policies#data-management-policy)
 | Question | Answer                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Should the need arise during an active relationship, how can our Data be removed from the Fleet's environment?   | Customer data is primarially stored in RDS, S3, and Cloudwatch logs. Deleting these resources will remove the vast majority of customer data. Fleet can take further steps to remove data on demand, including deleting individual records in monitoring systems if requested.                                                                                                                              |
