@@ -133,7 +133,7 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
 
 		// Kolide extensions.
-
+		// dsim_default_associations.TablePlugin(kolideLogger), //this is a windows table. needed here???
 	}
 	return plugins
 }
