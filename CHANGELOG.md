@@ -1,3 +1,66 @@
+## Fleet 4.39.0 (Oct 19, 2023)
+
+### Changes
+
+* Added ability to store results of scheduled queries:
+  - Will store up to 1000 results for each scheduled query. (NOTE: If the number of results for a scheduled query is below 1000, then the results will continuously get updated every time the hosts send results to Fleet.)
+  - Introduced `server_settings.query_reports_disabled` field in global configuration to disable this feature.
+  - New API endpoint: `GET /api/_version_/fleet/queries/{id}/report`.
+  - New field `discard_data` added to API queries endpoints for toggling report storage for a query. For yaml configurations, use `discard_data: true` to disable result storage.
+  - Enhanced osquery result log validation.
+
+* Added scripts tab and table for host details page.
+
+* Added support to return the decrypted disk encryption key of a Windows host.
+
+* Added `GET /hosts/{id}/scripts` endpoint to retrieve status details of saved scripts for a host.
+
+* Added `mdm.os_settings` to `GET /api/v1/hosts/{id}` response.
+
+* Added `POST /api/fleet/orbit/disk_encryption_key` endpoint for Windows hosts to report bitlocker encryption key.
+
+* Added activity logging for script operations (add, delete, edit).
+
+* Added UI for scripts on the controls page.
+
+* Added API endpoints for script management and updated existing ones to accommodate saved script ID.
+
+* Added `GET /mdm/disk_encryption/summary` endpoint for disk encryption summaries for macOS and Windows.
+
+* Added `os_settings` and `os_settings_disk_encryption` filters to various `GET` endpoints for host filtering based on OS settings.
+
+* Updated Go version to 1.21.3.
+
+### Bug fixes and improvements
+
+* Fixed script content and output formatting issues on the scripts detail modal.
+
+* Fixed a high database load issue in the Puppet match endpoint.
+
+* Ensured setup flows background covers the entire viewport when resized.
+
+* Fixed a bug affecting OS settings information retrieval regarding disk encryption status for Windows hosts.
+
+* Fixed SQL parameters used in the `/api/latest/fleet/labels/{labelID}/hosts` endpoint for certain query parameters, addressing issue 13809.
+
+* Fixed Python's CVE-2021-42919 false positive on macOS which should only affect Linux.
+
+* Updated Controls/Disk Encryption and host details page to include Windows bitlocker information.
+
+* Fixed a bug causing DEP profiles to sometimes not get assigned correctly to hosts.
+
+* Fixed an issue in the bulk-set of MDM Apple profiles leading to excessive placeholders in SQL.
+
+* Deprecated `mdm.macos_settings.enable_disk_encryption` in favor of `mdm.enable_disk_encryption`.
+
+* Enhanced `GET hosts/:id` API response to include more detailed disk encryption data for device client errors.
+
+* Disabled multicursor editing for SQL editors.
+
+* Fixed max-height display issue for script content and output in the script details modal.
+
+* Improved styling for host details/device user failing policies display.
+
 ## Fleet 4.38.1 (Oct 5, 2023)
 
 ### Bug Fixes
