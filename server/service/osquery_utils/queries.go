@@ -910,7 +910,7 @@ var softwareChrome = DetailQuery{
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
   '' AS vendor,
-  path AS installed_path
+  '' AS installed_path
 FROM chrome_extensions`,
 	Platforms:        []string{"chrome"},
 	DirectIngestFunc: directIngestSoftware,
