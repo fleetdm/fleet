@@ -1796,6 +1796,7 @@ None.
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's macadmin mobile device management (MDM) and Munki information](#get-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
+- [Get host's scripts](#get-hosts-scripts)
 - [Get host OS versions](#get-host-os-versions)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
@@ -3216,6 +3217,66 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
     ]
   }
 }
+```
+
+### Get host's scripts
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/hosts/{id}/scripts`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                                                                                   |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| page            | integer | query | Page number of the results to fetch.                                                                                          |
+| per_page        | integer | query | Results per page.                                                                                                             |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/{id}/scripts`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scripts": [
+    {
+      "script_id": 3,
+      "name": "remove-zoom-artifacts.sh",
+      "last_execution": {
+        "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "error"
+      }
+    },
+    {
+      "script_id": 5,
+      "name": "set-timezone.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "pending"
+      }
+    },
+    {
+      "script_id": 8,
+      "name": "uninstall-zoom.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "ran"
+      }
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+
 ```
 
 ### Get host OS versions
@@ -6511,7 +6572,6 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Delete a script](#delete-a-script)
 - [List scripts](#list-scripts)
 - [Get or download a script](#get-or-download-a-script)
-- [Get script details by host](#get-script-details-by-host)
 
 ### Run script asynchronously
 
@@ -6792,66 +6852,6 @@ Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
 
 ```
 echo "hello"
-```
-
-### Get script details by host
-
-_Available in Fleet Premium_
-
-`GET /api/v1/fleet/hosts/{id}/scripts`
-
-#### Parameters
-
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| page            | integer | query | Page number of the results to fetch.                                                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
-
-#### Example
-
-`GET /api/v1/fleet/hosts/{id}/scripts`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scripts": [
-    {
-      "script_id": 3,
-      "name": "remove-zoom-artifacts.sh",
-      "last_execution": {
-        "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "error"
-      }
-    },
-    {
-      "script_id": 5,
-      "name": "set-timezone.sh",
-      "last_execution": {
-        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "pending"
-      }
-    },
-    {
-      "script_id": 8,
-      "name": "uninstall-zoom.sh",
-      "last_execution": {
-        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "ran"
-      }
-    }
-  ],
-  "meta": {
-    "has_next_results": false,
-    "has_previous_results": false
-  }
-}
-
 ```
 
 ---
