@@ -2422,9 +2422,7 @@ Lists the policies applied to the current device.
 
 #### Get device's activities
 
-_Available in Fleet Premium_
-
-Returns a list of the activities that have been performed in Fleet related to the current device.
+Returns a list of the activities performed in Fleet affecting the current device.
 
 `GET /api/v1/fleet/device/{token}/activities`
 
