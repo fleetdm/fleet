@@ -1194,7 +1194,7 @@ func TestModifyEnableAnalytics(t *testing.T) {
 			require.NoError(t, err)
 			raw = []byte(`{"server_settings":` + string(raw) + `}`)
 			modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
-			// checkLicenseErr(t, tt.shouldFailModify, err)
+			require.NoError(t, err)
 
 			if modified != nil {
 				require.Equal(t, tt.expectedEnabled, modified.ServerSettings.EnableAnalytics)
