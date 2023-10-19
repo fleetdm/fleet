@@ -131,7 +131,6 @@ It’s possible in Fleet to retrieve each host’s kernel version, using the Fle
 
 Query automations send data to your log destination with a `name` in this format: `pack_global_<your-query-name>`.
 
-
 ### Why is my host not updating a policy's response?
 
 The following are reasons why a host may not be updating a policy's response:
