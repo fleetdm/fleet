@@ -3284,7 +3284,7 @@ _Available in Fleet Premium_
 
 Returns a list of the activities that have been performed in Fleet related for the current host.
 
-GET /api/v1/fleet/hosts/{id}/activities
+`GET /api/v1/fleet/hosts/{id}/activities`
 
 ##### Parameters
 
