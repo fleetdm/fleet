@@ -163,7 +163,7 @@ What is it like to be a Solutions Consultant at Fleet? What do you do every day?
 
 <!---
 
-## Rituals
+Rituals (out dated 2023-10-19)
 
 The following table lists the Customer's group's rituals, frequency, and Directly Responsible Individual (DRI).
 
