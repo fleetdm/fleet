@@ -690,7 +690,7 @@ type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, md
 
 type GetMDMWindowsBitLockerSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error)
 
-type GetMDMWindowsBitLockerStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.DiskEncryptionStatus, error)
+type GetMDMWindowsBitLockerStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error)
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
@@ -4114,7 +4114,7 @@ func (s *DataStore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *u
 	return s.GetMDMWindowsBitLockerSummaryFunc(ctx, teamID)
 }
 
-func (s *DataStore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fleet.Host) (*fleet.DiskEncryptionStatus, error) {
+func (s *DataStore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 	s.mu.Lock()
 	s.GetMDMWindowsBitLockerStatusFuncInvoked = true
 	s.mu.Unlock()
