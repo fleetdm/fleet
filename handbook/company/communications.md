@@ -1197,7 +1197,7 @@ Once you have the above follow these steps:
   - **With Sails.js installed globally:** start the server by running `sails lift`.
 4. When the server has started, the Fleet website will be availible at [http://localhost:2024](http://localhost:2024)
     
-  > **Note:** Some features, such as Self-service license dispenser, and account creation are not availible when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw` in the [#g-website](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack..
+  > **Note:** Some features, such as self-service license dispenser and account creation, are not available when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw` in the [#g-website](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack.
 
 
 #### The "Deploy Fleet Website" GitHub action failed
