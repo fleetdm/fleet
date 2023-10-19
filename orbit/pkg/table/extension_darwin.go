@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
+	"github.com/kolide/launcher/pkg/osquery/tables/systemprofiler"
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
 	"github.com/macadmins/osquery-extension/tables/macosrsr"
@@ -59,5 +60,8 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		// osquery version 5.5.0 and up ships a unified_log table in core
 		// we are renaming the one from the macadmins extension to avoid collision
 		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
+
+		// Kolide tables
+		systemprofiler.TablePlugin(serverClient, kolideLogger), // table name is "kolide_systemprofiler"
 	}
 }

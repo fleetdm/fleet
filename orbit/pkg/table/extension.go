@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
+	"github.com/kolide/launcher/pkg/osquery/tables/zfs"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
 	"github.com/macadmins/osquery-extension/tables/puppet"
@@ -133,7 +134,8 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
 
 		// Kolide extensions.
-
+		zfs.ZfsPropertiesPlugin(serverClient, kolideLogger),   // table name is "kolide_zfs"
+		zfs.ZpoolPropertiesPlugin(serverClient, kolideLogger), // table name is "kolide_zfs"
 	}
 	return plugins
 }
