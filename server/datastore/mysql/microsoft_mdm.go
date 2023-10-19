@@ -255,31 +255,30 @@ WHERE
 }
 
 func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
-	hde := &fleet.HostMDMDiskEncryption{}
 	if host == nil {
-		return hde, errors.New("host cannot be nil")
+		return nil, errors.New("host cannot be nil")
 	}
 
 	if host.Platform != "windows" {
 		// Generally, the caller should have already checked this, but just in case we log and
 		// return nil
 		level.Debug(ds.logger).Log("msg", "cannot get bitlocker status for non-windows host", "host_id", host.ID)
-		return hde, nil
+		return nil, nil
 	}
 
 	if host.MDMInfo != nil && host.MDMInfo.IsServer {
 		// It is currently expected that server hosts do not have a bitlocker status so we can skip
 		// the query and return nil. We log for potential debugging in case this changes in the future.
 		level.Debug(ds.logger).Log("msg", "no bitlocker status for server host", "host_id", host.ID)
-		return hde, nil
+		return nil, nil
 	}
 
 	enabled, err := ds.getConfigEnableDiskEncryption(ctx, host.TeamID)
 	if err != nil {
-		return hde, err
+		return nil, err
 	}
 	if !enabled {
-		return hde, nil
+		return nil, nil
 	}
 
 	// Note action_required and removing_enforcement are not applicable to Windows hosts

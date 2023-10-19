@@ -432,14 +432,15 @@ type HostMDMMacOSSetup struct {
 	BootstrapPackageName   string                    `db:"bootstrap_package_name" json:"bootstrap_package_name" csv:"-"`
 }
 
-// DetermineHostMDMDiskEncryptionMacOS determines the disk encryption status for the
+// PopulateOSSettingsAndMacOSSettings populates the OSSettings and MacOSSettings
+// on the MDMHostData struct. It determines the disk encryption status for the
 // host based on the file-vault profile in its list of profiles and whether its
-// disk encryption key is available and decryptable. It sets the status value in MacOSSettings on
-// the HostMDMData struct. It also returns a pointer to a newly populated HostMDMDiskEncryption
-// struct intended for use in the host details response.
+// disk encryption key is available and decryptable. The file-vault profile
+// identifier is received as an argument to avoid a circular dependency.
 //
-// The file-vault profile identifier is received as argument to avoid a circular dependency.
-func (d *MDMHostData) DetermineHostMDMDiskEncryptionMacOS(profiles []HostMDMAppleProfile, fileVaultIdentifier string) *HostMDMDiskEncryption {
+// NOTE: This overwrites both OSSettings and MacOSSettings on the MDMHostData struct. Any existing
+// data in those fields will be lost.
+func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMAppleProfile, fileVaultIdentifier string) {
 	var settings MDMHostMacOSSettings
 
 	var fvprof *HostMDMAppleProfile
@@ -508,16 +509,14 @@ func (d *MDMHostData) DetermineHostMDMDiskEncryptionMacOS(profiles []HostMDMAppl
 	}
 	d.MacOSSettings = &settings
 
-	var status *DiskEncryptionStatus
+	var hde HostMDMDiskEncryption
 	if settings.DiskEncryption != nil {
-		status = settings.DiskEncryption
+		hde.Status = settings.DiskEncryption
 	}
-	var detail string
 	if fvprof != nil {
-		detail = fvprof.Detail
+		hde.Detail = fvprof.Detail
 	}
-
-	return &HostMDMDiskEncryption{Status: status, Detail: detail}
+	d.OSSettings = &HostMDMOSSettings{DiskEncryption: hde}
 }
 
 func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMAppleDeliveryStatus) *MDMAppleDeliveryStatus {
