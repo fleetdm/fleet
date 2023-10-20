@@ -56,7 +56,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, mdmDeviceID); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsGetEnrolledDeviceWithDeviceID").WithMessage(mdmDeviceID))
+			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(mdmDeviceID))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetEnrolledDeviceWithDeviceID")
 	}
