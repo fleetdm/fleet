@@ -7284,7 +7284,11 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 		if teamID != nil {
 			tmID = *teamID
 		}
-		// add db records for bootstrap package and setup assistant
+
+		// cleanup any residual bootstrap package
+		_ = s.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID)
+
+		// add new bootstrap package
 		require.NoError(t, s.ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
 			TeamID: tmID,
 			Name:   "foo",
@@ -7292,6 +7296,8 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			Bytes:  []byte("foo"),
 			Sha256: []byte("foo-sha256"),
 		}))
+
+		// add new setup assistant
 		_, err := s.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
 			TeamID:      teamID,
 			Name:        "bar",
@@ -7520,12 +7526,13 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 				require.NoError(t, s.ds.SaveAppConfig(ctx, appConfig))
 			})
 
-			acResp := checkAppConfig(t, true, true)
-			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings) // empty by default
-
 			// initialize our test app config
 			ac := appConfig.Copy()
 			ac.AgentOptions = nil
+			ac.MDM.MacOSSettings.CustomSettings = []string{}
+			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+			acResp := checkAppConfig(t, true, true)
+			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
 
 			// add custom settings
 			ac.MDM.MacOSSettings.CustomSettings = []string{"foo", "bar"}
