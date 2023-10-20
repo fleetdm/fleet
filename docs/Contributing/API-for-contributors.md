@@ -2422,7 +2422,7 @@ Lists the policies applied to the current device.
 
 #### Get device's activities
 
-Returns a list of the activities performed in Fleet affecting the current device.
+Returns a list of the activities performed in Fleet affecting the current device. It returns activities sorted in descending order by the `created_at` field.
 
 `GET /api/v1/fleet/device/{token}/activities`
 
@@ -2433,8 +2433,6 @@ Returns a list of the activities performed in Fleet affecting the current device
 | token | string | path | The device's authentication token. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
-| order_key | string | query | What to order results by. Can be any column in the `activites` table. |
-| order_direction | string | query | Requires `order_key`. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 ##### Example
 
