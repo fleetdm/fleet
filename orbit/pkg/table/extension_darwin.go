@@ -18,6 +18,10 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
+	airport "github.com/kolide/launcher/pkg/osquery/tables/airport"
+
+	// appicons "github.com/kolide/launcher/pkg/osquery/tables/app-icons"
+	"github.com/kolide/launcher/pkg/osquery/tables/apple_silicon_security_policy"
 	"github.com/kolide/launcher/pkg/osquery/tables/filevault"
 	"github.com/kolide/launcher/pkg/osquery/tables/ioreg"
 	profiles "github.com/kolide/launcher/pkg/osquery/tables/profiles"
@@ -79,5 +83,8 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		profiles.TablePlugin(kolideLogger),
 		pwpolicy.TablePlugin(kolideLogger),
 		// kolidesecedit.TablePlugin(kolideLogger), //TODO: Fix build error
+		airport.TablePlugin(kolideLogger),
+		// appicons.AppIcons(),  //TODO: Fix build error
+		apple_silicon_security_policy.TablePlugin(kolideLogger),
 	}
 }
