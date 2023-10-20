@@ -20,8 +20,11 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
 	"github.com/kolide/launcher/pkg/osquery/tables/filevault"
 	"github.com/kolide/launcher/pkg/osquery/tables/ioreg"
+	profiles "github.com/kolide/launcher/pkg/osquery/tables/profiles"
 
-	// "github.com/kolide/launcher/pkg/osquery/tables/munki"  //TODO: compare with the existing munki table
+	//"github.com/kolide/launcher/pkg/osquery/tables/osquery_user_exec_table"
+	//"github.com/kolide/launcher/pkg/osquery/tables/munki"  //TODO: compare with the existing munki table
+
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
 	"github.com/macadmins/osquery-extension/tables/macosrsr"
@@ -69,6 +72,7 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		ioreg.TablePlugin(kolideLogger),
 		// macos_software_update.MacOSUpdate(), // TODO: Fix build error for this table
 		// munki.MunkiReport(logger log.Logger), // TODO: compare with the existing munki table. Maybe no need for this.
-
+		// osquery_user_exec_table.TablePlugin(logger log.Logger, tablename string, osqueryd string,osqueryQuery string, columns []table.ColumnDefinition,), // add params
+		profiles.TablePlugin(kolideLogger),
 	}
 }
