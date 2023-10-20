@@ -899,6 +899,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return err
 	}
 
+	// If the license is Premium, we should always send usage statisics.
 	if !ac.ServerSettings.EnableAnalytics && !license.IsPremium(ctx) {
 		return nil
 	}
