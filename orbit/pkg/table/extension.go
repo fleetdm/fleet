@@ -13,6 +13,7 @@ import (
 	"github.com/kolide/launcher/pkg/osquery/tables/firefox_preferences"
 	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
 	"github.com/kolide/launcher/pkg/osquery/tables/fscrypt_info"
+	"github.com/kolide/launcher/pkg/osquery/tables/osquery_instance_history"
 
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
@@ -141,6 +142,7 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		firefox_preferences.TablePlugin(kolideLogger),
 		firmwarepasswd.TablePlugin(kolideLogger),
 		fscrypt_info.TablePlugin(kolideLogger),
+		osquery_instance_history.TablePlugin(),
 	}
 	return plugins
 }
