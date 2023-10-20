@@ -122,17 +122,15 @@ Bugs are always prioritized. (Fleet takes quality and stability [very seriously]
 
 If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized and estimated for the next sprint. If a bug [requires drafting](https://fleetdm.com/handbook/engineering#in-product-drafting-as-needed) to determine the expected functionality, the bug should undergo [expedited drafting](#expedited-drafting). 
 
-If a bug is not addressed within six weeks, it is [sent to the product team for triage](https://fleetdm.com/handbook/engineering#in-engineering). Each sprint, the Head of Product meets with the group product managers to review these bugs (churned bug review). In this session, bugs are categorized as follows:
-- **Schedule**: the bug should be prioritized in the next sprint.
-- **Needs prioritization**: the bug will likely not be worked on within the next six weeks, but it is still a valid bug.
+If a bug is not addressed within six weeks, it is [sent to the product team for triage](https://fleetdm.com/handbook/engineering#in-engineering). Each sprint, the Head of Product design reviews these bugs. Bugs are categorized as follows:
+- **Schedule**: the bug should be prioritized in the next sprint if there's engineering capacity for it.
 - **De-prioritized**: the issue will be closed and the necessary subsequent steps will be initiated. This might include updating documentation and informing the community.
 
-After aligning with the group product managers, the Head of Product meets with the CEO and Director of Product Development to discuss and finalize the outcomes for the churned bugs.
+The Head of Product Design meets with the CEO and Director of Product Development to discuss and finalize the outcomes for the churned bugs.
 
-Once outcomes have been approved by the CEO, Product Operations will complete the churned bug clean-up ritual. Below are the steps for each category:
-- **Schedule**: Product Operations should remove the `:product` label, move the bug ticket to the 'Sprint backlog' column on the bug board, and assign it to the appropriate group's Product Manager so that it can be prioritized into the sprint backlog.
-- **Needs prioritization**: Product Operations should remove both the `bug` and `:product` labels, then apply the `needs prioritization` label.
-- **De-prioritized**: Product Operations should close the issue and, as the DRI, ensure all follow-up actions are finalized.
+Once outcomes have been approved by the CEO, The Head of Product Design will complete the churned bug clean-up ritual. Below are the steps for each category:
+- **Schedule**: Product Operations should remove the `:product` label, move the bug ticket to the 'Sprint backlog' column on the bug board, and assign it to the appropriate group's Engineering Manager so that it can be prioritized into the sprint backlog.
+- **De-prioritized**: The Head of Product Design should close the issue and, as the DRI, ensure all follow-up actions are finalized.
 
 ## Writing user stories
 Product Managers [write user stories](https://fleetdm.com/handbook/company/development-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
