@@ -5637,7 +5637,7 @@ If a query has no results stored, then `results` will be an empty array:
 }
 ```
 
-> Note: osquery scheduled queries do not return errors, so only valid results are included in the report. If you suspect a query may be running into errors, you can use the [live query](#run-live-query) endpoint to get diagnostics.
+> Note: osquery scheduled queries do not return errors, so only non-error results are included in the report. If you suspect a query may be running into errors, you can use the [live query](#run-live-query) endpoint to get diagnostics.
 
 
 ### List queries
