@@ -88,6 +88,7 @@ the account verification message.)`,
   },
 
   fn: async function ({emailAddress, password, firstName, lastName, organization, signupReason}) {
+    // Note: in Oct. 2023, the Fleet Sandbox related code was removed from this action. For more details, see https://github.com/fleetdm/fleet/pull/14638/files
 
     var newEmailAddress = emailAddress.toLowerCase();
 
@@ -109,7 +110,6 @@ the account verification message.)`,
     .intercept((error)=>{
       return new Error(`An error occurred when trying to create a Stripe Customer for a new user with the using the email address ${newEmailAddress}. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Full error: ${error.raw}`);
     });
-
     let newUserRecord = await User.create(_.extend({
       firstName,
       lastName,
