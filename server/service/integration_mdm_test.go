@@ -6707,6 +6707,22 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 	// Target Device ID
 	deviceID := "DB257C3A08778F4FB61E2749066C1F27"
 
+	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            deviceID,
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         uuid.New().String(),
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-1C3ARC1",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+	}
+
+	err := s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
+	require.NoError(t, err)
+
 	// Adding Pending Command to target Device ID
 	pendingCmd := &fleet.MDMWindowsPendingCommand{
 		CommandUUID:  uuid.New().String(),
@@ -6718,8 +6734,30 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 		SystemOrigin: false,
 	}
 
-	err := s.ds.MDMWindowsInsertPendingCommand(context.Background(), pendingCmd)
+	err = s.ds.MDMWindowsInsertPendingCommand(context.Background(), pendingCmd)
 	require.NoError(t, err)
+
+	// Adding Command to target Device ID
+	// This is used to test error code tracking functionality
+	// Error code is arriving as part of device management request and it is saved to MDM commands table
+	newCmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.New().String(),
+		DeviceID:     deviceID,
+		SessionID:    "1",
+		MessageID:    "2",
+		CommandID:    "5",
+		CmdVerb:      fleet.CmdGet,
+		SettingURI:   "./DevDetail/Ext/Microsoft/LocalTime",
+		SystemOrigin: false,
+	}
+
+	err = s.ds.MDMWindowsInsertCommand(context.Background(), newCmd)
+	require.NoError(t, err)
+
+	cmds, err := s.ds.MDMWindowsListCommands(context.Background(), deviceID)
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+	require.True(t, (cmds[0].ErrorCode == ""))
 
 	// Preparing the SyncML request
 	requestBytes, err := s.newSyncMLSessionMsg(deviceID, targetEndpointURL)
@@ -6727,6 +6765,14 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 
 	resp := s.DoRaw("POST", targetEndpointURL, requestBytes, http.StatusOK)
 
+	// Checking that Command error code was updated
+
+	cmds, err = s.ds.MDMWindowsListCommands(context.Background(), deviceID)
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+	require.True(t, (cmds[0].ErrorCode == microsoft_mdm.CmdStatusOK))
+
+	// Checking response headers
 	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SyncMLContentType)
 
 	// Read response data
@@ -6745,6 +6791,7 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 	require.True(t, s.isXMLTagPresent("Get", resMsg))
 	require.True(t, s.isXMLTagContentPresent("Type", resMsg))
 	require.True(t, s.isXMLTagContentPresent("Format", resMsg))
+	require.True(t, s.checkIfXMLTagContains("Data", pendingCmd.SettingValue, resMsg))
 }
 
 func (s *integrationMDMTestSuite) TestRunMDMCommands() {
@@ -7116,6 +7163,24 @@ func (s *integrationMDMTestSuite) newSyncMLSessionMsg(deviceID string, managemen
 					<Data>en-US</Data>
 				</Item>
 				</Replace>
+				<Status>
+					<CmdID>5</CmdID>
+					<MsgRef>2</MsgRef>
+					<CmdRef>5</CmdRef>
+					<Cmd>Get</Cmd>
+					<Data>200</Data>
+				</Status>
+				<Results>
+					<CmdID>6</CmdID>
+					<MsgRef>2</MsgRef>
+					<CmdRef>5</CmdRef>
+					<Item>
+						<Source>
+						<LocURI>./DevDetail/Ext/Microsoft/LocalTime</LocURI>
+						</Source>
+						<Data>2023-10-18T06:16:24.0000756-07:00</Data>
+					</Item>
+				</Results>
 				<Final/>
 			</SyncBody>
 			</SyncML>`), nil

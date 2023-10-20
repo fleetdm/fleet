@@ -68,6 +68,28 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 
 	err = ds.MDMWindowsDeleteEnrolledDevice(ctx, enrolledDevice.MDMHardwareID)
 	require.ErrorAs(t, err, &nfe)
+
+	// Test using device ID instead of hardware ID
+	err = ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice)
+	require.NoError(t, err)
+
+	err = ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice)
+	require.ErrorAs(t, err, &ae)
+
+	gotEnrolledDevice, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
+	require.NoError(t, err)
+	require.NotZero(t, gotEnrolledDevice.CreatedAt)
+	require.Equal(t, enrolledDevice.MDMDeviceID, gotEnrolledDevice.MDMDeviceID)
+	require.Equal(t, enrolledDevice.MDMHardwareID, gotEnrolledDevice.MDMHardwareID)
+
+	err = ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
+	require.NoError(t, err)
+
+	_, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
+	require.ErrorAs(t, err, &nfe)
+
+	err = ds.MDMWindowsDeleteEnrolledDevice(ctx, enrolledDevice.MDMHardwareID)
+	require.ErrorAs(t, err, &nfe)
 }
 
 func testMDMWindowsPendingCommand(t *testing.T, ds *Datastore) {
