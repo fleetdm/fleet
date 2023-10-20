@@ -1,1 +1,2 @@
-Added Apple Rapid Security Response version to host details.
+Added Apple Rapid Security Response version to macOS host details.
+- This feature (new `extra` column on `os_version` for macOS devices) was added to osquery in v5.9.1. So macOS devices will need >= v5.9.1 version installed to use this feature.
