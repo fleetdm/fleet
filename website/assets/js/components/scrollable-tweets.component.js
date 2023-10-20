@@ -20,7 +20,7 @@ parasails.registerComponent('scrollableTweets', {
   data: function () {
     return {
       currentTweetPage: 0,
-      numberOfTweetCards: 7,
+      numberOfTweetCards: 8,
       numberOfTweetPages: 0,
       numberOfTweetsPerPage: 0,
       tweetCardWidth: 0,
