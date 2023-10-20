@@ -127,7 +127,7 @@ What is it like to be a Solutions Consultant at Fleet? What do you do every day?
 ### Within 30 days -- assess and absorb information
 * Being new to the company, you have fresh eyes. Document everything that seems odd to you (process, product). 
 * Begin working on domain and product knowledge acquisition. Complete guides found at https://fleetdm.com/guides.
-* Be a prospect. Sign up for a sandbox trial. What makes sense? What doesn't? Document. 
+* Be a prospect. Sign up for a Fleet account and try [`fleetctl preview`](https://fleetdm.com/try-fleet/fleetctl-preview). What makes sense? What doesn't? Document. 
 * Understand Fleet value drivers. Why do Fleet Community users want to give us money to upgrade to Premium? 
 * Complete consensus training videos (see the "Description" field in the `#help-consensus-tool` slack channel.
 * Review [gong](https://gong.io) calls.
@@ -444,15 +444,6 @@ I’ll let you know when your account is sorted and follow up with instructions 
 Thanks for bearing with us, please don’t hesitate to reach out if you have any questions about this, Fleet, osquery, or anything else!"
 ```
 
-#### Error while running a live query in Fleet Sandbox
-```
-"Hey there, the team and I just noticed you experienced a 500 error that may have affected your experience running a live query on https://fleetdm.com/.
-
-I wanted to personally apologize for our mistake and let you know we're looking into the problem. We’ll provide an update on the underlying fix and track an (anonymized) bug on https://github.com/fleetdm/fleet so you can follow the progress in the open.
-
-Thank you for trying Fleet!"
-```
-
 ### Change customer credit card number
 You can help a Premium license dispenser customers change their credit card by directing them to their [account dashboard](https://fleetdm.com/customers/dashboard). On that page, the customer can update their billing card by clicking the pencil icon next to their billing information.
 
@@ -472,10 +463,6 @@ No further action is needed if the crawler successfully reindexes the Fleet webs
     - Post-sales license key DRI is the VP of Customer Success
 
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
-
-
-### Extend sandbox trial
-If a Fleet user would like an extension on the 5 day sandbox trial, this can be accomplished by creating a new confidential issue with labels `g-infra` and `:release`. It is important to include the projected expiration date of the sandbox trial, as sandbox instances cannot be extended after they expire. Please note the user email address that is requesting the sandbox extension in the confidential issue.
 
 
 ## Rituals
