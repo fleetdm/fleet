@@ -150,8 +150,10 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		fscrypt_info.TablePlugin(kolideLogger),
 		osquery_instance_history.TablePlugin(),
 		secureboot.TablePlugin(kolideLogger),
-		// falcon_kernel_check.TablePlugin(kolideLogger), //TODO: Fix build error
-		// falconctl.NewFalconctlOptionTable(kolideLogger), //TODO: Fix build error
+
+		// TODO: Fix build error
+		// falcon_kernel_check.TablePlugin(kolideLogger),
+		// falconctl.NewFalconctlOptionTable(kolideLogger),
 	}
 	return plugins
 }

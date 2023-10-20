@@ -30,10 +30,10 @@ import (
 	// TODO: Fix build erros
 	// appicons "github.com/kolide/launcher/pkg/osquery/tables/app-icons"
 	// secedit "github.com/kolide/launcher/pkg/osquery/tables/secedit"
-	//"github.com/kolide/launcher/pkg/osquery/tables/osquery_user_exec_table"
 
-	//TODO: compare with the existing munki table
+	// TODO: Need coding/other
 	//"github.com/kolide/launcher/pkg/osquery/tables/munki"
+	//"github.com/kolide/launcher/pkg/osquery/tables/osquery_user_exec_table"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
@@ -80,14 +80,19 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		// Kolide tables
 		filevault.TablePlugin(kolideLogger),
 		ioreg.TablePlugin(kolideLogger),
-		// macos_software_update.MacOSUpdate(), // TODO: Fix build error for this table
-		// munki.MunkiReport(logger log.Logger), // TODO: compare with the existing munki table. Maybe no need for this.
-		// osquery_user_exec_table.TablePlugin(logger log.Logger, tablename string, osqueryd string,osqueryQuery string, columns []table.ColumnDefinition,), // add params
 		profiles.TablePlugin(kolideLogger),
 		pwpolicy.TablePlugin(kolideLogger),
-		// kolidesecedit.TablePlugin(kolideLogger), //TODO: Fix build error
 		airport.TablePlugin(kolideLogger),
-		// appicons.AppIcons(),  //TODO: Fix build error
 		apple_silicon_security_policy.TablePlugin(kolideLogger),
+
+		// TODO: Fix build error
+		// macos_software_update.MacOSUpdate(),
+		// appicons.AppIcons(),
+		// kolidesecedit.TablePlugin(kolideLogger),
+
+		// TODO: Need coding/other
+		// munki.MunkiReport(logger log.Logger), // TODO: compare with the existing munki table. Maybe no need for this.
+		// osquery_user_exec_table.TablePlugin(logger log.Logger, tablename string, osqueryd string,osqueryQuery string, columns []table.ColumnDefinition,), // add params
+
 	}
 }

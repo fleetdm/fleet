@@ -25,7 +25,9 @@ func PlatformTables() []osquery.OsqueryPlugin {
 
 		// Kolide extensions.
 		dsim_default_associations.TablePlugin(kolideLogger),
-		// gsettings.Settings(kolideLogger),    // TODO: Fix build error
-		// mdmclient.TablePlugin(kolideLogger), // TODO: Fix build error
+
+		// TODO: Fix build error
+		// gsettings.Settings(kolideLogger),
+		// mdmclient.TablePlugin(kolideLogger),
 	}
 }
