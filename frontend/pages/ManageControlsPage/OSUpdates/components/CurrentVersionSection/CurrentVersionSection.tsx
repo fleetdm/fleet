@@ -1,8 +1,16 @@
+import React from "react";
+import { useQuery } from "react-query";
+import { AxiosError } from "axios";
+
+import {
+  getOSVersions,
+  IOSVersionsResponse,
+} from "services/entities/operating_systems";
+
 import LastUpdatedText from "components/LastUpdatedText";
 import SectionHeader from "components/SectionHeader";
-import OperatingSystems from "pages/DashboardPage/cards/OperatingSystems";
-import useInfoCard from "pages/DashboardPage/components/InfoCard";
-import React from "react";
+
+import OSVersionTable from "../OSVersionTable";
 
 const baseClass = "os-updates-current-version-section";
 
@@ -13,33 +21,42 @@ interface ICurrentVersionSectionProps {
 const CurrentVersionSection = ({
   currentTeamId,
 }: ICurrentVersionSectionProps) => {
-  const OperatingSystemCard = useInfoCard({
-    title: "macOS versions",
-    children: (
-      <OperatingSystems
-        currentTeamId={currentTeamId}
-        selectedPlatform="darwin"
-        showTitle
-        showDescription={false}
-        includeNameColumn={false}
-        setShowTitle={() => {
-          return null;
-        }}
-      />
-    ),
+  const { data, error, isLoading: isLoadingOsVersions } = useQuery<
+    IOSVersionsResponse,
+    AxiosError
+  >(["os_versions", currentTeamId], () => getOSVersions(), {
+    retry: false,
+    refetchOnWindowFocus: false,
   });
+
+  const generateSubTitleText = () => {
+    return (
+      <LastUpdatedText
+        lastUpdatedAt={data?.counts_updated_at}
+        whatToRetrieve={"operating systems"}
+      />
+    );
+  };
+
+  if (!data) {
+    return null;
+  }
+
+  // We only want to show windows and mac versions atm.
+  const filteredOSVersionData = data.os_versions.filter((osVersion) => {
+    return osVersion.platform === "windows" || osVersion.platform === "darwin";
+  });
+
   return (
     <div className={baseClass}>
-      {/* <SectionHeader
+      <SectionHeader
         title="Current versions"
-        subTitle={
-          <LastUpdatedText
-            lastUpdatedAt={new Date().toISOString()}
-            whatToRetrieve={"operating systems"}
-          />
-        }
-      /> */}
-      {OperatingSystemCard}
+        subTitle={generateSubTitleText()}
+      />
+      <OSVersionTable
+        osVersionData={filteredOSVersionData}
+        isLoading={isLoadingOsVersions}
+      />
     </div>
   );
 };

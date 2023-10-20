@@ -21,12 +21,13 @@ export interface IGetOSVersionsRequest {
 export interface IGetOSVersionsQueryKey extends IGetOSVersionsRequest {
   scope: string;
 }
+
 export interface IOSVersionsResponse {
   counts_updated_at: string;
   os_versions: IOperatingSystemVersion[];
 }
 
-export const getOSVersions = async ({
+export const getOSVersions = ({
   id,
   platform,
   teamId,
