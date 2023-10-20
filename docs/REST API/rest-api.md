@@ -4267,7 +4267,6 @@ This endpoint returns the list of custom MDM commands that have been executed.
     {
       "host_uuid": "322vghee-12c7-8976-83a1-e2118a927342",
       "command_uuid": "d76d69b7-d806-45a9-8e49-9d6dc533485c",
-      "platform": "windows",
       "status": "200",
       "updated_at": "2023-05-04:00:00Z",
       "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow",
