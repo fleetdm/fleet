@@ -9,6 +9,8 @@ const baseClass = "data-error";
 interface IDataErrorProps {
   /** the description text displayed under the header */
   description?: string;
+  /** Excludes the link that asks user to create an issue. Defaults to `false` */
+  excludeIssueLink?: boolean;
   children?: React.ReactNode;
   card?: boolean;
   className?: string;
@@ -18,6 +20,7 @@ const DEFAULT_DESCRIPTION = "Refresh the page or log in again.";
 
 const DataError = ({
   description = DEFAULT_DESCRIPTION,
+  excludeIssueLink = false,
   children,
   card,
   className,
@@ -37,14 +40,16 @@ const DataError = ({
             {children || (
               <>
                 <span className="info__data">{description}</span>
-                <span className="info__data">
-                  If this keeps happening, please&nbsp;
-                  <CustomLink
-                    url="https://github.com/fleetdm/fleet/issues/new/choose"
-                    text="file an issue"
-                    newTab
-                  />
-                </span>
+                {!excludeIssueLink && (
+                  <span className="info__data">
+                    If this keeps happening, please&nbsp;
+                    <CustomLink
+                      url="https://github.com/fleetdm/fleet/issues/new/choose"
+                      text="file an issue"
+                      newTab
+                    />
+                  </span>
+                )}
               </>
             )}
           </>

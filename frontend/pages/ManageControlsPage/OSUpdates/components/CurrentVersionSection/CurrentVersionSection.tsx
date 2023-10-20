@@ -11,6 +11,7 @@ import LastUpdatedText from "components/LastUpdatedText";
 import SectionHeader from "components/SectionHeader";
 
 import OSVersionTable from "../OSVersionTable";
+import DataError from "components/DataError";
 
 const baseClass = "os-updates-current-version-section";
 
@@ -21,7 +22,7 @@ interface ICurrentVersionSectionProps {
 const CurrentVersionSection = ({
   currentTeamId,
 }: ICurrentVersionSectionProps) => {
-  const { data, error, isLoading: isLoadingOsVersions } = useQuery<
+  const { data, isError, isLoading: isLoadingOsVersions } = useQuery<
     IOSVersionsResponse,
     AxiosError
   >(["os_versions", currentTeamId], () => getOSVersions(), {
@@ -42,10 +43,34 @@ const CurrentVersionSection = ({
     return null;
   }
 
-  // We only want to show windows and mac versions atm.
-  const filteredOSVersionData = data.os_versions.filter((osVersion) => {
-    return osVersion.platform === "windows" || osVersion.platform === "darwin";
-  });
+  if (isError) {
+    return <DataError />;
+  }
+
+  const renderTable = () => {
+    if (isError) {
+      return (
+        <DataError
+          description="Refresh the page to try again."
+          excludeIssueLink
+        />
+      );
+    }
+
+    // We only want to show windows and mac versions atm.
+    const filteredOSVersionData = data.os_versions.filter((osVersion) => {
+      return (
+        osVersion.platform === "windows" || osVersion.platform === "darwin"
+      );
+    });
+
+    return (
+      <OSVersionTable
+        osVersionData={filteredOSVersionData}
+        isLoading={isLoadingOsVersions}
+      />
+    );
+  };
 
   return (
     <div className={baseClass}>
@@ -53,10 +78,7 @@ const CurrentVersionSection = ({
         title="Current versions"
         subTitle={generateSubTitleText()}
       />
-      <OSVersionTable
-        osVersionData={filteredOSVersionData}
-        isLoading={isLoadingOsVersions}
-      />
+      {renderTable()}
     </div>
   );
 };
