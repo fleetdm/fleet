@@ -19,8 +19,8 @@ resource "aws_ecs_task_definition" "loadtest" {
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.main.arn
   task_role_arn            = aws_iam_role.main.arn
-  cpu                      = 256
-  memory                   = 512
+  cpu                      = 512
+  memory                   = 1024
   container_definitions = jsonencode(
     [
       {
