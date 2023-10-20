@@ -23,6 +23,8 @@ import (
 	profiles "github.com/kolide/launcher/pkg/osquery/tables/profiles"
 	pwpolicy "github.com/kolide/launcher/pkg/osquery/tables/pwpolicy"
 
+	// secedit "github.com/kolide/launcher/pkg/osquery/tables/secedit"
+
 	//"github.com/kolide/launcher/pkg/osquery/tables/osquery_user_exec_table"
 	//"github.com/kolide/launcher/pkg/osquery/tables/munki"  //TODO: compare with the existing munki table
 
@@ -76,5 +78,6 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		// osquery_user_exec_table.TablePlugin(logger log.Logger, tablename string, osqueryd string,osqueryQuery string, columns []table.ColumnDefinition,), // add params
 		profiles.TablePlugin(kolideLogger),
 		pwpolicy.TablePlugin(kolideLogger),
+		// kolidesecedit.TablePlugin(kolideLogger), //TODO: Fix build error
 	}
 }
