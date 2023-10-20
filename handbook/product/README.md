@@ -81,7 +81,7 @@ Once the draft has been approved, it moves to the "Settled" column on the drafti
 
 Before assigning an engineering manager to [estimate](https://fleetdm.com/handbook/engineering#sprint-ceremonies) a user story, the product designer ensures the product section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
 
-Once a bug has gone through design and is considered "Settled", the designer removes the `:product` label and moves the issue to the 'To be scheduled' column on the "Bugs" board. The product manager then prioritizes the bug into the "Sprint backlog" and assigns the group engineering manager. 
+Once a bug has gone through design and is considered "Settled", the designer removes the `:product` label and moves the issue to the 'Sprint backlog' column on the "Bugs" board. The product manager then prioritizes the bug into the "Sprint backlog" and assigns the group engineering manager. 
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
@@ -130,7 +130,7 @@ If a bug is not addressed within six weeks, it is [sent to the product team for 
 After aligning with the group product managers, the Head of Product meets with the CEO and Director of Product Development to discuss and finalize the outcomes for the churned bugs.
 
 Once outcomes have been approved by the CEO, Product Operations will complete the churned bug clean-up ritual. Below are the steps for each category:
-- **Schedule**: Product Operations should remove the `:product` label, move the bug ticket to the 'to be scheduled' column on the bug board, and assign it to the appropriate group's Product Manager so that it can be prioritized into the sprint backlog.
+- **Schedule**: Product Operations should remove the `:product` label, move the bug ticket to the 'Sprint backlog' column on the bug board, and assign it to the appropriate group's Product Manager so that it can be prioritized into the sprint backlog.
 - **Needs prioritization**: Product Operations should remove both the `bug` and `:product` labels, then apply the `needs prioritization` label.
 - **De-prioritized**: Product Operations should close the issue and, as the DRI, ensure all follow-up actions are finalized.
 
