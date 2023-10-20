@@ -238,7 +238,8 @@ func (ds *Datastore) MDMWindowsInsertCommand(ctx context.Context, cmd *fleet.MDM
 		setting_uri,
 		setting_value,
 		system_origin,
-		rx_error_code ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		rx_error_code,
+		rx_cmd_result ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -252,6 +253,7 @@ func (ds *Datastore) MDMWindowsInsertCommand(ctx context.Context, cmd *fleet.MDM
 		cmd.SettingURI,
 		cmd.SettingValue,
 		cmd.SystemOrigin,
+		"",
 		"")
 	if err != nil {
 		if isDuplicate(err) {
@@ -285,6 +287,28 @@ func (ds *Datastore) MDMWindowsUpdateCommandErrorCode(ctx context.Context, devic
 	return nil
 }
 
+// MDMWindowsUpdateCommandReceivedResult updates the rx_cmd_result field for a given command that matches with device_id, session_id, message_id and command_id.
+func (ds *Datastore) MDMWindowsUpdateCommandReceivedResult(ctx context.Context, deviceID, sessionID, messageID, commandID, receivedValue string) error {
+	query := `
+        UPDATE
+            windows_mdm_commands
+        SET
+            rx_cmd_result = ?
+        WHERE
+            device_id = ? AND
+            session_id = ? AND
+            message_id = ? AND
+            command_id = ?
+    `
+
+	_, err := ds.writer(ctx).ExecContext(ctx, query, receivedValue, deviceID, sessionID, messageID, commandID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating windows command rx_cmd_result")
+	}
+
+	return nil
+}
+
 // MDMWindowsListCommands retrieves all commands for a given device ID from the windows_mdm_commands table
 func (ds *Datastore) MDMWindowsListCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
 	var commands []*fleet.MDMWindowsCommand
@@ -301,6 +325,7 @@ func (ds *Datastore) MDMWindowsListCommands(ctx context.Context, deviceID string
             setting_value,
             system_origin,
             rx_error_code,
+            rx_cmd_result,
             created_at,
             updated_at
         FROM

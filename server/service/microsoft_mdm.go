@@ -1257,8 +1257,11 @@ func (svc *Service) processIncomingAlertsCommands(messageID string, deviceID str
 
 // processIncomingResultsCommands will process the incoming Results commands.
 // These commands requires don't require an status response.
-func (svc *Service) processIncomingResultsCommands(deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
-	// TODO: Results of operations such as GET and EXEC should be processed here
+func (svc *Service) processIncomingResultsCommands(ctx context.Context, sessionID string, deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
+	err := svc.ds.MDMWindowsUpdateCommandReceivedResult(ctx, deviceID, sessionID, *cmd.Cmd.MsgRef, cmd.Cmd.CmdID, *cmd.Cmd.Data)
+	if err != nil {
+		return nil, fmt.Errorf("process incoming command: %w", err)
+	}
 	return nil, nil
 }
 
@@ -1280,7 +1283,7 @@ func (svc *Service) processIncomingProtocolCommands(ctx context.Context, session
 	case mdm_types.CmdAlert:
 		return svc.processIncomingAlertsCommands(messageID, deviceID, cmd)
 	case mdm_types.CmdResults:
-		return svc.processIncomingResultsCommands(deviceID, cmd)
+		return svc.processIncomingResultsCommands(ctx, sessionID, deviceID, cmd)
 	case mdm_types.CmdStatus:
 		return svc.processIncomingStatusCommands(ctx, sessionID, deviceID, cmd)
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -245,4 +246,23 @@ func testMDMWindowCommand(t *testing.T, ds *Datastore) {
 	require.Equal(t, gotCmds[0].SessionID, sessionID)
 	require.Equal(t, gotCmds[0].MessageID, messageID)
 	require.Equal(t, gotCmds[0].CommandID, commandID)
+
+	// Checking if command can be updated with error code
+	err = ds.MDMWindowsUpdateCommandErrorCode(ctx, deviceID, sessionID, messageID, commandID, mdm.CmdStatusOK)
+	require.NoError(t, err)
+
+	gotCmds, err = ds.MDMWindowsListCommands(ctx, deviceID)
+	require.NoError(t, err)
+	require.NotZero(t, gotCmds)
+	require.Equal(t, gotCmds[0].ErrorCode, mdm.CmdStatusOK)
+
+	// Checking if command can be updated with result value
+	resultData := "2023-10-18T06:16:24.0000756-07:00"
+	err = ds.MDMWindowsUpdateCommandReceivedResult(ctx, deviceID, sessionID, messageID, commandID, resultData)
+	require.NoError(t, err)
+
+	gotCmds, err = ds.MDMWindowsListCommands(ctx, deviceID)
+	require.NoError(t, err)
+	require.NotZero(t, gotCmds)
+	require.Equal(t, gotCmds[0].CmdResult, resultData)
 }
