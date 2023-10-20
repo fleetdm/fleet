@@ -11,7 +11,7 @@ import (
 func PlatformTables() []osquery.OsqueryPlugin {
 	return []osquery.OsqueryPlugin{
 		// Kolide tables
-		xconf.TablePlugin(serverClient, kolideLogger), // table name is "kolide_xconf"
-		xrdb.TablePlugin(serverClient, kolideLogger),  // table name is "kolide_xrdb"
+		xconf.TablePlugin(nil, kolideLogger), // table name is "kolide_xconf"
+		xrdb.TablePlugin(nil, kolideLogger),  // table name is "kolide_xrdb"
 	}
 }

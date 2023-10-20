@@ -134,8 +134,8 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
 
 		// Kolide extensions.
-		zfs.ZfsPropertiesPlugin(serverClient, kolideLogger),   // table name is "kolide_zfs"
-		zfs.ZpoolPropertiesPlugin(serverClient, kolideLogger), // table name is "kolide_zfs"
+		zfs.ZfsPropertiesPlugin(nil, kolideLogger),   // table name is "kolide_zfs"
+		zfs.ZpoolPropertiesPlugin(nil, kolideLogger), // table name is "kolide_zfs"
 	}
 	return plugins
 }

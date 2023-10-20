@@ -62,6 +62,6 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
 
 		// Kolide tables
-		systemprofiler.TablePlugin(serverClient, kolideLogger), // table name is "kolide_systemprofiler"
+		systemprofiler.TablePlugin(nil, kolideLogger), // table name is "kolide_systemprofiler"
 	}
 }
