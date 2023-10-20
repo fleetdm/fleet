@@ -18,19 +18,22 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
-	airport "github.com/kolide/launcher/pkg/osquery/tables/airport"
 
-	// appicons "github.com/kolide/launcher/pkg/osquery/tables/app-icons"
+	// Kolide tables
+	airport "github.com/kolide/launcher/pkg/osquery/tables/airport"
 	"github.com/kolide/launcher/pkg/osquery/tables/apple_silicon_security_policy"
 	"github.com/kolide/launcher/pkg/osquery/tables/filevault"
 	"github.com/kolide/launcher/pkg/osquery/tables/ioreg"
 	profiles "github.com/kolide/launcher/pkg/osquery/tables/profiles"
 	pwpolicy "github.com/kolide/launcher/pkg/osquery/tables/pwpolicy"
 
+	// TODO: Fix build erros
+	// appicons "github.com/kolide/launcher/pkg/osquery/tables/app-icons"
 	// secedit "github.com/kolide/launcher/pkg/osquery/tables/secedit"
-
 	//"github.com/kolide/launcher/pkg/osquery/tables/osquery_user_exec_table"
-	//"github.com/kolide/launcher/pkg/osquery/tables/munki"  //TODO: compare with the existing munki table
+
+	//TODO: compare with the existing munki table
+	//"github.com/kolide/launcher/pkg/osquery/tables/munki"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"

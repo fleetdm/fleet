@@ -5,8 +5,11 @@ package table
 import (
 	cisaudit "github.com/fleetdm/fleet/v4/orbit/pkg/table/cis_audit"
 	mdmbridge "github.com/fleetdm/fleet/v4/orbit/pkg/table/mdm"
+
+	// Kolide tables
 	"github.com/kolide/launcher/pkg/osquery/tables/dsim_default_associations"
 
+	// TODO: Fix build erros
 	//"github.com/kolide/launcher/pkg/osquery/tables/gsettings"
 	//"github.com/kolide/launcher/pkg/osquery/tables/mdmclient"
 
