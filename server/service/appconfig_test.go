@@ -1174,6 +1174,7 @@ func TestModifyEnableAnalytics(t *testing.T) {
 				},
 				ServerSettings: fleet.ServerSettings{
 					EnableAnalytics: true,
+					ServerURL:       "https://localhost:8080",
 				},
 			}
 
@@ -1190,7 +1191,7 @@ func TestModifyEnableAnalytics(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tt.initialEnabled, ac.ServerSettings.EnableAnalytics)
 
-			raw, err := json.Marshal(fleet.ServerSettings{EnableAnalytics: tt.newEnabled})
+			raw, err := json.Marshal(fleet.ServerSettings{EnableAnalytics: tt.newEnabled, ServerURL: "https://localhost:8080"})
 			require.NoError(t, err)
 			raw = []byte(`{"server_settings":` + string(raw) + `}`)
 			modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
