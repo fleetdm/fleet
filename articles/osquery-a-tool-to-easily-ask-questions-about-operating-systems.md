@@ -57,7 +57,7 @@ To deploy osquery at scale across your organization’s devices, an osquery mana
 
 ![A screenshot of the Fleet UI](../website/assets/images/articles/osquery-a-tool-to-easily-ask-questions-about-operating-systems-1-800x450@2x.png)
 
-Ready to give Fleet a try? Head over to our [get started page](https://fleetdm.com/try-fleet/register), and you can be up and running with a sandbox environment in less than 5 minutes. Or you can check out the [docs](https://fleetdm.com/docs) to learn how to deploy Fleet across your organization.
+Ready to give Fleet a try? Head over to our [try Fleet page](https://fleetdm.com/try-fleet/register), and you can be up and running with a preview environment in less than 5 minutes. Or you can check out the [docs](https://fleetdm.com/docs) to learn how to deploy Fleet across your organization.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="dominuskelvin">

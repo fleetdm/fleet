@@ -42,7 +42,7 @@ Companies need to rethink the fragmented, siloed approaches to cybersecurity. Mo
 
 Looking inside computers shouldn’t be this difficult. Your threat hunting platform should be a single source of truth. But osquery isn’t limited to endpoint security. It’s one solution that provides workstation and server visibility across IT, SRE, and even DevOps.
 
-Osquery is a powerful platform. Like any new tool, it will take time and resources to make the most of it. Luckily, osquery managers simplify implementation and management for security teams. That’s where Fleet can help. Fleet makes it easy for companies to harness the power of osquery at scale. Fleet comes out of the box with a [query library](https://fleetdm.com/queries) that’s maintained by members of our community. So, you can start collecting accurate, actionable endpoint data right away. [Play in Fleet Sandbox](https://fleetdm.com/try-fleet/register) to try Fleet on your device. Happy hunting.
+Osquery is a powerful platform. Like any new tool, it will take time and resources to make the most of it. Luckily, osquery managers simplify implementation and management for security teams. That’s where Fleet can help. Fleet makes it easy for companies to harness the power of osquery at scale. Fleet comes out of the box with a [query library](https://fleetdm.com/queries) that’s maintained by members of our community. So, you can start collecting accurate, actionable endpoint data right away. [Try `fleetctl preview`](https://fleetdm.com/try-fleet/register) to test Fleet on your device. Happy hunting.
 
 <meta name="category" value="security">
 <meta name="authorFullName" value="Chris McGillicuddy">

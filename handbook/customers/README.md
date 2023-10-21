@@ -83,7 +83,6 @@ There are three different situations when a customer support request could resul
 - New tickets created from thread replies will contain a link to the slack thread, but will only have the new message. 
 - This zap does not support file uploads and attachments. Tickets created for messages with images attached will not have the attachments, and the automation will not run if someone uploads a file without a message. 
 
-
 <!---
 
 Rituals (out dated 2023-10-19)
@@ -331,15 +330,6 @@ I’ll let you know when your account is sorted and follow up with instructions 
 Thanks for bearing with us, please don’t hesitate to reach out if you have any questions about this, Fleet, osquery, or anything else!"
 ```
 
-#### Error while running a live query in Fleet Sandbox
-```
-"Hey there, the team and I just noticed you experienced a 500 error that may have affected your experience running a live query on https://fleetdm.com/.
-
-I wanted to personally apologize for our mistake and let you know we're looking into the problem. We’ll provide an update on the underlying fix and track an (anonymized) bug on https://github.com/fleetdm/fleet so you can follow the progress in the open.
-
-Thank you for trying Fleet!"
-```
-
 ### Change customer credit card number
 You can help a Premium license dispenser customers change their credit card by directing them to their [account dashboard](https://fleetdm.com/customers/dashboard). On that page, the customer can update their billing card by clicking the pencil icon next to their billing information.
 
@@ -351,10 +341,6 @@ You can help a Premium license dispenser customers change their credit card by d
     - Post-sales license key DRI is the VP of Customer Success
 
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
-
-
-### Extend sandbox trial
-If a Fleet user would like an extension on the 5 day sandbox trial, this can be accomplished by creating a new confidential issue with labels `g-infra` and `:release`. It is important to include the projected expiration date of the sandbox trial, as sandbox instances cannot be extended after they expire. Please note the user email address that is requesting the sandbox extension in the confidential issue.
 
 
 ## Rituals

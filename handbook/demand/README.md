@@ -1,32 +1,31 @@
-# Marketing
+# Demand
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## What we do
-The Marketing department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other [programs](https://fleetdm.com/handbook/marketing#programs).
+The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other [programs](https://fleetdm.com/handbook/demand#programs).
 
 ## Team
-| Role                     | Contributor(s)
-|:-------------------------|:----------------------------------------------------------------------------------------------------------------|
-| CEO (Head of Marketing)  | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
-| Head of Demand Generation| [You?](https://fleetdm.com/handbook/company#open-positions) _([@TODO](https://github.com/TODO))_
-| Field Marketer           | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
-| Community Advocate       | [JD Strong](https://www.linkedin.com/in/jackdaniyelstrong/) _([@spokanemac](https://github.com/spokanemac/spokanemac))_
+| Role                            | Contributor(s)
+|:--------------------------------|:------------------------------------------------------------------------------------------------------------------------|
+| _🎐 Head of Brand &amp; Product Marketing (CEO)_ | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| 🫧 Head of Demand Generation       | [Dustin Gerdes](https://www.linkedin.com/in/dustingerdes/) _([@3kindsoffish](https://github.com/3kindsoffish))_
+| 🫧 Field Marketer                  | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
+| 🫧 Community Advocate              | [JD Strong](https://www.linkedin.com/in/jackdaniyelstrong/) _([@spokanemac](https://github.com/spokanemac/spokanemac))_
 
 
 ## Contact us
-- To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-marketing&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
+
+> To make a request related to product marketing, press, brandfronts, pitchfronts, featurefronts, ideal customer profiles (ICPs), personas, or targeting [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Aproduct-marketing&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________).
+>
+> If urgent, or if you need help submiting your request, at-mention the [Head of Product Marketing](#team) in the [help-pmm-2023](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel.
+
+- To make a request of the Demand department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-demand&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
   - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
-- To suggest an idea for social media, an ad, an article, a video, or an event, [create an issue (#g-marketing)](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-marketing&projects=&template=custom-request.md&title=Request%3A+_______________________) and concisely suggest why you think it might be a good idea.  The more advanced notice you can provide for the event, the better, in case we can provide swag or other support.
-- If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel:
+  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
+- To suggest an idea for social media, an advertisement, an article, a video, or an event, [create an issue (#g-demand)](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-demand&projects=&template=custom-request.md&title=Request%3A+_______________________) and concisely suggest why you think it might be a good idea.  The more advanced notice you can provide for the event, the better, in case we can provide swag or other support.
+- If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-demand](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel:
   - For all urgent questions related to events, video, or social media, mention the Field Marketer.
   - For all urgent questions related to articles or the Fleet community, mention the Community Advocate.
-
-### Proposing new ads
-Any changes to current running ads will need to be approved in 🦢🗣 Design review (#g-website).
-- Add any requests for review to the Design review agenda
-- Existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
-- If changes are approved, make changes and create a calendar reminder to check performance two weeks from the date changes were made. 
 
 
 
@@ -36,7 +35,7 @@ Fleet's community programs are rooted in several areas; created to nurture commu
 ### Social media
 Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
 
-Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/marketing#engage-with-the-community).
+Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/demand#engage-with-the-community).
 
 Here are some topics for social media posts:
 - Fleet the product
@@ -55,6 +54,16 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 It's important for Fleet to engage at events. This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
 ## Responsibilities
+
+### Begin or modify an advertising campaign
+Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-website)"](https://app.zenhub.com/workspaces/g-website-6451748b4eb15200131d4bab/board?sprints=none).
+
+To propose an ad, or a change to an ad:
+1. Add your change for review to the "Design review" agenda and attend the next scheduled website design review.  During the meeting, existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
+2. Make revisions and re-attend the meeting as needed until the planned change is settled.
+3. Execute the planned change.
+4. Create a calendar reminder to check ad performance two weeks from the date changes were made.
+
 
 ### Optimize ads through experimentation
 Fleet improves click-through rates in their campaigns to make the most of their advertising budget and attract more engaged users, boosting product adoption and community participation.
@@ -77,8 +86,10 @@ Fleet improves click-through rates in their campaigns to make the most of their 
 6. Pause the ad with the lower CTR
 7. Repeat this process
 
+
+
 ### Process pending swag requests from the website
-On a weekly basis, Marketing must log in to [Printful](https://www.printful.com/) and complete any draft orders so that they are sent. We currently only ship within the 48 contiguous United States and approve one free order per household under normal circumstances.
+On a weekly basis, log in to [Printful](https://www.printful.com/) and complete any draft orders so that they are sent. We currently only ship within the 48 contiguous United States and approve one free order per household under normal circumstances.
 To do this:
 1. Go to the ["Orders"](https://www.printful.com/ca/dashboard/default/orders) page in Printful
 2. Look for an order status of "Draft" and click that order.
@@ -134,20 +145,20 @@ Here are some links that filter relevant conversations on each platform:
 ### Book an event
 For an event to be considered, booked, and scheduled, we follow the event issue template.
 
-1. Create a [new GitHub issue for the #g-marketing board](https://fleetdm.com/handbook/marketing#contact-us) and select the "Event-preparation" template..
+1. Create a [new GitHub issue for the #g-demand board](https://fleetdm.com/handbook/demand#contact-us) and select the "Event-preparation" template..
 2. Drag the issue into the "🗓 Ideas for future events" column.  
 
 Once approval has been received, move the event into the "🗓 Planned events" column.
 
 ### Review ongoing events
-Check the "🗓 Planned events" column in [#g-marketing board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
+Check the "🗓 Planned events" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
 
 
 ## Rituals
-<rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/demand/demand.rituals.yml']"></rituals>
 
 <!-- TODO: Explore the stubs from this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
 <!-- TODO: Slightly later, in another PR, finish processing this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
 
 <meta name="maintainedBy" value="mikermcneil">
-<meta name="title" value="🫧 Marketing">
+<meta name="title" value="🫧 Demand">

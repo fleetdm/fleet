@@ -44,6 +44,7 @@ parasails.registerPage('sandbox-login', {
 
     submittedLoginForm: async function() {
       this.syncing = true;
+      // FUTURE: once all Sandbox instances have expired, redirect users to the fleetctl-preview page.
       window.location = '/try-fleet/sandbox';
     },
 
