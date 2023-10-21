@@ -15,7 +15,7 @@ The Demand department is directly responsible for growing awareness of Fleet and
 
 ## Contact us
 
-> To make a request related to product marketing, brandfronts, pitchfronts, featurefronts, ICPs, personas, or targeting [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-product-marketing&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________).
+> To make a request related to product marketing, brandfronts, pitchfronts, featurefronts, ICPs, personas, or targeting [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Aproduct-marketing&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________).
 >
 > If urgent, or if you need help submiting your request, at-mention the [Head of Product Marketing](#team) in the [help-pmm-2023](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel.
 
