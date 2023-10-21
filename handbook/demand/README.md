@@ -14,7 +14,12 @@ The Demand department is directly responsible for growing awareness of Fleet and
 
 
 ## Contact us
-- To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-demand&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
+
+> To make a request related to product marketing, brandfronts, pitchfronts, featurefronts, ICPs, personas, or targeting [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-product-marketing&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________).
+>
+> If urgent, or if you need help submiting your request, at-mention the [Head of Product Marketing](#team) in the [help-pmm-2023](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel.
+
+- To make a request of the Demand department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-demand&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
   - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
 - To suggest an idea for social media, an ad, an article, a video, or an event, [create an issue (#g-demand)](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-demand&projects=&template=custom-request.md&title=Request%3A+_______________________) and concisely suggest why you think it might be a good idea.  The more advanced notice you can provide for the event, the better, in case we can provide swag or other support.
