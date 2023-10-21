@@ -2,7 +2,7 @@
 
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
-## What we docf
+## What we do
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
 
