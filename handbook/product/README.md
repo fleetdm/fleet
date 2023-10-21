@@ -405,6 +405,16 @@ Every week, a member of the product team (as determined in the [rituals](#ritual
 The DRI should record the latest versions in the [maintenance tracker](https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit#gid=0) and then notify the [#help-product Slack channel](https://fleetdm.slack.com/archives/C02A8BRABB5) with an update, noting the current versions and highlighting any changes. 
 
 
+### Restart Algolia manually
+At least once every hour, an Algolia crawler reindexes the Fleet website's content. If an error occurs while the website is being indexed, Algolia will block our crawler and respond to requests with this message: `"This action cannot be executed on a blocked crawler"`.
+
+When this happens, you'll need to manually start the crawler in the [Algolia crawler dashboard](https://crawler.algolia.com/admin/) to unblock it. 
+You can do this by logging into the crawler dashboard using the login saved in 1password and clicking the "Restart crawling" button on our crawler's "overview" page](https://crawler.algolia.com/admin/crawlers/497dd4fd-f8dd-4ffb-85c9-2a56b7fafe98/overview).
+
+No further action is needed if the crawler successfully reindexes the Fleet website. If another error occurs while the crawler is running, take a screenshot of the error and add it to the GitHub issue created for the alert and @mention `eashaw` for help.
+
+
+
 ### New CIS benchmarks
 When we create new CIS benchmarks, also submit the new CIS benchmark set to CIS for [certification](https://www.cisecurity.org/cis-securesuite/pricing-and-categories/product-vendor/cis-benchmark-assessment#:~:text=In%20order%20to%20incorporate%20and,recommendations%20in%20the%20associated%20CIS). 
 
