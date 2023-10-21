@@ -564,7 +564,15 @@ Fleet provides laptops and YubiKey security keys for core team members to use wh
 
 If you are in need of additional equipment for any reason, [create an equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=jostableford&labels=%23g-business-operations&projects=&template=equipment-request.md&title=%F0%9F%92%BB+Equipment+request). When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 
+- **Tracking equipment:** When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When you receive your new computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
 
+- **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Business Operations. 
+
+- **Equipment retention and replacement:**
+Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
+
+> If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
+<!-- TODO Move into Bizops page as responsability
 ### Purchase company-issued equipment
 Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The business team can arrange for same-day pickup at a store local to the Fleetie if needed.
 
@@ -584,26 +592,7 @@ When selecting a new laptop for a team member, optimize their configuration to:
 For example, someone in sales, marketing, or business operations might like to use a 14-inch Macbook Air, whereas someone in an engineering, product, or design role might use a 16-inch MacBook Pro.  **Default to a 16-inch MacBook Pro.**
 
 > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
-
-Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
-
-### Tracking equipment
-When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet.
-
-When you receive your new computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
-
-### Returning equipment
-Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Business Operations. 
-
-### Reprovisioning equipment
-Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers.
-
-### Equipment retention and replacement
-Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
-
-> If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
-
-
+-->
 ## Writing
 Learn how to communicate as Fleet with guidelines for tone of voice, our approach, grammar and mechanics, and more.
 
@@ -1398,6 +1387,11 @@ This glossary provides definitions to commonly used terms within our space.
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
+Please see 📖[handbook/company/communications#purchase-company-issued-equipment](https://fleetdm.com/handbook/company/communications#equipment).
+##### Equipment retention and replacement
+##### Returning equipment
+##### Tracking equipment
+##### Reprovisioning equipment
 ##### Buying other new equipment
 Please see 📖[handbook/company/communications#purchase-company-issued-equipment](https://fleetdm.com/handbook/company/communications#equipment).
 ##### Purchasing a company-issued device
