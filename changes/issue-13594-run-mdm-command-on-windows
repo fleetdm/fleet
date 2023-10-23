@@ -1,0 +1,1 @@
+* Updated the `fleetctl mdm run-command` sub-command to use the new platform-agnostic endpoint and support for running MDM commands on Windows hosts.

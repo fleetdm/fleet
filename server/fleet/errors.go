@@ -19,6 +19,10 @@ var (
 	ErrPasswordResetRequired = &passwordResetRequiredError{}
 	ErrMissingLicense        = &licenseError{}
 	ErrMDMNotConfigured      = &MDMNotConfiguredError{}
+
+	MDMNotConfiguredMessage        = "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet"
+	WindowsMDMNotConfiguredMessage = "Windows MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
+	AppleMDMNotConfiguredMessage   = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -310,7 +314,7 @@ func (e *MDMNotConfiguredError) StatusCode() int {
 }
 
 func (e *MDMNotConfiguredError) Error() string {
-	return "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet"
+	return MDMNotConfiguredMessage
 }
 
 // GatewayError is an error type that generates a 502 or 504 status code.

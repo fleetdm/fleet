@@ -1,9 +1,7 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -463,7 +461,7 @@ func runMDMCommandEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, hostUUIDs []string) (result *fleet.CommandEnqueueResult, err error) {
-	hosts, err := svc.authorizeAllHostsTeams(ctx, hostUUIDs, false, fleet.ActionWrite, &fleet.MDMCommandAuthz{})
+	hosts, err := svc.authorizeAllHostsTeams(ctx, hostUUIDs, fleet.ActionWrite, &fleet.MDMCommandAuthz{})
 	if err != nil {
 		return nil, err
 	}
@@ -501,12 +499,12 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	switch commandPlatform {
 	case "windows":
 		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-			err := fleet.NewInvalidArgumentError("host_uuids", "Windows MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.").WithStatus(http.StatusBadRequest)
+			err := fleet.NewInvalidArgumentError("host_uuids", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
 			return nil, ctxerr.Wrap(ctx, err, "check windows MDM enabled")
 		}
 	default:
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-			err := fleet.NewInvalidArgumentError("host_uuids", "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.").WithStatus(http.StatusBadRequest)
+			err := fleet.NewInvalidArgumentError("host_uuids", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
 			return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
 		}
 	}
@@ -591,27 +589,10 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 }
 
 func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []byte, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
-	// a command must have the <Exec> element as top-level
-	var cmdMsg fleet.SyncMLCmd
-	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace(rawXMLCmd)))
-	if err := dec.Decode(&cmdMsg); err != nil {
-		err = fleet.NewInvalidArgumentError("command", fmt.Sprintf("The payload isn't valid XML: %v", err))
+	cmdMsg, err := fleet.ParseWindowsMDMCommand(rawXMLCmd)
+	if err != nil {
+		err = fleet.NewInvalidArgumentError("command", err.Error())
 		return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
-	}
-
-	// check if there were multiple top-level elements provided
-	if _, err := dec.Token(); err != io.EOF {
-		err = fleet.NewInvalidArgumentError("command", "You can run only a single <Exec> command.")
-		return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
-	}
-
-	if cmdMsg.XMLName.Local != fleet.CmdExec {
-		err = fleet.NewInvalidArgumentError("command", "You can run only <Exec> command type.")
-		return nil, ctxerr.Wrap(ctx, err, "validate SyncML commands")
-	}
-	if len(cmdMsg.Items) != 1 {
-		err = fleet.NewInvalidArgumentError("command", "You can run only a single <Exec> command.")
-		return nil, ctxerr.Wrap(ctx, err, "validate SyncML Exec commands")
 	}
 
 	if cmdMsg.IsPremium() {

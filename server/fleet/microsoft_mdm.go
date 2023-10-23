@@ -1,10 +1,12 @@
 package fleet
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -921,10 +923,42 @@ type SyncMLCmd struct {
 	SystemOrigin bool      `xml:"-"`
 }
 
+// ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
+// A single <Exec> command is accepted as input.
+func ParseWindowsMDMCommand(rawXMLCmd []byte) (*SyncMLCmd, error) {
+	// a command must have the <Exec> element as top-level
+	var cmdMsg SyncMLCmd
+	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace(rawXMLCmd)))
+	if err := dec.Decode(&cmdMsg); err != nil {
+		return nil, fmt.Errorf("The payload isn't valid XML: %w", err)
+	}
+
+	// check if there were multiple top-level elements provided
+	if _, err := dec.Token(); err != io.EOF {
+		return nil, errors.New("You can run only a single <Exec> command.")
+	}
+
+	if cmdMsg.XMLName.Local != CmdExec {
+		return nil, errors.New("You can run only <Exec> command type.")
+	}
+	if len(cmdMsg.Items) != 1 {
+		return nil, errors.New("You can run only a single <Exec> command.")
+	}
+	return &cmdMsg, nil
+}
+
+// WindowsMDMRequiresPremiumCmdMessage is the error message displayed by fleetctl mdm
+// run-command when a Premium license is required. It must be kept in sync with
+// the SyncMLCmd.IsPremium implementation below so that it reflects the proper
+// command names.
+const WindowsMDMRequiresPremiumCmdMessage = "Missing or invalid license. Wipe command is available in Fleet Premium only."
+
 // IsPremium returns true if the command is available for Fleet premium only.
 // See e.g. https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipe
 // for details.
 func (cmd SyncMLCmd) IsPremium() bool {
+	// NOTE: if this implementation changes, make sure to also update the error
+	// message above - the WindowsMDMRequiresPremiumCmdMessage constant.
 	return strings.Contains(cmd.GetTargetURI(), "/Device/Vendor/MSFT/RemoteWipe/")
 }
 
@@ -937,7 +971,7 @@ func (cmd SyncMLCmd) DataType() SyncMLDataType {
 		return SFNoFormat
 	}
 
-	switch *cmd.Items[0].Meta.Format.Content {
+	switch strings.TrimSpace(*cmd.Items[0].Meta.Format.Content) {
 	case "chr":
 		return SFText
 	case "xml":

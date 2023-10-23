@@ -288,6 +288,7 @@ type TestServerOpts struct {
 	UseMailService      bool
 	APNSTopic           string
 	ProfileMatcher      fleet.ProfileMatcher
+	NoCacheDatastore    bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {

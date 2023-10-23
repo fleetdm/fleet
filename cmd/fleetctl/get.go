@@ -819,7 +819,7 @@ func getHostsCommand() *cli.Command {
 
 				if c.Bool("mdm") || c.Bool("mdm-pending") {
 					// print an error if MDM is not configured
-					if err := client.CheckMDMEnabled(); err != nil {
+					if err := client.CheckAnyMDMEnabled(); err != nil {
 						return err
 					}
 
@@ -1390,7 +1390,7 @@ func getMDMCommandResultsCommand() *cli.Command {
 			}
 
 			// print an error if MDM is not configured
-			if err := client.CheckMDMEnabled(); err != nil {
+			if err := client.CheckAnyMDMEnabled(); err != nil {
 				return err
 			}
 
@@ -1451,7 +1451,7 @@ func getMDMCommandsCommand() *cli.Command {
 			}
 
 			// print an error if MDM is not configured
-			if err := client.CheckMDMEnabled(); err != nil {
+			if err := client.CheckAnyMDMEnabled(); err != nil {
 				return err
 			}
 
