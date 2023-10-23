@@ -12,6 +12,7 @@ import (
 
 	// Kolide tables
 	"github.com/kolide/launcher/pkg/osquery/tables/cryptsetup"
+	"github.com/kolide/launcher/pkg/osquery/tables/dev_table_tooling"
 	"github.com/kolide/launcher/pkg/osquery/tables/firefox_preferences"
 	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
 	"github.com/kolide/launcher/pkg/osquery/tables/fscrypt_info"
@@ -157,6 +158,7 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		osquery_instance_history.TablePlugin(),
 		secureboot.TablePlugin(kolideLogger),
 		cryptsetup.TablePlugin(kolideLogger),
+		dev_table_tooling.TablePlugin(kolideLogger),
 
 		// TODO: Fix build error
 		// falcon_kernel_check.TablePlugin(kolideLogger),
