@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 
 	// Kolide tables
+	"github.com/kolide/launcher/pkg/osquery/tables/cryptsetup"
 	"github.com/kolide/launcher/pkg/osquery/tables/firefox_preferences"
 	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
 	"github.com/kolide/launcher/pkg/osquery/tables/fscrypt_info"
@@ -20,6 +21,7 @@ import (
 	// TODO: Fix build erros
 	//"github.com/kolide/launcher/pkg/osquery/tables/falcon_kernel_check"  //TODO: Fix build error
 	//"github.com/kolide/launcher/pkg/osquery/tables/crowdstrike/falconctl"  //TODO: Fix build error
+	//"github.com/kolide/launcher/pkg/osquery/tables/cryptoinfotable"
 
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
@@ -150,10 +152,12 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		fscrypt_info.TablePlugin(kolideLogger),
 		osquery_instance_history.TablePlugin(),
 		secureboot.TablePlugin(kolideLogger),
+		cryptsetup.TablePlugin(kolideLogger),
 
 		// TODO: Fix build error
 		// falcon_kernel_check.TablePlugin(kolideLogger),
 		// falconctl.NewFalconctlOptionTable(kolideLogger),
+		// cryptoinfotable.TablePlugin(kolideLogger),
 	}
 	return plugins
 }
