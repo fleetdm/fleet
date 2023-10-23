@@ -576,6 +576,13 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	for _, tt := range testCases {
 		ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 		ds.TeamFunc = mockTeamFuncWithUser(tt.user)
+		ds.TeamExistsFunc = func(ctx context.Context, id uint) error {
+			_, err := ds.TeamFunc(ctx, id)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
 
 		t.Run(tt.name, func(t *testing.T) {
 			// test authz create new profile (no team)

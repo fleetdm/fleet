@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -467,7 +468,8 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 	t.Parallel()
 
 	mockedDS := new(mock.Store)
-	ds := New(mockedDS, WithTeamFeaturesExpiration(100*time.Millisecond))
+	expirationTime := 100 * time.Millisecond
+	ds := New(mockedDS, WithTeamFeaturesExpiration(expirationTime))
 	ao := json.RawMessage(`{}`)
 
 	testMDMConfig := fleet.TeamMDM{
@@ -492,9 +494,10 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 		if deleted {
 			return nil, errors.New("not found")
 		}
-		return &testMDMConfig, nil
+		return &testTeam.Config.MDM, nil
 	}
 	mockedDS.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		testTeam = *team
 		return team, nil
 	}
 	mockedDS.DeleteTeamFunc = func(ctx context.Context, teamID uint) error {
@@ -529,6 +532,25 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 	mdmConfig, err = ds.TeamMDMConfig(context.Background(), testTeam.ID)
 	require.NoError(t, err)
 	require.Equal(t, updateMDMConfig, *mdmConfig)
+
+	// delete the cached entry
+	cc, ok := ds.(*cachedMysql)
+	require.True(t, ok)
+	mdmConfigKey := fmt.Sprintf(teamMDMConfigKey, testTeam.ID)
+	cc.c.Delete(mdmConfigKey)
+
+	// a db call is performed next time TeamMDMConfig is called
+	mockedDS.TeamMDMConfigFuncInvoked = false
+	mdmConfig, err = ds.TeamMDMConfig(context.Background(), testTeam.ID)
+	require.NoError(t, err)
+	require.Equal(t, updateMDMConfig, *mdmConfig)
+	require.True(t, mockedDS.TeamMDMConfigFuncInvoked)
+	// a second call doesn't hit the underlying DB
+	mockedDS.TeamMDMConfigFuncInvoked = false
+	mdmConfig, err = ds.TeamMDMConfig(context.Background(), testTeam.ID)
+	require.NoError(t, err)
+	require.Equal(t, updateMDMConfig, *mdmConfig)
+	require.False(t, mockedDS.TeamMDMConfigFuncInvoked)
 
 	// deleting a team removes the config from the cache
 	err = ds.DeleteTeam(context.Background(), testTeam.ID)

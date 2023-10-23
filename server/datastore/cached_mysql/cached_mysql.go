@@ -284,6 +284,9 @@ func (ds *cachedMysql) TeamMDMConfig(ctx context.Context, teamID uint) (*fleet.T
 	if err != nil {
 		return nil, err
 	}
+
+	ds.c.Set(key, cfg, ds.teamMDMConfigExp)
+
 	return cfg, nil
 }
 

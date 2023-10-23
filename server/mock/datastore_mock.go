@@ -310,6 +310,8 @@ type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, erro
 
 type TeamFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
 
+type TeamExistsFunc func(ctx context.Context, id uint) error
+
 type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
 type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
@@ -1152,6 +1154,9 @@ type DataStore struct {
 
 	TeamFunc        TeamFunc
 	TeamFuncInvoked bool
+
+	TeamExistsFunc        TeamExistsFunc
+	TeamExistsFuncInvoked bool
 
 	DeleteTeamFunc        DeleteTeamFunc
 	DeleteTeamFuncInvoked bool
@@ -2782,6 +2787,13 @@ func (s *DataStore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
 	s.TeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.TeamFunc(ctx, tid)
+}
+
+func (s *DataStore) TeamExists(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.TeamExistsFuncInvoked = true
+	s.mu.Unlock()
+	return s.TeamExistsFunc(ctx, id)
 }
 
 func (s *DataStore) DeleteTeam(ctx context.Context, tid uint) error {

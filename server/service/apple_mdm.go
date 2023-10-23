@@ -394,14 +394,14 @@ func (svc *Service) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint)
 
 	if teamID >= 1 {
 		// confirm that team exists
-		if _, err := svc.ds.Team(ctx, teamID); err != nil {
-			return nil, ctxerr.Wrap(ctx, err)
+		if err := svc.ds.TeamExists(ctx, teamID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking team existence")
 		}
 	}
 
 	cps, err := svc.ds.ListMDMAppleConfigProfiles(ctx, &teamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "listing profiles")
 	}
 
 	return cps, nil

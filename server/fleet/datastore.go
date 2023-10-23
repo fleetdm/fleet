@@ -411,6 +411,8 @@ type Datastore interface {
 	SaveTeam(ctx context.Context, team *Team) (*Team, error)
 	// Team retrieves the Team by ID.
 	Team(ctx context.Context, tid uint) (*Team, error)
+	// Team exists is a lightweight check to verify if a team exists
+	TeamExists(ctx context.Context, id uint) error
 	// Team deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
 	// TeamByName retrieves the Team by Name.

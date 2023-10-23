@@ -34,6 +34,7 @@ func TestTeams(t *testing.T) {
 		{"DeleteIntegrationsFromTeams", testTeamsDeleteIntegrationsFromTeams},
 		{"TeamsFeatures", testTeamsFeatures},
 		{"TeamsMDMConfig", testTeamsMDMConfig},
+		{"TeamExists", testTeamExists},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -593,4 +594,21 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 			},
 		}, mdm)
 	})
+}
+
+func testTeamExists(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	team, err := ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name(),
+		Description: t.Name() + "_description",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, team.ID)
+
+	err = ds.TeamExists(ctx, team.ID)
+	require.NoError(t, err)
+
+	err = ds.TeamExists(ctx, team.ID+1000)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
 }

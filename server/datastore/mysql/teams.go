@@ -46,15 +46,35 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 	return team, nil
 }
 
+func (ds *Datastore) TeamExists(ctx context.Context, id uint) error {
+	stmt := `SELECT 1 FROM teams WHERE id = ?`
+	var exists bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, stmt, id); err != nil {
+		if err == sql.ErrNoRows {
+			return ctxerr.Wrap(ctx, notFound("Team").WithID(id))
+		}
+		return ctxerr.Wrap(ctx, err, "select team")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
 	return teamDB(ctx, ds.reader(ctx), tid)
 }
 
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, error) {
 	stmt := `
-		SELECT * FROM teams
-			WHERE id = ?
-	`
+SELECT
+  id,
+  created_at,
+  name,
+  description,
+  config
+FROM
+  teams
+WHERE
+  id = ?`
 	team := &fleet.Team{}
 
 	if err := sqlx.GetContext(ctx, q, team, stmt, tid); err != nil {
