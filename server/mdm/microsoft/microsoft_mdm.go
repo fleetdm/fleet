@@ -251,9 +251,8 @@ const (
 	// client-request-id query param expected by TOS endpoint
 	TOCReqID = "client-request-id"
 
-	// Alert Command IDs
-	DeviceUnenrollmentID = "1226"
-	HostInitMessageID    = "1201"
+	// Alert payload user-driven unenrollment request
+	AlertUserUnenrollmentRequest = "com.microsoft:mdm.unenrollment.userrequest"
 )
 
 // MS-MDM Message constants
