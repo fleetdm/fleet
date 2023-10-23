@@ -2,7 +2,7 @@
 name: 🫧 Article request
 about: Propose an article for marketing.
 title: 'Article: __________________________'
-labels: '#g-marketing'
+labels: '#g-demand'
 assignees: 'spokanemac'
 
 ---
