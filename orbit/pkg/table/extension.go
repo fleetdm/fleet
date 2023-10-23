@@ -162,6 +162,7 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		dev_table_tooling.TablePlugin(kolideLogger),
 
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonType),  // table name is "kolide_json"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonlType), // table name is "kolide_jsonl"
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.XmlType),   // table name is "kolide_xml"
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.IniType),   // table name is "kolide_ini"
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.PlistType), // table name is "kolide_plist"
