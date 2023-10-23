@@ -67,7 +67,7 @@ interface IEditQueryFormProps {
   isStoredQueryLoading: boolean;
   isQuerySaving: boolean;
   isQueryUpdating: boolean;
-  saveQuery: (formData: ICreateQueryRequestBody) => void;
+  onSubmitNewQuery: (formData: ICreateQueryRequestBody) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   onUpdate: (formData: ICreateQueryRequestBody) => void;
   onOpenSchemaSidebar: () => void;
@@ -117,7 +117,7 @@ const EditQueryForm = ({
   isStoredQueryLoading,
   isQuerySaving,
   isQueryUpdating,
-  saveQuery,
+  onSubmitNewQuery,
   onOsqueryTableSelect,
   onUpdate,
   onOpenSchemaSidebar,
@@ -166,6 +166,10 @@ const EditQueryForm = ({
 
   const savedQueryMode = !!queryIdForEdit;
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
+  // NOTE: SaveQueryModal is only being used to create a new query in this component.
+  // It's easy to confuse with other names like promptSaveQuery, promptSaveAsNewQuery, etc.,
+  // which are used in connection with existing (i.e. previously saved) queries rather
+  // than new queries. Consider renaming some things to distinguish the various flows.
   const [showSaveQueryModal, setShowSaveQueryModal] = useState(false);
   const [showQueryEditor, setShowQueryEditor] = useState(
     isObserverPlus || isAnyTeamObserverPlus || false
@@ -820,7 +824,7 @@ const EditQueryForm = ({
           <SaveQueryModal
             queryValue={lastEditedQueryBody}
             apiTeamIdForQuery={apiTeamIdForQuery}
-            saveQuery={saveQuery}
+            saveQuery={onSubmitNewQuery}
             toggleSaveQueryModal={toggleSaveQueryModal}
             backendValidators={backendValidators}
             isLoading={isQuerySaving}

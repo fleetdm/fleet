@@ -29,6 +29,10 @@ module.exports = {
     const NUMBER_OF_RESULTS_REQUESTED = 100;
 
     let daysSinceBugsWereOpened = [];
+    let daysSinceUnreleasedBugsWereOpened = [];
+    let daysSinceReleasedBugsWereOpened = [];
+    let allBugsWithUnreleasedLabel = [];
+    let allBugsWithReleasedLabel = [];
     let daysSincePullRequestsWereOpened = [];
     let daysSinceContributorPullRequestsWereOpened = [];
     let commitToMergeTimesInDays = [];
@@ -75,7 +79,7 @@ module.exports = {
         }, 10000);
 
         // iterate through the allIssuesWithBugLabel array, adding the number
-        for(let issue of allIssuesWithBugLabel) {
+        for (let issue of allIssuesWithBugLabel) {
           // Create a date object from the issue's created_at timestamp.
           let issueOpenedOn = new Date(issue.created_at);
           // Get the amount of time this issue has been open in milliseconds.
@@ -83,6 +87,18 @@ module.exports = {
           // Convert the miliseconds to days and add the value to the daysSinceBugsWereOpened array
           let timeOpenInDays = timeOpenInMS / ONE_DAY_IN_MILLISECONDS;
           daysSinceBugsWereOpened.push(timeOpenInDays);
+          // Send to released or unreleased bugs array
+          if (issue.labels.some(label => label.name === '~unreleased bug')) {
+            allBugsWithUnreleasedLabel.push(issue);
+            daysSinceUnreleasedBugsWereOpened.push(timeOpenInDays);
+          } else if (issue.labels.some(label => label.name === '~released bug')) {
+            allBugsWithReleasedLabel.push(issue);
+            daysSinceReleasedBugsWereOpened.push(timeOpenInDays);
+          } else {
+            // If not labeled as a released or unreleased bug, log a warning.
+            sails.log.warn('Issue #'+issue.number+' is labeled as a bug but is not labeled as released or unreleased.');
+          }
+
         }
 
       },
@@ -236,7 +252,9 @@ module.exports = {
     ]);
 
     // Get the averages from the arrays of results.
-    let averageNumberOfDaysBugsAreOpenFor = Math.round(_.sum(daysSinceBugsWereOpened)/daysSinceBugsWereOpened.length);
+    let averageNumberOfDaysBugsAreOpenFor = Math.round(_.sum(daysSinceBugsWereOpened) / daysSinceBugsWereOpened.length);
+    let averageNumberOfDaysUnreleasedBugsAreOpenFor = Math.round(_.sum(daysSinceUnreleasedBugsWereOpened) / daysSinceUnreleasedBugsWereOpened.length);
+    let averageNumberOfDaysReleasedBugsAreOpenFor = Math.round(_.sum(daysSinceReleasedBugsWereOpened)/daysSinceReleasedBugsWereOpened.length);
     let averageNumberOfDaysFromCommitToMerge = Math.round(_.sum(commitToMergeTimesInDays)/commitToMergeTimesInDays.length);
     let averageDaysPullRequestsAreOpenFor = Math.round(_.sum(daysSincePullRequestsWereOpened)/daysSincePullRequestsWereOpened.length);
     let averageDaysContributorPullRequestsAreOpenFor = Math.round(_.sum(daysSinceContributorPullRequestsWereOpened)/daysSinceContributorPullRequestsWereOpened.length);
@@ -271,6 +289,11 @@ module.exports = {
     Number of open issues with the "bug" label in fleetdm/fleet: ${daysSinceBugsWereOpened.length}
     Average open time: ${averageNumberOfDaysBugsAreOpenFor} days.
 
+    Number of open issues with the "~unreleased bug" label in fleetdm/fleet: ${allBugsWithUnreleasedLabel.length}
+    Average open time: ${averageNumberOfDaysUnreleasedBugsAreOpenFor} days.
+
+    Number of open issues with the "~released bug" label in fleetdm/fleet: ${allBugsWithReleasedLabel.length}
+    Average open time: ${averageNumberOfDaysReleasedBugsAreOpenFor} days.
 
     Closed pull requests:
     ---------------------------
