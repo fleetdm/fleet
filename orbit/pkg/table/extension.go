@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 
 	// Kolide tables
+	"github.com/kolide/launcher/pkg/osquery/tables/crowdstrike/falcon_kernel_check"
 	"github.com/kolide/launcher/pkg/osquery/tables/cryptsetup"
 	"github.com/kolide/launcher/pkg/osquery/tables/dataflattentable"
 	"github.com/kolide/launcher/pkg/osquery/tables/dev_table_tooling"
@@ -22,7 +23,7 @@ import (
 
 	// TODO: Fix build erros
 	//"github.com/kolide/launcher/pkg/osquery/tables/falcon_kernel_check"  //TODO: Fix build error
-	//"github.com/kolide/launcher/pkg/osquery/tables/crowdstrike/falconctl"  //TODO: Fix build error
+	//TODO: Fix build error
 	//"github.com/kolide/launcher/pkg/osquery/tables/cryptoinfotable"
 	//"github.com/kolide/launcher/pkg/osquery/tables/secureboot"
 
@@ -168,7 +169,7 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.PlistType), // table name is "kolide_plist"
 
 		// TODO: Fix build error
-		// falcon_kernel_check.TablePlugin(kolideLogger),
+		falcon_kernel_check.TablePlugin(kolideLogger),
 		// falconctl.NewFalconctlOptionTable(kolideLogger),
 		// cryptoinfotable.TablePlugin(kolideLogger),
 		// desktopprocs.TablePlugin(),

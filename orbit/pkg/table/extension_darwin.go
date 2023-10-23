@@ -3,8 +3,6 @@
 package table
 
 import (
-	"runtime"
-
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/apfs"
@@ -83,9 +81,8 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		apple_silicon_security_policy.TablePlugin(kolideLogger),
 	}
 
-	if runtime.GOARCH == "arm64" {
-		plugins = appendARM64Tables(plugins)
-	}
+	// append platform specific tables
+	plugins = appendTables(plugins)
 
 	return plugins
 }

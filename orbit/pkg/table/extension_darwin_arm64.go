@@ -9,7 +9,7 @@ import (
 	"github.com/osquery/osquery-go"
 )
 
-func appendARM64Tables(plugins []osquery.OsqueryPlugin) []osquery.OsqueryPlugin {
+func appendTables(plugins []osquery.OsqueryPlugin) []osquery.OsqueryPlugin {
 	plugins = append(plugins,
 		// ARM64 Kolide tables
 		appicons.AppIcons(),
