@@ -132,7 +132,7 @@ func mdmRunCommand() *cli.Command {
 			result, err := client.RunMDMCommand(hostUUIDs, payload, platform)
 			if err != nil {
 				if errors.Is(err, service.ErrMissingLicense) && platform == "windows" {
-					return errors.New("Missing or invalid license. Wipe command is available in Fleet Premium only.")
+					return errors.New(fleet.WindowsMDMRequiresPremiumCmdMessage)
 				}
 
 				var sce kithttp.StatusCoder

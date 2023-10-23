@@ -947,10 +947,18 @@ func ParseWindowsMDMCommand(rawXMLCmd []byte) (*SyncMLCmd, error) {
 	return &cmdMsg, nil
 }
 
+// WindowsMDMRequiresPremiumCmdMessage is the error message displayed by fleetctl mdm
+// run-command when a Premium license is required. It must be kept in sync with
+// the SyncMLCmd.IsPremium implementation below so that it reflects the proper
+// command names.
+const WindowsMDMRequiresPremiumCmdMessage = "Missing or invalid license. Wipe command is available in Fleet Premium only."
+
 // IsPremium returns true if the command is available for Fleet premium only.
 // See e.g. https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipe
 // for details.
 func (cmd SyncMLCmd) IsPremium() bool {
+	// NOTE: if this implementation changes, make sure to also update the error
+	// message above - the WindowsMDMRequiresPremiumCmdMessage constant.
 	return strings.Contains(cmd.GetTargetURI(), "/Device/Vendor/MSFT/RemoteWipe/")
 }
 
