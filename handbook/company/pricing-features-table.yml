@@ -210,8 +210,11 @@
       productCategories: [Endpoint operations]
       waysToUse:
         - description: Build scripts for Ansible deployments
+          moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
         - description: Deploy osquery to macOS via Jamf
+          moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
         - description: Package osquery for Linux servers via Workspace One and Windows servers via group policies
+          moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
     #  ╔╗ ╔═╗╔╦╗╔═╗╦ ╦  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗╦╔═╗╔╗╔
     #  ╠╩╗╠═╣ ║ ║  ╠═╣  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║
     #  ╚═╝╩ ╩ ╩ ╚═╝╩ ╩  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝
