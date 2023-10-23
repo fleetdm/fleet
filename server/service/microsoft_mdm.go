@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"text/template"
 	"time"
 
@@ -34,7 +35,7 @@ type SoapRequestContainer struct {
 }
 
 // MDM SOAP request decoder
-func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
+func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
 	// Reading the request bytes
 	reqBytes, err := io.ReadAll(r)
 	if err != nil {
@@ -87,11 +88,12 @@ func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.Response
 type SyncMLReqMsgContainer struct {
 	Data   *fleet.SyncML
 	Params url.Values
+	Certs  []*x509.Certificate
 	Err    error
 }
 
 // MDM SOAP request decoder
-func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
+func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
 	// Reading the request bytes
 	reqBytes, err := io.ReadAll(r)
 	if err != nil {
@@ -100,6 +102,9 @@ func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u
 
 	// Set the request parameters
 	req.Params = u
+
+	// Set the request certs
+	req.Certs = c
 
 	// Handle empty body scenario
 	req.Data = &fleet.SyncML{}
@@ -148,7 +153,7 @@ type MDMWebContainer struct {
 }
 
 // MDM SOAP request decoder
-func (req *MDMWebContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
+func (req *MDMWebContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
 	reqBytes, err := io.ReadAll(r)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading Webcontainer HTML message request")
@@ -866,6 +871,7 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 // and better security authentication (done through TLS and in-message hash)
 func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	reqSyncML := request.(*SyncMLReqMsgContainer).Data
+	reqCerts := request.(*SyncMLReqMsgContainer).Certs
 
 	// Checking first if incoming SyncML message is valid and returning error if this is not the case
 	if err := reqSyncML.IsValidMsg(); err != nil {
@@ -874,7 +880,7 @@ func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, sv
 	}
 
 	// Getting the MS-MDM response message
-	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML)
+	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML, reqCerts)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MSMDM, err)
 		return getSoapResponseFault(reqSyncML.SyncHdr.MsgID, soapFault), nil
@@ -1145,13 +1151,13 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 }
 
 // GetMDMWindowsManagementResponse returns a valid SyncML response message
-func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML) (*fleet.SyncML, error) {
+func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (*fleet.SyncML, error) {
 	if reqSyncML == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
 	// Checking if the incoming request is trusted
-	err := svc.isTrustedRequest(ctx, reqSyncML)
+	err := svc.isTrustedRequest(ctx, reqSyncML, reqCerts)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "management request is not trusted")
 	}
@@ -1188,35 +1194,114 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 }
 
 // isTrustedRequest checks if the incoming request was sent from MDM enrolled device
-func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML) error {
+func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) error {
 	if reqSyncML == nil {
 		return fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
-	// TODO - Security checks that need to be implemented
-	// - TLS based auth
-	// - Device auth based on Source/LocURI DeviceID information (this should be present on Enrollment DB)
+	// Checking if calling request is coming from an already MDM enrolled device
+	deviceID, err := reqSyncML.GetSource()
+	if err != nil || deviceID == "" {
+		return fmt.Errorf("invalid SyncML message %w", err)
+	}
 
-	return nil
+	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	if err != nil || enrolledDevice == nil {
+		return errors.New("device was not MDM enrolled")
+	}
+
+	// Check if TLS certs contains device ID on its common name
+	if len(reqCerts) > 0 {
+		for _, reqCert := range reqCerts {
+			if strings.Contains(reqCert.Subject.CommonName, deviceID) {
+				return nil
+			}
+		}
+	}
+
+	// TODO: Latest version of the MDM client stack don't populate TLS.PeerCertificates array
+	// This is a temporary workaround to allow the management request to proceed
+	// Transport-level security should be replaced for Application-level security
+	// Transport-level security is defined in the MS-MDM spec in section 1.3.1
+	// On the other hand, Application-level security is defined here
+	// https://www.openmobilealliance.org/release/DM/V1_2_1-20080617-A/OMA-TS-DM_Security-V1_2_1-20080617-A.pdf
+	// The initial values for Application-level security configuration are defined in the
+	// WAP Profile blob that is sent to the device during the enrollment process. Example below
+	//	<characteristic type="APPAUTH">
+	//		<parm name="AAUTHLEVEL" value="CLIENT"/>
+	//		<parm name="AAUTHTYPE" value="DIGEST"/>
+	//		<parm name="AAUTHSECRET" value="2jsidqgffx"/>
+	//		<parm name="AAUTHDATA" value="aGVsbG8gd29ybGQ="/>
+	//	</characteristic>
+	//	<characteristic type="APPAUTH">
+	//		<parm name="AAUTHLEVEL" value="APPSRV"/>
+	//		<parm name="AAUTHTYPE" value="DIGEST"/>
+	//		<parm name="AAUTHNAME" value="43f8bf591b8557346021"/>
+	//		<parm name="AAUTHSECRET" value="crbr3w2cab"/>
+	//		<parm name="AAUTHDATA" value="aGVsbG8gd29ybGQ="/>
+	//	</characteristic>
+
+	if len(reqCerts) == 0 {
+		return nil
+	}
+
+	return errors.New("calling device is not trusted")
+}
+
+// processIncomingAlertsCommands will process the incoming Alerts commands.
+// These commands requires an status response.
+func (svc *Service) processIncomingAlertsCommands(messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
+	// TODO: New Session Initiation request and Device unenrollment should happen here
+	return NewSyncMLCmdStatus(messageID, cmd.Cmd.CmdID, cmd.Verb, mdm.CmdStatusOK), nil
+}
+
+// processIncomingResultsCommands will process the incoming Results commands.
+// These commands requires don't require an status response.
+func (svc *Service) processIncomingResultsCommands(deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
+	// TODO: Results of operations such as GET and EXEC should be processed here
+	return nil, nil
+}
+
+// processIncomingStatusCommands will process the incoming Status commands.
+// These commands requires don't require an status response.
+func (svc *Service) processIncomingStatusCommands(ctx context.Context, sessionID string, deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
+	err := svc.ds.MDMWindowsUpdateCommandErrorCode(ctx, deviceID, sessionID, *cmd.Cmd.MsgRef, cmd.Cmd.CmdID, *cmd.Cmd.Data)
+	if err != nil {
+		return nil, fmt.Errorf("process incoming command: %w", err)
+	}
+
+	return nil, nil
 }
 
 // processIncomingProtocolCommands will process the incoming command
-func (svc *Service) processIncomingProtocolCommands(messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
-	// TODO:
-	// - Handle Security Alerts
-	// - Handle Results/Responses
+func (svc *Service) processIncomingProtocolCommands(ctx context.Context, sessionID string, messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
+	// Switch between protocol operations
+	switch cmd.Verb {
+	case mdm_types.CmdAlert:
+		return svc.processIncomingAlertsCommands(messageID, deviceID, cmd)
+	case mdm_types.CmdResults:
+		return svc.processIncomingResultsCommands(deviceID, cmd)
+	case mdm_types.CmdStatus:
+		return svc.processIncomingStatusCommands(ctx, sessionID, deviceID, cmd)
+	}
 
-	// We return a status 200 for all the operations
+	// CmdStatusOK is returned for the rest of the operations
 	return NewSyncMLCmdStatus(messageID, cmd.Cmd.CmdID, cmd.Verb, mdm.CmdStatusOK), nil
 }
 
 // processIncomingMDMCmds process the incoming message from the device
 // It will return the list of operations that need to be sent to the device
-func (svc *Service) processIncomingMDMCmds(deviceID string, reqMsg *fleet.SyncML) ([]*fleet.SyncMLCmd, error) {
+func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string, reqMsg *fleet.SyncML) ([]*fleet.SyncMLCmd, error) {
 	var responseCmds []*fleet.SyncMLCmd
 
 	// Get the incoming MessageID
 	reqMessageID, err := reqMsg.GetMessageID()
+	if err != nil {
+		return nil, fmt.Errorf("get incoming msg: %w", err)
+	}
+
+	// Get the incoming SessionID
+	reqSessionID, err := reqMsg.GetSessionID()
 	if err != nil {
 		return nil, fmt.Errorf("get incoming msg: %w", err)
 	}
@@ -1233,7 +1318,7 @@ func (svc *Service) processIncomingMDMCmds(deviceID string, reqMsg *fleet.SyncML
 
 	// Iterate over the operations and process them
 	for _, protoCMD := range protoCMDs {
-		protoCmd, err := svc.processIncomingProtocolCommands(reqMessageID, deviceID, protoCMD)
+		protoCmd, err := svc.processIncomingProtocolCommands(ctx, reqSessionID, reqMessageID, deviceID, protoCMD)
 		if err != nil {
 			return nil, fmt.Errorf("process incoming command: %w", err)
 		}
@@ -1392,7 +1477,7 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	}
 
 	// Process the incoming MDM protocol commands and get the response MDM protocol commands
-	resIncomingCmds, err := svc.processIncomingMDMCmds(deviceID, reqMsg)
+	resIncomingCmds, err := svc.processIncomingMDMCmds(ctx, deviceID, reqMsg)
 	if err != nil {
 		return nil, fmt.Errorf("message processing error %w", err)
 	}
