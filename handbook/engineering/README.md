@@ -712,7 +712,7 @@ Steps to renew the certificate:
 2. Log in using the credentials stored in 1Password under **Apple developer account**.
 3. Verify you are using the **Enterprise** subaccount for Fleet Device Management Inc.
 4. Generate a new certificate following the instructions in [MicroMDM](https://github.com/micromdm/micromdm/blob/c7e70b94d0cfc7710e5c92be20d4534d9d5a0640/docs/user-guide/quickstart.md?plain=1#L103-L118).
-5. Note: `mdmctl` will generate a `VendorPrivateKey.key` and `VendorCertificateRequest.csr` using `billing@...` and a passphrase (suggested generation method with pwgen available in brew / apt / yum `pwgen -s 32 -1vcy`)
+5. Note: `mdmctl` (a micromdm command for MDM vendors) will generate a `VendorPrivateKey.key` and `VendorCertificateRequest.csr` using an appropriate shared email relay and a passphrase (suggested generation method with pwgen available in brew / apt / yum `pwgen -s 32 -1vcy`)
 6. Uploading `VendorCertificateRequest.csr` to Apple you will download a corresponding `mdm.cer` file
 7. Convert the downloaded cert to PEM with `openssl x509 -inform DER -outform PEM -in mdm.cer -out server.crt.pem`
 8. Update the **Config vars** in [Heroku](https://dashboard.heroku.com/apps/production-fleetdm-website/settings):
