@@ -27,8 +27,7 @@ import (
 	"github.com/kolide/launcher/pkg/osquery/tables/profiles"
 	"github.com/kolide/launcher/pkg/osquery/tables/pwpolicy"
 
-	// TODO: Need coding/other
-	//"github.com/kolide/launcher/pkg/osquery/tables/munki"
+	// TODO: This Kolide table requires more complicated coding
 	//"github.com/kolide/launcher/pkg/osquery/tables/osquery_user_exec_table"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
@@ -80,10 +79,5 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		pwpolicy.TablePlugin(kolideLogger),
 		airport.TablePlugin(kolideLogger),
 		apple_silicon_security_policy.TablePlugin(kolideLogger),
-
-		// TODO: Need coding/other
-		// munki.MunkiReport(logger log.Logger), // TODO: compare with the existing munki table. Maybe no need for this.
-		// osquery_user_exec_table.TablePlugin(logger log.Logger, tablename string, osqueryd string,osqueryQuery string, columns []table.ColumnDefinition,), // add params
-
 	}
 }

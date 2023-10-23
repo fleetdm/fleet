@@ -31,8 +31,7 @@ import (
 	// ARM64 Kolide tables
 	appicons "github.com/kolide/launcher/pkg/osquery/tables/app-icons"
 
-	// TODO: Need coding/other
-	//"github.com/kolide/launcher/pkg/osquery/tables/munki"
+	// TODO: This Kolide table requires more complicated coding
 	//"github.com/kolide/launcher/pkg/osquery/tables/osquery_user_exec_table"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
@@ -89,9 +88,7 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		macos_software_update.MacOSUpdate(),
 		appicons.AppIcons(),
 
-		// TODO: Need coding/other
-		// munki.MunkiReport(logger log.Logger), // TODO: compare with the existing munki table. Maybe no need for this.
+		// TODO: This Kolide table requires more complicated coding
 		// osquery_user_exec_table.TablePlugin(logger log.Logger, tablename string, osqueryd string,osqueryQuery string, columns []table.ColumnDefinition,), // add params
-
 	}
 }
