@@ -429,7 +429,7 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | 🎁 Feature fest prep | Sprintly (Thursday) | The Head of Product Design reviews the agenda and pre-comments on items in order to be well-prepared for the discussion. | Noah Talerman |
 | 🎁🗣 Feature fest  | Sprintly (Thursday) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Noah Talerman |
 | 🎁 Feature fest cleanup | Sprintly (Thursday) | Clean up the agenda in anticipation of the next meeting | Noah Talerman |
-| Design sprint kickoff (Endpoint ops) | Sprintly (Thursday) | the Head of Product Design introduces and determines the order of the newly prioritized list of work with each group PM | Noah Talerman |
+| Design sprint kickoff (#g-endpoint-ops) | Sprintly (Thursday) | the Head of Product Design introduces and determines the order of the newly prioritized list of work with each group PM | Noah Talerman |
 | Design sprint kickoff (#g-mdm) | Sprintly (Thursday) | the Head of Product Design introduces and determines the order of the newly prioritized list of work with each group PM | Noah Talerman |
 | 🗣 Product office hours  | Weekly (Tuesday) | Ask questions to the product team | Noah Talerman |
 | Sprint kickoff review | Sprintly (Monday) | After each sprint kickoff, the Head of Product Design reviews the Estimated column with each group EM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Noah Talerman |
