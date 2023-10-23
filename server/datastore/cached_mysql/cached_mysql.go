@@ -25,6 +25,8 @@ const (
 	defaultTeamFeaturesExpiration     = 1 * time.Minute
 	teamMDMConfigKey                  = "TeamMDMConfig:team:%d"
 	defaultTeamMDMConfigExpiration    = 1 * time.Minute
+	queryByNameKey                    = "QueryByName:team:%d:%s"
+	defaultQueryByNameExpiration      = 10 * time.Second
 )
 
 // cloner represents any type that can clone itself. Used by types to provide a more efficient clone method.
@@ -109,6 +111,7 @@ type cachedMysql struct {
 	teamAgentOptionsExp time.Duration
 	teamFeaturesExp     time.Duration
 	teamMDMConfigExp    time.Duration
+	queryByNameExp      time.Duration
 }
 
 type Option func(*cachedMysql)
@@ -151,6 +154,7 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 		scheduledQueriesExp: defaultScheduledQueriesExpiration,
 		teamAgentOptionsExp: defaultTeamAgentOptionsExpiration,
 		teamFeaturesExp:     defaultTeamFeaturesExpiration,
+		queryByNameExp:      defaultQueryByNameExpiration,
 	}
 	for _, fn := range opts {
 		fn(c)
@@ -319,4 +323,27 @@ func (ds *cachedMysql) DeleteTeam(ctx context.Context, teamID uint) error {
 	ds.c.Delete(mdmConfigKey)
 
 	return nil
+}
+
+func (ds *cachedMysql) QueryByName(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+	teamID_ := uint(0) // global team is 0
+	if teamID != nil {
+		teamID_ = *teamID
+	}
+	key := fmt.Sprintf(queryByNameKey, teamID_, name)
+
+	if x, found := ds.c.Get(key); found {
+		if query, ok := x.(*fleet.Query); ok {
+			return query, nil
+		}
+	}
+
+	query, err := ds.Datastore.QueryByName(ctx, teamID, name)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(key, query, ds.queryByNameExp)
+
+	return query, nil
 }

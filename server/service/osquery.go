@@ -1473,13 +1473,50 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	}
 
 	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
-	svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData, queryReportsDisabled)
+	if !queryReportsDisabled {
+		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData)
+	}
 
-	// Write the logs to the logging destination (without any processing).
-	// If a query has automations_enabled = 0 we may still write the results for it here.
-	// Eventually the query will be removed from the host schedule and thus Fleet
-	// won't receive any further results anymore (/api/v1/osquery/config).
-	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
+	var filteredLogs []json.RawMessage
+	for i, unmarshaledResult := range unmarshaledResults {
+		if unmarshaledResult == nil {
+			// Ignore results that could not be unmarshaled.
+			continue
+		}
+		if queryReportsDisabled {
+			// If query_reports_disabled=true we write the logs
+			// to the logging destination without any extra processing.
+			//
+			// If a query has automations_enabled = 0 we may still write the results for it here.
+			// Eventually the query will be removed from the host schedule and thus Fleet
+			// won't receive any further results anymore (/api/v1/osquery/config).
+			filteredLogs = append(filteredLogs, logs[i])
+			continue
+		}
+
+		//
+		// If query_reports_disabled=false then we need to filter
+		// the queries that have automations_enabled=false because
+		// the query might have been scheduled because of discard_data=false.
+		//
+
+		dbQuery, ok := queriesDBData[unmarshaledResult.QueryName]
+		if !ok {
+			// Ignore results for unknown queries.
+			continue
+		}
+		if !dbQuery.AutomationsEnabled {
+			// Ignore results for queries that have automations disabled.
+			continue
+		}
+		filteredLogs = append(filteredLogs, logs[i])
+	}
+
+	if len(filteredLogs) == 0 {
+		return nil
+	}
+
+	if err := svc.osqueryLogWriter.Result.Write(ctx, filteredLogs); err != nil {
 		return newOsqueryError("error writing result logs: " + err.Error())
 	}
 	return nil
@@ -1489,17 +1526,13 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 // Query Reports
 ////////////////////////////////////////////////////////////////////////////////
 
-func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query, queryReportsDisabled bool) {
+func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		level.Error(svc.logger).Log("err", "getting host from context")
-		return
-	}
-
-	if queryReportsDisabled {
 		return
 	}
 
