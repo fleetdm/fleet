@@ -8,6 +8,7 @@ import (
 
 	// Kolide tables
 	"github.com/kolide/launcher/pkg/osquery/tables/dsim_default_associations"
+	"github.com/kolide/launcher/pkg/osquery/tables/secedit"
 
 	// TODO: Fix build erros
 	//"github.com/kolide/launcher/pkg/osquery/tables/gsettings"
@@ -25,6 +26,7 @@ func PlatformTables() []osquery.OsqueryPlugin {
 
 		// Kolide extensions.
 		dsim_default_associations.TablePlugin(kolideLogger),
+		secedit.TablePlugin(kolideLogger),
 
 		// TODO: Fix build error
 		// gsettings.Settings(kolideLogger),
