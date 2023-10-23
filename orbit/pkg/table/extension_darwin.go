@@ -1,8 +1,10 @@
-//go:build darwin && amd64
+//go:build darwin
 
 package table
 
 import (
+	"runtime"
+
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/apfs"
@@ -41,7 +43,7 @@ import (
 )
 
 func PlatformTables() []osquery.OsqueryPlugin {
-	return []osquery.OsqueryPlugin{
+	plugins := []osquery.OsqueryPlugin{
 		// Fleet tables
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
 		table.NewPlugin("user_login_settings", user_login_settings.Columns(), user_login_settings.Generate),
@@ -80,4 +82,10 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		airport.TablePlugin(kolideLogger),
 		apple_silicon_security_policy.TablePlugin(kolideLogger),
 	}
+
+	if runtime.GOARCH == "arm64" {
+		plugins = appendARM64Tables(plugins)
+	}
+
+	return plugins
 }
