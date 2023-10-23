@@ -1,6 +1,6 @@
 import { Meta, StoryObj } from "@storybook/react";
 
-import HumanTimeDiffWithDateTip from "./HumanTimeDiffWithDateTip";
+import { HumanTimeDiffWithDateTip } from "./HumanTimeDiffWithDateTip";
 
 const meta: Meta<typeof HumanTimeDiffWithDateTip> = {
   title: "Components/HumanTimeDiffWithDateTip",

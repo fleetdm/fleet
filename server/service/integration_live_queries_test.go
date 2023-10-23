@@ -83,7 +83,12 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 
 	host := s.hosts[0]
 
-	q1, err := s.ds.NewQuery(context.Background(), &fleet.Query{Query: "select 1 from osquery;", Description: "desc1", Name: t.Name() + "query1"})
+	q1, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Query:       "select 1 from osquery;",
+		Description: "desc1",
+		Name:        t.Name() + "query1",
+		Logging:     fleet.LoggingSnapshot,
+	})
 	require.NoError(t, err)
 
 	s.lq.On("QueriesForHost", uint(1)).Return(map[string]string{fmt.Sprint(q1.ID): "select 1 from osquery;"}, nil)
@@ -142,10 +147,20 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 
 	host := s.hosts[0]
 
-	q1, err := s.ds.NewQuery(context.Background(), &fleet.Query{Query: "select 1 from osquery;", Description: "desc1", Name: t.Name() + "query1"})
+	q1, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Query:       "select 1 from osquery;",
+		Description: "desc1",
+		Name:        t.Name() + "query1",
+		Logging:     fleet.LoggingSnapshot,
+	})
 	require.NoError(t, err)
 
-	q2, err := s.ds.NewQuery(context.Background(), &fleet.Query{Query: "select 2 from osquery;", Description: "desc2", Name: t.Name() + "query2"})
+	q2, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Query:       "select 2 from osquery;",
+		Description: "desc2",
+		Name:        t.Name() + "query2",
+		Logging:     fleet.LoggingSnapshot,
+	})
 	require.NoError(t, err)
 
 	s.lq.On("QueriesForHost", host.ID).Return(map[string]string{
@@ -237,10 +252,20 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 	h1 := s.hosts[0]
 	h2 := s.hosts[1]
 
-	q1, err := s.ds.NewQuery(context.Background(), &fleet.Query{Query: "select 1 from osquery;", Description: "desc1", Name: t.Name() + "query1"})
+	q1, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Query:       "select 1 from osquery;",
+		Description: "desc1",
+		Name:        t.Name() + "query1",
+		Logging:     fleet.LoggingSnapshot,
+	})
 	require.NoError(t, err)
 
-	q2, err := s.ds.NewQuery(context.Background(), &fleet.Query{Query: "select 2 from osquery;", Description: "desc2", Name: t.Name() + "query2"})
+	q2, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Query:       "select 2 from osquery;",
+		Description: "desc2",
+		Name:        t.Name() + "query2",
+		Logging:     fleet.LoggingSnapshot,
+	})
 	require.NoError(t, err)
 
 	s.lq.On("QueriesForHost", h1.ID).Return(map[string]string{
@@ -344,7 +369,12 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 	h1 := s.hosts[0]
 	h2 := s.hosts[1]
 
-	q1, err := s.ds.NewQuery(context.Background(), &fleet.Query{Query: "select 1 from osquery;", Description: "desc1", Name: t.Name() + "query1"})
+	q1, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Query:       "select 1 from osquery;",
+		Description: "desc1",
+		Name:        t.Name() + "query1",
+		Logging:     fleet.LoggingSnapshot,
+	})
 	require.NoError(t, err)
 
 	s.lq.On("QueriesForHost", h1.ID).Return(map[string]string{fmt.Sprint(q1.ID): "select 1 from osquery;"}, nil)

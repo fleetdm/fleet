@@ -1,6 +1,6 @@
 module github.com/fleetfm/fleet/infrastructure/sandbox/JITProvisioner/ingress_destroyer
 
-go 1.19
+go 1.21
 
 require (
 	github.com/aws/aws-sdk-go v1.44.235

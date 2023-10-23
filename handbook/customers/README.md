@@ -26,52 +26,11 @@ The Sales department is directly responsible for attaining the revenue goals of 
 - If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel.
 
 
-## Sales
-The Fleet Customer team embodies [our values](https://fleetdm.com/handbook/company#values) in every aspect of our work. We prioritize efficiency in our processes and operations. We succeed because of transparent, cross-functional collaboration. We are committed to hiring for and celebrating diversity, and we strive to create an environment of inclusiveness and belonging for all. We embrace a spirit of iteration, understanding that we can always improve.
-
-Fleet's main source for prospects to learn about the company and its offerings is our website, fleetdm.com. There are many places across the website for prospects to ask for more information, request merchandise, try the product and even purchase licenses directly. If the user experience in any of these locations asks for an email address or other contact information, Fleet may use that contact information for follow-up, including sales and marketing purposes. That contact information is for Fleet's sole use, and we do not give or sell that information to any third parties.
-
-
-## Contacting Fleet
-In the case of a prospect or customer request, we strive to adhere to the following response times:
-- Web chat: 1 hour response during working hours, 8 hours otherwise
-- Talk to an expert: prospects can schedule chats via our calendar tool
-- All other enquiries: 1-2 days
-
-If you're using a free version of Fleet, you can access free community support by opening an issue in the [Fleet GitHub repository](https://github.com/fleetdm/fleet/).
-
-Customers on a paid tier of Fleet can get in touch directly for commercial support:
-
-
-| Level of impact | Response time - premium tier | Response time - ultimate tier |
-| :--- | :--- | :--- |
-| Low to medium impact </br> Email/chat support during business hours </br> Email: Support email address </br> Chat: Dedicated Slack channel (confidential) </br>|  **1 business day** | **1 business day**  |
-| High to emergency impact </br> Expedited phone/chat/email support </br> Call or text: Fleet support phone number </br> Email: Emergency support email address </br> |  **4 business hours** | **≤1 hour during business hours** </br> **≤2 hours outside business hours** 
-
-| Level of impact | Type of support |
-| :--- | :--- |
-| Low to medium impact | Chat support during business hours Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
-| High to emergency impact | Expedited phone/chat support during business hours </br> Call or text [the Fleet phone number](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit) that was provided in the invoice. </br> Response time: **≤4 hours** |
-
-
 ## Customer codenames
 Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
 
 
-## Outreach 
-At Fleet we use Outreach for sending emails to community members based on triggers or as part of campaigns. To get access to Outreach ask for a license in `#g-business-operations` [Internal video](https://www.loom.com/share/16bdb5dce92649f79aecb89112d95745)(Internal doc). We also use LinkedIn to connect and communicate with community members, prospects and customers. The CEO is DRI for all outbound messaging efforts with the CRO as backup. Fleeties please confer with the CRO before engaging in any outbound messaging.
-
-### Outreach one-pager
-Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager [here](https://drive.google.com/file/d/1FS7Nkh_izwRqNsupx_KKUaK9bXzlQ_6r/view?usp=sharing).
-
-### Intro deck
-Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https://drive.google.com/file/d/1onSXxQgYPwt1plAfBY4dG34uXabtd25T/view?usp=share_link).
-
-### Intro video
-Fleet's intro video shows how to get started with Fleet as an admin. Find it on [YouTube](https://www.youtube.com/watch?v=rVxSgvKjrWo).
-
-
-## Customer support service level agreements (SLA's)
+## Contacting Fleet: customer support service level agreements (SLA's)
 
 ### Fleet Free
 | Impact Level | Definition | Preferred Contact | Response Time |
@@ -88,18 +47,8 @@ Note: If you're using Fleet Free, you can also access community support by openi
 | Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
 | Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | 1-2 business days | 
 
-Note: Fleet business hours for support are Monday-Friday, 7AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues.
+Note: Fleet business hours for support are Monday-Friday, 7AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues. Fleeties can find Fleet general contact information [here](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit).
 
-
-### Fleet Ultimate
-| Impact Level | Definition | Preferred Contact | Response Time |
-|:---- |:---- |:---- |:---- |
-| Emergency (P0) | Your production instance of Fleet is unavailable or completely unusable. For example, if Fleet is showing 502 errors for all users. | Call or text the emergency support phone number in your Fleet contract. </br></br>Email via the emergency support email address provided in your contract. | **≤1 hour or ≤2 hours** outside of business hours |
-| High (P1) | Fleet is highly degraded with significant business impact. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤2 hours or ≤4 hours** outside of business hours |
-| Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
-| Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | ≤1 business day | 
-
-Note: Fleet business hours for support are Monday-Friday, 7AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues.
 
 #### Flow of communication in the event of an emergency (P0) request
 ![Screen Shot 2022-12-05 at 10 22 43 AM](https://user-images.githubusercontent.com/114112018/205676145-38491aa2-288d-4a6c-a611-a96b5a87a0f0.png)
@@ -133,59 +82,10 @@ There are three different situations when a customer support request could resul
 - New customer channels that the automation will run in must be configured manually. Submit requests for additions during automation office hours.
 - New tickets created from thread replies will contain a link to the slack thread, but will only have the new message. 
 - This zap does not support file uploads and attachments. Tickets created for messages with images attached will not have the attachments, and the automation will not run if someone uploads a file without a message. 
- 
-## Fleet's W-9
-A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
-
-## Paying Fleet
-For customers with hundreds or more hosts, Fleet accepts payment via wire transfer or electronic debit (ACH/SWIFT).
-
-Fleet team members can provide remittance information to customers by exporting ["💸 Paying Fleet"](https://docs.google.com/document/d/1KP_-x9c1x3sS1X9Q8Wlib2H7tq69xRONn1KMA3nVFQc/edit) into a PDF.
-
-
-## Solutions consultant
-What is it like to be a Solutions Consultant at Fleet? What do you do every day? What does the path to success look like in this role and what can you do to contribute quickly at Fleet? 
-
-### Within 30 days -- assess and absorb information
-* Being new to the company, you have fresh eyes. Document everything that seems odd to you (process, product). 
-* Begin working on domain and product knowledge acquisition. Complete guides found at https://fleetdm.com/guides.
-* Be a prospect. Sign up for a sandbox trial. What makes sense? What doesn't? Document. 
-* Understand Fleet value drivers. Why do Fleet Community users want to give us money to upgrade to Premium? 
-* Complete consensus training videos (see the "Description" field in the `#help-consensus-tool` slack channel.
-* Review [gong](gong.io) calls.
-* Get trained on [Demo2Win](https://2winglobal.com/about-you/pre-sales/)
-
-### Within 60 days -- synthesize
-* Take what you've learned in Demo2Win training and build out some killer enterprise demo workflows / playbooks. See below for video content.
-* Build video content with [Consensus](https://app.goconsensus.com/). Aim to produce a video per week. 
-* Supplemental domain training. Checkout [DFIR Diva](https://training.dfirdiva.com/) and [Cybrary - SecurityOnion](https://app.cybrary.it/browse/course/security-onion) and block time in your calendar appropriately for learning about one new topic per month.
-* Get involved in the community. Are there any local meetups that you can attend?
-* Work the Slack support channels alongside the Customer Success Engineers.
-
-### Within 90 days + -- contribute
-* Build and maintain [success criteria documentation](https://docs.google.com/document/d/1TNhUMgxXHDuuuH8rirtwZs_TF9iVUiOrL9r2kJ6sWZA/edit?usp=drive_link) with all prospects. 
-* Expand "Deployment Guides" to include steps for GCP and Azure.
-* Interesting integrations / collaborations to work on.
-
-#### Demo environment
-* Have a quiet place available.
-* Ensure you have a backup source of power. Not just your laptop battery.
-* Multiple monitors are your friend.
-* Demo from a clean "demo" browser profile. Clear your desktop.
-* Pause desktop notifications.
-
-#### Avoid these demo gotchas
-* Showing absolutely everything the product does before you've done a technical discovery. Sometimes even a brief discovery prior to demo will hone your focus for the demo.
-* Arriving to the demo without a plan. Ensure that you have a pre-call strategy meeting with your AE prior to the external call. Understand who you are presenting to. [Look at some tips on walnut.io](https://www.walnut.io/post/7-sales-demo-mistakes-and-how-to-avoid-them)
-* Conducting a product training
-* Live troubleshooting. We all love to solve problems, but don't get de-railed from showing value to your audience.
-* Talking over your prospect. [Just don't do it](https://emissary.io/cardinal-sins-of-sales-demos/). 
-
-
 
 <!---
 
-## Rituals
+Rituals (out dated 2023-10-19)
 
 The following table lists the Customer's group's rituals, frequency, and Directly Responsible Individual (DRI).
 
@@ -213,6 +113,10 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 
 ## Responsibilities
 
+### Onboard a Solutions consultant
+What do you do every day? What does the path to success look like in this role and what can you do to contribute quickly at Fleet? To onboard a Solutions Consultant at Fleet it's important to understand the [continued training needed](https://docs.google.com/document/d/1sXrXxmu53EZCL9sgFC-iI3j4zScAsxBw38S-4soFssE/edit).  
+
+
 ### Send a quote
 During the buying cycle, the champion will need to start the process to secure funding in cooperation with the economic buyer and the finance org.
 
@@ -221,6 +125,14 @@ All quotes and purchase orders must be approved by CRO before being sent to the 
 The Fleet owner of the opportunity (usually AE or CSM) will prepare a quote and/or a Purchase Order when requested.
 - Because the champion may need to socialize "what is Fleet" or "what are we getting when buying Fleet," it is most often best to send the quote in [slide form](https://docs.google.com/presentation/d/15kbqm0OYPf1OmmTZvDp4F7VvMERnX4K6TMYqCYNr-wI/edit?usp=sharing).
 - Docusign can be used to create a [standard Purchase Order](https://www.loom.com/share/Loom-Message-16-January-2023-2ba8cf195ec645ebabac267d7df59823?sid=214f8c6b-beb3-427a-a3a8-e8c20b5dc350) if no special terms or pricing are needed.
+
+## Obtain a copy of Fleet's W-9
+A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
+
+## Assist with a wire transfer or electronic payment
+For customers with hundreds or more hosts, Fleet accepts payment via wire transfer or electronic debit (ACH/SWIFT).
+
+Fleet team members can provide remittance information to customers by exporting ["💸 Paying Fleet"](https://docs.google.com/document/d/1KP_-x9c1x3sS1X9Q8Wlib2H7tq69xRONn1KMA3nVFQc/edit) into a PDF.
 
 ### Review rep activity
 Following up with people interested in Fleet is an important part of finding out whether or not they'd like to continue the process of buying the product.  It is also very important not to be annoying.  At Fleet, team members follow up with people, but not too often.
@@ -303,57 +215,9 @@ To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) 
   - an alternative date and time. Suggest two to three options from which the customer can choose.
     - Confirm that contact information is accurate and that the customer can receive and access meeting invites.
 
+
 ### Close a new customer deal
-To close a deal with a new customer (non-self-service), create a GitHub issue using the ["Sale" issue template](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn%2Czayhanlon&labels=project%2C%23cx%2C%23sales%2C%23business-operations&template=3-sale.md&title=New+customer%3A+_____________) and follow the steps.
-
-> TODO: dedupe between this section and the "Sale" issue template
-
-This workflow outlines the process that sales and customer success can follow when a new deal closes. 
-
-1. (AE) A customer is sent an order form
-    - If the customer requires the use of their own legal contract, the account executive (AE) sends that contract to the business operations (BizOps) team for review. Then: 
-    - If the customer can use DocuSign, the AE sends out the order form. The AE must cc themselves and BizOps on the order so that all parties receive a fully executed copy when signing is complete. 
-    - If the customer does not use DocuSign, the AE sends out the order form directly to the customer. 
-        - The AE then sends the paper signed copy to BizOps for Fleet review and execution (via DocuSign by the CEO).  
-        - BizOps will cc the AE and stay cc’d on the contract when the final copy is sent to the CEO for Fleet execution. 
-        - Note: The Chief Revenue Officer serves as the backup to BizOps
-2. The Customer and Fleet sign the order form.
-    - (AE) The AE adds the fully executed contract to the opportunity record.
-    - (AE) The AE marks the opportunity 'Closed Won' and includes the 'Closing Date'.
-    - (BizOps) BizOps team member adds fully executed contract to the [subscriptions folder](https://drive.google.com/drive/u/0/folders/1kwwg8RmnT8DyPLDDYLiJ7w5legDEPc57) (internal drive) in Fleet drive
-    - (AE) Help BizOps secure a PO from the new customer to be referenced on invoice.
-3. (AE) The AE creates a 'New Sale Issue'
-    - They complete the AE tasks listed at the top of the issue.
-    - Then they assign the issue to BizOps and the Head of Customer Success (CS).
-    - AE completes the Business Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
-    - Solutions Consultant completes the Technical Objectives section of the Account Plan located in the Sales> Opportunities> {Account Name} shared google drive folder.
-    - AE moves the {Account Name} folder within Opportunities to the Sales> Account Plans folder.
-    - The AE schedules a 30 minute internal handoff call with CS and any other related parties to the sale. 
-    - Prepare to review the following from the Account Plan:
-        - Details of the deal
-        - Primary contact / their role
-        - Desired use cases / desired outcomes
-        - Reasons for purchase
-        - Previously using Fleet Free?
-        - Support tier (Premium or Ultimate)
-        - Competitive solutions in place
-        - Other relevant technologies in place 
-        - Any proof of concept (POC) notes that are relevant
-        - Customer expectations for timeline
-        - Server deployment type
-4. (CS) The CSM kicks off the CS responsibilities in the 'New Sale Issue'
-    - Create an “Existing Business” renewal opportunity in Salesforce.com (SFDC).   
-    - Send the customer [welcome email](https://docs.google.com/document/d/11zrktUdb5FmJQgMyhtU26Wa-YzMES2jGcqEC7cw8tAo/edit) (internal drive) & [deployment checklist template](https://docs.google.com/spreadsheets/d/1tAQV6AqrRhqKusbA9Z6-5RBtOUknjkXVJXyF-Qp1Zls/edit#gid=1709744959) (internal drive)
-    - Create the customer Slack channel
-    - Generate the customer license key 
-    - Share the license key with the customer (7 day link)
-    - Schedule the customer onboarding kickoff call
-    - Collect deployment details (if not completed during POC)
-    - Schedule the recurring customer check-in
-    - Owns running the meeting, note taking, TODO follow up, etc.
-
-
-> Due to legislation by the U.S. Department of Commerce, we are unable to initiate business with [certain countries and territories including specific U.S. sanction programs.](https://ofac.treasury.gov/sanctions-programs-and-country-information)
+To close a deal with a new customer (non-self-service), create and complete a GitHub issue using the ["Sale" issue template](https://github.com/fleetdm/confidential/issues/new?assignees=hughestaylor&labels=%23g-business-operations&projects=&template=3-sale.md&title=New+customer%3A+_____________).
 
 
 ### Submit a customer contract
@@ -466,25 +330,8 @@ I’ll let you know when your account is sorted and follow up with instructions 
 Thanks for bearing with us, please don’t hesitate to reach out if you have any questions about this, Fleet, osquery, or anything else!"
 ```
 
-#### Error while running a live query in Fleet Sandbox
-```
-"Hey there, the team and I just noticed you experienced a 500 error that may have affected your experience running a live query on https://fleetdm.com/.
-
-I wanted to personally apologize for our mistake and let you know we're looking into the problem. We’ll provide an update on the underlying fix and track an (anonymized) bug on https://github.com/fleetdm/fleet so you can follow the progress in the open.
-
-Thank you for trying Fleet!"
-```
-
 ### Change customer credit card number
 You can help a Premium license dispenser customers change their credit card by directing them to their [account dashboard](https://fleetdm.com/customers/dashboard). On that page, the customer can update their billing card by clicking the pencil icon next to their billing information.
-
-### Restart Algolia manually
-At least once every hour, an Algolia crawler reindexes the Fleet website's content. If an error occurs while the website is being indexed, Algolia will block our crawler and respond to requests with this message: `"This action cannot be executed on a blocked crawler"`.
-
-When this happens, you'll need to manually start the crawler in the [Algolia crawler dashboard](https://crawler.algolia.com/admin/) to unblock it. 
-You can do this by logging into the crawler dashboard using the login saved in 1password and clicking the "Restart crawling" button on our crawler's "overview" page](https://crawler.algolia.com/admin/crawlers/497dd4fd-f8dd-4ffb-85c9-2a56b7fafe98/overview).
-
-No further action is needed if the crawler successfully reindexes the Fleet website. If another error occurs while the crawler is running, take a screenshot of the error and add it to the GitHub issue created for the alert and @mention `eashaw` for help.
 
 
 ### Generate a trial license key
@@ -494,7 +341,6 @@ No further action is needed if the crawler successfully reindexes the Fleet webs
     - Post-sales license key DRI is the VP of Customer Success
 
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
-
 
 
 ## Rituals

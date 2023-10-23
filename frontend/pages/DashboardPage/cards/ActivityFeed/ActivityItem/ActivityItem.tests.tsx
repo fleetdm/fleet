@@ -769,4 +769,117 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
   });
+
+  it("renders an 'added_script' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedScript,
+      details: { script_name: "foo.sh", team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("added script ", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.sh", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText(" to the ", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'deleted_script' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedScript,
+      details: { script_name: "foo.sh", team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted script ", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.sh", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText(" from the ", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders an 'added_script' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedScript,
+      details: { script_name: "foo.sh" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("added script ", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.sh", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText("to no team.", { exact: false })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_script' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedScript,
+      details: { script_name: "foo.sh" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted script ", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.sh", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText("from no team.", { exact: false })
+    ).toBeInTheDocument();
+  });
+
+  it("renders an 'edited_script' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedScript,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("edited scripts", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(" for the ", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(
+      screen.getByText(" team via fleetctl.", { exact: false })
+    ).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+  it("renders an 'edited_script' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedScript,
+      details: {},
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("edited scripts", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("for no team via fleetctl.", { exact: false })
+    ).toBeInTheDocument();
+  });
 });

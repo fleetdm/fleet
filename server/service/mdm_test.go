@@ -15,8 +15,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/micromdm/scep/v2/cryptoutil/x509util"
 	"github.com/stretchr/testify/require"
@@ -111,6 +113,12 @@ func TestVerifyMDMAppleConfigured(t *testing.T) {
 	ds.AppConfigFuncInvoked = false
 	require.True(t, authzCtx.Checked())
 
+	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
+	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
 	// error retrieving app config
 	authzCtx = &authz_ctx.AuthorizationContext{}
 	ctx = authz_ctx.NewContext(baseCtx, authzCtx)
@@ -119,6 +127,12 @@ func TestVerifyMDMAppleConfigured(t *testing.T) {
 		return nil, testErr
 	}
 	err = svc.VerifyMDMAppleConfigured(ctx)
+	require.ErrorIs(t, err, testErr)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
+	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
 	require.ErrorIs(t, err, testErr)
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
@@ -135,9 +149,14 @@ func TestVerifyMDMAppleConfigured(t *testing.T) {
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
 	require.False(t, authzCtx.Checked())
+
+	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
+	require.NoError(t, err)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.False(t, authzCtx.Checked())
 }
 
-// TODO: update this test with the correct config option
 func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
@@ -148,10 +167,16 @@ func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	authzCtx := &authz_ctx.AuthorizationContext{}
 	ctx := authz_ctx.NewContext(baseCtx, authzCtx)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: false}}, nil
+		return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: false}}, nil
 	}
 
 	err := svc.VerifyMDMWindowsConfigured(ctx)
+	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
+	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
 	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
@@ -171,6 +196,12 @@ func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	ds.AppConfigFuncInvoked = false
 	require.True(t, authzCtx.Checked())
 
+	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
+	require.ErrorIs(t, err, testErr)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.True(t, authzCtx.Checked())
+
 	// mdm configured
 	authzCtx = &authz_ctx.AuthorizationContext{}
 	ctx = authz_ctx.NewContext(baseCtx, authzCtx)
@@ -179,6 +210,12 @@ func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	}
 
 	err = svc.VerifyMDMWindowsConfigured(ctx)
+	require.NoError(t, err)
+	require.True(t, ds.AppConfigFuncInvoked)
+	ds.AppConfigFuncInvoked = false
+	require.False(t, authzCtx.Checked())
+
+	err = svc.VerifyMDMAppleOrWindowsConfigured(ctx)
 	require.NoError(t, err)
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
@@ -195,7 +232,7 @@ func TestMicrosoftWSTEPConfig(t *testing.T) {
 	ds.WSTEPStoreCertificateFunc = func(ctx context.Context, name string, crt *x509.Certificate) error {
 		require.Equal(t, "test-client", name)
 		require.Equal(t, "test-client", crt.Subject.CommonName)
-		require.Equal(t, "FleetDM", crt.Subject.OrganizationalUnit[0])
+		require.Equal(t, "Fleet", crt.Subject.OrganizationalUnit[0])
 		return nil
 	}
 
@@ -251,5 +288,175 @@ func TestMicrosoftWSTEPConfig(t *testing.T) {
 	parsedCert, err := x509.ParseCertificate(rawDER)
 	require.NoError(t, err)
 	require.Equal(t, "test-client", parsedCert.Subject.CommonName)
-	require.Equal(t, "FleetDM", parsedCert.Subject.OrganizationalUnit[0])
+	require.Equal(t, "Fleet", parsedCert.Subject.OrganizationalUnit[0])
+}
+
+func TestMDMCommonAuthorization(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	ds.GetMDMAppleFileVaultSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
+		return &fleet.MDMAppleFileVaultSummary{}, nil
+	}
+	ds.GetMDMWindowsBitLockerSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
+		return &fleet.MDMWindowsBitLockerSummary{}, nil
+	}
+
+	mockTeamFuncWithUser := func(u *fleet.User) mock.TeamFunc {
+		return func(ctx context.Context, teamID uint) (*fleet.Team, error) {
+			if len(u.Teams) > 0 {
+				for _, t := range u.Teams {
+					if t.ID == teamID {
+						return &fleet.Team{ID: teamID, Users: []fleet.TeamUser{{User: *u, Role: t.Role}}}, nil
+					}
+				}
+			}
+			return &fleet.Team{}, nil
+		}
+	}
+
+	testCases := []struct {
+		name             string
+		user             *fleet.User
+		shouldFailGlobal bool
+		shouldFailTeam   bool
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+			false,
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			true,
+		},
+		{
+			"team admin, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			false,
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+		},
+		{
+			"team maintainer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			false,
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+		},
+		{
+			"team observer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+		},
+		{
+			"user no roles",
+			&fleet.User{ID: 1337},
+			true,
+			true,
+		},
+	}
+
+	checkShouldFail := func(err error, shouldFail bool) {
+		if !shouldFail {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err)
+			require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+		}
+	}
+
+	for _, tt := range testCases {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+		ds.TeamFunc = mockTeamFuncWithUser(tt.user)
+
+		t.Run(tt.name, func(t *testing.T) {
+			// test authz get disk encryptions summary (no team)
+			_, err := svc.GetMDMDiskEncryptionSummary(ctx, nil)
+			checkShouldFail(err, tt.shouldFailGlobal)
+
+			// test authz get disk encryptions summary (team 1)
+			_, err = svc.GetMDMDiskEncryptionSummary(ctx, ptr.Uint(1))
+			checkShouldFail(err, tt.shouldFailTeam)
+		})
+	}
+}
+
+func TestGetMDMDiskEncryptionSummary(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license})
+
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.GetMDMAppleFileVaultSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
+		require.Nil(t, teamID)
+		return &fleet.MDMAppleFileVaultSummary{Verified: 1, Verifying: 2, ActionRequired: 3, Failed: 4, Enforcing: 5, RemovingEnforcement: 6}, nil
+	}
+	ds.GetMDMWindowsBitLockerSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
+		require.Nil(t, teamID)
+		// Use default zeros verifying, action_required, or removing_enforcement
+		return &fleet.MDMWindowsBitLockerSummary{Verified: 7, Failed: 8, Enforcing: 9}, nil
+	}
+
+	// Test that the summary properly combines the results of the two methods
+	des, err := svc.GetMDMDiskEncryptionSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, des)
+	require.Equal(t, *des, fleet.MDMDiskEncryptionSummary{
+		Verified: fleet.MDMPlatformsCounts{
+			MacOS:   1,
+			Windows: 7,
+		},
+		Verifying: fleet.MDMPlatformsCounts{
+			MacOS:   2,
+			Windows: 0,
+		},
+		ActionRequired: fleet.MDMPlatformsCounts{
+			MacOS:   3,
+			Windows: 0,
+		},
+		Failed: fleet.MDMPlatformsCounts{
+			MacOS:   4,
+			Windows: 8,
+		},
+		Enforcing: fleet.MDMPlatformsCounts{
+			MacOS:   5,
+			Windows: 9,
+		},
+		RemovingEnforcement: fleet.MDMPlatformsCounts{
+			MacOS:   6,
+			Windows: 0,
+		},
+	})
 }

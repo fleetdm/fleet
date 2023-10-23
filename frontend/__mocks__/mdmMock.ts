@@ -36,6 +36,12 @@ const DEFAULT_HOST_MDM_DATA: IHostMdmData = {
   name: "MDM Solution",
   id: 1,
   profiles: [],
+  os_settings: {
+    disk_encryption: {
+      status: "verified",
+      detail: "",
+    },
+  },
   macos_settings: {
     disk_encryption: null,
     action_required: null,

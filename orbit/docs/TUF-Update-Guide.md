@@ -189,6 +189,65 @@ aws s3 sync ./repository s3://fleet-tuf-repo --profile tuf
 
 Now that the repository is pushed, verify that the hosts enrolled in step (3) update as expected. 
 
+### Removing Unused Targets
+
+If you've inadvertently published a target that is no longer in use, follow these steps to remove it.
+
+### 1. Preparation
+
+1. Backup the remote TUF directory to your local machine.
+
+```sh
+mkdir ~/tuf.fleetctl.com/backup
+aws s3 sync s3://fleet-tuf-repo ~/tuf.fleetctl.com/backup
+```
+
+2. Ensure your local repository mirrors the current state.
+
+```sh
+aws s3 sync s3://fleet-tuf-repo ./repository
+```
+
+3. You'll need the [`go-tuf`](https://github.com/theupdateframework/go-tuf) binary. The removal operations aren't integrated into `fleetctl` at the moment.
+
+### 2. Local Target Removal
+
+1. Use `tuf remove` to remove the target and update `targets.json`. Substitute `desktop/windows/stable/desktop.exe` with the target you intend to delete.
+
+```sh
+tuf remove desktop/windows/stable/desktop.exe
+```
+
+2. Snapshot, timestamp, and commit the changes.
+
+```sh
+tuf snapshot
+tuf timestamp
+tuf commit
+```
+
+### 3. Verification Before Publishing
+
+1. Confirm that the version of the local `timestamp.json` file is more recent than that of the remote server.
+
+2. Verify the changes that will be synced by running a dry sync. Include the `--delete` flag as you're removing targets.
+
+```sh
+aws s3 sync ./repository s3://fleet-tuf-repo --delete --dryrun
+```
+
+3. `diff` the local `targets.json` file with its remote version.
+
+### 4. Publish and Confirm
+
+1. To upload the changes, perform a sync without the `--dryrun`.
+
+```sh
+aws s3 sync ./repository s3://fleet-tuf-repo --delete
+```
+
+2. Check the changes on the remote repository.
+
 ### Issues found
 
 #### Invalid timestamp.json version

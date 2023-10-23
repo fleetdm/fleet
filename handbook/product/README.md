@@ -1,4 +1,4 @@
-# Product
+# Product design
 
 Contributors in Fleet's product department [prioritize](#prioritizing-improvements) and [define](https://fleetdm.com/handbook/company/product-groups#drafting) the [changes we make to the product](https://fleetdm.com/handbook/company/product-groups#making-changes).
 
@@ -6,11 +6,13 @@ Changes begin as [ideas](#intake) or [code](#outside-contributions) that can be 
 
 > You can read what's coming in the next 3-6 weeks in Fleet's [⚗️ Drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
 
-## Product design
+## Making changes to the product
 
-The product team is responsible for product design tasks like drafting [changes to the Fleet product](https://fleetdm.com/handbook/company/development-groups#making-changes), reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering these changes to the engineering team. 
+Fleet's product designers are responsible for [prioritizing and shaping changes to the Fleet product](https://fleetdm.com/handbook/company/development-groups#making-changes), from the outside-in,  reviewing and collecting feedback from users, would-be users, and future users, prioritizing changes, designing the changes, and delivering these changes to the engineering team.
 
-> Learn more about Fleet's philosophy and process for [making iterative changes to the product](https://fleetdm.com/handbook/company/development-groups#making-changes), or [why we use a wireframe-first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
+The scope of product design at Fleet is any change that involves changes to functionality or usage, including the UI, REST API, command line, and webhooks.
+
+> Learn more about Fleet's philosophy and process for [making interface changes to the product](https://fleetdm.com/handbook/company/development-groups#making-changes), or [why we use a wireframe-first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
 ### Wireframing
 
@@ -77,9 +79,9 @@ For external contributors: please consider opening an issue with reference scree
 
 Once the draft has been approved, it moves to the "Settled" column on the drafting board. 
 
-Before assigning an engineering manager for [estimation](https://fleetdm.com/handbook/engineering#sprint-ceremonies), the product team should ensure the product section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
+Before assigning an engineering manager to [estimate](https://fleetdm.com/handbook/engineering#sprint-ceremonies) a user story, the product designer ensures the product section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
 
-> The story's designer is responsible for ensuring the checklist has been completed, the requirements section is consistent with the Figma, and the group engineering manager has been assigned. 
+Once a bug has gone through design and is considered "Settled", the designer removes the `:product` label and moves the issue to the 'To be scheduled' column on the "Bugs" board. The product manager then prioritizes the bug into the "Sprint backlog" and assigns the group engineering manager. 
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
@@ -171,12 +173,13 @@ Start off cross-platform for every option, setting, and feature. If we **prove**
 
 - Showing these principles and ideas, to help remember the pros and cons and conceptualize the above visually.
 
-   - Figma:
-https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?type=design&node-id=17819%3A222919&t=kBHyWO7TXGpkylzS-1 
+   - Figma: [⚗️ Fleet product project](https://www.figma.com/files/project/17318630/%E2%9A%97%EF%B8%8F-Fleet-product?fuid=1234929285759903870)
 
 We have certain design conventions that we include in Fleet. We will document more of these over time.
 
-> TODO: Link to style guide here instead, and deduplicate all of this content (or as much as possible).
+**Figma component library**
+
+Use the 🧩 ["Design System (current)"](https://www.figma.com/file/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-System-(current)?type=design&mode=design&t=BytcobQwypszkxf5-1) Figma library as a source of truth for components. Components in the product ([Storybook](https://fleetdm.com/storybook/)) should match the style of components defined in the Figma library. If the frontend component is inconsistent with one in the Figma library, treat that as a [bug](https://fleetdm.com/handbook/engineering#finding-bugs).
 
 **Table empty states**
 
@@ -307,7 +310,7 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 ## Intake
 
 - [Making a request](#making-a-request)
-- [How features are evaluated](#how-features-are-evaluated)
+- [How feature requests are evaluated](#how-feature-requests-are-evaluated)
 - [After the feature is accepted](#after-the-feature-is-accepted)
 - [Why this way?](#why-this-way)
 
@@ -315,7 +318,7 @@ To stay in-sync with our customers' needs, Fleet accepts feature requests from c
 
 ### Making a request
 
-To make a feature request or advocate for a feature request from a customer or community member, add your request to the list in the [🎁🗣 Feature Fest agenda](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q) and attend the next scheduled 🎁🗣 Feature Fest meeting. 
+To make a feature request or advocate for a feature request from a customer or community member, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~customer+request&projects=&template=feature-request.md&title=) and attend the next scheduled 🎁🗣 Feature Fest meeting. 
 
 Requests are weighed from top to bottom while prioritizing attendee requests. This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
 
@@ -329,16 +332,20 @@ To help the product team, other pieces of information can be optionally included
 - How does this change fit into the requester's overall usage of Fleet?
 - What other potential changes to the product have you considered?
 
+To ensure your request appears on the ["Feature Fest" board](https://app.zenhub.com/workspaces/-feature-fest-651b2962605ba29209324c57/board):
+- Add the `~feature fest` label to your issue
+- Add the relevant customer label (if applicable) 
+
 To maximize your chances of having a feature accepted, requesters can visit the [🗣 Product office hours](#rituals) meeting to get feedback on requests prior to being accepted. 
 
 ### How feature requests are evaluated
 Digestion of these new product ideas (requests) happens at the **🎁🗣 Feature Fest** meeting.
 
-At the **🎁🗣 Feature Fest** meeting, the DRI (Head of Product) weighs all requests in the agenda. When the team weighs a request, it is immediately prioritized or put to the side.
+At the **🎁🗣 Feature Fest** meeting, the DRI (Head of Product) weighs all requests on the board. When the team weighs a request, it is immediately prioritized or put to the side.
 - A _request is prioritized_ when the DRI decides it is a priority. When this happens, the team sets the request to be estimated within five business days.
 - A _request is put to the side_ when the business perceives competing priorities as more pressing in the immediate moment.
 
-If a feature is not prioritized, it only means that the feature has been rejected _at that time_. It is up to the requestor to bring the request back again at another 🎁🗣 Feature Fest meeting.
+If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only means the feature has been rejected _at that time_. Requestors will be notified by the Head of Product, and they can resubmit their request at a future meeting.
 
 Requests are weighed by:
 - The completeness of the request (see [making a request](#making-a-request))
@@ -347,11 +354,16 @@ Requests are weighed by:
 - How well the request fits within Fleet's product vision and roadmap
 - Whether the feature seems like it can be designed, estimated, and developed in 6 weeks, given its individual complexity and when combined with other work already accepted
 
+### Customer feature requests 
+The product team's goal is to prioritize 16 customer feature requests at Feature Fest, then take them from settled to shipped. The customer success team is responsible for providing the Head of Product a live count during the Feature Fest meeting. Product Operations is responsible for monitoring this KPI and raising alarms throughout the design and engineering sprints. 
+> Customer stories should be estimated at 1-3 points each to count as 1 request. If a feature request spans across multiple customers, it will be counted as the number of customers involved. 
+
 ### After the feature is accepted
-- After the 🎁🗣 Feature Fest meeting, the Head of Product resets the agenda to blank by doing the following:
-  - Create issues for accepted items
-  - Notify absent requesters of decisions
-  - Move that week's feature requests to the backup journal document
+After the 🎁🗣 Feature Fest meeting, Product Operations will clear the Feature Fest board as follows:
+**Prioritized features:** Remove `feature fest` label, add `:product` label, and assign the group Product Manager. 
+**Put to the side features:** Remove `feature fest` label and close the issue.
+
+Group Product Managers will then develop user stories for the prioritized features. 
 
 > The product team's commitment to the requester is that a prioritized feature will be delivered within 6 weeks or the requester will be notified within 1 business day of the decision to de-prioritize the feature. 
 
@@ -393,6 +405,16 @@ Every week, a member of the product team (as determined in the [rituals](#ritual
 The DRI should record the latest versions in the [maintenance tracker](https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit#gid=0) and then notify the [#help-product Slack channel](https://fleetdm.slack.com/archives/C02A8BRABB5) with an update, noting the current versions and highlighting any changes. 
 
 
+### Restart Algolia manually
+At least once every hour, an Algolia crawler reindexes the Fleet website's content. If an error occurs while the website is being indexed, Algolia will block our crawler and respond to requests with this message: `"This action cannot be executed on a blocked crawler"`.
+
+When this happens, you'll need to manually start the crawler in the [Algolia crawler dashboard](https://crawler.algolia.com/admin/) to unblock it. 
+You can do this by logging into the crawler dashboard using the login saved in 1password and clicking the "Restart crawling" button on our crawler's "overview" page](https://crawler.algolia.com/admin/crawlers/497dd4fd-f8dd-4ffb-85c9-2a56b7fafe98/overview).
+
+No further action is needed if the crawler successfully reindexes the Fleet website. If another error occurs while the crawler is running, take a screenshot of the error and add it to the GitHub issue created for the alert and @mention `eashaw` for help.
+
+
+
 ### New CIS benchmarks
 When we create new CIS benchmarks, also submit the new CIS benchmark set to CIS for [certification](https://www.cisecurity.org/cis-securesuite/pricing-and-categories/product-vendor/cis-benchmark-assessment#:~:text=In%20order%20to%20incorporate%20and,recommendations%20in%20the%20associated%20CIS). 
 
@@ -402,28 +424,28 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-------------------------|:----------------------------------------------------|-------------------|
-| Design sprint review (CX) | Sprintly (Wednesday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The Head of Product also collects all items that are product-driven and puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Mo Zhu |
+| Design sprint review (Endpoint ops) | Sprintly (Wednesday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The Head of Product also collects all items that are product-driven and puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Mo Zhu |
 | Design sprint review (MDM) | Sprintly (Thursday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The group PM collects all items that were de-prioritized and, if desired, puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Mo Zhu |
 | 🎁 Feature fest prep | Sprintly (Thursday) | The Head of Product reviews the agenda and pre-comments on items in order to be well-prepared for the discussion. | Mo Zhu |
 | 🎁🗣 Feature fest  | Sprintly (Thursday) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
 | 🎁 Feature fest cleanup | Sprintly (Thursday) | Clean up the agenda in anticipation of the next meeting | Mo Zhu |
-| Design sprint kickoff (CX) | Sprintly (Thursday) | the Head of Product introduces and determines the order of the newly prioritized list of work with each group PM | Mo Zhu |
+| Design sprint kickoff (Endpoint ops) | Sprintly (Thursday) | the Head of Product introduces and determines the order of the newly prioritized list of work with each group PM | Mo Zhu |
 | Design sprint kickoff (MDM) | Sprintly (Thursday) | the Head of Product introduces and determines the order of the newly prioritized list of work with each group PM | Mo Zhu |
 | 🗣 Product office hours  | Weekly (Tuesday) | Ask questions to the product team | Mo Zhu |
-| Sprint Kickoff Review (CX) | Sprintly (Monday) | After each sprint kickoff, the Head of Product reviews the Estimated column with each group PM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Mo Zhu |
+| Sprint Kickoff Review (Endpoint ops) | Sprintly (Monday) | After each sprint kickoff, the Head of Product reviews the Estimated column with each group PM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Mo Zhu |
 | Sprint Kickoff Review (MDM) | Sprintly (Monday) | After each sprint kickoff, the Head of Product reviews the Estimated column with each group PM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Mo Zhu |
 | Sprint release notes kick-off meeting | Sprintly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare. | Mo Zhu |
 | ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
-| ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
+| ⚗️✨🗣 Design review (Endpoint ops)   | Daily | Review designs from the Endpoint ops team | Rachael Shaw |
 | Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Mo Zhu |
-| Report number of estimated stories (CX) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Isabell Reedy |
+| Report number of estimated stories (Endpoint ops)) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Isabell Reedy |
 | Report number of estimated stories (MDM) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Noah Talerman |
 | Maintenance | Weekly (Friday) | Product Operations checks the latest versions of relevant platforms, updates the maintenance tracker, and notifies the #help-product Slack channel. | Isabell Reedy |
 | Quality check  | Daily         | Every day, Product Operations will review the "Settled" column on the drafting board to ensure all product action items are complete.                                | Isabell Reedy |
 | Bug de-prioritization | Mid-sprint  | CEO, Head of Product, and Director of Product Development review the bugs which did not meet the 6-week delivery timeline. Align on next steps for which bugs to schedule into the next sprint and which can be de-prioritized. | Mo Zhu |
 | Product confirm and celebrate                 | Weekly (Wednesday)       | The Head of Product meets with the designers and product managers to discuss completed user stories. They also verify all updates to documentation, communications, guides, and the pricing and transparency pages, ensuring everything is set for the next steps.                                      | Mo Zhu            |
-| Pre-sprint prioritization call (CX)           | Sprintly (Monday)        | The product manager and engineering manager meet to confirm alignment on prioritization for the upcoming sprint.                                                                                                                                                                | Mo Zhu            |
-| Bug review (CX)                               | Weekly (Tuesday)         | The product manager meets with the engineering manager and a product quality engineer to ensure synchronization on bug prioritization and actions preceding CX estimation sessions.                                                                                                         | Mo Zhu            |
+| Pre-sprint prioritization call (Endpoint ops)           | Sprintly (Monday)        | The product manager, engineering manager, and product operations meet before each sprint to align on priorities and note what wasn't completed in the previous sprint. Product operations then informs the customer success team about related customer requests.                                                                                                                                                               | Mo Zhu            |
+| Bug review (Endpoint ops)                               | Weekly (Tuesday)         | The product manager meets with the engineering manager and a product quality engineer to ensure synchronization on bug prioritization and actions preceding Endpoint ops estimation sessions.                                                                                                         | Mo Zhu            |
 | Bug round-up   | Mid-sprint | Product Operations will compile a list of churned bugs, including issue numbers, specifics, and age. They will also notify the Customer Success team of any churned bugs that have customer tags  | Isabell Reedy |
 | Churned bug review                            | Mid-sprint     | The Head of Product meets with the group product managers to examine churned bugs and categorize them as either schedule, needs prioritization, or de-prioritize.                                                                                                                                     | Mo Zhu            |
 | Churned bug clean-up | Mid-sprint  | Following the bug de-prioritization meeting, Product Operations completes the churned bug clean-up, ensuring all necessary follow-up tasks are actioned to classify bugs as schedule, needs prioritization, or de-prioritized. This may include relocating bug tickets, adjusting labels, communicating with stakeholders, writing documentation, and closing issues. | Isabell Reedy |
@@ -442,7 +464,7 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-product`                     | Mo Zhu                                                              |
 | `#g-mdm`                            | Noah Talerman                                                       |
-| `#g-cx`                             | Mo Zhu                                                              |
+| `#g-endpoint-ops`                             | Mo Zhu                                                              |
 
-<meta name="maintainedBy" value="zhumo">
-<meta name="title" value="⚗️ Product">
+<meta name="maintainedBy" value="noahtalerman">
+<meta name="title" value="🦢 Product design">

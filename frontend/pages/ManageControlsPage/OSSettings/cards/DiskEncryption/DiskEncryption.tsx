@@ -31,7 +31,7 @@ const DiskEncryption = ({
 
   const defaultShowDiskEncryption = currentTeamId
     ? false
-    : config?.mdm.macos_settings.enable_disk_encryption ?? false;
+    : config?.mdm.enable_disk_encryption ?? false;
 
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
 
@@ -67,8 +67,7 @@ const DiskEncryption = ({
       enabled: currentTeamId !== 0,
       select: (res) => res.team,
       onSuccess: (res) => {
-        const enableDiskEncryption =
-          res.mdm?.macos_settings.enable_disk_encryption ?? false;
+        const enableDiskEncryption = res.mdm?.enable_disk_encryption ?? false;
         setDiskEncryptionEnabled(enableDiskEncryption);
         setShowAggregate(enableDiskEncryption);
         setIsLoadingTeam(false);
@@ -100,6 +99,19 @@ const DiskEncryption = ({
     setIsLoadingTeam(false);
   }
 
+  const createDescriptionText = () => {
+    // table is showing disk encryption status.
+    if (showAggregate) {
+      return "If turned on, hosts' disk encryption keys will be stored in Fleet. ";
+    }
+
+    const isWindowsFeatureFlagEnabled = config?.mdm_enabled ?? false;
+    const dynamicText = isWindowsFeatureFlagEnabled
+      ? " and “BitLocker” on Windows"
+      : "";
+    return `Also known as “FileVault” on macOS${dynamicText}. If turned on, hosts' disk encryption keys will be stored in Fleet. `;
+  };
+
   return (
     <div className={baseClass}>
       <h2>Disk encryption</h2>
@@ -124,8 +136,7 @@ const DiskEncryption = ({
                 On
               </Checkbox>
               <p>
-                Apple calls this “FileVault.” If turned on, hosts&apos; disk
-                encryption keys will be stored in Fleet.{" "}
+                {createDescriptionText()}
                 <CustomLink
                   text="Learn more"
                   url="https://fleetdm.com/docs/using-fleet/mdm-disk-encryption"

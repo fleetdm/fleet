@@ -13,7 +13,7 @@ Fleet's source code, website, documentation, company handbook, and internal tool
 
 Meanwhile, the [company behind Fleet](https://twitter.com/fleetctl) is built on the [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) business model.  Openness is one of our core [values](https://fleetdm.com/handbook/company#values), and everything we do is [public by default](https://handbook.gitlab.com/handbook/values/#public-by-default).  Even the [company handbook](https://fleetdm.com/handbook) is open to the world.
 
-Is open-source collaboration _really_ worth all that?  Is it any good?
+Is open-source collaboration _all that_?  Is it any good?
 
 Here are some of the reasons we build in the open:
 
@@ -100,7 +100,6 @@ Here's why Fleet uses a wireframe-first approach:
 - Wireframes created to describe individual changes are disposable and may have slight stylistic inconsistencies.  Fleet's user interface styleguide in Figma is the source of truth for overarching design decisions like spacing, typography, and colors.
 - While the "wireframe first" practice is [still sometimes misunderstood](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall), today many modern high-performing teams now use a [wireframe-first methodology](https://speakerdeck.com/mikermcneil/i-love-apis), including [startups](https://www.forbes.com/sites/danwoods/2015/10/19/dont-get-ubered-apis-hold-key-to-digital-transformation/?sh=50112fea182c#:~:text=One%20recommendation%20that,deep%20experience) and [publicly-traded companies](https://about.gitlab.com/handbook/product-development-flow/#validation-phase-3-design).
 
-> _**Note:** The only exception to the wireframe-first policy is for temporary pages and experiments not listed in the navigation or sitemap, and which are housed behind /imagine ☁️🪟. You can read more about marketing's [experimentation process](https://fleetdm.com/handbook/marketing#experimentation)._
 
 
 ## Why do we use one repo?
@@ -205,7 +204,7 @@ The Fleet product is released every three weeks. By syncing the whole company to
 ## Why spend so much energy responding to every potential production incident?
 At Fleet, every 5xx response, timed-out request, and failed scheduled job is a P1 outage.
 
-As soon as the outage is detected in any production environment (including fleetdm.com, Fleet Sandbox, hosted customer environments, TUF, and others), we create an outage issue _immediately_: before we know for sure whether any real users are affected, and even before we know what the error message says.
+As soon as the outage is detected in any production environment (including fleetdm.com, hosted customer environments, TUF, and others), we create an outage issue _immediately_: before we know for sure whether any real users are affected, and even before we know what the error message says.
 
 Then, we determine impact quickly. We take a close look right away, even if we think it might not matter.  If there is any chance of it affecting even one user, we keep digging.  We reach out to affected users to acknowledge their problem, provide them with a workaround or some other way to make their day less painful.
 
