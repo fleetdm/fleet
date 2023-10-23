@@ -81,7 +81,7 @@ Once the draft has been approved, it moves to the "Settled" column on the drafti
 
 Before assigning an engineering manager to [estimate](https://fleetdm.com/handbook/engineering#sprint-ceremonies) a user story, the product designer ensures the product section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
 
-Once a bug has gone through design and is considered "Settled", the designer removes the `:product` label and moves the issue to the 'Sprint backlog' column on the "Bugs" board. The product manager then prioritizes the bug into the "Sprint backlog" and assigns the group engineering manager. 
+Once a bug has gone through design and is considered "Settled", the designer removes the `:product` label and moves the issue to the 'Sprint backlog' column on the "Bugs" board and assigns the group engineering manager. 
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
