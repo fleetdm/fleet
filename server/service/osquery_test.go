@@ -700,7 +700,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: true}}, nil
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, queriesDBData)
+	serv.saveResultLogsToQueryReports(ctx, results, queriesDBData, true)
 	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Result not saved if result is not a snapshot
@@ -715,7 +715,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: false}}, nil
 	}
-	serv.saveResultLogsToQueryReports(ctx, notSnapshotResult, queriesDBData)
+	serv.saveResultLogsToQueryReports(ctx, notSnapshotResult, queriesDBData, false)
 	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Results not saved if DiscardData is true in Query
@@ -726,7 +726,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, false)
 	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Happy Path: Results saved
@@ -740,7 +740,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
 		return nil
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue, false)
 	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
 
