@@ -87,7 +87,7 @@ type Datastore interface {
 	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*Query, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
-	QueryByName(ctx context.Context, teamID *uint, name string, opts ...OptionalArg) (*Query, error)
+	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)
 	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
 	// identified query
 	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)

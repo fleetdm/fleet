@@ -122,7 +122,6 @@ func (ds *Datastore) QueryByName(
 	ctx context.Context,
 	teamID *uint,
 	name string,
-	opts ...fleet.OptionalArg,
 ) (*fleet.Query, error) {
 	stmt := `
 		SELECT 
@@ -588,7 +587,7 @@ func (ds *Datastore) CleanupGlobalDiscardQueryResults(ctx context.Context) error
 	deleteStmt := "DELETE FROM query_results"
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "delete all from query_result")
+		return ctxerr.Wrapf(ctx, err, "delete all from query_results")
 	}
 
 	return nil
