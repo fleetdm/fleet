@@ -340,6 +340,7 @@ const ManageQueriesPage = ({
         router={router}
         queryParams={queryParams}
         isInherited
+        currentTeamId={currentTeamId}
       />
     );
   };

@@ -49,12 +49,14 @@ const baseClass = "query-details-page";
 
 const QueryDetailsPage = ({
   router,
-  params: { id: paramsQueryId, team_id: paramsTeamId },
+  params: { id: paramsQueryId },
   location,
 }: IQueryDetailsPageProps): JSX.Element => {
   const queryId = parseInt(paramsQueryId, 10);
   const queryParams = location.query;
-  const teamId = parseInt(paramsTeamId, 10);
+  const teamId = location.query.team_id
+    ? parseInt(location.query.team_id, 10)
+    : undefined;
 
   // Functions to avoid race conditions
   const serverSortBy: ISortOption[] = (() => {
@@ -77,6 +79,7 @@ const QueryDetailsPage = ({
     filteredQueriesPath,
     availableTeams,
     setCurrentTeam,
+    currentTeam,
   } = useContext(AppContext);
   const {
     lastEditedQueryName,
@@ -198,7 +201,7 @@ const QueryDetailsPage = ({
                 {canEditQuery && (
                   <Button
                     onClick={() => {
-                      queryId && router.push(PATHS.EDIT_QUERY(queryId));
+                      queryId && router.push(PATHS.EDIT_QUERY(queryId, teamId));
                     }}
                     className={`${baseClass}__manage-automations button`}
                     variant="brand"

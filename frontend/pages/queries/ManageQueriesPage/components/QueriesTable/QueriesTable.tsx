@@ -42,6 +42,7 @@ interface IQueriesTableProps {
     team_id?: string;
   };
   isInherited?: boolean;
+  currentTeamId?: number;
 }
 
 const DEFAULT_SORT_DIRECTION = "asc";
@@ -93,6 +94,7 @@ const QueriesTable = ({
   router,
   queryParams,
   isInherited = false,
+  currentTeamId,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
 
@@ -237,8 +239,10 @@ const QueriesTable = ({
   };
 
   const tableHeaders = useMemo(
-    () => currentUser && generateTableHeaders({ currentUser, isInherited }),
-    [currentUser, isInherited]
+    () =>
+      currentUser &&
+      generateTableHeaders({ currentUser, isInherited, currentTeamId }),
+    [currentUser, isInherited, currentTeamId]
   );
 
   const searchable =
