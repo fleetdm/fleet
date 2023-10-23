@@ -579,7 +579,7 @@ A critical bug is a bug with the `~critical bug` label. A critical bug is define
 
 #### Critical bug notification process
 We need to inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm.
-Raising an alarm means pinging @here in the #help-product channel with the filed bug.
+Raising an alarm means pinging @here in the #help-product-design channel with the filed bug.
 
 If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. (We would expect this to be Customer success in the community Slack or QA in the bug inbox, though it could be anyone.)
 Note that the bug finder here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical, but it has not been escalated, raise the alarm!
@@ -603,7 +603,7 @@ The metrics are:
 Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
 
 ### Definitions
-In the above process, any reference to "product" refers to: Mo Zhu, Head of Product.
+In the above process, any reference to "product" refers to: Noah Talerman, Head of Product Design.
 In the above process, any reference to "QA" refers to: Reed Haynes, Product Quality Specialist
 
 ## Infrastructure
