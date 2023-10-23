@@ -2365,6 +2365,12 @@ Returns the information of the specified host.
         "detail": "",
         "bootstrap_package_name": "test.pkg"
       },
+      "os_settings": {
+        "disk_encryption": {
+          "status": null,
+          "detail": ""
+        }
+      },
       "profiles": [
         {
           "profile_id": 999,
@@ -2566,7 +2572,10 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
         "detail": ""
       },
       "os_settings": {
-        "disk_encryption": null
+        "disk_encryption": {
+          "status": null,
+          "detail": ""
+        }
       },
       "profiles": [
         {
@@ -2757,7 +2766,10 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "bootstrap_package_name": "test.pkg"
       },
       "os_settings": {
-        "disk_encryption": null
+        "disk_encryption": {
+          "status": null,
+          "detail": ""
+        }
       },
       "profiles": [
         {
@@ -5625,9 +5637,8 @@ If a query has no results stored, then `results` will be an empty array:
 }
 ```
 
-### osquery scheduled queries do not return errors.
+> Note: osquery scheduled queries do not return errors, so only non-error results are included in the report. If you suspect a query may be running into errors, you can use the [live query](#run-live-query) endpoint to get diagnostics.
 
-osquery scheduled queries mechanism does not return errors. Hence those are not stored in the cache and are not part of this report.
 
 ### List queries
 
