@@ -1,5 +1,7 @@
 # Windows MDM setup
 
+![Windows MDM setup](../website/assets/images/articles/windows-mdm-fleet-1600x900@2x.png)
+
 ## Overview
 
 > Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
@@ -187,3 +189,12 @@ Autopilot requires at least one Intune license to edit the Autopilot profile.
 1. Wipe your test workstation.
 
 2. After it's been wiped, open your workstation and follow the setup steps. At screen in which you're asked to sign in, you should see the title "Welcome to <your organziation>!" next to the logo you uploaded in step 4.
+
+
+<meta name="articleTitle" value="Windows MDM setup">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2023-10-23">
+<meta name="articleImageUrl" value="../website/assets/images/articles/windows-mdm-fleet-1600x900@2x.png">
+<meta name="description" value="Configuring Windows MDM in Fleet.">
