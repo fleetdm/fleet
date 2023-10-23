@@ -130,6 +130,8 @@
       tier: Free
       usualDepartment: Security
       productCategories: [Endpoint operations]
+      demos:
+        - description: A top media company wanted to share more security data with other departments without slowing down hosts.
       waysToUse:
         - description: Ship logs to Splunk, Snowflake, and more
         - description: Synchronize live state of endpoints to a data lake or SIEM in a consistent shape.
