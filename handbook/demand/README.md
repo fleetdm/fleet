@@ -17,16 +17,15 @@ The Demand department is directly responsible for growing awareness of Fleet and
 
 > To make a request related to product marketing, press, brandfronts, pitchfronts, featurefronts, ideal customer profiles (ICPs), personas, or targeting [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Aproduct-marketing&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________).
 >
-> If urgent, or if you need help submiting your request, at-mention the [Head of Product Marketing](#team) in the [help-pmm-2023](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel.
+> If urgent, or if you need help submitting your request, at-mention the [Head of Product Marketing](#team) in the [help-pmm-2023](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel.
 
 - To make a request of the Demand department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-demand&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
   - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
 - To suggest an idea for social media, an advertisement, an article, a video, or an event, [create an issue (#g-demand)](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-demand&projects=&template=custom-request.md&title=Request%3A+_______________________) and concisely suggest why you think it might be a good idea.  The more advanced notice you can provide for the event, the better, in case we can provide swag or other support.
-- If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-demand](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel:
-  - For all urgent questions related to events, video, or social media, mention the Field Marketer.
+- If urgent, or if you need help submitting your request, mention a [team member](#team) in the [#g-demand](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel:
+  - For all urgent events, videos, or social media questions, mention the Field Marketer.
   - For all urgent questions related to articles or the Fleet community, mention the Community Advocate.
-
 
 
 ## Programs
@@ -104,7 +103,7 @@ There are many times in which community members, customers, and contributors are
 **Magic links**: This is a great option to send when we only know the item we'd like to send and want the recipient to fill out their own contact information and shipping details. These links can be used by anyone who has access to the link, so only send to the desired recipient.
 
 - Log in to [Postal](https://app.postal.io/items/postals) and make sure "Approved items" is checked in the top left.
-- For approved items, hover over the item that you would like to send and click the chain icon.
+- For approved items, hover over the item you want to send and click the chain icon.
 - Make sure order limit is 1
 - Personalize your magic link page with a customized header or message if you'd like.
 - Continue on to "Review" and "Create MagicLink"
@@ -112,10 +111,10 @@ There are many times in which community members, customers, and contributors are
 **Direct send**: This is a great option to send when we already have the name, address, and email address of the person we are sending an item to.
 
 - Log in to [Postal](https://app.postal.io/items/postals) and make sure "Approved items" is checked in the top left.
-- For approved items, hover over the item that you would like to send and click the paper airplane icon.
+- For approved items, hover over the item you want to send and click the paper airplane icon.
 - Choose the "Direct" tab and find an existing contact or create a new one.
-- To create a new contact click the plus sign and fill out the name, email, and shipping address.
-- Select "Configure your item", continue on to "Review", and "Confirm and Send"
+- To create a new contact, click the plus sign and fill out the name, email, and shipping address.
+- Select "Configure your item," continue to "Review," and "Confirm and Send."
 
 ### Send swag for community contributions to Fleet
 - Reach out to the contributor to thank them for their contribution
@@ -124,10 +123,10 @@ There are many times in which community members, customers, and contributors are
 - If yes, follow the steps of creating a magic link in Postal to send.
 
 ### Run a new ad or change an existing ad
-Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-website), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all fleeties.
+Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-website), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all Fleeties.
 1. Add your proposal to the [website design review agenda](https://docs.google.com/document/d/1Q73ublh9bcIL01JsY--gpZRd3KPT_KCX-F0RaorKJcM/edit)
 2. Compare existing ads against the newly proposed ad within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
-3. If your change is approved, Field Marketer makes changes and creates a calendar reminder to check performance two weeks from the date changes were made.
+3. If your change is approved, the Field Marketer makes changes and creates a calendar reminder to check performance two weeks from the date changes were made.
 
 
 ### Engage with the community
@@ -153,6 +152,21 @@ Once approval has been received, move the event into the "🗓 Planned events" c
 ### Review ongoing events
 Check the "🗓 Planned events" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
 
+### Article creation
+Article creation begins with creation of an issue using the "🫧 Article request" template.
+
+1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
+2. Move the issue into the "📃 Planned articles" column.
+
+### Review ongoing articles
+Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue towork through steps in each event's issue.
+
+### Talk to an expert
+When a community member has a question about getting started with Fleet, they can [book a 15-minute call](https://calendly.com/jd-fleet/let-s-talk-fleet) with the Community Advocate.
+
+1. Add questionnaire details to [Talk to an Expert sheet](https://docs.google.com/spreadsheets/d/1aMLQ9z5TYn90AnE3g1sMPoxsMNMKXn_l3aWb9Kdi7G4/edit).
+2. Meet at scheduled time.
+3. Send follow up email with appropriate links.
 
 ## Rituals
 <rituals :rituals="rituals['handbook/demand/demand.rituals.yml']"></rituals>
