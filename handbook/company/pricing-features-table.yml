@@ -208,6 +208,10 @@
     - industryName: Installers (self-service)
       tier: Free
       productCategories: [Endpoint operations]
+      waysToUse:
+        - description: Build scripts for Ansible deployments
+        - description: Deploy osquery to macOS via Jamf
+        - description: Package osquery for Linux servers via Workspace One and Windows servers via group policies
     #  ╔╗ ╔═╗╔╦╗╔═╗╦ ╦  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗╦╔═╗╔╗╔
     #  ╠╩╗╠═╣ ║ ║  ╠═╣  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║
     #  ╚═╝╩ ╩ ╩ ╚═╝╩ ╩  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝
