@@ -12,6 +12,7 @@ import (
 
 	// Kolide tables
 	"github.com/kolide/launcher/pkg/osquery/tables/cryptsetup"
+	"github.com/kolide/launcher/pkg/osquery/tables/dataflattentable"
 	"github.com/kolide/launcher/pkg/osquery/tables/dev_table_tooling"
 	"github.com/kolide/launcher/pkg/osquery/tables/firefox_preferences"
 	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
@@ -26,7 +27,6 @@ import (
 	//"github.com/kolide/launcher/pkg/osquery/tables/secureboot"
 
 	// TODO: Need coding/other
-	//"github.com/kolide/launcher/pkg/osquery/tables/dataflattentable"
 	//"github.com/kolide/launcher/pkg/osquery/tables/launcher_db"
 
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
@@ -160,6 +160,11 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		secureboot.TablePlugin(kolideLogger),
 		cryptsetup.TablePlugin(kolideLogger),
 		dev_table_tooling.TablePlugin(kolideLogger),
+
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonType),  // table name is "kolide_json"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.XmlType),   // table name is "kolide_xml"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.IniType),   // table name is "kolide_ini"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.PlistType), // table name is "kolide_plist"
 
 		// TODO: Fix build error
 		// falcon_kernel_check.TablePlugin(kolideLogger),
