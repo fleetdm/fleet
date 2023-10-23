@@ -27,6 +27,7 @@ import (
 
 	// TODO: Need coding/other
 	//"github.com/kolide/launcher/pkg/osquery/tables/dataflattentable"
+	//"github.com/kolide/launcher/pkg/osquery/tables/launcher_db"
 
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
@@ -168,6 +169,7 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 		// TODO: Need coding/other
 		// dataflattentable.TablePlugin(kolideLogger, dataSourceType),
+		// launcher_db.TablePlugin(tableName string, iterator types.Iterator),
 	}
 	return plugins
 }
