@@ -9,9 +9,9 @@ import {
 
 import LastUpdatedText from "components/LastUpdatedText";
 import SectionHeader from "components/SectionHeader";
+import DataError from "components/DataError";
 
 import OSVersionTable from "../OSVersionTable";
-import DataError from "components/DataError";
 
 const baseClass = "os-updates-current-version-section";
 
@@ -43,10 +43,6 @@ const CurrentVersionSection = ({
     return null;
   }
 
-  if (isError) {
-    return <DataError />;
-  }
-
   const renderTable = () => {
     if (isError) {
       return (
@@ -67,6 +63,7 @@ const CurrentVersionSection = ({
     return (
       <OSVersionTable
         osVersionData={filteredOSVersionData}
+        currentTeamId={currentTeamId}
         isLoading={isLoadingOsVersions}
       />
     );

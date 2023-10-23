@@ -1,22 +1,22 @@
 import React from "react";
 
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { IHostScript, ILastExecution } from "services/entities/scripts";
+import { IOperatingSystemVersion } from "interfaces/operating_system";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 
-interface IStatusCellProps {
-  cell: {
-    value: ILastExecution | null;
+import OSTypeCell from "../OSTypeCell";
+
+interface IOSTypeCellProps {
+  row: {
+    original: IOperatingSystemVersion;
   };
 }
 
-interface IDropdownCellProps {
-  cell: {
-    value: IDropdownOption[];
-  };
+interface IHostCellProps {
   row: {
-    original: IHostScript;
+    original: IOperatingSystemVersion;
   };
 }
 
@@ -28,13 +28,16 @@ interface IHeaderProps {
 }
 
 // eslint-disable-next-line import/prefer-default-export
-export const generateTableHeaders = () => {
+export const generateTableHeaders = (teamId: number) => {
   return [
     {
       title: "OS type",
       Header: "OS type",
       disableSortBy: true,
       accessor: "platform",
+      Cell: ({ row }: IOSTypeCellProps) => (
+        <OSTypeCell osVersion={row.original} />
+      ),
     },
     {
       title: "Version",
@@ -52,6 +55,27 @@ export const generateTableHeaders = () => {
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
+      Cell: ({ row }: IHostCellProps): JSX.Element => {
+        const { hosts_count, name_only, version } = row.original;
+        return (
+          <span className="hosts-cell__wrapper">
+            <span className="hosts-cell__count">
+              <TextCell value={hosts_count} />
+            </span>
+            <span className="hosts-cell__link">
+              <ViewAllHostsLink
+                queryParams={{
+                  os_name: name_only,
+                  os_version: version,
+                  team_id: teamId,
+                }}
+                condensed
+                className="os-hosts-link"
+              />
+            </span>
+          </span>
+        );
+      },
     },
   ];
 };

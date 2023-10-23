@@ -11,6 +11,7 @@ const baseClass = "os-version-table";
 
 interface IOSVersionTableProps {
   osVersionData: IOperatingSystemVersion[];
+  currentTeamId: number;
   isLoading: boolean;
 }
 
@@ -32,14 +33,18 @@ const OSVersionEmptyState = () => {
   );
 };
 
-const OSVersionTable = ({ osVersionData, isLoading }: IOSVersionTableProps) => {
+const OSVersionTable = ({
+  osVersionData,
+  currentTeamId,
+  isLoading,
+}: IOSVersionTableProps) => {
   const columns = generateTableHeaders();
 
   return (
     <div className={baseClass}>
       <TableContainer
         columns={columns}
-        data={[]}
+        data={osVersionData}
         isLoading={isLoading}
         resultsTitle=""
         emptyComponent={OSVersionEmptyState}
