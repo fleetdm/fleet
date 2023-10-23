@@ -14,6 +14,8 @@ This document is a walkthrough guide for:
 
 > The `fleetctl updates` commands assume the folders `keys/`, `staged/` and `repository/` exist on the current working directory.
 
+> IMPORTANT: When syncing the repository make sure to use `--exact-timestamps`. Otherwise `aws s3 sync` may not sync files that do not change in size, like `timestamp.json`.
+
 - The `keys/` folder contains the encrypted private keys.
 - The `staged/` folder contains uncommitted changes (usually empty because `fleetctl updates` commands automatically commit the changes).
 - The `repository/` folder contains the full TUF repository.
@@ -27,7 +29,7 @@ mkdir -p ./repository
 cp /Volumes/YOUR-USB-NAME/keys ./keys
 mkdir -p ./staged
 
-aws s3 sync s3://fleet-tuf-repo ./repository
+aws s3 sync s3://fleet-tuf-repo ./repository --exact-timestamps
 ```
 
 ## Pushing updates
@@ -82,17 +84,20 @@ fleetctl updates add --target /path/to/windows/downloaded/fleet-desktop.exe --pl
 
 #### swiftDialog
 
+> macOS only component
+
 The `swiftDialog` executable can be generated from a macOS host by running:
 ```sh
 make swift-dialog-app-tar-gz version=2.2.1 build=4591 out-path=.
 ```
 
 ```sh
-macOS:
 fleetctl updates add --target /path/to/macos/swiftDialog.app.tar.gz --platform macos --name swiftDialog --version 2.2.1 -t edge
 ```
 
 #### nudge
+
+> macOS only component
 
 The `nudge` executable can be generated from a macOS host by running:
 ```sh
@@ -100,13 +105,13 @@ make nudge-app-tar-gz version=1.1.10.81462 out-path=.
 ```
 
 ```sh
-macOS:
 fleetctl updates add --target /path/to/macos/nudge.app.tar.gz --platform macos --name nudge --version 1.1.10.81462 -t edge
 ```
 
 #### osqueryd
 
-Osquery executables are downloaded from the [Github releases](https://github.com/osquery/osquery/releases).
+Osquery executables are downloaded from the [Generate osqueryd targets for Fleetd action](https://github.com/fleetdm/fleet/blob/main/.github/workflows/generate-osqueryd-targets.yml).
+Such action is triggered by submitting a PR with the [following version string](https://github.com/fleetdm/fleet/blob/7067ca586a4aa1a0377b387d4b4478a5958193ff/.github/workflows/generate-osqueryd-targets.yml#L27) changed.
 
 > The following commands assume you are pushing version `5.9.1`.
 
@@ -285,7 +290,7 @@ Essentially the following commands are executed to sign the new keys:
 
 ### Invalid timestamp.json version
 
-The following issue was solved by resigning the timestamp metadata `fleetctl updates timestamp` (executed three times to increase the version to 4175)
+The following issue was solved by resigning the timestamp metadata `fleetctl updates timestamp` (executed three times to increase the version to `4175`)
 ```sh
 2022-08-23T13:44:48-03:00 INF update failed error="update metadata: update metadata: tuf: failed to decode timestamp.json: version 4172 is lower than current version 4174"
 2022-08-23T13:59:48-03:00 INF update failed error="update metadata: update metadata: tuf: failed to decode timestamp.json: version 4172 is lower than current version 4174"
