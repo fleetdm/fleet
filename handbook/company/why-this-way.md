@@ -204,7 +204,7 @@ The Fleet product is released every three weeks. By syncing the whole company to
 ## Why spend so much energy responding to every potential production incident?
 At Fleet, every 5xx response, timed-out request, and failed scheduled job is a P1 outage.
 
-As soon as the outage is detected in any production environment (including fleetdm.com, Fleet Sandbox, hosted customer environments, TUF, and others), we create an outage issue _immediately_: before we know for sure whether any real users are affected, and even before we know what the error message says.
+As soon as the outage is detected in any production environment (including fleetdm.com, hosted customer environments, TUF, and others), we create an outage issue _immediately_: before we know for sure whether any real users are affected, and even before we know what the error message says.
 
 Then, we determine impact quickly. We take a close look right away, even if we think it might not matter.  If there is any chance of it affecting even one user, we keep digging.  We reach out to affected users to acknowledge their problem, provide them with a workaround or some other way to make their day less painful.
 
