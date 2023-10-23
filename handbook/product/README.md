@@ -129,7 +129,7 @@ If a bug is not addressed within six weeks, it is [sent to the product team for 
 The Head of Product Design meets with the CEO to discuss and finalize the outcomes for the churned bugs.
 
 Once outcomes have been approved by the CEO, The Head of Product Design will complete the churned bug clean-up ritual. Below are the steps for each category:
-- **Schedule**: Product Operations should remove the `:product` label, move the bug ticket to the 'Sprint backlog' column on the bug board, and assign it to the appropriate group's Engineering Manager so that it can be prioritized into the sprint backlog.
+- **Schedule**: Remove the `:product` label, move the bug ticket to the 'Sprint backlog' column on the bug board, and assign it to the appropriate group's Engineering Manager so that it can be prioritized into the sprint backlog.
 - **De-prioritized**: The Head of Product Design should close the issue and, as the DRI, ensure all follow-up actions are finalized.
 
 ## Writing user stories
