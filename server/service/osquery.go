@@ -1399,7 +1399,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	return submitLogsResponse{Err: err}, nil
 }
 
-func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults []json.RawMessage) (unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
+func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults []json.RawMessage, queryReportsDisabled bool) (unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1410,6 +1410,10 @@ func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults
 			// Note we store a nil item if the result could not be unmarshaled.
 		}
 		unmarshaledResults = append(unmarshaledResults, result)
+	}
+
+	if queryReportsDisabled {
+		return unmarshaledResults, nil
 	}
 
 	queriesDBData = make(map[string]*fleet.Query)
@@ -1456,27 +1460,26 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	// otherwise the results will never clear from its local DB and
 	// will keep retrying forever.
 	//
-	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs)
-	svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData)
 
-	var filteredLogs []json.RawMessage
-	for i, unmarshaledResult := range unmarshaledResults {
-		if unmarshaledResult == nil {
-			// Ignore results that could not be unmarshaled.
-			continue
-		}
-		dbQuery, ok := queriesDBData[unmarshaledResult.QueryName]
-		if !ok {
-			// Ignore results for unknown queries.
-			continue
-		}
-		if !dbQuery.AutomationsEnabled {
-			// Ignore results for queries that have automations disabled.
-			continue
-		}
-		filteredLogs = append(filteredLogs, logs[i])
+	var queryReportsDisabled bool
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		level.Error(svc.logger).Log("msg", "getting app config", "err", err)
+		// If we fail to load the app config we assume the flag to be disabled
+		// to not perform extra processing in that scenario.
+		queryReportsDisabled = true
+	} else {
+		queryReportsDisabled = appConfig.ServerSettings.QueryReportsDisabled
 	}
-	if err := svc.osqueryLogWriter.Result.Write(ctx, filteredLogs); err != nil {
+
+	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
+	svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData, queryReportsDisabled)
+
+	// Write the logs to the logging destination (without any processing).
+	// If a query has automations_enabled = 0 we may still write the results for it here.
+	// Eventually the query will be removed from the host schedule and thus Fleet
+	// won't receive any further results anymore (/api/v1/osquery/config).
+	if err := svc.osqueryLogWriter.Result.Write(ctx, logs); err != nil {
 		return newOsqueryError("error writing result logs: " + err.Error())
 	}
 	return nil
@@ -1486,7 +1489,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 // Query Reports
 ////////////////////////////////////////////////////////////////////////////////
 
-func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
+func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query, queryReportsDisabled bool) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1496,13 +1499,7 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 		return
 	}
 
-	// Do not insert results if query reports are disabled globally
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		level.Error(svc.logger).Log("msg", "getting app config", "err", err)
-		return
-	}
-	if appConfig.ServerSettings.QueryReportsDisabled {
+	if queryReportsDisabled {
 		return
 	}
 
