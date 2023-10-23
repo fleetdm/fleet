@@ -10,15 +10,6 @@ import Columns from "./Columns";
 import Disable from "./Disable";
 import Close from "./Close";
 import CloseFilled from "./CloseFilled";
-import EmptyHosts from "./EmptyHosts";
-import EmptyIntegrations from "./EmptyIntegrations";
-import EmptyMembers from "./EmptyMembers";
-import EmptyPacks from "./EmptyPacks";
-import EmptyPolicies from "./EmptyPolicies";
-import EmptyQueries from "./EmptyQueries";
-import EmptySchedule from "./EmptySchedule";
-import EmptySoftware from "./EmptySoftware";
-import EmptyTeams from "./EmptyTeams";
 import ExternalLink from "./ExternalLink";
 import Filter from "./Filter";
 import FilterAlt from "./FilterAlt";
@@ -60,14 +51,7 @@ import Transfer from "./Transfer";
 import TrashCan from "./TrashCan";
 import Profile from "./Profile";
 import Download from "./Download";
-import Files from "./Files";
 import Refresh from "./Refresh";
-import FilePython from "./FilePython";
-import FileZsh from "./FileZsh";
-import FileBash from "./FileBash";
-import FileGeneric from "./FileGeneric";
-import FilePkg from "./FilePkg";
-import FilePdf from "./FilePdf";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -83,15 +67,6 @@ export const ICON_MAP = {
   disable: Disable,
   close: Close,
   "close-filled": CloseFilled,
-  "empty-hosts": EmptyHosts,
-  "empty-integrations": EmptyIntegrations,
-  "empty-members": EmptyMembers,
-  "empty-packs": EmptyPacks,
-  "empty-policies": EmptyPolicies,
-  "empty-queries": EmptyQueries,
-  "empty-schedule": EmptySchedule,
-  "empty-software": EmptySoftware,
-  "empty-teams": EmptyTeams,
   "external-link": ExternalLink,
   filter: Filter,
   "filter-alt": FilterAlt,
@@ -132,13 +107,6 @@ export const ICON_MAP = {
   "premium-feature": PremiumFeature,
   profile: Profile,
   download: Download,
-  files: Files,
-  "file-python": FilePython,
-  "file-zsh": FileZsh,
-  "file-bash": FileBash,
-  "file-pkg": FilePkg,
-  "file-generic": FileGeneric,
-  "file-pdf": FilePdf,
   refresh: Refresh,
 };
 
