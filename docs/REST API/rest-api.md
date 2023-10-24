@@ -3282,7 +3282,7 @@ _Available in Fleet Premium_
 
 ### Get host's activities
 
-Returns a list of the activities performed in Fleet affecting the current host.
+Returns a list of the activities performed in Fleet affecting the current host. It returns activities sorted in descending order by the `created_at` field.
 
 `GET /api/v1/fleet/hosts/{id}/activities`
 
@@ -3293,8 +3293,6 @@ Returns a list of the activities performed in Fleet affecting the current host.
 | id | integer | path | **Required**. The ID of the host to get the details for. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
-| order_key | string | query | What to order results by. Can be any column in the `activites` table. |
-| order_direction | string | query | Requires `order_key`. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 ##### Example
 
