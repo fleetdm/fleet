@@ -162,6 +162,16 @@
   }
 
   [purpose='platform-block'] {
+    &.hidden {
+      height: 0;
+      margin-bottom: 0;
+      opacity: 0;
+      transition: none;
+    }
+    &.show {
+      transition: opacity 0.3s ease-in;
+      opacity: 1;
+    }
     margin-bottom: 100px;
     h3 {
       font-weight: 800;

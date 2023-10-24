@@ -93,7 +93,7 @@
     </div>
 
     <%/* Endpoint ops block */%>
-    <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" v-if="selectedCategory === 'endpoint-ops'">
+    <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" :class="[selectedCategory === 'endpoint-ops' ? ' show' : 'hidden']">
       <div purpose="category-text-block" class="d-flex flex-column">
         <h3>Focus on data, not vendors</h3>
         <p>Use a consistent interface to deploy, update, and manage thousands of workstations and servers with open standards and data.</p>
@@ -105,7 +105,7 @@
     </div>
 
     <%/* Device management block */%>
-    <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" v-else-if="selectedCategory === 'device-management'">
+    <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" :class="[selectedCategory === 'device-management' ? 'show' : 'hidden']">
       <div purpose="category-text-block" class="d-flex flex-column">
         <h3>Manage devices like code</h3>
         <p>Automate the management of your fleet of devices with increased visibility and control, improved stability, all while automating configuration deployments using GitOps.</p>
@@ -117,7 +117,7 @@
     </div>
 
     <%/* Vulnerability management block */%>
-    <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" v-else-if="selectedCategory === 'vulnerability-management'">
+    <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" :class="[selectedCategory === 'vulnerability-management' ? 'show' : 'hidden']">
       <div purpose="category-text-block" class="d-flex flex-column">
         <h3>Build the security platform your team actually wants</h3>
         <p>Monitor vulnerabilities in operating systems, software packages, and browser plugins. Show how quickly CVEs are resolved, and which teams need extra help.</p>
