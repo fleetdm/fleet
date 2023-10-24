@@ -128,8 +128,11 @@ To provide clarity about decision-making, [responsibility](https://fleetdm.com/h
 - 🐋 [Sales](https://fleetdm.com/handbook/customers): The Sales department is directly responsible for attaining the revenue goals of Fleet and helping customers deliver on their objectives.
 - 🏹 [Customer Success](https://fleetdm.com/handbook/customer-success): The Customer Success department is directly responsible for connecting with and advocating for the community and customers.
 - 🫧 [Demand](https://fleetdm.com/handbook/demand): The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other programs.
-- 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The 🚀 Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product.
+- 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product.
 - 🦢 [Product Design](https://fleetdm.com/handbook/product): The Product Design department is directly responsible for defining and prioritizing the changes made to the core product.
+
+### CEO
+Get to know Fleet's CEO and tips for collaborating with him in 📖[handbook/ceo](https://fleetdm.com/handbook/ceo).
 
 ## Advisors
 While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including
