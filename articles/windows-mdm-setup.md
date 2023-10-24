@@ -188,7 +188,7 @@ Autopilot requires at least one Intune license to edit the Autopilot profile.
 
 1. Wipe your test workstation.
 
-2. After it's been wiped, open your workstation and follow the setup steps. At screen in which you're asked to sign in, you should see the title "Welcome to <your organziation>!" next to the logo you uploaded in step 4.
+2. After it's been wiped, open your workstation and follow the setup steps. At screen in which you're asked to sign in, you should see the title "Welcome to [your organziation]!" next to the logo you uploaded in step 4.
 
 
 <meta name="articleTitle" value="Windows MDM setup">
