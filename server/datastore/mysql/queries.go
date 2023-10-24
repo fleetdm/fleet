@@ -327,34 +327,76 @@ func (ds *Datastore) DeleteQuery(
 	teamID *uint,
 	name string,
 ) error {
-	stmt := "DELETE FROM queries WHERE name = ?"
-
-	args := []interface{}{name}
-	whereClause := " AND team_id_char = ''"
-	if teamID != nil {
-		args = append(args, fmt.Sprint(*teamID))
-		whereClause = " AND team_id_char = ?"
-	}
-	stmt += whereClause
-
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
-	if err != nil {
-		if isMySQLForeignKey(err) {
-			return ctxerr.Wrap(ctx, foreignKey("queries", name))
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		selectStmt := "SELECT id FROM queries WHERE name = ?"
+		args := []interface{}{name}
+		whereClause := " AND team_id_char = ''"
+		if teamID != nil {
+			args = append(args, fmt.Sprint(*teamID))
+			whereClause = " AND team_id_char = ?"
 		}
-		return ctxerr.Wrap(ctx, err, "delete queries")
-	}
-	rows, _ := result.RowsAffected()
-	if rows != 1 {
-		return ctxerr.Wrap(ctx, notFound("queries").WithName(name))
-	}
-	return nil
+		selectStmt += whereClause
+		var queryID uint
+		row := tx.QueryRowxContext(ctx, selectStmt, args...)
+		if err := row.Scan(&queryID); err != nil {
+			return ctxerr.Wrap(ctx, err, "getting query to delete")
+		}
+
+		deleteStmt := "DELETE FROM queries WHERE id = ?"
+		result, err := tx.ExecContext(ctx, deleteStmt, queryID)
+		if err != nil {
+			if isMySQLForeignKey(err) {
+				return ctxerr.Wrap(ctx, foreignKey("queries", name))
+			}
+			return ctxerr.Wrap(ctx, err, "delete queries")
+		}
+		rows, _ := result.RowsAffected()
+		if rows != 1 {
+			return ctxerr.Wrap(ctx, notFound("queries").WithName(name))
+		}
+
+		deleteQueryResultsStmt := "DELETE FROM query_results WHERE query_id = ?"
+		if _, err := tx.ExecContext(ctx, deleteQueryResultsStmt, queryID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete query results")
+		}
+
+		return nil
+	})
 }
 
 // DeleteQueries deletes the existing query objects with the provided IDs. The
 // number of deleted queries is returned along with any error.
 func (ds *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
-	return ds.deleteEntities(ctx, queriesTable, ids)
+	var deleted int64
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		deleteQueriesStmt := `DELETE FROM queries WHERE id IN (?)`
+		query, args, err := sqlx.In(deleteQueriesStmt, ids)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building delete queries stmt")
+		}
+		result, err := tx.ExecContext(ctx, query, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "executing delete queries")
+		}
+		deleted, err = result.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "fetching delete queries rows affected")
+		}
+
+		deleteQueryResultsStmt := `DELETE FROM query_results WHERE id IN (?)`
+		query, args, err = sqlx.In(deleteQueryResultsStmt, ids)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building delete query_results stmt")
+		}
+		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "executing delete query_results")
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return uint(deleted), nil
 }
 
 // Query returns a single Query identified by id, if such exists.
