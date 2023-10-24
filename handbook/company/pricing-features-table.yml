@@ -371,7 +371,7 @@
 - categoryName: Device management
   features:
     - industryName: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
-      tier: Free
+      tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
     - industryName: Remotely enforce macOS settings
