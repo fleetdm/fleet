@@ -6794,6 +6794,60 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 	require.True(t, s.checkIfXMLTagContains("Data", pendingCmd.SettingValue, resMsg))
 }
 
+func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
+	t := s.T()
+
+	// Target Endpoint URL for the management endpoint
+	targetEndpointURL := microsoft_mdm.MDE2ManagementPath
+
+	// Target Device ID
+	deviceID := "DB257C3A08778F4FB61E2749066C1F27"
+
+	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            deviceID,
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         uuid.New().String(),
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-1C3ARC1",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+	}
+
+	err := s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
+	require.NoError(t, err)
+
+	// Checking if device was enrolled
+	_, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(context.Background(), deviceID)
+	require.NoError(t, err)
+
+	// Preparing the SyncML unenroll request
+	requestBytes, err := s.newSyncMLUnenrollMsg(deviceID, targetEndpointURL)
+	require.NoError(t, err)
+
+	resp := s.DoRaw("POST", targetEndpointURL, requestBytes, http.StatusOK)
+
+	// Checking that Command error code was updated
+
+	// Checking response headers
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SyncMLContentType)
+
+	// Read response data
+	resBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	// Checking if response can be unmarshalled to an golang type
+	var xmlType interface{}
+	err = xml.Unmarshal(resBytes, &xmlType)
+	require.NoError(t, err)
+
+	// Checking if device was unenrolled
+	_, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(context.Background(), deviceID)
+	require.Error(t, err)
+}
+
 func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 	t := s.T()
 	ctx := context.Background()
@@ -7095,7 +7149,6 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 	return requestBytes, nil
 }
 
-// TODO: Add support to add custom DeviceID when device authentication is in place
 func (s *integrationMDMTestSuite) newSyncMLSessionMsg(deviceID string, managementUrl string) ([]byte, error) {
 	if len(managementUrl) == 0 {
 		return nil, errors.New("managementUrl is empty")
@@ -7181,6 +7234,56 @@ func (s *integrationMDMTestSuite) newSyncMLSessionMsg(deviceID string, managemen
 						<Data>2023-10-18T06:16:24.0000756-07:00</Data>
 					</Item>
 				</Results>
+				<Final/>
+			</SyncBody>
+			</SyncML>`), nil
+}
+
+func (s *integrationMDMTestSuite) newSyncMLUnenrollMsg(deviceID string, managementUrl string) ([]byte, error) {
+	if len(managementUrl) == 0 {
+		return nil, errors.New("managementUrl is empty")
+	}
+
+	return []byte(`
+			 <SyncML xmlns="SYNCML:SYNCML1.2">
+			<SyncHdr>
+				<VerDTD>1.2</VerDTD>
+				<VerProto>DM/1.2</VerProto>
+				<SessionID>1</SessionID>
+				<MsgID>1</MsgID>
+				<Target>
+				<LocURI>` + managementUrl + `</LocURI>
+				</Target>
+				<Source>
+				<LocURI>` + deviceID + `</LocURI>
+				</Source>
+			</SyncHdr>
+			<SyncBody>
+				<Alert>
+				<CmdID>2</CmdID>
+				<Data>1201</Data>
+				</Alert>
+				<Alert>
+				<CmdID>3</CmdID>
+				<Data>1224</Data>
+				<Item>
+					<Meta>
+					<Type xmlns="syncml:metinf">com.microsoft/MDM/LoginStatus</Type>
+					</Meta>
+					<Data>user</Data>
+				</Item>
+				</Alert>
+				<Alert>
+				<CmdID>4</CmdID>
+				<Data>1226</Data>
+				<Item>
+					<Meta>
+					<Type xmlns="syncml:metinf">com.microsoft:mdm.unenrollment.userrequest</Type>
+					<Format xmlns="syncml:metinf">int</Format>
+					</Meta>
+					<Data>1</Data>
+				</Item>
+				</Alert>
 				<Final/>
 			</SyncBody>
 			</SyncML>`), nil
