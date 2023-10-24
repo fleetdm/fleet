@@ -214,7 +214,7 @@ func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID 
             windows_mdm_pending_commands wmpc
         WHERE
             wmpc.device_id = ? AND
-            NOT EXISTS (SELECT 1 FROM windows_mdm_commands wmc WHERE wmpc.device_id = wmc.device_id AND wmpc.command_uuid = wmc.command_uuid)
+            NOT EXISTS (SELECT 1 FROM old_windows_mdm_commands wmc WHERE wmpc.device_id = wmc.device_id AND wmpc.command_uuid = wmc.command_uuid)
     `
 
 	// Retrieve commands first
@@ -228,7 +228,7 @@ func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID 
 // MDMWindowsInsertCommand inserts a new WindowMDMCommand in the database
 func (ds *Datastore) MDMWindowsInsertCommand(ctx context.Context, cmd *fleet.MDMWindowsCommand) error {
 	stmt := `
-		INSERT INTO windows_mdm_commands (
+		INSERT INTO old_windows_mdm_commands (
 		command_uuid,
 		device_id,
 		session_id,
@@ -267,7 +267,7 @@ func (ds *Datastore) MDMWindowsInsertCommand(ctx context.Context, cmd *fleet.MDM
 func (ds *Datastore) MDMWindowsUpdateCommandErrorCode(ctx context.Context, deviceID, sessionID, messageID, commandID, errorCode string) error {
 	query := `
         UPDATE
-            windows_mdm_commands
+            old_windows_mdm_commands
         SET
             rx_error_code = ?
         WHERE
@@ -304,7 +304,7 @@ func (ds *Datastore) MDMWindowsListCommands(ctx context.Context, deviceID string
             created_at,
             updated_at
         FROM
-            windows_mdm_commands
+            old_windows_mdm_commands
         WHERE
             device_id = ?
     `
