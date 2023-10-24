@@ -30,6 +30,7 @@ import (
 	kolidemunki "github.com/kolide/launcher/pkg/osquery/tables/munki"
 	"github.com/kolide/launcher/pkg/osquery/tables/profiles"
 	"github.com/kolide/launcher/pkg/osquery/tables/pwpolicy"
+	"github.com/kolide/launcher/pkg/osquery/tables/systemprofiler"
 
 	// TODO: This Kolide table requires more complicated coding
 	"github.com/kolide/launcher/pkg/osquery/tables/osquery_user_exec_table"
@@ -96,6 +97,7 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		mdmclient.TablePlugin(kolideLogger),
 		kolidemunki.New().ManagedInstalls(kolideLogger),
 		kolidemunki.New().MunkiReport(kolideLogger),
+		systemprofiler.TablePlugin(kolideLogger),
 		// Tables for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonType),  // table name is "kolide_json"
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonlType), // table name is "kolide_jsonl"
