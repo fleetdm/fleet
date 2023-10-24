@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
+	"github.com/kolide/launcher/pkg/osquery/tables/dataflattentable"
 	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
 
 	// Kolide tables
@@ -82,6 +83,13 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		pwpolicy.TablePlugin(kolideLogger),
 		airport.TablePlugin(kolideLogger),
 		apple_silicon_security_policy.TablePlugin(kolideLogger),
+		// Tables for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonType),  // table name is "kolide_json"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonlType), // table name is "kolide_jsonl"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.XmlType),   // table name is "kolide_xml"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.IniType),   // table name is "kolide_ini"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.PlistType), // table name is "kolide_plist"
+
 	}
 
 	// append platform specific tables
