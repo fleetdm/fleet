@@ -3298,7 +3298,7 @@ Returns a list of the activities performed in Fleet affecting the current host.
 
 ##### Example
 
-`GET /api/v1/fleet/hosts/154/activities?page=0&per_page=2&order_key=created_at&order_direction=desc`
+`GET /api/v1/fleet/hosts/154/activities?page=0&per_page=2`
 
 ##### Default response
 
