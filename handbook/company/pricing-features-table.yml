@@ -377,6 +377,8 @@
     - industryName: Remotely enforce macOS settings
       tier: Free
       usualDepartment: IT
+      waysToUse:
+        - description: Deploy custom configuration profiles and double check that profiles were installed.
       productCategories: [Device management]
     - industryName: Self service
       description: Provide resolution instructions for end users through Fleet Desktop that suggest how an end user can fix a posture issue themselves.
