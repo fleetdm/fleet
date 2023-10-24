@@ -26,6 +26,8 @@ import (
 	"github.com/kolide/launcher/pkg/osquery/tables/filevault"
 	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
 	"github.com/kolide/launcher/pkg/osquery/tables/ioreg"
+	"github.com/kolide/launcher/pkg/osquery/tables/mdmclient"
+	kolidemunki "github.com/kolide/launcher/pkg/osquery/tables/munki"
 	"github.com/kolide/launcher/pkg/osquery/tables/profiles"
 	"github.com/kolide/launcher/pkg/osquery/tables/pwpolicy"
 
@@ -91,6 +93,9 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		airport.TablePlugin(kolideLogger),
 		firmwarepasswd.TablePlugin(kolideLogger),
 		apple_silicon_security_policy.TablePlugin(kolideLogger),
+		mdmclient.TablePlugin(kolideLogger),
+		kolidemunki.New().ManagedInstalls(kolideLogger),
+		kolidemunki.New().MunkiReport(kolideLogger),
 		// Tables for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonType),  // table name is "kolide_json"
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonlType), // table name is "kolide_jsonl"
@@ -109,6 +114,25 @@ func PlatformTables() []osquery.OsqueryPlugin {
 				table.TextColumn("modified"),
 				table.TextColumn("type"),
 				table.TextColumn("path"),
+			}),
+
+		osquery_user_exec_table.TablePlugin(
+			kolideLogger, "kolide_keychain_acls",
+			currentOsquerydBinaryPath, keychainItemsQuery,
+			[]table.ColumnDefinition{
+				table.TextColumn("keychain_path"),
+				table.TextColumn("authorizations"),
+				table.TextColumn("path"),
+				table.TextColumn("description"),
+				table.TextColumn("label"),
+			}),
+
+		osquery_user_exec_table.TablePlugin(
+			kolideLogger, "kolide_screenlock",
+			currentOsquerydBinaryPath, screenlockQuery,
+			[]table.ColumnDefinition{
+				table.IntegerColumn("enabled"),
+				table.IntegerColumn("grace_period"),
 			}),
 	}
 
