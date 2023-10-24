@@ -58,11 +58,8 @@ type Extension interface {
 // Opt allows configuring a Runner.
 type Opt func(*Runner)
 
-// Global variables for osquery extension manager client and logger for Kolide tables
-var (
-	serverClient *osquery.ExtensionManagerClient //nolint:unused
-	kolideLogger *Logger
-)
+// Logger for Kolide tables
+var kolideLogger *Logger
 
 // WithExtension registers the given Extension on the Runner.
 func WithExtension(t Extension) Opt {
@@ -154,6 +151,8 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		// fscrypt_info.TablePlugin(kolideLogger),
 		osquery_instance_history.TablePlugin(),
 		secureboot.TablePlugin(kolideLogger),
+		// kolide_dev_table_tooling table allows running arbitrary commands. As of 2023/10/24, only 'echo' and 'cb_repcli' are supported.
+		// RepCLI info: https://community.carbonblack.com/t5/Knowledge-Base/Carbon-Black-Cloud-What-is-the-RepCLI-Utility/ta-p/61991
 		dev_table_tooling.TablePlugin(kolideLogger),
 
 		// TODO: Fix build error
