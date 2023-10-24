@@ -2436,7 +2436,7 @@ Returns a list of the activities performed in Fleet affecting the current device
 
 ##### Example
 
-`GET /api/v1/fleet/device/abcdef012456789/activities?page=0&per_page=2&order_key=created_at&order_direction=desc`
+`GET /api/v1/fleet/device/abcdef012456789/activities?page=0&per_page=2`
 
 ##### Default response
 
