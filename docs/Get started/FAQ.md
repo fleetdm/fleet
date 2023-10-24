@@ -129,7 +129,7 @@ It’s possible in Fleet to retrieve each host’s kernel version, using the Fle
 
 ### How does Fleet set the `name` attribute in query automations?
 
-Query automations send data to your log destination with a `name` in this format: `pack_global_<your-query-name>`.
+Query automations send data to your log destination with a `name` in this format: `pack/Global/<Your query name>`.
 
 ### Why is my host not updating a policy's response?
 
