@@ -581,6 +581,9 @@ func TestSubmitResultLogs(t *testing.T) {
 			return nil, newNotFoundError()
 		}
 	}
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
+	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
 		if len(rows) == 0 {
 			return nil
