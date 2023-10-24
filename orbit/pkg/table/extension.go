@@ -12,11 +12,9 @@ import (
 
 	// Kolide tables
 	"github.com/kolide/launcher/pkg/osquery/tables/crowdstrike/falcon_kernel_check"
-	"github.com/kolide/launcher/pkg/osquery/tables/cryptsetup"
 	"github.com/kolide/launcher/pkg/osquery/tables/dataflattentable"
 	"github.com/kolide/launcher/pkg/osquery/tables/dev_table_tooling"
 	"github.com/kolide/launcher/pkg/osquery/tables/firefox_preferences"
-	"github.com/kolide/launcher/pkg/osquery/tables/fscrypt_info"
 	"github.com/kolide/launcher/pkg/osquery/tables/osquery_instance_history"
 	"github.com/kolide/launcher/pkg/osquery/tables/secureboot"
 
@@ -154,10 +152,9 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 		// Kolide extensions.
 		firefox_preferences.TablePlugin(kolideLogger),
-		fscrypt_info.TablePlugin(kolideLogger),
+		// fscrypt_info.TablePlugin(kolideLogger),
 		osquery_instance_history.TablePlugin(),
 		secureboot.TablePlugin(kolideLogger),
-		cryptsetup.TablePlugin(kolideLogger),
 		dev_table_tooling.TablePlugin(kolideLogger),
 
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonType),  // table name is "kolide_json"
