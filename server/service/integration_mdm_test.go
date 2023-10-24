@@ -6831,12 +6831,15 @@ func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
 
 	// Checking that Command error code was updated
 
-	// Checking response headers
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SyncMLContentType)
-
 	// Read response data
 	resBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
+
+	response := string(resBytes)
+	fmt.Println(response)
+
+	// Checking response headers
+	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SyncMLContentType)
 
 	// Checking if response can be unmarshalled to an golang type
 	var xmlType interface{}
