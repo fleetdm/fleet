@@ -16,7 +16,6 @@ import (
 	"github.com/kolide/launcher/pkg/osquery/tables/dataflattentable"
 	"github.com/kolide/launcher/pkg/osquery/tables/dev_table_tooling"
 	"github.com/kolide/launcher/pkg/osquery/tables/firefox_preferences"
-	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
 	"github.com/kolide/launcher/pkg/osquery/tables/fscrypt_info"
 	"github.com/kolide/launcher/pkg/osquery/tables/osquery_instance_history"
 	"github.com/kolide/launcher/pkg/osquery/tables/secureboot"
@@ -65,7 +64,7 @@ type Opt func(*Runner)
 // Global variables for osquery extension manager client and logger for Kolide tables
 var (
 	serverClient *osquery.ExtensionManagerClient //nolint:unused
-	kolideLogger *Logger                         //nolint:unused
+	kolideLogger *Logger
 )
 
 // WithExtension registers the given Extension on the Runner.
@@ -155,7 +154,6 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 		// Kolide extensions.
 		firefox_preferences.TablePlugin(kolideLogger),
-		firmwarepasswd.TablePlugin(kolideLogger),
 		fscrypt_info.TablePlugin(kolideLogger),
 		osquery_instance_history.TablePlugin(),
 		secureboot.TablePlugin(kolideLogger),

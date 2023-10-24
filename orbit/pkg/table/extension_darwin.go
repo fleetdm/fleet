@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
+	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
 
 	// Kolide tables
 	"github.com/kolide/launcher/pkg/osquery/tables/airport"
@@ -74,6 +75,8 @@ func PlatformTables() []osquery.OsqueryPlugin {
 
 		// Kolide tables
 		filevault.TablePlugin(kolideLogger),
+		// kolide_firmwarepasswd table. Only returns valid data on a Mac with an Intel processor. Background: https://support.apple.com/en-us/HT204455
+		firmwarepasswd.TablePlugin(kolideLogger),
 		ioreg.TablePlugin(kolideLogger),
 		profiles.TablePlugin(kolideLogger),
 		pwpolicy.TablePlugin(kolideLogger),
