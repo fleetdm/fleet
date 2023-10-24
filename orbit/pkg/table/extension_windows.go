@@ -11,7 +11,6 @@ import (
 	"github.com/kolide/launcher/pkg/osquery/tables/secedit"
 
 	// TODO: Fix build erros
-	//"github.com/kolide/launcher/pkg/osquery/tables/gsettings"
 	//"github.com/kolide/launcher/pkg/osquery/tables/mdmclient"
 
 	"github.com/osquery/osquery-go"
@@ -29,7 +28,6 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		secedit.TablePlugin(kolideLogger),
 
 		// TODO: Fix build error
-		// gsettings.Settings(kolideLogger),
 		// mdmclient.TablePlugin(kolideLogger),
 	}
 }
