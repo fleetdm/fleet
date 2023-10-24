@@ -137,7 +137,7 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 
 // MDMWindowsDeletePendingCommands deletes pending commands for a given device id.
 func (ds *Datastore) MDMWindowsDeletePendingCommands(ctx context.Context, deviceID string) error {
-	stmt := "DELETE FROM windows_mdm_pending_commands WHERE device_id = ?"
+	stmt := "DELETE FROM old_windows_mdm_pending_commands WHERE device_id = ?"
 
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, deviceID)
 	if err != nil {
@@ -166,7 +166,7 @@ func (ds *Datastore) MDMWindowsInsertPendingCommand(ctx context.Context, cmd *fl
 
 func (ds *Datastore) mdmWindowsInsertPendingCommandDB(ctx context.Context, tx sqlx.ExecerContext, cmd *fleet.MDMWindowsPendingCommand) error {
 	stmt := `
-		INSERT INTO windows_mdm_pending_commands (
+		INSERT INTO old_windows_mdm_pending_commands (
 		command_uuid,
 		device_id,
 		cmd_verb,
@@ -211,7 +211,7 @@ func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID 
             created_at,
             updated_at
         FROM
-            windows_mdm_pending_commands wmpc
+            old_windows_mdm_pending_commands wmpc
         WHERE
             wmpc.device_id = ? AND
             NOT EXISTS (SELECT 1 FROM old_windows_mdm_commands wmc WHERE wmpc.device_id = wmc.device_id AND wmpc.command_uuid = wmc.command_uuid)
