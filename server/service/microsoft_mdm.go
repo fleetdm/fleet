@@ -1249,20 +1249,20 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 	return errors.New("calling device is not trusted")
 }
 
+// regex to validate UPN
+var upnRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+
 // isValidUPN checks if the provided user ID is a valid UPN
 func isValidUPN(userID string) bool {
-	const upnRegex = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
-	re := regexp.MustCompile(upnRegex)
-	return re.MatchString(userID)
+	return upnRegex.MatchString(userID)
 }
 
 // isFleetdPresentOnDevice checks if the device requires Fleetd to be deployed
 func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string) (bool, error) {
 	// checking first if the device was enrolled through programmatic flow
 	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
-
-	if err != nil || enrolledDevice == nil {
-		return false, errors.New("device not found")
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get windows enrolled device")
 	}
 
 	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
@@ -1354,7 +1354,7 @@ func (svc *Service) processIncomingResultsCommands(ctx context.Context, sessionI
 
 	msgRef := *cmd.Cmd.MsgRef
 	msgData := ""
-	// Checking user-initiated unenrollment request
+	// Checking items for results data
 	if len(cmd.Cmd.Items) > 0 {
 		for _, item := range cmd.Cmd.Items {
 			if item.Data != nil {

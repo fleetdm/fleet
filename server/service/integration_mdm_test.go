@@ -6845,7 +6845,7 @@ func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
 
 	// Checking if device was unenrolled
 	_, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(context.Background(), deviceID)
-	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }
 
 func (s *integrationMDMTestSuite) TestRunMDMCommands() {
