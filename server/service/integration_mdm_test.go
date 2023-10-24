@@ -6801,7 +6801,7 @@ func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
 	targetEndpointURL := microsoft_mdm.MDE2ManagementPath
 
 	// Target Device ID
-	deviceID := "DB257C3A08778F4FB61E2749066C1F27"
+	deviceID := "DB257C3A08778F4FB61E2749066C1F26"
 
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            deviceID,
@@ -7249,7 +7249,7 @@ func (s *integrationMDMTestSuite) newSyncMLUnenrollMsg(deviceID string, manageme
 			<SyncHdr>
 				<VerDTD>1.2</VerDTD>
 				<VerProto>DM/1.2</VerProto>
-				<SessionID>1</SessionID>
+				<SessionID>2</SessionID>
 				<MsgID>1</MsgID>
 				<Target>
 				<LocURI>` + managementUrl + `</LocURI>
