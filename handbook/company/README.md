@@ -124,14 +124,12 @@ Fleet raised its Series A funding round.  The world now has at least 1.65 millio
 ## Org chart
 To provide clarity about decision-making, [responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility), and resources, everyone at Fleet has a manager, and [every manager](https://fleetdm.com/handbook/company#management) has direct reports.  Fleet's organizational chart is accessible company-wide as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
 
-### Product groups
-Above and beyond the organizational chart, Fleet organizes cross-functional groups focused on particular business goals.  This helps product development teams move more quickly by eliminating roundtrips spent waiting for feedback and answers from people in other departments. Product groups include a designer, a product quality lead, developers, a product manager, and an engineering manager.  For more information, check out the ["Product groups"](./development-groups.md) page.
-
-### Management
-To understand the expectations of Fleet's leadership, read 📖[handbook/company/leadership](https://fleetdm.com/handbook/company/leadership).
-
-### CEO
-Get to know Fleet's CEO and tips for collaborating with him in 📖[handbook/ceo](https://fleetdm.com/handbook/ceo).
+- [Business Operations](https://fleetdm.com/handbook/business-operations): The Business Operations department is directly responsible for these traditional functions: People, Finance, Legal, IT, and Revenue Operations (RevOps).
+- [Customers](https://fleetdm.com/handbook/customers): The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
+- [Customer Success](https://fleetdm.com/handbook/customer-success): The Customer Success department is directly responsible connecting with and advocating for the community and customers.  
+- [Demand](https://fleetdm.com/handbook/demand): The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other programs.
+- [Engineering](https://fleetdm.com/handbook/engineering): The 🚀 Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product.
+- [Product](https://fleetdm.com/handbook/product): The Product department is directly responsible for defining and prioritizing the changes made to the core product.
 
 ## Advisors
 While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including
