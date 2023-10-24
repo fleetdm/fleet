@@ -26,7 +26,7 @@ const (
 	teamMDMConfigKey                   = "TeamMDMConfig:team:%d"
 	defaultTeamMDMConfigExpiration     = 1 * time.Minute
 	queryByNameKey                     = "QueryByName:team:%d:%s"
-	defaultQueryByNameExpiration       = 10 * time.Second
+	defaultQueryByNameExpiration       = 1 * time.Second
 	queryResultsCountKey               = "QueryResultsCount:%d"
 	defaultQueryResultsCountExpiration = 1 * time.Second
 )

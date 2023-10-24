@@ -310,6 +310,20 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	require.Equal(t, overwriteRows[0].HostID, results[0].HostID)
 	require.Equal(t, overwriteRows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
 	require.JSONEq(t, string(overwriteRows[0].Data), string(results[0].Data))
+
+	// Test calling OverwriteQueryResultRows with a query that doesn't exist (e.g. a deleted query).
+	overwriteRows = []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     9999,
+			HostID:      host.ID,
+			LastFetched: newMockTime,
+			Data: json.RawMessage(
+				`{"model": "USB Mouse", "vendor": "Logitech"}`,
+			),
+		},
+	}
+	err = ds.OverwriteQueryResultRows(context.Background(), overwriteRows)
+	require.NoError(t, err)
 }
 
 func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
