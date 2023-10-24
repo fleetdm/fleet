@@ -1556,6 +1556,17 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 			continue
 		}
 
+		// We first check the current query results count using the DB reader (also cached)
+		// to reduce the DB writer load of osquery/log requests when the host count is high.
+		count, err := svc.ds.ResultCountForQuery(ctx, dbQuery.ID)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "get result count for query", "err", err, "query_id", dbQuery.ID)
+			continue
+		}
+		if count >= fleet.MaxQueryReportRows {
+			continue
+		}
+
 		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID); err != nil {
 			level.Error(svc.logger).Log("msg", "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
@@ -1563,31 +1574,28 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 	}
 }
 
-// The "snapshot" array in a ScheduledQueryResult can contain multiple rows.  Each
-// row is saved as a separate ScheduledQueryResultRow. ie. a result could contain
-// many USB Devices or a result could contain all User Accounts on a host.
+// overwriteResultRows deletes existing and inserts the new results for a query and host.
+//
+// The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
+// Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
+// many USB Devices or a result could contain all user accounts on a host.
 func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint) error {
 	fetchTime := time.Now()
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
-
 	for _, snapshotItem := range result.Snapshot {
-
 		row := &fleet.ScheduledQueryResultRow{
 			QueryID:     queryID,
 			HostID:      hostID,
 			Data:        snapshotItem,
 			LastFetched: fetchTime,
 		}
-
 		rows = append(rows, row)
-
 	}
 
 	if err := svc.ds.OverwriteQueryResultRows(ctx, rows); err != nil {
 		return ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
-
 	return nil
 }
 

@@ -13,20 +13,22 @@ import (
 )
 
 const (
-	appConfigKey                      = "AppConfig:%s"
-	defaultAppConfigExpiration        = 1 * time.Second
-	packsHostKey                      = "Packs:host:%d"
-	defaultPacksExpiration            = 1 * time.Minute
-	scheduledQueriesKey               = "ScheduledQueries:pack:%d"
-	defaultScheduledQueriesExpiration = 1 * time.Minute
-	teamAgentOptionsKey               = "TeamAgentOptions:team:%d"
-	defaultTeamAgentOptionsExpiration = 1 * time.Minute
-	teamFeaturesKey                   = "TeamFeatures:team:%d"
-	defaultTeamFeaturesExpiration     = 1 * time.Minute
-	teamMDMConfigKey                  = "TeamMDMConfig:team:%d"
-	defaultTeamMDMConfigExpiration    = 1 * time.Minute
-	queryByNameKey                    = "QueryByName:team:%d:%s"
-	defaultQueryByNameExpiration      = 10 * time.Second
+	appConfigKey                       = "AppConfig:%s"
+	defaultAppConfigExpiration         = 1 * time.Second
+	packsHostKey                       = "Packs:host:%d"
+	defaultPacksExpiration             = 1 * time.Minute
+	scheduledQueriesKey                = "ScheduledQueries:pack:%d"
+	defaultScheduledQueriesExpiration  = 1 * time.Minute
+	teamAgentOptionsKey                = "TeamAgentOptions:team:%d"
+	defaultTeamAgentOptionsExpiration  = 1 * time.Minute
+	teamFeaturesKey                    = "TeamFeatures:team:%d"
+	defaultTeamFeaturesExpiration      = 1 * time.Minute
+	teamMDMConfigKey                   = "TeamMDMConfig:team:%d"
+	defaultTeamMDMConfigExpiration     = 1 * time.Minute
+	queryByNameKey                     = "QueryByName:team:%d:%s"
+	defaultQueryByNameExpiration       = 10 * time.Second
+	queryResultsCountKey               = "QueryResultsCount:%d"
+	defaultQueryResultsCountExpiration = 1 * time.Second
 )
 
 // cloner represents any type that can clone itself. Used by types to provide a more efficient clone method.
@@ -106,12 +108,13 @@ type cachedMysql struct {
 
 	c *cloneCache
 
-	packsExp            time.Duration
-	scheduledQueriesExp time.Duration
-	teamAgentOptionsExp time.Duration
-	teamFeaturesExp     time.Duration
-	teamMDMConfigExp    time.Duration
-	queryByNameExp      time.Duration
+	packsExp             time.Duration
+	scheduledQueriesExp  time.Duration
+	teamAgentOptionsExp  time.Duration
+	teamFeaturesExp      time.Duration
+	teamMDMConfigExp     time.Duration
+	queryByNameExp       time.Duration
+	queryResultsCountExp time.Duration
 }
 
 type Option func(*cachedMysql)
@@ -148,13 +151,14 @@ func WithTeamMDMConfigExpiration(d time.Duration) Option {
 
 func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 	c := &cachedMysql{
-		Datastore:           ds,
-		c:                   &cloneCache{cache.New(5*time.Minute, 10*time.Minute)},
-		packsExp:            defaultPacksExpiration,
-		scheduledQueriesExp: defaultScheduledQueriesExpiration,
-		teamAgentOptionsExp: defaultTeamAgentOptionsExpiration,
-		teamFeaturesExp:     defaultTeamFeaturesExpiration,
-		queryByNameExp:      defaultQueryByNameExpiration,
+		Datastore:            ds,
+		c:                    &cloneCache{cache.New(5*time.Minute, 10*time.Minute)},
+		packsExp:             defaultPacksExpiration,
+		scheduledQueriesExp:  defaultScheduledQueriesExpiration,
+		teamAgentOptionsExp:  defaultTeamAgentOptionsExpiration,
+		teamFeaturesExp:      defaultTeamFeaturesExpiration,
+		queryByNameExp:       defaultQueryByNameExpiration,
+		queryResultsCountExp: defaultQueryResultsCountExpiration,
 	}
 	for _, fn := range opts {
 		fn(c)
@@ -346,4 +350,23 @@ func (ds *cachedMysql) QueryByName(ctx context.Context, teamID *uint, name strin
 	ds.c.Set(key, query, ds.queryByNameExp)
 
 	return query, nil
+}
+
+func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
+	key := fmt.Sprintf(queryResultsCountKey, queryID)
+
+	if x, found := ds.c.Get(key); found {
+		if count, ok := x.(int); ok {
+			return count, nil
+		}
+	}
+
+	count, err := ds.Datastore.ResultCountForQuery(ctx, queryID)
+	if err != nil {
+		return 0, err
+	}
+
+	ds.c.Set(key, count, ds.queryResultsCountExp)
+
+	return count, nil
 }
