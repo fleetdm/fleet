@@ -127,7 +127,7 @@ Each host’s OS version is available using the `api/v1/fleet/hosts` API endpoin
 
 It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options YAML file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleet-configuration-options).
 
-### How does Fleet set the `name` attribute for scheduled queries?
+### How does Fleet set the `name` attribute in query automations?
 
 Query automations send data to your log destination with a `name` in this format: `pack_global_<your-query-name>`.
 
