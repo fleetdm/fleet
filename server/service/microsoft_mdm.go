@@ -1289,9 +1289,10 @@ func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string
 		return err
 	}
 
-	//if !fleetdPresent {
-	// TODO: Command should be enqueued here once the new commands tables are in place
-	//}
+	if !fleetdPresent {
+		// TODO: Command should be enqueued here once the new commands tables are in place
+		return nil
+	}
 
 	return nil
 }
