@@ -395,10 +395,13 @@
       tier: Free
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Full control over zero-touch setup for macOS computers
+    - industryName: Zero-touch setup for macOS computers
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
+      waysToUse:
+        - description: Ship a workstation to the end users home and have them enroll to Fleet on first bootup.
+        - description: Take full control over the first time setup experience for your end users.
     - industryName: End-user macOS update reminders (via Nudge)
       tier: Premium
       usualDepartment: IT
