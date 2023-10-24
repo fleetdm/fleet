@@ -374,11 +374,12 @@
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Remotely enforce macOS settings
+    - industryName: Remotely enforce OS settings
       tier: Free
       usualDepartment: IT
       waysToUse:
-        - description: Deploy custom configuration profiles, double check that they're installed, and automatically re-deploy if they're not.
+        - description: Deploy custom configuration profiles on macOS and Windows (coming soon) and verify that they're installed.
+        - description: Automatically re-deploy configuration profiles on macOS they're not installed.
       productCategories: [Device management]
     - industryName: Self service
       description: Provide resolution instructions for end users through Fleet Desktop that suggest how an end user can fix a posture issue themselves.
@@ -402,13 +403,17 @@
       usualDepartment: IT
       productCategories: [Device management]
       waysToUse:
-        - description: Ship a workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box macOS setup.
+        - description: Ship a macOS workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup.
+        - description: Ship a Windows workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup. Coming soon (2023-12-31). Customer-preston
         - description: Customize the out-of-the-box setup experience for your end users.
         - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation.
-    - industryName: End-user macOS update reminders (via Nudge)
+    - industryName: Enforce OS updates
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management,Vulnerability management]
+       waysToUse:
+        - description: Enforce macOS updates via Nudge.
+        - description: Automatically update Windows after the end user reaches a deadline. Coming soon (2023-12-31). Customer-preston
     - industryName: Encrypt macOS hard disks with FileVault
       tier: Premium
       usualDepartment: IT
@@ -422,9 +427,9 @@
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Install and update apps on macOS and Windows computers
+    - industryName: Install and update apps on macOS and Windows computers.
       tier: Premium
-      comingSoonOn: 2023-12-31
+      comingSoonOn: 2023-12-31. Customer-reedtimmer and customer-preston
       usualDepartment: IT
       productCategories: [Device management]
     - industryName: Puppet module
@@ -474,7 +479,7 @@
         - description: Report on disk encryption status
         - description: Encrypt hard disks on macOS with FileVault
         - description: Escrow FileVault keys on macOS
-        - description: Encrypt hard disks on Windows with BitLocker
+        - description: Encrypt hard disks on Windows with BitLocker. Coming soon (2023-12-31). Customer-preston
     - industryName: Audit queries and user activities
       tier: Free
       usualDepartment: Security
