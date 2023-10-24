@@ -519,6 +519,8 @@
     - industryName: Vulnerability dashboard
       tier: Premium
       comingSoonOn: 2024-03-31
+      waysToUse:
+        - description: Only show vulnerabilities that you care about.
     - industryName: Policy scoring
       friendlyName: Mark policies as critical
       tier: Premium
