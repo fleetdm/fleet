@@ -18,19 +18,19 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
-	"github.com/kolide/launcher/pkg/osquery/tables/dataflattentable"
-	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
 
 	// Kolide tables
 	"github.com/kolide/launcher/pkg/osquery/tables/airport"
 	"github.com/kolide/launcher/pkg/osquery/tables/apple_silicon_security_policy"
+	"github.com/kolide/launcher/pkg/osquery/tables/dataflattentable"
 	"github.com/kolide/launcher/pkg/osquery/tables/filevault"
+	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
 	"github.com/kolide/launcher/pkg/osquery/tables/ioreg"
 	"github.com/kolide/launcher/pkg/osquery/tables/profiles"
 	"github.com/kolide/launcher/pkg/osquery/tables/pwpolicy"
 
 	// TODO: This Kolide table requires more complicated coding
-	//"github.com/kolide/launcher/pkg/osquery/tables/osquery_user_exec_table"
+	"github.com/kolide/launcher/pkg/osquery/tables/osquery_user_exec_table"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
@@ -40,6 +40,13 @@ import (
 	"github.com/macadmins/osquery-extension/tables/unifiedlog"
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
+)
+
+const (
+	currentOsquerydBinaryPath = "/opt/orbit/bin/osqueryd/macos-app/stable/osquery.app/Contents/MacOS/osqueryd"
+	keychainAclsQuery         = "select * from keychain_acls"
+	keychainItemsQuery        = "select * from keychain_items"
+	screenlockQuery           = "select enabled, grace_period from screenlock"
 )
 
 func PlatformTables() []osquery.OsqueryPlugin {
@@ -82,6 +89,7 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		profiles.TablePlugin(kolideLogger),
 		pwpolicy.TablePlugin(kolideLogger),
 		airport.TablePlugin(kolideLogger),
+		firmwarepasswd.TablePlugin(kolideLogger),
 		apple_silicon_security_policy.TablePlugin(kolideLogger),
 		// Tables for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonType),  // table name is "kolide_json"
@@ -90,6 +98,18 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.IniType),   // table name is "kolide_ini"
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.PlistType), // table name is "kolide_plist"
 
+		osquery_user_exec_table.TablePlugin(
+			kolideLogger, "kolide_keychain_items",
+			currentOsquerydBinaryPath, keychainAclsQuery,
+			[]table.ColumnDefinition{
+				table.TextColumn("label"),
+				table.TextColumn("description"),
+				table.TextColumn("comment"),
+				table.TextColumn("created"),
+				table.TextColumn("modified"),
+				table.TextColumn("type"),
+				table.TextColumn("path"),
+			}),
 	}
 
 	// append platform specific tables

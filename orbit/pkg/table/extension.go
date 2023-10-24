@@ -26,6 +26,8 @@ import (
 	// TODO: Need coding/other
 	//"github.com/kolide/launcher/pkg/osquery/tables/launcher_db"
 
+	"github.com/kolide/launcher/pkg/osquery/tables/crowdstrike/falconctl"
+
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
 	"github.com/macadmins/osquery-extension/tables/puppet"
@@ -157,7 +159,7 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 		// TODO: Fix build error
 		falcon_kernel_check.TablePlugin(kolideLogger),
-		// falconctl.NewFalconctlOptionTable(kolideLogger),
+		falconctl.NewFalconctlOptionTable(kolideLogger),
 		// cryptoinfotable.TablePlugin(kolideLogger),
 		// desktopprocs.TablePlugin(),
 
