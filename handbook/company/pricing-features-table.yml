@@ -547,7 +547,7 @@
       usualDepartment: Security
       productCategories: [Endpoint operations]
       waysToUse:
-        - description: Choose different filesizes for automated query results and agent logs. Coming soon (2024-01-26). Customer-blanco
+        - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-01-26). Customer-blanco
     - industryName: File carving (AWS S3)
       tier: Free
       usualDepartment: Security
