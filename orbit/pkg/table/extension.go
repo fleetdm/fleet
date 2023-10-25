@@ -10,23 +10,13 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 
-	// Kolide tables
-	"github.com/kolide/launcher/pkg/osquery/tables/crowdstrike/falcon_kernel_check"
+	"github.com/kolide/launcher/pkg/osquery/tables/cryptoinfotable"
 	"github.com/kolide/launcher/pkg/osquery/tables/dev_table_tooling"
 	"github.com/kolide/launcher/pkg/osquery/tables/firefox_preferences"
 	"github.com/kolide/launcher/pkg/osquery/tables/osquery_instance_history"
 	"github.com/kolide/launcher/pkg/osquery/tables/secureboot"
 
-	// TODO: Fix build erros
-	//"github.com/kolide/launcher/pkg/osquery/tables/falcon_kernel_check"  //TODO: Fix build error
-	//TODO: Fix build error
-	//"github.com/kolide/launcher/pkg/osquery/tables/cryptoinfotable"
 	//"github.com/kolide/launcher/pkg/osquery/tables/secureboot"
-
-	// TODO: Need coding/other
-	//"github.com/kolide/launcher/pkg/osquery/tables/launcher_db"
-
-	"github.com/kolide/launcher/pkg/osquery/tables/crowdstrike/falconctl"
 
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
@@ -158,9 +148,7 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		dev_table_tooling.TablePlugin(kolideLogger),
 
 		// TODO: Fix build error
-		falcon_kernel_check.TablePlugin(kolideLogger),
-		falconctl.NewFalconctlOptionTable(kolideLogger),
-		// cryptoinfotable.TablePlugin(kolideLogger),
+		cryptoinfotable.TablePlugin(kolideLogger),
 		// desktopprocs.TablePlugin(),
 
 		// TODO: Need coding/other
