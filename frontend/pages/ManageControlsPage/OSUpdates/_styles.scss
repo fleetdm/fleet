@@ -13,6 +13,10 @@
     gap: $pad-xxlarge;
   }
 
+  &__form-table-content, &__nudge-preview {
+    flex-grow: 1;
+  }
+
   &__os-versions-card {
     margin-bottom: $pad-xxlarge;
   }

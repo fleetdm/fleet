@@ -41,9 +41,13 @@ export interface IUpdateTeamFormData {
   webhook_settings: Partial<ITeamWebhookSettings>;
   integrations: IIntegrations;
   mdm: {
-    macos_updates: {
+    macos_updates?: {
       minimum_version: string;
       deadline: string;
+    };
+    windows_updates?: {
+      deadline_days: number;
+      grace_period_days: number;
     };
   };
 }

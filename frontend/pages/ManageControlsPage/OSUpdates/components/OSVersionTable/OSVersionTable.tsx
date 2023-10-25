@@ -38,7 +38,7 @@ const OSVersionTable = ({
   currentTeamId,
   isLoading,
 }: IOSVersionTableProps) => {
-  const columns = generateTableHeaders();
+  const columns = generateTableHeaders(currentTeamId);
 
   return (
     <div className={baseClass}>
