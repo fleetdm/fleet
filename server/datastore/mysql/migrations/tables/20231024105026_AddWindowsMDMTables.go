@@ -17,8 +17,6 @@ CREATE TABLE windows_mdm_commands (
 	command_uuid     VARCHAR(127) NOT NULL,
 	-- the raw XML of the command
 	raw_command      MEDIUMTEXT NOT NULL,
-	-- whether the command was generated from the system or from a user
-	system_origin    TINYINT(1) NOT NULL DEFAULT FALSE,
 	-- the target OMADM URI for the command
 	target_loc_uri   VARCHAR(255) NOT NULL,
 
@@ -33,18 +31,20 @@ CREATE TABLE windows_mdm_commands (
 
 	_, err = tx.Exec(`
 CREATE TABLE windows_mdm_command_queue (
-	host_uuid    VARCHAR(255) NOT NULL,
-	command_uuid VARCHAR(127) NOT NULL,
+	enrollment_id INT(10) UNSIGNED NOT NULL,
+	command_uuid  VARCHAR(127) NOT NULL,
 
 	-- whether the command should be processed or not (can be deactivated to be ignored)
-	active       BOOLEAN NOT NULL DEFAULT 1,
+	active        BOOLEAN NOT NULL DEFAULT 1,
 
-	created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-	PRIMARY KEY (host_uuid, command_uuid),
+	PRIMARY KEY (enrollment_id, command_uuid),
 
-	-- NOTE: no foreign key added for host_uuid, we don't add FKs to the hosts table.
+	FOREIGN KEY (enrollment_id)
+		REFERENCES mdm_windows_enrollments (id)
+		ON DELETE CASCADE ON UPDATE CASCADE,
 
 	FOREIGN KEY (command_uuid)
 		REFERENCES windows_mdm_commands (command_uuid)
@@ -62,6 +62,9 @@ CREATE TABLE windows_mdm_responses (
 	-- the full SyncML, potentially containing results for multiple commands
 	raw_response MEDIUMTEXT NOT NULL,
 
+	created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
 	PRIMARY KEY (id)
 )`)
 	if err != nil {
@@ -70,26 +73,29 @@ CREATE TABLE windows_mdm_responses (
 
 	_, err = tx.Exec(`
 CREATE TABLE windows_mdm_command_results (
-	host_uuid    VARCHAR(255) NOT NULL,
-	command_uuid VARCHAR(127) NOT NULL,
-
-	-- TODO: what is that? If it's the <Status><Data>200</Data></Status> then
-	-- seems like it would be a duplicate of the rx_error_code (now status_code)?
-	status       VARCHAR(31)  NOT NULL,
+	enrollment_id INT(10) UNSIGNED NOT NULL,
+	command_uuid  VARCHAR(127) NOT NULL,
 
 	-- the raw <Results> XML segment for that command, may be empty if the
 	-- command had no results to be returned by the device.
-	raw_result   MEDIUMTEXT NOT NULL,
+	raw_result    MEDIUMTEXT NOT NULL,
 
 	-- FK to the full SyncML response containing this command's result and/or
 	-- status.
-	response_id  INT(10) UNSIGNED NOT NULL,
+	response_id   INT(10) UNSIGNED NOT NULL,
 
 	-- this is the status code returned from the MDM device in the
 	-- <Status> element corresponding to this command.
-	status_code  VARCHAR(31)  NOT NULL, -- TODO: should we go ahead and make that INT? Seems like it's always HTTP-like codes.
+	status_code   VARCHAR(31)  NOT NULL,
 
-	PRIMARY KEY (host_uuid, command_uuid),
+	created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+	PRIMARY KEY (enrollment_id, command_uuid),
+
+	FOREIGN KEY (enrollment_id)
+		REFERENCES mdm_windows_enrollments (id)
+		ON DELETE CASCADE ON UPDATE CASCADE,
 
 	FOREIGN KEY (command_uuid)
 		REFERENCES windows_mdm_commands (command_uuid)

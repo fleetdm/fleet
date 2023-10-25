@@ -1306,30 +1306,33 @@ CREATE TABLE `users` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `windows_mdm_command_queue` (
-  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enrollment_id` int(10) unsigned NOT NULL,
   `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
   `active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`host_uuid`,`command_uuid`),
+  PRIMARY KEY (`enrollment_id`,`command_uuid`),
   KEY `command_uuid` (`command_uuid`),
-  CONSTRAINT `windows_mdm_command_queue_ibfk_1` FOREIGN KEY (`command_uuid`) REFERENCES `windows_mdm_commands` (`command_uuid`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `windows_mdm_command_queue_ibfk_1` FOREIGN KEY (`enrollment_id`) REFERENCES `mdm_windows_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `windows_mdm_command_queue_ibfk_2` FOREIGN KEY (`command_uuid`) REFERENCES `windows_mdm_commands` (`command_uuid`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `windows_mdm_command_results` (
-  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enrollment_id` int(10) unsigned NOT NULL,
   `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `status` varchar(31) COLLATE utf8mb4_unicode_ci NOT NULL,
   `raw_result` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
   `response_id` int(10) unsigned NOT NULL,
   `status_code` varchar(31) COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`host_uuid`,`command_uuid`),
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`enrollment_id`,`command_uuid`),
   KEY `command_uuid` (`command_uuid`),
   KEY `response_id` (`response_id`),
-  CONSTRAINT `windows_mdm_command_results_ibfk_1` FOREIGN KEY (`command_uuid`) REFERENCES `windows_mdm_commands` (`command_uuid`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `windows_mdm_command_results_ibfk_2` FOREIGN KEY (`response_id`) REFERENCES `windows_mdm_responses` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `windows_mdm_command_results_ibfk_1` FOREIGN KEY (`enrollment_id`) REFERENCES `mdm_windows_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `windows_mdm_command_results_ibfk_2` FOREIGN KEY (`command_uuid`) REFERENCES `windows_mdm_commands` (`command_uuid`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `windows_mdm_command_results_ibfk_3` FOREIGN KEY (`response_id`) REFERENCES `windows_mdm_responses` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -1337,7 +1340,6 @@ CREATE TABLE `windows_mdm_command_results` (
 CREATE TABLE `windows_mdm_commands` (
   `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
   `raw_command` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
-  `system_origin` tinyint(1) NOT NULL DEFAULT '0',
   `target_loc_uri` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -1350,6 +1352,8 @@ CREATE TABLE `windows_mdm_responses` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `raw_response` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
