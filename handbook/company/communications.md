@@ -557,71 +557,7 @@ At the end of their first two weeks of onboarding at Fleet, every new team membe
 
 Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#ownership).  If possible, apply onboarding feedback to the handbook and issue templates in realtime, during this call.  This avoids backlogging tasks that may just get out of date before we get around to them anyway.
 
-<!--
----
-name: "Equipment request"
-about: Request a new or replacement laptop or other item of significant cost.
-title: "\U0001F4BB Equipment request for ___________"
-labels: "#g-business-operations"
-assignees: ''
----
 
-> [Check the Fleet IT warehouse](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) before purchasing any equipment including laptops, monitors, and Yubikeys to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).   
-> - [ ] Fleet IT warehouse inventory was checked for necessary equipment.
-
-> If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
-
-- This request is for a: `TODO` <!-- new hire or current contributor -->  
-
-  - Name:___________ Title:_____________
-  - Team member email:__________________
-  - Date needed by: YYYY-MM-DD
-  - Shipping address for new device:_______________
-  
-- [ ] If a purchase is required, Follow the handbook to [purchase a company-issued laptop](https://fleetdm.com/handbook/company/communications#purchase-company-issued-equipment).
-  - [ ] order a pack of two [YubiKey 5C NFC security keys](https://www.yubico.com/ca/product/yubikey-5c-nfc-pack-of-2/) for new team member, shipped to them directly.
-  - [ ] Share the tracking information for the laptop and the Yubikeys with the new team member via their personal email so they can know when to expect their equipment to arrive.
-          
-### 🧑‍🚀 Current contributor
-
-- [ ] Fleet IT warehouse inventory was checked for necessary equipment.
-  - [ ] Equipment was transferred from IT warehouse
-  - [ ] Equipment was purchased
-
-- [ ] A replacement laptop for a current employee:________________
-  - [ ] Old laptop is lost or stolen
-  - [ ] Old laptop is damaged, having technical issues or otherwise inoperable
-        
-- [ ] An additional laptop for a current employee:____________________
-  - Use case/reasoning: ______________
-  - URL link to requested equipment:________________________
-    
-- [ ] Some other piece of equipment
-  - Specify item here: ________
-  - Use case/reasoning: ________
-  - URL link to requested equipment:________________________
-  - Estimated cost: ________
-
-
-For laptops: <br>
-I need a...
-- [ ] Macbook
-  - Any specific requirements/specifications for the machine? 
-    - [ ] Yes: ________
-    - [ ] No
-- [ ] Windows machine
-  - Any specific requirements/specifications for the machine?
-    - [ ] Yes: ________
-    - [ ] No
-
-### Sending hardware back?
-
-- [ ] I have shipped my old laptop back to Fleet using Fleet's FedEx account to this address:    
-     > Fleet IT <br>
-     > 2308 W 9th St Unit B <br>
-     > Austin, TX 78703 <br>
-    - Fleet FedEx account #513752520 (give this number to the folks at the FedEx store and they will bill shipping costs to Fleet)
---->
 ## Equipment
 Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.
 
