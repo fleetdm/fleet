@@ -19,11 +19,12 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		// Linux Gnome settings and metadata
 		gsettings.Settings(kolideLogger),
 		gsettings.Metadata(kolideLogger),
+		// Wrapper for /usr/bin/xrdb command.
+		xrdb.TablePlugin(kolideLogger),
 
 		// Not tested:
 		falconctl.NewFalconctlOptionTable(kolideLogger),
 		falcon_kernel_check.TablePlugin(kolideLogger),
 		xconf.TablePlugin(kolideLogger), // table name is "kolide_xconf"
-		xrdb.TablePlugin(kolideLogger),  // table name is "kolide_xrdb"
 	}
 }
