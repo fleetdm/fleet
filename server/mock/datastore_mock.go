@@ -688,6 +688,8 @@ type MDMWindowsInsertCommandFunc func(ctx context.Context, cmd *fleet.MDMWindows
 
 type MDMWindowsUpdateCommandErrorCodeFunc func(ctx context.Context, deviceID string, sessionID string, messageID string, commandID string, errorCode string) error
 
+type MDMWindowsUpdateCommandReceivedResultFunc func(ctx context.Context, deviceID, sessionID, messageID, commandID, receivedValue string) error
+
 type MDMWindowsListCommandsFunc func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error)
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
@@ -1703,6 +1705,9 @@ type DataStore struct {
 
 	MDMWindowsUpdateCommandErrorCodeFunc        MDMWindowsUpdateCommandErrorCodeFunc
 	MDMWindowsUpdateCommandErrorCodeFuncInvoked bool
+
+	MDMWindowsUpdateCommandReceivedResultFunc        MDMWindowsUpdateCommandReceivedResultFunc
+	MDMWindowsUpdateCommandReceivedResultFuncInvoked bool
 
 	MDMWindowsListCommandsFunc        MDMWindowsListCommandsFunc
 	MDMWindowsListCommandsFuncInvoked bool
@@ -4065,6 +4070,13 @@ func (s *DataStore) MDMWindowsUpdateCommandErrorCode(ctx context.Context, device
 	s.MDMWindowsUpdateCommandErrorCodeFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsUpdateCommandErrorCodeFunc(ctx, deviceID, sessionID, messageID, commandID, errorCode)
+}
+
+func (s *DataStore) MDMWindowsUpdateCommandReceivedResult(ctx context.Context, deviceID, sessionID, messageID, commandID, receivedValue string) error {
+	s.mu.Lock()
+	s.MDMWindowsUpdateCommandReceivedResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsUpdateCommandReceivedResultFunc(ctx, deviceID, sessionID, messageID, commandID, receivedValue)
 }
 
 func (s *DataStore) MDMWindowsListCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {

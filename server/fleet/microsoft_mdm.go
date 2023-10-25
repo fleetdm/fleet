@@ -1373,6 +1373,7 @@ type MDMWindowsCommand struct {
 	SettingValue string    `db:"setting_value"`
 	SystemOrigin bool      `db:"system_origin"`
 	ErrorCode    string    `db:"rx_error_code"`
+	CmdResult    string    `db:"rx_cmd_result"`
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
 }
