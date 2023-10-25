@@ -628,7 +628,9 @@ type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint)
 
 type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
 
-type GetMDMIdPAccountFunc func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error)
+type GetMDMIdPAccountByUUIDFunc func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error)
+
+type GetMDMIdPAccountByEmailFunc func(ctx context.Context, email string) (*fleet.MDMIdPAccount, error)
 
 type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error)
 
@@ -1630,8 +1632,11 @@ type DataStore struct {
 	InsertMDMIdPAccountFunc        InsertMDMIdPAccountFunc
 	InsertMDMIdPAccountFuncInvoked bool
 
-	GetMDMIdPAccountFunc        GetMDMIdPAccountFunc
-	GetMDMIdPAccountFuncInvoked bool
+	GetMDMIdPAccountByUUIDFunc        GetMDMIdPAccountByUUIDFunc
+	GetMDMIdPAccountByUUIDFuncInvoked bool
+
+	GetMDMIdPAccountByEmailFunc        GetMDMIdPAccountByEmailFunc
+	GetMDMIdPAccountByEmailFuncInvoked bool
 
 	GetMDMAppleFileVaultSummaryFunc        GetMDMAppleFileVaultSummaryFunc
 	GetMDMAppleFileVaultSummaryFuncInvoked bool
@@ -3897,11 +3902,18 @@ func (s *DataStore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMI
 	return s.InsertMDMIdPAccountFunc(ctx, account)
 }
 
-func (s *DataStore) GetMDMIdPAccount(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+func (s *DataStore) GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
 	s.mu.Lock()
-	s.GetMDMIdPAccountFuncInvoked = true
+	s.GetMDMIdPAccountByUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMIdPAccountFunc(ctx, uuid)
+	return s.GetMDMIdPAccountByUUIDFunc(ctx, uuid)
+}
+
+func (s *DataStore) GetMDMIdPAccountByEmail(ctx context.Context, email string) (*fleet.MDMIdPAccount, error) {
+	s.mu.Lock()
+	s.GetMDMIdPAccountByEmailFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMIdPAccountByEmailFunc(ctx, email)
 }
 
 func (s *DataStore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
