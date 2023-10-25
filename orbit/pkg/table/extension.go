@@ -20,7 +20,7 @@ import (
 	// TODO: Fix build erros
 	//"github.com/kolide/launcher/pkg/osquery/tables/falcon_kernel_check"  //TODO: Fix build error
 	//TODO: Fix build error
-	//"github.com/kolide/launcher/pkg/osquery/tables/cryptoinfotable"
+	"github.com/kolide/launcher/pkg/osquery/tables/cryptoinfotable"
 	//"github.com/kolide/launcher/pkg/osquery/tables/secureboot"
 
 	// TODO: Need coding/other
@@ -160,8 +160,7 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		// TODO: Fix build error
 		falcon_kernel_check.TablePlugin(kolideLogger),
 		falconctl.NewFalconctlOptionTable(kolideLogger),
-		// cryptoinfotable.TablePlugin(kolideLogger),
-		// desktopprocs.TablePlugin(),
+		cryptoinfotable.TablePlugin(kolideLogger),
 
 		// TODO: Need coding/other
 		// dataflattentable.TablePlugin(kolideLogger, dataSourceType),
