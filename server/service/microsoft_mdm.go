@@ -852,6 +852,15 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
+	// TODO(mna): I believe it is here that we'd send the Get command to retrieve
+	// the host uuid so we can link the enrolled device id to a known host in
+	// Fleet. However, this mean that we won't know what host this is until we
+	// get the response for that command. TBD how we handle that (maybe add a
+	// host_uuid to mdm_windows_enrollments table and fill that information once
+	// we get the response? And until then no command can be run on that device?)
+	// AFAICT this is a non-authenticated endpoint so we don't get any other
+	// host-related token with the request.
+
 	// Embedding the DiscoveryResponse message inside of a SoapResponse
 	response, err := NewSoapResponse(enrollResponseMsg, req.GetMessageID())
 	if err != nil {

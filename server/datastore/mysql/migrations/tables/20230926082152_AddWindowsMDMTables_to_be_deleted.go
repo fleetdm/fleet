@@ -11,7 +11,7 @@ func init() {
 
 func Up_20230926082152(tx *sql.Tx) error {
 	_, err := tx.Exec(`
-CREATE TABLE windows_mdm_pending_commands (
+CREATE TABLE old_windows_mdm_pending_commands (
     -- The table windows_mdm_pending_commands contains the stateless commands enqueued into the MDM pending commands table from fleetctl or fleet Server.
     -- These commands contain operations to be performed on a given device.
     -- They don't yet have the MessageID, SessionID, and CmdId information as this data gets populated during the response
@@ -50,7 +50,7 @@ CREATE TABLE windows_mdm_pending_commands (
 	}
 
 	_, err = tx.Exec(`
-CREATE TABLE windows_mdm_commands (
+CREATE TABLE old_windows_mdm_commands (
     -- The windows_mdm_commands table represents the stateful commands that were actually sent over the wire.
     -- These commands include the MessageID, SessionID, and CmdId as they were sent to the device.
     -- They are stored in the commands table for error code tracking purposes.
