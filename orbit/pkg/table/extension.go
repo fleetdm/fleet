@@ -17,6 +17,7 @@ import (
 	"github.com/kolide/launcher/pkg/osquery/tables/firefox_preferences"
 	"github.com/kolide/launcher/pkg/osquery/tables/osquery_instance_history"
 	"github.com/kolide/launcher/pkg/osquery/tables/secureboot"
+	"github.com/kolide/launcher/pkg/osquery/tables/zfs"
 
 	// TODO: Fix build erros
 	//"github.com/kolide/launcher/pkg/osquery/tables/falcon_kernel_check"  //TODO: Fix build error
@@ -155,6 +156,8 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		falcon_kernel_check.TablePlugin(kolideLogger),
 		falconctl.NewFalconctlOptionTable(kolideLogger),
 		cryptoinfotable.TablePlugin(kolideLogger),
+		zfs.ZfsPropertiesPlugin(kolideLogger),   // table name is "kolide_zfs_properties"
+		zfs.ZpoolPropertiesPlugin(kolideLogger), // table name is "kolide_zpool_properties"
 		// desktopprocs.TablePlugin(),
 
 		// TODO: Need coding/other

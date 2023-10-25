@@ -97,7 +97,7 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		mdmclient.TablePlugin(kolideLogger),
 		kolidemunki.New().ManagedInstalls(kolideLogger),
 		kolidemunki.New().MunkiReport(kolideLogger),
-		systemprofiler.TablePlugin(kolideLogger),
+		systemprofiler.TablePlugin(kolideLogger), // table name is "kolide_system_profiler"
 		// Tables for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonType),  // table name is "kolide_json"
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonlType), // table name is "kolide_jsonl"
