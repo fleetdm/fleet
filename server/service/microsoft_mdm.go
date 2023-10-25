@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
@@ -1257,17 +1258,125 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 	return errors.New("calling device is not trusted")
 }
 
+// regex to validate UPN
+var upnRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+
+// isValidUPN checks if the provided user ID is a valid UPN
+func isValidUPN(userID string) bool {
+	return upnRegex.MatchString(userID)
+}
+
+// isFleetdPresentOnDevice checks if the device requires Fleetd to be deployed
+func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string) (bool, error) {
+	// checking first if the device was enrolled through programmatic flow
+	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get windows enrolled device")
+	}
+
+	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
+	// This means that fleetd might not be installed
+	if isValidUPN(enrolledDevice.MDMEnrollUserID) {
+		return false, nil
+	}
+
+	// TODO: Add check here to determine if MDM DeviceID is connected with Smbios UUID present on
+	// host table. This new check should look into command results table and extract the value of
+	// ./DevDetail/Ext/Microsoft/SMBIOSSerialNumber for the given DeviceID and use that for hosts
+	// table lookup
+	return true, nil
+}
+
+// Alerts Handlers
+
+// New session Alert Handler
+// This handler will return an protocol command to install an MSI on a new session from unenrolled device
+func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) error {
+	// Checking if fleetd is present on the device
+	fleetdPresent, err := svc.isFleetdPresentOnDevice(ctx, deviceID)
+	if err != nil {
+		return err
+	}
+
+	if !fleetdPresent {
+		// TODO: Command should be enqueued here once the new commands tables are in place
+		return nil
+	}
+
+	return nil
+}
+
+// Generic Alert Handlers
+// This handler will check for generic alerts. Device unenrollment is handled here
+func (svc *Service) processGenericAlert(ctx context.Context, messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) error {
+	// Checking user-initiated unenrollment request
+	if len(cmd.Cmd.Items) > 0 {
+		for _, item := range cmd.Cmd.Items {
+
+			if item.Meta == nil || item.Meta.Type == nil || item.Meta.Type.Content == nil {
+				continue
+			}
+
+			// Checking if user-initiated unenrollment request is present
+			if *item.Meta.Type.Content == mdm.AlertUserUnenrollmentRequest {
+
+				// Deleting the device from the list of enrolled device
+				err := svc.ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, deviceID)
+				if err != nil {
+					return fmt.Errorf("unenrolling windows device: %w", err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // processIncomingAlertsCommands will process the incoming Alerts commands.
-// These commands requires an status response.
-func (svc *Service) processIncomingAlertsCommands(messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
-	// TODO: New Session Initiation request and Device unenrollment should happen here
-	return NewSyncMLCmdStatus(messageID, cmd.Cmd.CmdID, cmd.Verb, mdm.CmdStatusOK), nil
+// These commands don't require an status response.
+func (svc *Service) processIncomingAlertsCommands(ctx context.Context, messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) error {
+	if cmd.Cmd.Data == nil {
+		return errors.New("invalid alert command")
+	}
+
+	// gathering the incoming Alert ID
+	alertID := *cmd.Cmd.Data
+
+	switch alertID {
+	case mdm.CmdAlertClientInitiatedManagement:
+		return svc.processNewSessionAlert(ctx, messageID, deviceID, cmd)
+	case mdm.CmdAlertServerInitiatedManagement:
+		return svc.processNewSessionAlert(ctx, messageID, deviceID, cmd)
+	case mdm.CmdAlertGeneric:
+		return svc.processGenericAlert(ctx, messageID, deviceID, cmd)
+	}
+
+	return nil
 }
 
 // processIncomingResultsCommands will process the incoming Results commands.
 // These commands requires don't require an status response.
-func (svc *Service) processIncomingResultsCommands(deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
-	// TODO: Results of operations such as GET and EXEC should be processed here
+func (svc *Service) processIncomingResultsCommands(ctx context.Context, sessionID string, deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
+	if cmd.Cmd.MsgRef == nil || cmd.Cmd.Items == nil {
+		return nil, errors.New("invalid results command")
+	}
+
+	msgRef := *cmd.Cmd.MsgRef
+	msgData := ""
+	// Checking items for results data
+	if len(cmd.Cmd.Items) > 0 {
+		for _, item := range cmd.Cmd.Items {
+			if item.Data != nil {
+				msgData = *item.Data
+				break
+			}
+		}
+	}
+
+	err := svc.ds.MDMWindowsUpdateCommandReceivedResult(ctx, deviceID, sessionID, msgRef, cmd.Cmd.CmdID, msgData)
+	if err != nil {
+		return nil, fmt.Errorf("process incoming command: %w", err)
+	}
 	return nil, nil
 }
 
@@ -1287,9 +1396,11 @@ func (svc *Service) processIncomingProtocolCommands(ctx context.Context, session
 	// Switch between protocol operations
 	switch cmd.Verb {
 	case mdm_types.CmdAlert:
-		return svc.processIncomingAlertsCommands(messageID, deviceID, cmd)
+		// Alerts don't require a status response
+		err := svc.processIncomingAlertsCommands(ctx, messageID, deviceID, cmd)
+		return nil, err
 	case mdm_types.CmdResults:
-		return svc.processIncomingResultsCommands(deviceID, cmd)
+		return svc.processIncomingResultsCommands(ctx, sessionID, deviceID, cmd)
 	case mdm_types.CmdStatus:
 		return svc.processIncomingStatusCommands(ctx, sessionID, deviceID, cmd)
 	}

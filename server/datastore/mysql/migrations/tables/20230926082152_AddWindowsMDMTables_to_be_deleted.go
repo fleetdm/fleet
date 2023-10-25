@@ -90,6 +90,10 @@ CREATE TABLE old_windows_mdm_commands (
     -- empty field means that no response has been received for the command
     rx_error_code   VARCHAR(20) NOT NULL,
 
+    -- this is the result value for a given protocol operation returned from the MDM Client Stack through Results cmd
+    -- empty field means that no response has been received for the command
+    rx_cmd_result   VARCHAR(255) NOT NULL,
+
     created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
