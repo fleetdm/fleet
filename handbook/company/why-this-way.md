@@ -334,14 +334,12 @@ MDM should be a capability, not a product category.
 
 In Fleet, the word "enrolled" means "the host shows up in the dashboard and API".
 
-When some tools like Workspace One say a host is "enrolled", they mean that data is being collected _and_ enforcement features are activated on that host.
+When some tools like Workspace ONE say a host is "enrolled", they mean that data is being collected _and_ enforcement features are activated on that host.
 
 Since Fleet is more than MDM, you can collect logs and health data on any computer.  You can also enforce OS settings on any computer.  But you don't have to enable both: for example, you can build an installer that only collects data, without enabling enforcement features like MDM protocol support and script execution.
 
 That means you can collect logs from Linux servers or Windows factory workstations without enabling remote script execution on those computers, even if you're using script execution on your Macs.
 
-<!-- Fleet is more than an MDM (mobile device management) solution.  With Fleet, you can secure and investigate Macs, Windows servers, Chromebooks, and more by installing the fleetd agent (or chrome extension for Chromebooks). 
- Fleet also has MDM features that allow IT admins to enforce OS settings, OS updates, and more. When we use the phrase "MDM on" in Fleet, it means a host has these features activated. -->
 
 
 
