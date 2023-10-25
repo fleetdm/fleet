@@ -239,7 +239,7 @@ resource "aws_cloudwatch_metric_alarm" "redis-replication-lag" {
       namespace   = "AWS/ElastiCache"
       period      = "300"
       stat        = "p90"
-      
+
       dimensions = {
         CacheClusterId = each.key
       }
@@ -266,4 +266,148 @@ resource "aws_cloudwatch_metric_alarm" "acm_certificate_expired" {
   dimensions = {
     CertificateArn = var.acm_certificate_arn
   }
+}
+
+// Cron Monitoring
+locals {
+  cron_monitoring_filename = "${path.module}/lambda.tar.gz"
+
+}
+
+resource "null_resource" "cron_monitoring_build" {
+  provisioner "local-exec" {
+    working_dir = "${path.module}/lambda"
+    command     = <<-EOT
+      go get
+      go build .
+    EOT
+  }
+}
+
+data "archive_file" "cron_monitoring_lambda" {
+  depends_on   = [null_resource.cron_monitoring_sync_build]
+  type         = "zip"
+  output_path  = "${path.module}/lambda/.lambda.zip"
+  source_file  = "${path.module}/lambda/lambda"
+}
+
+resource "aws_lambda_function" "cron_monitoring" {
+
+  depends_on = [
+    null_resource.cron_monitoring_build,
+    data.archive_file.cron_monitoring_lambda
+  ]
+
+  function_name                  = "${var.customer_prefix}_cron_monitoring"
+  runtime                        = "go1.x"
+  memory_size                    = 256
+  timeout                        = 300
+  package_type                   = "Zip"
+  filename                       = data.archive_file.cron_monitoring_lambda.output_path
+  handler                        = "/lambda"
+  reserved_concurrent_executions = 1
+  description                    = "This function has the ability to log into a production database and validate that the Fleet crons are running properly"
+  tracing_config {
+    mode = "Active"
+  }
+
+  role = aws_iam_role.cron_monitoring_lambda.arn
+
+  environment {
+    variables = {
+      MYSQL_HOST                 = var.cron_monitoring.mysql_host
+      MYSQL_DATABASE             = var.cron_monitoring.mysql_database
+      MYSQL_USER                 = var.cron_monitoring.mysql_user
+      MYSQL_PASSWORD_SECRET_NAME = var.cron_monitoring.mysql_password_secret.name
+      SNS_TOPIC_ARN              = var.cron_monitoring.sns_topic_arn
+      FLEET_ENV                  = var.customer_prefix
+    }
+  }
+
+}
+
+// Lambda IAM
+data "aws_iam_policy_document" "cron_monitoring_lambda_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "cron_monitoring_lambda" {
+  role       = aws_iam_role.cron_monitoring_lambda.id
+  policy_arn = aws_iam_policy.cron_monitoring_lambda.arn
+}
+
+resource "aws_iam_role_policy_attachment" "cron_monitoring_lambda_managed" {
+  for_each   = toset(local.idp_scim_sync_iam_managed_policies)
+  role       = aws_iam_role.lambda.id
+  policy_arn = each.key
+}
+
+resource "aws_iam_policy" "cron_monitoring_lambda" {
+  name     = "${var.customer_prefix}-cron-monitoring"
+  policy   = data.aws_iam_policy_document.cron_monitoring_lambda.json
+}
+
+resource "aws_iam_role" "cron_monitoring_lambda" {
+  name               = "idp-scim-sync-lambda"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+data "aws_iam_policy_document" "cron_monitoring_lambda" {
+  statement {
+
+    sid = "SSMGetParameterPolicy"
+
+    actions = [
+      "secretsmanager:GetResourcePolicy",
+      "secretsmanager:GetSecretValue"
+    ]
+
+    resources = [var.cron_monitoring.mysql_password_secret.arn]
+
+    effect = "Allow"
+
+  }
+
+  statement {
+    sid = "SNSPublish"
+
+    actions = [
+      "sns:Publish"
+    ]
+
+    resources = [var.sns_topic_arn]
+
+    effect = "Allow"
+  }
+
+}
+
+resource "aws_cloudwatch_log_group" "cron_monitoring_lambda" {
+  name              = "/aws/lambda/${var.customer_prefix}-cron-monitoring"
+  retention_in_days = 7
+
+}
+
+resource "aws_cloudwatch_event_rule" "cron_monitoring_lambda" {
+  name                = "${var.customer_prefix}-cron-monitoring"
+  schedule_expression = "rate(2 hours)"
+  is_enabled          = true
+}
+
+resource "aws_cloudwatch_event_target" "cron_monitoring_lambda" {
+  rule     = aws_cloudwatch_event_rule.cron_monitoring_lambda.name
+  arn      = aws_lambda_function.cron_monitoring.arn
+}
+
+resource "aws_lambda_permission" "cron_monitoring_cloudwatch" {
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.cron_monitoring.id
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.cron_monitoring_lambda.arn
 }
