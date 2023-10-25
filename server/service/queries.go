@@ -599,7 +599,7 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 	// 3. Apply the queries.
 
 	// first, find out if we should delete query results
-	queriesToDiscardResults := make(map[uint]bool)
+	queriesToDiscardResults := make(map[uint]struct{})
 	for _, query := range queries {
 		dbQuery, err := svc.ds.QueryByName(ctx, query.TeamID, query.Name)
 		if err != nil && !fleet.IsNotFound(err) {
@@ -614,7 +614,7 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 		if (query.DiscardData && query.DiscardData != dbQuery.DiscardData) ||
 			(query.Logging != dbQuery.Logging && query.Logging != fleet.LoggingSnapshot) ||
 			query.Query != dbQuery.Query {
-			queriesToDiscardResults[dbQuery.ID] = true
+			queriesToDiscardResults[dbQuery.ID] = struct{}{}
 		}
 	}
 
