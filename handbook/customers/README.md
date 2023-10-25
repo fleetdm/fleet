@@ -331,6 +331,16 @@ You can help a Premium license dispenser customers change their credit card by d
 
 <rituals :rituals="rituals['handbook/customers/sales.rituals.yml']"></rituals>
 
+
+#### Stubs
+The following stubs are included only to make links backward compatible.
+
+##### Non-standard NDAs
+##### Reviewing subscription agreement
+##### Submit a customer contract
+Please see 📖[handbook/sales/submit-a-customer-contract-for-legal-review](https://fleetdm.com/handbook/sales/submit-a-customer-contract-for-legal-review) for all sections above.
+
+
 <meta name="maintainedBy" value="alexmitchelliii">
 <meta name="title" value="🐋 Customers">
 
