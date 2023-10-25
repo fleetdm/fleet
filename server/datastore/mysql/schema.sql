@@ -1350,11 +1350,13 @@ CREATE TABLE `windows_mdm_commands` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `windows_mdm_responses` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enrollment_id` int(10) unsigned NOT NULL,
   `raw_response` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `enrollment_id` (`enrollment_id`),
+  CONSTRAINT `windows_mdm_responses_ibfk_1` FOREIGN KEY (`enrollment_id`) REFERENCES `mdm_windows_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

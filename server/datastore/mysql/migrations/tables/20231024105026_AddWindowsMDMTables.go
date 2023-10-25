@@ -56,16 +56,20 @@ CREATE TABLE windows_mdm_command_queue (
 
 	_, err = tx.Exec(`
 CREATE TABLE windows_mdm_responses (
-	id           INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-	-- the host that sent the response
-	host_uuid    VARCHAR(255) NOT NULL,
+	id            INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	enrollment_id INT(10) UNSIGNED NOT NULL,
+
 	-- the full SyncML, potentially containing results for multiple commands
-	raw_response MEDIUMTEXT NOT NULL,
+	raw_response  MEDIUMTEXT NOT NULL,
 
-	created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-	PRIMARY KEY (id)
+	PRIMARY KEY (id),
+
+	FOREIGN KEY (enrollment_id)
+		REFERENCES mdm_windows_enrollments (id)
+		ON DELETE CASCADE ON UPDATE CASCADE
 )`)
 	if err != nil {
 		return fmt.Errorf("failed to create windows_mdm_responses table: %w", err)
