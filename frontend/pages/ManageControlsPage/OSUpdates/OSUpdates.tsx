@@ -36,7 +36,7 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
           <TargetSection currentTeamId={teamIdForApi} />
         </div>
         <div className={`${baseClass}__nudge-preview`}>
-          <NudgePreview />
+          <NudgePreview platform="windows" />
         </div>
       </div>
     </div>
