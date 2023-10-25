@@ -22,16 +22,16 @@ The customer success department is directly responsible for ensuring that custom
 
 
 ## Customer support
-Customer support engineer's (CSE) serve as Fleet's first line of communication related to technical support questions or bug reports from the customer and community base.  
+Customer support engineers (CSEs) serve as Fleet's first line of communication related to technical support questions or bug reports from the customer and community base.  
 
-### Customer support service level agreements (SLA's)
+### Customer support service level agreements (SLAs)
 
 #### Fleet Free
 | Impact Level | Definition | Preferred Contact | Response Time |
 |:---|:---|:---|:---|
 | All Inquiries | Any request regardless of impact level or severity | Osquery #fleet Slack channel | No guaranteed resolution |
 
-Note: If you're using Fleet Free, you can also access community support by opening an issue in the [Fleet GitHub](https://github.com/fleetdm/fleet/) repository.
+Note: If you're using Fleet Free, you can also access community support by [opening a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) in the [Fleet GitHub](https://github.com/fleetdm/fleet/) repository.
 
 #### Fleet Premium
 | Impact Level | Definition | Preferred Contact | Response Time |
@@ -100,7 +100,7 @@ When creating a new issue, make sure the following:
     - The output of fleetctl debug archive
 
 #### Assistance from engineering
-Customer team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) channel of the Fleet Slack. Additional help can be obtained by messaging your friendly Solutions Consultant in the [#help-solutions-consulting channel](https://fleetdm.slack.com/archives/C05HZ2LHEL8).
+Customer team members can [reach the engineering oncall](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer) for assistance by writing a message with `@oncall` in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) channel of the Fleet Slack. Additional help can be obtained by messaging your friendly Solutions Consultant in the [#help-solutions-consulting channel](https://fleetdm.slack.com/archives/C05HZ2LHEL8).
 
 
 ### Customer support process 
@@ -111,23 +111,14 @@ This section outlines Fleet's customer and community support process.
 
 CSE's track Fleet Premium customer support conversations via the external tool [Unthread](https://app.unthread.io/login?redirect=dashboard). 
 
-The on-call engineer holds responsibility for responses to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community, which the CSE team cannot address.
+The on-call engineer [holds responsibility](https://fleetdm.com/handbook/engineering#responsibilities) for responses to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community, which the CSE team cannot address.
 
 Support issues should be handled in the relevant Slack channel rather than Direct Messages (DMs). This will ensure that questions and solutions can be easily referenced in the future. If it is necessary to use DMs to share sensitive information, a summary of the conversation should be posted in the Slack channel as well. 
 
-The weekly on-call retro at Fleet provides time to discuss highlights and answer the following questions about the previous week's on-call:
-
-1. What went well?
-
-2. What could have gone better?
-
-3. What should we remember next time?
-
-This way, the Fleet team can constantly improve the effectiveness and experience during future on-call rotations.
-
+An automated weekly [on-call handoff](https://fleetdm.com/handbook/engineering#handoff) Slack thread in #g-engineering provides the opportunity to discuss highlights, improvements, and hand off ongoing issues.
 
 ## Customer success 
-Customer success manager's (CSM) serve as the primary point of contact for Fleet Premium customers and are responsible for ensuring that customer desired outcomes are achieved.  
+Customer success managers (CSMs) serve as the primary point of contact for Fleet Premium customers and are responsible for ensuring that customer's desired outcomes are achieved.  
 
 ### Invite new customer DRI
 Sometimes there is a change in the champion within the customer's organization.
@@ -167,28 +158,53 @@ To schedule a recurring meeting, follow the instructions in the customer success
 
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
-<!---
+## Managed Cloud 
 
-Rituals
+Managed Cloud is our hosted Fleet offering for Fleet Premium and Fleet Ultimate customers. All managed Fleet instances receive 24/7 monitoring and on-call support from Customer Success. 
 
-The following table lists the Customer's group's rituals, frequency, and Directly Responsible Individual (DRI).
+### 24/7 on-call
 
-| Ritual                       | Frequency                | Description                                         | DRI               |
-|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Overnight customer feedback  | Daily | Check Slack for customer feedback that occurred outside of usual business hours.| Kathy Satterlee       |  
-| Customer Slack channel monitoring | Daily | Continuously monitor Slack for customer feedback, feature requests, reported bugs, etc., and respond within SLA's.   | Kathy Satterlee        |
-| Customer follow-up | Daily | Follow-up and tag appropriate personnel for follow-up on customer items in progress and items that remain unresolved. | Kathy Satterlee |
-| Internal follow-up | Daily | Go through Fleet's internal Slack channels to check for any relevant new information or tasks from other teams. | Kathy Satterlee |
-| [Customer voice](https://docs.google.com/document/d/15Zn6qdm9NyNM7C9kLKtvgMKsuY4Hpgo7lABOBhw7olI/edit?usp=sharing) | Weekly | Prepare and review the health and latest updates from Fleet's key customers, plus other active support items related to community support, self-service customers, outages, and more. | Zay Hanlon  |
-| Stand-up | Daily | Meet with the team daily to share information and prioritize issues. | Zay Hanlon |
-| Product feature requests | Every three weeks | Check-in before the 🎁 Feature Fest meeting to make sure that all information necessary has been gathered before presenting customer requests and feedback to the Product team. Present and advocate for requests and ideas brought to Fleet's attention by customers. | Zay Hanlon |
-| Customer meetings | Weekly | Check-in on how product and company are performing, provide updates on new product features or progress on customer requests and bugs.  These are dedicated meetings scheduled for each Fleet Premium customer. | Customer Success Manager |
-| Release announcements | Every three weeks | Update customers on new features and resolved issues in an upcoming release. | Zay Hanlon        |
-| 24/7 on call | Daily | Responsible for reviewing and actioning alarms from the [#help-p1 channel](https://fleetdm.slack.com/archives/C03EG80BM2A) related to managed cloud environments. | Robert Fairburn        |
+The 24/7 on-call (aka infrastructure on-call) responsibility happens in shifts of one week.
 
---->
+First responders:
+
+- Robert Fairburn
+- Kathy Satterlee
+
+Escalations (in order):
+
+- Eric Shaw (fleetdm.com)
+- Zay Hanlon
+- Luke Heath
+- Mike McNeil
+
+Expected response times: during business hours, 1 hour. Outside of business hours <4 hours.
+
+The first responder on-call for Managed Cloud will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous week's on-call will provide a summary in the #g-customer-success Slack channel with an update on alarms that came up the week before, open issues with or without direct end-user impact, and other issues to keep an eye out for.
+
+Escalation of alarms will be done manually by the first responder according to the escalation contacts mentioned above. A [suspected outage issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23outage%2C%23g-cx%2C%3Arelease&projects=&template=outage.md&title=Suspected+outage%3A+YYYY-MM-DD) should be created to track the escalation and determine root cause. 
+
+All infrastructure alarms (fleetdm.com and Fleet managed cloud) will go to #help-p1.
+
+When the current infrastructure on-call engineer is unable to meet the response time SLAs, it is their responsibility to arrange and designate a replacement who will assume the @oncall-infrastructure Slack alias.
+
+#### Runbooks
+
+Use [on-call runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme) to guide your response. Runbooks provided detailed, step-by-step instructions to quickly and effectively respond to and resolve most 24/7 on-call alerts. 
 
 ## Responsibilities
+
+#### First-line response
+
+Customer Success is responsible for the first response to messages in private customer Slack channels.
+
+Customer Support Engineers are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. 
+
+The 24/7 on-call is responsible for alarms related to fleetdm.com and Fleet Managed Cloud, as well as delivering 24/7 support for Fleet Ultimate customers.
+
+We respond within 1-hour during business hours and 4 hours outside business hours. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information, while researching/escalating to find answers internally.
+
+> Response SLAs help us measure and guarantee the responsiveness that a customer [can expect](https://fleetdm.com/handbook/company#values) from Fleet.  But SLAs aside, when a Fleet customer has an emergency or other time-sensitive situation ongoing, it is Fleet's priority to help them find them a solution quickly.
 
 ### Onboard a customer support engineer
 What do you do every day? What does the path to success look like in this role and what can you do to contribute quickly at Fleet? To onboard a customer support engineer at Fleet it's important to understand the [continued training needed](https://docs.google.com/document/d/1GB8i_VMaFxeb9ipLock9MVWGJ2RqIW8lZ5n3MLiXG4s/edit).
@@ -197,6 +213,9 @@ What do you do every day? What does the path to success look like in this role a
 What do you do every day? What does the path to success look like in this role and what can you do to contribute quickly at Fleet? To onboard a customer success manager at Fleet it's important to understand the [continued training needed](https://docs.google.com/document/d/1itrBeztwjK253Q548wbveVWdDaldBYCEOS6Cbz5Z4Uc/edit).
 
 ### Onboard a customer solutions architect
+What do you do every day? What does the path to success look like in this role and what can you do to contribute quickly at Fleet? To onboard a customer solutions architect at Fleet it's important to understand the [continued training needed](https://docs.google.com/document/d/1G26Aqmn4tSKa7s0jMcSRqNTtz6h47Tvf8Ddi2-cP1ek/edit#heading=h.2i16pc77rnb7).
+
+### Onboard an infrastructure engineer
 What do you do every day? What does the path to success look like in this role and what can you do to contribute quickly at Fleet? To onboard a customer solutions architect at Fleet it's important to understand the [continued training needed](https://docs.google.com/document/d/1G26Aqmn4tSKa7s0jMcSRqNTtz6h47Tvf8Ddi2-cP1ek/edit#heading=h.2i16pc77rnb7).
 
 

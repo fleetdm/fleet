@@ -25,7 +25,6 @@ The 🚀 Engineering department at Fleet is directly responsible for writing and
 - Any Fleet team member can view the dedicated sprint boards managed by this department:
   - 💻 [MDM (#g-mdm)](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board)
   - 🌟 [Endpoint ops (#g-endpoint-ops)](https://app.zenhub.com/workspaces/-g-endpoint-ops-current-sprint-63bd7e0bf75dba002a2343ac/board)
-  - ⚙️ [Infra (#g-infra)](https://app.zenhub.com/workspaces/-g-infra-642c83a53e96760014c978bd/board)
 
 ## Scrum at Fleet
 - [Sprint ceremonies](#sprint-ceremonies)
@@ -269,9 +268,11 @@ New engineers are added to the oncall rotation by their manager after they have 
 #### Second-line response
 The oncall engineer is a second-line responder to questions raised by customers and community members.
 
-The community contact (Kathy) is responsible for the first response to GitHub issues, pull requests, and Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. Kathy and Zay are responsible for the first response to messages in private customer Slack channels.
+The on-call engineer is responsible for the first response to community pull requests. 
 
-We respond within 1-hour (during business hours) for interactions and ask the oncall engineer to address any questions sent their way promptly. When Kathy is unavailable, the oncall engineer may sometimes be asked to take over the first response duties. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information, while researching/escalating to find answers internally. See [Escalations](#escalations) for more on this.
+Customer Support Engineers are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. The Customer Success group is responsible for the first response to messages in private customer Slack channels.
+
+We respond within 1-hour (during business hours) for interactions and ask the on-call engineer to address any questions sent their way promptly. When a Customer Support Engineer is unavailable, the on-call engineer may sometimes be asked to take over the first response duties. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information, while researching/escalating to find answers internally. See [Escalations](#escalations) for more on this.
 
 > Response SLAs help us measure and guarantee the responsiveness that a customer [can expect](https://fleetdm.com/handbook/company#values) from Fleet.  But SLAs aside, when a Fleet customer has an emergency or other time-sensitive situation ongoing, it is Fleet's priority to help them find them a solution quickly.
 
@@ -280,7 +281,7 @@ PRs from Fleeties are reviewed by auto-assignment of codeowners, or by selecting
 
 PRs should remain in draft until they are ready to be reviewed for final approval, this means the feature is complete with tests already added. This helps keep our active list of PRs relevant and focused. It is ok and encouraged to request feedback while a PR is in draft to engage the team.
 
-All PRs from the community are routed through the oncall engineer. For documentation changes, the community contact ([Kathy](https://github.com/ksatter)) is assigned by the oncall engineer. For code changes, if the oncall engineer has the knowledge and confidence to review, they should do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the oncall engineer's responsibility to monitor community PRs and make sure that they are moved forward (either by review with feedback or merge).
+All PRs from the community are routed through the on-call engineer. For documentation changes, the community contact ([Kathy](https://github.com/ksatter)) is assigned by the on-call engineer. For code changes, if the on-call engineer has the knowledge and confidence to review, they should do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the on-call engineer's responsibility to monitor community PRs and make sure that they are moved forward (either by review with feedback or merge).
 
 #### Customer success meetings
 The oncall engineer is encouraged to attend some of the customer success meetings during the week. Post a message to the #g-endpoint-ops Slack channel requesting invitations to upcoming meetings.
@@ -611,8 +612,6 @@ In the above process, any reference to "QA" refers to: Reed Haynes, Product Qual
 - [Best practices](#best-practices)
 - [24/7 on-call](#24-7-on-call)
 
-The [infrastructure product group](https://fleetdm.com/handbook/company/development-groups#infrastructure-group) is responsible for deploying, supporting, and maintaining all Fleet-managed cloud deployments.
-
 ### Infrastructure links
 The following are quick links to infrastructure-related README files in both public and private repos that can be used as a quick reference for infrastructure-related code:
 
@@ -622,48 +621,33 @@ The following are quick links to infrastructure-related README files in both pub
 - [SSO](https://github.com/fleetdm/confidential/blob/main/infrastructure/sso/README.md)
 - [VPN](https://github.com/fleetdm/confidential/blob/main/vpn/README.md)
 
-### Best practices
-The infrastructure team follows industry best practices when designing and deploying infrastructure. For containerized infrastructure, Google has created a [reference document](https://cloud.google.com/architecture/best-practices-for-operating-containers) as an ideal reference for these practices.
-
-Many of these practices must be implemented in Fleet directly, and engineering will work to ensure that feature implementation follows these practices. The infrastructure team will make itself available to provide guidance as needed. If a feature is not compatible with these practices, an issue will be created with a request to correct the implementation.
+### Best practices for containers
+Follow the industry best practices when designing and deploying infrastructure. For containerized infrastructure, Google has created a [reference document](https://cloud.google.com/architecture/best-practices-for-operating-containers) as an ideal reference for these practices.
 
 ### 24/7 on-call
-The 24/7 on-call (aka infrastructure on-call) is responsible for alarms related to fleetdm.com and Fleet managed cloud, as well as delivering 24/7 support for Fleet Ultimate customers.  The infrastructure (24/7) on-call responsibility happens in shifts of one week. The people involved in them will be:
+The 24/7 on-call (aka infrastructure on-call) is responsible for alarms related to fleetdm.com and Fleet Managed Cloud, as well as delivering 24/7 support for Fleet Ultimate customers.  The infrastructure (24/7) on-call responsibility happens in shifts of one week.
 
 First responders:
 
-- Zachary Winnerman
 - Robert Fairburn
+- Kathy Satterlee
 
 Escalations (in order):
 
-- Luke Heath
-- Zach Wasserman (Fleet app)
 - Eric Shaw (fleetdm.com)
+- Zay Hanlon
+- Luke Heath
 - Mike McNeil
-
-The first responder on-call will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous week's on-call will provide a summary in the #g-infra Slack channel with an update on alarms that came up the week before, open issues with or without direct end-user impact, and other issues to keep an eye out for.
 
 Expected response times: during business hours, 1 hour. Outside of business hours <4 hours.
 
-For fleetdm.com alarms, if the issue is not user-facing, the on-call engineer will proceed to address the issue. If the issue is user-facing (e.g. the user noticed this error first-hand through the Fleet UI), then the on-call engineer will proceed to identify the user and contact them letting them know that we are aware of the issue and working on a resolution. They may also request more information from the user if it is needed. They will cc the EM and PM of the #g-infra group on any user correspondence.
+The first responder on-call for Managed Cloud will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous week's on-call will provide a summary in the #g-customer-success Slack channel with an update on alarms that came up the week before, open issues with or without direct end-user impact, and other issues to keep an eye out for.
 
-For Fleet managed cloud alarms that are user-facing, the first responder should collect the email address of the customer and all available information on the error. If the error occurs during business hours, the first responder should make their best effort to understand where in the app the error might have occurred. Assistance can be requested in `#help-engineering` by including the data they know regarding the issue, and when available, a frontend or backend engineer can help identify what might be causing the problem. If the error occurs outside of business hours, the on-call engineer will contact the user letting them know that we are aware of the issue and working on a resolution. It’s more helpful to say something like “we saw that you received an error while trying to create a query” than to say “your POST /api/blah failed”.
-
-Escalation of issues will be done manually by the first responder according to the escalation contacts mentioned above. An outage issue (template available) should be created in the Fleet confidential repo addressing:
-
-1. Who was affected and for how long?
-2. What expected behavior occurred?
-3. How do you know?
-4. What near-term resolution can be taken to recover the affected user?
-5. What is the underlying reason or suspected reason for the outage?
-6. What are the next steps Fleet will take to address the root cause?
+Escalation of alarms will be done manually by the first responder according to the escalation contacts mentioned above. A [suspected outage](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23outage%2C%23g-cx%2C%3Arelease&projects=&template=outage.md&title=Suspected+outage%3A+YYYY-MM-DD) should be created to track the escalation and determine root cause. 
 
 All infrastructure alarms (fleetdm.com and Fleet managed cloud) will go to #help-p1.
 
-The information needed to evaluate and potentially fix any issues is documented in the [runbook](https://github.com/fleetdm/fleet/blob/main/infrastructure/sandbox/readme.md).
-
-When an infrastructure on-call engineer is out of the office, Zach Wasserman will serve as a backup to on-call in #help-p1. All absences must be communicated in advance to Luke Heath and Zach Wasserman.
+When the current infrastructure on-call engineer is unable to meet the response time SLAs, it is their responsibility to arrange and designate a replacement who will assume the @oncall-infrastructure Slack alias.
 
 ## Accounts
 Engineering is responsible for managing third-party accounts required to support engineering infrastructure.
