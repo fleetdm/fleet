@@ -97,17 +97,53 @@
     }
   }
 
-  [purpose='logo-column'] {
-    img {
-      // margin-right: 35px;
-      // margin-left: 35px;
-    }
-  }
-
   [purpose='homepage-content'] {
     max-width: 1200px;
   }
 
+  [purpose='category-switch'] {
+    width: 831px;
+    cursor: pointer;
+    border: 1px solid #E2E4EA;
+    border-radius: 28px;
+    background: @ui-off-white;
+    position: relative;
+    box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.10) inset;
+    margin-bottom: 60px;
+    margin-top: 100px;
+    color: @core-fleet-black;
+    [purpose='category-tier-switch'] {
+      position: absolute;
+      top: 0px;
+      left: -1px;
+      background: #fff;
+      border: 1px solid #E2E4EA;
+      border-radius: 28px;
+      height: 100%;
+      min-width: 140px;
+      z-index: 1;
+      transition: 0.3s all;
+      width: 277px;
+    }
+    [purpose='category-switch-option'] {
+      padding: 16px 40px;
+      text-align: center;
+      cursor: pointer;
+      z-index: 3;
+      user-select: none;
+      white-space: nowrap;
+      width: 277px;
+    }
+    .selected {
+      font-weight: 700;
+    }
+    .device-management-selected {
+      transform: translateX(100%);
+    }
+    .vulnerability-management-selected {
+      transform: translateX(200%);
+    }
+  }
   [purpose='homepage-text-block'] {
     margin-top: 160px;
     margin-bottom: 160px;
@@ -126,6 +162,16 @@
   }
 
   [purpose='platform-block'] {
+    &.hidden {
+      height: 0;
+      margin-bottom: 0;
+      opacity: 0;
+      transition: none;
+    }
+    &.show {
+      transition: opacity 0.3s ease-in;
+      opacity: 1;
+    }
     margin-bottom: 100px;
     h3 {
       font-weight: 800;
@@ -140,6 +186,10 @@
     }
     max-width: 1080px;
   }
+  [purpose='category-text-block'] {
+    max-width: 390px;
+    padding-right: 32px;
+  }
   [purpose='platform-left-text-block'] {
     max-width: 480px;
     margin-right: 80px;
@@ -151,6 +201,13 @@
   [purpose='platform-small-text-block'] {
     max-width: 320px;
     margin-right: 80px;
+  }
+  [purpose='category-image'] {
+    width: 617px;
+    img {
+      width: 100%;
+      height: auto;
+    }
   }
   [purpose='platform-image'] {
     width: 520px;
@@ -214,7 +271,12 @@
       width: 110%;
     }
   }
-  [purpose='animated-arrow-button-red'] {
+  [purpose='lg-animated-arrow-button-red'] {
+    br {
+      display: none;
+    }
+  }
+  [purpose='animated-arrow-button-red'], [purpose='lg-animated-arrow-button-red'] {
     display: inline;
     padding-right: 34px;
     cursor: pointer;
@@ -486,6 +548,11 @@
       }
     }
 
+    [purpose='category-text-block'] {
+      max-width: 390px;
+      padding-right: 0px;
+    }
+
   }
 
   @media (max-width: 1199px) {
@@ -528,7 +595,16 @@
         align-items: center;
         justify-content: center;
       }
+      &:first-of-type {
+        margin-right: 10px;
+        margin-left: 0px;
+      }
+      &:last-of-type {
+        margin-right: 0px;
+        margin-left: 10px;
+      }
     }
+
     [purpose='video-modal'] {
       [purpose='modal-dialog'] {
         width: 100%;
@@ -556,6 +632,10 @@
     [purpose='homepage-hero'] {
       max-width: 100%;
       height: 720px;
+    }
+    [purpose='homepage-content'] {
+      padding-right: 60px;
+      padding-left: 60px;
     }
     [purpose='hero-text'] {
       padding-top: 20px;
@@ -587,9 +667,45 @@
     }
     [purpose='logo-column'] {
       margin-bottom: 32px;
-      img {
-        // margin-right: 20px;
-        // margin-left: 20px;
+    }
+    [purpose='category-switch'] {
+      width: 687px;
+      [purpose='category-tier-switch'] {
+        width: 229px;
+      }
+      [purpose='category-switch-option'] {
+        width: 229px;
+      }
+      .device-management-selected {
+        transform: translateX(100%);
+      }
+      .vulnerability-management-selected {
+        transform: translateX(200%);
+      }
+    }
+    [purpose='category-text-block'] {
+      width: 100%;
+      max-width: 508px;
+      margin-right: 0px;
+      margin-bottom: 40px;
+    }
+    [purpose='category-image'] {
+      width: 100%;
+      height: auto;
+      [purpose='endpoint-ops-image'] {
+        width: calc(~'100% + 34px');
+        height: auto;
+        margin-left: -17px;
+      }
+      [purpose='device-management-image'] {
+        width: calc(~'100% + 20px');
+        height: auto;
+        margin-left: -10px;
+      }
+      [purpose='vulnerability-management-image'] {
+        width: calc(~'100% + 26px');
+        height: auto;
+        margin-left: -12px;
       }
     }
 
@@ -677,6 +793,32 @@
       }
     }
 
+    [purpose='category-switch'] {
+      width: 100%;
+      margin-top: 60px;
+      [purpose='category-tier-switch'] {
+        height: 56px;
+        left: 0px;
+      }
+      [purpose='category-switch-option'] {
+        height: 56px;
+        width: 100%;
+      }
+      .device-management-selected {
+        width: 100%;
+        transform: translateY(56px);
+      }
+      .vulnerability-management-selected {
+        width: 100%;
+        transform: translateY(113px);
+      }
+      .endpoint-ops-selected {
+        width: 100%;
+      }
+    }
+
+
+
     [purpose='platform-left-text-block'] {
       max-width: 100%;
       margin-right: 0px;
@@ -727,6 +869,9 @@
     }
     [purpose='three-column-features'] {
       margin-bottom: 120px;
+    }
+    [purpose='testimonials'] {
+      margin-bottom: 60px;
     }
     [purpose='testimonial'] {
       &:first-of-type {
@@ -793,6 +938,32 @@
       }
       p {
         font-size: 16px;
+      }
+    }
+    [purpose='testimonials'] {
+      margin-bottom: 40px;
+    }
+    [purpose='category-switch'] {
+      margin-top: 40px;
+    }
+
+    [purpose='category-image'] {
+      width: 100%;
+      height: auto;
+      [purpose='endpoint-ops-image'] {
+        width: calc(~'100% + 24px');
+        height: auto;
+        margin-left: -12px;
+      }
+      [purpose='device-management-image'] {
+        width: calc(~'100% + 14px');
+        height: auto;
+        margin-left: -7px;
+      }
+      [purpose='vulnerability-management-image'] {
+        width: calc(~'100% + 18px');
+        height: auto;
+        margin-left: -9px;
       }
     }
 
@@ -910,10 +1081,22 @@
       padding-right: 20px;
       padding-left: 20px;
     }
-
     [purpose='hero-logos'] {
       img {
         display: inline;
+      }
+    }
+
+    [purpose='lg-animated-arrow-button-red'] {
+      br {
+        display: block;
+      }
+      &:after {
+        top: 18px;
+        left: 80px;
+      }
+      &:hover:after {
+        left: 85px;
       }
     }
 
