@@ -1029,7 +1029,7 @@ type Datastore interface {
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
 
 	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the HW device id.
-	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
+	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceHWID string) error
 
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
@@ -1037,10 +1037,10 @@ type Datastore interface {
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
 
-	// MDMWindowsInsertPendingCommandForDevices inserts a command that targets multiple devices,
-	// creating one pending command row for each device, with all of the rest of the command
-	// information the same for all devices.
-	MDMWindowsInsertPendingCommandForDevices(ctx context.Context, deviceIDs []string, cmd *MDMWindowsPendingCommand) error
+	// MDMWindowsInsertCommandForDevices inserts a single command that may
+	// target multiple hosts identified by their UUID, enqueuing one command
+	// for each device.
+	MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
 
 	// MDMWindowsGetPendingCommands returns all the pending commands for a device
 	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsPendingCommand, error)

@@ -9,7 +9,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information.
+// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
+// returns the device information.
 func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	stmt := `SELECT
 		mdm_device_id,
@@ -36,8 +37,11 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 	return &winMDMDevice, nil
 }
 
-// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
+// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the
+// database.
 func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
+	// TODO(mna): I think this needs to support an ON DUPLICATE UPDATE to
+	// handle the potential case of a device_id changing for a given hardware_id.
 	stmt := `
 		INSERT INTO mdm_windows_enrollments (
 		mdm_device_id,
@@ -77,7 +81,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 // TODO(mna): should we have something like host_dep_assignments for Windows? I don't remember exactly what
 // problem this was solving, but seeing those enrollments deletion made me think of it.
 
-// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
+// MDMWindowsDeleteEnrolledDevice deletes an MDMWindowsEnrolledDevice entry
+// from the database using the device's hardward ID.
 func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceHWID string) error {
 	stmt := "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
 
@@ -113,11 +118,28 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 }
 
 // TODO(mna): this receives hostUUIDs, not deviceIDs, and must translate them via the (altered) enrollments table.
-func (ds *Datastore) MDMWindowsInsertPendingCommandForDevices(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsPendingCommand) error {
+func (ds *Datastore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		for _, deviceID := range deviceIDs {
-			cmd.DeviceID = deviceID
-			if err := ds.mdmWindowsInsertPendingCommandDB(ctx, tx, cmd); err != nil {
+		// first, create the command entry
+		stmt := `
+		INSERT INTO windows_mdm_commands (
+			command_uuid,
+			raw_command,
+			target_loc_uri
+		)
+		VALUES
+			(?, ?, ?)
+`
+		if _, err := tx.ExecContext(ctx, stmt, cmd.CommandUUID, cmd.RawCommand, cmd.TargetLocURI); err != nil {
+			if isDuplicate(err) {
+				return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommand", cmd.CommandUUID))
+			}
+			return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommand")
+		}
+
+		// create the command execution queue entries, one per host
+		for _, hostUUID := range hostUUIDs {
+			if err := ds.mdmWindowsInsertHostCommandDB(ctx, tx, hostUUID, cmd.CommandUUID); err != nil {
 				return err
 			}
 		}
@@ -125,60 +147,67 @@ func (ds *Datastore) MDMWindowsInsertPendingCommandForDevices(ctx context.Contex
 	})
 }
 
-func (ds *Datastore) mdmWindowsInsertPendingCommandDB(ctx context.Context, tx sqlx.ExecerContext, cmd *fleet.MDMWindowsPendingCommand) error {
+func (ds *Datastore) mdmWindowsInsertHostCommandDB(ctx context.Context, tx sqlx.ExecerContext, hostUUID, commandUUID string) error {
 	stmt := `
-		INSERT INTO old_windows_mdm_pending_commands (
+	INSERT INTO windows_mdm_command_queue (
+		enrollment_id,
 		command_uuid,
-		device_id,
-		cmd_verb,
-		setting_uri,
-		setting_value,
-		data_type,
-		system_origin ) VALUES (?, ?, ?, ?, ?, ?, ?)
-	`
-	_, err := tx.ExecContext(
-		ctx,
-		stmt,
-		cmd.CommandUUID,
-		cmd.DeviceID,
-		cmd.CmdVerb,
-		cmd.SettingURI,
-		cmd.SettingValue,
-		cmd.DataType,
-		cmd.SystemOrigin)
-	if err != nil {
+	)
+	VALUES
+		(
+			SELECT
+				id, ?
+			FROM
+				mdm_windows_enrollments
+			WHERE
+				host_uuid = ?
+		)
+`
+	if _, err := tx.ExecContext(ctx, stmt, commandUUID, hostUUID); err != nil {
 		if isDuplicate(err) {
-			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsPendingCommand", cmd.CommandUUID))
+			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommandQueue", commandUUID))
 		}
-		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsPendingCommand")
+		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommandQueue")
 	}
 
 	return nil
 }
 
-// MDMWindowsGetPendingCommands retrieves all commands for a given device ID from the windows_mdm_pending_commands table
-func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error) {
-	var commands []*fleet.MDMWindowsPendingCommand
+// MDMWindowsGetPendingCommands retrieves all commands awaiting execution for a
+// given device ID.
+func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
+	var commands []*fleet.MDMWindowsCommand
 
 	query := `
-        SELECT
-            command_uuid,
-            device_id,
-            cmd_verb,
-            setting_uri,
-            setting_value,
-            data_type,
-            system_origin,
-            created_at,
-            updated_at
-        FROM
-            old_windows_mdm_pending_commands wmpc
-        WHERE
-            wmpc.device_id = ? AND
-            NOT EXISTS (SELECT 1 FROM old_windows_mdm_commands wmc WHERE wmpc.device_id = wmc.device_id AND wmpc.command_uuid = wmc.command_uuid)
-    `
+SELECT
+	wmc.command_uuid,
+	wmc.raw_command,
+	wmc.target_loc_uri,
+	wmc.created_at,
+	wmc.updated_at
+FROM
+	windows_mdm_command_queue wmcq
+INNER JOIN
+	mdm_windows_enrollments mwe
+ON
+	mwe.id = wmcq.enrollment_id
+INNER JOIN
+	windows_mdm_commands wmc
+ON
+	wmc.command_uuid = wmcq.command_uuid
+WHERE
+	mwe.device_id = ? AND
+	wmcq.active AND
+	NOT EXISTS (
+		SELECT 1
+		FROM
+			windows_mdm_command_results wmcr
+		WHERE
+			wmcr.enrollment_id = wmcq.enrollment_id AND
+			wmcr.command_uuid = wmcq.command_uuid
+	)
+`
 
-	// Retrieve commands first
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, query, deviceID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get pending Windows MDM commands by device id")
 	}

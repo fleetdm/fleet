@@ -1344,37 +1344,32 @@ func (cmd *SyncMLCmd) ShouldBeTracked(cmdVerb string) bool {
 }
 
 // /////////////////////////////////////////////////////////////
-// MDMWindowsPendingCommand type
-// Represents a command in the windows_mdm_pending_commands table
-type MDMWindowsPendingCommand struct {
-	CommandUUID string `db:"command_uuid"`
-	// TODO(mna): this should be HostUUID, not DeviceID, and must translate them via the (altered) enrollments table.
-	DeviceID     string    `db:"device_id"`
-	CmdVerb      string    `db:"cmd_verb"`
-	SettingURI   string    `db:"setting_uri"`
-	SettingValue string    `db:"setting_value"`
-	DataType     uint16    `db:"data_type"`
-	SystemOrigin bool      `db:"system_origin"`
+// MDMWindowsCommand type
+// Represents a command in the windows_mdm_commands table
+type MDMWindowsCommand struct {
+	CommandUUID  string    `db:"command_uuid"`
+	RawCommand   string    `db:"raw_command"`
+	TargetLocURI string    `db:"target_loc_uri"`
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
 }
 
-// /////////////////////////////////////////////////////////////
-// MDMWindowsCommand type
-// Represents a command that has been already sent and
-// that is stored in the windows_mdm_commands table
-type MDMWindowsCommand struct {
-	CommandUUID  string    `db:"command_uuid"`
-	DeviceID     string    `db:"device_id"`
-	SessionID    string    `db:"session_id"`
-	MessageID    string    `db:"message_id"`
-	CommandID    string    `db:"command_id"`
-	CmdVerb      string    `db:"cmd_verb"`
-	SettingURI   string    `db:"setting_uri"`
-	SettingValue string    `db:"setting_value"`
-	SystemOrigin bool      `db:"system_origin"`
-	ErrorCode    string    `db:"rx_error_code"`
-	CmdResult    string    `db:"rx_cmd_result"`
-	CreatedAt    time.Time `db:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at"`
-}
+//// /////////////////////////////////////////////////////////////
+//// MDMWindowsCommand type
+//// Represents a command that has been already sent and
+//// that is stored in the windows_mdm_commands table
+//type MDMWindowsCommand struct {
+//	CommandUUID  string    `db:"command_uuid"`
+//	DeviceID     string    `db:"device_id"`
+//	SessionID    string    `db:"session_id"`
+//	MessageID    string    `db:"message_id"`
+//	CommandID    string    `db:"command_id"`
+//	CmdVerb      string    `db:"cmd_verb"`
+//	SettingURI   string    `db:"setting_uri"`
+//	SettingValue string    `db:"setting_value"`
+//	SystemOrigin bool      `db:"system_origin"`
+//	ErrorCode    string    `db:"rx_error_code"`
+//	CmdResult    string    `db:"rx_cmd_result"`
+//	CreatedAt    time.Time `db:"created_at"`
+//	UpdatedAt    time.Time `db:"updated_at"`
+//}
