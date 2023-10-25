@@ -29,7 +29,9 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/aws/aws-secretsmanager-caching-go/secretcache"
 	"github.com/go-sql-driver/mysql"
 	flags "github.com/jessevdk/go-flags"
 )
@@ -41,27 +43,19 @@ type OptionsStruct struct {
 	SNSTopicArn        string `long:"sns-topic-arn" env:"SNS_TOPIC_ARN" required:"true"`
 	MySQLHost          string `long:"mysql-host" env:"MYSQL_HOST" required:"true"`
 	MySQLUser          string `long:"mysql-user" env:"MYSQL_USER" required:"true"`
-	MySQLPassword      string `long:"mysql-password" env:"MYSQL_PASSWORD" required:"true"`
+	MySQLSMSecret      string `long:"mysql-secretsmanager-secret" env:"MYSQL_SECRETSMANAGER_SECRET" required:"true"`
 	MySQLDatabase      string `long:"mysql-database" env:"MYSQL_DATABASE" required:"true"`
 	FleetEnv           string `long:"fleet-environment" env:"FLEET_ENV" required:"true"`
 }
 
 var options = OptionsStruct{}
 
-func sendSNSMessage(msg string) {
+func sendSNSMessage(msg string, sess *session.Session) {
 	log.Printf("Sending SNS Message")
-	region := "us-east-2"
-	sess := session.Must(session.NewSessionWithOptions(
-		session.Options{
-			SharedConfigState: session.SharedConfigEnable,
-			Config: aws.Config{
-				Region: &region,
-			},
-		},
-	))
+	fullMsg := fmt.Sprintf("Environment: %s\nMessage: %s", options.FleetEnv, msg)
 	svc := sns.New(sess)
 	result, err := svc.Publish(&sns.PublishInput{
-		Message:  &msg,
+		Message:  &fullMsg,
 		TopicArn: &options.SNSTopicArn,
 	})
 	if err != nil {
@@ -70,10 +64,26 @@ func sendSNSMessage(msg string) {
 	log.Printf(result.GoString())
 }
 
-func checkDB() (err error) {
+func checkDB(sess *session.Session) (err error) {
+	secretCache, err := secretcache.New()
+	if err != nil {
+		log.Printf(err.Error())
+		sendSNSMessage("Unable to initialise SecretsManager helper.  Cron status is unknown.", sess)
+		return err
+	}
+
+	secretCache.Client = secretsmanager.New(sess)
+
+	MySQLPassword, err := secretCache.GetSecretString(options.MySQLSMSecret)
+	if err != nil {
+		log.Printf(err.Error())
+		sendSNSMessage("Unable to retrieve SecretsManager secret.  Cron status is unknown.", sess)
+		return err
+	}
+
 	cfg := mysql.Config{
 		User:                 options.MySQLUser,
-		Passwd:               options.MySQLPassword,
+		Passwd:               MySQLPassword,
 		Net:                  "tcp",
 		Addr:                 options.MySQLHost,
 		DBName:               options.MySQLDatabase,
@@ -84,12 +94,12 @@ func checkDB() (err error) {
 	db, err := sql.Open("mysql", cfg.FormatDSN())
 	if err != nil {
 		log.Printf(err.Error())
-		sendSNSMessage("Unable to connect to database. Cron status unknown.")
+		sendSNSMessage("Unable to connect to database. Cron status unknown.", sess)
 		return err
 	}
 	if err = db.Ping(); err != nil {
 		log.Printf(err.Error())
-		sendSNSMessage("Unable to connect to database. Cron status unknown.")
+		sendSNSMessage("Unable to connect to database. Cron status unknown.", sess)
 		return err
 	}
 
@@ -104,7 +114,7 @@ func checkDB() (err error) {
 	rows, err := db.Query("SELECT b.name,IFNULL(status, 'missing cron'),IFNULL(updated_at, FROM_UNIXTIME(0)) AS updated_at FROM (SELECT 'vulnerabilities' AS name UNION ALL SELECT 'cleanups_then_aggregation' UNION ALL SELECT 'missing') b LEFT JOIN (SELECT name, status, updated_at FROM cron_stats WHERE id IN (SELECT MAX(id) FROM cron_stats WHERE status = 'completed' GROUP BY name)) a ON a.name = b.name;")
 	if err != nil {
 		log.Printf(err.Error())
-		sendSNSMessage("Unable to SELECT cron_stats table.  Unable to continue.")
+		sendSNSMessage("Unable to SELECT cron_stats table.  Unable to continue.", sess)
 		return err
 	}
 	twoHoursAgo := time.Now().Add(time.Duration(-2) * time.Hour)
@@ -112,14 +122,14 @@ func checkDB() (err error) {
 		var row CronStatsRow
 		if err := rows.Scan(&row.name, &row.status, &row.updated_at); err != nil {
 			log.Printf(err.Error())
-			sendSNSMessage("Error scanning row in cron_stats table.  Unable to continue.")
+			sendSNSMessage("Error scanning row in cron_stats table.  Unable to continue.", sess)
 			return err
 		}
 		log.Printf("Row %s last updated at %s", row.name, row.updated_at.String())
 		if row.updated_at.Before(twoHoursAgo) {
 			log.Printf("*** %s hasn't updated in more than 2 hours, alerting! (status %s)", row.name, row.status)
 			// Fire on the first match and return.  We only need to alert that the crons need looked at, not each cron.
-			sendSNSMessage(fmt.Sprintf("In the environment '%s', Fleet cron '%s' hasn't updated in more than 2 hours. Last status was '%s' at %s.", options.FleetEnv, row.name, row.status, row.updated_at.String()))
+			sendSNSMessage(fmt.Sprintf("Fleet cron '%s' hasn't updated in more than 2 hours. Last status was '%s' at %s.", row.name, row.status, row.updated_at.String()), sess)
 			return nil
 		}
 	}
@@ -130,7 +140,17 @@ func checkDB() (err error) {
 }
 
 func handler(ctx context.Context, name NullEvent) error {
-	checkDB()
+	region := "us-east-2"
+	sess := session.Must(session.NewSessionWithOptions(
+		session.Options{
+			SharedConfigState: session.SharedConfigEnable,
+			Config: aws.Config{
+				Region: &region,
+			},
+		},
+	))
+
+	checkDB(sess)
 	return nil
 }
 
