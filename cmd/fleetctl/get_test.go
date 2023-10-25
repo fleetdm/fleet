@@ -2057,16 +2057,16 @@ func TestGetMDMCommandResults(t *testing.T) {
 		}
 		return "test", nil
 	}
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
 		switch commandUUID {
 		case "empty-cmd":
 			return nil, nil
 		case "fail-cmd":
 			return nil, io.EOF
 		default:
-			return []*fleet.MDMAppleCommandResult{
+			return []*fleet.MDMCommandResult{
 				{
-					DeviceID:    "device1",
+					HostUUID:    "device1",
 					CommandUUID: commandUUID,
 					Status:      "Acknowledged",
 					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
@@ -2074,7 +2074,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 					Result:      []byte(rawXml),
 				},
 				{
-					DeviceID:    "device2",
+					HostUUID:    "device2",
 					CommandUUID: commandUUID,
 					Status:      "Error",
 					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),

@@ -622,7 +622,7 @@ type Service interface {
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMAppleCommandResult, error)
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
 
 	// ListMDMAppleCommands returns a list of MDM Apple commands corresponding to
 	// the specified options.
@@ -798,6 +798,9 @@ type Service interface {
 	// RunMDMCommand enqueues an MDM command for execution on the given devices.
 	// Note that a deviceID is the same as a host's UUID.
 	RunMDMCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *CommandEnqueueResult, err error)
+
+	// GetMDMCommandResults returns the execution results of a command identified by a CommandUUID.
+	GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Execution

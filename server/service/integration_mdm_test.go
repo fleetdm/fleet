@@ -3976,6 +3976,8 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	// get command results returns 404, that command does not exist
 	var cmdResResp getMDMAppleCommandResultsResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusNotFound, &cmdResResp, "command_uuid", uuid1)
+	var getMDMCmdResp getMDMCommandResultsResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/commandresults", nil, http.StatusNotFound, &cmdResResp, "command_uuid", uuid1)
 
 	// list commands returns empty set
 	var listCmdResp listMDMAppleCommandsResponse
@@ -4018,6 +4020,8 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	// the command exists but no results yet
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusOK, &cmdResResp, "command_uuid", uuid2)
 	require.Len(t, cmdResResp.Results, 0)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/commandresults", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", uuid2)
+	require.Len(t, getMDMCmdResp.Results, 0)
 
 	// simulate a result and call again
 	err = s.mdmStorage.StoreCommandReport(&mdm.Request{
@@ -4041,14 +4045,27 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	require.Len(t, cmdResResp.Results, 1)
 	require.NotZero(t, cmdResResp.Results[0].UpdatedAt)
 	cmdResResp.Results[0].UpdatedAt = time.Time{}
-	require.Equal(t, &fleet.MDMAppleCommandResult{
-		DeviceID:    mdmDevice.UUID,
+	require.Equal(t, &fleet.MDMCommandResult{
+		HostUUID:    mdmDevice.UUID,
 		CommandUUID: uuid2,
 		Status:      "Acknowledged",
 		RequestType: "ProfileList",
 		Result:      []byte(rawCmd),
 		Hostname:    "test-host",
 	}, cmdResResp.Results[0])
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/commandresults", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", uuid2)
+	require.Len(t, getMDMCmdResp.Results, 1)
+	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
+	getMDMCmdResp.Results[0].UpdatedAt = time.Time{}
+	require.Equal(t, &fleet.MDMCommandResult{
+		HostUUID:    mdmDevice.UUID,
+		CommandUUID: uuid2,
+		Status:      "Acknowledged",
+		RequestType: "ProfileList",
+		Result:      []byte(rawCmd),
+		Hostname:    "test-host",
+	}, getMDMCmdResp.Results[0])
 
 	// list commands returns that command
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp)

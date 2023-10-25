@@ -558,7 +558,7 @@ type GetMDMAppleEnrollmentProfileByTypeFunc func(ctx context.Context, typ fleet.
 
 type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error)
 
-type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error)
+type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
 
 type ListMDMAppleCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error)
 
@@ -691,6 +691,12 @@ type MDMWindowsUpdateCommandErrorCodeFunc func(ctx context.Context, deviceID str
 type MDMWindowsListCommandsFunc func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error)
 
 type MDMWindowsUpdateCommandReceivedResultFunc func(ctx context.Context, deviceID string, sessionID string, messageID string, commandID string, receivedValue string) error
+
+type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
+
+type GetMDMCommandPlatformFunc func(ctx context.Context, commandUUID string) (string, error)
+
+type GetMDMCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
@@ -1711,6 +1717,15 @@ type DataStore struct {
 
 	MDMWindowsUpdateCommandReceivedResultFunc        MDMWindowsUpdateCommandReceivedResultFunc
 	MDMWindowsUpdateCommandReceivedResultFuncInvoked bool
+
+	GetMDMWindowsCommandResultsFunc        GetMDMWindowsCommandResultsFunc
+	GetMDMWindowsCommandResultsFuncInvoked bool
+
+	GetMDMCommandPlatformFunc        GetMDMCommandPlatformFunc
+	GetMDMCommandPlatformFuncInvoked bool
+
+	GetMDMCommandResultsFunc        GetMDMCommandResultsFunc
+	GetMDMCommandResultsFuncInvoked bool
 
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
@@ -3617,7 +3632,7 @@ func (s *DataStore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*flee
 	return s.ListMDMAppleEnrollmentProfilesFunc(ctx)
 }
 
-func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
 	s.mu.Lock()
 	s.GetMDMAppleCommandResultsFuncInvoked = true
 	s.mu.Unlock()
@@ -4084,6 +4099,27 @@ func (s *DataStore) MDMWindowsUpdateCommandReceivedResult(ctx context.Context, d
 	s.MDMWindowsUpdateCommandReceivedResultFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsUpdateCommandReceivedResultFunc(ctx, deviceID, sessionID, messageID, commandID, receivedValue)
+}
+
+func (s *DataStore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	s.mu.Lock()
+	s.GetMDMWindowsCommandResultsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMWindowsCommandResultsFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
+	s.mu.Lock()
+	s.GetMDMCommandPlatformFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMCommandPlatformFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	s.mu.Lock()
+	s.GetMDMCommandResultsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMCommandResultsFunc(ctx, commandUUID)
 }
 
 func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {

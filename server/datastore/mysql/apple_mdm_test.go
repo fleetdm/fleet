@@ -2954,6 +2954,10 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, res)
 
+	res, err = ds.GetMDMCommandResults(ctx, uuid.New().String())
+	require.True(t, fleet.IsNotFound(err))
+	require.Empty(t, res)
+
 	// create some hosts, all enrolled
 	enrolledHosts := make([]*fleet.Host, 3)
 	for i := 0; i < 3; i++ {
@@ -2996,6 +3000,10 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, res)
 
+	res, err = ds.GetMDMCommandResults(ctx, uuid1)
+	require.True(t, fleet.IsNotFound(err))
+	require.Empty(t, res)
+
 	// enqueue a command for a couple of enrolled hosts
 	uuid2 := uuid.New().String()
 	rawCmd2 := createRawCmd(uuid2)
@@ -3004,6 +3012,9 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 
 	// command has no results yet
 	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2)
+	require.NoError(t, err)
+	require.Empty(t, res)
+	res, err = ds.GetMDMCommandResults(ctx, uuid2)
 	require.NoError(t, err)
 	require.Empty(t, res)
 
@@ -3025,8 +3036,20 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.Len(t, res, 1)
 	require.NotZero(t, res[0].UpdatedAt)
 	res[0].UpdatedAt = time.Time{}
-	require.Equal(t, res[0], &fleet.MDMAppleCommandResult{
-		DeviceID:    enrolledHosts[0].UUID,
+	require.Equal(t, res[0], &fleet.MDMCommandResult{
+		HostUUID:    enrolledHosts[0].UUID,
+		CommandUUID: uuid2,
+		Status:      "Acknowledged",
+		RequestType: "ProfileList",
+		Result:      []byte(rawCmd2),
+	})
+	res, err = ds.GetMDMCommandResults(ctx, uuid2)
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.Equal(t, res[0], &fleet.MDMCommandResult{
+		HostUUID:    enrolledHosts[0].UUID,
 		CommandUUID: uuid2,
 		Status:      "Acknowledged",
 		RequestType: "ProfileList",
@@ -3055,16 +3078,43 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.NotZero(t, res[1].UpdatedAt)
 	res[1].UpdatedAt = time.Time{}
 
-	require.ElementsMatch(t, res, []*fleet.MDMAppleCommandResult{
+	require.ElementsMatch(t, res, []*fleet.MDMCommandResult{
 		{
-			DeviceID:    enrolledHosts[0].UUID,
+			HostUUID:    enrolledHosts[0].UUID,
 			CommandUUID: uuid2,
 			Status:      "Acknowledged",
 			RequestType: "ProfileList",
 			Result:      []byte(rawCmd2),
 		},
 		{
-			DeviceID:    enrolledHosts[1].UUID,
+			HostUUID:    enrolledHosts[1].UUID,
+			CommandUUID: uuid2,
+			Status:      "Error",
+			RequestType: "ProfileList",
+			Result:      []byte(rawCmd2),
+		},
+	})
+
+	// command has both results
+	res, err = ds.GetMDMCommandResults(ctx, uuid2)
+	require.NoError(t, err)
+	require.Len(t, res, 2)
+
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.NotZero(t, res[1].UpdatedAt)
+	res[1].UpdatedAt = time.Time{}
+
+	require.ElementsMatch(t, res, []*fleet.MDMCommandResult{
+		{
+			HostUUID:    enrolledHosts[0].UUID,
+			CommandUUID: uuid2,
+			Status:      "Acknowledged",
+			RequestType: "ProfileList",
+			Result:      []byte(rawCmd2),
+		},
+		{
+			HostUUID:    enrolledHosts[1].UUID,
 			CommandUUID: uuid2,
 			Status:      "Error",
 			RequestType: "ProfileList",
@@ -3084,16 +3134,41 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	res[0].UpdatedAt = time.Time{}
 	require.NotZero(t, res[1].UpdatedAt)
 	res[1].UpdatedAt = time.Time{}
-	require.ElementsMatch(t, res, []*fleet.MDMAppleCommandResult{
+	require.ElementsMatch(t, res, []*fleet.MDMCommandResult{
 		{
-			DeviceID:    enrolledHosts[0].UUID,
+			HostUUID:    enrolledHosts[0].UUID,
 			CommandUUID: uuid2,
 			Status:      "Acknowledged",
 			RequestType: "ProfileList",
 			Result:      []byte(rawCmd2),
 		},
 		{
-			DeviceID:    enrolledHosts[1].UUID,
+			HostUUID:    enrolledHosts[1].UUID,
+			CommandUUID: uuid2,
+			Status:      "Error",
+			RequestType: "ProfileList",
+			Result:      []byte(rawCmd2),
+		},
+	})
+
+	res, err = ds.GetMDMCommandResults(ctx, uuid2)
+	require.NoError(t, err)
+	require.Len(t, res, 2)
+
+	require.NotZero(t, res[0].UpdatedAt)
+	res[0].UpdatedAt = time.Time{}
+	require.NotZero(t, res[1].UpdatedAt)
+	res[1].UpdatedAt = time.Time{}
+	require.ElementsMatch(t, res, []*fleet.MDMCommandResult{
+		{
+			HostUUID:    enrolledHosts[0].UUID,
+			CommandUUID: uuid2,
+			Status:      "Acknowledged",
+			RequestType: "ProfileList",
+			Result:      []byte(rawCmd2),
+		},
+		{
+			HostUUID:    enrolledHosts[1].UUID,
 			CommandUUID: uuid2,
 			Status:      "Error",
 			RequestType: "ProfileList",

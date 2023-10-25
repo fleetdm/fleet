@@ -43,8 +43,8 @@ type getMDMAppleCommandResultsRequest struct {
 }
 
 type getMDMAppleCommandResultsResponse struct {
-	Results []*fleet.MDMAppleCommandResult `json:"results,omitempty"`
-	Err     error                          `json:"error,omitempty"`
+	Results []*fleet.MDMCommandResult `json:"results,omitempty"`
+	Err     error                     `json:"error,omitempty"`
 }
 
 func (r getMDMAppleCommandResultsResponse) error() error { return r.Err }
@@ -63,7 +63,7 @@ func getMDMAppleCommandResultsEndpoint(ctx context.Context, request interface{},
 	}, nil
 }
 
-func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
 	// first, authorize that the user has the right to list hosts
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -93,7 +93,7 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 	hostUUIDs := make([]string, len(results))
 	for i, res := range results {
-		hostUUIDs[i] = res.DeviceID
+		hostUUIDs[i] = res.HostUUID
 	}
 	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, hostUUIDs)
 	if err != nil {
@@ -133,8 +133,8 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 
 	// add the hostnames to the results
 	for _, res := range results {
-		if h := hostsByUUID[res.DeviceID]; h != nil {
-			res.Hostname = hostsByUUID[res.DeviceID].Hostname
+		if h := hostsByUUID[res.HostUUID]; h != nil {
+			res.Hostname = hostsByUUID[res.HostUUID].Hostname
 		}
 	}
 	return results, nil

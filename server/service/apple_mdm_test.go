@@ -346,15 +346,25 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		"uuidNoTm":      {"host4"},
 		"uuidMixTm1Tm2": {"host1", "host3"},
 	}
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+	getResults := func(commandUUID string) ([]*fleet.MDMCommandResult, error) {
 		hosts := cmdUUIDToHostUUIDs[commandUUID]
-		res := make([]*fleet.MDMAppleCommandResult, 0, len(hosts))
+		res := make([]*fleet.MDMCommandResult, 0, len(hosts))
 		for _, h := range hosts {
-			res = append(res, &fleet.MDMAppleCommandResult{
-				DeviceID: h,
+			res = append(res, &fleet.MDMCommandResult{
+				HostUUID: h,
 			})
 		}
 		return res, nil
+	}
+
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+		return getResults(commandUUID)
+	}
+	ds.GetMDMCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+		return getResults(commandUUID)
+	}
+	ds.GetMDMCommandPlatformFunc = func(ctx context.Context, commandUUID string) (string, error) {
+		return "macos", nil
 	}
 
 	t.Run("GetMDMAppleCommandResults", func(t *testing.T) {
@@ -402,6 +412,9 @@ func TestAppleMDMAuthorization(t *testing.T) {
 			t.Run(c.desc, func(t *testing.T) {
 				ctx = test.UserContext(ctx, c.user)
 				_, err = svc.GetMDMAppleCommandResults(ctx, c.cmdUUID)
+				checkAuthErr(t, err, c.shoudFailWithAuth)
+
+				_, err = svc.GetMDMCommandResults(ctx, c.cmdUUID)
 				checkAuthErr(t, err, c.shoudFailWithAuth)
 			})
 		}

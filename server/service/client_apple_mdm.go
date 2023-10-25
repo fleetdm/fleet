@@ -65,7 +65,7 @@ func (c *Client) prepareAppleMDMCommand(rawCmd []byte) ([]byte, error) {
 	return b, nil
 }
 
-func (c *Client) MDMAppleGetCommandResults(commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+func (c *Client) MDMAppleGetCommandResults(commandUUID string) ([]*fleet.MDMCommandResult, error) {
 	verb, path := http.MethodGet, "/api/latest/fleet/mdm/apple/commandresults"
 
 	query := url.Values{}
