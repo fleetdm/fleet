@@ -147,6 +147,7 @@ func (ds *Datastore) MDMWindowsDeletePendingCommands(ctx context.Context, device
 	return nil
 }
 
+// TODO(mna): this receives hostUUIDs, not deviceIDs, and must translate them via the (altered) enrollments table.
 func (ds *Datastore) MDMWindowsInsertPendingCommandForDevices(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsPendingCommand) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, deviceID := range deviceIDs {
@@ -307,36 +308,4 @@ func (ds *Datastore) MDMWindowsUpdateCommandReceivedResult(ctx context.Context, 
 	}
 
 	return nil
-}
-
-// MDMWindowsListCommands retrieves all commands for a given device ID from the windows_mdm_commands table
-func (ds *Datastore) MDMWindowsListCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
-	var commands []*fleet.MDMWindowsCommand
-
-	query := `
-        SELECT
-            command_uuid,
-            device_id,
-            session_id,
-            message_id,
-            command_id,
-            cmd_verb,
-            setting_uri,
-            setting_value,
-            system_origin,
-            rx_error_code,
-            rx_cmd_result,
-            created_at,
-            updated_at
-        FROM
-            old_windows_mdm_commands
-        WHERE
-            device_id = ?
-    `
-
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, query, deviceID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get Windows MDM commands by device id")
-	}
-
-	return commands, nil
 }

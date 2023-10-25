@@ -478,6 +478,8 @@ var hostRefs = []string{
 var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_apple_profiles":           "host_uuid",
 	"host_mdm_apple_bootstrap_packages": "host_uuid",
+	// TODO(mna): any reason the nano_mdm tables are not cleared when a host is deleted?
+	// Not adding the windows_mdm tables either for now, as they should behave similarly.
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {

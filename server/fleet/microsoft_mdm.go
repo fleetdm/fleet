@@ -1347,7 +1347,8 @@ func (cmd *SyncMLCmd) ShouldBeTracked(cmdVerb string) bool {
 // MDMWindowsPendingCommand type
 // Represents a command in the windows_mdm_pending_commands table
 type MDMWindowsPendingCommand struct {
-	CommandUUID  string    `db:"command_uuid"`
+	CommandUUID string `db:"command_uuid"`
+	// TODO(mna): this should be HostUUID, not DeviceID, and must translate them via the (altered) enrollments table.
 	DeviceID     string    `db:"device_id"`
 	CmdVerb      string    `db:"cmd_verb"`
 	SettingURI   string    `db:"setting_uri"`

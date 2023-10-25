@@ -1449,6 +1449,8 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		}
 	}
 
+	// TODO(mna): we need to store the full response, and each command's results/status, in a single tx.
+
 	return responseCmds, nil
 }
 

@@ -1057,9 +1057,6 @@ type Datastore interface {
 	// MDMWindowsUpdateCommandErrorCode updates the error code of a command
 	MDMWindowsUpdateCommandErrorCode(ctx context.Context, deviceID, sessionID, messageID, commandID, errorCode string) error
 
-	// MDMWindowsListCommands returns all the commands sent to a device
-	MDMWindowsListCommands(ctx context.Context, deviceID string) ([]*MDMWindowsCommand, error)
-
 	// MDMWindowsUpdateCommandReceivedResult updates the received result of a command
 	MDMWindowsUpdateCommandReceivedResult(ctx context.Context, deviceID, sessionID, messageID, commandID, receivedValue string) error
 
