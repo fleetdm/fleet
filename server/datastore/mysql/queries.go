@@ -121,7 +121,7 @@ func (ds *Datastore) deleteMultipleQueryResults(ctx context.Context, queryIDs []
 		return nil
 	}
 
-	deleteQueryResultsStmt := `DELETE FROM query_results WHERE id IN (?)`
+	deleteQueryResultsStmt := `DELETE FROM query_results WHERE query_id IN (?)`
 	query, args, err := sqlx.In(deleteQueryResultsStmt, queryIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building delete query_results stmt")
