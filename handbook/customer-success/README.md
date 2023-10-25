@@ -184,9 +184,9 @@ The first responder on-call for Managed Cloud will take ownership of the @infras
 
 Escalation of alarms will be done manually by the first responder according to the escalation contacts mentioned above. A [suspected outage issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23outage%2C%23g-cx%2C%3Arelease&projects=&template=outage.md&title=Suspected+outage%3A+YYYY-MM-DD) should be created to track the escalation and determine root cause. 
 
-All infrastructure alarms (fleetdm.com and Fleet managed cloud) will go to #help-p1.
+All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1.
 
-When the current infrastructure on-call engineer is unable to meet the response time SLAs, it is their responsibility to arrange and designate a replacement who will assume the @oncall-infrastructure Slack alias.
+When the current 24/7 on-call engineer is unable to meet the response time SLAs, it is their responsibility to arrange and designate a replacement who will assume the @oncall-infrastructure Slack alias.
 
 #### Runbooks
 
