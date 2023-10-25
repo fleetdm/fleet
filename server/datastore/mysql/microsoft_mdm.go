@@ -9,33 +9,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// MDMWindowsGetEnrolledDevice receives a Windows MDM device id and returns the device information.
-func (ds *Datastore) MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceHWID string) (*fleet.MDMWindowsEnrolledDevice, error) {
-	stmt := `SELECT
-		mdm_device_id,
-		mdm_hardware_id,
-		device_state,
-		device_type,
-		device_name,
-		enroll_type,
-		enroll_user_id,
-		enroll_proto_version,
-		enroll_client_version,
-		not_in_oobe,
-		created_at,
-		updated_at
-		FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?`
-
-	var winMDMDevice fleet.MDMWindowsEnrolledDevice
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, mdmDeviceHWID); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(mdmDeviceHWID))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsEnrolledDevice")
-	}
-	return &winMDMDevice, nil
-}
-
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information.
 func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	stmt := `SELECT
@@ -101,6 +74,9 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 	return nil
 }
 
+// TODO(mna): should we have something like host_dep_assignments for Windows? I don't remember exactly what
+// problem this was solving, but seeing those enrollments deletion made me think of it.
+
 // MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
 func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceHWID string) error {
 	stmt := "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
@@ -118,7 +94,8 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDevi
 	return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
 }
 
-// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id.
+// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a given
+// MDMWindowsEnrolledDevice entry from the database using the device id.
 func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error {
 	stmt := "DELETE FROM mdm_windows_enrollments WHERE mdm_device_id = ?"
 
@@ -135,18 +112,6 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 	return ctxerr.Wrap(ctx, notFound("MDMWindowsDeleteEnrolledDeviceWithDeviceID"))
 }
 
-// MDMWindowsDeletePendingCommands deletes pending commands for a given device id.
-func (ds *Datastore) MDMWindowsDeletePendingCommands(ctx context.Context, deviceID string) error {
-	stmt := "DELETE FROM old_windows_mdm_pending_commands WHERE device_id = ?"
-
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, deviceID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete MDMWindowsDeletePendingCommands")
-	}
-
-	return nil
-}
-
 // TODO(mna): this receives hostUUIDs, not deviceIDs, and must translate them via the (altered) enrollments table.
 func (ds *Datastore) MDMWindowsInsertPendingCommandForDevices(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsPendingCommand) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -158,11 +123,6 @@ func (ds *Datastore) MDMWindowsInsertPendingCommandForDevices(ctx context.Contex
 		}
 		return nil
 	})
-}
-
-// MDMWindowsInsertPendingCommand inserts a new WindowMDMPendingCommand in the database
-func (ds *Datastore) MDMWindowsInsertPendingCommand(ctx context.Context, cmd *fleet.MDMWindowsPendingCommand) error {
-	return ds.mdmWindowsInsertPendingCommandDB(ctx, ds.writer(ctx), cmd)
 }
 
 func (ds *Datastore) mdmWindowsInsertPendingCommandDB(ctx context.Context, tx sqlx.ExecerContext, cmd *fleet.MDMWindowsPendingCommand) error {
@@ -226,46 +186,16 @@ func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID 
 	return commands, nil
 }
 
-// MDMWindowsInsertCommand inserts a new WindowMDMCommand in the database
-func (ds *Datastore) MDMWindowsInsertCommand(ctx context.Context, cmd *fleet.MDMWindowsCommand) error {
-	stmt := `
-		INSERT INTO old_windows_mdm_commands (
-		command_uuid,
-		device_id,
-		session_id,
-		message_id,
-		command_id,
-		cmd_verb,
-		setting_uri,
-		setting_value,
-		system_origin,
-		rx_error_code,
-		rx_cmd_result ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`
-	_, err := ds.writer(ctx).ExecContext(
-		ctx,
-		stmt,
-		cmd.CommandUUID,
-		cmd.DeviceID,
-		cmd.SessionID,
-		cmd.MessageID,
-		cmd.CommandID,
-		cmd.CmdVerb,
-		cmd.SettingURI,
-		cmd.SettingValue,
-		cmd.SystemOrigin,
-		"",
-		"")
-	if err != nil {
-		if isDuplicate(err) {
-			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommand", cmd.CommandUUID))
-		}
-		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommand")
-	}
+// TODO(mna): those UpdateCommandErrorCode and UpdateCommandReceivedResult must
+// be replaced by a single method something like MDMWindowsSaveResponse(ctx,
+// deviceID, fullResponse) that will first store the full response and then -
+// in the same transaction - store the result for each known command present in
+// the response's XML (each CmdRef matching a command_uuid in
+// windows_mdm_command_queue entry for that device that has no result in
+// windows_mdm_command_results yet). Both the Status and Results parts are
+// stored.
 
-	return nil
-}
-
+/*
 // MDMWindowsUpdateCommandErrorCode updates the rx_error_code for a given command that matches with device_id, session_id, message_id and command_id.
 func (ds *Datastore) MDMWindowsUpdateCommandErrorCode(ctx context.Context, deviceID, sessionID, messageID, commandID, errorCode string) error {
 	query := `
@@ -309,3 +239,4 @@ func (ds *Datastore) MDMWindowsUpdateCommandReceivedResult(ctx context.Context, 
 
 	return nil
 }
+*/

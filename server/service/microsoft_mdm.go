@@ -1373,20 +1373,20 @@ func (svc *Service) processIncomingResultsCommands(ctx context.Context, sessionI
 		}
 	}
 
-	err := svc.ds.MDMWindowsUpdateCommandReceivedResult(ctx, deviceID, sessionID, msgRef, cmd.Cmd.CmdID, msgData)
-	if err != nil {
-		return nil, fmt.Errorf("process incoming command: %w", err)
-	}
+	//err := svc.ds.MDMWindowsUpdateCommandReceivedResult(ctx, deviceID, sessionID, msgRef, cmd.Cmd.CmdID, msgData)
+	//if err != nil {
+	//	return nil, fmt.Errorf("process incoming command: %w", err)
+	//}
 	return nil, nil
 }
 
 // processIncomingStatusCommands will process the incoming Status commands.
 // These commands requires don't require an status response.
 func (svc *Service) processIncomingStatusCommands(ctx context.Context, sessionID string, deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
-	err := svc.ds.MDMWindowsUpdateCommandErrorCode(ctx, deviceID, sessionID, *cmd.Cmd.MsgRef, cmd.Cmd.CmdID, *cmd.Cmd.Data)
-	if err != nil {
-		return nil, fmt.Errorf("process incoming command: %w", err)
-	}
+	//err := svc.ds.MDMWindowsUpdateCommandErrorCode(ctx, deviceID, sessionID, *cmd.Cmd.MsgRef, cmd.Cmd.CmdID, *cmd.Cmd.Data)
+	//if err != nil {
+	//	return nil, fmt.Errorf("process incoming command: %w", err)
+	//}
 
 	return nil, nil
 }
@@ -1436,6 +1436,8 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 	// Now we need to check for any operations that need to be processed
 	protoCMDs := reqMsg.GetOrderedCmds()
 
+	// TODO(mna): we need to store the full response, and each command's results/status, in a single tx.
+
 	// Iterate over the operations and process them
 	for _, protoCMD := range protoCMDs {
 		protoCmd, err := svc.processIncomingProtocolCommands(ctx, reqSessionID, reqMessageID, deviceID, protoCMD)
@@ -1448,8 +1450,6 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 			responseCmds = append(responseCmds, protoCmd)
 		}
 	}
-
-	// TODO(mna): we need to store the full response, and each command's results/status, in a single tx.
 
 	return responseCmds, nil
 }
@@ -1556,6 +1556,8 @@ func (svc *Service) storeSyncMLCmd(ctx context.Context, msg *mdm_types.SyncML) e
 		return fmt.Errorf("message ID processing error %w", err)
 	}
 
+	// TODO(mna): might be worth adding a batch-insert commands for a single device.
+
 	// Iterate over the operations and store on DB the ones that need to be tracked
 	for _, protoCMD := range protoCMDs {
 		cmdVerb := protoCMD.XMLName.Local
@@ -1576,10 +1578,13 @@ func (svc *Service) storeSyncMLCmd(ctx context.Context, msg *mdm_types.SyncML) e
 				SystemOrigin: protoCMD.SystemOrigin,
 			}
 
-			err := svc.ds.MDMWindowsInsertCommand(ctx, newCmd)
-			if err != nil {
-				return fmt.Errorf("there was an issue inserting the command %v", err)
-			}
+			// TODO(mna): should now use MDMWindowsInsertPendingCommandForDevices (or a new one that
+			// inserts a batch of commands for a single device). All commands to execute are stored
+			// in the same table(s) in the new schema.
+			//err := svc.ds.MDMWindowsInsertCommand(ctx, newCmd)
+			//if err != nil {
+			//	return fmt.Errorf("there was an issue inserting the command %v", err)
+			//}
 		}
 	}
 
@@ -1641,19 +1646,23 @@ func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context,
 		return err
 	}
 
-	// Checking the storage to see if the device is already enrolled
-	device, err := svc.ds.MDMWindowsGetEnrolledDevice(ctx, reqHWDeviceID)
-	if err != nil {
-		// Device is not present
-		if fleet.IsNotFound(err) {
-			return nil
-		}
+	// TODO(mna): this is only called here and not required because it is racy anyway
+	// (the unenrollment could happen between the check and the delete) and the deletion
+	// is idempotent.
 
-		return err
-	}
+	//// Checking the storage to see if the device is already enrolled
+	//device, err := svc.ds.MDMWindowsGetEnrolledDevice(ctx, reqHWDeviceID)
+	//if err != nil {
+	//	// Device is not present
+	//	if fleet.IsNotFound(err) {
+	//		return nil
+	//	}
+
+	//	return err
+	//}
 
 	// Device is already enrolled, let's remove it
-	err = svc.ds.MDMWindowsDeleteEnrolledDevice(ctx, device.MDMHardwareID)
+	err = svc.ds.MDMWindowsDeleteEnrolledDevice(ctx, reqHWDeviceID)
 	if err != nil {
 		return err
 	}
