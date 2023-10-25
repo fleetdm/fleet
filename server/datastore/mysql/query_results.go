@@ -71,9 +71,6 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 			valueArgs = append(valueArgs, queryID, hostID, row.LastFetched, row.Data)
 		}
 
-		// We use INSERT IGNORE for the case when the query was deleted (otherwise we get
-		// foreign key errors).
-
 		//nolint:gosec // SQL query is constructed using constant strings
 		insertStmt := `
 		INSERT IGNORE INTO query_results (query_id, host_id, last_fetched, data) VALUES

@@ -10,10 +10,29 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]bool) (err error) {
+func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
+	if err := ds.applyQueriesInTx(ctx, authorID, queries); err != nil {
+		return ctxerr.Wrap(ctx, err, "apply queries in tx")
+	}
+
+	// Opportunistically delete associated query_results.
+	//
+	// TODO(lucas): We should run this on a transaction but we found
+	// performance issues and deadlocks at scale.
+	queryIDs := make([]uint, 0, len(queriesToDiscardResults))
+	for queryID := range queriesToDiscardResults {
+		queryIDs = append(queryIDs, queryID)
+	}
+	if err := ds.deleteMultipleQueryResults(ctx, queryIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete query_results")
+	}
+	return nil
+}
+
+func (ds *Datastore) applyQueriesInTx(ctx context.Context, authorID uint, queries []*fleet.Query) (err error) {
 	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "begin ApplyQueries transaction")
+		return ctxerr.Wrap(ctx, err, "begin applyQueriesInTx")
 	}
 
 	defer func() {
@@ -64,20 +83,9 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 	`
 	stmt, err := tx.PrepareContext(ctx, insertSql)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare ApplyQueries insert")
+		return ctxerr.Wrap(ctx, err, "prepare queries insert")
 	}
 	defer stmt.Close()
-
-	var resultsStmt *sql.Stmt
-	if len(queriesToDiscardResults) > 0 {
-		resultsSql := `DELETE FROM query_results WHERE query_id = ?`
-		resultsStmt, err = tx.PrepareContext(ctx, resultsSql)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "prepare ApplyQueries delete query results")
-		}
-		defer resultsStmt.Close()
-
-	}
 
 	for _, q := range queries {
 		if err := q.Verify(); err != nil {
@@ -100,22 +108,28 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 			q.DiscardData,
 		)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "exec ApplyQueries insert")
-		}
-	}
-
-	for id := range queriesToDiscardResults {
-		_, err := resultsStmt.ExecContext(
-			ctx,
-			id,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "exec ApplyQueries delete query results")
+			return ctxerr.Wrap(ctx, err, "exec queries insert")
 		}
 	}
 
 	err = tx.Commit()
-	return ctxerr.Wrap(ctx, err, "commit ApplyQueries transaction")
+	return ctxerr.Wrap(ctx, err, "commit queries tx")
+}
+
+func (ds *Datastore) deleteMultipleQueryResults(ctx context.Context, queryIDs []uint) (err error) {
+	if len(queryIDs) == 0 {
+		return nil
+	}
+
+	deleteQueryResultsStmt := `DELETE FROM query_results WHERE id IN (?)`
+	query, args, err := sqlx.In(deleteQueryResultsStmt, queryIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building delete query_results stmt")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "executing delete query_results")
+	}
+	return nil
 }
 
 func (ds *Datastore) QueryByName(
@@ -168,7 +182,6 @@ func (ds *Datastore) QueryByName(
 	return &query, nil
 }
 
-// NewQuery creates a New Query.
 func (ds *Datastore) NewQuery(
 	ctx context.Context,
 	query *fleet.Query,
@@ -226,31 +239,12 @@ func (ds *Datastore) NewQuery(
 	return query, nil
 }
 
-// SaveQuery saves changes to a Query.
 func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscardResults bool) (err error) {
 	if err := q.Verify(); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "begin SaveQuery transaction")
-	}
-
-	defer func() {
-		if err != nil {
-			rbErr := tx.Rollback()
-			// It seems possible that there might be a case in
-			// which the error we are dealing with here was thrown
-			// by the call to tx.Commit(), and the docs suggest
-			// this call would then result in sql.ErrTxDone.
-			if rbErr != nil && rbErr != sql.ErrTxDone {
-				panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
-			}
-		}
-	}()
-
-	updateSql := `
+	updateSQL := `
 		UPDATE queries
 		SET name                = ?,
 			description         = ?,
@@ -265,29 +259,12 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 			schedule_interval   = ?,
 			automations_enabled = ?,
 			logging_type        = ?,
-			discard_data        = ?
+			discard_data		= ?
 		WHERE id = ?
 	`
-
-	stmt, err := tx.PrepareContext(ctx, updateSql)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare SaveQuery update")
-	}
-	defer stmt.Close()
-
-	var resultsStmt *sql.Stmt
-	if shouldDiscardResults {
-		resultsSql := `DELETE FROM query_results WHERE query_id = ?`
-		resultsStmt, err = tx.PrepareContext(ctx, resultsSql)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "prepare SaveQuery delete query results")
-		}
-		defer resultsStmt.Close()
-
-	}
-
-	_, err = stmt.ExecContext(
+	result, err := ds.writer(ctx).ExecContext(
 		ctx,
+		updateSQL,
 		q.Name,
 		q.Description,
 		q.Query,
@@ -302,101 +279,96 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 		q.AutomationsEnabled,
 		q.Logging,
 		q.DiscardData,
-		q.ID,
-	)
+		q.ID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "exec SaveQuery update")
+		return ctxerr.Wrap(ctx, err, "updating query")
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "rows affected updating query")
+	}
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("Query").WithID(q.ID))
 	}
 
-	if resultsStmt != nil {
-		_, err := resultsStmt.ExecContext(
-			ctx,
-			q.ID,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "exec SaveQuery delete query results")
+	// Opportunistically delete associated query_results.
+	//
+	// TODO(lucas): We should run this on a transaction but we found
+	// performance issues and deadlocks at scale.
+	if shouldDiscardResults {
+		if err := ds.deleteQueryResults(ctx, q.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting query_results")
 		}
 	}
 
-	err = tx.Commit()
-	return ctxerr.Wrap(ctx, err, "commit SaveQuery transaction")
+	return nil
 }
 
-func (ds *Datastore) DeleteQuery(
-	ctx context.Context,
-	teamID *uint,
-	name string,
-) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		selectStmt := "SELECT id FROM queries WHERE name = ?"
-		args := []interface{}{name}
-		whereClause := " AND team_id_char = ''"
-		if teamID != nil {
-			args = append(args, fmt.Sprint(*teamID))
-			whereClause = " AND team_id_char = ?"
-		}
-		selectStmt += whereClause
-		var queryID uint
-		row := tx.QueryRowxContext(ctx, selectStmt, args...)
-		if err := row.Scan(&queryID); err != nil {
-			return ctxerr.Wrap(ctx, err, "getting query to delete")
-		}
+func (ds *Datastore) deleteQueryResults(ctx context.Context, queryID uint) error {
+	resultsSQL := `DELETE FROM query_results WHERE query_id = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, resultsSQL, queryID); err != nil {
+		return ctxerr.Wrap(ctx, err, "executing delete query_results")
+	}
+	return nil
+}
 
-		deleteStmt := "DELETE FROM queries WHERE id = ?"
-		result, err := tx.ExecContext(ctx, deleteStmt, queryID)
-		if err != nil {
-			if isMySQLForeignKey(err) {
-				return ctxerr.Wrap(ctx, foreignKey("queries", name))
-			}
-			return ctxerr.Wrap(ctx, err, "delete queries")
-		}
-		rows, _ := result.RowsAffected()
-		if rows != 1 {
+func (ds *Datastore) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
+	selectStmt := "SELECT id FROM queries WHERE name = ?"
+	args := []interface{}{name}
+	whereClause := " AND team_id_char = ''"
+	if teamID != nil {
+		args = append(args, fmt.Sprint(*teamID))
+		whereClause = " AND team_id_char = ?"
+	}
+	selectStmt += whereClause
+	var queryID uint
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &queryID, selectStmt, args...); err != nil {
+		if err == sql.ErrNoRows {
 			return ctxerr.Wrap(ctx, notFound("queries").WithName(name))
 		}
+		return ctxerr.Wrap(ctx, err, "getting query to delete")
+	}
 
-		deleteQueryResultsStmt := "DELETE FROM query_results WHERE query_id = ?"
-		if _, err := tx.ExecContext(ctx, deleteQueryResultsStmt, queryID); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete query results")
+	deleteStmt := "DELETE FROM queries WHERE id = ?"
+	result, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, queryID)
+	if err != nil {
+		if isMySQLForeignKey(err) {
+			return ctxerr.Wrap(ctx, foreignKey("queries", name))
 		}
+		return ctxerr.Wrap(ctx, err, "delete queries")
+	}
+	rows, _ := result.RowsAffected()
+	if rows != 1 {
+		return ctxerr.Wrap(ctx, notFound("queries").WithName(name))
+	}
 
-		return nil
-	})
+	// Opportunistically delete associated query_results.
+	//
+	// TODO(lucas): We should run this on a transaction but we found
+	// performance issues and deadlocks at scale.
+	if err := ds.deleteQueryResults(ctx, queryID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting query_results")
+	}
+
+	return nil
 }
 
 // DeleteQueries deletes the existing query objects with the provided IDs. The
 // number of deleted queries is returned along with any error.
 func (ds *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
-	var deleted int64
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		deleteQueriesStmt := `DELETE FROM queries WHERE id IN (?)`
-		query, args, err := sqlx.In(deleteQueriesStmt, ids)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building delete queries stmt")
-		}
-		result, err := tx.ExecContext(ctx, query, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "executing delete queries")
-		}
-		deleted, err = result.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "fetching delete queries rows affected")
-		}
-
-		deleteQueryResultsStmt := `DELETE FROM query_results WHERE id IN (?)`
-		query, args, err = sqlx.In(deleteQueryResultsStmt, ids)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building delete query_results stmt")
-		}
-		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "executing delete query_results")
-		}
-		return nil
-	})
+	deleted, err := ds.deleteEntities(ctx, queriesTable, ids)
 	if err != nil {
-		return 0, err
+		return deleted, err
 	}
-	return uint(deleted), nil
+
+	// Opportunistically delete associated query_results.
+	//
+	// TODO(lucas): We should run this on a transaction but we found
+	// performance issues and deadlocks at scale.
+	if err := ds.deleteMultipleQueryResults(ctx, ids); err != nil {
+		return deleted, ctxerr.Wrap(ctx, err, "delete multiple query_results")
+	}
+	return deleted, nil
 }
 
 // Query returns a single Query identified by id, if such exists.
