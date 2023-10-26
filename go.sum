@@ -420,8 +420,8 @@ github.com/felixge/httpsnoop v1.0.3 h1:s/nj+GCswXYzN5v2DpNMuMQYe+0DDwt5WVCU6CWBd
 github.com/felixge/httpsnoop v1.0.3/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/fleetdm/goose v0.0.0-20221011170007-06aacf8ac547 h1:3Vlgx6mJYFlj3GPB3CgoQrR7URgE0GQGnKYNfoXxuUo=
 github.com/fleetdm/goose v0.0.0-20221011170007-06aacf8ac547/go.mod h1:d7Q+0eCENnKQUhkfAUVLfGnD4QcgJMF/uB9WRTN9TDI=
-github.com/fleetdm/launcher v0.0.0-20231026134849-0f06f3fc80a6 h1:pnd/cNS9d1JBQGTe4agt+eMp7TWuU7LTynlOzdy1X1c=
-github.com/fleetdm/launcher v0.0.0-20231026134849-0f06f3fc80a6/go.mod h1:hZ85NIhkDnTQn2P67m1y0Ant3FbfbYVeBEK/eF5+Fps=
+github.com/fleetdm/launcher v0.0.0-20231026190419-6025d5cd7739 h1:/GAaxcgjsDxfUlnSQEi89BsyIc1Kno4m6rkAhboFOag=
+github.com/fleetdm/launcher v0.0.0-20231026190419-6025d5cd7739/go.mod h1:4h1FwciY5mWaNlG8ckHl3TU5yVN4+NkZtnrAvP65x1A=
 github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24 h1:XhczaxKV3J4NjztroidSnYKyq5xtxF+amBYdBWeik58=
 github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24/go.mod h1:QzQrCUTmSr9HotzKZAcfmy+czbEGK8Mq26hA+0DN4ag=
 github.com/fleetdm/nanomdm v0.3.1-0.20230710170238-fd0813187f24 h1:oP0kOAFDzu646/TXDCcvOGdDgSHJgk+X0Pfr60kp7Jg=

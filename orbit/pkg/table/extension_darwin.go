@@ -27,7 +27,6 @@ import (
 	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
 	"github.com/kolide/launcher/pkg/osquery/tables/ioreg"
 	"github.com/kolide/launcher/pkg/osquery/tables/mdmclient"
-	kolidemunki "github.com/kolide/launcher/pkg/osquery/tables/munki"
 	"github.com/kolide/launcher/pkg/osquery/tables/osquery_user_exec_table"
 	"github.com/kolide/launcher/pkg/osquery/tables/profiles"
 	"github.com/kolide/launcher/pkg/osquery/tables/pwpolicy"
@@ -93,8 +92,6 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		firmwarepasswd.TablePlugin(kolideLogger),
 		apple_silicon_security_policy.TablePlugin(kolideLogger),
 		mdmclient.TablePlugin(kolideLogger),
-		kolidemunki.New().ManagedInstalls(kolideLogger),
-		kolidemunki.New().MunkiReport(kolideLogger),
 		systemprofiler.TablePlugin(kolideLogger), // table name is "system_profiler"
 		// Table for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.PlistType), // table name is "parse_plist"
