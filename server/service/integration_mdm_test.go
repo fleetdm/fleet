@@ -664,17 +664,17 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 		"I1": {
 			Identifier:  "I1",
 			DisplayName: "N1",
-			InstallDate: time.Now(),
+			InstallDate: time.Now().Add(15 * time.Minute),
 		},
 		"I2": {
 			Identifier:  "I2",
 			DisplayName: "N2",
-			InstallDate: time.Now(),
+			InstallDate: time.Now().Add(15 * time.Minute),
 		},
 		mobileconfig.FleetdConfigPayloadIdentifier: {
 			Identifier:  mobileconfig.FleetdConfigPayloadIdentifier,
 			DisplayName: "Fleetd configuration",
-			InstallDate: time.Now(),
+			InstallDate: time.Now().Add(15 * time.Minute),
 		},
 	}
 	reportHostProfs := func(t *testing.T, identifiers ...string) {
@@ -1887,6 +1887,50 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// it should still get the post-enrollment commands
 	require.NoError(t, mdmDevice.Enroll())
 	checkPostEnrollmentCommands(mdmDevice, true)
+
+	// enroll a host into Fleet
+	eHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:             1,
+		OsqueryHostID:  ptr.String("Desktop-ABCQWE"),
+		NodeKey:        ptr.String("Desktop-ABCQWE"),
+		UUID:           uuid.New().String(),
+		Hostname:       fmt.Sprintf("%sfoo.local", s.T().Name()),
+		Platform:       "darwin",
+		HardwareSerial: uuid.New().String(),
+	})
+	require.NoError(t, err)
+
+	// on team transfer, we don't assign a DEP profile to the device
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{eHost.ID}}, http.StatusOK)
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runWorker()
+	require.Empty(t, profileAssignmentReqs)
+
+	// assign the host in ABM
+	devices = []godep.Device{
+		{SerialNumber: eHost.HardwareSerial, Model: "MacBook Pro", OS: "osx", OpType: "modified"},
+	}
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runDEPSchedule()
+	require.NotEmpty(t, profileAssignmentReqs)
+	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
+
+	// transfer to "no team", we assign a DEP profile to the device
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{eHost.ID}}, http.StatusOK)
+	s.runWorker()
+	require.NotEmpty(t, profileAssignmentReqs)
+	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
+
+	// transfer to the team back again, we assign a DEP profile to the device again
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{eHost.ID}}, http.StatusOK)
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runWorker()
+	require.NotEmpty(t, profileAssignmentReqs)
+	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
 }
 
 func loadEnrollmentProfileDEPToken(t *testing.T, ds *mysql.Datastore) string {
@@ -2445,7 +2489,7 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
 	checkConfigSetSucceeds()
 }
 
-func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
+func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -2479,7 +2523,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 			HostUUID:          host.UUID,
 			CommandUUID:       hostCmdUUID,
 			OperationType:     fleet.MDMAppleOperationTypeInstall,
-			Status:            &fleet.MDMAppleDeliveryVerified,
+			Status:            &fleet.MDMAppleDeliveryPending,
 			Checksum:          []byte("csum"),
 		},
 	})
@@ -2498,14 +2542,63 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 		_ = s.ds.DeleteMDMAppleConfigProfile(ctx, fileVaultProf.ProfileID)
 	})
 
+	// get that host - it should
+	// report "enforcing" disk encryption
+	getHostResp := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Equal(t, fleet.DiskEncryptionEnforcing, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, fleet.DiskEncryptionEnforcing, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
+
+	// report a profile install error
+	err = s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+		HostUUID:      host.UUID,
+		CommandUUID:   hostCmdUUID,
+		ProfileID:     fileVaultProf.ProfileID,
+		Status:        &fleet.MDMAppleDeliveryFailed,
+		OperationType: fleet.MDMAppleOperationTypeInstall,
+		Detail:        "test error",
+	})
+	require.NoError(t, err)
+
+	// get that host - it should report "failed" disk encryption and include the error message detail
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Equal(t, fleet.DiskEncryptionFailed, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, fleet.DiskEncryptionFailed, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, "test error", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
+
+	// report that the profile was installed and verified
+	err = s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+		HostUUID:      host.UUID,
+		CommandUUID:   hostCmdUUID,
+		ProfileID:     fileVaultProf.ProfileID,
+		Status:        &fleet.MDMAppleDeliveryVerified,
+		OperationType: fleet.MDMAppleOperationTypeInstall,
+		Detail:        "",
+	})
+	require.NoError(t, err)
+
 	// get that host - it has no encryption key at this point, so it should
 	// report "action_required" disk encryption and "log_out" action.
-	getHostResp := getHostResponse{}
+	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
 	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
 	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
 	require.Equal(t, fleet.ActionRequiredLogOut, *getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
 
 	// add an encryption key for the host
 	cert, _, _, err := s.fleetCfg.MDM.AppleSCEP()
@@ -2527,6 +2620,10 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
 	require.Equal(t, fleet.DiskEncryptionEnforcing, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
 	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, fleet.DiskEncryptionEnforcing, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
 
 	// request with no token
 	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
@@ -2550,6 +2647,10 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
 	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
 	require.Equal(t, fleet.ActionRequiredRotateKey, *getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
 
 	// no activities created so far
 	activities := listActivitiesResponse{}
@@ -2613,6 +2714,10 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
 	require.Equal(t, fleet.DiskEncryptionVerified, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
 	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, fleet.DiskEncryptionVerified, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
 
 	// maintainers are able to see the token
 	u := s.users["user1@example.com"]
@@ -7186,6 +7291,11 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 
 	host := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
+	// turn on disk encryption for the global team
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "enable_disk_encryption": true } }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value)
+
 	// try to call the endpoint while the host is not MDM-enrolled
 	res := s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
 		OrbitNodeKey:  *host.OrbitNodeKey,
@@ -7209,10 +7319,13 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.NotNil(t, hdek.Decryptable)
 	require.True(t, *hdek.Decryptable)
 
-	// the disk encryption status of the host is not set with this request
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
-	require.Nil(t, hostResp.Host.DiskEncryptionEnabled)
+	require.Nil(t, hostResp.Host.DiskEncryptionEnabled) // the disk encryption status of the host is not set by the orbit request
+	require.NotNil(t, hostResp.Host.MDM.OSSettings)
+	require.NotNil(t, hostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, fleet.DiskEncryptionEnforcing, *hostResp.Host.MDM.OSSettings.DiskEncryption.Status) // still pending because disk encryption status is not set
+	require.Equal(t, "", hostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
 
 	// the key is encrypted the same way as the macOS keys (except with the WSTEP
 	// certificate), so it can be decrypted using the same decryption function.
@@ -7233,6 +7346,13 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.Nil(t, hdek.Decryptable)
 	require.Empty(t, hdek.Base64Encrypted)
 
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.Nil(t, hostResp.Host.DiskEncryptionEnabled) // the disk encryption status of the host is not set by the orbit request
+	require.NotNil(t, hostResp.Host.MDM.OSSettings)
+	require.NotNil(t, hostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, fleet.DiskEncryptionFailed, *hostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, "fail", hostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
+
 	// set a different key
 	s.Do("POST", "/api/fleet/orbit/disk_encryption_key", orbitPostDiskEncryptionKeyRequest{
 		OrbitNodeKey:  *host.OrbitNodeKey,
@@ -7244,9 +7364,27 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.NotNil(t, hdek.Decryptable)
 	require.True(t, *hdek.Decryptable)
 
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.Nil(t, hostResp.Host.DiskEncryptionEnabled) // the disk encryption status of the host is not set by the orbit request
+	require.NotNil(t, hostResp.Host.MDM.OSSettings)
+	require.NotNil(t, hostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, fleet.DiskEncryptionEnforcing, *hostResp.Host.MDM.OSSettings.DiskEncryption.Status) // still pending because disk encryption status is not set
+	require.Equal(t, "", hostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
+
 	decrypted, err = servermdm.DecryptBase64CMS(hdek.Base64Encrypted, wstepCert.Leaf, wstepCert.PrivateKey)
 	require.NoError(t, err)
 	require.Equal(t, "DEF", string(decrypted))
+
+	// report host disks as encrypted
+	err = s.ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true)
+	require.NoError(t, err)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.True(t, *hostResp.Host.DiskEncryptionEnabled)
+	require.NotNil(t, hostResp.Host.MDM.OSSettings)
+	require.NotNil(t, hostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, fleet.DiskEncryptionVerified, *hostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, "", hostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
 }
 
 // ///////////////////////////////////////////////////////////////////////////

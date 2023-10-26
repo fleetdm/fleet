@@ -1399,7 +1399,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	return submitLogsResponse{Err: err}, nil
 }
 
-func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults []json.RawMessage) (unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
+func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults []json.RawMessage, queryReportsDisabled bool) (unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1410,6 +1410,10 @@ func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults
 			// Note we store a nil item if the result could not be unmarshaled.
 		}
 		unmarshaledResults = append(unmarshaledResults, result)
+	}
+
+	if queryReportsDisabled {
+		return unmarshaledResults, nil
 	}
 
 	queriesDBData = make(map[string]*fleet.Query)
@@ -1456,8 +1460,22 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	// otherwise the results will never clear from its local DB and
 	// will keep retrying forever.
 	//
-	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs)
-	svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData)
+
+	var queryReportsDisabled bool
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		level.Error(svc.logger).Log("msg", "getting app config", "err", err)
+		// If we fail to load the app config we assume the flag to be disabled
+		// to not perform extra processing in that scenario.
+		queryReportsDisabled = true
+	} else {
+		queryReportsDisabled = appConfig.ServerSettings.QueryReportsDisabled
+	}
+
+	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
+	if !queryReportsDisabled {
+		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData)
+	}
 
 	var filteredLogs []json.RawMessage
 	for i, unmarshaledResult := range unmarshaledResults {
@@ -1465,6 +1483,23 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 			// Ignore results that could not be unmarshaled.
 			continue
 		}
+		if queryReportsDisabled {
+			// If query_reports_disabled=true we write the logs
+			// to the logging destination without any extra processing.
+			//
+			// If a query has automations_enabled = 0 we may still write the results for it here.
+			// Eventually the query will be removed from the host schedule and thus Fleet
+			// won't receive any further results anymore (/api/v1/osquery/config).
+			filteredLogs = append(filteredLogs, logs[i])
+			continue
+		}
+
+		//
+		// If query_reports_disabled=false then we need to filter
+		// the queries that have automations_enabled=false because
+		// the query might have been scheduled because of discard_data=false.
+		//
+
 		dbQuery, ok := queriesDBData[unmarshaledResult.QueryName]
 		if !ok {
 			// Ignore results for unknown queries.
@@ -1476,6 +1511,11 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 		}
 		filteredLogs = append(filteredLogs, logs[i])
 	}
+
+	if len(filteredLogs) == 0 {
+		return nil
+	}
+
 	if err := svc.osqueryLogWriter.Result.Write(ctx, filteredLogs); err != nil {
 		return newOsqueryError("error writing result logs: " + err.Error())
 	}
@@ -1493,16 +1533,6 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		level.Error(svc.logger).Log("err", "getting host from context")
-		return
-	}
-
-	// Do not insert results if query reports are disabled globally
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		level.Error(svc.logger).Log("msg", "getting app config", "err", err)
-		return
-	}
-	if appConfig.ServerSettings.QueryReportsDisabled {
 		return
 	}
 
@@ -1526,6 +1556,17 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 			continue
 		}
 
+		// We first check the current query results count using the DB reader (also cached)
+		// to reduce the DB writer load of osquery/log requests when the host count is high.
+		count, err := svc.ds.ResultCountForQuery(ctx, dbQuery.ID)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "get result count for query", "err", err, "query_id", dbQuery.ID)
+			continue
+		}
+		if count >= fleet.MaxQueryReportRows {
+			continue
+		}
+
 		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID); err != nil {
 			level.Error(svc.logger).Log("msg", "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
@@ -1533,31 +1574,28 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 	}
 }
 
-// The "snapshot" array in a ScheduledQueryResult can contain multiple rows.  Each
-// row is saved as a separate ScheduledQueryResultRow. ie. a result could contain
-// many USB Devices or a result could contain all User Accounts on a host.
+// overwriteResultRows deletes existing and inserts the new results for a query and host.
+//
+// The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
+// Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
+// many USB Devices or a result could contain all user accounts on a host.
 func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint) error {
 	fetchTime := time.Now()
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
-
 	for _, snapshotItem := range result.Snapshot {
-
 		row := &fleet.ScheduledQueryResultRow{
 			QueryID:     queryID,
 			HostID:      hostID,
 			Data:        snapshotItem,
 			LastFetched: fetchTime,
 		}
-
 		rows = append(rows, row)
-
 	}
 
 	if err := svc.ds.OverwriteQueryResultRows(ctx, rows); err != nil {
 		return ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
-
 	return nil
 }
 

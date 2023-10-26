@@ -1202,4 +1202,3 @@ List of saved scripts that can be run on all hosts.
 > **Note:** More settings are included in the [contributor documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Configuration-for-contributors.md). It's possible, although not recommended, to configure these settings in the YAML configuration file.
 
 <meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure Fleet.">
-<meta name="navSection" value="Fleet server">
