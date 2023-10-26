@@ -269,12 +269,8 @@ resource "aws_cloudwatch_metric_alarm" "acm_certificate_expired" {
 }
 
 // Cron Monitoring
-locals {
-  cron_monitoring_filename = "${path.module}/lambda.tar.gz"
-
-}
-
 resource "null_resource" "cron_monitoring_build" {
+  count = var.cron_monitoring == null ? 0 : 1
   provisioner "local-exec" {
     working_dir = "${path.module}/lambda"
     command     = <<-EOT
@@ -285,13 +281,14 @@ resource "null_resource" "cron_monitoring_build" {
 }
 
 data "archive_file" "cron_monitoring_lambda" {
-  depends_on   = [null_resource.cron_monitoring_sync_build]
-  type         = "zip"
-  output_path  = "${path.module}/lambda/.lambda.zip"
-  source_file  = "${path.module}/lambda/lambda"
+  depends_on  = [null_resource.cron_monitoring_build]
+  type        = "zip"
+  output_path = "${path.module}/lambda/.lambda.zip"
+  source_file = "${path.module}/lambda/lambda"
 }
 
 resource "aws_lambda_function" "cron_monitoring" {
+  count = var.cron_monitoring == null ? 0 : 1
 
   depends_on = [
     null_resource.cron_monitoring_build,
@@ -311,7 +308,7 @@ resource "aws_lambda_function" "cron_monitoring" {
     mode = "Active"
   }
 
-  role = aws_iam_role.cron_monitoring_lambda.arn
+  role = aws_iam_role.cron_monitoring_lambda[0].arn
 
   environment {
     variables = {
@@ -338,24 +335,27 @@ data "aws_iam_policy_document" "cron_monitoring_lambda_assume_role" {
 }
 
 resource "aws_iam_role_policy_attachment" "cron_monitoring_lambda" {
-  role       = aws_iam_role.cron_monitoring_lambda.id
-  policy_arn = aws_iam_policy.cron_monitoring_lambda.arn
+  count      = var.cron_monitoring == null ? 0 : 1
+  role       = aws_iam_role.cron_monitoring_lambda[0].id
+  policy_arn = aws_iam_policy.cron_monitoring_lambda[0].arn
 }
 
 resource "aws_iam_role_policy_attachment" "cron_monitoring_lambda_managed" {
-  for_each   = toset(local.idp_scim_sync_iam_managed_policies)
-  role       = aws_iam_role.lambda.id
-  policy_arn = each.key
+  count      = var.cron_monitoring == null ? 0 : 1
+  role       = aws_iam_role.cron_monitoring_lambda[0].id
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 resource "aws_iam_policy" "cron_monitoring_lambda" {
-  name     = "${var.customer_prefix}-cron-monitoring"
-  policy   = data.aws_iam_policy_document.cron_monitoring_lambda.json
+  count  = var.cron_monitoring == null ? 0 : 1
+  name   = "${var.customer_prefix}-cron-monitoring"
+  policy = data.aws_iam_policy_document.cron_monitoring_lambda.json
 }
 
 resource "aws_iam_role" "cron_monitoring_lambda" {
+  count              = var.cron_monitoring == null ? 0 : 1
   name               = "idp-scim-sync-lambda"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+  assume_role_policy = data.aws_iam_policy_document.cron_monitoring_lambda_assume_role.json
 }
 
 data "aws_iam_policy_document" "cron_monitoring_lambda" {
@@ -381,7 +381,7 @@ data "aws_iam_policy_document" "cron_monitoring_lambda" {
       "sns:Publish"
     ]
 
-    resources = [var.sns_topic_arn]
+    resources = [var.cron_monitoring.sns_topic_arn]
 
     effect = "Allow"
   }
@@ -389,25 +389,29 @@ data "aws_iam_policy_document" "cron_monitoring_lambda" {
 }
 
 resource "aws_cloudwatch_log_group" "cron_monitoring_lambda" {
+  count             = var.cron_monitoring == null ? 0 : 1
   name              = "/aws/lambda/${var.customer_prefix}-cron-monitoring"
   retention_in_days = 7
 
 }
 
 resource "aws_cloudwatch_event_rule" "cron_monitoring_lambda" {
+  count               = var.cron_monitoring == null ? 0 : 1
   name                = "${var.customer_prefix}-cron-monitoring"
   schedule_expression = "rate(2 hours)"
   is_enabled          = true
 }
 
 resource "aws_cloudwatch_event_target" "cron_monitoring_lambda" {
-  rule     = aws_cloudwatch_event_rule.cron_monitoring_lambda.name
-  arn      = aws_lambda_function.cron_monitoring.arn
+  count = var.cron_monitoring == null ? 0 : 1
+  rule  = aws_cloudwatch_event_rule.cron_monitoring_lambda[0].name
+  arn   = aws_lambda_function.cron_monitoring[0].arn
 }
 
 resource "aws_lambda_permission" "cron_monitoring_cloudwatch" {
+  count         = var.cron_monitoring == null ? 0 : 1
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.cron_monitoring.id
+  function_name = aws_lambda_function.cron_monitoring[0].id
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.cron_monitoring_lambda.arn
+  source_arn    = aws_cloudwatch_event_rule.cron_monitoring_lambda[0].arn
 }

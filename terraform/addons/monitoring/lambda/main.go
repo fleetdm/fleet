@@ -46,6 +46,7 @@ type OptionsStruct struct {
 	MySQLSMSecret      string `long:"mysql-secretsmanager-secret" env:"MYSQL_SECRETSMANAGER_SECRET" required:"true"`
 	MySQLDatabase      string `long:"mysql-database" env:"MYSQL_DATABASE" required:"true"`
 	FleetEnv           string `long:"fleet-environment" env:"FLEET_ENV" required:"true"`
+	AWSRegion          string `long:"aws-region" env:"AWS_REGION" required:"true"`
 }
 
 var options = OptionsStruct{}
@@ -140,12 +141,11 @@ func checkDB(sess *session.Session) (err error) {
 }
 
 func handler(ctx context.Context, name NullEvent) error {
-	region := "us-east-2"
 	sess := session.Must(session.NewSessionWithOptions(
 		session.Options{
 			SharedConfigState: session.SharedConfigEnable,
 			Config: aws.Config{
-				Region: &region,
+				Region: &options.AWSRegion,
 			},
 		},
 	))
