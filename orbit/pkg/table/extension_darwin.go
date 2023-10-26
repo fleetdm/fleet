@@ -27,7 +27,6 @@ import (
 	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
 	"github.com/kolide/launcher/pkg/osquery/tables/ioreg"
 	"github.com/kolide/launcher/pkg/osquery/tables/mdmclient"
-	"github.com/kolide/launcher/pkg/osquery/tables/osquery_user_exec_table"
 	"github.com/kolide/launcher/pkg/osquery/tables/profiles"
 	"github.com/kolide/launcher/pkg/osquery/tables/pwpolicy"
 	"github.com/kolide/launcher/pkg/osquery/tables/systemprofiler"
@@ -100,37 +99,6 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.XmlType),   // table name is "parse_xml"
 		dataflattentable.TablePlugin(kolideLogger, dataflattentable.IniType),   // table name is "parse_ini"
 
-		osquery_user_exec_table.TablePlugin(
-			kolideLogger, "kolide_keychain_items",
-			currentOsquerydBinaryPath, keychainAclsQuery,
-			[]table.ColumnDefinition{
-				table.TextColumn("label"),
-				table.TextColumn("description"),
-				table.TextColumn("comment"),
-				table.TextColumn("created"),
-				table.TextColumn("modified"),
-				table.TextColumn("type"),
-				table.TextColumn("path"),
-			}),
-
-		osquery_user_exec_table.TablePlugin(
-			kolideLogger, "kolide_keychain_acls",
-			currentOsquerydBinaryPath, keychainItemsQuery,
-			[]table.ColumnDefinition{
-				table.TextColumn("keychain_path"),
-				table.TextColumn("authorizations"),
-				table.TextColumn("path"),
-				table.TextColumn("description"),
-				table.TextColumn("label"),
-			}),
-
-		osquery_user_exec_table.TablePlugin(
-			kolideLogger, "kolide_screenlock",
-			currentOsquerydBinaryPath, screenlockQuery,
-			[]table.ColumnDefinition{
-				table.IntegerColumn("enabled"),
-				table.IntegerColumn("grace_period"),
-			}),
 	}
 
 	// append platform specific tables
