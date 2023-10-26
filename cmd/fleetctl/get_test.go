@@ -2051,9 +2051,6 @@ func TestGetMDMCommandResults(t *testing.T) {
 			{ID: 2, UUID: uuids[1], Hostname: "host2"},
 		}, nil
 	}
-	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
-		return "", nil
-	}
 	getCommandResults := func(commandUUID string) ([]*fleet.MDMCommandResult, error) {
 		switch commandUUID {
 		case "empty-cmd":
@@ -2110,7 +2107,6 @@ func TestGetMDMCommandResults(t *testing.T) {
 		ds.GetMDMCommandPlatformFuncInvoked = false
 		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
-		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
 
 		platform = "windows"
 		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
@@ -2120,7 +2116,6 @@ func TestGetMDMCommandResults(t *testing.T) {
 		ds.GetMDMCommandPlatformFuncInvoked = false
 		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
-		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
 	})
 
 	t.Run("command results error", func(t *testing.T) {
@@ -2133,7 +2128,6 @@ func TestGetMDMCommandResults(t *testing.T) {
 		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
 		ds.GetMDMAppleCommandResultsFuncInvoked = false
-		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
 
 		platform = "windows"
 		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
@@ -2144,7 +2138,6 @@ func TestGetMDMCommandResults(t *testing.T) {
 		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		ds.GetMDMWindowsCommandResultsFuncInvoked = false
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
-		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
 	})
 
 	t.Run("command results empty", func(t *testing.T) {
@@ -2163,7 +2156,6 @@ func TestGetMDMCommandResults(t *testing.T) {
 		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
 		ds.GetMDMAppleCommandResultsFuncInvoked = false
-		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
 
 		platform = "windows"
 		buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
@@ -2174,7 +2166,6 @@ func TestGetMDMCommandResults(t *testing.T) {
 		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		ds.GetMDMWindowsCommandResultsFuncInvoked = false
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
-		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
 	})
 
 	t.Run("command results", func(t *testing.T) {
@@ -2217,7 +2208,6 @@ func TestGetMDMCommandResults(t *testing.T) {
 		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
 		ds.GetMDMAppleCommandResultsFuncInvoked = false
-		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
 
 		platform = "windows"
 		buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
@@ -2228,7 +2218,6 @@ func TestGetMDMCommandResults(t *testing.T) {
 		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		ds.GetMDMWindowsCommandResultsFuncInvoked = false
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
-		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
 	})
 }
 
