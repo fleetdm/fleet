@@ -30,7 +30,6 @@ The Sales department is directly responsible for attaining the revenue goals of 
 Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
 
 
-
 ## Contacting Fleet: customer support service level agreements (SLA's)
 
 ### Fleet Free
@@ -237,7 +236,7 @@ For all subscription agreements, NDAs, and similar contracts, Fleet maintains a 
 Exceptions to these maximum allowable adjustments always require CEO approval, whether in the form of redlines to Fleet's agreements or in terms on a prospective customer's own contract.
 
 #### Non-standard NDAs
-To get a non-standard NDA (a non-disclosure agreement from another party) signed, [request a legal review](https://fleetdm.com/handbook/business-operations#intake).
+To get a non-standard NDA (a non-disclosure agreement from another party) signed, [request a legal review](https://fleetdm.com/handbook/business-operations#contact-us).
 
 #### Reviewing subscription agreement
 To quickly get help doing a legal review of a prospect subscription agreement, with or without redlines:
@@ -350,5 +349,3 @@ You can help a Premium license dispenser customers change their credit card by d
 
 <meta name="maintainedBy" value="alexmitchelliii">
 <meta name="title" value="🐋 Customers">
-
-
