@@ -10,19 +10,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 
-	"github.com/kolide/launcher/pkg/osquery/tables/crowdstrike/falcon_kernel_check"
-	"github.com/kolide/launcher/pkg/osquery/tables/crowdstrike/falconctl"
 	"github.com/kolide/launcher/pkg/osquery/tables/cryptoinfotable"
 	"github.com/kolide/launcher/pkg/osquery/tables/dev_table_tooling"
 	"github.com/kolide/launcher/pkg/osquery/tables/firefox_preferences"
 	"github.com/kolide/launcher/pkg/osquery/tables/osquery_instance_history"
 	"github.com/kolide/launcher/pkg/osquery/tables/secureboot"
 	"github.com/kolide/launcher/pkg/osquery/tables/zfs"
-
-	// TODO: Fix build erros
-	//"github.com/kolide/launcher/pkg/osquery/tables/falcon_kernel_check"  //TODO: Fix build error
-
-	//"github.com/kolide/launcher/pkg/osquery/tables/secureboot"
 
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
@@ -47,7 +40,7 @@ type Runner struct {
 type Extension interface {
 	// Name returns the name of the table.
 	Name() string
-	// Column returns the definition of the table columns.
+	// Columns returns the definition of the table columns.
 	Columns() []table.ColumnDefinition
 	// GenerateFunc generates results for a query.
 	GenerateFunc(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error)
@@ -146,23 +139,14 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 		// Kolide extensions.
 		firefox_preferences.TablePlugin(kolideLogger),
-		// fscrypt_info.TablePlugin(kolideLogger),
 		osquery_instance_history.TablePlugin(),
 		secureboot.TablePlugin(kolideLogger),
 		// kolide_dev_table_tooling table allows running arbitrary commands. As of 2023/10/24, only 'echo' and 'cb_repcli' are supported.
 		// RepCLI info: https://community.carbonblack.com/t5/Knowledge-Base/Carbon-Black-Cloud-What-is-the-RepCLI-Utility/ta-p/61991
 		dev_table_tooling.TablePlugin(kolideLogger),
-
-		falcon_kernel_check.TablePlugin(kolideLogger),
-		falconctl.NewFalconctlOptionTable(kolideLogger),
 		cryptoinfotable.TablePlugin(kolideLogger),
-		zfs.ZfsPropertiesPlugin(kolideLogger),   // table name is "kolide_zfs_properties"
-		zfs.ZpoolPropertiesPlugin(kolideLogger), // table name is "kolide_zpool_properties"
-		// desktopprocs.TablePlugin(),
-
-		// TODO: Need coding/other
-		// dataflattentable.TablePlugin(kolideLogger, dataSourceType),
-		// launcher_db.TablePlugin(tableName string, iterator types.Iterator),
+		zfs.ZfsPropertiesPlugin(kolideLogger),   // table name is "zfs_properties"
+		zfs.ZpoolPropertiesPlugin(kolideLogger), // table name is "zpool_properties"
 	}
 	return plugins
 }
