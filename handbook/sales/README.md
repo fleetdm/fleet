@@ -30,6 +30,20 @@ The Sales department is directly responsible for attaining the revenue goals of 
 Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
 
 
+## Contract terms
+Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
+- **Effective date:** The start date for the subscription service.
+- **Close date:** The date the last party to the contract signed the agreement.
+- **Invoice date:** The date that Fleet sent the invoice to the customer.
+
+Fleeties can find a summary of contract terms in the relevant [customer's Salesforce opportunity.](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Recent)
+
+### Standard terms
+For all subscription agreements, NDAs, and similar contracts, Fleet maintains a [standard set of terms and maximum allowable adjustments for those terms](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit#gid=1136345578).
+
+Exceptions to these maximum allowable adjustments always require CEO approval, whether in the form of redlines to Fleet's agreements or in terms on a prospective customer's own contract.
+
+
 ## Contacting Fleet: customer support service level agreements (SLA's)
 
 ### Fleet Free
