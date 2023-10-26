@@ -13,8 +13,6 @@ import (
 	"github.com/kolide/launcher/pkg/osquery/tables/cryptoinfotable"
 	"github.com/kolide/launcher/pkg/osquery/tables/dev_table_tooling"
 	"github.com/kolide/launcher/pkg/osquery/tables/firefox_preferences"
-	"github.com/kolide/launcher/pkg/osquery/tables/osquery_instance_history"
-	"github.com/kolide/launcher/pkg/osquery/tables/secureboot"
 	"github.com/kolide/launcher/pkg/osquery/tables/zfs"
 
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
@@ -139,8 +137,6 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 		// Kolide extensions.
 		firefox_preferences.TablePlugin(kolideLogger),
-		osquery_instance_history.TablePlugin(),
-		secureboot.TablePlugin(kolideLogger),
 		// kolide_dev_table_tooling table allows running arbitrary commands. As of 2023/10/24, only 'echo' and 'cb_repcli' are supported.
 		// RepCLI info: https://community.carbonblack.com/t5/Knowledge-Base/Carbon-Black-Cloud-What-is-the-RepCLI-Utility/ta-p/61991
 		dev_table_tooling.TablePlugin(kolideLogger),
