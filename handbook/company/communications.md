@@ -1366,15 +1366,17 @@ This glossary provides definitions to commonly used terms within our space.
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
-Please see 📖[handbook/company/communications#purchase-company-issued-equipment](https://fleetdm.com/handbook/company/communications#equipment).
+Please see 📖[handbook/company/communications#purchase-company-issued-equipment](https://fleetdm.com/handbook/company/communications#equipment) for below.
 ##### Equipment retention and replacement
 ##### Returning equipment
 ##### Tracking equipment
 ##### Reprovisioning equipment
 ##### Buying other new equipment
-Please see 📖[handbook/company/communications#purchase-company-issued-equipment](https://fleetdm.com/handbook/company/communications#equipment).
+Please see 📖[handbook/company/communications#purchase-company-issued-equipment](https://fleetdm.com/handbook/company/communications#equipment) for above.
+
 ##### Purchasing a company-issued device
-Please see 📖[handbook/company/communications#purchase-company-issued-equipment](https://fleetdm.com/handbook/company/communications#travel).
+Please see 📖[handbook/business-operations/#secure-company-issued-equipment-for-a-team-member](https://fleetdm.com/handbook/business-operations/#secure-company-issued-equipment-for-a-team-member).
+
 ##### Company travel
 Please see 📖[handbook/company/communications#travel](https://fleetdm.com/handbook/company/communications#travel).
 
