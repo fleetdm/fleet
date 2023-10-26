@@ -28,12 +28,10 @@ import (
 	"github.com/kolide/launcher/pkg/osquery/tables/ioreg"
 	"github.com/kolide/launcher/pkg/osquery/tables/mdmclient"
 	kolidemunki "github.com/kolide/launcher/pkg/osquery/tables/munki"
+	"github.com/kolide/launcher/pkg/osquery/tables/osquery_user_exec_table"
 	"github.com/kolide/launcher/pkg/osquery/tables/profiles"
 	"github.com/kolide/launcher/pkg/osquery/tables/pwpolicy"
 	"github.com/kolide/launcher/pkg/osquery/tables/systemprofiler"
-
-	// TODO: This Kolide table requires more complicated coding
-	"github.com/kolide/launcher/pkg/osquery/tables/osquery_user_exec_table"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
@@ -86,7 +84,7 @@ func PlatformTables() []osquery.OsqueryPlugin {
 
 		// Kolide tables
 		filevault.TablePlugin(kolideLogger),
-		// kolide_firmwarepasswd table. Only returns valid data on a Mac with an Intel processor. Background: https://support.apple.com/en-us/HT204455
+		// firmwarepasswd table. Only returns valid data on a Mac with an Intel processor. Background: https://support.apple.com/en-us/HT204455
 		firmwarepasswd.TablePlugin(kolideLogger),
 		ioreg.TablePlugin(kolideLogger),
 		profiles.TablePlugin(kolideLogger),
@@ -97,13 +95,13 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		mdmclient.TablePlugin(kolideLogger),
 		kolidemunki.New().ManagedInstalls(kolideLogger),
 		kolidemunki.New().MunkiReport(kolideLogger),
-		systemprofiler.TablePlugin(kolideLogger), // table name is "kolide_system_profiler"
-		// Tables for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
-		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonType),  // table name is "kolide_json"
-		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonlType), // table name is "kolide_jsonl"
-		dataflattentable.TablePlugin(kolideLogger, dataflattentable.XmlType),   // table name is "kolide_xml"
-		dataflattentable.TablePlugin(kolideLogger, dataflattentable.IniType),   // table name is "kolide_ini"
-		dataflattentable.TablePlugin(kolideLogger, dataflattentable.PlistType), // table name is "kolide_plist"
+		systemprofiler.TablePlugin(kolideLogger), // table name is "system_profiler"
+		// Table for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.PlistType), // table name is "parse_plist"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonType),  // table name is "parse_json"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonlType), // table name is "parse_jsonl"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.XmlType),   // table name is "parse_xml"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.IniType),   // table name is "parse_ini"
 
 		osquery_user_exec_table.TablePlugin(
 			kolideLogger, "kolide_keychain_items",
