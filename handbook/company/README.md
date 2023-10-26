@@ -126,7 +126,7 @@ Fleet raised its Series A funding round.  The world now has at least 1.65 millio
 
 - 🔦 [Business Operations](https://fleetdm.com/handbook/business-operations): The Business Operations department is directly responsible for these traditional functions: People, Finance, Legal, IT, and Revenue Operations (RevOps).
 - 🐋 [Sales](https://fleetdm.com/handbook/customers): The Sales department is directly responsible for attaining the revenue goals of Fleet and helping customers deliver on their objectives.
-- 🏹 [Customer Success](https://fleetdm.com/handbook/customer-success): The Customer Success department is directly responsible for connecting with and advocating for the community and customers.
+- 🏹 [Customer Success](https://fleetdm.com/handbook/customer-success): The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
 - 🫧 [Demand](https://fleetdm.com/handbook/demand): The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other programs.
 - 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product.
 - 🦢 [Product Design](https://fleetdm.com/handbook/product): The Product Design department is directly responsible for defining and prioritizing the changes made to the core product.
