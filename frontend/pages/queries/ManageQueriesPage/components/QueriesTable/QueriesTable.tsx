@@ -40,7 +40,6 @@ interface IQueriesTableProps {
     order_key?: string;
     order_direction?: "asc" | "desc";
     team_id?: string;
-    inherited_table?: "true";
     inherited_order_key?: string;
     inherited_order_direction?: "asc" | "desc";
     inherited_page?: string;
@@ -103,17 +102,19 @@ const QueriesTable = ({
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams?.query ?? "")();
   const initialSortHeader = (() =>
-    (queryParams?.order_key as "name" | "updated_at" | "author") ?? "name")();
+    (queryParams?.order_key as "name" | "updated_at" | "author") ??
+    DEFAULT_SORT_HEADER)();
   const initialSortDirection = (() =>
-    (queryParams?.order_direction as "asc" | "desc") ?? "asc")();
+    (queryParams?.order_direction as "asc" | "desc") ??
+    DEFAULT_SORT_DIRECTION)();
   const initialPlatform = (() =>
     (queryParams?.platform as "all" | "windows" | "linux" | "darwin") ??
-    "all")();
+    DEFAULT_PLATFORM)();
   const initialPage = (() =>
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
   const initialInheritedSortHeader = (() =>
     (queryParams?.inherited_order_key as "name" | "failing_host_count") ??
-    "name")();
+    DEFAULT_SORT_HEADER)();
   const initialInheritedSortDirection = (() =>
     (queryParams?.inherited_order_direction as "asc" | "desc") ??
     DEFAULT_SORT_DIRECTION)();
