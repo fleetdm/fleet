@@ -2052,12 +2052,9 @@ func TestGetMDMCommandResults(t *testing.T) {
 		}, nil
 	}
 	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
-		if commandUUID == "no-such-cmd" {
-			return "", &notFoundError{}
-		}
-		return "test", nil
+		return "", nil
 	}
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	getCommandResults := func(commandUUID string) ([]*fleet.MDMCommandResult, error) {
 		switch commandUUID {
 		case "empty-cmd":
 			return nil, nil
@@ -2084,30 +2081,104 @@ func TestGetMDMCommandResults(t *testing.T) {
 			}, nil
 		}
 	}
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+		return getCommandResults(commandUUID)
+	}
+	ds.GetMDMWindowsCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+		return getCommandResults(commandUUID)
+	}
+	var platform string
+	ds.GetMDMCommandPlatformFunc = func(ctx context.Context, commandUUID string) (string, error) {
+		if commandUUID == "no-such-cmd" {
+			return "", &notFoundError{}
+		}
+		return platform, nil
+	}
 
-	_, err := runAppNoChecks([]string{"get", "mdm-command-results"})
-	require.Error(t, err)
-	require.ErrorContains(t, err, `Required flag "id" not set`)
+	t.Run("command flag required", func(t *testing.T) {
+		_, err := runAppNoChecks([]string{"get", "mdm-command-results"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `Required flag "id" not set`)
+	})
 
-	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
-	require.Error(t, err)
-	require.ErrorContains(t, err, `The command doesn't exist.`)
+	t.Run("command not found", func(t *testing.T) {
+		platform = "darwin"
+		_, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `The command doesn't exist.`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
 
-	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
-	require.Error(t, err)
-	require.ErrorContains(t, err, `EOF`)
+		platform = "windows"
+		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `The command doesn't exist.`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
+	})
 
-	buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
-	require.NoError(t, err)
-	require.Contains(t, buf.String(), strings.TrimSpace(`
+	t.Run("command results error", func(t *testing.T) {
+		platform = "darwin"
+		_, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `EOF`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		ds.GetMDMAppleCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
+
+		platform = "windows"
+		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `EOF`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		ds.GetMDMWindowsCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
+	})
+
+	t.Run("command results empty", func(t *testing.T) {
+		expectedOutput := strings.TrimSpace(`
 +----+------+------+--------+----------+---------+
 | ID | TIME | TYPE | STATUS | HOSTNAME | RESULTS |
 +----+------+------+--------+----------+---------+
-`))
+`)
 
-	buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
-	require.NoError(t, err)
-	require.Contains(t, buf.String(), strings.TrimSpace(`
+		platform = "darwin"
+		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		ds.GetMDMAppleCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
+
+		platform = "windows"
+		buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		ds.GetMDMWindowsCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
+	})
+
+	t.Run("command results", func(t *testing.T) {
+		expectedOutput := strings.TrimSpace(`
 +-----------+----------------------+------+--------------+----------+---------------------------------------------------+
 |    ID     |         TIME         | TYPE |    STATUS    | HOSTNAME |                      RESULTS                      |
 +-----------+----------------------+------+--------------+----------+---------------------------------------------------+
@@ -2135,7 +2206,30 @@ func TestGetMDMCommandResults(t *testing.T) {
 |           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
 |           |                      |      |              |          | </plist>                                          |
 +-----------+----------------------+------+--------------+----------+---------------------------------------------------+
-`))
+`)
+
+		platform = "darwin"
+		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		ds.GetMDMAppleCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
+
+		platform = "windows"
+		buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		ds.GetMDMWindowsCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		require.False(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
+	})
 }
 
 func TestGetMDMCommands(t *testing.T) {
