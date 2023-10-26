@@ -131,6 +131,10 @@ func TestMDMRunCommand(t *testing.T) {
 	require.Contains(t, buf.String(), `The hosts will run the command the next time it checks into Fleet.`)
 	require.Contains(t, buf.String(), `fleetctl get mdm-command-results --id=`)
 
+	// --context and --debug flags are accepted
+	_, err = runAppNoChecks([]string{"mdm", "run-command", "--context", "test", "--debug", "--host", "valid-host", "--payload", cmdFilePath})
+	require.NoError(t, err)
+
 	// try to run a fleet premium command
 	cmdFilePath = writeTmpMDMCmd(t, "EraseDevice")
 	_, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "valid-host", "--payload", cmdFilePath})
