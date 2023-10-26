@@ -696,8 +696,6 @@ type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID strin
 
 type GetMDMCommandPlatformFunc func(ctx context.Context, commandUUID string) (string, error)
 
-type GetMDMCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
-
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
 type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) error
@@ -1723,9 +1721,6 @@ type DataStore struct {
 
 	GetMDMCommandPlatformFunc        GetMDMCommandPlatformFunc
 	GetMDMCommandPlatformFuncInvoked bool
-
-	GetMDMCommandResultsFunc        GetMDMCommandResultsFunc
-	GetMDMCommandResultsFuncInvoked bool
 
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
@@ -4113,13 +4108,6 @@ func (s *DataStore) GetMDMCommandPlatform(ctx context.Context, commandUUID strin
 	s.GetMDMCommandPlatformFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMCommandPlatformFunc(ctx, commandUUID)
-}
-
-func (s *DataStore) GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
-	s.mu.Lock()
-	s.GetMDMCommandResultsFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMCommandResultsFunc(ctx, commandUUID)
 }
 
 func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {

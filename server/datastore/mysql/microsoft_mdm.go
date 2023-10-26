@@ -348,7 +348,7 @@ SELECT
     wmcr.command_uuid,
     wmcr.status_code as status,
 	wmcr.updated_at,
-	wmc.target_loc_uri as request_type,
+    wmc.target_loc_uri as request_type,
     wmcr.raw_result as result
 FROM
     windows_mdm_command_results wmcr
@@ -357,9 +357,9 @@ INNER JOIN
 ON
     wmcr.command_uuid = wmc.command_uuid
 INNER JOIN
-	mdm_windows_enrollments mwe
+    mdm_windows_enrollments mwe
 ON
-	wmcr.enrollment_id = mwe.id
+    wmcr.enrollment_id = mwe.id
 WHERE
     wmcr.command_uuid = ?
 `

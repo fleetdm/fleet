@@ -1069,11 +1069,8 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// MDM Commands
 
-	// GetMDMCommandRequestType returns the platform (i.e. "macos" or "windows") for the given command
+	// GetMDMCommandPlatform returns the platform (i.e. "darwin" or "windows") for the given command.
 	GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error)
-
-	// GetMDMCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results

@@ -360,11 +360,9 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
 		return getResults(commandUUID)
 	}
-	ds.GetMDMCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
-		return getResults(commandUUID)
-	}
+
 	ds.GetMDMCommandPlatformFunc = func(ctx context.Context, commandUUID string) (string, error) {
-		return "macos", nil
+		return "darwin", nil
 	}
 
 	t.Run("GetMDMAppleCommandResults", func(t *testing.T) {
