@@ -40,6 +40,10 @@ interface IQueriesTableProps {
     order_key?: string;
     order_direction?: "asc" | "desc";
     team_id?: string;
+    inherited_table?: "true";
+    inherited_order_key?: string;
+    inherited_order_direction?: "asc" | "desc";
+    inherited_page?: string;
   };
   isInherited?: boolean;
 }
@@ -107,13 +111,27 @@ const QueriesTable = ({
     "all")();
   const initialPage = (() =>
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
+  const initialInheritedSortHeader = (() =>
+    (queryParams?.inherited_order_key as "name" | "failing_host_count") ??
+    "name")();
+  const initialInheritedSortDirection = (() =>
+    (queryParams?.inherited_order_direction as "asc" | "desc") ??
+    DEFAULT_SORT_DIRECTION)();
+  const initialInheritedPage = (() =>
+    queryParams && queryParams.inherited_page
+      ? parseInt(queryParams?.inherited_page, 10)
+      : 0)();
 
   // Never set as state as URL is source of truth
   const searchQuery = initialSearchQuery;
   const platform = initialPlatform;
-  const page = initialPage;
-  const sortDirection = initialSortDirection;
-  const sortHeader = initialSortHeader;
+  const page = isInherited ? initialInheritedPage : initialPage;
+  const sortDirection = isInherited
+    ? initialInheritedSortDirection
+    : initialSortDirection;
+  const sortHeader = isInherited
+    ? initialInheritedSortHeader
+    : initialSortHeader;
 
   // TODO: Look into useDebounceCallback with dependencies
   const onQueryChange = useCallback(
@@ -128,27 +146,44 @@ const QueriesTable = ({
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
 
-      if (!isEmpty(newSearchQuery)) {
-        newQueryParams.query = newSearchQuery;
+      newQueryParams.query = newSearchQuery;
+
+      // Updates main query table URL params
+      // No change to inherited query table URL params
+      if (!isInherited) {
+        newQueryParams.order_key = newSortHeader;
+        newQueryParams.order_direction = newSortDirection;
+        newQueryParams.platform = platform; // must set from URL
+        newQueryParams.page = newPageIndex;
+        // Reset page number to 0 for new filters
+        if (
+          newSortDirection !== sortDirection ||
+          newSortHeader !== sortHeader ||
+          newSearchQuery !== searchQuery
+        ) {
+          newQueryParams.page = "0";
+        }
       }
 
-      newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
-      newQueryParams.order_direction =
-        newSortDirection || DEFAULT_SORT_DIRECTION;
-      newQueryParams.platform = platform || DEFAULT_PLATFORM; // must set from URL
-      newQueryParams.page = newPageIndex;
-      // Reset page number to 0 for new filters
-      if (
-        newSortDirection !== sortDirection ||
-        newSortHeader !== sortHeader ||
-        newSearchQuery !== searchQuery
-      ) {
-        newQueryParams.page = 0;
+      // Updates inherited policy table URL params
+      // No change to main policy table URL params
+      if (isInherited) {
+        newQueryParams.inherited_order_key = newSortHeader;
+        newQueryParams.inherited_order_direction = newSortDirection;
+        newQueryParams.inherited_page = newPageIndex;
+        // Reset page number to 0 for new filters
+        if (
+          newSortDirection !== initialInheritedSortDirection ||
+          newSortHeader !== initialInheritedSortHeader
+        ) {
+          newQueryParams.inherited_page = "0";
+        }
       }
+
       newQueryParams.team_id = queryParams?.team_id;
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_QUERIES,
-        queryParams: newQueryParams,
+        queryParams: { ...queryParams, ...newQueryParams },
       });
 
       router?.replace(locationPath);
@@ -158,16 +193,19 @@ const QueriesTable = ({
 
   const onClientSidePaginationChange = useCallback(
     (pageIndex: number) => {
+      const newQueryParams = isInherited
+        ? {
+            ...queryParams,
+            inherited_page: pageIndex, // update inherited page index
+          }
+        : {
+            ...queryParams,
+            page: pageIndex, // update main table index
+          };
+
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_QUERIES,
-        queryParams: {
-          ...queryParams,
-          page: pageIndex,
-          platform,
-          query: searchQuery,
-          order_direction: sortDirection,
-          order_key: sortHeader,
-        },
+        queryParams: newQueryParams,
       });
       router?.replace(locationPath);
     },
@@ -255,7 +293,7 @@ const QueriesTable = ({
         isLoading={isLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
-        defaultSearchQuery={searchQuery}
+        defaultSearchQuery={isInherited ? "" : searchQuery}
         defaultPageIndex={page}
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
