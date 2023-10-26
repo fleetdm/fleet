@@ -275,16 +275,22 @@ resource "null_resource" "cron_monitoring_build" {
     working_dir = "${path.module}/lambda"
     command     = <<-EOT
       go get
-      go build .
+      GOOS=linux GOARCH=amd64 go build -tags lambda.norpc -o bootstrap main.go
     EOT
   }
 }
 
-data "archive_file" "cron_monitoring_lambda" {
-  depends_on  = [null_resource.cron_monitoring_build]
+resource "archive_file" "cron_monitoring_lambda" {
+  count       = var.cron_monitoring == null ? 0 : 1
+  depends_on  = [null_resource.cron_monitoring_build[0]]
   type        = "zip"
   output_path = "${path.module}/lambda/.lambda.zip"
-  source_file = "${path.module}/lambda/lambda"
+  source_file = "${path.module}/lambda/bootstrap"
+}
+
+data "aws_secretsmanager_secret" "mysql_database_password" {
+  count = var.cron_monitoring == null ? 0 : 1
+  name  = var.cron_monitoring.mysql_password_secret_name
 }
 
 resource "aws_lambda_function" "cron_monitoring" {
@@ -292,16 +298,16 @@ resource "aws_lambda_function" "cron_monitoring" {
 
   depends_on = [
     null_resource.cron_monitoring_build,
-    data.archive_file.cron_monitoring_lambda
+    archive_file.cron_monitoring_lambda
   ]
 
   function_name                  = "${var.customer_prefix}_cron_monitoring"
-  runtime                        = "go1.x"
+  runtime                        = "provided.al2"
   memory_size                    = 256
   timeout                        = 300
   package_type                   = "Zip"
-  filename                       = data.archive_file.cron_monitoring_lambda.output_path
-  handler                        = "/lambda"
+  filename                       = archive_file.cron_monitoring_lambda[0].output_path
+  handler                        = "bootstrap"
   reserved_concurrent_executions = 1
   description                    = "This function has the ability to log into a production database and validate that the Fleet crons are running properly"
   tracing_config {
@@ -315,7 +321,7 @@ resource "aws_lambda_function" "cron_monitoring" {
       MYSQL_HOST                 = var.cron_monitoring.mysql_host
       MYSQL_DATABASE             = var.cron_monitoring.mysql_database
       MYSQL_USER                 = var.cron_monitoring.mysql_user
-      MYSQL_PASSWORD_SECRET_NAME = var.cron_monitoring.mysql_password_secret.name
+      MYSQL_PASSWORD_SECRET_NAME = data.aws_secretsmanager_secret.mysql_database_password[0].name
       SNS_TOPIC_ARNS             = join(", ", lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns))
       FLEET_ENV                  = var.customer_prefix
     }
@@ -368,7 +374,7 @@ data "aws_iam_policy_document" "cron_monitoring_lambda" {
       "secretsmanager:GetSecretValue"
     ]
 
-    resources = [var.cron_monitoring.mysql_password_secret.arn]
+    resources = [data.aws_secretsmanager_secret.mysql_database_password[0].arn]
 
     effect = "Allow"
 
@@ -398,7 +404,7 @@ resource "aws_cloudwatch_log_group" "cron_monitoring_lambda" {
 resource "aws_cloudwatch_event_rule" "cron_monitoring_lambda" {
   count               = var.cron_monitoring == null ? 0 : 1
   name                = "${var.customer_prefix}-cron-monitoring"
-  schedule_expression = "rate(2 hours)"
+  schedule_expression = "rate(10 minutes)"
   is_enabled          = true
 }
 

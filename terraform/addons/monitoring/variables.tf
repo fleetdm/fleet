@@ -60,10 +60,10 @@ variable "acm_certificate_arn" {
 
 variable "cron_monitoring" {
   type = object({
-    mysql_host            = string
-    mysql_database        = string
-    mysql_user            = string
-    mysql_password_secret = any
+    mysql_host                 = string
+    mysql_database             = string
+    mysql_user                 = string
+    mysql_password_secret_name = string
   })
   default = null
 }
