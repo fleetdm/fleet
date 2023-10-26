@@ -29,15 +29,25 @@
 
 * Added `os_settings` and `os_settings_disk_encryption` filters to various `GET` endpoints for host filtering based on OS settings.
 
+* Enhanced `GET hosts/:id` API response to include more detailed disk encryption data for device client errors.
+
+* Updated controls > disk encryption and host details page to include Windows bitlocker information.
+
+* Improved styling for host details/device user failing policies display.
+
+* Disabled multicursor editing for SQL editors.
+
+* Deprecated `mdm.macos_settings.enable_disk_encryption` in favor of `mdm.enable_disk_encryption`.
+
 * Updated Go version to 1.21.3.
 
-### Bug fixes and improvements
+### Bug fixes
 
 * Fixed script content and output formatting issues on the scripts detail modal.
 
 * Fixed a high database load issue in the Puppet match endpoint.
 
-* Ensured setup flows background covers the entire viewport when resized.
+* Fixed setup flows background not covering the entire viewport when resized to some sizes.
 
 * Fixed a bug affecting OS settings information retrieval regarding disk encryption status for Windows hosts.
 
@@ -45,21 +55,11 @@
 
 * Fixed Python's CVE-2021-42919 false positive on macOS which should only affect Linux.
 
-* Updated Controls/Disk Encryption and host details page to include Windows bitlocker information.
-
 * Fixed a bug causing DEP profiles to sometimes not get assigned correctly to hosts.
 
 * Fixed an issue in the bulk-set of MDM Apple profiles leading to excessive placeholders in SQL.
 
-* Deprecated `mdm.macos_settings.enable_disk_encryption` in favor of `mdm.enable_disk_encryption`.
-
-* Enhanced `GET hosts/:id` API response to include more detailed disk encryption data for device client errors.
-
-* Disabled multicursor editing for SQL editors.
-
 * Fixed max-height display issue for script content and output in the script details modal.
-
-* Improved styling for host details/device user failing policies display.
 
 ## Fleet 4.38.1 (Oct 5, 2023)
 
