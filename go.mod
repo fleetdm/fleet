@@ -331,7 +331,7 @@ require (
 	software.sslmate.com/src/go-pkcs12 v0.0.0-20210415151418-c5206de65a78 // indirect
 )
 
-// replace github.com/kolide/kit => github.com/zwass/kit v0.0.0-20210625184505-ec5b5c5cce9c
+replace github.com/kolide/kit => github.com/fleetdm/kolide-kit v0.0.0-20230519160117-86cc9441f9c1
 
 replace github.com/micromdm/nanomdm => github.com/fleetdm/nanomdm v0.3.1-0.20230710170238-fd0813187f24
 
