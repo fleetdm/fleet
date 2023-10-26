@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20230920091442(t *testing.T) {
+func TestUp_20231026091442(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	const (
@@ -50,7 +50,6 @@ func TestUp_20230920091442(t *testing.T) {
 	// Insert a policy_stats entry for the team inheriting the global policy
 	_, err = db.Exec(`INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count) VALUES (?, ?, ?, ?)`, globalPolicyStatID, teamID, 50, 5)
 	require.NoError(t, err)
-	// inheritedPolicyStatID, _ := res.LastInsertId()
 
 	// Verify the entries in the policy_stats table
 	var id int

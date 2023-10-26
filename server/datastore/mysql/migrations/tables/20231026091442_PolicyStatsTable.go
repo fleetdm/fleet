@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230920091442, Down_20230920091442)
+	MigrationClient.AddMigration(Up_20231026091442, Down_20231026091442)
 }
 
-func Up_20230920091442(tx *sql.Tx) error {
+func Up_20231026091442(tx *sql.Tx) error {
 	stmt := `
 	CREATE TABLE policy_stats (
 		id int(10) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -42,6 +42,6 @@ func Up_20230920091442(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20230920091442(tx *sql.Tx) error {
+func Down_20231026091442(tx *sql.Tx) error {
 	return nil
 }
