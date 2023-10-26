@@ -1202,10 +1202,10 @@ spec:
 
 	// Apply queries.
 	var appliedQueries []*fleet.Query
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		return nil, &notFoundError{}
 	}
-	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]bool) error {
+	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		appliedQueries = queries
 		return nil
 	}
@@ -1303,10 +1303,10 @@ func TestApplyQueries(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	var appliedQueries []*fleet.Query
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		return nil, &notFoundError{}
 	}
-	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]bool) error {
+	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		appliedQueries = queries
 		return nil
 	}

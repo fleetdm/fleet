@@ -1237,7 +1237,7 @@ func TestGetQuery(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		if teamID == nil {
 			if name != "globalQuery1" {
 				return nil, &notFoundError{}

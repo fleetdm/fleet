@@ -924,11 +924,15 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		switch host.Platform {
 		case "windows":
 			if ac.MDM.WindowsEnabledAndConfigured && license.IsPremium(ctx) {
-				bls, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
-				if err != nil {
+				hde, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
+				switch {
+				case err != nil:
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm bitlocker status")
+				case hde != nil:
+					host.MDM.OSSettings.DiskEncryption = *hde
+				default:
+					host.MDM.OSSettings.DiskEncryption = fleet.HostMDMDiskEncryption{}
 				}
-				host.MDM.OSSettings.DiskEncryption.Status = bls
 			}
 		case "darwin":
 			if ac.MDM.EnabledAndConfigured {
@@ -939,8 +943,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 				// determine disk encryption and action required here based on profiles and
 				// raw decryptable key status.
-				host.MDM.DetermineMacOSDiskEncryptionStatus(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
-				host.MDM.OSSettings.DiskEncryption.Status = host.MDM.MacOSSettings.DiskEncryption
+				host.MDM.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
 
 				for _, p := range profs {
 					if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {

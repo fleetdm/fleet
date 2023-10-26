@@ -64,7 +64,7 @@ parasails.registerPage('basic-handbook', {
     if(this.isHandbookLandingPage) {
       let handbookPages = [];
       for (let page of this.markdownPages) {
-        if(_.startsWith(page.url, '/handbook') && !page.title.match(/^readme\.md$/i) && page.sectionRelativeRepoPath.match(/readme\.md$/i)) {
+        if(_.startsWith(page.url, '/handbook/company') && !page.title.match(/^readme\.md$/i) && !_.startsWith(page.url, '/handbook/company/open-positions')) {
           let pageTitle = page.title;
           if(this.hideEmojisOnPage){
             pageTitle = pageTitle.replace(this.regexToMatchEmoji, '');
