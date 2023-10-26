@@ -3,6 +3,8 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -13,6 +15,7 @@ import (
 // returns the device information.
 func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	stmt := `SELECT
+		id,
 		mdm_device_id,
 		mdm_hardware_id,
 		device_state,
@@ -117,7 +120,6 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 	return ctxerr.Wrap(ctx, notFound("MDMWindowsDeleteEnrolledDeviceWithDeviceID"))
 }
 
-// TODO(mna): this receives hostUUIDs, not deviceIDs, and must translate them via the (altered) enrollments table.
 func (ds *Datastore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// first, create the command entry
@@ -151,19 +153,19 @@ func (ds *Datastore) mdmWindowsInsertHostCommandDB(ctx context.Context, tx sqlx.
 	stmt := `
 	INSERT INTO windows_mdm_command_queue (
 		enrollment_id,
-		command_uuid,
+		command_uuid
 	)
-	VALUES
+	VALUES(
 		(
 			SELECT
-				id, ?
+				id
 			FROM
 				mdm_windows_enrollments
 			WHERE
 				host_uuid = ?
-		)
+		), ?)
 `
-	if _, err := tx.ExecContext(ctx, stmt, commandUUID, hostUUID); err != nil {
+	if _, err := tx.ExecContext(ctx, stmt, hostUUID, commandUUID); err != nil {
 		if isDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommandQueue", commandUUID))
 		}
@@ -196,7 +198,7 @@ INNER JOIN
 ON
 	wmc.command_uuid = wmcq.command_uuid
 WHERE
-	mwe.device_id = ? AND
+	mwe.mdm_device_id = ? AND
 	wmcq.active AND
 	NOT EXISTS (
 		SELECT 1
@@ -215,57 +217,114 @@ WHERE
 	return commands, nil
 }
 
-// TODO(mna): those UpdateCommandErrorCode and UpdateCommandReceivedResult must
-// be replaced by a single method something like MDMWindowsSaveResponse(ctx,
-// deviceID, fullResponse) that will first store the full response and then -
-// in the same transaction - store the result for each known command present in
-// the response's XML (each CmdRef matching a command_uuid in
-// windows_mdm_command_queue entry for that device that has no result in
-// windows_mdm_command_results yet). Both the Status and Results parts are
-// stored.
-
-/*
-// MDMWindowsUpdateCommandErrorCode updates the rx_error_code for a given command that matches with device_id, session_id, message_id and command_id.
-func (ds *Datastore) MDMWindowsUpdateCommandErrorCode(ctx context.Context, deviceID, sessionID, messageID, commandID, errorCode string) error {
-	query := `
-        UPDATE
-            old_windows_mdm_commands
-        SET
-            rx_error_code = ?
-        WHERE
-            device_id = ? AND
-            session_id = ? AND
-            message_id = ? AND
-            command_id = ?
-    `
-
-	_, err := ds.writer(ctx).ExecContext(ctx, query, errorCode, deviceID, sessionID, messageID, commandID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating windows command rx_error_code")
+func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, fullResponse *fleet.SyncML) error {
+	if len(fullResponse.Raw) == 0 {
+		return ctxerr.New(ctx, "empty raw response")
 	}
 
-	return nil
-}
+	const findCommandsStmt = `SELECT command_uuid FROM windows_mdm_commands WHERE command_uuid IN (?)`
 
-// MDMWindowsUpdateCommandReceivedResult updates the rx_cmd_result field for a given command that matches with device_id, session_id, message_id and command_id.
-func (ds *Datastore) MDMWindowsUpdateCommandReceivedResult(ctx context.Context, deviceID, sessionID, messageID, commandID, receivedValue string) error {
-	query := `
-        UPDATE
-            old_windows_mdm_commands
-        SET
-            rx_cmd_result = ?
-        WHERE
-            device_id = ? AND
-            session_id = ? AND
-            message_id = ? AND
-            command_id = ?
-    `
+	const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, query, receivedValue, deviceID, sessionID, messageID, commandID)
+	const dequeueCommandsStmt = `UPDATE windows_mdm_command_queue SET active = 0 WHERE command_uuid IN (?)`
+
+	// raw_results and status_code values might be inserted on different requests?
+	// TODO: which response_id should we be tracking then? for now, using
+	// whatever comes first.
+	const insertResultsStmt = `
+            INSERT INTO windows_mdm_command_results
+                (enrollment_id, command_uuid, raw_result, response_id, status_code)
+            VALUES %s
+            ON DUPLICATE KEY UPDATE
+                raw_result = COALESCE(VALUES(raw_result), raw_result),
+                status_code = COALESCE(VALUES(status_code), status_code)
+	`
+
+	enrollment, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating windows command rx_cmd_result")
+		return ctxerr.Wrap(ctx, err, "getting enrollment with device ID")
 	}
 
-	return nil
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// store the full response
+		res, err := tx.ExecContext(ctx, saveFullRespStmt, enrollment.ID, fullResponse.Raw)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "saving full response")
+		}
+		responseID, _ := res.LastInsertId()
+
+		// grab all the incoming UUIDs
+		var cmdUUIDs []string
+		uuidsToStatus := make(map[string]fleet.SyncMLCmd)
+		uuidsToResults := make(map[string]fleet.SyncMLCmd)
+		for _, cmd := range fullResponse.GetOrderedCmds() {
+			// results and status should contain a command they're
+			// referencing
+			cmdRef := cmd.Cmd.CmdRef
+			if !cmd.Cmd.ShouldBeTracked(cmd.Verb) || cmdRef == nil {
+				continue
+			}
+
+			switch cmd.Verb {
+			case fleet.CmdStatus:
+				uuidsToStatus[*cmdRef] = cmd.Cmd
+				cmdUUIDs = append(cmdUUIDs, *cmdRef)
+			case fleet.CmdResults:
+				uuidsToResults[*cmdRef] = cmd.Cmd
+				cmdUUIDs = append(cmdUUIDs, *cmdRef)
+
+			}
+		}
+
+		if len(cmdUUIDs) == 0 {
+			return nil
+		}
+
+		stmt, params, err := sqlx.In(findCommandsStmt, cmdUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building IN to search matching commands")
+		}
+
+		var matchingUUIDs []string
+		err = sqlx.SelectContext(ctx, tx, &matchingUUIDs, stmt, params...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "selecting matching commands")
+		}
+
+		if len(matchingUUIDs) == 0 {
+			return nil
+		}
+
+		var args []any
+		var sb strings.Builder
+		for _, uuid := range matchingUUIDs {
+			statusCode := ""
+			if status, ok := uuidsToStatus[uuid]; ok && status.Data != nil {
+				statusCode = *status.Data
+			}
+
+			rawResult := []byte{}
+			if result, ok := uuidsToResults[uuid]; ok {
+				rawResult = result.Raw
+			}
+			args = append(args, enrollment.ID, uuid, rawResult, responseID, statusCode)
+			sb.WriteString("(?, ?, ?, ?, ?),")
+		}
+
+		stmt = fmt.Sprintf(insertResultsStmt, strings.TrimSuffix(sb.String(), ","))
+		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting command results")
+		}
+
+		stmt, params, err = sqlx.In(dequeueCommandsStmt, matchingUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building IN to dequeue commands")
+		}
+
+		if _, err = tx.ExecContext(ctx, stmt, params...); err != nil {
+			return ctxerr.Wrap(ctx, err, "dequeuing commands")
+		}
+
+		return nil
+	})
 }
-*/

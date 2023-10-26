@@ -1045,6 +1045,9 @@ type Datastore interface {
 	// MDMWindowsGetPendingCommands returns all the pending commands for a device
 	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsCommand, error)
 
+	// MDMWindowsSaveResponse saves a full response
+	MDMWindowsSaveResponse(ctx context.Context, deviceID string, fullResponse *SyncML) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
 

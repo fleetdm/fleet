@@ -46,6 +46,9 @@ type SoapRequest struct {
 	XMLNSAC   *string       `xml:"ac,attr,omitempty"`
 	Header    RequestHeader `xml:"Header"`
 	Body      BodyRequest   `xml:"Body"`
+
+	// Raw XML, stored alongside the decoded fields for convenience
+	Raw []byte `xml:"-"`
 }
 
 // GetHeaderBinarySecurityToken returns the header BinarySecurityToken if present
@@ -805,6 +808,7 @@ func (msg WapProvisioningDoc) GetEncodedB64Representation() (string, error) {
 /// Contains the information of the enrolled Windows host
 
 type MDMWindowsEnrolledDevice struct {
+	ID                     uint      `db:"id"`
 	MDMDeviceID            string    `db:"mdm_device_id"`
 	MDMHardwareID          string    `db:"mdm_hardware_id"`
 	MDMDeviceState         string    `db:"device_state"`
@@ -840,6 +844,9 @@ type SyncML struct {
 	Xmlns    string   `xml:"xmlns,attr"`
 	SyncHdr  SyncHdr  `xml:"SyncHdr"`
 	SyncBody SyncBody `xml:"SyncBody"`
+
+	// Raw XML, stored alongside the decoded fields for convenience
+	Raw []byte `xml:"-"`
 }
 
 type SyncHdr struct {
@@ -912,15 +919,16 @@ type ProtoCmdOperation struct {
 
 // Protocol Command
 type SyncMLCmd struct {
-	XMLName      xml.Name  `xml:",omitempty"`
-	CmdID        string    `xml:"CmdID"`
-	MsgRef       *string   `xml:"MsgRef,omitempty"`
-	CmdRef       *string   `xml:"CmdRef,omitempty"`
-	Cmd          *string   `xml:"Cmd,omitempty"`
-	Data         *string   `xml:"Data,omitempty"`
-	Items        []CmdItem `xml:"Item,omitempty"`
-	UUID         string    `xml:"-"`
-	SystemOrigin bool      `xml:"-"`
+	XMLName xml.Name  `xml:",omitempty"`
+	CmdID   string    `xml:"CmdID"`
+	MsgRef  *string   `xml:"MsgRef,omitempty"`
+	CmdRef  *string   `xml:"CmdRef,omitempty"`
+	Cmd     *string   `xml:"Cmd,omitempty"`
+	Data    *string   `xml:"Data,omitempty"`
+	Items   []CmdItem `xml:"Item,omitempty"`
+
+	// Raw XML, stored alongside the decoded fields for convenience
+	Raw []byte `xml:"-"`
 }
 
 // ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
@@ -1332,11 +1340,7 @@ func (cmd *SyncMLCmd) GetTargetData() string {
 }
 
 func (cmd *SyncMLCmd) ShouldBeTracked(cmdVerb string) bool {
-	if cmd.IsEmpty() {
-		return false
-	}
-
-	if (cmdVerb == "") || (cmdVerb == CmdResults) || (cmdVerb == CmdStatus) || (cmd.UUID == "") {
+	if (cmdVerb == "") || cmd.CmdRef == nil || *cmd.CmdRef == "0" {
 		return false
 	}
 
@@ -1348,7 +1352,7 @@ func (cmd *SyncMLCmd) ShouldBeTracked(cmdVerb string) bool {
 // Represents a command in the windows_mdm_commands table
 type MDMWindowsCommand struct {
 	CommandUUID  string    `db:"command_uuid"`
-	RawCommand   string    `db:"raw_command"`
+	RawCommand   []byte    `db:"raw_command"`
 	TargetLocURI string    `db:"target_loc_uri"`
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
