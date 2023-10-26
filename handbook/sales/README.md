@@ -1,4 +1,4 @@
-# Customers
+# Sales
 
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
