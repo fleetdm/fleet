@@ -10,6 +10,7 @@ import { IConfig } from "interfaces/config";
 import { AppContext } from "context/app";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
+import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
 
 import MacOSTargetForm from "../MacOSTargetForm";
@@ -83,12 +84,16 @@ const TargetSection = ({
 
   if (!config) return null;
 
-  const isMacMdmEnabled = config?.mdm.enabled_and_configured;
-  // const isWindowsMdmEnabled = config?.mdm.windows_enabled_and_configured;
-  const isWindowsMdmEnabled = true;
+  const isMacMdmEnabled = config.mdm.enabled_and_configured;
+  const isWindowsMdmEnabled = config.mdm.windows_enabled_and_configured;
 
   const defaultWindowsDeadlineDays = "3";
   const defaultWindowsGracePeriodDays = "5";
+
+  // Loading state rendering
+  if (isLoadingTeam) {
+    return <Spinner />;
+  }
 
   const defaultMacOSVersion = getDefaultMacOSVersion(
     currentTeamId,
