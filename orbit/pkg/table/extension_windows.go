@@ -5,15 +5,13 @@ package table
 import (
 	cisaudit "github.com/fleetdm/fleet/v4/orbit/pkg/table/cis_audit"
 	mdmbridge "github.com/fleetdm/fleet/v4/orbit/pkg/table/mdm"
+	"github.com/kolide/launcher/pkg/osquery/tables/windowsupdatetable"
 
 	// Kolide tables
 	"github.com/kolide/launcher/pkg/osquery/tables/dsim_default_associations"
 	"github.com/kolide/launcher/pkg/osquery/tables/secedit"
 	"github.com/kolide/launcher/pkg/osquery/tables/wifi_networks"
 	"github.com/kolide/launcher/pkg/osquery/tables/wmitable"
-
-	// TODO: Fix build erros
-	//"github.com/kolide/launcher/pkg/osquery/tables/mdmclient"
 
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
@@ -30,8 +28,9 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		secedit.TablePlugin(kolideLogger),                   // table name is "secedit"
 		wifi_networks.TablePlugin(kolideLogger),             // table name is "wifi_networks"
 		wmitable.TablePlugin(kolideLogger),                  // table name is "wmi"
-
-		// TODO: Fix build error
-		// mdmclient.TablePlugin(kolideLogger),
+		// windows_updates table
+		windowsupdatetable.TablePlugin(windowsupdatetable.UpdatesTable, kolideLogger),
+		// windows_update_history table
+		windowsupdatetable.TablePlugin(windowsupdatetable.HistoryTable, kolideLogger),
 	}
 }
