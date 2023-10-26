@@ -11,6 +11,7 @@
     "server_settings": {
       "server_url": "",
       "live_query_disabled": false,
+      "query_reports_disabled": false,
       "enable_analytics": false,
       "deferred_save_host": false
     },
@@ -85,6 +86,7 @@
       "enabled_and_configured": false,
       "apple_bm_default_team": "",
       "windows_enabled_and_configured": false,
+      "enable_disk_encryption": false,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null
@@ -95,8 +97,7 @@
         "webhook_url": ""
       },
       "macos_settings": {
-        "custom_settings": null,
-        "enable_disk_encryption": false
+        "custom_settings": null
       },
       "macos_setup": {
         "bootstrap_package": null,
@@ -110,6 +111,7 @@
         "metadata_url": "",
         "idp_name": ""
       }
-    }
+    },
+    "scripts": null
   }
 }

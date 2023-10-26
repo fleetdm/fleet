@@ -70,6 +70,7 @@ func testPoliciesNewGlobalPolicyLegacy(t *testing.T, ds *Datastore) {
 		Description: "query1 desc",
 		Query:       "select 1;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
@@ -88,6 +89,7 @@ func testPoliciesNewGlobalPolicyLegacy(t *testing.T, ds *Datastore) {
 		Description: "query2 desc",
 		Query:       "select 42;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	_, err = ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
@@ -234,6 +236,7 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 		Description: "query1 desc",
 		Query:       "select 1;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	p, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
@@ -252,6 +255,7 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 		Description: "query2 desc",
 		Query:       "select 42;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	p2, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
@@ -397,6 +401,7 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 		Description: "query1 desc",
 		Query:       "select 1;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -408,6 +413,7 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 		Description: "query2 desc",
 		Query:       "select 1;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -925,6 +931,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 		Description: "query1 desc",
 		Query:       "select 1;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	gp, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
@@ -938,6 +945,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 		Description: "query2 desc",
 		Query:       "select 42;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	tp, err := ds.NewTeamPolicy(context.Background(), team1.ID, &user1.ID, fleet.PolicyPayload{
@@ -1073,6 +1081,7 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 		Description: "query1 desc",
 		Query:       "select 1;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	team1Policy, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
@@ -1085,6 +1094,7 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 		Description: "query2 desc",
 		Query:       "select 2;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	globalPolicy, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{

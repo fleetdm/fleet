@@ -1,3 +1,71 @@
+## Fleet 4.38.1 (Oct 5, 2023)
+
+### Bug Fixes
+
+* Fixed a bug that would cause live queries to stall if a detail query override was set for a team.
+
+## Fleet 4.38.0 (Sep 25, 2023)
+
+### Changes
+
+* Updated MDM profile verification so that an install profile command will be retried once if the command resulted in an error or if osquery cannot confirm that the expected profile is installed.
+
+* Ensured post-enrollment commands are sent to devices assigned to Fleet in ABM.
+
+* Ensured hosts assigned to Fleet in ABM come back to pending to the right team after they're deleted.
+
+* Added `labels` to the fleetd extensions feature to allow deploying extensions to hosts that belong to certain labels.
+
+* Changed fleetd Windows extensions file extension from `.ext` to `.ext.exe` to allow their execution on Windows devices (executables on Windows must end with `.exe`).
+
+* Surfaced chrome live query errors to Fleet UI (including errors for specific columns while maintaining successful data in results).
+
+* Fixed delivery of fleetd extensions to devices to only send extensions for the host's platform.
+
+* (Premium only) Added `resolved_in_version` to `/fleet/software` APIs pulled from NVD feed.
+
+* Added database migrations to create the new `scripts` table to store saved scripts.
+
+* Allowed specifying `disable_failing_policies` on the `/api/v1/fleet/hosts/report` API endpoint for increased performance. This is useful if the user is not interested in counting failed policies (`issues` column).
+
+* Added the option to use locally-installed WiX v3 binaries when generating the Fleetd installer for Windows on a Windows machine.
+
+* Added CVE descriptions to the `/fleet/software` API.
+
+* Restored the ability to click on and select/copy text from software bundle tooltips while maintaining the abilities to click the software's name to get more details and to click anywhere else in the row to view all hosts with that software installed.
+
+* Stopped 1password from overly autofilling forms.
+
+* Upgraded Go version to 1.21.1.
+
+### Bug Fixes
+
+* Fixed vulnerability mismatch between the flock browser and the discoteq/flock binary.
+
+* Fixed v4.37.0 performance regressions in the following API endpoints:
+  * `/api/v1/fleet/hosts/report`
+  * `/api/v1/fleet/hosts` when using `per_page=0` or a large number for `per_page` (in the thousands).
+
+* Fixed script content and output formatting on the scripts detail modal.
+
+* Fixed wrong version numbers for Microsoft Teams in macOS (from invalid format of the form `1.00.XYYYYY` to correct format `1.X.00.YYYYY`).
+
+* Fixed false positive CVE-2020-10146 found on Microsoft Teams.
+
+* Fixed CVE-2013-0340 reporting as a valid vulnerability due to NVD recommendations.
+
+* Fixed save button for a new policy after newly creating another policy.
+
+* Fixed empty query/policy placeholders.
+
+* Fixed used by data when filtering hosts by labels.
+
+* Fixed small copy and alignment issue with status indicators in the Queries page Automations column.
+
+* Fixed strict checks on Windows MDM Automatic Enrollment.
+
+* Fixed software vulnerabilities time ago column for old CVEs.
+
 ## Fleet 4.37.0 (Sep 8, 2023)
 
 ### Changes

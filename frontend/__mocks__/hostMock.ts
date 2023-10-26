@@ -1,7 +1,7 @@
 import { IHost } from "interfaces/host";
-import { IHostMacMdmProfile } from "interfaces/mdm";
+import { IHostMdmProfile } from "interfaces/mdm";
 
-const DEFAULT_HOST_PROFILE_MOCK: IHostMacMdmProfile = {
+const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   profile_id: 1,
   name: "Test Profile",
   operation_type: "install",
@@ -10,8 +10,8 @@ const DEFAULT_HOST_PROFILE_MOCK: IHostMacMdmProfile = {
 };
 
 export const createMockHostMacMdmProfile = (
-  overrides?: Partial<IHostMacMdmProfile>
-): IHostMacMdmProfile => {
+  overrides?: Partial<IHostMdmProfile>
+): IHostMdmProfile => {
   return { ...DEFAULT_HOST_PROFILE_MOCK, ...overrides };
 };
 
@@ -53,6 +53,12 @@ const DEFAULT_HOST_MOCK: IHost = {
     enrollment_status: "Off",
     server_url: "https://www.example.com/1",
     profiles: [],
+    os_settings: {
+      disk_encryption: {
+        status: null,
+        detail: "",
+      },
+    },
     macos_settings: {
       disk_encryption: null,
       action_required: null,
