@@ -9,7 +9,7 @@
   - New API endpoint: `GET /api/_version_/fleet/queries/{id}/report`.
   - New field `discard_data` added to API queries endpoints for toggling report storage for a query. For yaml configurations, use `discard_data: true` to disable result storage.
   - Enhanced osquery result log validation.
-  - **NOTE:** This feature enables storing more query data in Fleet. This may impact database performance, depending on the number of queries and hosts in your Fleet instance. For large deployments, we recommend monitoring your database load while gradually adding new query reports to ensure your database is sized appropriately.
+  - **NOTE:** This feature enables storing more query data in Fleet. This may impact database performance, depending on the number of queries, their frequency, and the number of hosts in your Fleet instance. For large deployments, we recommend monitoring your database load while gradually adding new query reports to ensure your database is sized appropriately.
 
 * Added scripts tab and table for host details page.
 
