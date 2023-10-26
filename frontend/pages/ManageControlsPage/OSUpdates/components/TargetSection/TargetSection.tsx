@@ -11,7 +11,6 @@ import { AppContext } from "context/app";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import SectionHeader from "components/SectionHeader";
-import Spinner from "components/Spinner";
 
 import MacOSTargetForm from "../MacOSTargetForm";
 import WindowsTargetForm from "../WindowsTargetForm";
@@ -70,6 +69,8 @@ const TargetSection = ({
 }: ITargetSectionProps) => {
   const { config } = useContext(AppContext);
 
+  // We make the call at this component as multiple children components need
+  // this data.
   const { data: teamData, isLoading: isLoadingTeam, isError } = useQuery<
     ILoadTeamResponse,
     Error,
@@ -88,11 +89,6 @@ const TargetSection = ({
 
   const defaultWindowsDeadlineDays = "3";
   const defaultWindowsGracePeriodDays = "5";
-
-  // Loading state rendering
-  if (isLoadingTeam) {
-    return <Spinner />;
-  }
 
   const defaultMacOSVersion = getDefaultMacOSVersion(
     currentTeamId,
@@ -144,4 +140,3 @@ const TargetSection = ({
 };
 
 export default TargetSection;
-0;
