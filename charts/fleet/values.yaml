@@ -38,11 +38,11 @@ affinity:
 ingress:
   enabled: false
   className: ""
-  annotations:
+  annotations: {}
     # kubernetes.io/tls-acme: "true"
     # nginx.ingress.kubernetes.io/proxy-body-size: 10m
-    kubernetes.io/ingress.class: nginx
-    cert-manager.io/cluster-issuer: letsencrypt
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt
   hosts:
     - host: chart-example.local
       paths:
@@ -148,7 +148,7 @@ osquery:
       statusTopic: ""
       resultTopic: ""
 
-## Section: MySQL
+## Section: database
 # All of the connection settings for MySQL
 database:
   # Name of the Secret resource containing MySQL password and TLS secrets
@@ -170,7 +170,7 @@ database:
     config: ""
     serverName: ""
 
-## Section: Redis
+## Section: cache
 # All of the connection settings for Redis
 cache:
   address: 127.0.0.1:6379
