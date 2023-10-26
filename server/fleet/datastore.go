@@ -1043,7 +1043,7 @@ type Datastore interface {
 	MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
 
 	// MDMWindowsGetPendingCommands returns all the pending commands for a device
-	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsPendingCommand, error)
+	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsCommand, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
