@@ -102,6 +102,22 @@ spec:
     - hostname2
     - hostname3
 ```
+Other keys such as `platform` can be used in labels
+
+```yaml
+id: 27
+name: licensing-windows-oracle-java
+description: Reports if a Java program vendored by Oracle is installed.
+query: >
+SELECT TRUE WHERE (  SELECT COUNT() FROM programs
+ WHERE publisher LIKE "%Oracle Corporation%" AND name LIKE "%java%") < 0;
+      platform: windows
+      label_type: regular
+      label_membership_type: dynamic
+      display_text: licensing-windows-oracle-java
+      count: 0
+      host_ids: null
+```
 
 ## Enroll secrets
 
