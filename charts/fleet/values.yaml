@@ -38,18 +38,20 @@ affinity:
 ingress:
   enabled: false
   className: ""
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
+  annotations:
     # kubernetes.io/tls-acme: "true"
+    # nginx.ingress.kubernetes.io/proxy-body-size: 10m
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt
   hosts:
     - host: chart-example.local
       paths:
         - path: /
           pathType: ImplementationSpecific
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+  tls:
+    - secretName: chart-example-tls
+      hosts:
+        - chart-example.local
 
 ## Section: Fleet
 # All of the settings relating to configuring the Fleet server
@@ -148,7 +150,7 @@ osquery:
 
 ## Section: MySQL
 # All of the connection settings for MySQL
-mysql:
+database:
   # Name of the Secret resource containing MySQL password and TLS secrets
   secretName: mysql
   address: 127.0.0.1:3306
@@ -170,7 +172,7 @@ mysql:
 
 ## Section: Redis
 # All of the connection settings for Redis
-redis:
+cache:
   address: 127.0.0.1:6379
   database: "0"
   usePassword: false
@@ -204,3 +206,9 @@ environments:
   FLEET_MDM_APPLE_APNS_KEY_BYTES: ""
   FLEET_MDM_APPLE_SCEP_CERT_BYTES: ""
   FLEET_MDM_APPLE_SCEP_KEY_BYTES: ""
+
+mysql:
+  enabled: false
+
+redis:
+  enabled: false
