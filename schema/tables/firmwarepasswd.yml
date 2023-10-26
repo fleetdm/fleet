@@ -1,0 +1,16 @@
+name: firmwarepasswd
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+description: "Information on the device's firmware password. Reference: https://support.apple.com/en-us/HT204455"
+platforms:
+  - darwin
+evented: false
+columns:
+  - name: option_roms_allowed
+    required: false
+    type: integer
+  - name: password_enabled
+    required: false
+    type: integer
+  - name: mode
+    required: false
+    type: text
