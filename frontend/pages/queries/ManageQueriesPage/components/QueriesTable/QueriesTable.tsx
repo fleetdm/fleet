@@ -147,8 +147,6 @@ const QueriesTable = ({
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
 
-      newQueryParams.query = newSearchQuery;
-
       // Updates main query table URL params
       // No change to inherited query table URL params
       if (!isInherited) {
@@ -156,6 +154,7 @@ const QueriesTable = ({
         newQueryParams.order_direction = newSortDirection;
         newQueryParams.platform = platform; // must set from URL
         newQueryParams.page = newPageIndex;
+        newQueryParams.query = newSearchQuery;
         // Reset page number to 0 for new filters
         if (
           newSortDirection !== sortDirection ||
@@ -198,10 +197,12 @@ const QueriesTable = ({
         ? {
             ...queryParams,
             inherited_page: pageIndex, // update inherited page index
+            query: searchQuery,
           }
         : {
             ...queryParams,
             page: pageIndex, // update main table index
+            query: searchQuery,
           };
 
       const locationPath = getNextLocationPath({
@@ -290,7 +291,7 @@ const QueriesTable = ({
         resultsTitle="queries"
         columns={tableHeaders}
         data={queriesList}
-        filters={{ global: isInherited ? "" : searchQuery }}
+        filters={{ name: isInherited ? "" : searchQuery }}
         isLoading={isLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
