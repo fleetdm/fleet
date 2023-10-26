@@ -41,13 +41,6 @@ import (
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
-const (
-	currentOsquerydBinaryPath = "/opt/orbit/bin/osqueryd/macos-app/stable/osquery.app/Contents/MacOS/osqueryd"
-	keychainAclsQuery         = "select * from keychain_acls"
-	keychainItemsQuery        = "select * from keychain_items"
-	screenlockQuery           = "select enabled, grace_period from screenlock"
-)
-
 func PlatformTables() []osquery.OsqueryPlugin {
 	plugins := []osquery.OsqueryPlugin{
 		// Fleet tables
