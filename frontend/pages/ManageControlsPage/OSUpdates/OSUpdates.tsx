@@ -1,11 +1,8 @@
 import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
 
-import { APP_CONTEXT_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { IConfig } from "interfaces/config";
 import { AppContext } from "context/app";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
