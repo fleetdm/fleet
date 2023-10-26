@@ -165,8 +165,8 @@ const QueriesTable = ({
         }
       }
 
-      // Updates inherited policy table URL params
-      // No change to main policy table URL params
+      // Updates inherited query table URL params
+      // No change to main query table URL params
       if (isInherited) {
         newQueryParams.inherited_order_key = newSortHeader;
         newQueryParams.inherited_order_direction = newSortDirection;
