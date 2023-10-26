@@ -29,6 +29,19 @@ The Sales department is directly responsible for attaining the revenue goals of 
 ## Customer codenames
 Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
 
+## Contract terms
+Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
+- **Effective date:** The start date for the subscription service.
+- **Close date:** The date the last party to the contract signed the agreement.
+- **Invoice date:** The date that Fleet sent the invoice to the customer.
+
+Fleeties can find a summary of contract terms in the relevant [customer's Salesforce opportunity.](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Recent)
+
+### Standard terms
+For all subscription agreements, NDAs, and similar contracts, Fleet maintains a [standard set of terms and maximum allowable adjustments for those terms](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit#gid=1136345578).
+
+Exceptions to these maximum allowable adjustments always require CEO approval, whether in the form of redlines to Fleet's agreements or in terms on a prospective customer's own contract.
+
 
 ## Contacting Fleet: customer support service level agreements (SLA's)
 
@@ -220,37 +233,8 @@ To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) 
 To close a deal with a new customer (non-self-service), create and complete a GitHub issue using the ["Sale" issue template](https://github.com/fleetdm/confidential/issues/new?assignees=hughestaylor&labels=%23g-business-operations&projects=&template=3-sale.md&title=New+customer%3A+_____________).
 
 
-### Submit a customer contract
-Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
-
-#### Contract terms
-- **Effective date:** The start date for the subscription service.
-- **Close date:** The date the last party to the contract signed the agreement.
-- **Invoice date:** The date that Fleet sent the invoice to the customer.
-
-Fleeties can find a summary of contract terms in the relevant [customer's Salesforce opportunity.](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Recent)
-
-#### Standard terms
-For all subscription agreements, NDAs, and similar contracts, Fleet maintains a [standard set of terms and maximum allowable adjustments for those terms](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit#gid=1136345578).
-
-Exceptions to these maximum allowable adjustments always require CEO approval, whether in the form of redlines to Fleet's agreements or in terms on a prospective customer's own contract.
-
-#### Non-standard NDAs
-To get a non-standard NDA (a non-disclosure agreement from another party) signed, [request a legal review](https://fleetdm.com/handbook/business-operations#intake).
-
-#### Reviewing subscription agreement
-To quickly get help doing a legal review of a prospect subscription agreement, with or without redlines:
-
-1. Visit https://github.com/fleetdm/confidential/issues/new/choose
-2. Select "Contract signature or legal review"
-3. Follow the instructions in the "Submitting this request" section
-
-If the prospect/customer/partner is originating the request for signature:
-1. Communicate to the prospect that the Fleet signatory is Mike McNeil, CEO and share his email.
-2. Mike will create the github issue mentioned above when he gets request
-3. Mike will forward to business operations for review
-4. Business operations will notify Mike and the requestor (via GitHub comment w/ at-mention) when ready for signature
-5. Mike will sign and close the issue.  (This sends a notification to the requestor automatically.)
+### Submit a customer contract for legal review
+All non-standard (from another party) subscription agreements, NDAs, and similar contracts require legal review from from the Business Operations department before being signed. [Create an issue request legal review](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/contract-review.md).
 
 
 ### Process customer support request 
@@ -308,7 +292,7 @@ When creating a new issue, make sure the following:
 - Make sure the issue has a "customer request" label.
 - "+" prefixed labels (e.g., "+more info please") indicate we are waiting on an answer from an external community member who does not work at Fleet or that no further action is needed from the Fleet team until an external community member, who doesn't work at Fleet, replies with a comment. At this point, our bot will automatically remove the +-prefixed label.
 - Is the issue straightforward and easy to understand, with appropriate context (default to public: declassify into public issues in fleetdm/fleet whenever possible)?
-- Is there a key date or timeframe that the customer hopes to meet?  If so, please post about that in #g-product with a link to the issue, so the team can discuss it before committing to a time frame.
+- Is there a key date or timeframe that the customer hopes to meet?  If so, please post about that in #g-product with a link to the issue, so the team can discuss it before committing to a time frame.
 - Have we provided a link to that issue for the customer to remind everyone of the plan and for the sake of visibility, so other folks who weren't directly involved are up to speed  (e.g., "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")?
 
 ##### Assistance from engineering
@@ -347,7 +331,15 @@ You can help a Premium license dispenser customers change their credit card by d
 
 <rituals :rituals="rituals['handbook/customers/sales.rituals.yml']"></rituals>
 
+
+#### Stubs
+The following stubs are included only to make links backward compatible.
+
+##### Non-standard NDAs
+##### Reviewing subscription agreement
+##### Submit a customer contract
+Please see 📖[handbook/sales/submit-a-customer-contract-for-legal-review](https://fleetdm.com/handbook/sales/submit-a-customer-contract-for-legal-review) for all sections above.
+
+
 <meta name="maintainedBy" value="alexmitchelliii">
 <meta name="title" value="🐋 Customers">
-
-

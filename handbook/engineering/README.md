@@ -580,7 +580,7 @@ A critical bug is a bug with the `~critical bug` label. A critical bug is define
 
 #### Critical bug notification process
 We need to inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm.
-Raising an alarm means pinging @here in the #help-product channel with the filed bug.
+Raising an alarm means pinging @here in the #help-product-design channel with the filed bug.
 
 If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. (We would expect this to be Customer success in the community Slack or QA in the bug inbox, though it could be anyone.)
 Note that the bug finder here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical, but it has not been escalated, raise the alarm!
@@ -604,7 +604,7 @@ The metrics are:
 Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
 
 ### Definitions
-In the above process, any reference to "product" refers to: Mo Zhu, Head of Product.
+In the above process, any reference to "product" refers to: Noah Talerman, Head of Product Design.
 In the above process, any reference to "QA" refers to: Reed Haynes, Product Quality Specialist
 
 ## Infrastructure
@@ -670,7 +670,7 @@ Steps to renew the certificate:
 2. Log in using the credentials stored in 1Password under **Apple developer account**.
 3. Verify you are using the **Enterprise** subaccount for Fleet Device Management Inc.
 4. Generate a new certificate following the instructions in [MicroMDM](https://github.com/micromdm/micromdm/blob/c7e70b94d0cfc7710e5c92be20d4534d9d5a0640/docs/user-guide/quickstart.md?plain=1#L103-L118).
-5. Note: `mdmctl` will generate a `VendorPrivateKey.key` and `VendorCertificateRequest.csr` using `billing@...` and a passphrase (suggested generation method with pwgen available in brew / apt / yum `pwgen -s 32 -1vcy`)
+5. Note: `mdmctl` (a micromdm command for MDM vendors) will generate a `VendorPrivateKey.key` and `VendorCertificateRequest.csr` using an appropriate shared email relay and a passphrase (suggested generation method with pwgen available in brew / apt / yum `pwgen -s 32 -1vcy`)
 6. Uploading `VendorCertificateRequest.csr` to Apple you will download a corresponding `mdm.cer` file
 7. Convert the downloaded cert to PEM with `openssl x509 -inform DER -outform PEM -in mdm.cer -out server.crt.pem`
 8. Update the **Config vars** in [Heroku](https://dashboard.heroku.com/apps/production-fleetdm-website/settings):

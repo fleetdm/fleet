@@ -538,7 +538,7 @@ func TestSubmitResultLogs(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		switch {
 		case teamID == nil && (name == "time" || name == "system_info" || name == "encrypted" || name == "hosts"):
 			return &fleet.Query{
@@ -580,6 +580,9 @@ func TestSubmitResultLogs(t *testing.T) {
 		default:
 			return nil, newNotFoundError()
 		}
+	}
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
 	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
 		if len(rows) == 0 {
@@ -696,13 +699,6 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 		},
 	}
 
-	// Results not saved if query reports disabled globally
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: true}}, nil
-	}
-	serv.saveResultLogsToQueryReports(ctx, results, queriesDBData)
-	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
-
 	// Result not saved if result is not a snapshot
 	notSnapshotResult := []*fleet.ScheduledQueryResult{
 		{
@@ -711,9 +707,6 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Snapshot:      []json.RawMessage{},
 			UnixTime:      1484078931,
 		},
-	}
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: false}}, nil
 	}
 	serv.saveResultLogsToQueryReports(ctx, notSnapshotResult, queriesDBData)
 	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
@@ -739,6 +732,9 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
 		return nil
+	}
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
 	}
 	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue)
 	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
