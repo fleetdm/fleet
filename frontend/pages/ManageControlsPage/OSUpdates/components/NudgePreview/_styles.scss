@@ -14,4 +14,8 @@
     max-width: 540px;
     margin: 40px auto 0;
   }
+
+  @media (max-width: $break-md) {
+    max-width: none;
+  }
 }

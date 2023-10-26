@@ -32,6 +32,7 @@ interface ISectionAccordionProps {
   defaultMacOSDeadline: string;
   defaultWindowsDeadlineDays: string;
   defaultWindowsGracePeriodDays: string;
+  onSelectAccordionItem: (platform: "mac" | "windows") => void;
 }
 
 const SectionAccordion = ({
@@ -40,12 +41,15 @@ const SectionAccordion = ({
   defaultMacOSVersion,
   defaultWindowsDeadlineDays,
   defaultWindowsGracePeriodDays,
+  onSelectAccordionItem,
 }: ISectionAccordionProps) => {
   return (
     <Accordion
-      className={`${baseClass}__`}
-      allowZeroExpanded
+      className={`${baseClass}__accordion`}
       preExpanded={["mac"]}
+      onChange={(selected) =>
+        onSelectAccordionItem(selected[0] as "mac" | "windows")
+      }
     >
       <AccordionItem uuid="mac">
         <AccordionItemHeading>
@@ -54,7 +58,7 @@ const SectionAccordion = ({
             <Icon name="chevron" direction="up" />
           </AccordionItemButton>
         </AccordionItemHeading>
-        <AccordionItemPanel>
+        <AccordionItemPanel className={`${baseClass}__accordion-panel`}>
           <MacOSTargetForm
             currentTeamId={currentTeamId}
             defaultMinOsVersion={defaultMacOSVersion}
@@ -71,7 +75,7 @@ const SectionAccordion = ({
             <Icon name="chevron" direction="up" />
           </AccordionItemButton>
         </AccordionItemHeading>
-        <AccordionItemPanel>
+        <AccordionItemPanel className={`${baseClass}__accordion-panel`}>
           <WindowsTargetForm
             currentTeamId={currentTeamId}
             defaultDeadlineDays={defaultWindowsDeadlineDays}
@@ -84,10 +88,6 @@ const SectionAccordion = ({
     </Accordion>
   );
 };
-
-interface ITargetSectionProps {
-  currentTeamId: number;
-}
 
 const getDefaultMacOSVersion = (
   currentTeam: number,
@@ -129,7 +129,15 @@ const getDefaultWindowsGracePeriodDays = (
     : teamConfig?.mdm?.windows_updates.grace_period_days?.toString() ?? "";
 };
 
-const TargetSection = ({ currentTeamId }: ITargetSectionProps) => {
+interface ITargetSectionProps {
+  currentTeamId: number;
+  onSelectAccordionItem: (platform: "mac" | "windows") => void;
+}
+
+const TargetSection = ({
+  currentTeamId,
+  onSelectAccordionItem,
+}: ITargetSectionProps) => {
   const { config } = useContext(AppContext);
 
   const { data: teamData, isLoading: isLoadingTeam, isError } = useQuery<
@@ -176,6 +184,7 @@ const TargetSection = ({ currentTeamId }: ITargetSectionProps) => {
           defaultMacOSDeadline={defaultMacOSDeadline}
           defaultWindowsDeadlineDays={defaultWindowsDeadlineDays}
           defaultWindowsGracePeriodDays={defaultWindowsGracePeriodDays}
+          onSelectAccordionItem={onSelectAccordionItem}
         />
       );
     } else if (isMacMdmEnabled) {

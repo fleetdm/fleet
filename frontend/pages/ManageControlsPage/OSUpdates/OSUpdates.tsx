@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
@@ -14,15 +14,27 @@ const baseClass = "os-updates";
 
 interface IOSUpdates {
   router: InjectedRouter;
-  teamIdForApi: number;
+  teamIdForApi?: number;
 }
 
 const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
   const { config, isPremiumTier } = useContext(AppContext);
 
+  const [selectedPlatform, setSelectedPlatform] = useState<"mac" | "windows">(
+    "mac"
+  );
+
+  console.log("SELECTED PLATFORM", selectedPlatform);
+
+  if (teamIdForApi === undefined) return null;
+
   if (!config?.mdm.enabled_and_configured) {
     return <TurnOnMdmMessage router={router} />;
   }
+
+  const handleSelectPlatform = (platform: "mac" | "windows") => {
+    setSelectedPlatform(platform);
+  };
 
   return isPremiumTier ? (
     <div className={baseClass}>
@@ -33,10 +45,13 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
       <div className={`${baseClass}__content`}>
         <div className={`${baseClass}__form-table-content`}>
           <CurrentVersionSection currentTeamId={teamIdForApi} />
-          <TargetSection currentTeamId={teamIdForApi} />
+          <TargetSection
+            currentTeamId={teamIdForApi}
+            onSelectAccordionItem={handleSelectPlatform}
+          />
         </div>
         <div className={`${baseClass}__nudge-preview`}>
-          <NudgePreview platform="windows" />
+          <NudgePreview platform={selectedPlatform} />
         </div>
       </div>
     </div>
