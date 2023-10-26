@@ -1,7 +1,10 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
 
+import { APP_CONTEXT_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { AppContext } from "context/app";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
@@ -24,19 +27,41 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
     "mac"
   );
 
-  console.log("SELECTED PLATFORM", selectedPlatform);
+  const { data: teamData, isLoading: isLoadingTeam, isError } = useQuery<
+    ILoadTeamResponse,
+    Error,
+    ITeamConfig
+  >(["team-config", teamIdForApi], () => teamsAPI.load(teamIdForApi), {
+    refetchOnWindowFocus: false,
+    enabled:
+      teamIdForApi !== undefined && teamIdForApi > APP_CONTEXT_NO_TEAM_ID,
+    select: (data) => data.team,
+  });
 
   if (teamIdForApi === undefined) return null;
 
-  if (!config?.mdm.enabled_and_configured) {
+  // mdm is not enabled for mac or windows.
+  if (
+    !config?.mdm.enabled_and_configured &&
+    !config?.mdm.windows_enabled_and_configured
+  ) {
     return <TurnOnMdmMessage router={router} />;
+  }
+
+  // Not premium shows premium message
+  if (!isPremiumTier) {
+    return (
+      <PremiumFeatureMessage
+        className={`${baseClass}__premium-feature-message`}
+      />
+    );
   }
 
   const handleSelectPlatform = (platform: "mac" | "windows") => {
     setSelectedPlatform(platform);
   };
 
-  return isPremiumTier ? (
+  return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
         Remotely encourage the installation of macOS updates on hosts assigned
@@ -55,10 +80,6 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
         </div>
       </div>
     </div>
-  ) : (
-    <PremiumFeatureMessage
-      className={`${baseClass}__premium-feature-message`}
-    />
   );
 };
 

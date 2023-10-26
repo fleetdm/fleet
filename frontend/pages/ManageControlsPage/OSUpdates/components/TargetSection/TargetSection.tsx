@@ -1,12 +1,5 @@
 import React, { useContext } from "react";
 import { useQuery } from "react-query";
-import {
-  Accordion,
-  AccordionItem,
-  AccordionItemButton,
-  AccordionItemHeading,
-  AccordionItemPanel,
-} from "react-accessible-accordion";
 
 import {
   API_NO_TEAM_ID,
@@ -19,75 +12,12 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
-import Icon from "components/Icon";
 
 import MacOSTargetForm from "../MacOSTargetForm";
 import WindowsTargetForm from "../WindowsTargetForm";
+import PlatformsAccordion from "../PlatformsAccordion";
 
 const baseClass = "os-updates-target-section";
-
-interface ISectionAccordionProps {
-  currentTeamId: number;
-  defaultMacOSVersion: string;
-  defaultMacOSDeadline: string;
-  defaultWindowsDeadlineDays: string;
-  defaultWindowsGracePeriodDays: string;
-  onSelectAccordionItem: (platform: "mac" | "windows") => void;
-}
-
-const SectionAccordion = ({
-  currentTeamId,
-  defaultMacOSDeadline,
-  defaultMacOSVersion,
-  defaultWindowsDeadlineDays,
-  defaultWindowsGracePeriodDays,
-  onSelectAccordionItem,
-}: ISectionAccordionProps) => {
-  return (
-    <Accordion
-      className={`${baseClass}__accordion`}
-      preExpanded={["mac"]}
-      onChange={(selected) =>
-        onSelectAccordionItem(selected[0] as "mac" | "windows")
-      }
-    >
-      <AccordionItem uuid="mac">
-        <AccordionItemHeading>
-          <AccordionItemButton className={`${baseClass}__accordion-button`}>
-            <span>macOS</span>
-            <Icon name="chevron" direction="up" />
-          </AccordionItemButton>
-        </AccordionItemHeading>
-        <AccordionItemPanel className={`${baseClass}__accordion-panel`}>
-          <MacOSTargetForm
-            currentTeamId={currentTeamId}
-            defaultMinOsVersion={defaultMacOSVersion}
-            defaultDeadline={defaultMacOSDeadline}
-            key={currentTeamId}
-            inAccordion
-          />
-        </AccordionItemPanel>
-      </AccordionItem>
-      <AccordionItem uuid="windows">
-        <AccordionItemHeading>
-          <AccordionItemButton className={`${baseClass}__accordion-button`}>
-            <span>Windows</span>
-            <Icon name="chevron" direction="up" />
-          </AccordionItemButton>
-        </AccordionItemHeading>
-        <AccordionItemPanel className={`${baseClass}__accordion-panel`}>
-          <WindowsTargetForm
-            currentTeamId={currentTeamId}
-            defaultDeadlineDays={defaultWindowsDeadlineDays}
-            defaultGracePeriodDays={defaultWindowsGracePeriodDays}
-            key={currentTeamId}
-            inAccordion
-          />
-        </AccordionItemPanel>
-      </AccordionItem>
-    </Accordion>
-  );
-};
 
 const getDefaultMacOSVersion = (
   currentTeam: number,
@@ -178,7 +108,7 @@ const TargetSection = ({
   const renderTargetForms = () => {
     if (isMacMdmEnabled && isWindowsMdmEnabled) {
       return (
-        <SectionAccordion
+        <PlatformsAccordion
           currentTeamId={currentTeamId}
           defaultMacOSVersion={defaultMacOSVersion}
           defaultMacOSDeadline={defaultMacOSDeadline}
