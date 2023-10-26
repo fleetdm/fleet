@@ -24,6 +24,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
@@ -40,7 +41,7 @@ type NullEvent struct{}
 
 type OptionsStruct struct {
 	LambdaExecutionEnv string `long:"lambda-execution-environment" env:"AWS_EXECUTION_ENV"`
-	SNSTopicArn        string `long:"sns-topic-arn" env:"SNS_TOPIC_ARN" required:"true"`
+	SNSTopicArns       string `long:"sns-topic-arn" env:"SNS_TOPIC_ARNS" required:"true"`
 	MySQLHost          string `long:"mysql-host" env:"MYSQL_HOST" required:"true"`
 	MySQLUser          string `long:"mysql-user" env:"MYSQL_USER" required:"true"`
 	MySQLSMSecret      string `long:"mysql-secretsmanager-secret" env:"MYSQL_SECRETSMANAGER_SECRET" required:"true"`
@@ -55,14 +56,16 @@ func sendSNSMessage(msg string, sess *session.Session) {
 	log.Printf("Sending SNS Message")
 	fullMsg := fmt.Sprintf("Environment: %s\nMessage: %s", options.FleetEnv, msg)
 	svc := sns.New(sess)
-	result, err := svc.Publish(&sns.PublishInput{
-		Message:  &fullMsg,
-		TopicArn: &options.SNSTopicArn,
-	})
-	if err != nil {
-		log.Printf(err.Error())
+	for _, SNSTopicArn := range strings.Split(options.SNSTopicArns, ",") {
+		result, err := svc.Publish(&sns.PublishInput{
+			Message:  &fullMsg,
+			TopicArn: &SNSTopicArn,
+		})
+		if err != nil {
+			log.Printf(err.Error())
+		}
+		log.Printf(result.GoString())
 	}
-	log.Printf(result.GoString())
 }
 
 func checkDB(sess *session.Session) (err error) {

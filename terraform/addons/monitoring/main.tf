@@ -316,7 +316,7 @@ resource "aws_lambda_function" "cron_monitoring" {
       MYSQL_DATABASE             = var.cron_monitoring.mysql_database
       MYSQL_USER                 = var.cron_monitoring.mysql_user
       MYSQL_PASSWORD_SECRET_NAME = var.cron_monitoring.mysql_password_secret.name
-      SNS_TOPIC_ARN              = var.cron_monitoring.sns_topic_arn
+      SNS_TOPIC_ARNS             = join(", ", lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns))
       FLEET_ENV                  = var.customer_prefix
     }
   }
@@ -381,7 +381,7 @@ data "aws_iam_policy_document" "cron_monitoring_lambda" {
       "sns:Publish"
     ]
 
-    resources = [var.cron_monitoring.sns_topic_arn]
+    resources = lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns)
 
     effect = "Allow"
   }

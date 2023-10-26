@@ -64,7 +64,6 @@ variable "cron_monitoring" {
     mysql_database        = string
     mysql_user            = string
     mysql_password_secret = any
-    sns_topic_arn         = string
   })
   default = null
 }
