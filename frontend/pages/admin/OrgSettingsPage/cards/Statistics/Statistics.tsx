@@ -11,6 +11,7 @@ const baseClass = "app-config-form";
 const Statistics = ({
   appConfig,
   handleSubmit,
+  isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<any>({
@@ -45,12 +46,13 @@ const Statistics = ({
         <div className={`${baseClass}__section`}>
           <h2>Usage statistics</h2>
           <p className={`${baseClass}__section-description`}>
-            Help improve Fleet by sending usage statistics.
+            Help us improve Fleet by sending us anonymous usage statistics.
             <br />
             <br />
             This information helps our team better understand feature adoption
             and usage, and allows us to see how Fleet is adding value, so that
-            we can make better product decisions.
+            we can make better product decisions. Fleet Premium customers always
+            submit usage statistics data.
             <br />
             <br />
             <CustomLink
@@ -63,8 +65,13 @@ const Statistics = ({
             <Checkbox
               onChange={handleInputChange}
               name="enableUsageStatistics"
-              value={enableUsageStatistics}
+              value={isPremiumTier ? true : enableUsageStatistics} // Set to true for all premium customers
               parseTarget
+              wrapperClassName={
+                isPremiumTier
+                  ? `${baseClass}__disabled-usage-statistics-checkbox`
+                  : ""
+              }
             >
               Enable usage statistics
             </Checkbox>

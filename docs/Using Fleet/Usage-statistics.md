@@ -104,7 +104,9 @@ Statistics contain no personal information about any particular device or person
 
 For Fleet Free instances, usage statistics are anonymous. The "organization" property is reported as "unknown."
 
-Sending Usage statistics from your Fleet instance is optional and can be disabled.
+Sending Usage statistics from your Fleet Free instance is optional and can be disabled.
+
+Note: Usage statistics are not optional for Fleet Premium instances.
 
 ## Why should we enable usage statistics?
 

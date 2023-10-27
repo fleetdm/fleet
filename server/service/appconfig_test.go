@@ -1128,3 +1128,81 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.Equal(t, newAgentOptions, *dsAppConfig.AgentOptions)
 	require.Equal(t, newAgentOptions, *dsAppConfig.AgentOptions)
 }
+
+// TestModifyEnableAnalytics tests that a premium customer cannot set ServerSettings.EnableAnalytics to be false.
+// Free customers should be able to set the value to false, however.
+func TestModifyEnableAnalytics(t *testing.T) {
+	ds := new(mock.Store)
+
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name             string
+		expectedEnabled  bool
+		newEnabled       bool
+		initialEnabled   bool
+		licenseTier      string
+		initialURL       string
+		newURL           string
+		expectedURL      string
+		shouldFailModify bool
+	}{
+		{
+			name:            "fleet free",
+			expectedEnabled: false,
+			initialEnabled:  true,
+			newEnabled:      false,
+			licenseTier:     fleet.TierFree,
+		},
+		{
+			name:            "fleet premium",
+			expectedEnabled: true,
+			initialEnabled:  true,
+			newEnabled:      false,
+			licenseTier:     fleet.TierPremium,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo: fleet.OrgInfo{
+					OrgName: "Test",
+				},
+				ServerSettings: fleet.ServerSettings{
+					EnableAnalytics: true,
+					ServerURL:       "https://localhost:8080",
+				},
+			}
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return dsAppConfig, nil
+			}
+
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+
+			ac, err := svc.AppConfigObfuscated(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tt.initialEnabled, ac.ServerSettings.EnableAnalytics)
+
+			raw, err := json.Marshal(fleet.ServerSettings{EnableAnalytics: tt.newEnabled, ServerURL: "https://localhost:8080"})
+			require.NoError(t, err)
+			raw = []byte(`{"server_settings":` + string(raw) + `}`)
+			modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+			require.NoError(t, err)
+
+			if modified != nil {
+				require.Equal(t, tt.expectedEnabled, modified.ServerSettings.EnableAnalytics)
+				ac, err = svc.AppConfigObfuscated(ctx)
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedEnabled, ac.ServerSettings.EnableAnalytics)
+			}
+		})
+	}
+}
