@@ -1394,7 +1394,7 @@ func getMDMCommandResultsCommand() *cli.Command {
 				return err
 			}
 
-			res, err := client.MDMAppleGetCommandResults(c.String("id"))
+			res, err := client.MDMGetCommandResults(c.String("id"))
 			if err != nil {
 				var nfe service.NotFoundErr
 				if errors.As(err, &nfe) {

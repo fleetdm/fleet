@@ -3976,6 +3976,8 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	// get command results returns 404, that command does not exist
 	var cmdResResp getMDMAppleCommandResultsResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusNotFound, &cmdResResp, "command_uuid", uuid1)
+	var getMDMCmdResp getMDMCommandResultsResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/commandresults", nil, http.StatusNotFound, &cmdResResp, "command_uuid", uuid1)
 
 	// list commands returns empty set
 	var listCmdResp listMDMAppleCommandsResponse
@@ -4018,6 +4020,8 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	// the command exists but no results yet
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusOK, &cmdResResp, "command_uuid", uuid2)
 	require.Len(t, cmdResResp.Results, 0)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/commandresults", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", uuid2)
+	require.Len(t, getMDMCmdResp.Results, 0)
 
 	// simulate a result and call again
 	err = s.mdmStorage.StoreCommandReport(&mdm.Request{
@@ -4041,14 +4045,27 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	require.Len(t, cmdResResp.Results, 1)
 	require.NotZero(t, cmdResResp.Results[0].UpdatedAt)
 	cmdResResp.Results[0].UpdatedAt = time.Time{}
-	require.Equal(t, &fleet.MDMAppleCommandResult{
-		DeviceID:    mdmDevice.UUID,
+	require.Equal(t, &fleet.MDMCommandResult{
+		HostUUID:    mdmDevice.UUID,
 		CommandUUID: uuid2,
 		Status:      "Acknowledged",
 		RequestType: "ProfileList",
 		Result:      []byte(rawCmd),
 		Hostname:    "test-host",
 	}, cmdResResp.Results[0])
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/commandresults", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", uuid2)
+	require.Len(t, getMDMCmdResp.Results, 1)
+	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
+	getMDMCmdResp.Results[0].UpdatedAt = time.Time{}
+	require.Equal(t, &fleet.MDMCommandResult{
+		HostUUID:    mdmDevice.UUID,
+		CommandUUID: uuid2,
+		Status:      "Acknowledged",
+		RequestType: "ProfileList",
+		Result:      []byte(rawCmd),
+		Hostname:    "test-host",
+	}, getMDMCmdResp.Results[0])
 
 	// list commands returns that command
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp)
@@ -4062,6 +4079,87 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		RequestType: "ProfileList",
 		Hostname:    "test-host",
 	}, listCmdResp.Results[0])
+}
+
+func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
+	ctx := context.Background()
+	t := s.T()
+
+	h, err := s.ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-win-host-name",
+		OsqueryHostID: ptr.String("1337"),
+		NodeKey:       ptr.String("1337"),
+		UUID:          "test-win-host-uuid",
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	dev := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            "test-device-id",
+		MDMHardwareID:          "test-hardware-id",
+		MDMDeviceState:         "ds",
+		MDMDeviceType:          "dt",
+		MDMDeviceName:          "dn",
+		MDMEnrollType:          "et",
+		MDMEnrollUserID:        "euid",
+		MDMEnrollProtoVersion:  "epv",
+		MDMEnrollClientVersion: "ecv",
+		MDMNotInOOBE:           false,
+		HostUUID:               h.UUID,
+	}
+
+	require.NoError(t, s.ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
+	var enrollmentID uint
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &enrollmentID, `SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, dev.MDMDeviceID)
+	})
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE id = ?`, dev.HostUUID, enrollmentID)
+		return err
+	})
+
+	rawCmd := "some-command"
+	cmdUUID := "some-uuid"
+	cmdTarget := "some-target-loc-uri"
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri) VALUES (?, ?, ?)`, cmdUUID, rawCmd, cmdTarget)
+		return err
+	})
+
+	var responseID int64
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, "some-response")
+		if err != nil {
+			return err
+		}
+		responseID, err = res.LastInsertId()
+		return err
+	})
+
+	rawResult := []byte("some-result")
+	statusCode := "200"
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code) VALUES (?, ?, ?, ?, ?)`, enrollmentID, cmdUUID, rawResult, responseID, statusCode)
+		return err
+	})
+
+	var resp getMDMCommandResultsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/commandresults?command_uuid=%s", cmdUUID), nil, http.StatusOK, &resp)
+	require.Len(t, resp.Results, 1)
+	require.Equal(t, dev.HostUUID, resp.Results[0].HostUUID)
+	require.Equal(t, cmdUUID, resp.Results[0].CommandUUID)
+	require.Equal(t, rawResult, resp.Results[0].Result)
+	require.Equal(t, cmdTarget, resp.Results[0].RequestType)
+	require.Equal(t, statusCode, resp.Results[0].Status)
+	require.Equal(t, h.Hostname, resp.Results[0].Hostname)
+
+	resp = getMDMCommandResultsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/commandresults?command_uuid=%s", uuid.New().String()), nil, http.StatusNotFound, &resp)
+	require.Empty(t, resp.Results)
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMMacOSMigration() {

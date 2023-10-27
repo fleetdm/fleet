@@ -145,28 +145,6 @@ type MDMAppleDEPKeyPair struct {
 	PrivateKey []byte `json:"private_key"`
 }
 
-// MDMAppleCommandResult holds the result of a command execution provided by
-// the target device.
-type MDMAppleCommandResult struct {
-	// DeviceID is the MDM enrollment ID. This is the same as the host UUID.
-	DeviceID string `json:"device_id" db:"device_id"`
-	// CommandUUID is the unique identifier of the command.
-	CommandUUID string `json:"command_uuid" db:"command_uuid"`
-	// Status is the command status. One of Acknowledged, Error, or NotNow.
-	Status string `json:"status" db:"status"`
-	// UpdatedAt is the last update timestamp of the command result.
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
-	// RequestType is the command's request type, which is basically the
-	// command name.
-	RequestType string `json:"request_type" db:"request_type"`
-	// Result is the original command result XML plist. If the status is Error, it will include the
-	// ErrorChain key with more information.
-	Result []byte `json:"result" db:"result"`
-	// Hostname is not filled by the query, it is filled in the service layer
-	// afterwards. To make that explicit, the db field tag is explicitly ignored.
-	Hostname string `json:"hostname" db:"-"`
-}
-
 // MDMAppleInstaller holds installer packages for Apple devices.
 type MDMAppleInstaller struct {
 	// ID is the unique identifier of the installer in Fleet.

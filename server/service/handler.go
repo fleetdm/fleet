@@ -507,6 +507,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleOrWindowsMDM())
 	mdmAnyMW.POST("/api/_version_/fleet/mdm/commands/run", runMDMCommandEndpoint, runMDMCommandRequest{})
+	mdmAnyMW.GET("/api/_version_/fleet/mdm/commandresults", getMDMCommandResultsEndpoint, getMDMCommandResultsRequest{})
 
 	// the following set of mdm endpoints must always be accessible (even
 	// if MDM is not configured) as it bootstraps the setup of MDM

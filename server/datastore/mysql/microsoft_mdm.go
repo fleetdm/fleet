@@ -340,3 +340,40 @@ func (ds *Datastore) MDMWindowsListCommands(ctx context.Context, deviceID string
 
 	return commands, nil
 }
+
+func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	query := `
+SELECT
+    mwe.host_uuid,
+    wmcr.command_uuid,
+    wmcr.status_code as status,
+	wmcr.updated_at,
+    wmc.target_loc_uri as request_type,
+    wmcr.raw_result as result
+FROM
+    windows_mdm_command_results wmcr
+INNER JOIN
+    windows_mdm_commands wmc
+ON
+    wmcr.command_uuid = wmc.command_uuid
+INNER JOIN
+    mdm_windows_enrollments mwe
+ON
+    wmcr.enrollment_id = mwe.id
+WHERE
+    wmcr.command_uuid = ?
+`
+
+	var results []*fleet.MDMCommandResult
+	err := sqlx.SelectContext(
+		ctx,
+		ds.reader(ctx),
+		&results,
+		query,
+		commandUUID,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get command results")
+	}
+	return results, nil
+}
