@@ -61,7 +61,9 @@ const CustomSettings = ({
     const file = files[0];
 
     if (
-      file.type !== "application/x-apple-aspen-config" ||
+      // file.type might be empty on some systems as uncommon file extensions
+      // would return an empty string.
+      (file.type !== "" && file.type !== "application/x-apple-aspen-config") ||
       !file.name.includes(".mobileconfig")
     ) {
       renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);

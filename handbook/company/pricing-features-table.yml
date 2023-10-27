@@ -371,12 +371,15 @@
 - categoryName: Device management
   features:
     - industryName: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
-      tier: Free
+      tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Remotely enforce macOS settings
+    - industryName: Remotely enforce OS settings
       tier: Free
       usualDepartment: IT
+      waysToUse:
+        - description: Deploy custom configuration profiles on macOS and Windows (coming soon) and verify that they're installed.
+        - description: Automatically re-deploy configuration profiles on macOS they're not installed.
       productCategories: [Device management]
     - industryName: Self service
       description: Provide resolution instructions for end users through Fleet Desktop that suggest how an end user can fix a posture issue themselves.
@@ -399,10 +402,18 @@
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: End-user macOS update reminders (via Nudge)
+      waysToUse:
+        - description: Ship a macOS workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup.
+        - description: Ship a Windows workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup. Coming soon (2023-12-31) #Customer-preston
+        - description: Customize the out-of-the-box setup experience for your end users.
+        - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
+    - industryName: Enforce OS updates
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management,Vulnerability management]
+      waysToUse:
+        - description: Enforce macOS updates via Nudge.
+        - description: Automatically update Windows after the end user reaches a deadline. Coming soon (2023-12-31) #Customer-preston
     - industryName: Encrypt macOS hard disks with FileVault
       tier: Premium
       usualDepartment: IT
@@ -416,9 +427,9 @@
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Update apps on macOS computers
+    - industryName: Install and update apps on macOS and Windows computers.
       tier: Premium
-      comingSoonOn: 2024-03-31
+      comingSoonOn: 2023-12-31 #Customer-reedtimmer and customer-preston
       usualDepartment: IT
       productCategories: [Device management]
     - industryName: Puppet module
@@ -468,7 +479,7 @@
         - description: Report on disk encryption status
         - description: Encrypt hard disks on macOS with FileVault
         - description: Escrow FileVault keys on macOS
-        - description: Encrypt hard disks on Windows with BitLocker
+        - description: Encrypt hard disks on Windows with BitLocker. Coming soon (2023-12-31) #Customer-preston
     - industryName: Audit queries and user activities
       tier: Free
       usualDepartment: Security
@@ -508,12 +519,19 @@
           moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
         - description: A top software company wanted to detect regressions when adding/changing queries and fail builds if queries were too expensive.
           moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
+      waysToUse:
+        - description: Monitor performance for automated queries.
+        - description: Monitor performance for live queries. Coming soon (2024-01-26) #Customer-blanco
     - industryName: Detect and surface issues with devices (policies)
       tier: Free
+    - industryName: Vulnerability dashboard
+      tier: Premium
+      comingSoonOn: 2024-03-31
+      waysToUse:
+        - description: Only show vulnerabilities that you care about. Coming soon (2024-03-31) #Customer-faltona and customer-rialto
     - industryName: Policy scoring
       friendlyName: Mark policies as critical
       tier: Premium
-      comingSoonOn: 2023-12-31
     - industryName: Vulnerability scores (EPSS and CVSS)
       tier: Premium
       usualDepartment: Security
@@ -528,6 +546,8 @@
       tier: Free
       usualDepartment: Security
       productCategories: [Endpoint operations]
+      waysToUse:
+        - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-01-26) #Customer-blanco
     - industryName: File carving (AWS S3)
       tier: Free
       usualDepartment: Security

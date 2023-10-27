@@ -952,8 +952,11 @@ type Datastore interface {
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
 
-	// GetMDMIdPAccount returns MDM IdP account that matches the given token.
-	GetMDMIdPAccount(ctx context.Context, uuid string) (*MDMIdPAccount, error)
+	// GetMDMIdPAccountByUUID returns MDM IdP account that matches the given token.
+	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
+
+	// GetMDMIdPAccountByEmail returns MDM IdP account that matches the given email.
+	GetMDMIdPAccountByEmail(ctx context.Context, email string) (*MDMIdPAccount, error)
 
 	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
