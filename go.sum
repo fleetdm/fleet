@@ -422,6 +422,8 @@ github.com/fleetdm/goose v0.0.0-20221011170007-06aacf8ac547 h1:3Vlgx6mJYFlj3GPB3
 github.com/fleetdm/goose v0.0.0-20221011170007-06aacf8ac547/go.mod h1:d7Q+0eCENnKQUhkfAUVLfGnD4QcgJMF/uB9WRTN9TDI=
 github.com/fleetdm/kolide-kit v0.0.0-20230519160117-86cc9441f9c1 h1:9JGbRO6QKpHr5HO5t6g3/5EspV5eDWaLKbRH7xKqL/c=
 github.com/fleetdm/kolide-kit v0.0.0-20230519160117-86cc9441f9c1/go.mod h1:HHtqF91JHl66L+Ms8aswzqVb2eEU5O3DRNiFmUzOf60=
+github.com/fleetdm/launcher v0.0.0-20231027155713-02ebce8f3007 h1:5u9tvIHC4AFT7V+Vw2AQEspdQiGAWeP24x02rxrWZgQ=
+github.com/fleetdm/launcher v0.0.0-20231027155713-02ebce8f3007/go.mod h1:4h1FwciY5mWaNlG8ckHl3TU5yVN4+NkZtnrAvP65x1A=
 github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24 h1:XhczaxKV3J4NjztroidSnYKyq5xtxF+amBYdBWeik58=
 github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24/go.mod h1:QzQrCUTmSr9HotzKZAcfmy+czbEGK8Mq26hA+0DN4ag=
 github.com/fleetdm/nanomdm v0.3.1-0.20230710170238-fd0813187f24 h1:oP0kOAFDzu646/TXDCcvOGdDgSHJgk+X0Pfr60kp7Jg=
@@ -460,8 +462,6 @@ github.com/getlantern/systray v1.2.2-0.20220329111105-6065fda28be8 h1:ois/A+ZnsB
 github.com/getlantern/systray v1.2.2-0.20220329111105-6065fda28be8/go.mod h1:AecygODWIsBquJCJFop8MEQcJbWFfw/1yWbVabNgpCM=
 github.com/getsentry/sentry-go v0.18.0 h1:MtBW5H9QgdcJabtZcuJG80BMOwaBpkRDZkxRkNC1sN0=
 github.com/getsentry/sentry-go v0.18.0/go.mod h1:Kgon4Mby+FJ7ZWHFUAZgVaIa8sxHtnRJRLTXZr51aKQ=
-github.com/getvictor/launcher v0.0.0-20231027135311-784e35b2cd67 h1:CGAdG2RQTdP8TXe/MIYPVkfmbonpLPKAsigybZ4vU/c=
-github.com/getvictor/launcher v0.0.0-20231027135311-784e35b2cd67/go.mod h1:4h1FwciY5mWaNlG8ckHl3TU5yVN4+NkZtnrAvP65x1A=
 github.com/ghodss/yaml v1.0.0 h1:wQHKEahhL6wmXdzwWG11gIVCkOv05bNOh+Rxn0yngAk=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
 github.com/gin-contrib/sse v0.1.0/go.mod h1:RHrZQHXnP2xjPF+u1gW/2HnVO7nvIa9PG3Gm+fLHvGI=
