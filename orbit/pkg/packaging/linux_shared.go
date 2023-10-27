@@ -364,7 +364,11 @@ pkill fleet-desktop || true
 func writePostRemove(opt Options, path string) error {
 	if err := ioutil.WriteFile(path, []byte(`#!/bin/sh
 
-rm -rf /var/lib/orbit /var/log/orbit /usr/local/bin/orbit /etc/default/orbit /usr/lib/systemd/system/orbit.service /opt/orbit
+# For RPM during uninstall, $1 is 0
+# For Debian during remove, $1 is "remove"
+if [ "$1" = 0 ] || [ "$1" = "remove" ]; then
+	rm -rf /var/lib/orbit /var/log/orbit /usr/local/bin/orbit /etc/default/orbit /usr/lib/systemd/system/orbit.service /opt/orbit
+fi
 `), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
