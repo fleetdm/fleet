@@ -211,7 +211,7 @@ spec:
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/AccessCredentialManagerAsTrustedCaller</LocURI></Target></Item></Get></SyncBody>" 
     AND mdm_command_output = "";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_bullet_2.2.1
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
