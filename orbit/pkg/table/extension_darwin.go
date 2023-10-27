@@ -28,7 +28,6 @@ import (
 	"github.com/kolide/launcher/pkg/osquery/tables/ioreg"
 	"github.com/kolide/launcher/pkg/osquery/tables/mdmclient"
 	"github.com/kolide/launcher/pkg/osquery/tables/profiles"
-	"github.com/kolide/launcher/pkg/osquery/tables/pwpolicy"
 	"github.com/kolide/launcher/pkg/osquery/tables/systemprofiler"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
@@ -79,7 +78,6 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		firmwarepasswd.TablePlugin(kolideLogger),
 		ioreg.TablePlugin(kolideLogger),
 		profiles.TablePlugin(kolideLogger),
-		pwpolicy.TablePlugin(kolideLogger),
 		airport.TablePlugin(kolideLogger),
 		firmwarepasswd.TablePlugin(kolideLogger),
 		apple_silicon_security_policy.TablePlugin(kolideLogger),
