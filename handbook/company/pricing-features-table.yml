@@ -411,7 +411,7 @@
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management,Vulnerability management]
-       waysToUse:
+      waysToUse:
         - description: Enforce macOS updates via Nudge.
         - description: Automatically update Windows after the end user reaches a deadline. Coming soon (2023-12-31) #Customer-preston
     - industryName: Encrypt macOS hard disks with FileVault
