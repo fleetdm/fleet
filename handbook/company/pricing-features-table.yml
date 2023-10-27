@@ -1,35 +1,35 @@
 - categoryName: Endpoint ops
   features:
-      #
-      #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦ ╦╔═╗╔═╗╦ ╔╦╗╦ ╦
-      #   ║║║╣ ╚╗╔╝║║  ║╣   ╠═╣║╣ ╠═╣║  ║ ╠═╣
-      #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╚═╝╩ ╩╩═╝╩ ╩ ╩
-    - industryName: Device health
-      friendlyName: Automate device health
-      description: Automatically report system health issues using webhooks or integrations, to notify or quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
-      documentationUrl:
-      screenshotSrc:
-      tier: Free
-      productCategories: [Endpoint operations]
-      dri: mikermcneil
-      demos:
-        - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
-          quote: 
-          moreInfoUrl: 
-      buzzwords: [Device trust,Zero trust,Beyondcorp,Device attestation,Conditional access]
-      waysToUse:
-        - description: Automatically manage the behavior of sick endpoints that are at higher risk of vulnerabilities.
-        - description: Implement conditional access based on device health using the Fleet API.
-        - description: Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.
-        - description: Control and restore access to applications by restricting access when devices do not meet particular security requirements.
-          moreInfoUrl: https://duo.com/docs/device-health
-        - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems.
-        - description: Implement multivariate device trust
-          moreInfoUrl: https://youtu.be/5sFOdpMLXQg?feature=shared&t=1445
-        - description: Implement your own version of Google's zero trust model (BeyondCorp)
-          moreInfoUrl: https://cloud.google.com/beyondcorp
-        - description: Get endpoint data into ServiceNow and make your asset management teams happy
-          moreInfoUrl: https://www.youtube.com/watch?v=aVbU6_9JoM0
+    #
+    #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦ ╦╔═╗╔═╗╦ ╔╦╗╦ ╦
+    #   ║║║╣ ╚╗╔╝║║  ║╣   ╠═╣║╣ ╠═╣║  ║ ╠═╣
+    #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╚═╝╩ ╩╩═╝╩ ╩ ╩
+  - industryName: Device health
+    friendlyName: Automate device health
+    description: Automatically report system health issues using webhooks or integrations, to notify or quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
+    documentationUrl:
+    screenshotSrc:
+    tier: Free
+    productCategories: [Endpoint operations]
+    dri: mikermcneil
+    demos:
+      - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
+        quote: 
+        moreInfoUrl: 
+    buzzwords: [Device trust,Zero trust,Beyondcorp,Device attestation,Conditional access]
+    waysToUse:
+      - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
+      - description: Block access to corporate apps for users whose devices with unexpected settings, like disabled screen lock, passwords that are too short, unencrypted hard disks, and more
+      - description: Quickly implement conditional access based on device health using osquery and a simple REST API.
+      - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
+        moreInfoUrl: https://duo.com/docs/device-health
+      - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems.
+      - description: Implement multivariate device trust
+        moreInfoUrl: https://youtu.be/5sFOdpMLXQg?feature=shared&t=1445
+      - description: Implement your own version of Google's zero trust model (BeyondCorp)
+        moreInfoUrl: https://cloud.google.com/beyondcorp
+      - description: Get endpoint data into ServiceNow and make your asset management teams happy
+        moreInfoUrl: https://www.youtube.com/watch?v=aVbU6_9JoM0
     #
     #  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗  ╔═╗═╗ ╦╔═╗╔═╗╦ ╦╔╦╗╦╔═╗╔╗╔
     #  ╚═╗║  ╠╦╝║╠═╝ ║   ║╣ ╔╩╦╝║╣ ║  ║ ║ ║ ║║ ║║║║
