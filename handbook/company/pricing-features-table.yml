@@ -404,7 +404,7 @@
       productCategories: [Device management]
       waysToUse:
         - description: Ship a macOS workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup.
-        - description: Ship a Windows workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup. Coming soon (2023-12-31). Customer-preston
+        - description: Ship a Windows workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup. Coming soon (2023-12-31) #Customer-preston
         - description: Customize the out-of-the-box setup experience for your end users.
         - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
     - industryName: Enforce OS updates
@@ -413,7 +413,7 @@
       productCategories: [Device management,Vulnerability management]
        waysToUse:
         - description: Enforce macOS updates via Nudge.
-        - description: Automatically update Windows after the end user reaches a deadline. Coming soon (2023-12-31). Customer-preston
+        - description: Automatically update Windows after the end user reaches a deadline. Coming soon (2023-12-31) #Customer-preston
     - industryName: Encrypt macOS hard disks with FileVault
       tier: Premium
       usualDepartment: IT
@@ -479,7 +479,7 @@
         - description: Report on disk encryption status
         - description: Encrypt hard disks on macOS with FileVault
         - description: Escrow FileVault keys on macOS
-        - description: Encrypt hard disks on Windows with BitLocker. Coming soon (2023-12-31). Customer-preston
+        - description: Encrypt hard disks on Windows with BitLocker. Coming soon (2023-12-31) #Customer-preston
     - industryName: Audit queries and user activities
       tier: Free
       usualDepartment: Security
@@ -521,14 +521,14 @@
           moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
       waysToUse:
         - description: Monitor performance for automated queries.
-        - description: Monitor performance for live queries. Coming soon (2024-01-26). Customer-blanco
+        - description: Monitor performance for live queries. Coming soon (2024-01-26) #Customer-blanco
     - industryName: Detect and surface issues with devices (policies)
       tier: Free
     - industryName: Vulnerability dashboard
       tier: Premium
       comingSoonOn: 2024-03-31
       waysToUse:
-        - description: Only show vulnerabilities that you care about. Coming soon (2024-03-31). Customer-faltona and customer-rialto
+        - description: Only show vulnerabilities that you care about. Coming soon (2024-03-31) #Customer-faltona and customer-rialto
     - industryName: Policy scoring
       friendlyName: Mark policies as critical
       tier: Premium
@@ -547,7 +547,7 @@
       usualDepartment: Security
       productCategories: [Endpoint operations]
       waysToUse:
-        - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-01-26). Customer-blanco
+        - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-01-26) #Customer-blanco
     - industryName: File carving (AWS S3)
       tier: Free
       usualDepartment: Security
