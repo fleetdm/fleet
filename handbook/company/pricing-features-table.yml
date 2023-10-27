@@ -429,7 +429,7 @@
       productCategories: [Device management]
     - industryName: Install and update apps on macOS and Windows computers.
       tier: Premium
-      comingSoonOn: 2023-12-31. Customer-reedtimmer and customer-preston
+      comingSoonOn: 2023-12-31 #Customer-reedtimmer and customer-preston
       usualDepartment: IT
       productCategories: [Device management]
     - industryName: Puppet module
