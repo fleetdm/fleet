@@ -74,6 +74,7 @@
       buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Threat hunting]
       waysToUse:
         - description: Monitor devices that don't meet your organization's custom security policies
+        - description: Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.
         - description: Keep your devices compliant with customizable baselines, or use common benchmarks like CIS.
         - description: Discover security misconfigurations that increase attack surface.
         - description: Detect suspcious services listening on open ports that should not be connected to the internet, such as Remote Desktop Protocol (RDP).
