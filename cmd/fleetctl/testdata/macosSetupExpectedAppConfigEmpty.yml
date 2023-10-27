@@ -47,7 +47,7 @@ spec:
     contact_url: "https://fleetdm.com/company/contact"
   server_settings:
     deferred_save_host: false
-    enable_analytics: false
+    enable_analytics: true
     live_query_disabled: false
     query_reports_disabled: false
     server_url: https://example.org

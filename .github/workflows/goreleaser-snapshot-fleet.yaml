@@ -2,6 +2,10 @@ name: Docker publish
 
 on:
   push:
+    branches:
+      - 'main'
+      - 'prepare-*'
+      - 'patch-*'
     paths-ignore:
       - 'handbook/**'
       - 'website/**'
