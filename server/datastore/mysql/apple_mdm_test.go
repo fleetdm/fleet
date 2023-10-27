@@ -3014,9 +3014,10 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2)
 	require.NoError(t, err)
 	require.Empty(t, res)
+	// but it's already enqueued
 	p, err = ds.GetMDMCommandPlatform(ctx, uuid2)
-	require.True(t, fleet.IsNotFound(err))
-	require.Empty(t, p)
+	require.NoError(t, err)
+	require.Equal(t, "darwin", p)
 
 	// simulate a result for enrolledHosts[0]
 	err = storage.StoreCommandReport(&mdm.Request{
