@@ -129,9 +129,8 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 
 	if shouldRemoveAllPolicyMemberships {
 		return cleanupPolicyMembership(ctx, ds.writer(ctx), p.ID)
-	} else {
-		return cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer(ctx), p.ID, p.Platform)
 	}
+	return cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer(ctx), p.ID, p.Platform)
 }
 
 // FlippingPoliciesForHost fetches previous policy membership results and returns:
