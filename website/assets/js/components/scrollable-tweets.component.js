@@ -20,7 +20,7 @@ parasails.registerComponent('scrollableTweets', {
   data: function () {
     return {
       currentTweetPage: 0,
-      numberOfTweetCards: 7,
+      numberOfTweetCards: 8,
       numberOfTweetPages: 0,
       numberOfTweetsPerPage: 0,
       tweetCardWidth: 0,
@@ -33,6 +33,18 @@ parasails.registerComponent('scrollableTweets', {
   template: `
   <div class="d-flex flex-column">
     <div purpose="tweets" class="d-flex flex-row flex-nowrap">
+      <div purpose="tweet-card" class="card">
+        <div class="mb-4">
+          <img width="119" height="24" alt="Linktree logo" src="/images/social-proof-linktree-logo-119x24@2x.png"/>
+        </div>
+        <p class="pb-2 mb-1">I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work. ❤️</p>
+        <div class="row px-3 pt-2">
+          <div>
+            <p class="font-weight-bold m-0">Daniel Grzelak</p>
+            <p class="m-0">CISO of Linktree</p>
+          </div>
+        </div>
+      </div>
       <div purpose="tweet-card" class="card">
         <div class="mb-4">
           <a href="https://twitter.com/Uber"><img width="87" height="38" alt="Uber logo" src="/images/social-proof-logo-uber-87x38@2x.png"/></a>

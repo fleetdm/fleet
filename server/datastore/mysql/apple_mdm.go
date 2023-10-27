@@ -2196,17 +2196,29 @@ func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDM
       INSERT INTO mdm_idp_accounts
         (uuid, username, fullname, email)
       VALUES
-        (?, ?, ?, ?)
+        (UUID(), ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         username   = VALUES(username),
-        fullname   = VALUES(fullname),
-        email      = VALUES(email)`
+        fullname   = VALUES(fullname)`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.UUID, account.Username, account.Fullname, account.Email)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.Username, account.Fullname, account.Email)
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
 }
 
-func (ds *Datastore) GetMDMIdPAccount(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+func (ds *Datastore) GetMDMIdPAccountByEmail(ctx context.Context, email string) (*fleet.MDMIdPAccount, error) {
+	stmt := `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE email = ?`
+	var acct fleet.MDMIdPAccount
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with email %s", email)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select mdm_idp_accounts by email")
+	}
+	return &acct, nil
+}
+
+func (ds *Datastore) GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
 	stmt := `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE uuid = ?`
 	var acct fleet.MDMIdPAccount
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, uuid)
@@ -2857,18 +2869,13 @@ SELECT
 	hardware_serial
 FROM
 	hosts h
-	-- mdm join
-	%s
+	JOIN host_dep_assignments hda ON hda.host_id = h.id
 WHERE
 	h.hardware_serial != '' AND
 	-- team_id condition
 	%s AND
-	hmdm.name = ? AND
-	-- hmdm.enrolled can be either 0 or 1, does not matter
-	hmdm.installed_from_dep = 1 AND
-	NOT COALESCE(hmdm.is_server, false)
-`, hostMDMJoin, teamCond)
-	args = append(args, fleet.WellKnownMDMFleet)
+	hda.deleted_at IS NULL
+`, teamCond)
 
 	var serials []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &serials, stmt, args...); err != nil {
@@ -2882,23 +2889,19 @@ func (ds *Datastore) ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostID
 		return nil, nil
 	}
 
-	stmt := fmt.Sprintf(`
+	stmt := `
 SELECT
 	hardware_serial
 FROM
 	hosts h
-	-- mdm join
-	%s
+	JOIN host_dep_assignments hda ON hda.host_id = h.id
 WHERE
 	h.hardware_serial != '' AND
 	h.id IN (?) AND
-	hmdm.name = ? AND
-	-- hmdm.enrolled can be either 0 or 1, does not matter
-	hmdm.installed_from_dep = 1 AND
-	NOT COALESCE(hmdm.is_server, false)
-`, hostMDMJoin)
+	hda.deleted_at IS NULL
+`
 
-	stmt, args, err := sqlx.In(stmt, hostIDs, fleet.WellKnownMDMFleet)
+	stmt, args, err := sqlx.In(stmt, hostIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "prepare statement arguments")
 	}

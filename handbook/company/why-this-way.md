@@ -204,7 +204,7 @@ The Fleet product is released every three weeks. By syncing the whole company to
 ## Why spend so much energy responding to every potential production incident?
 At Fleet, every 5xx response, timed-out request, and failed scheduled job is a P1 outage.
 
-As soon as the outage is detected in any production environment (including fleetdm.com, Fleet Sandbox, hosted customer environments, TUF, and others), we create an outage issue _immediately_: before we know for sure whether any real users are affected, and even before we know what the error message says.
+As soon as the outage is detected in any production environment (including fleetdm.com, hosted customer environments, TUF, and others), we create an outage issue _immediately_: before we know for sure whether any real users are affected, and even before we know what the error message says.
 
 Then, we determine impact quickly. We take a close look right away, even if we think it might not matter.  If there is any chance of it affecting even one user, we keep digging.  We reach out to affected users to acknowledge their problem, provide them with a workaround or some other way to make their day less painful.
 
@@ -330,15 +330,15 @@ Avoid using too many unnecessary words or superlatives, so your writing is short
 
 
 ## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
-Fleet is more than an MDM (mobile device management) solution.
+MDM should be a capability, not a product category.
 
-With Fleet, you can secure and investigate Macs, Windows servers, Chromebooks, and more by installing the fleetd agent (or chrome extension for Chromebooks). When we use the word "enroll" in Fleet, we want this to mean anytime one of these hosts shows up in Fleet and the user can see that sweet telemetry.
+In Fleet, the word "enrolled" means "the host shows up in the dashboard and API".
 
-Fleet also has MDM features that allow IT admins to enforce OS settings, OS updates, and more. When we use the phrase "MDM on" in Fleet, it means a host has these features activated.
+When some tools like Workspace ONE say a host is "enrolled", they mean that data is being collected _and_ enforcement features are activated on that host.
 
-Workspace ONE and other MDM solutions use "enroll" to mean both telemetry is being collecting and enforcement features are activated.
+Since Fleet is more than MDM, you can collect logs and health data on any computer.  You can also enforce OS settings on any computer.  But you don't have to enable both: for example, you can build an installer that only collects data, without enabling enforcement features like MDM protocol support and script execution.
 
-Since Fleet is more than MDM, you can collect telemetry on your Windows servers and you can enforce OS settings on your Macs. Or you can collect telemetry for both without enforcing OS settings.
+That means you can collect logs from Linux servers or Windows factory workstations without enabling remote script execution on those computers, even if you're using script execution on your Macs.
 
 
 

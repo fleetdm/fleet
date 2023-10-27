@@ -1,1 +1,0 @@
-- Added `mdm.os_settings` to `GET /api/v1/hosts/{id}` response.

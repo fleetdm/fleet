@@ -92,7 +92,7 @@ const EditQueryPage = ({
     setLastEditedQueryPlatforms,
     setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
-  const { setConfig } = useContext(AppContext);
+  const { setConfig, availableTeams, setCurrentTeam } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
@@ -145,6 +145,16 @@ const EditQueryPage = ({
     }
   );
 
+  // Used to set host's team in AppContext for RBAC actions
+  useEffect(() => {
+    if (storedQuery?.team_id) {
+      const querysTeam = availableTeams?.find(
+        (team) => team.id === storedQuery.team_id
+      );
+      setCurrentTeam(querysTeam);
+    }
+  }, [storedQuery]);
+
   const detectIsFleetQueryRunnable = () => {
     statusAPI.live_query().catch(() => {
       setIsLiveQueryRunnable(false);
@@ -157,10 +167,15 @@ const EditQueryPage = ({
     const canEditExistingQuery =
       isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
 
-    if (queryId && queryId > 0 && !canEditExistingQuery) {
+    if (
+      !isStoredQueryLoading && // Confirms teamId for storedQuery before RBAC reroute
+      queryId &&
+      queryId > 0 &&
+      !canEditExistingQuery
+    ) {
       router.push(PATHS.QUERY(queryId));
     }
-  }, [queryId, isTeamMaintainerOrTeamAdmin]);
+  }, [queryId, isTeamMaintainerOrTeamAdmin, isStoredQueryLoading]);
 
   useEffect(() => {
     detectIsFleetQueryRunnable();
@@ -194,33 +209,35 @@ const EditQueryPage = ({
     setShowOpenSchemaActionText(!isSidebarOpen);
   }, [isSidebarOpen]);
 
-  const saveQuery = debounce(async (formData: ICreateQueryRequestBody) => {
-    setIsQuerySaving(true);
-    try {
-      const { query } = await queryAPI.create(formData);
-      router.push(PATHS.EDIT_QUERY(query.id));
-      renderFlash("success", "Query created!");
-      setBackendValidators({});
-    } catch (createError: any) {
-      if (createError.data.errors[0].reason.includes("already exists")) {
-        const teamErrorText =
-          teamNameForQuery && apiTeamIdForQuery !== 0
-            ? `the ${teamNameForQuery} team`
-            : "all teams";
-        setBackendValidators({
-          name: `A query with that name already exists for ${teamErrorText}.`,
-        });
-      } else {
-        renderFlash(
-          "error",
-          "Something went wrong creating your query. Please try again."
-        );
+  const onSubmitNewQuery = debounce(
+    async (formData: ICreateQueryRequestBody) => {
+      setIsQuerySaving(true);
+      try {
+        const { query } = await queryAPI.create(formData);
+        router.push(PATHS.QUERY(query.id, query.team_id));
+        renderFlash("success", "Query created!");
         setBackendValidators({});
+      } catch (createError: any) {
+        if (createError.data.errors[0].reason.includes("already exists")) {
+          const teamErrorText =
+            teamNameForQuery && apiTeamIdForQuery !== 0
+              ? `the ${teamNameForQuery} team`
+              : "all teams";
+          setBackendValidators({
+            name: `A query with that name already exists for ${teamErrorText}.`,
+          });
+        } else {
+          renderFlash(
+            "error",
+            "Something went wrong creating your query. Please try again."
+          );
+          setBackendValidators({});
+        }
+      } finally {
+        setIsQuerySaving(false);
       }
-    } finally {
-      setIsQuerySaving(false);
     }
-  });
+  );
 
   const onUpdateQuery = async (formData: ICreateQueryRequestBody) => {
     if (!queryId) {
@@ -323,7 +340,7 @@ const EditQueryPage = ({
             </div>
             <EditQueryForm
               router={router}
-              saveQuery={saveQuery}
+              onSubmitNewQuery={onSubmitNewQuery}
               onOsqueryTableSelect={onOsqueryTableSelect}
               onUpdate={onUpdateQuery}
               storedQuery={storedQuery}

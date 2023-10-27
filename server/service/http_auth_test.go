@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -99,7 +98,7 @@ func TestLogin(t *testing.T) {
 		require.Nil(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode, strconv.Itoa(tt.status))
 
-		_, err = ioutil.ReadAll(resp.Body)
+		_, err = io.ReadAll(resp.Body)
 		assert.Nil(t, err)
 
 		// ensure that our user's session was deleted from the store

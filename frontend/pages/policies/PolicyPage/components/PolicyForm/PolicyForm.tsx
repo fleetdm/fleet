@@ -477,6 +477,12 @@ const PolicyForm = ({
           <p className={`${baseClass}__policy-description no-hover`}>
             {lastEditedQueryDescription}
           </p>
+          <p className="resolve-title">
+            <strong>Resolve:</strong>
+          </p>
+          <p className={`${baseClass}__policy-resolution no-hover`}>
+            {lastEditedQueryResolution}
+          </p>
         </div>
         <div className="author">{renderAuthor()}</div>
       </div>
