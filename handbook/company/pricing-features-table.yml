@@ -15,7 +15,7 @@
       demos:
         - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
           quote: 
-          moreInfoUrl: 
+          moreInfoUrl: https://play.goconsensus.com/s4e490bb9
       buzzwords: [Device trust,Zero trust,Beyondcorp,Device attestation,Conditional access]
       waysToUse:
         - description: Automatically manage the behavior of sick endpoints that are at higher risk of vulnerabilities.
