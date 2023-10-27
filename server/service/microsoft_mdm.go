@@ -1354,32 +1354,6 @@ func (svc *Service) processIncomingAlertsCommands(ctx context.Context, messageID
 	return nil
 }
 
-// processIncomingResultsCommands will process the incoming Results commands.
-// These commands requires don't require an status response.
-func (svc *Service) processIncomingResultsCommands(ctx context.Context, sessionID string, deviceID string, cmd mdm_types.ProtoCmdOperation) (*fleet.SyncMLCmd, error) {
-	if cmd.Cmd.MsgRef == nil || cmd.Cmd.Items == nil {
-		return nil, errors.New("invalid results command")
-	}
-
-	//msgRef := *cmd.Cmd.MsgRef
-	//msgData := ""
-	// Checking items for results data
-	//if len(cmd.Cmd.Items) > 0 {
-	//	for _, item := range cmd.Cmd.Items {
-	//		if item.Data != nil {
-	//			msgData = *item.Data
-	//			break
-	//		}
-	//	}
-	//}
-
-	//err := svc.ds.MDMWindowsUpdateCommandReceivedResult(ctx, deviceID, sessionID, msgRef, cmd.Cmd.CmdID, msgData)
-	//if err != nil {
-	//	return nil, fmt.Errorf("process incoming command: %w", err)
-	//}
-	return nil, nil
-}
-
 // processIncomingMDMCmds process the incoming message from the device
 // It will return the list of operations that need to be sent to the device
 func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string, reqMsg *fleet.SyncML) ([]*fleet.SyncMLCmd, error) {
