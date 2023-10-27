@@ -4,8 +4,9 @@ import React from "react";
 import * as DOMPurify from "dompurify";
 
 interface ITooltipWrapperProps {
-  children: string;
+  children: string | JSX.Element;
   tipContent: string;
+  /** Default: bottom */
   position?: "top" | "bottom";
   isDelayed?: boolean;
   className?: string;
@@ -33,11 +34,17 @@ const TooltipWrapper = ({
     <div className={classname} data-position={position}>
       <div className={`${baseClass}__element`}>
         {children}
-        <div className={`${baseClass}__underline`} data-text={children} />
+        <div
+          className={`${baseClass}__element__underline`}
+          data-text={children}
+        />
       </div>
       <div
         className={tipClass}
         dangerouslySetInnerHTML={{ __html: sanitizedTipContent }}
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
       />
     </div>
   );

@@ -51,7 +51,7 @@ module "main" {
 
   name           = var.prefix
   engine         = "aurora-mysql"
-  engine_version = "5.7.mysql_aurora.2.08.3"
+  engine_version = "5.7.mysql_aurora.2.11.3"
   engine_mode    = "serverless"
 
   storage_encrypted            = true
@@ -79,8 +79,8 @@ module "main" {
 
   scaling_configuration = {
     auto_pause               = true
-    min_capacity             = 2
-    max_capacity             = 16
+    min_capacity             = 32
+    max_capacity             = 64
     seconds_until_auto_pause = 300
     timeout_action           = "ForceApplyCapacityChange"
   }

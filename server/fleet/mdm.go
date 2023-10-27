@@ -128,3 +128,23 @@ func (ep ExpectedMDMProfile) IsWithinGracePeriod(hostDetailUpdatedAt time.Time) 
 	gracePeriod := 1 * time.Hour
 	return hostDetailUpdatedAt.Before(ep.EarliestInstallDate.Add(gracePeriod))
 }
+
+// HostMDMProfileRetryCount represents the number of times Fleet has attempted to install
+// the identified profile on a host.
+type HostMDMProfileRetryCount struct {
+	ProfileIdentifier string `db:"profile_identifier"`
+	Retries           uint   `db:"retries"`
+}
+
+type MDMPlatformsCounts struct {
+	MacOS   uint `db:"macos" json:"macos"`
+	Windows uint `db:"windows" json:"windows"`
+}
+type MDMDiskEncryptionSummary struct {
+	Verified            MDMPlatformsCounts `db:"verified" json:"verified"`
+	Verifying           MDMPlatformsCounts `db:"verifying" json:"verifying"`
+	ActionRequired      MDMPlatformsCounts `db:"action_required" json:"action_required"`
+	Enforcing           MDMPlatformsCounts `db:"enforcing" json:"enforcing"`
+	Failed              MDMPlatformsCounts `db:"failed" json:"failed"`
+	RemovingEnforcement MDMPlatformsCounts `db:"removing_enforcement" json:"removing_enforcement"`
+}

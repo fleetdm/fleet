@@ -31,7 +31,7 @@ import {
 } from "interfaces/scheduled_query";
 import {
   ISelectTargetsEntity,
-  ISelectedTargets,
+  ISelectedTargetsForApi,
   IPackTargets,
 } from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
@@ -258,7 +258,7 @@ const formatLabelResponse = (response: any): ILabel[] => {
 
 export const formatSelectedTargetsForApi = (
   selectedTargets: ISelectTargetsEntity[]
-): ISelectedTargets => {
+): ISelectedTargetsForApi => {
   const targets = selectedTargets || [];
   // TODO: can flatMap be removed?
   const hostIds = flatMap(targets, filterTarget("hosts"));
@@ -530,7 +530,7 @@ export const generateTeam = (
   if (globalRole === null) {
     if (teams.length === 0) {
       // no global role and no teams
-      return "No Team";
+      return "No team";
     } else if (teams.length === 1) {
       // no global role and only one team
       return teams[0].name;
@@ -546,7 +546,7 @@ export const generateTeam = (
 };
 
 export const greyCell = (roleOrTeamText: string): boolean => {
-  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No Team", "Unknown"];
+  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No team", "Unknown"];
 
   return (
     GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" teams")
@@ -608,7 +608,7 @@ export const humanHostLastRestart = (
       restartDate.getMilliseconds() - millisecondsLastRestart
     );
 
-    return restartDate.toString();
+    return restartDate.toISOString();
   } catch {
     return "Unavailable";
   }
@@ -900,6 +900,22 @@ export const getNextLocationPath = ({
   return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
 };
 
+export const getSoftwareBundleTooltipMarkup = (bundle: string) => {
+  return `
+        <span>
+          <b>Bundle identifier: </b>
+          <br />
+          ${bundle}
+        </span>
+      `;
+};
+
+export const TAGGED_TEMPLATES = {
+  queryByHostRoute: (hostId: number | undefined | null) => {
+    return `${hostId ? `?host_ids=${hostId}` : ""}`;
+  },
+};
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -935,4 +951,5 @@ export default {
   syntaxHighlight,
   normalizeEmptyValues,
   wrapFleetHelper,
+  TAGGED_TEMPLATES,
 };

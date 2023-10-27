@@ -1,11 +1,11 @@
-# Migration
+# Migration guide
 
 This section provides instructions for migrating your hosts away from your old MDM solution to Fleet.
 
 ## Requirements
 
 1. A [deployed Fleet instance](../Deploying/Introduction.md)
-2. [Fleet connected to Apple](./MDM-setup.md)
+2. [Fleet connected to Apple](./mdm-macos-setup.md)
 
 ## Migrate manually enrolled hosts
 
@@ -46,7 +46,7 @@ To migrate automatically enrolled hosts, we will do the following steps:
 
 ### Step 1: prepare to migrate hosts
 
-1. Connect Fleet to Apple Business Manager (ABM). Learn how [here](./MDM-setup.md#apple-business-manager-abm).
+1. Connect Fleet to Apple Business Manager (ABM). Learn how [here](./mdm-macos-setup.md#apple-business-manager-abm).
 2. [Enroll](./Adding-hosts.md) your hosts to Fleet with [Fleetd and Fleet Desktop](https://fleetdm.com/docs/using-fleet/adding-hosts#including-fleet-desktop) 
 3. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
 4. Migrate your hosts to Fleet in ABM:
@@ -111,11 +111,8 @@ Fleet UI:
 3. Under **Mode** choose a mode and enter the webhook URL for you automation tool (ex. Tines) under **Webhook URL** and select **Save**.
 
 4. During the end user migration workflow, an end user's device will have their selected system theme (light or dark) applied. If your logo is not easy to see on both light and dark backgrounds, you can optionally set a logo for each theme:
-
-    1. Head to **Settings** > **Organization settings** >
-**Organization info** and add URLs to your logos in the **Organization avatar URL(for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields.
-    
-    2. Select **Save**.
+Head to **Settings** > **Organization settings** >
+**Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**.
 
 fleetctl CLI:
 
@@ -223,7 +220,7 @@ For all other settings:
 
 <img width="1399" alt="My device page - turn on disk encryption" src="https://user-images.githubusercontent.com/5359586/229950451-cfcd2314-a993-48db-aecf-11aac576d297.png">
 
-<meta name="pageOrderInSection" value="1501">
-<meta name="title" value="MDM migration guide">
+<meta name="pageOrderInSection" value="1502">
+<meta name="title" value="Migration guide">
 <meta name="description" value="Instructions for migrating hosts away from an old MDM solution to Fleet.">
 <meta name="navSection" value="Device management">

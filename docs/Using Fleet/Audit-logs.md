@@ -1,7 +1,7 @@
 <!-- DO NOT EDIT. This document is automatically generated. -->
 # Audit logs
 
-Fleet logs the following information for administrative actions (in JSON):
+Fleet logs the following information for administrative activities (in JSON):
 
 - `created_at`: Timestamp of the event.
 - `id`: Unique ID of the generated event in Fleet.
@@ -28,8 +28,12 @@ Example:
 	}
 }
 ```
+
+You can automatically send these logs to your log destination. Learn how to configure this [here](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
+
+To view activities in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
 	
-## List of activities and their specific details
+## Activity types
 
 ### Type `created_pack`
 
@@ -856,6 +860,61 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "async": false
+}
+```
+
+### Type `added_script`
+
+Generated when a script is added to a team (or no team).
+
+This activity contains the following fields:
+- "script_name": Name of the script.
+- "team_id": The ID of the team that the script applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the script applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "script_name": "set-timezones.sh",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+### Type `deleted_script`
+
+Generated when a script is deleted from a team (or no team).
+
+This activity contains the following fields:
+- "script_name": Name of the script.
+- "team_id": The ID of the team that the script applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the script applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "script_name": "set-timezones.sh",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+### Type `edited_script`
+
+Generated when a user edits the scripts of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the scripts apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the scripts apply to, `null` if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
 }
 ```
 

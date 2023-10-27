@@ -1,0 +1,2 @@
+- Updated `GET hosts/:id` API response to include additional detail for disk encryption in case of
+  device client errors.

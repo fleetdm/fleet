@@ -417,6 +417,7 @@ const DeviceUserPage = ({
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionButtons={renderActionButtons}
+              osSettings={host?.mdm.os_settings}
               deviceUser
             />
             <TabsWrapper>
@@ -489,6 +490,7 @@ const DeviceUserPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
+            platform={host?.platform}
             hostMDMData={host?.mdm}
             onClose={toggleMacSettingsModal}
           />

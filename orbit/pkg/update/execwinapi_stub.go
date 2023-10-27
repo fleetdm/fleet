@@ -9,3 +9,7 @@ func RunWindowsMDMEnrollment(args WindowsMDMEnrollmentArgs) error {
 func RunWindowsMDMUnenrollment(args WindowsMDMEnrollmentArgs) error {
 	return nil
 }
+
+func IsRunningOnWindowsServer() (bool, error) {
+	return false, nil
+}

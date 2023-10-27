@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"io"
 	"net/url"
 	"os"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 
 	"github.com/facebookincubator/nvdtools/cvefeed"
 	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
@@ -32,11 +33,12 @@ type SyncOptions struct {
 }
 
 // Sync downloads all the vulnerability data sources.
-func Sync(opts SyncOptions) error {
+func Sync(opts SyncOptions, logger log.Logger) error {
 	if err := DownloadCPEDBFromGithub(opts.VulnPath, opts.CPEDBURL); err != nil {
 		return fmt.Errorf("sync CPE database: %w", err)
 	}
 
+	level.Debug(logger).Log("msg", "downloading CPE translations", "url", opts.CPETranslationsURL)
 	if err := DownloadCPETranslationsFromGithub(opts.VulnPath, opts.CPETranslationsURL); err != nil {
 		return fmt.Errorf("sync CPE translations: %w", err)
 	}
@@ -208,7 +210,8 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 			schema := vuln.Schema()
 
 			meta := fleet.CVEMeta{
-				CVE: cve,
+				CVE:         cve,
+				Description: schema.CVE.Description.DescriptionData[0].Value,
 			}
 
 			if schema.Impact.BaseMetricV3 != nil {

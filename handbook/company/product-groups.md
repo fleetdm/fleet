@@ -4,7 +4,7 @@
 When creating software, handoffs between teams or contributors are one of the most common sources of miscommunication and waste.  Like [GitLab](https://docs.google.com/document/d/1RxqS2nR5K0vN6DbgaBw7SEgpPLi0Kr9jXNGzpORT-OY/edit#heading=h.7sfw1n9c1i2t), Fleet uses product groups to minimize handoffs and maximize iteration and efficiency in the way we build the product.
 
 ## What are product groups?
-Fleet organizes product development efforts into separate, cross-functional product groups that include members from Design, Engineering, Quality, and Product.  These product groups are organized by business goal, and designed to operate in parallel.
+Fleet organizes product development efforts into separate, cross-functional product groups that include product designers, developers, and quality engineers.  These product groups are organized by business goal, and designed to operate in parallel.
 
 Security, performance, stability, scalability, database migrations, release compatibility, usage documentation (such as REST API and configuration reference), contributor experience, and support escalation are the responsibility of every product group.
 
@@ -16,68 +16,56 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Product group             | Goal _(value for customers and/or community)_                       | Capacity\* |
 |:--------------------------|:--------------------------------------------------------------------|:-----------------|
-| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category. | 75       |
-| [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.   | 60       |
-| [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure. | 16 |
-| [Website](#website-group)                               | Make the website wonderful.                   | 48       |
+| [Endpoint ops](#endpoint-ops-group)                     | Increase and exceed maturity in the "Endpoint operations" category.             | 78       |
+| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.           | 65       |
+| [Website](#website-group)                               | Make the website wonderful.                             | 13       |
 
 \* The number of estimated story points this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
-### MDM group
-
-The goal of the MDM group is to reach [product maturity](https://drive.google.com/file/d/11yQ_2WG7TbRErUpMBKWu_hQ5wRIZyQhr/view?usp=sharing) in the "MDM" product category, across macOS and Windows.
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Designer                          | Marko Lisica
-| Engineering manager               | George Karr
-| Quality assurance                 | Sabrina Coy
-| Product manager                   | Noah Talerman
-| Software engineers (developers)   | Gabe Hernandez, Roberto Dip, Sarah Gillespie, Marcos Oviedo
-
-> The Slack channel, kanban release board, and label for this product group is `#g-mdm`.
+> _**What happened to "CX"?**  The customer experience (CX) group at Fleet is now [`#g-endpoint-ops`](#endpoint-ops-group)._
+>
+> _Why?  Making users and customers happier and more successful is the goal of _every_ product group.  This includes simpler usage, lovable design + help text + error messages, fixed bugs, responding quickly to incidents, using Fleet's brand standards, more successful customer onboarding, features that drive more win-win meetings with contributors and Fleet's sales team, and "whole product solutions", including professional services, design partnerships, and training._
 
 
-### Customer experience group
+### Endpoint ops group
 
-The goal of the customer experience (CX) group is to make users and customers happier and more successful.  This includes simpler usage, more successful customer onboarding, features that drive more win-win meetings with contributors and Fleet's sales team (such as initiatives like out-of-the-box CIS compliance for customers), and "whole product solutions", including professional services, design partnerships, and training.
-
-> _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [website group](https://fleetdm.com/handbook/company/development-groups#website-group)._
-
+The goal of the endpoint ops group is to increase and exceed [Fleet's product maturity goals in the endpoint operations category](https://drive.google.com/file/d/11yQ_2WG7TbRErUpMBKWu_hQ5wRIZyQhr/view?usp=sharing).
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
 | Designer                          | Rachael Shaw
 | Engineering manager               | Sharon Katz
+| Product manager                   | Noah Talerman
 | Quality assurance                 | Reed Haynes
-| Product manager                   | Mo Zhu
-| Software engineers (developers)   | Jacob Shandling, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Martin Angers, Tim Lee
+| Developers (software engineers)   | Jacob Shandling, Lucas Rodriguez, Rachel Perkins, Eric Shaw, Tim Lee, Jahziel Villasana-Espinoza, Victor Lyuboslavsky
 
-> The Slack channel, kanban release board, and label for this product group is `#g-cx`.
+> The Slack channel, kanban release board, and label for this product group is `#g-endpoint-ops`.
 
-### Infrastructure group
 
-The goal of the infrastructure group is to provide and support reliable and secure infrastructure for Fleet and Fleet's customers. This includes AWS provisioning, monitoring, and management, 24-hour on-call support, as well as initiatives to streamline customer deployments, enhance customer onboarding experiences, and develop infrastructure solutions that align with and support Fleet's overall business goals.
+### MDM group
+
+The goal of the MDM group is to increase and exceed [Fleet's product maturity goals](https://drive.google.com/file/d/11yQ_2WG7TbRErUpMBKWu_hQ5wRIZyQhr/view?usp=sharing) in the "MDM" product category.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Engineering manager               | Luke Heath                
-| Product manager                   | Luke Heath               
-| Infrastructure engineers          | Robert Fairburn, Zach Winnerman
+| Designer                          | Marko Lisica
+| Engineering manager               | George Karr
+| Product manager                   | Noah Talerman
+| Quality assurance                 | Sabrina Coy
+| Developers (software engineers)   | Gabe Hernandez, Roberto Dip, Sarah Gillespie, Marcos Oviedo, Martin Angers
 
-> The Slack channel, kanban release board, and label for this product group is `#g-infra`.
-
+> The Slack channel, kanban release board, and label for this product group is `#g-mdm`.
 
 ### Website group
 
 The goal of the website group is to manage and maintain Fleet's website and documentation by prioritizing and actioning meaningful changes to enhance brand awareness and provide visitors with the information they need when they need it. This includes making the content and user experience more beautiful, simple, and easier to understand.
 
-> _**Note:** If a user story involves **both** changes to the core product **and** to fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by the [CX group](https://fleetdm.com/handbook/company/development-groups#customer-experience-group)._
+> _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [#g-website group](https://fleetdm.com/handbook/company/development-groups#website-group).  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/development-groups#current-product-groups), and not by `#g-website`._
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
 | Designer                          | Michael Thomas
-| Engineering manager               | Mike McNeil
+| Engineering manager               | Eric Shaw
 | Quality assurance                 | Michael Thomas
 | Product manager                   | Michael Thomas
 | Software engineers (developers)   | Eric Shaw
@@ -116,7 +104,7 @@ The DRI for defining and drafting issues for a product group is the product mana
 
 A user story is considered ready for implementation once:
 - [ ] User story [issue created](https://github.com/fleetdm/fleet/issues/new/choose)
-- [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-cx`, `#g-mdm`)
+- [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-endpoint-ops`, `#g-mdm`)
 - [ ] Changes [specified](https://fleetdm.com/handbook/company/development-groups#drafting) and [designed](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
 - [ ] [Designs revised and settled](#design-reviews)
 - [ ] [Estimated](https://fleetdm.com/handbook/company/why-this-way#why-scrum)
@@ -205,20 +193,8 @@ The product designer prepares proposed changes in the form of wireframes for thi
 
 #### Air guitar
 
-Air guitar is an optional, conceptual exercise that can sometimes happen before (or in lieu of) the formal design review stage, focusing on rapid iteration and exploration without immediate plans for engineering implementation. It's like strumming an imaginary guitar — full of movements and rhythm but without strings attached.
-
-The goal of the air guitar process is to explore the shape of an idea, feature, or customer request quickly, without affecting the engineering pipeline. This enables the team to:
-
-1. Validate or invalidate assumptions.
-2. Refine the scope and nature of the user story.
-3. Explore multiple avenues with low stakes.
-4. Quickly gather feedback for future planning.
-
-The air guitar process is particularly useful when:
-
-1. The team receives an interesting customer request that may not yet align with immediate development priorities.
-2. The team wishes to explore a new idea or feature without committing engineering effort.
-3. The product group needs to validate whether a user story is worth scheduling for formal development.
+1. Air guitar issues are always intended to be designed right away.
+2. If they can't be, the requestor is notified via at-mention in the issue.  (That person is either the CSM or AE.)  These comments (like every github comment) should at-mention the intended recipient.  GitHub comments without at-mentions do not notify anyone.
 
 ##### Initiate an air guitar session
 
@@ -297,6 +273,15 @@ No API changes are merged without accompanying API documentation and approval fr
 - Think fast and iterate.  [🟢](https://fleetdm.com/handbook/company#results)
 - If it probably works, assume it's still broken.  Assume it's your fault.  [🔵](https://fleetdm.com/handbook/company#objectivity)
 - Speak up and have short toes.  Write things down to make them complete. [🟣](https://fleetdm.com/handbook/company#openness)
+
+
+
+
+#### Stubs
+The following stubs are included only to make links backward compatible.
+
+##### Endpoint ops group
+Please see [📖handbook/company/product-groups#endpoint-ops-group](https://fleetdm.com/handbook/company/product-groups#endpoint-ops-group).
 
 
 

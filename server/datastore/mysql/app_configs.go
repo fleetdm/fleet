@@ -123,6 +123,7 @@ func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, 
 	}
 	secretsCreatedAt := make(map[string]*time.Time, len(existingSecrets))
 	for _, es := range existingSecrets {
+		es := es
 		secretsCreatedAt[es.Secret] = &es.CreatedAt
 	}
 
@@ -211,4 +212,19 @@ func (ds *Datastore) AggregateEnrollSecretPerTeam(ctx context.Context) ([]*fleet
 		return nil, ctxerr.Wrap(ctx, err, "get secrets")
 	}
 	return secrets, nil
+}
+
+func (ds *Datastore) getConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
+	if teamID != nil && *teamID > 0 {
+		tc, err := ds.TeamMDMConfig(ctx, *teamID)
+		if err != nil {
+			return false, err
+		}
+		return tc.EnableDiskEncryption, nil
+	}
+	ac, err := ds.AppConfig(ctx)
+	if err != nil {
+		return false, err
+	}
+	return ac.MDM.EnableDiskEncryption.Value, nil
 }
