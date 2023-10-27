@@ -30,7 +30,5 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		wmitable.TablePlugin(kolideLogger),                  // table name is "wmi"
 		// windows_updates table
 		windowsupdatetable.TablePlugin(windowsupdatetable.UpdatesTable, kolideLogger),
-		// windows_update_history table
-		windowsupdatetable.TablePlugin(windowsupdatetable.HistoryTable, kolideLogger),
 	}
 }
