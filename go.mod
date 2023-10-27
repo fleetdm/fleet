@@ -339,4 +339,4 @@ replace github.com/micromdm/nanodep => github.com/fleetdm/nanodep v0.1.1-0.20221
 
 replace github.com/micromdm/scep/v2 => github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03
 
-replace github.com/kolide/launcher => github.com/fleetdm/launcher v0.0.0-20231027155713-02ebce8f3007
+replace github.com/kolide/launcher => github.com/fleetdm/launcher v0.0.0-20231027161110-53d738342e2d
