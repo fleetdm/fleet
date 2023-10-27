@@ -56,7 +56,7 @@ type PendingEmailChangeFunc func(ctx context.Context, userID uint, newEmail stri
 
 type ConfirmPendingEmailChangeFunc func(ctx context.Context, userID uint, token string) (string, error)
 
-type ApplyQueriesFunc func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]bool) error
+type ApplyQueriesFunc func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error
 
 type NewQueryFunc func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
@@ -72,7 +72,7 @@ type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*f
 
 type ListScheduledQueriesForAgentsFunc func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error)
 
-type QueryByNameFunc func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
+type QueryByNameFunc func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error)
 
 type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
 
@@ -1895,7 +1895,7 @@ func (s *DataStore) ConfirmPendingEmailChange(ctx context.Context, userID uint, 
 	return s.ConfirmPendingEmailChangeFunc(ctx, userID, token)
 }
 
-func (s *DataStore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]bool) error {
+func (s *DataStore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 	s.mu.Lock()
 	s.ApplyQueriesFuncInvoked = true
 	s.mu.Unlock()
@@ -1951,11 +1951,11 @@ func (s *DataStore) ListScheduledQueriesForAgents(ctx context.Context, teamID *u
 	return s.ListScheduledQueriesForAgentsFunc(ctx, teamID, queryReportsDisabled)
 }
 
-func (s *DataStore) QueryByName(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+func (s *DataStore) QueryByName(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 	s.mu.Lock()
 	s.QueryByNameFuncInvoked = true
 	s.mu.Unlock()
-	return s.QueryByNameFunc(ctx, teamID, name, opts...)
+	return s.QueryByNameFunc(ctx, teamID, name)
 }
 
 func (s *DataStore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error) {

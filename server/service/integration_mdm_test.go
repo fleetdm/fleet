@@ -4410,9 +4410,21 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		enqueueMDMAppleCommandRequest{
 			Command:   base64Cmd(newRawCmd(uuid.New().String())),
 			DeviceIDs: []string{unenrolledHost.UUID},
-		}, http.StatusConflict)
+		}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "at least one of the hosts is not enrolled in MDM")
+
+	// create a new Host to get the UUID on the DB
+	linuxHost := createOrbitEnrolledHost(t, "linux", "h1", s.ds)
+	windowsHost := createOrbitEnrolledHost(t, "windows", "h2", s.ds)
+	// call with unenrolled host UUID
+	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
+		enqueueMDMAppleCommandRequest{
+			Command:   base64Cmd(newRawCmd(uuid.New().String())),
+			DeviceIDs: []string{linuxHost.UUID, windowsHost.UUID},
+		}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "is not a macOS device")
 
 	// call with payload that is not a valid, plist-encoded MDM command
 	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
@@ -7385,6 +7397,650 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.NotNil(t, hostResp.Host.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, fleet.DiskEncryptionVerified, *hostResp.Host.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, "", hostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
+}
+
+// ///////////////////////////////////////////////////////////////////////////
+// Common MDM config test
+
+func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
+	t := s.T()
+	ctx := context.Background()
+
+	appConfig, err := s.ds.AppConfig(ctx)
+	originalCopy := appConfig.Copy()
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.SaveAppConfig(ctx, originalCopy))
+	})
+
+	checkAppConfig := func(t *testing.T, mdmEnabled, winEnabled bool) appConfigResponse {
+		acResp := appConfigResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.True(t, acResp.AppConfig.MDM.AppleBMEnabledAndConfigured)
+		require.Equal(t, mdmEnabled, acResp.AppConfig.MDM.EnabledAndConfigured)
+		require.Equal(t, winEnabled, acResp.AppConfig.MDM.WindowsEnabledAndConfigured)
+		return acResp
+	}
+
+	compareMacOSSetupValues := (func(t *testing.T, got fleet.MacOSSetup, want fleet.MacOSSetup) {
+		require.Equal(t, want.BootstrapPackage.Value, got.BootstrapPackage.Value)
+		require.Equal(t, want.MacOSSetupAssistant.Value, got.MacOSSetupAssistant.Value)
+		require.Equal(t, want.EnableEndUserAuthentication, got.EnableEndUserAuthentication)
+	})
+
+	insertBootstrapPackageAndSetupAssistant := func(t *testing.T, teamID *uint) {
+		var tmID uint
+		if teamID != nil {
+			tmID = *teamID
+		}
+
+		// cleanup any residual bootstrap package
+		_ = s.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID)
+
+		// add new bootstrap package
+		require.NoError(t, s.ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
+			TeamID: tmID,
+			Name:   "foo",
+			Token:  uuid.New().String(),
+			Bytes:  []byte("foo"),
+			Sha256: []byte("foo-sha256"),
+		}))
+
+		// add new setup assistant
+		_, err := s.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
+			TeamID:      teamID,
+			Name:        "bar",
+			ProfileUUID: uuid.New().String(),
+			Profile:     []byte("{}"),
+		})
+		require.NoError(t, err)
+	}
+
+	// TODO: SOme global MDM config settings don't have MDMEnabledAndConfigured or
+	// WindowsMDMEnabledAndConfigured validations currently. Either add validations
+	// and test them or test abscence of validation.
+	t.Run("apply app config spec", func(t *testing.T) {
+		t.Run("disk encryption", func(t *testing.T) {
+			t.Cleanup(func() {
+				require.NoError(t, s.ds.SaveAppConfig(ctx, appConfig))
+			})
+
+			acResp := checkAppConfig(t, true, true)
+			require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // disabled by default
+
+			// initialize our test app config
+			ac := appConfig.Copy()
+			ac.AgentOptions = nil
+
+			// enable disk encryption
+			ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, true, true)                           // both mac and windows mdm enabled
+			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // enabled
+
+			// directly set MDM.EnabledAndConfigured to false
+			ac.MDM.EnabledAndConfigured = false
+			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+			acResp = checkAppConfig(t, false, true)                          // only windows mdm enabled
+			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // disabling mdm doesn't change disk encryption
+
+			// making an unrelated change should not cause validation error
+			ac.OrgInfo.OrgName = "f1337"
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, true)                          // only windows mdm enabled
+			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // no change
+			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
+
+			// disabling disk encryption doesn't cause validation error because Windows is still enabled
+			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, true)                           // only windows mdm enabled
+			require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // disabled
+			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
+
+			// enabling disk encryption doesn't cause validation error because Windows is still enabled
+			ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, true)                          // only windows mdm enabled
+			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // enabled
+
+			// directly set MDM.WindowsEnabledAndConfigured to false
+			ac.MDM.WindowsEnabledAndConfigured = false
+			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+			acResp = checkAppConfig(t, false, false)                         // both mac and windows mdm disabled
+			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // disabling mdm doesn't change disk encryption
+
+			// changing unrelated config doesn't cause validation error
+			ac.OrgInfo.OrgName = "f1338"
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, false)                         // both mac and windows mdm disabled
+			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // no change
+			require.Equal(t, "f1338", acResp.AppConfig.OrgInfo.OrgName)
+
+			// changing MDM config doesn't cause validation error when switching to default values
+			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+			// TODO: Should it be ok to disable disk encryption when MDM is disabled?
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, false)                          // both mac and windows mdm disabled
+			require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // changed to disabled
+
+			// changing MDM config does cause validation error when switching to non-default vailes
+			ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
+			acResp = checkAppConfig(t, false, false)                          // both mac and windows mdm disabled
+			require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // still disabled
+		})
+
+		t.Run("macos setup", func(t *testing.T) {
+			t.Cleanup(func() {
+				require.NoError(t, s.ds.SaveAppConfig(ctx, appConfig))
+			})
+
+			acResp := checkAppConfig(t, true, true)
+			compareMacOSSetupValues(t, fleet.MacOSSetup{}, acResp.AppConfig.MDM.MacOSSetup) // disabled by default
+
+			// initialize our test app config
+			ac := appConfig.Copy()
+			ac.AgentOptions = nil
+			ac.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{
+				SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:    "sso-provider",
+					IDPName:     "sso-provider",
+					MetadataURL: "https://sso-provider.example.com/metadata",
+				},
+			}
+
+			// add db records for bootstrap package and setup assistant
+			insertBootstrapPackageAndSetupAssistant(t, nil)
+
+			// enable MacOSSetup options
+			ac.MDM.MacOSSetup = fleet.MacOSSetup{
+				BootstrapPackage:            optjson.SetString("foo"),
+				EnableEndUserAuthentication: true,
+				MacOSSetupAssistant:         optjson.SetString("bar"),
+			}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, true, true)                               // both mac and windows mdm enabled
+			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // applied
+
+			// directly set MDM.EnabledAndConfigured to false
+			ac.MDM.EnabledAndConfigured = false
+			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+			acResp = checkAppConfig(t, false, true)                              // only windows mdm enabled
+			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // still applied
+
+			// making an unrelated change should not cause validation error
+			ac.OrgInfo.OrgName = "f1337"
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, true)                              // only windows mdm enabled
+			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // still applied
+			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
+
+			// disabling doesn't cause validation error
+			ac.MDM.MacOSSetup = fleet.MacOSSetup{
+				BootstrapPackage:            optjson.SetString(""),
+				EnableEndUserAuthentication: false,
+				MacOSSetupAssistant:         optjson.SetString(""),
+			}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, true)                              // only windows mdm enabled
+			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // applied
+			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
+
+			// bootstrap package and setup assistant were removed so reinsert records for next test
+			insertBootstrapPackageAndSetupAssistant(t, nil)
+
+			// enable MacOSSetup options fails because only Windows is enabled.
+			ac.MDM.MacOSSetup = fleet.MacOSSetup{
+				BootstrapPackage:            optjson.SetString("foo"),
+				EnableEndUserAuthentication: true,
+				MacOSSetupAssistant:         optjson.SetString("bar"),
+			}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
+			acResp = checkAppConfig(t, false, true) // only windows enabled
+
+			// directly set MDM.EnabledAndConfigured to true and windows to false
+			ac.MDM.EnabledAndConfigured = true
+			ac.MDM.WindowsEnabledAndConfigured = false
+			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+			acResp = checkAppConfig(t, true, false)                              // mac enabled, windows disabled
+			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // directly applied
+
+			// changing unrelated config doesn't cause validation error
+			ac.OrgInfo.OrgName = "f1338"
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, true, false)                              // mac enabled, windows disabled
+			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // no change
+			require.Equal(t, "f1338", acResp.AppConfig.OrgInfo.OrgName)
+
+			// disabling doesn't cause validation error
+			ac.MDM.MacOSSetup = fleet.MacOSSetup{
+				BootstrapPackage:            optjson.SetString(""),
+				EnableEndUserAuthentication: false,
+				MacOSSetupAssistant:         optjson.SetString(""),
+			}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, true, false)                              // only windows mdm enabled
+			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // applied
+
+			// bootstrap package and setup assistant were removed so reinsert records for next test
+			insertBootstrapPackageAndSetupAssistant(t, nil)
+
+			// enable MacOSSetup options succeeds because only Windows is disabled
+			ac.MDM.MacOSSetup = fleet.MacOSSetup{
+				BootstrapPackage:            optjson.SetString("foo"),
+				EnableEndUserAuthentication: true,
+				MacOSSetupAssistant:         optjson.SetString("bar"),
+			}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, true, false)                              // only windows enabled
+			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // applied
+
+			// directly set MDM.EnabledAndConfigured to false
+			ac.MDM.EnabledAndConfigured = false
+			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+			acResp = checkAppConfig(t, false, false)                             // both mac and windows mdm disabled
+			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // still applied
+
+			// changing unrelated config doesn't cause validation error
+			ac.OrgInfo.OrgName = "f1339"
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, false)                             // both disabled
+			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // no change
+			require.Equal(t, "f1339", acResp.AppConfig.OrgInfo.OrgName)
+
+			// setting macos setup empty values doesn't cause validation error when mdm is disabled
+			ac.MDM.MacOSSetup = fleet.MacOSSetup{
+				BootstrapPackage:            optjson.SetString(""),
+				EnableEndUserAuthentication: false,
+				MacOSSetupAssistant:         optjson.SetString(""),
+			}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, false)                             // both disabled
+			compareMacOSSetupValues(t, acResp.MDM.MacOSSetup, ac.MDM.MacOSSetup) // applied
+
+			// setting macos setup to non-empty values fails because mdm disabled
+			ac.MDM.MacOSSetup = fleet.MacOSSetup{
+				BootstrapPackage:            optjson.SetString("foo"),
+				EnableEndUserAuthentication: true,
+				MacOSSetupAssistant:         optjson.SetString("bar"),
+			}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
+			acResp = checkAppConfig(t, false, false) // both disabled
+		})
+
+		t.Run("macos settings", func(t *testing.T) {
+			t.Cleanup(func() {
+				require.NoError(t, s.ds.SaveAppConfig(ctx, appConfig))
+			})
+
+			// initialize our test app config
+			ac := appConfig.Copy()
+			ac.AgentOptions = nil
+			ac.MDM.MacOSSettings.CustomSettings = []string{}
+			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+			acResp := checkAppConfig(t, true, true)
+			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+
+			// add custom settings
+			ac.MDM.MacOSSettings.CustomSettings = []string{"foo", "bar"}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, true, true)                                                                 // both mac and windows mdm enabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // applied
+
+			// directly set MDM.EnabledAndConfigured to false
+			ac.MDM.EnabledAndConfigured = false
+			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+			acResp = checkAppConfig(t, false, true)                                                                // only windows mdm enabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // still applied
+
+			// making an unrelated change should not cause validation error
+			ac.OrgInfo.OrgName = "f1337"
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, true)                                                                // only windows mdm enabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // still applied
+			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
+
+			// remove custom settings
+			ac.MDM.MacOSSettings.CustomSettings = []string{}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, true) // only windows mdm enabled
+			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+
+			// add custom settings fails because only windows is enabled
+			ac.MDM.MacOSSettings.CustomSettings = []string{"foo", "bar"}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
+			acResp = checkAppConfig(t, false, true) // only windows enabled
+			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+
+			// directly set MDM.EnabledAndConfigured to true and windows to false
+			ac.MDM.EnabledAndConfigured = true
+			ac.MDM.WindowsEnabledAndConfigured = false
+			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+			acResp = checkAppConfig(t, true, false)                                                                // mac enabled, windows disabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // directly applied
+
+			// changing unrelated config doesn't cause validation error
+			ac.OrgInfo.OrgName = "f1338"
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, true, false)                                                                // mac enabled, windows disabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // no change
+			require.Equal(t, "f1338", acResp.AppConfig.OrgInfo.OrgName)
+
+			// remove custom settings doesn't cause validation error
+			ac.MDM.MacOSSettings.CustomSettings = []string{}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, true, false) // only windows mdm enabled
+			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+
+			// add custom settings suceeds because only Windows is disabled
+			ac.MDM.MacOSSettings.CustomSettings = []string{"foo", "bar"}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, true, false)                                                                // both mac and windows mdm enabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // applied
+
+			// directly set MDM.WindowsEnabledAndConfigured to false
+			ac.MDM.EnabledAndConfigured = false
+			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+			acResp = checkAppConfig(t, false, false)                                                               // both mac and windows mdm disabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // applied
+
+			// changing unrelated config doesn't cause validation error
+			ac.OrgInfo.OrgName = "f1339"
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, false)                                                               // both disabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // applied
+			require.Equal(t, "f1339", acResp.AppConfig.OrgInfo.OrgName)
+
+			// setting empty values doesn't cause validation error when mdm is disabled
+			ac.MDM.MacOSSettings.CustomSettings = []string{}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, false) // both disabled
+			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+
+			// setting non-empty values fails because mdm disabled
+			ac.MDM.MacOSSettings.CustomSettings = []string{"foo", "bar"}
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
+			acResp = checkAppConfig(t, false, false) // both disabled
+			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+		})
+	})
+
+	// TODO: Improve validations and related test coverage of team MDM config.
+	// Some settings don't have MDMEnabledAndConfigured or WindowsMDMEnabledAndConfigured
+	// validations currently. Either add vailidations and test them or test abscence
+	// of validation. Also, the tests below only cover a limited set of permutations
+	// compared to the app config tests above and should be expanded accordingly.
+	t.Run("modify team", func(t *testing.T) {
+		t.Cleanup(func() {
+			require.NoError(t, s.ds.SaveAppConfig(ctx, appConfig))
+		})
+
+		checkTeam := func(t *testing.T, team *fleet.Team, checkMDM *fleet.TeamPayloadMDM) teamResponse {
+			var wantDiskEncryption bool
+			var wantMacOSSetup fleet.MacOSSetup
+			if checkMDM != nil {
+				if checkMDM.MacOSSetup != nil {
+					wantMacOSSetup = *checkMDM.MacOSSetup
+					// bootstrap package always ignored by modify team endpoint so expect original value
+					wantMacOSSetup.BootstrapPackage = team.Config.MDM.MacOSSetup.BootstrapPackage
+					// setup assistant always ignored by modify team endpoint so expect original value
+					wantMacOSSetup.MacOSSetupAssistant = team.Config.MDM.MacOSSetup.MacOSSetupAssistant
+				}
+				wantDiskEncryption = checkMDM.EnableDiskEncryption.Value
+			}
+
+			var resp teamResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &resp)
+			require.Equal(t, team.Name, resp.Team.Name)
+			require.Equal(t, wantDiskEncryption, resp.Team.Config.MDM.EnableDiskEncryption)
+			require.Equal(t, wantMacOSSetup.BootstrapPackage.Value, resp.Team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
+			require.Equal(t, wantMacOSSetup.MacOSSetupAssistant.Value, resp.Team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
+			require.Equal(t, wantMacOSSetup.EnableEndUserAuthentication, resp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+
+			return resp
+		}
+
+		// initialize our test app config
+		ac := appConfig.Copy()
+		ac.AgentOptions = nil
+		ac.MDM.EnabledAndConfigured = false
+		ac.MDM.WindowsEnabledAndConfigured = false
+		require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+		checkAppConfig(t, false, false) // both mac and windows mdm disabled
+
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{fleet.TeamPayload{
+			Name: ptr.String("Ninjas"),
+			MDM:  &fleet.TeamPayloadMDM{EnableDiskEncryption: optjson.SetBool(true)}, // mdm is ignored by the create team endpoint
+		}}, http.StatusOK, &createTeamResp)
+		team := createTeamResp.Team
+		getTeamResp := checkTeam(t, team, nil) // newly created team has empty mdm config
+
+		t.Cleanup(func() {
+			require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
+		})
+
+		// TODO: Add cases for other team MDM config (e.g., macos settings, macos updates,
+		// migration) and for other permutations of starting values (see app config tests above).
+		cases := []struct {
+			name           string
+			mdm            *fleet.TeamPayloadMDM
+			expectedStatus int
+		}{
+			{
+				"mdm empty",
+				&fleet.TeamPayloadMDM{},
+				http.StatusOK,
+			},
+			{
+				"mdm all zero values",
+				&fleet.TeamPayloadMDM{
+					EnableDiskEncryption: optjson.SetBool(false),
+					MacOSSetup: &fleet.MacOSSetup{
+						BootstrapPackage:            optjson.SetString(""),
+						EnableEndUserAuthentication: false,
+						MacOSSetupAssistant:         optjson.SetString(""),
+					},
+				},
+				http.StatusOK,
+			},
+			{
+				"bootstrap package",
+				&fleet.TeamPayloadMDM{
+					MacOSSetup: &fleet.MacOSSetup{
+						BootstrapPackage: optjson.SetString("some-package"),
+					},
+				},
+				// bootstrap package is always ignored by the modify team endpoint
+				http.StatusOK,
+			},
+			{
+				"setup assistant",
+				&fleet.TeamPayloadMDM{
+					MacOSSetup: &fleet.MacOSSetup{
+						MacOSSetupAssistant: optjson.SetString("some-setup-assistant"),
+					},
+				},
+				// setup assistant is always ignored by the modify team endpoint
+				http.StatusOK,
+			},
+			{
+				"enable disk encryption",
+				&fleet.TeamPayloadMDM{
+					EnableDiskEncryption: optjson.SetBool(true),
+				},
+				// disk encryption requires mdm enabled and configured
+				http.StatusUnprocessableEntity,
+			},
+			{
+				"enable end user auth",
+				&fleet.TeamPayloadMDM{
+					MacOSSetup: &fleet.MacOSSetup{
+						EnableEndUserAuthentication: true,
+					},
+				},
+				// disk encryption requires mdm enabled and configured
+				http.StatusUnprocessableEntity,
+			},
+		}
+
+		for _, c := range cases {
+			// TODO: Add tests for other combinations of mac and windows mdm enabled/disabled
+			t.Run(c.name, func(t *testing.T) {
+				checkAppConfig(t, false, false) // both mac and windows mdm disabled
+
+				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+					Name:        &team.Name,
+					Description: ptr.String(c.name),
+					MDM:         c.mdm,
+				}, c.expectedStatus, &getTeamResp)
+
+				if c.expectedStatus == http.StatusOK {
+					getTeamResp = checkTeam(t, team, c.mdm)
+					require.Equal(t, c.name, getTeamResp.Team.Description)
+				} else {
+					checkTeam(t, team, nil)
+				}
+			})
+		}
+	})
+
+	// TODO: Improve validations and related test coverage of team MDM config.
+	// Some settings don't have MDMEnabledAndConfigured or WindowsMDMEnabledAndConfigured
+	// validations currently. Either add vailidations and test them or test abscence
+	// of validation. Also, the tests below only cover a limited set of permutations
+	// compared to the app config tests above and should be expanded accordingly.
+	t.Run("edit team spec", func(t *testing.T) {
+		t.Cleanup(func() {
+			require.NoError(t, s.ds.SaveAppConfig(ctx, appConfig))
+		})
+
+		checkTeam := func(t *testing.T, team *fleet.Team, checkMDM *fleet.TeamSpecMDM) teamResponse {
+			var wantDiskEncryption bool
+			var wantMacOSSetup fleet.MacOSSetup
+			if checkMDM != nil {
+				wantMacOSSetup = checkMDM.MacOSSetup
+				wantDiskEncryption = checkMDM.EnableDiskEncryption.Value
+			}
+
+			var resp teamResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &resp)
+			require.Equal(t, team.Name, resp.Team.Name)
+			require.Equal(t, wantDiskEncryption, resp.Team.Config.MDM.EnableDiskEncryption)
+			require.Equal(t, wantMacOSSetup.BootstrapPackage.Value, resp.Team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
+			require.Equal(t, wantMacOSSetup.MacOSSetupAssistant.Value, resp.Team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
+			require.Equal(t, wantMacOSSetup.EnableEndUserAuthentication, resp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+
+			return resp
+		}
+
+		// initialize our test app config
+		ac := appConfig.Copy()
+		ac.AgentOptions = nil
+		ac.MDM.EnabledAndConfigured = false
+		ac.MDM.WindowsEnabledAndConfigured = false
+		require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+		checkAppConfig(t, false, false) // both mac and windows mdm disabled
+
+		// create a team from spec
+		tmSpecReq := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "Pirates"}}}
+		var tmSpecResp applyTeamSpecsResponse
+		s.DoJSON("POST", "/api/latest/fleet/spec/teams", tmSpecReq, http.StatusOK, &tmSpecResp)
+		teamID, ok := tmSpecResp.TeamIDsByName["Pirates"]
+		require.True(t, ok)
+		team := fleet.Team{ID: teamID, Name: "Pirates"}
+		checkTeam(t, &team, nil) // newly created team has empty mdm config
+
+		t.Cleanup(func() {
+			require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
+		})
+
+		// TODO: Add cases for other team MDM config (e.g., macos settings, macos updates,
+		// migration) and for other permutations of starting values (see app config tests above).
+		cases := []struct {
+			name           string
+			mdm            *fleet.TeamSpecMDM
+			expectedStatus int
+		}{
+			{
+				"mdm empty",
+				&fleet.TeamSpecMDM{},
+				http.StatusOK,
+			},
+			{
+				"mdm all zero values",
+				&fleet.TeamSpecMDM{
+					EnableDiskEncryption: optjson.SetBool(false),
+					MacOSSetup: fleet.MacOSSetup{
+						BootstrapPackage:            optjson.SetString(""),
+						EnableEndUserAuthentication: false,
+						MacOSSetupAssistant:         optjson.SetString(""),
+					},
+				},
+				http.StatusOK,
+			},
+			{
+				"bootstrap package",
+				&fleet.TeamSpecMDM{
+					MacOSSetup: fleet.MacOSSetup{
+						BootstrapPackage: optjson.SetString("some-package"),
+					},
+				},
+				// bootstrap package requires mdm enabled and configured
+				http.StatusUnprocessableEntity,
+			},
+			{
+				"setup assistant",
+				&fleet.TeamSpecMDM{
+					MacOSSetup: fleet.MacOSSetup{
+						MacOSSetupAssistant: optjson.SetString("some-setup-assistant"),
+					},
+				},
+				// setup assistant requires mdm enabled and configured
+				http.StatusUnprocessableEntity,
+			},
+			{
+				"enable disk encryption",
+				&fleet.TeamSpecMDM{
+					EnableDiskEncryption: optjson.SetBool(true),
+				},
+				// disk encryption requires mdm enabled and configured
+				http.StatusUnprocessableEntity,
+			},
+			{
+				"enable end user auth",
+				&fleet.TeamSpecMDM{
+					MacOSSetup: fleet.MacOSSetup{
+						EnableEndUserAuthentication: true,
+					},
+				},
+				// disk encryption requires mdm enabled and configured
+				http.StatusUnprocessableEntity,
+			},
+		}
+
+		for _, c := range cases {
+			// TODO: Add tests for other combinations of mac and windows mdm enabled/disabled
+			t.Run(c.name, func(t *testing.T) {
+				checkAppConfig(t, false, false) // both mac and windows mdm disabled
+
+				tmSpecReq = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+					Name: team.Name,
+					MDM:  *c.mdm,
+				}}}
+				s.DoJSON("POST", "/api/latest/fleet/spec/teams", tmSpecReq, c.expectedStatus, &tmSpecResp)
+
+				if c.expectedStatus == http.StatusOK {
+					checkTeam(t, &team, c.mdm)
+				} else {
+					checkTeam(t, &team, nil)
+				}
+			})
+		}
+	})
 }
 
 // ///////////////////////////////////////////////////////////////////////////

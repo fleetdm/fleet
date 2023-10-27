@@ -1,1 +1,0 @@
-* Fix python's false positive CVE-2021-42919 found on macOS that should only affect linux hosts.
