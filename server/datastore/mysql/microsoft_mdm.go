@@ -81,9 +81,6 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 	return nil
 }
 
-// TODO(mna): should we have something like host_dep_assignments for Windows? I don't remember exactly what
-// problem this was solving, but seeing those enrollments deletion made me think of it.
-
 // MDMWindowsDeleteEnrolledDevice deletes an MDMWindowsEnrolledDevice entry
 // from the database using the device's hardward ID.
 func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceHWID string) error {
