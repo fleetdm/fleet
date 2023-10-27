@@ -102,7 +102,7 @@ spec:
     - hostname2
     - hostname3
 ```
-Other keys such as `platform` can be used in labels
+Other keys such as `platform` can be used in labels.
 
 ```yaml
 id: 27
