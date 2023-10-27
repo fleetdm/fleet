@@ -108,7 +108,8 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 // SavePolicy updates some fields of the given policy on the datastore.
 //
 // Currently SavePolicy does not allow updating the team of an existing policy.
-func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
+// TODO: update this to take a shouldRemoveAll bool to call new func IFF query changed (look at where this is called to figure that out)
+func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error {
 	sql := `
 		UPDATE policies
 			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?
@@ -126,7 +127,11 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
 
-	return cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer(ctx), p.ID, p.Platform)
+	if shouldRemoveAllPolicyMemberships {
+		return cleanupPolicyMembership(ctx, ds.writer(ctx), p.ID)
+	} else {
+		return cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer(ctx), p.ID, p.Platform)
+	}
 }
 
 // FlippingPoliciesForHost fetches previous policy membership results and returns:
@@ -779,6 +784,25 @@ func cleanupPolicyMembershipOnPolicyUpdate(ctx context.Context, db sqlx.ExecerCo
 		expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
 	}
 	_, err := db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
+	return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+}
+
+// cleanupPolicyMembership is similar to cleanupPolicyMembershipOnPolicyUpdate but without the platform constraints.
+// Used when we want to remove all policy membership.
+func cleanupPolicyMembership(ctx context.Context, db sqlx.ExecerContext, policyID uint) error {
+	delStmt := `
+	DELETE
+	  pm
+	FROM
+	  policy_membership pm
+	LEFT JOIN
+	  hosts h
+	ON
+	  pm.host_id = h.id
+	WHERE
+	  pm.policy_id = ?`
+
+	_, err := db.ExecContext(ctx, delStmt, policyID)
 	return ctxerr.Wrap(ctx, err, "cleanup policy membership")
 }
 
