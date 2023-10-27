@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -75,7 +75,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	requestBody := ""
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestBodyBytes, err := ioutil.ReadAll(r.Body)
+		requestBodyBytes, err := io.ReadAll(r.Body)
 		require.NoError(t, err)
 		requestBody = string(requestBodyBytes)
 	}))

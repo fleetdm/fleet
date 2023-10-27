@@ -8,7 +8,6 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -882,12 +881,12 @@ the way that the Fleet server works.
 
 			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
 				// test that we can load this
-				_, err := ioutil.ReadFile(path)
+				_, err := os.ReadFile(path)
 				if err != nil {
 					initFatal(err, "loading FLEET_TEST_PAGE_PATH")
 				}
 				rootMux.HandleFunc("/test", func(rw http.ResponseWriter, req *http.Request) {
-					testPage, err := ioutil.ReadFile(path)
+					testPage, err := os.ReadFile(path)
 					if err != nil {
 						rw.WriteHeader(http.StatusNotFound)
 						return
