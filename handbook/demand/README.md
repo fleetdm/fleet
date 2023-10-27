@@ -159,7 +159,7 @@ Article creation begins with creation of an issue using the "🫧 Article reques
 2. Move the issue into the "📃 Planned articles" column.
 
 ### Review ongoing articles
-Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue towork through steps in each event's issue.
+Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
 
 ### Respond to  a "Talk to an expert" request
 When a community member has a question about getting started with Fleet, they can [book a 15-minute call](https://calendly.com/jd-fleet/let-s-talk-fleet) with the Community Advocate.
