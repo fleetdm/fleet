@@ -118,6 +118,10 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 }
 
 func (ds *Datastore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+	if len(hostUUIDs) == 0 {
+		return nil
+	}
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// first, create the command entry
 		stmt := `

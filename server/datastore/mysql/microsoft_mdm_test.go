@@ -17,6 +17,7 @@ func TestMDMWindows(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"TestMDMWindowsEnrolledDevices", testMDMWindowsEnrolledDevice},
+		{"TestMDMWindowsInsertCommandForHosts", testMDMWindowsCommands},
 	}
 
 	for _, c := range cases {
@@ -88,4 +89,68 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 
 	err = ds.MDMWindowsDeleteEnrolledDevice(ctx, enrolledDevice.MDMHardwareID)
 	require.ErrorAs(t, err, &nfe)
+}
+
+func testMDMWindowsCommands(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	d1 := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         uuid.New().String(),
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-1C3ARC1",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               uuid.NewString(),
+	}
+
+	d2 := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         uuid.New().String(),
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-1C3ARC1",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               uuid.NewString(),
+	}
+
+	err := ds.MDMWindowsInsertEnrolledDevice(ctx, d1)
+	require.NoError(t, err)
+
+	err = ds.MDMWindowsInsertEnrolledDevice(ctx, d2)
+	require.NoError(t, err)
+
+	cmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte("<Exec></Exec>"),
+		TargetLocURI: "./test/uri",
+	}
+
+	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{}, cmd)
+	require.NoError(t, err)
+	// no commands are enqueued nor created
+	cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+	require.NoError(t, err)
+	require.Empty(t, cmds)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+	require.NoError(t, err)
+	require.Empty(t, cmds)
+
+	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{d1.HostUUID, d2.HostUUID}, cmd)
+	require.NoError(t, err)
+	// command enqueued and created
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
 }

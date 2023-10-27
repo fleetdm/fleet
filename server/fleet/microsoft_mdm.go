@@ -809,6 +809,7 @@ func (msg WapProvisioningDoc) GetEncodedB64Representation() (string, error) {
 
 type MDMWindowsEnrolledDevice struct {
 	ID                     uint      `db:"id"`
+	HostUUID               string    `db:"host_uuid"`
 	MDMDeviceID            string    `db:"mdm_device_id"`
 	MDMHardwareID          string    `db:"mdm_hardware_id"`
 	MDMDeviceState         string    `db:"device_state"`

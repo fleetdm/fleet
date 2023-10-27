@@ -6718,46 +6718,73 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 		MDMEnrollProtoVersion:  "5.0",
 		MDMEnrollClientVersion: "10.0.19045.2965",
 		MDMNotInOOBE:           false,
+		HostUUID:               uuid.New().String(),
 	}
 
 	err := s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
 	require.NoError(t, err)
 
-	// Adding Pending Command to target Device ID
-	pendingCmd := &fleet.MDMWindowsPendingCommand{
-		CommandUUID:  uuid.New().String(),
-		DeviceID:     deviceID,
-		CmdVerb:      fleet.CmdGet,
-		SettingURI:   "./testuri",
-		SettingValue: "testdata",
-		DataType:     2,
-		SystemOrigin: false,
+	newRawCmd := func(cmdUUID string) []byte {
+		return []byte(fmt.Sprintf(`
+<Exec>
+  <CmdID>665e628b-acbd-48fa-af37-f8826ca9a253</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">null</Format>
+      <Type>text/plain</Type>
+    </Meta>
+    <Data></Data>
+  </Item>
+</Exec>
+		`, cmdUUID))
 	}
 
-	err = s.ds.MDMWindowsInsertPendingCommand(context.Background(), pendingCmd)
+	getAllCommandsForDevice := func(deviceID string) []*fleet.MDMWindowsCommand {
+		ctx := context.Background()
+
+		var cmds []*fleet.MDMWindowsCommand
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(
+				ctx, q, &cmds,
+				`SELECT * FROM windows_mdm_commands JOIN windows_mdm_command_queue wmcq WHERE wmcq.enrollment_id = ?`,
+				deviceID,
+			)
+		})
+
+		return cmds
+	}
+
+	// Adding Pending Command to target Device ID
+	cmdOneUUID := uuid.New().String()
+	commandOne := &fleet.MDMWindowsCommand{
+		CommandUUID:  cmdOneUUID,
+		RawCommand:   newRawCmd(cmdOneUUID),
+		TargetLocURI: "./Device/Vendor/MSFT/Reboot/RebootNow",
+	}
+
+	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{enrolledDevice.HostUUID}, commandOne)
 	require.NoError(t, err)
 
 	// Adding Command to target Device ID
 	// This is used to test error code tracking functionality
 	// Error code is arriving as part of device management request and it is saved to MDM commands table
-	newCmd := &fleet.MDMWindowsCommand{
-		CommandUUID:  uuid.New().String(),
-		DeviceID:     deviceID,
-		SessionID:    "1",
-		MessageID:    "2",
-		CommandID:    "5",
-		CmdVerb:      fleet.CmdGet,
-		SettingURI:   "./DevDetail/Ext/Microsoft/LocalTime",
-		SystemOrigin: false,
+	cmdTwoUUID := uuid.New().String()
+	commandTwo := &fleet.MDMWindowsCommand{
+		CommandUUID:  cmdTwoUUID,
+		RawCommand:   newRawCmd(cmdOneUUID),
+		TargetLocURI: "./Device/Vendor/MSFT/Reboot/RebootNow",
 	}
 
-	err = s.ds.MDMWindowsInsertCommand(context.Background(), newCmd)
+	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{enrolledDevice.HostUUID}, commandTwo)
 	require.NoError(t, err)
 
-	cmds, err := s.ds.MDMWindowsListCommands(context.Background(), deviceID)
+	cmds, err := s.ds.MDMWindowsGetPendingCommands(context.Background(), deviceID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
-	require.True(t, (cmds[0].ErrorCode == ""))
+	require.Equal(t, cmds[0].CommandUUID, cmdOneUUID)
 
 	// Preparing the SyncML request
 	requestBytes, err := s.newSyncMLSessionMsg(deviceID, targetEndpointURL)
@@ -6765,10 +6792,7 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 
 	resp := s.DoRaw("POST", targetEndpointURL, requestBytes, http.StatusOK)
 
-	// Checking that Command error code was updated
-
-	cmds, err = s.ds.MDMWindowsListCommands(context.Background(), deviceID)
-	require.NoError(t, err)
+	cmds = getAllCommandsForDevice(deviceID)
 	require.Len(t, cmds, 1)
 	require.True(t, (cmds[0].ErrorCode == microsoft_mdm.CmdStatusOK))
 
@@ -6791,7 +6815,7 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 	require.True(t, s.isXMLTagPresent("Get", resMsg))
 	require.True(t, s.isXMLTagContentPresent("Type", resMsg))
 	require.True(t, s.isXMLTagContentPresent("Format", resMsg))
-	require.True(t, s.checkIfXMLTagContains("Data", pendingCmd.SettingValue, resMsg))
+	require.True(t, s.checkIfXMLTagContains("Data", commandOne.SettingValue, resMsg))
 }
 
 func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
