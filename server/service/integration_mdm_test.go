@@ -6111,12 +6111,12 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
 	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
-	checkStoredIdPInfo := func(uuid string) {
-		acc, err := s.ds.GetMDMIdPAccount(context.Background(), uuid)
+	checkStoredIdPInfo := func(uuid, username, fullname, email string) {
+		acc, err := s.ds.GetMDMIdPAccountByUUID(context.Background(), uuid)
 		require.NoError(t, err)
-		require.Equal(t, "sso_user", acc.Username)
-		require.Equal(t, "SSO User 1", acc.Fullname)
-		require.Equal(t, "sso_user@example.com", acc.Email)
+		require.Equal(t, username, acc.Username)
+		require.Equal(t, fullname, acc.Fullname)
+		require.Equal(t, email, acc.Email)
 	}
 
 	res := s.LoginMDMSSOUser("sso_user", "user123#")
@@ -6126,6 +6126,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	u, err := url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q := u.Query()
+	user1EnrollRef := q.Get("enrollment_reference")
 	// without an EULA uploaded
 	require.False(t, q.Has("eula_token"))
 	require.True(t, q.Has("profile_token"))
@@ -6136,12 +6137,12 @@ func (s *integrationMDMTestSuite) TestSSO() {
 		fmt.Sprintf(
 			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s",
 			q.Get("profile_token"),
-			q.Get("enrollment_reference"),
+			user1EnrollRef,
 		),
 	)
 
 	// IdP info stored is accurate for the account
-	checkStoredIdPInfo(q.Get("enrollment_reference"))
+	checkStoredIdPInfo(user1EnrollRef, "sso_user", "SSO User 1", "sso_user@example.com")
 
 	// upload an EULA
 	pdfBytes := []byte("%PDF-1.pdf-contents")
@@ -6159,12 +6160,14 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.True(t, q.Has("profile_token"))
 	require.True(t, q.Has("enrollment_reference"))
 	require.False(t, q.Has("error"))
+	// the enrollment reference is the same for the same user
+	require.Equal(t, user1EnrollRef, q.Get("enrollment_reference"))
 	// the url retrieves a valid profile
 	prof := s.downloadAndVerifyEnrollmentProfile(
 		fmt.Sprintf(
 			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s",
 			q.Get("profile_token"),
-			q.Get("enrollment_reference"),
+			user1EnrollRef,
 		),
 	)
 	// the url retrieves a valid EULA
@@ -6176,7 +6179,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.EqualValues(t, pdfBytes, respBytes)
 
 	// IdP info stored is accurate for the account
-	checkStoredIdPInfo(q.Get("enrollment_reference"))
+	checkStoredIdPInfo(user1EnrollRef, "sso_user", "SSO User 1", "sso_user@example.com")
 
 	enrollURL := ""
 	scepURL := ""
@@ -6220,6 +6223,39 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.True(t, accCmd.Command.AccountConfiguration.LockPrimaryAccountInfo)
 	require.Equal(t, "SSO User 1", accCmd.Command.AccountConfiguration.PrimaryAccountFullName)
 	require.Equal(t, "sso_user", accCmd.Command.AccountConfiguration.PrimaryAccountUserName)
+
+	// enrolling a different user works without problems
+	res = s.LoginMDMSSOUser("sso_user2", "user123#")
+	require.NotEmpty(t, res.Header.Get("Location"))
+	require.Equal(t, http.StatusTemporaryRedirect, res.StatusCode)
+	u, err = url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	q = u.Query()
+	user2EnrollRef := q.Get("enrollment_reference")
+	require.True(t, q.Has("eula_token"))
+	require.True(t, q.Has("profile_token"))
+	require.True(t, q.Has("enrollment_reference"))
+	require.False(t, q.Has("error"))
+	// the enrollment reference is different to the one used for the previous user
+	require.NotEqual(t, user1EnrollRef, user2EnrollRef)
+	// the url retrieves a valid profile
+	s.downloadAndVerifyEnrollmentProfile(
+		fmt.Sprintf(
+			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s",
+			q.Get("profile_token"),
+			user2EnrollRef,
+		),
+	)
+	// the url retrieves a valid EULA
+	resp = s.DoRaw("GET", "/api/latest/fleet/mdm/apple/setup/eula/"+q.Get("eula_token"), nil, http.StatusOK)
+	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
+	require.Equal(t, "application/pdf", resp.Header.Get("content-type"))
+	respBytes, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.EqualValues(t, pdfBytes, respBytes)
+
+	// IdP info stored is accurate for the account
+	checkStoredIdPInfo(user2EnrollRef, "sso_user2", "SSO User 2", "sso_user2@example.com")
 
 	// changing the server URL also updates the remote DEP profile
 	acResp = appConfigResponse{}
