@@ -6570,7 +6570,17 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 			"host_display_name": "DESKTOP-0C89RC0"
 		 }`,
 		0)
+
+	expectedDeviceID := "AB157C3A18778F4FB21E2739066C1F27" // TODO: make the hard-coded deviceID in `s.newSecurityTokenMsg` configurable
+
+	// Checking if the host uuid was set on mdm windows enrollments
+	d, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(context.Background(), expectedDeviceID)
+	require.NoError(t, err)
+	require.NotEmpty(t, d.HostUUID)
+	require.Equal(t, windowsHost.UUID, d.HostUUID)
 }
+
+// TODO: Do we need integration tests for WindowsMDMAutomaticEnrollmentType flows?
 
 func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureToken() {
 	t := s.T()
@@ -6610,6 +6620,13 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 			"host_display_name": "DESKTOP-0C89RC0"
 		 }`,
 		0)
+
+	expectedDeviceID := "AB157C3A18778F4FB21E2739066C1F27" // TODO: make the hard-coded deviceID in `s.newSecurityTokenMsg` configurable
+
+	// Checking the host uuid was not set on mdm windows enrollments
+	d, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(context.Background(), expectedDeviceID)
+	require.NoError(t, err)
+	require.Empty(t, d.HostUUID)
 }
 
 func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMissingAdditionalContext() {
@@ -6952,6 +6969,65 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 	require.NotEmpty(t, runResp.CommandUUID)
 	require.Equal(t, "darwin", runResp.Platform)
 	require.Equal(t, "ShutDownDevice", runResp.RequestType)
+}
+
+func (s *integrationMDMTestSuite) TestUpdateMDMWindowsEnrollmentsHostUUID() {
+	ctx := context.Background()
+	t := s.T()
+
+	// simulate device that is MDM enrolled before fleetd is installed
+	d := fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            "test-device-id",
+		MDMHardwareID:          "test-hardware-id",
+		MDMDeviceState:         "ds",
+		MDMDeviceType:          "dt",
+		MDMDeviceName:          "dn",
+		MDMEnrollType:          "et",
+		MDMEnrollUserID:        "euid",
+		MDMEnrollProtoVersion:  "epv",
+		MDMEnrollClientVersion: "ecv",
+		MDMNotInOOBE:           false,
+		HostUUID:               "", // empty host uuid when created
+	}
+	require.NoError(t, s.ds.MDMWindowsInsertEnrolledDevice(ctx, &d))
+
+	gotDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
+	require.NoError(t, err)
+	require.Empty(t, gotDevice.HostUUID)
+
+	// create an enroll secret
+	secret := uuid.New().String()
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: secret}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// simulate fleetd installed and enrolled
+	var resp EnrollOrbitResponse
+	hostUUID := uuid.New().String()
+	hostSerial := "test-host-serial"
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
+		EnrollSecret:   secret,
+		HardwareUUID:   hostUUID,
+		HardwareSerial: hostSerial,
+		Platform:       "windows",
+	}, http.StatusOK, &resp)
+	require.NotEmpty(t, resp.OrbitNodeKey)
+
+	gotDevice, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
+	require.NoError(t, err)
+	require.Empty(t, gotDevice.HostUUID)
+
+	// simulate first report osquery host details
+	require.NoError(t, s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, d.MDMDeviceID))
+
+	// check that the host uuid was updated
+	gotDevice, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
+	require.NoError(t, err)
+	require.NotEmpty(t, gotDevice.HostUUID)
+	require.Equal(t, hostUUID, gotDevice.HostUUID)
 }
 
 // ///////////////////////////////////////////////////////////////////////////

@@ -1063,6 +1063,9 @@ type Datastore interface {
 	// MDMWindowsUpdateCommandReceivedResult updates the received result of a command
 	MDMWindowsUpdateCommandReceivedResult(ctx context.Context, deviceID, sessionID, messageID, commandID, receivedValue string) error
 
+	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID.
+	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
 

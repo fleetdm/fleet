@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -287,6 +288,30 @@ func TestGetDetailQueries(t *testing.T) {
 	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_chrome", "scheduled_query_stats")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
+
+	// test that appropriate mdm queries are added based on app config
+	var mdmQueriesBase, mdmQueriesWindows []string
+	for k, q := range mdmQueries {
+		switch {
+		case slices.Equal(q.Platforms, []string{"windows"}):
+			mdmQueriesWindows = append(mdmQueriesWindows, k)
+		default:
+			mdmQueriesBase = append(mdmQueriesBase, k)
+		}
+	}
+	ac := fleet.AppConfig{}
+	ac.MDM.EnabledAndConfigured = true
+	// windows mdm is disabled by default, windows mdm queries should not be present
+	gotQueries := GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil)
+	wantQueries := append(baseQueries, mdmQueriesBase...)
+	require.Len(t, gotQueries, len(wantQueries))
+	sortedKeysCompare(t, gotQueries, wantQueries)
+	// enable windows mdm, windows mdm queries should be present
+	ac.MDM.WindowsEnabledAndConfigured = true
+	gotQueries = GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil)
+	wantQueries = append(wantQueries, mdmQueriesWindows...)
+	require.Len(t, gotQueries, len(wantQueries))
+	sortedKeysCompare(t, gotQueries, wantQueries)
 }
 
 func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
