@@ -822,6 +822,7 @@ type MDMWindowsEnrolledDevice struct {
 	MDMNotInOOBE           bool      `db:"not_in_oobe"`
 	CreatedAt              time.Time `db:"created_at"`
 	UpdatedAt              time.Time `db:"updated_at"`
+	HostUUID               string    `db:"host_uuid"`
 }
 
 func (e MDMWindowsEnrolledDevice) AuthzType() string {

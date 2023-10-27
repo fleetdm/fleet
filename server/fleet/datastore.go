@@ -828,7 +828,7 @@ type Datastore interface {
 	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMAppleCommandResult, error)
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
 
 	// ListMDMAppleCommands returns a list of MDM Apple commands that have been
 	// executed, based on the provided options.
@@ -1047,6 +1047,15 @@ type Datastore interface {
 
 	// MDMWindowsSaveResponse saves a full response
 	MDMWindowsSaveResponse(ctx context.Context, deviceID string, fullResponse *SyncML) error
+
+	// GetMDMWindowsCommands returns the results of command
+	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// MDM Commands
+
+	// GetMDMCommandPlatform returns the platform (i.e. "darwin" or "windows") for the given command.
+	GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results

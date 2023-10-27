@@ -169,3 +169,26 @@ func (m *MDMCommandAuthz) SetTeamID(tid *uint) {
 func (m MDMCommandAuthz) AuthzType() string {
 	return "mdm_command"
 }
+
+// MDMCommandResult holds the result of a command execution provided by
+// the target device.
+type MDMCommandResult struct {
+	// HostUUID is the MDM enrollment ID. Note: For Windows devices, host uuid is distinct from
+	// device id.
+	HostUUID string `json:"host_uuid" db:"host_uuid"`
+	// CommandUUID is the unique identifier of the command.
+	CommandUUID string `json:"command_uuid" db:"command_uuid"`
+	// Status is the command status. One of Acknowledged, Error, or NotNow.
+	Status string `json:"status" db:"status"`
+	// UpdatedAt is the last update timestamp of the command result.
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// RequestType is the command's request type, which is basically the
+	// command name.
+	RequestType string `json:"request_type" db:"request_type"`
+	// Result is the original command result XML plist. If the status is Error, it will include the
+	// ErrorChain key with more information.
+	Result []byte `json:"result" db:"result"`
+	// Hostname is not filled by the query, it is filled in the service layer
+	// afterwards. To make that explicit, the db field tag is explicitly ignored.
+	Hostname string `json:"hostname" db:"-"`
+}

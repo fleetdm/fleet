@@ -17,8 +17,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/micromdm/nanomdm/mdm"
 )
@@ -620,4 +622,119 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 		RequestType: winCmd.TargetLocURI,
 		Platform:    "windows",
 	}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/commandresults
+////////////////////////////////////////////////////////////////////////////////
+
+type getMDMCommandResultsRequest struct {
+	CommandUUID string `query:"command_uuid,optional"`
+}
+
+type getMDMCommandResultsResponse struct {
+	Results []*fleet.MDMCommandResult `json:"results,omitempty"`
+	Err     error                     `json:"error,omitempty"`
+}
+
+func (r getMDMCommandResultsResponse) error() error { return r.Err }
+
+func getMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMCommandResultsRequest)
+	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID)
+	if err != nil {
+		return getMDMCommandResultsResponse{
+			Err: err,
+		}, nil
+	}
+
+	return getMDMCommandResultsResponse{
+		Results: results,
+	}, nil
+}
+
+func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	// first, authorize that the user has the right to list hosts
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	// check that command exists first, to return 404 on invalid commands
+	// (the command may exist but have no results yet).
+	p, err := svc.ds.GetMDMCommandPlatform(ctx, commandUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	var results []*fleet.MDMCommandResult
+	switch p {
+	case "darwin":
+		results, err = svc.ds.GetMDMAppleCommandResults(ctx, commandUUID)
+	case "windows":
+		results, err = svc.ds.GetMDMWindowsCommandResults(ctx, commandUUID)
+	default:
+		// this should never happen, but just in case
+		level.Debug(svc.logger).Log("msg", "unknown MDM command platform", "platform", p)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// now we can load the hosts (lite) corresponding to those command results,
+	// and do the final authorization check with the proper team(s). Include observers,
+	// as they are able to view command results for their teams' hosts.
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+	hostUUIDs := make([]string, len(results))
+	for i, res := range results {
+		hostUUIDs[i] = res.HostUUID
+	}
+	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, hostUUIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(hosts) == 0 {
+		// do not return 404 here, as it's possible for a command to not have
+		// results yet
+		return nil, nil
+	}
+
+	// collect the team IDs and verify that the user has access to view commands
+	// on all affected teams. Index the hosts by uuid for easly lookup as
+	// afterwards we'll want to store the hostname on the returned results.
+	hostsByUUID := make(map[string]*fleet.Host, len(hosts))
+	teamIDs := make(map[uint]bool)
+	for _, h := range hosts {
+		var id uint
+		if h.TeamID != nil {
+			id = *h.TeamID
+		}
+		teamIDs[id] = true
+		hostsByUUID[h.UUID] = h
+	}
+
+	var commandAuthz fleet.MDMCommandAuthz
+	for tmID := range teamIDs {
+		commandAuthz.TeamID = &tmID
+		if tmID == 0 {
+			commandAuthz.TeamID = nil
+		}
+
+		if err := svc.authz.Authorize(ctx, commandAuthz, fleet.ActionRead); err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+	}
+
+	// add the hostnames to the results
+	for _, res := range results {
+		if h := hostsByUUID[res.HostUUID]; h != nil {
+			res.Hostname = hostsByUUID[res.HostUUID].Hostname
+		}
+	}
+	return results, nil
 }

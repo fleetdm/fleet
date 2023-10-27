@@ -65,13 +65,13 @@ func (c *Client) prepareAppleMDMCommand(rawCmd []byte) ([]byte, error) {
 	return b, nil
 }
 
-func (c *Client) MDMAppleGetCommandResults(commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
-	verb, path := http.MethodGet, "/api/latest/fleet/mdm/apple/commandresults"
+func (c *Client) MDMGetCommandResults(commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	verb, path := http.MethodGet, "/api/latest/fleet/mdm/commandresults"
 
 	query := url.Values{}
 	query.Set("command_uuid", commandUUID)
 
-	var responseBody getMDMAppleCommandResultsResponse
+	var responseBody getMDMCommandResultsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("send request: %w", err)
