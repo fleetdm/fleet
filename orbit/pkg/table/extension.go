@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 
 	"github.com/kolide/launcher/pkg/osquery/tables/cryptoinfotable"
+	"github.com/kolide/launcher/pkg/osquery/tables/dataflattentable"
 	"github.com/kolide/launcher/pkg/osquery/tables/dev_table_tooling"
 	"github.com/kolide/launcher/pkg/osquery/tables/firefox_preferences"
 	"github.com/kolide/launcher/pkg/osquery/tables/zfs"
@@ -141,8 +142,12 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		// RepCLI info: https://community.carbonblack.com/t5/Knowledge-Base/Carbon-Black-Cloud-What-is-the-RepCLI-Utility/ta-p/61991
 		dev_table_tooling.TablePlugin(kolideLogger),
 		cryptoinfotable.TablePlugin(kolideLogger),
-		zfs.ZfsPropertiesPlugin(kolideLogger),   // table name is "zfs_properties"
-		zfs.ZpoolPropertiesPlugin(kolideLogger), // table name is "zpool_properties"
+		zfs.ZfsPropertiesPlugin(kolideLogger),                                  // table name is "zfs_properties"
+		zfs.ZpoolPropertiesPlugin(kolideLogger),                                // table name is "zpool_properties"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonType),  // table name is "parse_json"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonlType), // table name is "parse_jsonl"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.XmlType),   // table name is "parse_xml"
+		dataflattentable.TablePlugin(kolideLogger, dataflattentable.IniType),   // table name is "parse_ini"
 	}
 	return plugins
 }
