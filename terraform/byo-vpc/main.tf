@@ -97,7 +97,7 @@ module "redis" {
     from_port   = 0
     to_port     = 65535
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/8"]
+    cidr_blocks = [for s in data.aws_subnet.redis : s.cidr_block]
   }]
   tags = var.redis_config.tags
 }
