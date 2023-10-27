@@ -2548,6 +2548,8 @@ Notifies the server about an agent error, resulting in two outcomes:
 - The error gets saved in Redis and can later be accessed using `fleetctl debug archive`.
 - The server consistently replies with a `500` status code, which can serve as a signal to activate an alarm through a monitoring tool.
 
+> Note: to allow `fleetd` agents to use this endpoint, you need to set a [custom environment variable](./Configuration-for-contributors#fleet_enable_post_client_debug_errors)
+
 `POST /api/v1/fleet/device/{token}/debug/errors`
 
 #### Parameters
@@ -2712,7 +2714,7 @@ _Available in Fleet Premium_
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | team_id | number | query | The ID of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. 
-| team_id | number | query | The ID of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. 
+| team_name | string | query | The name of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. 
 | dry_run   | bool   | query | Validate the provided scripts and return any validation errors, but do not apply the changes.                                                                         |
 | scripts   | array  | body  | An array of objects with the scripts payloads. Each item must contain `name` with the script name and `script_contents` with the script contents encoded in base64    |
 

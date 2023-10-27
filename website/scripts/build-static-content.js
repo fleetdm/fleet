@@ -625,7 +625,7 @@ module.exports = {
           ).replace(/[^a-z0-9\-]/ig,'');
 
           // Determine the rootRelativeUrlPath for this open position, this will be used as the page's URL and to check if a markdown page already exists with this page's URL
-          let rootRelativeUrlPath = '/handbook/company/'+encodeURIComponent(_.kebabCase(openPosition.jobTitle));
+          let rootRelativeUrlPath = '/handbook/company/open-positions/'+encodeURIComponent(_.kebabCase(openPosition.jobTitle));
 
           // If there is an existing page with the generated url, throw an error.
           if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {

@@ -2857,18 +2857,13 @@ SELECT
 	hardware_serial
 FROM
 	hosts h
-	-- mdm join
-	%s
+	JOIN host_dep_assignments hda ON hda.host_id = h.id
 WHERE
 	h.hardware_serial != '' AND
 	-- team_id condition
 	%s AND
-	hmdm.name = ? AND
-	-- hmdm.enrolled can be either 0 or 1, does not matter
-	hmdm.installed_from_dep = 1 AND
-	NOT COALESCE(hmdm.is_server, false)
-`, hostMDMJoin, teamCond)
-	args = append(args, fleet.WellKnownMDMFleet)
+	hda.deleted_at IS NULL
+`, teamCond)
 
 	var serials []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &serials, stmt, args...); err != nil {
@@ -2882,23 +2877,19 @@ func (ds *Datastore) ListMDMAppleDEPSerialsInHostIDs(ctx context.Context, hostID
 		return nil, nil
 	}
 
-	stmt := fmt.Sprintf(`
+	stmt := `
 SELECT
 	hardware_serial
 FROM
 	hosts h
-	-- mdm join
-	%s
+	JOIN host_dep_assignments hda ON hda.host_id = h.id
 WHERE
 	h.hardware_serial != '' AND
 	h.id IN (?) AND
-	hmdm.name = ? AND
-	-- hmdm.enrolled can be either 0 or 1, does not matter
-	hmdm.installed_from_dep = 1 AND
-	NOT COALESCE(hmdm.is_server, false)
-`, hostMDMJoin)
+	hda.deleted_at IS NULL
+`
 
-	stmt, args, err := sqlx.In(stmt, hostIDs, fleet.WellKnownMDMFleet)
+	stmt, args, err := sqlx.In(stmt, hostIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "prepare statement arguments")
 	}
