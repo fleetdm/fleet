@@ -152,7 +152,7 @@ Once approval has been received, move the event into the "🗓 Planned events" c
 ### Review ongoing events
 Check the "🗓 Planned events" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
 
-### Article creation
+### Create an article
 Article creation begins with creation of an issue using the "🫧 Article request" template.
 
 1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
@@ -161,12 +161,11 @@ Article creation begins with creation of an issue using the "🫧 Article reques
 ### Review ongoing articles
 Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue towork through steps in each event's issue.
 
-### Talk to an expert
+### Respond to  a "Talk to an expert" request
 When a community member has a question about getting started with Fleet, they can [book a 15-minute call](https://calendly.com/jd-fleet/let-s-talk-fleet) with the Community Advocate.
 
-1. Add questionnaire details to [Talk to an Expert sheet](https://docs.google.com/spreadsheets/d/1aMLQ9z5TYn90AnE3g1sMPoxsMNMKXn_l3aWb9Kdi7G4/edit).
-2. Meet at scheduled time.
-3. Send follow up email with appropriate links.
+1. Add questionnaire details to the [Talk to an Expert](https://docs.google.com/spreadsheets/d/1aMLQ9z5TYn90AnE3g1sMPoxsMNMKXn_l3aWb9Kdi7G4/edit) spreadsheet.
+2. After meeting the contributor, follow up with an email including appropriate links.
 
 ## Rituals
 <rituals :rituals="rituals['handbook/demand/demand.rituals.yml']"></rituals>
