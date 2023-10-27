@@ -44,7 +44,6 @@ import {
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
-import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
 
 import {
@@ -81,6 +80,7 @@ import MacSettingsModal from "../MacSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
+import HostDetailsBanners from "./components/HostDetailsBanners";
 
 const baseClass = "host-details";
 
@@ -691,26 +691,6 @@ const HostDetailsPage = ({
     router.push(navPath);
   };
 
-  // checks to see if the ABM message is being shown in a parent component
-  const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
-  const showingAppleABMBanner =
-    (isAppleBmTermsExpired && isPremiumTier && !isSandboxMode) ?? false;
-
-  const isMdmUnenrolled =
-    host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
-
-  const showTurnOnMdmInfoBanner =
-    !showingAppleABMBanner &&
-    host?.platform === "darwin" &&
-    isMdmUnenrolled &&
-    config?.mdm.enabled_and_configured;
-
-  const showDiskEncryptionUserActionRequired =
-    !showingAppleABMBanner &&
-    config?.mdm.enabled_and_configured &&
-    host?.mdm.name === "Fleet" &&
-    host?.mdm.macos_settings?.disk_encryption === "action_required";
-
   /*  Context team id might be different that host's team id
   Observer plus must be checked against host's team id  */
   const isGlobalOrHostsTeamObserverPlus =
@@ -739,20 +719,12 @@ const HostDetailsPage = ({
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
-        {showTurnOnMdmInfoBanner && (
-          <InfoBanner color="yellow">
-            To change settings and install software, ask the end user to follow
-            the <strong>Turn on MDM</strong> instructions on their{" "}
-            <strong>My device</strong> page.
-          </InfoBanner>
-        )}
-        {showDiskEncryptionUserActionRequired && (
-          <InfoBanner color="yellow">
-            Disk encryption: Requires action from the end user. Ask the end user
-            to follow <b>Disk encryption</b> instructions on their{" "}
-            <b>My device</b> page.
-          </InfoBanner>
-        )}
+        <HostDetailsBanners
+          hostMdmEnrollmentStatus={host?.mdm.enrollment_status}
+          hostPlatform={host?.platform}
+          mdmName={host?.mdm.name}
+          diskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
+        />
         <div className={`${baseClass}__header-links`}>
           <BackLink
             text="Back to all hosts"
