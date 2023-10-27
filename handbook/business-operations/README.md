@@ -13,14 +13,14 @@ The BizOps department is directly responsible for these traditional functions: P
 
 
 ## Contact us
-- To request changes to admin permissions on core business systems (Google, AWS via Google Groups, 1Password, Vanta, or Slack), [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Admin%20permissions%20request%3A+_______________________).
 - To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
+  - This includes legal questions or requests. The Business Operations department will review and action these items (Business Operations will escalate first-of-its-kind agreements to the CEO.  The CEO will review business terms and consult with lawyers as necessary).
   - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) for this department, including pending tasks and the status of new requests.
-  - Submit legal questions and requests to Business Operations department. (Business Operations will escalate first-of-its-kind agreements to the CEO.  The CEO will review business terms and consult with lawyers as necessary.)
 - If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-business-operations](https://fleetdm.slack.com/archives/C047N5L6EGH) Slack channel.
-  - If you need help during onboarding ask in [#help-onboarding](https://fleetdm.slack.com/archives/C02QG7P5571).
-  - For all questions related to your company credit card, ask in [#help-brex](https://fleetdm.slack.com/archives/C0396TYH4EP).
+- If you need help during onboarding ask in [#help-onboarding](https://fleetdm.slack.com/archives/C02QG7P5571).
+- For all questions related to your company credit card, ask in [#help-brex](https://fleetdm.slack.com/archives/C0396TYH4EP).
+- To request changes to admin permissions on core business systems (Google, AWS via Google Groups, 1Password, Vanta, or Slack), [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Admin%20permissions%20request%3A+_______________________).
 
 
 ## Tools we use
@@ -285,104 +285,6 @@ Please see [📖handbook/company/communications#excluding-calls-from-being-recor
 
 ##### Salesforce
 Please see [📖handbook/business-operations#add-a-seat-to-salesforce](https://fleetdm.com/handbook/business-operations#add-a-seat-to-salesforce).
-
-##### Intake
-##### Kanban
-##### Legal Operations
-##### IT Operations
-##### Finance Operations
-##### Taxes and compliance
-##### State quarterly payroll and tax filings
-##### CorpNet state registration process
-##### Annual reporting for capital credit line
-##### Equity grants
-##### Finance rituals
-##### Monthly rituals
-##### Quarterly rituals
-##### Informing managers about hours worked
-##### Monthly accounting
-Please see above on this page for the latest content for these topics within the new framework for departmental handbook pages.
-
-##### Zoom
-##### Slack
-##### Email relays
-##### Meetings
-##### Scheduling a meeting
-##### Internal meeting scheduling
-##### Modifying an event organized by someone else
-##### External meeting scheduling
-##### Performance feedback
-##### Levels of confidentiality
-##### Relocating
-##### Celebrations
-##### Workiversaries
-##### Spending company money
-##### Brex
-##### Travel
-##### Attending conferences or company travel
-##### Non-travel purchases that exceed a Brex cardholder's limit
-##### Reimbursements
-##### Individualized expenses
-##### Benefits
-##### Paid time off
-##### Taking time off 
-##### Holidays
-##### New parent leave
-##### Retirement contributions
-##### US based team members
-##### Non-US team members
-##### Coworking
-##### Team member onboarding
-##### Before the start date
-##### Recommendations for new teammates
-##### Training expectations
-##### Sightseeing tour
-##### Contributor experience training
-##### Onboarding retrospective
-##### Compensation
-##### Compensation changes
-##### Reprovisioning equipment
-##### Equipment retention and replacement
-##### Equipment
-##### Laptops
-##### Purchasing a company-issued device
-##### Selecting a laptop
-##### Buying other new equipment
-##### Tracking equipment
-##### Returning equipment
-##### Github
-##### GitHub labels
-Please see 📖[handbook/company/communications](https://fleetdm.com/handbook/company/communications) for all sections above.
-
-##### Hiring
-##### Consultants
-##### Hiring a consultant
-##### Who ISN'T a consultant?
-##### Sending a consulting agreement
-##### Updating a consultant's fee
-##### Advisor
-##### Adding an advisor
-##### Finalizing a new advisor
-##### Core team member
-##### Creating a new position
-##### Approving a new position
-##### Recruiting
-##### Receiving job applications
-##### Candidate correspondence email templates
-##### Hiring restrictions
-##### Incompatible former employers
-##### Incompatible locations
-##### Interviewing
-##### Hiring a new team member
-##### Making an offer
-##### Steps after an offer is accepted
-##### Key reviews
-##### Tracking hours
-##### Informing managers about hours worked
-##### Departures
-##### Communicating departures
-Please see 📖[handbook/company/leadership](https://fleetdm.com/handbook/company/leadership) for all sections above.
-
 
 
 <meta name="maintainedBy" value="jostableford">
