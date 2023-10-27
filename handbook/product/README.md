@@ -55,7 +55,7 @@ When starting a new draft:
 #### Questions and missing information
 
 1. Take a screenshot of the area in Figma
-2. Start a thread in the #help-product Slack channel and paste in the screenshot
+2. Start a thread in the #help-product-design Slack channel and paste in the screenshot
 
 Note: Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred.
 
@@ -81,7 +81,7 @@ Once the draft has been approved, it moves to the "Settled" column on the drafti
 
 Before assigning an engineering manager to [estimate](https://fleetdm.com/handbook/engineering#sprint-ceremonies) a user story, the product designer ensures the product section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
 
-Once a bug has gone through design and is considered "Settled", the designer removes the `:product` label and moves the issue to the 'To be scheduled' column on the "Bugs" board. The product manager then prioritizes the bug into the "Sprint backlog" and assigns the group engineering manager. 
+Once a bug has gone through design and is considered "Settled", the designer removes the `:product` label and moves the issue to the 'Sprint backlog' column on the "Bugs" board and assigns the group engineering manager. 
 
 Learn https://fleetdm.com/handbook/company/development-groups#making-changes
 
@@ -122,17 +122,15 @@ Bugs are always prioritized. (Fleet takes quality and stability [very seriously]
 
 If a bug is unreleased or [critical](https://fleetdm.com/handbook/engineering#critical-bugs), it is addressed in the current sprint. Otherwise, it may be prioritized and estimated for the next sprint. If a bug [requires drafting](https://fleetdm.com/handbook/engineering#in-product-drafting-as-needed) to determine the expected functionality, the bug should undergo [expedited drafting](#expedited-drafting). 
 
-If a bug is not addressed within six weeks, it is [sent to the product team for triage](https://fleetdm.com/handbook/engineering#in-engineering). Each sprint, the Head of Product meets with the group product managers to review these bugs (churned bug review). In this session, bugs are categorized as follows:
-- **Schedule**: the bug should be prioritized in the next sprint.
-- **Needs prioritization**: the bug will likely not be worked on within the next six weeks, but it is still a valid bug.
+If a bug is not addressed within six weeks, it is [sent to the product team for triage](https://fleetdm.com/handbook/engineering#in-engineering). Each sprint, the Head of Product Design reviews these bugs. Bugs are categorized as follows:
+- **Schedule**: the bug should be prioritized in the next sprint if there's engineering capacity for it.
 - **De-prioritized**: the issue will be closed and the necessary subsequent steps will be initiated. This might include updating documentation and informing the community.
 
-After aligning with the group product managers, the Head of Product meets with the CEO and Director of Product Development to discuss and finalize the outcomes for the churned bugs.
+The Head of Product Design meets with the Director of Product Development to discuss and finalize the outcomes for the churned bugs.
 
-Once outcomes have been approved by the CEO, Product Operations will complete the churned bug clean-up ritual. Below are the steps for each category:
-- **Schedule**: Product Operations should remove the `:product` label, move the bug ticket to the 'to be scheduled' column on the bug board, and assign it to the appropriate group's Product Manager so that it can be prioritized into the sprint backlog.
-- **Needs prioritization**: Product Operations should remove both the `bug` and `:product` labels, then apply the `needs prioritization` label.
-- **De-prioritized**: Product Operations should close the issue and, as the DRI, ensure all follow-up actions are finalized.
+After aligning with the Director of Product Development on the outcomes, The Head of Product Design will clean up churned bugs. Below are the steps for each category:
+- **Schedule**: Remove the `:product` label, move the bug ticket to the 'Sprint backlog' column on the bug board, and assign it to the appropriate group's Engineering Manager so that it can be prioritized into the sprint backlog.
+- **De-prioritized**: The Head of Product Design should close the issue and, as the DRI, ensure all follow-up actions are finalized.
 
 ## Writing user stories
 Product Managers [write user stories](https://fleetdm.com/handbook/company/development-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
@@ -402,7 +400,17 @@ Every week, a member of the product team (as determined in the [rituals](#ritual
 4. a release of CIS Benchmarks for [macOS 14 Sonoma](https://workbench.cisecurity.org/community/20/benchmarks?q=sonoma&status=&sortBy=version&type=desc)
 5. a new major or minor version of [ChromeOS](https://chromereleases.googleblog.com/search/label/Chrome%20OS)
 
-The DRI should record the latest versions in the [maintenance tracker](https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit#gid=0) and then notify the [#help-product Slack channel](https://fleetdm.slack.com/archives/C02A8BRABB5) with an update, noting the current versions and highlighting any changes. 
+The DRI should record the latest versions in the [maintenance tracker](https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit#gid=0) and then notify the [#help-product-design Slack channel](https://fleetdm.slack.com/archives/C02A8BRABB5) with an update, noting the current versions and highlighting any changes. 
+
+
+### Restart Algolia manually
+At least once every hour, an Algolia crawler reindexes the Fleet website's content. If an error occurs while the website is being indexed, Algolia will block our crawler and respond to requests with this message: `"This action cannot be executed on a blocked crawler"`.
+
+When this happens, you'll need to manually start the crawler in the [Algolia crawler dashboard](https://crawler.algolia.com/admin/) to unblock it. 
+You can do this by logging into the crawler dashboard using the login saved in 1password and clicking the "Restart crawling" button on our crawler's "overview" page](https://crawler.algolia.com/admin/crawlers/497dd4fd-f8dd-4ffb-85c9-2a56b7fafe98/overview).
+
+No further action is needed if the crawler successfully reindexes the Fleet website. If another error occurs while the crawler is running, take a screenshot of the error and add it to the GitHub issue created for the alert and @mention `eashaw` for help.
+
 
 
 ### New CIS benchmarks
@@ -414,34 +422,27 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-------------------------|:----------------------------------------------------|-------------------|
-| Design sprint review (CX) | Sprintly (Wednesday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The Head of Product also collects all items that are product-driven and puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Mo Zhu |
-| Design sprint review (MDM) | Sprintly (Thursday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The group PM collects all items that were de-prioritized and, if desired, puts them in the 🎁🗣 Feature Fest meeting agenda to consider for continuing work. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Mo Zhu |
-| 🎁 Feature fest prep | Sprintly (Thursday) | The Head of Product reviews the agenda and pre-comments on items in order to be well-prepared for the discussion. | Mo Zhu |
-| 🎁🗣 Feature fest  | Sprintly (Thursday) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
-| 🎁 Feature fest cleanup | Sprintly (Thursday) | Clean up the agenda in anticipation of the next meeting | Mo Zhu |
-| Design sprint kickoff (CX) | Sprintly (Thursday) | the Head of Product introduces and determines the order of the newly prioritized list of work with each group PM | Mo Zhu |
-| Design sprint kickoff (MDM) | Sprintly (Thursday) | the Head of Product introduces and determines the order of the newly prioritized list of work with each group PM | Mo Zhu |
-| 🗣 Product office hours  | Weekly (Tuesday) | Ask questions to the product team | Mo Zhu |
-| Sprint Kickoff Review (CX) | Sprintly (Monday) | After each sprint kickoff, the Head of Product reviews the Estimated column with each group PM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Mo Zhu |
-| Sprint Kickoff Review (MDM) | Sprintly (Monday) | After each sprint kickoff, the Head of Product reviews the Estimated column with each group PM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Mo Zhu |
-| Sprint release notes kick-off meeting | Sprintly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare. | Mo Zhu |
-| ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Marko Lisica |
-| ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Rachael Shaw |
-| Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Mo Zhu |
-| Report number of estimated stories (CX) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Isabell Reedy |
-| Report number of estimated stories (MDM) | Weekly | Report the number of product-driven stories estimated that week to the Head of Product for KPI tracking purposes | Noah Talerman |
-| Maintenance | Weekly (Friday) | Product Operations checks the latest versions of relevant platforms, updates the maintenance tracker, and notifies the #help-product Slack channel. | Isabell Reedy |
-| Quality check  | Daily         | Every day, Product Operations will review the "Settled" column on the drafting board to ensure all product action items are complete.                                | Isabell Reedy |
-| Bug de-prioritization | Mid-sprint  | CEO, Head of Product, and Director of Product Development review the bugs which did not meet the 6-week delivery timeline. Align on next steps for which bugs to schedule into the next sprint and which can be de-prioritized. | Mo Zhu |
-| Product confirm and celebrate                 | Weekly (Wednesday)       | The Head of Product meets with the designers and product managers to discuss completed user stories. They also verify all updates to documentation, communications, guides, and the pricing and transparency pages, ensuring everything is set for the next steps.                                      | Mo Zhu            |
-| Pre-sprint prioritization call (CX)           | Sprintly (Monday)        | The product manager, engineering manager, and product operations meet before each sprint to align on priorities and note what wasn't completed in the previous sprint. Product operations then informs the customer success team about related customer requests.                                                                                                                                                               | Mo Zhu            |
-| Bug review (CX)                               | Weekly (Tuesday)         | The product manager meets with the engineering manager and a product quality engineer to ensure synchronization on bug prioritization and actions preceding CX estimation sessions.                                                                                                         | Mo Zhu            |
-| Bug round-up   | Mid-sprint | Product Operations will compile a list of churned bugs, including issue numbers, specifics, and age. They will also notify the Customer Success team of any churned bugs that have customer tags  | Isabell Reedy |
-| Churned bug review                            | Mid-sprint     | The Head of Product meets with the group product managers to examine churned bugs and categorize them as either schedule, needs prioritization, or de-prioritize.                                                                                                                                     | Mo Zhu            |
-| Churned bug clean-up | Mid-sprint  | Following the bug de-prioritization meeting, Product Operations completes the churned bug clean-up, ensuring all necessary follow-up tasks are actioned to classify bugs as schedule, needs prioritization, or de-prioritized. This may include relocating bug tickets, adjusting labels, communicating with stakeholders, writing documentation, and closing issues. | Isabell Reedy |
-| Stand-up (website)           | Daily (Monday - Thursday) | The website product team meets to discuss completed tasks, upcoming work, and address any questions. | Mike Thomas |
-| Prioritization session (website) | Sprintly                | The website product team meets to prioritize tasks for the upcoming sprint. | Mike Thomas |
-| Design review (website)      | Daily (Monday - Thursday) | Review designs from the website team.                                       | Mike Thomas |
+| Design sprint review (#g-endpoint-ops) | Sprintly (Wednesday) | After the last estimation session, the Head of Product reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The Head of Product also collects all items that are product-driven and puts them in the 🎁🗣 Feature fest meeting agenda to consider for continuing work. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Noah Talerman |
+| Design sprint review (#g-mdm) | Sprintly (Thursday) | After the last estimation session, the Head of Product Design reviews the board with each group PM and designer and de-prioritizes all design issues that were not estimated. The group PM collects all items that were de-prioritized and, if desired, puts them in the 🎁🗣 Feature fest meeting agenda to consider for continuing work. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Noah Talerman |
+| 🎁 Feature fest prep | Sprintly (Thursday) | The Head of Product Design reviews the agenda and pre-comments on items in order to be well-prepared for the discussion. | Noah Talerman |
+| 🎁🗣 Feature fest  | Sprintly (Thursday) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Noah Talerman |
+| 🎁 Feature fest cleanup | Sprintly (Thursday) | Clean up the agenda in anticipation of the next meeting | Noah Talerman |
+| Design sprint kickoff (#g-endpoint-ops) | Sprintly (Thursday) | the Head of Product Design introduces and determines the order of the newly prioritized list of work with each group PM | Noah Talerman |
+| Design sprint kickoff (#g-mdm) | Sprintly (Thursday) | the Head of Product Design introduces and determines the order of the newly prioritized list of work with each group PM | Noah Talerman |
+| 🗣 Product office hours  | Weekly (Tuesday) | Ask questions to the product team | Noah Talerman |
+| Sprint kickoff review | Sprintly (Monday) | After each sprint kickoff, the Head of Product Design reviews the Estimated column with each group EM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Noah Talerman |
+| 🦢🗣 Design review (#g-mdm)  | Daily | Review designs from the MDM team | Marko Lisica |
+| 🦢🗣 Design review (#g-endpoint-ops)   | Daily | Review designs from the Endpoint ops team | Rachael Shaw |
+| Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Noah Talerman |
+| Maintenance | Weekly (Friday) | Head of Product Design checks the latest versions of relevant platforms, updates the maintenance tracker, and notifies the #help-product-design Slack channel. | Noah Talerman |
+| Quality check  | Daily         | Every day, Head of Product design will review the "Settled" column on the drafting board to ensure all product action items are complete.                                | Noah Talerman |
+| Product confirm and celebrate                 | Weekly (Wednesday)       | The Head of Product meets with the designers and product managers to discuss completed user stories. They also verify all updates to documentation, communications, guides, and the pricing and transparency pages, ensuring everything is set for the next steps.                                      | Noah Talerman            |
+| Pre-sprint prioritization          | Sprintly (Monday)        | The Head of Product Design and each group's EM meet before each sprint to align on priorities and discuss what stories weren't completed in the previous sprint. Head of Product Design records number of stories that weren't completed in the "Stories dropped" product KPI.                                                                                                                                                              | Noah Talerman            |
+| Bug round-up   | Mid-sprint | Head of Product Design will compile a list of churned bugs, including issue numbers, specifics, and age. They will also notify the Customer Success team of any churned bugs that have customer tags  | Noah Talerman |
+| Churned bug review                            | Mid-sprint     | The Head of Product Design meets with the Head of Product Development to examine churned bugs and categorize them as either schedule, needs prioritization, or de-prioritize.                                                                    | Churned bug clean-up | Mid-sprint  | Following the churned bug review, Head of Product Design completes the churned bug clean-up, ensuring all necessary follow-up tasks are actioned to classify bugs as schedule, needs prioritization, or de-prioritized. This may include relocating bug tickets, adjusting labels, communicating with stakeholders, writing documentation, and closing issues. | Noah Talerman |                                                                 | Noah Talerman            |
+| Stand-up (#g-website)           | Daily (Monday - Thursday) | The website product team meets to discuss completed tasks, upcoming work, and address any questions. | Mike Thomas |
+| Prioritization session (#g-website) | Sprintly                | The website product team meets to prioritize tasks for the upcoming sprint. | Mike Thomas |
+| Design review (#g-website)      | Daily (Monday - Thursday) | Review designs from the website team.                                       | Mike Thomas |
 | PMMs R Us                     | Weekly (Sunday)         | The CEO meets with the Head of Design to discuss product marketing strategies. | Mike Thomas |
 
 
@@ -452,9 +453,9 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
 |:------------------------------------|:--------------------------------------------------------------------|
-| `#help-product`                     | Mo Zhu                                                              |
+| `#help-product-design`              | Noah Talerman                                                              |
 | `#g-mdm`                            | Noah Talerman                                                       |
-| `#g-cx`                             | Mo Zhu                                                              |
+| `#g-endpoint-ops`                             | Noah Talerman                                                              |
 
 <meta name="maintainedBy" value="noahtalerman">
 <meta name="title" value="🦢 Product design">

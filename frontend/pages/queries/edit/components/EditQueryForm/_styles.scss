@@ -138,6 +138,7 @@
     resize: none;
     white-space: normal;
     background-color: transparent;
+    overflow: hidden;
     &:hover:not(.focus-visible):not(.no-hover) {
       color: $core-vibrant-blue;
       cursor: pointer;

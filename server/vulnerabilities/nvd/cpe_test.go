@@ -297,8 +297,6 @@ func TestConsumeCPEBuffer(t *testing.T) {
 }
 
 func TestTranslateSoftwareToCPE(t *testing.T) {
-	nettest.Run(t)
-
 	tempDir := t.TempDir()
 
 	ds := new(mock.Store)
@@ -359,6 +357,52 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 		"cpe:2.3:a:vendor2:product4:0.3:*:*:*:*:macos:*:*",
 	}, cpes)
 	assert.True(t, iterator.closed)
+}
+
+// TestTranslateSoftwareToCPEIgnoreEmptyVersion tests that TranslateSoftwareToCPE ignores
+// software that was ingested with an empty version field. The test will simulate a previous
+// version of Fleet storing an incorrect CPE for the software, to test that an upgrade
+// will clear out the invalid CPE from the DB.
+func TestTranslateSoftwareToCPEIgnoreEmptyVersion(t *testing.T) {
+	tempDir := t.TempDir()
+
+	ds := new(mock.Store)
+
+	// The incorrect CPE for the software should now be deleted because the ingested software doesn't
+	// have a version field.
+	ds.DeleteSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+		require.Len(t, cpes, 1)
+		require.Equal(t, cpes[0].SoftwareID, uint(1))
+		return 1, nil
+	}
+
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, q fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
+		return &fakeSoftwareIterator{
+			softwares: []*fleet.Software{
+				{
+					ID:               1,
+					Name:             "foobar",
+					Version:          "",
+					BundleIdentifier: "vendor2",
+					Source:           "apps",
+					// Set an incorrect CPE on the DB to simulate a CPE being generated incorrectly
+					// for this software on a previous version of Fleet.
+					GenerateCPE: "cpe:2.3:a:vendor2:foobar:*:*:*:*:*:macos:*:*",
+				},
+			},
+		}, nil
+	}
+
+	items, err := cpedict.Decode(strings.NewReader(XmlCPETestDict))
+	require.NoError(t, err)
+
+	dbPath := filepath.Join(tempDir, "cpe.sqlite")
+	err = GenerateCPEDB(dbPath, items)
+	require.NoError(t, err)
+
+	err = TranslateSoftwareToCPE(context.Background(), ds, tempDir, kitlog.NewNopLogger())
+	require.NoError(t, err)
+	require.True(t, ds.DeleteSoftwareCPEsFuncInvoked)
 }
 
 func TestSyncsCPEFromURL(t *testing.T) {

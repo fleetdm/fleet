@@ -66,7 +66,7 @@ type Datastore interface {
 
 	// ApplyQueries applies a list of queries (likely from a yaml file) to the datastore. Existing queries are updated,
 	// and new queries are created.
-	ApplyQueries(ctx context.Context, authorID uint, queries []*Query, queriesToDiscardResults map[uint]bool) error
+	ApplyQueries(ctx context.Context, authorID uint, queries []*Query, queriesToDiscardResults map[uint]struct{}) error
 	// NewQuery creates a new query object in thie datastore. The returned query should have the ID updated.
 	NewQuery(ctx context.Context, query *Query, opts ...OptionalArg) (*Query, error)
 	// SaveQuery saves changes to an existing query object.
@@ -87,7 +87,7 @@ type Datastore interface {
 	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*Query, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
-	QueryByName(ctx context.Context, teamID *uint, name string, opts ...OptionalArg) (*Query, error)
+	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)
 	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
 	// identified query
 	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
@@ -1053,7 +1053,7 @@ type Datastore interface {
 	//
 	// Note that the returned status will be nil if the host is reported to be a Windows
 	// server or if disk encryption is disabled for the host's team (or no team, as applicable).
-	GetMDMWindowsBitLockerStatus(ctx context.Context, host *Host) (*DiskEncryptionStatus, error)
+	GetMDMWindowsBitLockerStatus(ctx context.Context, host *Host) (*HostMDMDiskEncryption, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results

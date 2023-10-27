@@ -28,6 +28,8 @@
           moreInfoUrl: https://youtu.be/5sFOdpMLXQg?feature=shared&t=1445
         - description: Implement your own version of Google's zero trust model (BeyondCorp)
           moreInfoUrl: https://cloud.google.com/beyondcorp
+        - description: Get endpoint data into ServiceNow and make your asset management teams happy
+          moreInfoUrl: https://www.youtube.com/watch?v=aVbU6_9JoM0
     #
     #  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗  ╔═╗═╗ ╦╔═╗╔═╗╦ ╦╔╦╗╦╔═╗╔╗╔
     #  ╚═╗║  ╠╦╝║╠═╝ ║   ║╣ ╔╩╦╝║╣ ║  ║ ║ ║ ║║ ║║║║
@@ -130,6 +132,8 @@
       tier: Free
       usualDepartment: Security
       productCategories: [Endpoint operations]
+      demos:
+        - description: A top media company wanted to share more security data with other departments without slowing down hosts.
       waysToUse:
         - description: Ship logs to Splunk, Snowflake, and more
         - description: Synchronize live state of endpoints to a data lake or SIEM in a consistent shape.
@@ -208,6 +212,13 @@
     - industryName: Installers (self-service)
       tier: Free
       productCategories: [Endpoint operations]
+      waysToUse:
+        - description: Build scripts for Ansible deployments
+          moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
+        - description: Deploy osquery to macOS via Jamf
+          moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
+        - description: Package osquery for Linux servers via Workspace One and Windows servers via group policies
+          moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
     #  ╔╗ ╔═╗╔╦╗╔═╗╦ ╦  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗╦╔═╗╔╗╔
     #  ╠╩╗╠═╣ ║ ║  ╠═╣  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║
     #  ╚═╝╩ ╩ ╩ ╚═╝╩ ╩  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝
