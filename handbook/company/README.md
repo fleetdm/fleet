@@ -4,14 +4,21 @@
 
 Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source systems management platform and security agent. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
 
-<!-- With great power comes great openness.  With agents come agency. -->
-
 We are dedicated to clearing the thicket:
 - 🔌 making security and IT interoperable and easy to automate
 - 🚪 an inviting (outsider-friendly) way to manage computers, CVEs, and infrastructure
 - 🪟 clarity and trust through open-source software
 
 This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.com/handbook/company/communications#strategy), [operating principles](#why-this-way), and [brand](https://fleetdm.com/logos).
+
+<!--
+With great power
+comes great openness
+With agents comes agency
+Lighter than air
+Light in every corner
+Open by design
+-->
 
 ## Culture
 
@@ -100,6 +107,10 @@ Take the time to make [yourself](https://fleetdm.com/handbook/business-operatio
 - **Public by default.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality) carefully.
 - **Speak freely.** Interrupt and be interrupted.  Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way).   <!-- Commit to candor.  Speak your mind. -->
 
+<!--
+What about the sixth value?
+(🪩 dumb luck)
+-->
 
 ## History
 
@@ -156,4 +167,4 @@ Please see [📖Business Operations#tools-we-use](https://fleetdm.com/handbook/b
 
 
 <meta name="maintainedBy" value="mikermcneil">
-<meta name="title" value="🔭 Company">
+<meta name="title" value="🎐 Company">
