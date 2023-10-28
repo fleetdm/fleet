@@ -167,4 +167,4 @@ Please see [📖Business Operations#tools-we-use](https://fleetdm.com/handbook/b
 -->
 
 <meta name="maintainedBy" value="mikermcneil">
-<meta name="title" value="🎐 Company">
+<meta name="title" value="🔭 Company">
