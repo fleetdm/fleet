@@ -6821,11 +6821,12 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 
 	err := s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
 	require.NoError(t, err)
+	mysql.AddHostUUIDToWinEnrollmentInTest(t, s.ds, enrolledDevice)
 
 	newRawCmd := func(cmdUUID string) []byte {
 		return []byte(fmt.Sprintf(`
 <Exec>
-  <CmdID>665e628b-acbd-48fa-af37-f8826ca9a253</CmdID>
+  <CmdID>%s</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI>
@@ -6842,13 +6843,21 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 
 	getAllCommandsForDevice := func(deviceID string) []*fleet.MDMWindowsCommand {
 		ctx := context.Background()
+		mdm, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+		require.NoError(t, err)
 
 		var cmds []*fleet.MDMWindowsCommand
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(
 				ctx, q, &cmds,
-				`SELECT * FROM windows_mdm_commands JOIN windows_mdm_command_queue wmcq WHERE wmcq.enrollment_id = ?`,
-				deviceID,
+				`SELECT 
+				   wmc.command_uuid,
+				   wmc.raw_command,
+				   wmc.target_loc_uri
+				 FROM windows_mdm_commands wmc
+				 JOIN windows_mdm_command_queue wmcq ON wmc.command_uuid = wmcq.command_uuid
+				 WHERE wmcq.enrollment_id = ?`,
+				mdm.ID,
 			)
 		})
 
@@ -6866,9 +6875,6 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{enrolledDevice.HostUUID}, commandOne)
 	require.NoError(t, err)
 
-	// Adding Command to target Device ID
-	// This is used to test error code tracking functionality
-	// Error code is arriving as part of device management request and it is saved to MDM commands table
 	cmdTwoUUID := uuid.New().String()
 	commandTwo := &fleet.MDMWindowsCommand{
 		CommandUUID:  cmdTwoUUID,
@@ -6881,8 +6887,8 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 
 	cmds, err := s.ds.MDMWindowsGetPendingCommands(context.Background(), deviceID)
 	require.NoError(t, err)
-	require.Len(t, cmds, 1)
-	require.Equal(t, cmds[0].CommandUUID, cmdOneUUID)
+	require.Len(t, cmds, 2)
+	require.ElementsMatch(t, []string{cmds[0].CommandUUID, cmds[1].CommandUUID}, []string{cmdOneUUID, cmdTwoUUID})
 
 	// Preparing the SyncML request
 	requestBytes, err := s.newSyncMLSessionMsg(deviceID, targetEndpointURL)
@@ -6891,8 +6897,7 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 	resp := s.DoRaw("POST", targetEndpointURL, requestBytes, http.StatusOK)
 
 	cmds = getAllCommandsForDevice(deviceID)
-	require.Len(t, cmds, 1)
-	require.True(t, (cmds[0].ErrorCode == microsoft_mdm.CmdStatusOK))
+	require.Len(t, cmds, 2)
 
 	// Checking response headers
 	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SyncMLContentType)
@@ -6901,7 +6906,7 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 	resBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	// Checking if response can be unmarshalled to an golang type
+	// Checking if response can be unmarshalled to a golang type
 	var xmlType interface{}
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
@@ -6910,10 +6915,14 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 	resMsg := string(resBytes)
 
 	// Checking response fields
-	require.True(t, s.isXMLTagPresent("Get", resMsg))
-	require.True(t, s.isXMLTagContentPresent("Type", resMsg))
+	require.True(t, s.isXMLTagPresent("Exec", resMsg))
+	require.True(t, s.isXMLTagContentPresent("LocURI", resMsg))
 	require.True(t, s.isXMLTagContentPresent("Format", resMsg))
-	require.True(t, s.checkIfXMLTagContains("Data", commandOne.SettingValue, resMsg))
+
+	// no more pending commands
+	cmds, err = s.ds.MDMWindowsGetPendingCommands(context.Background(), deviceID)
+	require.NoError(t, err)
+	require.Empty(t, cmds)
 }
 
 func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {

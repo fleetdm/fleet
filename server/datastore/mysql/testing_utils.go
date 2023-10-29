@@ -17,6 +17,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -419,4 +420,17 @@ func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) { //nolint
 	}
 	require.NoError(t, rows.Err())
 	t.Logf("<< dumping table %s completed", tableName)
+}
+
+// FIXME: once we introduce the ability to backfill host_uuids in the
+// mdm_windows_enrollments
+func AddHostUUIDToWinEnrollmentInTest(t *testing.T, ds *Datastore, d *fleet.MDMWindowsEnrolledDevice) {
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(
+			context.Background(),
+			"UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE mdm_device_id = ?",
+			d.HostUUID, d.MDMDeviceID,
+		)
+		return err
+	})
 }

@@ -19,7 +19,9 @@ func TestMDMWindows(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"TestMDMWindowsEnrolledDevices", testMDMWindowsEnrolledDevice},
-		{"TestMDMWindowsInsertCommandForHosts", testMDMWindowsCommands},
+		{"TestMDMWindowsInsertCommandForHosts", testMDMWindowsInsertCommandForHosts},
+		{"TestMDMWindowsGetPendingCommands", testMDMWindowsGetPendingCommands},
+		{"TestMDMWindowsCommandResults", testMDMWindowsCommandResults},
 	}
 
 	for _, c := range cases {
@@ -54,7 +56,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice)
 	require.ErrorAs(t, err, &ae)
 
-	gotEnrolledDevice, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMHardwareID)
+	gotEnrolledDevice, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
 	require.NoError(t, err)
 	require.NotZero(t, gotEnrolledDevice.CreatedAt)
 	require.Equal(t, enrolledDevice.MDMDeviceID, gotEnrolledDevice.MDMDeviceID)
@@ -64,7 +66,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	var nfe fleet.NotFoundError
-	_, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMHardwareID)
+	_, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
 	require.ErrorAs(t, err, &nfe)
 
 	err = ds.MDMWindowsDeleteEnrolledDevice(ctx, enrolledDevice.MDMHardwareID)
@@ -93,7 +95,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &nfe)
 }
 
-func testMDMWindowsCommands(t *testing.T, ds *Datastore) {
+func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	d1 := &fleet.MDMWindowsEnrolledDevice{
@@ -126,9 +128,11 @@ func testMDMWindowsCommands(t *testing.T, ds *Datastore) {
 
 	err := ds.MDMWindowsInsertEnrolledDevice(ctx, d1)
 	require.NoError(t, err)
+	AddHostUUIDToWinEnrollmentInTest(t, ds, d1)
 
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, d2)
 	require.NoError(t, err)
+	AddHostUUIDToWinEnrollmentInTest(t, ds, d2)
 
 	cmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  uuid.NewString(),
@@ -157,8 +161,50 @@ func testMDMWindowsCommands(t *testing.T, ds *Datastore) {
 	require.Len(t, cmds, 1)
 }
 
-func TestMDMWindowsCommandResults(t *testing.T) {
-	ds := CreateMySQLDS(t)
+func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	d := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         uuid.New().String(),
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-1C3ARC1",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               uuid.NewString(),
+	}
+	err := ds.MDMWindowsInsertEnrolledDevice(ctx, d)
+	require.NoError(t, err)
+	AddHostUUIDToWinEnrollmentInTest(t, ds, d)
+
+	// device without commands
+	cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d.MDMDeviceID)
+	require.NoError(t, err)
+	require.Empty(t, cmds)
+
+	// device with commands
+	cmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte("<Exec></Exec>"),
+		TargetLocURI: "./test/uri",
+	}
+	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{d.HostUUID}, cmd)
+	require.NoError(t, err)
+
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d.MDMDeviceID)
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+
+	// non-existent device
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, "fail")
+	require.NoError(t, err)
+	require.Empty(t, cmds)
+}
+
+func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	insertDB := func(t *testing.T, query string, args ...interface{}) (int64, error) {

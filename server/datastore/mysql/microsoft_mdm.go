@@ -82,7 +82,7 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 }
 
 // MDMWindowsDeleteEnrolledDevice deletes an MDMWindowsEnrolledDevice entry
-// from the database using the device's hardward ID.
+// from the database using the device's hardware ID.
 func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceHWID string) error {
 	stmt := "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
 
