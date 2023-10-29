@@ -45,8 +45,6 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 // MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the
 // database.
 func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
-	// TODO(mna): I think this needs to support an ON DUPLICATE UPDATE to
-	// handle the potential case of a device_id changing for a given hardware_id.
 	stmt := `
 		INSERT INTO mdm_windows_enrollments (
 			mdm_device_id,
@@ -294,6 +292,9 @@ ON DUPLICATE KEY UPDATE
 			return ctxerr.Wrap(ctx, err, "selecting matching commands")
 		}
 
+		// TODO(roberto): no matching commands is a noop? should we
+		// store the results anyway? The full response is already
+		// stored at this point if we need to retrieve those at some point.
 		if len(matchingUUIDs) == 0 {
 			ds.logger.Log("warn", "unmatched commands", "uuids", cmdUUIDs)
 			return nil
