@@ -927,9 +927,6 @@ type SyncMLCmd struct {
 	Cmd     *string   `xml:"Cmd,omitempty"`
 	Data    *string   `xml:"Data,omitempty"`
 	Items   []CmdItem `xml:"Item,omitempty"`
-
-	// Raw XML, stored alongside the decoded fields for convenience
-	Raw []byte `xml:"-"`
 }
 
 // ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
