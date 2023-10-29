@@ -2074,8 +2074,8 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	acc := &fleet.MDMIdPAccount{
-		UUID:     "ABC-DEF",
 		Username: "email@example.com",
+		Email:    "email@example.com",
 		Fullname: "John Doe",
 	}
 
@@ -2086,14 +2086,25 @@ func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	err = ds.InsertMDMIdPAccount(ctx, acc)
 	require.NoError(t, err)
 
-	out, err := ds.GetMDMIdPAccount(ctx, acc.UUID)
+	out, err := ds.GetMDMIdPAccountByEmail(ctx, acc.Email)
 	require.NoError(t, err)
+	// update the acc UUID
+	acc.UUID = out.UUID
 	require.Equal(t, acc, out)
 
 	var nfe fleet.NotFoundError
-	out, err = ds.GetMDMIdPAccount(ctx, "BAD-TOKEN")
+	out, err = ds.GetMDMIdPAccountByEmail(ctx, "bad@email.com")
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, out)
+
+	out, err = ds.GetMDMIdPAccountByUUID(ctx, acc.UUID)
+	require.NoError(t, err)
+	require.Equal(t, acc, out)
+
+	out, err = ds.GetMDMIdPAccountByUUID(ctx, "BAD-TOKEN")
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, out)
+
 }
 
 func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {

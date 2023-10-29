@@ -724,14 +724,24 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		svc.logger.Log("mdm-sso-callback", "IdP UserID doesn't look like an email, using raw value")
 		username = auth.UserID()
 	}
-	idpAcc := fleet.MDMIdPAccount{
-		UUID:     uuid.New().String(),
+
+	err = svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
 		Username: username,
 		Fullname: auth.UserDisplayName(),
 		Email:    auth.UserID(),
-	}
-	if err := svc.ds.InsertMDMIdPAccount(ctx, &idpAcc); err != nil {
+	})
+	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "saving account data from IdP")
+	}
+
+	idpAcc, err := svc.ds.GetMDMIdPAccountByEmail(
+		// use the primary db as the account might have been just
+		// inserted
+		ctxdb.RequirePrimary(ctx, true),
+		auth.UserID(),
+	)
+	if err != nil {
+		return "", "", "", ctxerr.Wrap(ctx, err, "retrieving new account data from IdP")
 	}
 
 	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)

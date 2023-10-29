@@ -1471,6 +1471,9 @@ func TestApplyMacosSetup(t *testing.T) {
 			SMTPSettings:   &fleet.SMTPSettings{},
 			SSOSettings:    &fleet.SSOSettings{},
 		}
+		if premium {
+			mockStore.appConfig.ServerSettings.EnableAnalytics = true
+		}
 		mockStore.Unlock()
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			mockStore.Lock()

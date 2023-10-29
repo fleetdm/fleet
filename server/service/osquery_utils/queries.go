@@ -158,6 +158,7 @@ var hostDetailQueries = map[string]DetailQuery{
 					rows[0]["minor"],
 					rows[0]["patch"],
 					rows[0]["build"],
+					rows[0]["extra"],
 				))
 			}
 
@@ -513,6 +514,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.major,
 		os.minor,
 		os.patch,
+		os.extra,
 		os.build,
 		os.arch,
 		os.platform,
@@ -910,7 +912,7 @@ var softwareChrome = DetailQuery{
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
   '' AS vendor,
-  path AS installed_path
+  '' AS installed_path
 FROM chrome_extensions`,
 	Platforms:        []string{"chrome"},
 	DirectIngestFunc: directIngestSoftware,
@@ -985,12 +987,13 @@ func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.
 	minor := rows[0]["minor"]
 	patch := rows[0]["patch"]
 	build := rows[0]["build"]
+	extra := rows[0]["extra"]
 	arch := rows[0]["arch"]
 	kernelVersion := rows[0]["kernel_version"]
 	platform := rows[0]["platform"]
 
 	hostOS := fleet.OperatingSystem{Name: name, Arch: arch, KernelVersion: kernelVersion, Platform: platform}
-	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build)
+	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build, extra)
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSUnixLike update host operating system")
@@ -1000,7 +1003,7 @@ func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.
 
 // parseOSVersion returns a point release string for an operating system. Parsing rules
 // depend on available data, which varies between operating systems.
-func parseOSVersion(name string, version string, major string, minor string, patch string, build string) string {
+func parseOSVersion(name string, version string, major string, minor string, patch string, build string, extra string) string {
 	var osVersion string
 	switch {
 	case strings.Contains(strings.ToLower(name), "ubuntu"):
@@ -1017,6 +1020,11 @@ func parseOSVersion(name string, version string, major string, minor string, pat
 	}
 
 	osVersion = strings.Trim(osVersion, ".")
+
+	// extra is the Apple Rapid Security Response version
+	if extra != "" {
+		osVersion = fmt.Sprintf("%s %s", osVersion, strings.TrimSpace(extra))
+	}
 
 	return osVersion
 }
