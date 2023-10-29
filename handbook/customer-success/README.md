@@ -224,3 +224,5 @@ What do you do every day? What does the path to success look like in this role a
 <rituals :rituals="rituals['handbook/customers/sales.rituals.yml']"></rituals>
 
 
+<meta name="maintainedBy" value="zayhanlon">
+<meta name="title" value="🏹 Customer Success">
