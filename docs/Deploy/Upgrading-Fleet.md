@@ -1,6 +1,6 @@
 # Upgrading Fleet
 
-This guide explains how to upgrade your Fleet instance to the latest version in order to get the latest features and bug fixes. For initial installation instructions, see [Installing Fleet](https://fleetdm.com/docs/deploying/server-installation#installing-fleet).
+This guide explains how to upgrade your Fleet instance to the latest version in order to get the latest features and bug fixes. For initial installation instructions, see [Installing Fleet](https://fleetdm.com/docs/deploy/deploy-fleet-on-centos#installing-fleet).
 
 There are three steps to perform a typical Fleet upgrade:
 
@@ -29,7 +29,7 @@ sudo cp fleet/linux/fleet* /usr/bin/
 
 Pull the latest Fleet docker image:
 
-```
+```sh
 docker pull fleetdm/fleet
 ```
 
@@ -41,11 +41,11 @@ It is always advised to [back up the database](https://dev.mysql.com/doc/refman/
 
 Database migrations in Fleet are intended to be run while the server is offline. Osquery is designed to be resilient to short downtime from the server, so no data will be lost from `osqueryd` clients in this process. Even on large Fleet installations, downtime during migrations is usually only seconds to minutes.
 
-First, take the existing servers offline.
+> First, take the existing servers offline.
 
 Run database migrations:
 
-```
+```sh
 fleet prepare db
 ```
 
@@ -53,7 +53,7 @@ fleet prepare db
 
 Once Fleet has been replaced with the newest version and the database migrations have completed, serve the newly upgraded Fleet instance:
 
-```
+```sh
 fleet serve
 ```
 

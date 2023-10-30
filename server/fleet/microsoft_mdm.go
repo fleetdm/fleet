@@ -224,7 +224,7 @@ func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 	}
 
 	reqEnrollType, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemEnrollmentType)
-	if err != nil || reqEnrollType != mdm.ReqSecTokenEnrollType {
+	if err != nil || (reqEnrollType != mdm.ReqSecTokenEnrollTypeDevice && reqEnrollType != mdm.ReqSecTokenEnrollTypeFull) {
 		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemEnrollmentType, reqEnrollType, err)
 	}
 
@@ -703,8 +703,8 @@ type WindowsMDMAccessTokenPayload struct {
 	// Type is the enrollment type, such as "programmatic".
 	Type    WindowsMDMEnrollmentType `json:"type"`
 	Payload struct {
-		HostUUID  string `json:"host_uuid"`
-		AuthToken string `json:"auth_token"`
+		OrbitNodeKey string `json:"orbit_node_key"`
+		AuthToken    string `json:"auth_token"`
 	} `json:"payload"`
 }
 
@@ -723,7 +723,7 @@ func (t *WindowsMDMAccessTokenPayload) IsValidToken() error {
 		return errors.New("invalid binary security payload type")
 	}
 
-	if t.Type == WindowsMDMProgrammaticEnrollmentType && len(t.Payload.HostUUID) == 0 {
+	if t.Type == WindowsMDMProgrammaticEnrollmentType && len(t.Payload.OrbitNodeKey) == 0 {
 		return errors.New("invalid binary security payload content")
 	}
 

@@ -222,6 +222,19 @@ $base-class: "button";
       outline: none;
     }
 
+    &:focus-visible {
+      @include button-focus-outline();
+
+      &::after {
+        content: "";
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        border: 1px solid #6a67fe;
+        border-radius: 6px;
+      }
+    }
+
     &:hover,
     &:focus {
       color: $core-vibrant-blue-over;
@@ -229,6 +242,16 @@ $base-class: "button";
       svg {
         path {
           fill: $core-vibrant-blue-over;
+        }
+      }
+
+      // Copy button uses stroke color instead of fill color to darken
+      &.input-field__copy-value-button {
+        svg {
+          path {
+            fill: none;
+            stroke: $core-vibrant-blue-over;
+          }
         }
       }
     }
@@ -318,9 +341,7 @@ $base-class: "button";
   }
 
   &--disabled {
-    opacity: 0.5;
-    filter: grayscale(0.5);
-    cursor: default;
+    @include disabled;
 
     &:hover,
     &:focus {

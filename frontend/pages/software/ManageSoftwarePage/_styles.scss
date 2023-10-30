@@ -16,6 +16,11 @@
     padding: $pad-small $pad-medium;
   }
 
+  &__count {
+    display: flex;
+    gap: 12px;
+  }
+
   &__header {
     display: flex;
     align-items: center;
@@ -73,9 +78,8 @@
             margin: 0;
           }
           .manage-software-page__vuln_dropdown {
-            width: 225px;
             .Select-menu-outer {
-              width: 364px;
+              width: 250px;
               max-height: 310px;
               .Select-menu {
                 max-height: none;
@@ -84,19 +88,9 @@
             .Select-value {
               padding-left: $pad-medium;
               padding-right: $pad-medium;
-              &::before {
-                display: inline-block;
-                position: absolute;
-                padding: 5px 0 0 0; // centers spin
-                content: url(../assets/images/icon-filter-black-16x16@2x.png);
-                transform: scale(0.5);
-                height: 26px;
-                left: 2px;
-              }
             }
-            .Select-value-label {
-              padding-left: $pad-large;
-              font-size: $small !important;
+            .dropdown__custom-value-label {
+              width: 155px; // Override 105px for longer text options
             }
           }
         }
@@ -154,12 +148,10 @@
                   display: table-cell;
                 }
               }
-              @media (min-width: $break-md) {
+              @media (min-width: $break-lg) {
                 .version__header {
                   width: $col-md;
                 }
-              }
-              @media (min-width: $break-lg) {
                 .source__header {
                   display: table-cell;
                 }
@@ -168,8 +160,7 @@
 
             tbody {
               .name__cell {
-                width: $col-md;
-
+                max-width: $col-md;
                 // Tooltip does not get cut off
                 .children-wrapper {
                   overflow: initial;
@@ -204,9 +195,9 @@
                   }
                 }
               }
-              @media (min-width: $break-md) {
-                .version_cell {
-                  width: $col-md;
+              @media (min-width: $break-sm) {
+                .name__cell {
+                  max-width: $col-lg;
                 }
               }
               @media (min-width: $break-md) {
@@ -215,6 +206,9 @@
                 }
               }
               @media (min-width: $break-lg) {
+                .version_cell {
+                  width: $col-md;
+                }
                 .source__cell {
                   display: table-cell;
                 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -671,6 +670,46 @@ spec:
   resolution: "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault."
   platform: darwin
 `
+	duplicateTeamPolicySpec = `---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is Gatekeeper enabled on macOS devices?
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
+  platform: darwin
+  team: Team1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is Gatekeeper enabled on macOS devices?
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
+  platform: darwin
+  team: Team1
+`
+	duplicateGlobalPolicySpec = `---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is Gatekeeper enabled on macOS devices?
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
+  platform: darwin
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Is Gatekeeper enabled on macOS devices?
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
+  resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
+  platform: darwin
+`
 	enrollSecretsSpec = `---
 apiVersion: v1
 kind: enroll_secret
@@ -740,6 +779,18 @@ func TestApplyPolicies(t *testing.T) {
 		assert.NotEmpty(t, p.Platform)
 	}
 	assert.True(t, ds.TeamByNameFuncInvoked)
+}
+
+func TestApplyPoliciesValidation(t *testing.T) {
+	// Team Policy Spec
+	filename := writeTmpYml(t, duplicateTeamPolicySpec)
+	errorMsg := `applying policies: policy names must be globally unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
+	runAppCheckErr(t, []string{"apply", "-f", filename}, errorMsg)
+
+	// Global Policy Spec
+	filename = writeTmpYml(t, duplicateGlobalPolicySpec)
+	errorMsg = `applying policies: policy names must be globally unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
+	runAppCheckErr(t, []string{"apply", "-f", filename}, errorMsg)
 }
 
 func mobileconfigForTest(name, identifier string) []byte {
@@ -992,13 +1043,13 @@ spec:
           foo: qux
     name: Team1
     mdm:
+      enable_disk_encryption: false
       macos_updates:
         minimum_version: 10.10.10
         deadline: 1992-03-01
       macos_settings:
         custom_settings:
           - %s
-        enable_disk_encryption: false
     secrets:
       - secret: BBB
 `, mobileConfigPath))
@@ -1010,9 +1061,9 @@ spec:
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.JSONEq(t, string(json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)), string(*savedTeam.Config.AgentOptions))
 	assert.Equal(t, fleet.TeamMDM{
+		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:       []string{mobileConfigPath},
-			EnableDiskEncryption: false,
+			CustomSettings: []string{mobileConfigPath},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1045,9 +1096,9 @@ spec:
 	require.True(t, ds.NewJobFuncInvoked)
 	// all left untouched, only setup assistant added
 	assert.Equal(t, fleet.TeamMDM{
+		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:       []string{mobileConfigPath},
-			EnableDiskEncryption: false,
+			CustomSettings: []string{mobileConfigPath},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1077,9 +1128,9 @@ spec:
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// all left untouched, only bootstrap package added
 	assert.Equal(t, fleet.TeamMDM{
+		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:       []string{mobileConfigPath},
-			EnableDiskEncryption: false,
+			CustomSettings: []string{mobileConfigPath},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1151,10 +1202,10 @@ spec:
 
 	// Apply queries.
 	var appliedQueries []*fleet.Query
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		return nil, sql.ErrNoRows
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return nil, &notFoundError{}
 	}
-	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query) error {
+	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		appliedQueries = queries
 		return nil
 	}
@@ -1252,10 +1303,10 @@ func TestApplyQueries(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	var appliedQueries []*fleet.Query
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		return nil, sql.ErrNoRows
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return nil, &notFoundError{}
 	}
-	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query) error {
+	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		appliedQueries = queries
 		return nil
 	}
@@ -1419,6 +1470,9 @@ func TestApplyMacosSetup(t *testing.T) {
 			MDM:            fleet.MDM{EnabledAndConfigured: true},
 			SMTPSettings:   &fleet.SMTPSettings{},
 			SSOSettings:    &fleet.SSOSettings{},
+		}
+		if premium {
+			mockStore.appConfig.ServerSettings.EnableAnalytics = true
 		}
 		mockStore.Unlock()
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1835,7 +1889,7 @@ spec:
 			expectedErr error
 		}{
 			{"signed.pkg", nil},
-			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/docs/using-fleet/mdm-macos-setup#step-2-sign-the-package")},
+			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#step-2-sign-the-package")},
 			{"invalid.tar.gz", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The file must be a package (.pkg).")},
 			{"wrong-toc.pkg", errors.New("applying fleet config: checking package signature: decompressing TOC: unexpected EOF")},
 		}
@@ -2834,7 +2888,7 @@ spec:
     macos_settings:
       enable_disk_encryption: true
 `,
-			wantErr: `Couldn't update macos_settings because MDM features aren't turned on in Fleet.`,
+			wantErr: `Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on`,
 		},
 		{
 			desc: "app config macos_settings.enable_disk_encryption false",

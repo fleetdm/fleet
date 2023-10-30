@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -240,7 +239,7 @@ func writeSystemdUnit(opt Options, rootPath string) error {
 	if err := secure.MkdirAll(systemdRoot, constant.DefaultDirMode); err != nil {
 		return fmt.Errorf("create systemd dir: %w", err)
 	}
-	if err := ioutil.WriteFile(
+	if err := os.WriteFile(
 		filepath.Join(systemdRoot, "orbit.service"),
 		[]byte(`
 [Unit]
@@ -288,6 +287,7 @@ ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST={{ .FleetDesktopAlternativeBrowserH
 {{ if .UpdateTLSServerCertificate }}ORBIT_UPDATE_TLS_CERTIFICATE=/opt/orbit/update.pem{{ end }}
 {{ if .EnrollSecret }}ORBIT_ENROLL_SECRET={{.EnrollSecret}}{{ end }}
 {{ if .Debug }}ORBIT_DEBUG=true{{ end }}
+{{ if .EnableScripts }}ORBIT_ENABLE_SCRIPTS=true{{ end }}
 `))
 
 func writeEnvFile(opt Options, rootPath string) error {
@@ -301,7 +301,7 @@ func writeEnvFile(opt Options, rootPath string) error {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(
+	if err := os.WriteFile(
 		filepath.Join(envRoot, "orbit"),
 		contents.Bytes(),
 		constant.DefaultFileMode,
@@ -333,7 +333,7 @@ func writePostInstall(opt Options, path string) error {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
+	if err := os.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -348,7 +348,7 @@ func writePreRemove(opt Options, path string) error {
 	// "pkill fleet-desktop" is required because the application
 	// runs as user (separate from sudo command that launched it),
 	// so on some systems it's not killed properly.
-	if err := ioutil.WriteFile(path, []byte(`#!/bin/sh
+	if err := os.WriteFile(path, []byte(`#!/bin/sh
 
 systemctl stop orbit.service || true
 systemctl disable orbit.service || true
@@ -361,9 +361,13 @@ pkill fleet-desktop || true
 }
 
 func writePostRemove(opt Options, path string) error {
-	if err := ioutil.WriteFile(path, []byte(`#!/bin/sh
+	if err := os.WriteFile(path, []byte(`#!/bin/sh
 
-rm -rf /var/lib/orbit /var/log/orbit /usr/local/bin/orbit /etc/default/orbit /usr/lib/systemd/system/orbit.service /opt/orbit
+# For RPM during uninstall, $1 is 0
+# For Debian during remove, $1 is "remove"
+if [ "$1" = 0 ] || [ "$1" = "remove" ]; then
+	rm -rf /var/lib/orbit /var/log/orbit /usr/local/bin/orbit /etc/default/orbit /usr/lib/systemd/system/orbit.service /opt/orbit
+fi
 `), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}

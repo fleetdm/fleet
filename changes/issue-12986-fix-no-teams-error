@@ -1,1 +1,0 @@
-- fix bug where os_version enpoint returned 404 for `no teams` on controls page

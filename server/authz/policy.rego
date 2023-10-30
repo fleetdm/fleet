@@ -350,7 +350,7 @@ allow {
   object.observer_can_run == false
   is_null(subject.global_role)
   action == run
-  
+
   is_null(object.team_id)
 
   not is_null(object.host_targets.teams)
@@ -365,7 +365,7 @@ allow {
   object.observer_can_run == false
   is_null(subject.global_role)
   action == run
-  
+
   team_role(subject, object.team_id) == [admin, maintainer, observer_plus][_]
 
   not is_null(object.host_targets.teams)
@@ -395,7 +395,7 @@ allow {
   object.observer_can_run == false
   is_null(subject.global_role)
   action == run
-  
+
   team_role(subject, object.team_id) == [admin, maintainer, observer_plus][_]
 
   # there are no team targets
@@ -425,7 +425,7 @@ allow {
   object.observer_can_run == true
   is_null(subject.global_role)
   action == run
-  
+
   is_null(object.team_id)
 
   not is_null(object.host_targets.teams)
@@ -440,7 +440,7 @@ allow {
   object.observer_can_run == true
   is_null(subject.global_role)
   action == run
-  
+
   team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
 
   not is_null(object.host_targets.teams)
@@ -454,7 +454,7 @@ allow {
   object.observer_can_run == true
   is_null(subject.global_role)
   action == run
-  
+
   is_null(object.team_id)
 
   # If role is admin, maintainer, observer_plus or observer on any team.
@@ -470,7 +470,7 @@ allow {
   object.observer_can_run == true
   is_null(subject.global_role)
   action == run
-  
+
   team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
 
   # there are no team targets
@@ -812,5 +812,98 @@ allow {
 allow {
   object.type == "version"
   not is_null(subject)
+  action == read
+}
+
+##
+# Host Script Result (script execution and output)
+##
+
+# Global admins and maintainers can write (execute) anonymous scripts (not
+# gitops as this is not something that relates to fleetctl apply).
+allow {
+  object.type == "host_script_result"
+  is_null(object.script_id)
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}
+
+# Global admins, maintainers, observer_plus and observers can write (execute)
+# saved scripts (not gitops as this is not something that relates to fleetctl
+# apply).
+allow {
+  object.type == "host_script_result"
+  not is_null(object.script_id)
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  action == write
+}
+
+# Global admins, maintainers, observer_plus and observers can read scripts.
+allow {
+  object.type == "host_script_result"
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Team admin and maintainers can write (execute) anonymous scripts for their
+# teams (not gitops as this is not something that relates to fleetctl apply).
+allow {
+  object.type == "host_script_result"
+  is_null(object.script_id)
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == write
+}
+
+# Team admins, maintainers, observer_plus and observers can write (execute)
+# saved scripts for their teams (not gitops as this is not something that
+# relates to fleetctl apply).
+allow {
+  object.type == "host_script_result"
+  not is_null(object.script_id)
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
+  action == write
+}
+
+# Team admins, maintainers, observer_plus and observers can read scripts for their teams.
+allow {
+  object.type == "host_script_result"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
+  action == read
+}
+
+##
+# Scripts (saved script)
+##
+
+# Global admins and maintainers can write (upload) saved scripts.
+allow {
+  object.type == "script"
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}
+
+# Global admins, maintainers, observer_plus and observers can read scripts.
+allow {
+  object.type == "script"
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Team admin and maintainers can write (upload) saved scripts for their teams.
+allow {
+  object.type == "script"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == write
+}
+
+# Team admins, maintainers, observer_plus and observers can read scripts for their teams.
+allow {
+  object.type == "script"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
   action == read
 }

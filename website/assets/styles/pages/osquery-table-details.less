@@ -3,10 +3,13 @@
     margin: 0;
     width: 100vw;
     height: 1px;
-    border-top: 1px solid @border-lt-gray;
+    border-top: 1px solid @core-fleet-black-25;
   }
 
   [purpose='search-and-filters'] {
+    hr {
+      display: none;
+    }
     [purpose='filter-row'] {
       max-width: 1200px;
       padding-left: 40px;
@@ -129,9 +132,8 @@
     -ms-overflow-style: none;
     min-width: 245px;
     max-width: 250px;
-    padding-top: 60px;
+    padding-top: 24px;
     height: 100%;
-    border-right: 1px #EEE solid;
     padding-right: 16px;
     margin-right: 16px;
     h4 {
@@ -143,7 +145,7 @@
     padding-top: 16px;
     padding-bottom: 120px;
     margin-top: 16px;
-    border-top: 1px #EEE solid;
+    border-top: 1px solid @core-fleet-black-25;
     position: relative;
     a {
       font-size: 14px;
@@ -159,7 +161,7 @@
     }
     min-height: calc(~'100vh - 565px');
     overflow-y: scroll;
-    overflow-x: show;
+    overflow-x: visible;
   }
   [purpose='evented-table-icon'] {
     margin-left: 4px;
@@ -231,7 +233,7 @@
   [purpose='schema-table'] {
     width: 100%;
     position: relative;
-    padding-top: 60px;
+    padding-top: 24px;
     margin-bottom: 40px;
     [purpose='platform-logos'] {
       height: 0px;
@@ -313,13 +315,13 @@
       th {
         font-weight: @bold;
         font-family: @header-font;
-        border: 1px solid @border-lt-gray;
+        border: 1px solid @core-fleet-black-25;
         padding: 8px;
       }
       td {
         vertical-align: middle;
         font-family: @main-font;
-        border: 1px solid @border-lt-gray;
+        border: 1px solid @core-fleet-black-25;
         padding: 8px;
         max-height: 100px;
         strong {
@@ -405,6 +407,7 @@
   }
 
   @media (max-width: 991px) {
+
     [purpose='schema-table'] {
       padding-top: 40px;
       [purpose='platform-logos'] {
@@ -412,6 +415,11 @@
       }
       [purpose='description-column'] {
         word-break: break-word;
+      }
+    }
+    [purpose='search-and-filters'] {
+      hr {
+        display: block;
       }
     }
     [purpose='filter-row'] {
@@ -449,6 +457,7 @@
       padding-right: 24px;
     }
     [purpose='search-and-filters'] {
+
       [purpose='filter-row'] {
         padding-left: 24px;
         padding-right: 24px;
@@ -467,6 +476,7 @@
           width: 100%;
         }
       }
+
     }
     [purpose='schema-table'] {
       h2 {

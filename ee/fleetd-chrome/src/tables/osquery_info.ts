@@ -5,13 +5,15 @@ export default class TableOsqueryInfo extends Table {
   columns = ["version", "build_platform", "build_distro", "extensions"];
 
   async generate() {
-    return [
-      {
-        version: `fleetd-chrome-${chrome.runtime.getManifest().version}`,
-        build_platform: "chrome",
-        build_distro: "chrome",
-        extensions: "inactive",
-      },
-    ];
+    return {
+      data: [
+        {
+          version: `fleetd-chrome-${chrome.runtime.getManifest().version}`,
+          build_platform: "chrome",
+          build_distro: "chrome",
+          extensions: "inactive",
+        },
+      ],
+    };
   }
 }

@@ -9,7 +9,7 @@ import versionAPI from "services/entities/version";
 
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
-import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
   generateRole,
@@ -113,13 +113,18 @@ const UserSidePanel = ({
         onClick={onChangePassword}
         disabled={ssoEnabled}
         className={`${baseClass}__button`}
+        variant="brand"
       >
         Change password
       </Button>
       <p className={`${baseClass}__last-updated`}>
         Last changed: {lastUpdatedAt}
       </p>
-      <Button onClick={onGetApiToken} className={`${baseClass}__button`}>
+      <Button
+        onClick={onGetApiToken}
+        className={`${baseClass}__button`}
+        variant="brand"
+      >
         Get API token
       </Button>
       <span

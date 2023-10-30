@@ -125,7 +125,7 @@ const generateTableHeaders = ({
       Cell: (cellProps: ICellProps): JSX.Element => {
         return (
           <LinkCell
-            classes="w400 query-name-cell"
+            className="w400 query-name-cell"
             value={
               <>
                 <div className="query-name-text">{cellProps.cell.value}</div>
@@ -152,7 +152,7 @@ const generateTableHeaders = ({
                 )}
               </>
             }
-            path={PATHS.EDIT_QUERY(
+            path={PATHS.QUERY(
               cellProps.row.original.id,
               cellProps.row.original.team_id ?? undefined
             )}
@@ -183,10 +183,7 @@ const generateTableHeaders = ({
           <TextCell
             value={val}
             emptyCellTooltipText={
-              <>
-                Assign a frequency and turn <strong>automations</strong> on to
-                collect data at an interval.
-              </>
+              <>Assign a frequency to collect data at an interval.</>
             }
           />
         );
@@ -199,10 +196,8 @@ const generateTableHeaders = ({
           <div>
             <TooltipWrapper
               tipContent={`
-                This is the average <br />
-                performance impact <br />
-                across all hosts where this <br />
-                query was scheduled.`}
+                This is the average performance impact across <br />
+                all hosts where this query was scheduled.`}
             >
               Performance impact
             </TooltipWrapper>

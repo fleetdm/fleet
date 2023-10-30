@@ -147,15 +147,22 @@ The following command-line flags allow you to configure an osquery installer fur
 | --update-url               | URL for update server (default: `https://tuf.fleetctl.com`)                                                                             |
 | --update-roots             | Root key JSON metadata for update server (from fleetctl updates roots)                                                                  |
 | --use-system-configuration | Try to read --fleet-url and --enroll-secret using configuration in the host (currently only macOS profiles are supported)               |
+| --enable-scripts           | Enable script execution (default: `false`)                                                                                              |
 | --debug                    | Enable debug logging (default: `false`)                                                                                                 |
 | --verbose                  | Log detailed information when building the package (default: false)                                                                     |
 | --help, -h                 | show help (default: `false`)                                                                                                            |
+
+In addition to the command-line flags, the following environment variables can alter the behaviour of fleetd.
+
+| Environment variable                       | Options                                                                                                                                                                                                                          |
+| --------------------------                 | ---------------------------------------------------------------------------------------------------------------------------------------                                                                                          |
+| FLEET\_PREVENT\_SCRIPT\_TEMPDIR\_DELETION  | If set to a non-empty value, prevents deletion of the temporary directory where the scripts being executed are stored. Those are located in the temporary directory of the system, under a sub-directory starting with `fleet-`. |
 
 #### Fleet Desktop
 
 [Fleet Desktop](./Fleet-desktop.md) is a menu bar icon available on macOS, Windows, and Linux that gives your end users visibility into the security posture of their machine.
 
-You can include Fleet Desktop in the orbit package by including the `--fleet-desktop`option. 
+You can include Fleet Desktop in the orbit package by including the `--fleet-desktop`option.
 
 #### Update channels
 
@@ -327,7 +334,7 @@ go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
 ```
 
 Or, using a `flagfile.txt` for osqueryd:
-```sh 
+```sh
 go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
     --dev-mode \
     --disable-updates \
@@ -338,8 +345,24 @@ go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
 ##### Generate installer packages from Orbit source
 
 The `fleetctl package` command generates installers by fetching the targets/executables from a [TUF](https://theupdateframework.io/) repository.
-To generate an installer that contains an Orbit built from source, you need to setup a local TUF repository.
+To generate an installer that contains an Orbit built from source, you need to set up a local TUF repository.
 The following document explains how you can generate a TUF repository and installers that use it: [tools/tuf/test](https://github.com/fleetdm/fleet/tree/main/tools/tuf/test/README.md).
+
+##### Experimental Features
+
+> Any features listed here are not recommended for use in production environments
+
+**Using `fleetd` without enrolling Orbit**
+
+*Only available in fleetd v1.15.1 on Linux and macOS*
+
+It is possible to generate a fleetd package that does not connect to Fleet by omitting the `--fleet-url` and `--enroll-secret` flags when building a package.
+
+This can be useful in situations where you would like to test using `fleetd` to manage osquery updates while still managing osquery command-line flags and extensions locally 
+but can result in a large volume of error logs. In fleetd v1.15.1, we added an experimental feature to reduce log chatter in this scenario.
+ 
+Applying the environmental variable `"FLEETD_SILENCE_ENROLL_ERROR"=1` on a host will silence fleetd enrollment errors if a `--fleet-url` is not present.
+This variable is read at launch and will require a restart of the Orbit service if it is not set before installing `fleetd` v1.15.1.
 
 #### Troubleshooting
 
@@ -351,7 +374,6 @@ These are the log destinations for each platform:
 - macOS: `/private/var/log/orbit/orbit.std{out|err}.log`.
 - Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log` (the log file is rotated).
  Users will need administrative permissions on the host to access these log destinations.
-
 
 #### Uninstall
 

@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -27,7 +30,7 @@ type devicePingResponse struct{}
 func (r devicePingResponse) error() error { return nil }
 
 func (r devicePingResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	writeCapabilitiesHeader(w, fleet.ServerDeviceCapabilities)
+	writeCapabilitiesHeader(w, fleet.GetServerDeviceCapabilities())
 }
 
 // NOTE: we're intentionally not reading the capabilities header in this
@@ -360,6 +363,71 @@ func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service
 	}
 
 	return transparencyURLResponse{RedirectURL: transparencyURL}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Receive errors from the client
+////////////////////////////////////////////////////////////////////////////////
+
+type fleetdErrorRequest struct {
+	Token string `url:"token"`
+	fleet.FleetdError
+}
+
+func (f *fleetdErrorRequest) deviceAuthToken() string {
+	return f.Token
+}
+
+// Since we're directly storing what we get in Redis, limit the request size to
+// 5MB, this combined with the rate limit of this endpoint should be enough to
+// prevent a malicious actor.
+const maxFleetdErrorReportSize int64 = 5 * 1024 * 1024
+
+func (f *fleetdErrorRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
+
+	limitedReader := io.LimitReader(r, maxFleetdErrorReportSize+1)
+	decoder := json.NewDecoder(limitedReader)
+
+	for {
+		if err := decoder.Decode(&f.FleetdError); err == io.EOF {
+			break
+		} else if err == io.ErrUnexpectedEOF {
+			return &fleet.BadRequestError{Message: "payload exceeds maximum accepted size"}
+		} else if err != nil {
+			return &fleet.BadRequestError{Message: "invalid payload"}
+		}
+	}
+
+	return nil
+}
+
+type fleetdErrorResponse struct{}
+
+func (r fleetdErrorResponse) error() error { return nil }
+
+// for now, this endpoint must always return a 500 status code, this
+// way errors are picked up and reported by any monitoring tool that
+// looks for 5xx errors.
+//
+// since the handler is returning an error, this is redundant, but I'm adding
+// it as a safeguard.
+//
+// See: https://github.com/fleetdm/fleet/issues/13238#issuecomment-1671769460
+func (r fleetdErrorResponse) Status() int { return http.StatusInternalServerError }
+
+func fleetdError(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*fleetdErrorRequest)
+	err := svc.ReceiveFleetdError(ctx, req.FleetdError)
+	// return the error as the second parameter to get better logs in the server.
+	return fleetdErrorResponse{}, err
+}
+
+func (svc *Service) ReceiveFleetdError(ctx context.Context, fleetdError fleet.FleetdError) error {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
+		return ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
+	}
+
+	return ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap())
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -472,11 +472,13 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 	if len(existingSerials) > 0 {
 		level.Info(kitlog.With(d.logger)).Log("msg", "gathering existing serials to assign devices", "len", len(existingSerials))
 		serialsByTeam := map[*uint][]string{}
+		hosts := []fleet.Host{}
 		for _, host := range existingSerials {
 			if serialsByTeam[host.TeamID] == nil {
 				serialsByTeam[host.TeamID] = []string{}
 			}
 			serialsByTeam[host.TeamID] = append(serialsByTeam[host.TeamID], host.HardwareSerial)
+			hosts = append(hosts, *host)
 		}
 		for team, serials := range serialsByTeam {
 			profUUID, err := d.getProfileUUIDForTeam(ctx, team)
@@ -489,6 +491,11 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 			profileToSerials[profUUID] = append(profileToSerials[profUUID], serials...)
 
 		}
+
+		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, hosts); err != nil {
+			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing device")
+		}
+
 	} else {
 		level.Info(kitlog.With(d.logger)).Log("msg", "no existing devices to assign DEP profiles")
 	}
@@ -591,7 +598,7 @@ func NewDEPClient(storage godep.ClientStorage, appCfgUpdater fleet.AppConfigUpda
 				if err := appCfgUpdater.SaveAppConfig(ctx, appCfg); err != nil {
 					level.Error(logger).Log("msg", "Apple DEP client: failed to save app config", "err", err)
 				}
-				level.Debug(logger).Log("msg", "Apple DEP client: updated app config Terms Expired flag",
+				level.Info(logger).Log("msg", "Apple DEP client: updated app config Terms Expired flag",
 					"apple_bm_terms_expired", appCfg.MDM.AppleBMTermsExpired)
 			}
 		}

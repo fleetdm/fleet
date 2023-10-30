@@ -33,7 +33,7 @@
     line-height: 1.5;
     background-color: $ui-light-grey;
     border: solid 1px $ui-fleet-black-10;
-    border-radius: 4px;
+    border-radius: $border-radius;
     font-size: $small;
     padding: 9.5px 12px 9.5px 36px;
     color: $core-fleet-blue;
@@ -48,9 +48,18 @@
       color: $ui-fleet-black-50;
     }
 
-    &:focus {
+    &:focus,
+    &:hover {
       outline: none;
       border-color: $core-vibrant-blue;
+
+      + .icon {
+        svg {
+          path {
+            fill: $core-vibrant-blue;
+          }
+        }
+      }
     }
 
     &--disabled {
@@ -61,7 +70,7 @@
       color: $core-vibrant-red;
       border: 1px solid $core-vibrant-red;
       box-sizing: border-box;
-      border-radius: 4px;
+      border-radius: $border-radius;
 
       &:focus {
         border-color: $ui-error;

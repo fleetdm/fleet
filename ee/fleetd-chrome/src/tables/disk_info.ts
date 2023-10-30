@@ -9,12 +9,12 @@ export default class TableDiskInfo extends Table {
     const disks = (await chrome.system.storage.getInfo()) as chrome.system.storage.StorageUnitInfo[];
     for (let d of disks) {
       rows.push({
-        capacity: d.capacity,
+        capacity: d.capacity.toString(),
         id: d.id,
         name: d.name,
         type: d.type,
       });
     }
-    return rows;
+    return { data: rows };
   }
 }

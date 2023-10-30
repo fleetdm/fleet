@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -18,7 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/gocarina/gocsv"
@@ -209,6 +210,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.Host
 		return svc.ds.DeleteHosts(ctx, ids)
 	}
 
+	opts.DisableFailingPolicies = true // don't check policies for hosts that are about to be deleted
 	hostIDs, _, err := svc.hostIDsAndNamesFromFilters(ctx, opts, lid)
 	if err != nil {
 		return err
@@ -607,7 +609,15 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return err
 	}
 
-	return svc.ds.DeleteHost(ctx, id)
+	if err := svc.ds.DeleteHost(ctx, id); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host")
+	}
+
+	if host.Platform == "darwin" {
+		return svc.maybeRestorePendingDEPHost(ctx, host)
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -627,7 +637,7 @@ func (r addHostsToTeamResponse) error() error { return r.Err }
 
 func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addHostsToTeamRequest)
-	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs)
+	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs, false)
 	if err != nil {
 		return addHostsToTeamResponse{Err: err}, nil
 	}
@@ -635,7 +645,7 @@ func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return addHostsToTeamResponse{}, err
 }
 
-func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
 	// This is currently treated as a "team write". If we ever give users
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
@@ -647,8 +657,10 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
 		return err
 	}
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	if !skipBulkPending {
+		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+		}
 	}
 	serials, err := svc.ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
 	if err != nil {
@@ -907,22 +919,40 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 
 	var profiles []fleet.HostMDMAppleProfile
-	if ac.MDM.EnabledAndConfigured {
-		profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
-		}
-
-		// determine disk encryption and action required here based on profiles and
-		// raw decryptable key status.
-		host.MDM.DetermineDiskEncryptionStatus(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
-
-		for _, p := range profs {
-			if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
-				p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured {
+		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
+		switch host.Platform {
+		case "windows":
+			if ac.MDM.WindowsEnabledAndConfigured && license.IsPremium(ctx) {
+				hde, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
+				switch {
+				case err != nil:
+					return nil, ctxerr.Wrap(ctx, err, "get host mdm bitlocker status")
+				case hde != nil:
+					host.MDM.OSSettings.DiskEncryption = *hde
+				default:
+					host.MDM.OSSettings.DiskEncryption = fleet.HostMDMDiskEncryption{}
+				}
 			}
-			p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
-			profiles = append(profiles, p)
+		case "darwin":
+			if ac.MDM.EnabledAndConfigured {
+				profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
+				}
+
+				// determine disk encryption and action required here based on profiles and
+				// raw decryptable key status.
+				host.MDM.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
+
+				for _, p := range profs {
+					if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
+						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+					}
+					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
+					profiles = append(profiles, p)
+				}
+			}
 		}
 	}
 	host.MDM.Profiles = &profiles
@@ -960,6 +990,7 @@ func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.Ho
 	if lid != nil {
 		hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, opt)
 	} else {
+		opt.DisableFailingPolicies = true // intentionally ignore failing policies
 		hosts, err = svc.ds.ListHosts(ctx, filter, opt)
 	}
 	if err != nil {
@@ -1407,7 +1438,6 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return hostsReportResponse{Err: err}, nil
 	}
 
-	req.Opts.DisableFailingPolicies = false
 	req.Opts.AdditionalFilters = nil
 	req.Opts.Page = 0
 	req.Opts.PerPage = 0 // explicitly disable any limit, we want all matching hosts
@@ -1553,25 +1583,48 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		return nil, err
 	}
 
+	// The middleware checks that either Apple or Windows MDM are configured and
+	// enabled, but here we must check if the specific one is enabled for that
+	// particular host's platform.
+	var decryptCert *tls.Certificate
+	switch host.FleetPlatform() {
+	case "windows":
+		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+			return nil, err
+		}
+
+		// use Microsoft's WSTEP certificate for decrypting
+		cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
+		}
+		decryptCert = cert
+
+	default:
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return nil, err
+		}
+
+		// use Apple's SCEP certificate for decrypting
+		cert, _, _, err := svc.config.MDM.AppleSCEP()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting Apple SCEP certificate to decrypt key")
+		}
+		decryptCert = cert
+	}
+
 	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
-
 	if key.Decryptable == nil || !*key.Decryptable {
-		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "getting host encryption key")
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not decryptable")
 	}
 
-	cert, _, _, err := svc.config.MDM.AppleSCEP()
+	decryptedKey, err := mdm.DecryptBase64CMS(key.Base64Encrypted, decryptCert.Leaf, decryptCert.PrivateKey)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
+		return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
 	}
-
-	decryptedKey, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
-	}
-
 	key.DecryptedValue = string(decryptedKey)
 
 	err = svc.ds.NewActivity(

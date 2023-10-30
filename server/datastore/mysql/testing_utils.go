@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -181,7 +180,7 @@ func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *Datast
 func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
 	_, filename, _, _ := runtime.Caller(0)
 	base := path.Dir(filename)
-	schema, err := ioutil.ReadFile(path.Join(base, "schema.sql"))
+	schema, err := os.ReadFile(path.Join(base, "schema.sql"))
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -417,5 +416,6 @@ func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) { //nolint
 		}
 		t.Logf("%s", sb.String())
 	}
+	require.NoError(t, rows.Err())
 	t.Logf("<< dumping table %s completed", tableName)
 }

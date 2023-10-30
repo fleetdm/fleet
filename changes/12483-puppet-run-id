@@ -1,1 +1,0 @@
-* Fix delays applying profiles when the Puppet module is used in distributed scenarios.

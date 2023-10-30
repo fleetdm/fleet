@@ -1,3 +1,0 @@
-- Updated the `POST /mdm/apple/profiles/match` endpoint to set the bootstrap package and enable end
-  user authentication settings for each new team created via the endpoint to the corresponding
-  values specified in the app config as of the time the applicable team is created.

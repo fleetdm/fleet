@@ -7,11 +7,14 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
 
@@ -56,10 +59,10 @@ func (r *FlagRunner) Execute() error {
 		case <-r.cancel:
 			return nil
 		case <-ticker.C:
-			log.Info().Msg("calling flags update")
+			log.Debug().Msg("calling flags update")
 			didUpdate, err := r.DoFlagsUpdate()
 			if err != nil {
-				log.Info().Err(err).Msg("flags updates failed")
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "flags updates failed")
 			}
 			if didUpdate {
 				log.Info().Msg("flags updated, exiting")
@@ -166,7 +169,7 @@ func (r *ExtensionRunner) Execute() error {
 			log.Debug().Msg("calling /config API to fetch/update extensions")
 			extensionsCleared, err := r.DoExtensionConfigUpdate()
 			if err != nil {
-				log.Info().Err(err).Msg("ext update failed")
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "ext update failed")
 			}
 			if extensionsCleared {
 				log.Info().Msg("extensions were cleared on the server")
@@ -230,24 +233,29 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 		}
 	}
 
-	type ExtensionInfo struct {
-		Platform string `json:"platform"`
-		Channel  string `json:"channel"`
-	}
+	log.Debug().Str("extensions", string(config.Extensions)).Msg("received extensions configuration")
 
-	var data map[string]ExtensionInfo
-	err = json.Unmarshal(config.Extensions, &data)
+	var extensions fleet.Extensions
+	err = json.Unmarshal(config.Extensions, &extensions)
 	if err != nil {
 		// we do not want orbit to restart
 		return false, fmt.Errorf("error unmarshing json extensions config from fleet: %w", err)
 	}
 
+	// Filter out extensions not targeted to this OS.
+	extensions.FilterByHostPlatform(runtime.GOOS)
+
 	var sb strings.Builder
-	for extensionName, extensionInfo := range data {
+	for extensionName, extensionInfo := range extensions {
 		// infer filename from extension name
 		// osquery enforces .ext, so we just add that
 		// we expect filename to match extension name
 		filename := extensionName + ".ext"
+
+		// All Windows executables must end with `.exe`.
+		if runtime.GOOS == "windows" {
+			filename = filename + ".exe"
+		}
 
 		// we don't want path traversal and the like in the filename
 		if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
@@ -267,7 +275,8 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 		r.updateRunner.updater.SetTargetInfo(targetName, TargetInfo{Platform: platform, Channel: channel, TargetFile: filename})
 
 		// the full path to where the extension would be on disk, for e.g. for extension name "hello_world"
-		// the path is: <root-dir>/bin/extensions/hello_world/<platform>/<channel>/hello_world.ext
+		// the path is: <root-dir>/bin/extensions/hello_world/<platform>/<channel>/hello_world.ext on macOS/Linux
+		// and <root-dir>/bin/extensions/hello_world/<platform>/<channel>/hello_world.ext.exe on Windows.
 		path := filepath.Join(rootDir, "bin", "extensions", extensionName, platform, channel, filename)
 
 		if err := r.updateRunner.updater.UpdateMetadata(); err != nil {

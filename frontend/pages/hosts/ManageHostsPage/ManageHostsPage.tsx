@@ -18,6 +18,7 @@ import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
 import hostsAPI, {
+  HOSTS_QUERY_PARAMS as PARAMS,
   ILoadHostsQueryKey,
   ILoadHostsResponse,
   ISortOption,
@@ -49,7 +50,11 @@ import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
-import { FileVaultProfileStatus, BootstrapPackageStatus } from "interfaces/mdm";
+import {
+  DiskEncryptionStatus,
+  BootstrapPackageStatus,
+  MdmProfileStatus,
+} from "interfaces/mdm";
 
 import sortUtils from "utilities/sort";
 import {
@@ -64,6 +69,7 @@ import Icon from "components/Icon/Icon";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
+import InfoBanner from "components/InfoBanner/InfoBanner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableDataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
@@ -84,7 +90,6 @@ import {
   DEFAULT_PAGE_INDEX,
   getHostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
-  ManageHostsPageQueryParams,
 } from "./HostsPageConfig";
 import { isAcceptableStatus } from "./helpers";
 
@@ -97,7 +102,6 @@ import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "../components/TransferHostModal";
 import DeleteHostModal from "../components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
-import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
 
@@ -233,8 +237,9 @@ const ManageHostsPage = ({
       ? parseInt(queryParams.low_disk_space, 10)
       : undefined;
   const missingHosts = queryParams?.status === "missing";
-  const diskEncryptionStatus: FileVaultProfileStatus | undefined =
-    queryParams?.macos_settings_disk_encryption;
+  const osSettingsStatus = queryParams?.[PARAMS.OS_SETTINGS];
+  const diskEncryptionStatus: DiskEncryptionStatus | undefined =
+    queryParams?.[PARAMS.DISK_ENCRYPTION];
   const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
     queryParams?.bootstrap_package;
 
@@ -366,6 +371,7 @@ const ManageHostsPage = ({
         page: tableQueryData ? tableQueryData.pageIndex : 0,
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
         device_mapping: true,
+        osSettings: osSettingsStatus,
         diskEncryptionStatus,
         bootstrapPackageStatus,
         macSettingsStatus,
@@ -402,6 +408,7 @@ const ManageHostsPage = ({
         osId,
         osName,
         osVersion,
+        osSettings: osSettingsStatus,
         diskEncryptionStatus,
         bootstrapPackageStatus,
         macSettingsStatus,
@@ -559,7 +566,7 @@ const ManageHostsPage = ({
   };
 
   const handleChangeDiskEncryptionStatusFilter = (
-    newStatus: FileVaultProfileStatus
+    newStatus: DiskEncryptionStatus
   ) => {
     handleResetPageIndex();
 
@@ -570,7 +577,24 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          macos_settings_disk_encryption: newStatus,
+          [PARAMS.DISK_ENCRYPTION]: newStatus,
+          page: 0, // resets page index
+        },
+      })
+    );
+  };
+
+  const handleChangeOsSettingsFilter = (newStatus: MdmProfileStatus) => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: {
+          ...queryParams,
+          [PARAMS.OS_SETTINGS]: newStatus,
           page: 0, // resets page index
         },
       })
@@ -767,9 +791,11 @@ const ManageHostsPage = ({
         newQueryParams.os_id = osId;
         newQueryParams.os_name = osName;
         newQueryParams.os_version = osVersion;
+      } else if (osSettingsStatus) {
+        newQueryParams[PARAMS.OS_SETTINGS] = osSettingsStatus;
       } else if (diskEncryptionStatus && isPremiumTier) {
         // Premium feature only
-        newQueryParams.macos_settings_disk_encryption = diskEncryptionStatus;
+        newQueryParams[PARAMS.DISK_ENCRYPTION] = diskEncryptionStatus;
       } else if (bootstrapPackageStatus && isPremiumTier) {
         newQueryParams.bootstrap_package = bootstrapPackageStatus;
       }
@@ -807,6 +833,7 @@ const ManageHostsPage = ({
       router,
       routeTemplate,
       routeParams,
+      osSettingsStatus,
       diskEncryptionStatus,
       bootstrapPackageStatus,
     ]
@@ -1286,7 +1313,6 @@ const ManageHostsPage = ({
       { [`${baseClass}__status-dropdown-sandbox`]: isSandboxMode }
     );
 
-    console.log("status", status);
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
         <Dropdown
@@ -1470,24 +1496,19 @@ const ManageHostsPage = ({
       ((canEnrollHosts && noTeamEnrollSecrets) ||
         (canEnrollGlobalHosts && noGlobalEnrollSecrets)) &&
       showNoEnrollSecretBanner && (
-        <div className={`${baseClass}__no-enroll-secret-banner`}>
+        <InfoBanner
+          className={`${baseClass}__no-enroll-secret-banner`}
+          pageLevel
+          closable
+          color="grey"
+        >
           <div>
             <span>
               You have no enroll secrets. Manage enroll secrets to enroll hosts
               to <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
             </span>
           </div>
-          <div className={`dismiss-banner-button`}>
-            <Button
-              variant="unstyled"
-              onClick={() =>
-                setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
-              }
-            >
-              <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
-            </Button>
-          </div>
-        </div>
+        </InfoBanner>
       )
     );
   };
@@ -1545,6 +1566,7 @@ const ManageHostsPage = ({
               softwareDetails: hostsData?.software || null,
               mdmSolutionDetails:
                 hostsData?.mobile_device_management_solution || null,
+              osSettingsStatus,
               diskEncryptionStatus,
               bootstrapPackageStatus,
             }}
@@ -1553,6 +1575,7 @@ const ManageHostsPage = ({
             handleClearRouteParam={handleClearRouteParam}
             handleClearFilter={handleClearFilter}
             onChangePoliciesFilter={handleChangePoliciesFilter}
+            onChangeOsSettingsFilter={handleChangeOsSettingsFilter}
             onChangeDiskEncryptionStatusFilter={
               handleChangeDiskEncryptionStatusFilter
             }

@@ -50,20 +50,20 @@ const (
 	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual" and "automatic"
 )
 
-// MacOSSettingsStatus defines the possible statuses of the host's macOS settings, which is derived from the
-// status of MDM configuration profiles applied to the host.
-type MacOSSettingsStatus string
+// OSSettingsStatus defines the possible statuses of the host's OS settings, which is derived from the
+// status of MDM configuration profiles and non-profile settings applied the host.
+type OSSettingsStatus string
 
 const (
-	MacOSSettingsVerified  MacOSSettingsStatus = "verified"
-	MacOSSettingsVerifying MacOSSettingsStatus = "verifying"
-	MacOSSettingsPending   MacOSSettingsStatus = "pending"
-	MacOSSettingsFailed    MacOSSettingsStatus = "failed"
+	OSSettingsVerified  OSSettingsStatus = "verified"
+	OSSettingsVerifying OSSettingsStatus = "verifying"
+	OSSettingsPending   OSSettingsStatus = "pending"
+	OSSettingsFailed    OSSettingsStatus = "failed"
 )
 
-func (s MacOSSettingsStatus) IsValid() bool {
+func (s OSSettingsStatus) IsValid() bool {
 	switch s {
-	case MacOSSettingsFailed, MacOSSettingsPending, MacOSSettingsVerifying, MacOSSettingsVerified:
+	case OSSettingsFailed, OSSettingsPending, OSSettingsVerifying, OSSettingsVerified:
 		return true
 	default:
 		return false
@@ -136,11 +136,18 @@ type HostListOptions struct {
 
 	// MacOSSettingsFilter filters the hosts by the status of MDM configuration profiles
 	// applied to the hosts.
-	MacOSSettingsFilter MacOSSettingsStatus
+	MacOSSettingsFilter OSSettingsStatus
 
 	// MacOSSettingsDiskEncryptionFilter filters the hosts by the status of the disk encryption
 	// MDM profile.
 	MacOSSettingsDiskEncryptionFilter DiskEncryptionStatus
+
+	// OSSettingsFilter filters the hosts by the status of MDM configuration profiles and
+	// non-profile settings applied to the hosts.
+	OSSettingsFilter OSSettingsStatus
+	// OSSettingsDiskEncryptionFilter filters the hosts by the status of the disk encryption
+	// OS setting.
+	OSSettingsDiskEncryptionFilter DiskEncryptionStatus
 
 	// MDMBootstrapPackageFilter filters the hosts by the status of the MDM bootstrap package.
 	MDMBootstrapPackageFilter *MDMBootstrapPackageStatus
@@ -183,7 +190,9 @@ func (h HostListOptions) Empty() bool {
 		h.MDMNameFilter == nil &&
 		h.MDMEnrollmentStatusFilter == "" &&
 		h.MunkiIssueIDFilter == nil &&
-		h.LowDiskSpaceFilter == nil
+		h.LowDiskSpaceFilter == nil &&
+		h.OSSettingsFilter == "" &&
+		h.OSSettingsDiskEncryptionFilter == ""
 }
 
 type HostUser struct {
@@ -333,6 +342,12 @@ type MDMHostData struct {
 	// gets filled.
 	rawDecryptable *int
 
+	// OSSettings contains information related to operating systems settings that are managed for
+	// MDM-enrolled hosts.
+	//
+	// Note: Additional information for macOS hosts is currently stored in MacOSSettings.
+	OSSettings *HostMDMOSSettings `json:"os_settings,omitempty" db:"-" csv:"-"`
+
 	// Profiles is a list of HostMDMProfiles for the host. Note that as for many
 	// other host fields, it is not filled in by all host-returning datastore methods.
 	//
@@ -353,6 +368,15 @@ type MDMHostData struct {
 	//
 	// It is not filled in by all host-returning datastore methods.
 	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" db:"-" csv:"-"`
+}
+
+type HostMDMOSSettings struct {
+	DiskEncryption HostMDMDiskEncryption `json:"disk_encryption" db:"-" csv:"-"`
+}
+
+type HostMDMDiskEncryption struct {
+	Status *DiskEncryptionStatus `json:"status" db:"-" csv:"-"`
+	Detail string                `json:"detail" db:"-" csv:"-"`
 }
 
 type DiskEncryptionStatus string
@@ -408,11 +432,15 @@ type HostMDMMacOSSetup struct {
 	BootstrapPackageName   string                    `db:"bootstrap_package_name" json:"bootstrap_package_name" csv:"-"`
 }
 
-// DetermineDiskEncryptionStatus determines the disk encryption status for the
+// PopulateOSSettingsAndMacOSSettings populates the OSSettings and MacOSSettings
+// on the MDMHostData struct. It determines the disk encryption status for the
 // host based on the file-vault profile in its list of profiles and whether its
 // disk encryption key is available and decryptable. The file-vault profile
-// identifier is received as argument to avoid a circular dependency.
-func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfile, fileVaultIdentifier string) {
+// identifier is received as an argument to avoid a circular dependency.
+//
+// NOTE: This overwrites both OSSettings and MacOSSettings on the MDMHostData struct. Any existing
+// data in those fields will be lost.
+func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMAppleProfile, fileVaultIdentifier string) {
 	var settings MDMHostMacOSSettings
 
 	var fvprof *HostMDMAppleProfile
@@ -480,6 +508,15 @@ func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfi
 		}
 	}
 	d.MacOSSettings = &settings
+
+	var hde HostMDMDiskEncryption
+	if settings.DiskEncryption != nil {
+		hde.Status = settings.DiskEncryption
+	}
+	if fvprof != nil {
+		hde.Detail = fvprof.Detail
+	}
+	d.OSSettings = &HostMDMOSSettings{DiskEncryption: hde}
 }
 
 func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMAppleDeliveryStatus) *MDMAppleDeliveryStatus {
@@ -549,7 +586,7 @@ func (h *Host) IsEligibleForDEPMigration() bool {
 // NeedsDEPEnrollment returns true if the host should be DEP enrolled into
 // fleet but it's currently unenrolled.
 func (h *Host) NeedsDEPEnrollment() bool {
-	return !h.MDMInfo.IsDEPFleetEnrolled() &&
+	return h.MDMInfo != nil && !h.MDMInfo.IsDEPFleetEnrolled() &&
 		!h.MDMInfo.IsManualFleetEnrolled() &&
 		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
 		h.IsDEPAssignedToFleet()
@@ -572,6 +609,24 @@ func (h *Host) IsEligibleForWindowsMDMUnenrollment() bool {
 		h.IsOsqueryEnrolled() &&
 		h.MDMInfo.IsFleetEnrolled() &&
 		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
+}
+
+// IsEligibleForBitLockerEncryption checks if the host needs to enforce disk
+// encryption using Fleet MDM features.
+//
+// Note: the *Host structs needs disk encryption data and MDM data filled in to
+// perform the check.
+func (h *Host) IsEligibleForBitLockerEncryption() bool {
+	isServer := h.MDMInfo != nil && h.MDMInfo.IsServer
+	isWindows := h.FleetPlatform() == "windows"
+	needsEncryption := h.DiskEncryptionEnabled != nil && !*h.DiskEncryptionEnabled
+	encryptedWithoutKey := h.DiskEncryptionEnabled != nil && *h.DiskEncryptionEnabled && !h.MDM.EncryptionKeyAvailable
+
+	return isWindows &&
+		h.IsOsqueryEnrolled() &&
+		h.MDMInfo.IsFleetEnrolled() &&
+		!isServer &&
+		(needsEncryption || encryptedWithoutKey)
 }
 
 // DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
@@ -826,6 +881,9 @@ func (h *HostMDM) IsManualFleetEnrolled() bool {
 // it is in enrolled state for Fleet MDM, regardless of automatic or manual
 // enrollment method.
 func (h *HostMDM) IsFleetEnrolled() bool {
+	if h == nil {
+		return false
+	}
 	return h.IsDEPFleetEnrolled() || h.IsManualFleetEnrolled()
 }
 
@@ -843,6 +901,7 @@ const (
 	UnknownMDMName        = ""
 	WellKnownMDMKandji    = "Kandji"
 	WellKnownMDMJamf      = "Jamf"
+	WellKnownMDMJumpCloud = "JumpCloud"
 	WellKnownMDMVMWare    = "VMware Workspace ONE"
 	WellKnownMDMIntune    = "Intune"
 	WellKnownMDMSimpleMDM = "SimpleMDM"
@@ -852,6 +911,7 @@ const (
 var mdmNameFromServerURLChecks = map[string]string{
 	"kandji":    WellKnownMDMKandji,
 	"jamf":      WellKnownMDMJamf,
+	"jumpcloud": WellKnownMDMJumpCloud,
 	"airwatch":  WellKnownMDMVMWare,
 	"microsoft": WellKnownMDMIntune,
 	"simplemdm": WellKnownMDMSimpleMDM,
@@ -1035,10 +1095,11 @@ type EnrollHostLimiter interface {
 }
 
 type HostMDMCheckinInfo struct {
-	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial"`
-	InstalledFromDEP bool   `json:"installed_from_dep" db:"installed_from_dep"`
-	DisplayName      string `json:"display_name" db:"display_name"`
-	TeamID           uint   `json:"team_id" db:"team_id"`
+	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
+	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
+	DisplayName        string `json:"display_name" db:"display_name"`
+	TeamID             uint   `json:"team_id" db:"team_id"`
+	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
 }
 
 type HostDiskEncryptionKey struct {

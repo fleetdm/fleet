@@ -1,2 +1,0 @@
-- Updated MDM profile verification to fix issue where profiles were marked as failed when a host is
-  transferred to a newly created team that has an identical profile as an older team.

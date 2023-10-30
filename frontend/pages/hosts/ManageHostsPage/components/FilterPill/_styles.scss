@@ -4,24 +4,19 @@
     align-items: center;
     padding: 6px 12px;
     border: 1px solid $ui-fleet-black-25;
-    border-radius: 4px;
+    border-radius: $border-radius;
     box-shadow: none;
     color: $core-fleet-black;
     font-size: $xx-small;
     font-weight: $bold;
     cursor: default;
-
-    img {
-      width: 12px;
-      height: 12px;
-      margin-right: 6px;
-    }
+    gap: $small;
 
     button {
       height: auto;
       padding: 0px;
       border: none;
-      margin-left: $pad-small;
+      margin-left: 0;
 
       img {
         padding: 0px;
@@ -32,7 +27,6 @@
     .premium-icon-tip {
       .premium-feature-icon {
         position: relative;
-        top: 2px;
         margin-right: 6px;
       }
     }

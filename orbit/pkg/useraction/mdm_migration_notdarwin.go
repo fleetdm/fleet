@@ -4,7 +4,7 @@ package useraction
 
 import "time"
 
-func NewMDMMigrator(path, fleetURL string, frequency time.Duration, handler MDMMigratorHandler) MDMMigrator {
+func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler) MDMMigrator {
 	return &NoopMDMMigrator{}
 }
 

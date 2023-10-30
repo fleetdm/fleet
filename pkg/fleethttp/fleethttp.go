@@ -5,7 +5,9 @@ package fleethttp
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -128,4 +130,20 @@ func NewGithubClient() *http.Client {
 		))
 	}
 	return NewClient()
+}
+
+// HostnamesMatch is an utility function to parse two strings as
+// URLs and find if their hostnames match.
+func HostnamesMatch(a, b string) (bool, error) {
+	ap, err := url.Parse(a)
+	if err != nil {
+		return false, fmt.Errorf("parsing URL %s: %w", a, err)
+	}
+
+	bp, err := url.Parse(b)
+	if err != nil {
+		return false, fmt.Errorf("parsing URL %s: %w", b, err)
+	}
+
+	return ap.Hostname() == bp.Hostname(), nil
 }

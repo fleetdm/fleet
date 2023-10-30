@@ -1,15 +1,30 @@
 package fleet
 
 import (
+	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
-// Must be kept in sync with the vendor column definition.
 const (
-	SoftwareVendorMaxLength    = 114
 	SoftwareVendorMaxLengthFmt = "%.111s..."
 	SoftwareFieldSeparator     = "\u0000"
+
+	//
+	// The following length values must be kept in sync with the DB column definitions.
+	//
+
+	SoftwareNameMaxLength             = 255
+	SoftwareVersionMaxLength          = 255
+	SoftwareSourceMaxLength           = 64
+	SoftwareBundleIdentifierMaxLength = 255
+
+	SoftwareReleaseMaxLength = 64
+	SoftwareVendorMaxLength  = 114
+	SoftwareArchMaxLength    = 16
 )
 
 type Vulnerabilities []CVE
@@ -88,7 +103,7 @@ type HostSoftwareEntry struct {
 	Software
 	// Where this software was installed on the host, value is derived from the
 	// host_software_installed_paths table.
-	InstalledPaths []string `json:"installed_paths,omitempty"`
+	InstalledPaths []string `json:"installed_paths"`
 }
 
 // HostSoftware is the set of software installed on a specific host
@@ -169,4 +184,69 @@ func (uhsdbr *UpdateHostSoftwareDBResult) CurrInstalled() []Software {
 	}
 
 	return r
+}
+
+// ParseSoftwareLastOpenedAtRowValue attempts to parse the last_opened_at
+// software column value. If the value is empty or if the parsed value is
+// less or equal than 0 it returns (time.Time{}, nil). We do this because
+// some macOS apps return "-1.0" when the app was never opened and we hardcode
+// to 0 for some tables that don't have such info.
+func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
+	if value == "" {
+		return time.Time{}, nil
+	}
+	lastOpenedEpoch, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if lastOpenedEpoch <= 0 {
+		return time.Time{}, nil
+	}
+	return time.Unix(int64(lastOpenedEpoch), 0).UTC(), nil
+}
+
+// SoftwareFromOsqueryRow creates a fleet.Software from the values reported by osquery.
+// Arguments name and source must be defined, all other fields are optional.
+// This method doesn't fail if lastOpenedAt is empty or cannot be parsed.
+//
+// All fields are trimmed to fit on Fleet's database.
+// The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
+func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, release, arch, bundleIdentifier, lastOpenedAt string) (*Software, error) {
+	if name == "" {
+		return nil, errors.New("host reported software with empty name")
+	}
+	if source == "" {
+		return nil, errors.New("host reported software with empty source")
+	}
+
+	// We don't fail if only the last_opened_at cannot be parsed.
+	lastOpenedAtTime, _ := ParseSoftwareLastOpenedAtRowValue(lastOpenedAt)
+
+	// Check whether the vendor is longer than the max allowed width and if so, truncate it.
+	if utf8.RuneCountInString(vendor) >= SoftwareVendorMaxLength {
+		vendor = fmt.Sprintf(SoftwareVendorMaxLengthFmt, vendor)
+	}
+
+	truncateString := func(str string, length int) string {
+		runes := []rune(str)
+		if len(runes) > length {
+			return string(runes[:length])
+		}
+		return str
+	}
+
+	software := Software{
+		Name:             truncateString(name, SoftwareNameMaxLength),
+		Version:          truncateString(version, SoftwareVersionMaxLength),
+		Source:           truncateString(source, SoftwareSourceMaxLength),
+		BundleIdentifier: truncateString(bundleIdentifier, SoftwareBundleIdentifierMaxLength),
+
+		Release: truncateString(release, SoftwareReleaseMaxLength),
+		Vendor:  vendor,
+		Arch:    truncateString(arch, SoftwareArchMaxLength),
+	}
+	if !lastOpenedAtTime.IsZero() {
+		software.LastOpenedAt = &lastOpenedAtTime
+	}
+	return &software, nil
 }

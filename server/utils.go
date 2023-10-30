@@ -12,7 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -58,7 +58,7 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 	defer resp.Body.Close()
 
 	if !httpSuccessStatus(resp.StatusCode) {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("error posting to %s: %d. %s", MaskSecretURLParams(url), resp.StatusCode, string(body))
 	}
 
@@ -137,4 +137,11 @@ func GetTemplate(templatePath string, templateName string) (*template.Template, 
 	}
 
 	return t, nil
+}
+
+// Base64DecodePaddingAgnostic decodes a base64 string that might be encoded
+// using raw encoding or standard encoding (padded)
+func Base64DecodePaddingAgnostic(s string) ([]byte, error) {
+	us := strings.TrimRight(s, string(base64.StdPadding))
+	return base64.RawStdEncoding.DecodeString(us)
 }

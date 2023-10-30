@@ -1,4 +1,4 @@
-# Why this way?
+# 💭 Why this way?
 
 At Fleet, we rarely label ideas as drafts or theories.  Everything is [always in draft](https://about.gitlab.com/handbook/values/#everything-is-in-draft) and subject to change in future iterations.
 
@@ -9,27 +9,25 @@ Any past decision is open to questioning in a future iteration, as long as you a
 Here are some of Fleet's decisions about the best way to work, and the reasoning for them.
 
 ## Why open source?
-
 Fleet's source code, website, documentation, company handbook, and internal tools are [public](https://github.com/fleetdm/fleet) and accessible to everyone, including engineers, executives, and end users. (Even [paid features](https://fleetdm.com/pricing) are source-available.)
 
 Meanwhile, the [company behind Fleet](https://twitter.com/fleetctl) is built on the [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) business model.  Openness is one of our core [values](https://fleetdm.com/handbook/company#values), and everything we do is [public by default](https://handbook.gitlab.com/handbook/values/#public-by-default).  Even the [company handbook](https://fleetdm.com/handbook) is open to the world.
 
-Is open-source collaboration _really_ worth all that?  Is it any good?
+Is open-source collaboration _all that_?  Is it any good?
 
 Here are some of the reasons we build in the open:
 
 - **Transparency.** You are not dealing with a black box.  Anyone can read the code and [confirm](https://github.com/signalapp/Signal-Android/issues/11101#issuecomment-814476405) it does what it's supposed to.  When it comes to security and device management, great power should come with great openness.
-- **Modifiability.** You are not stuck.  Anybody can make changes to the code at any time. You can build on existing ideas or start something brand new.  Every contribution benefits the project as a whole.  Plugins and configuration settings you need may already exist.  If not, you can add them.
-- **Community.** You are not alone.  Open source contributors are real people who love solving real problems and sharing solutions. As we gain experience and our careers grow, so does [the community](https://chat.osquery.io).  As we learn, we get better at helping each other, which makes it easier to get started with the project, which drives even more adoption, and so on.
-- **Less waste.** You are not redundant.  Contributing back to open source [benefits everybody](https://fleetdm.com/handbook/company): Instead of other organizations and individuals wasting time rediscovering bug fixes and reinventing the same new features in a vacuum, everybody can just upgrade to the latest version of Fleet and take advantage of all those improvements automatically.
-- **Perspective.**  You are not siloed.  [Anyone can contribute](https://about.gitlab.com/company/mission).  That means startups, enterprises, and humans all over the world push fixes, add features, and influence the roadmap.  Diversity of thought accelerates the cycle time for stability and innovation.  Instead of [waiting months](http://selmiak.bplaced.net/games/pc/index.php?lang=eng&game=Loom&page=Audio-Drama--Game-Script#:~:text=I%20need%20to%20see%20at%20least%20eight%20hours%20ahead.%20EIGHT%20hours.) to discover rare edge cases, or last-minute gaps in "enterprise-readiness", or how that cool new unsupported networking protocol your CISO wants to use isn't supported yet, you get to take advantage of the investment from the last contributor who had the same problem.  It's like [seeing around corners](https://thefutureorganization.com/how-leaders-can-see-around-corners/).
-- **Sustainability.** You are not the only contributor.  Open-source software is public and highly visible.  Mistakes are more obvious, which activates the community to discover (and fix) vulnerabilities and bugs more quickly.  Open-source projects like osquery and Fleet have an incentive to be proactive and thoughtful about responsible disclosure, code reviews, strict semantic versioning, release notes, documentation, and other [secure development best practices](https://github.com/osquery/osquery/blob/master/ASSURANCE.md#security-implemented-in-development-lifecycle-processes).  For example, anybody in the community can suggest and review changes, but only maintainers with appropriate subject matter expertise can merge them.
+- **Modifiability.** You are not stuck.  Anybody can make changes to the code at any time. Plugins and configuration settings you need may already exist.  If not, you can add them.
+- **Community.** You are not alone.  Open source contributors are real people who love solving real problems and sharing solutions.  All bugs and feature requests are public.  You can [search](https://github.com/fleetdm/fleet) and weigh in on any of them with your GitHub account, or [in Slack](https://fleetdm.com/slack).
+- **Less waste.** You are not redundant.  Contributing back to open source [benefits everybody](https://fleetdm.com/handbook/company): Instead of other organizations and individuals wasting time rediscovering bug fixes and reinventing the same new features in a vacuum, everybody can just upgrade.
+- **Perspective.**  You are not siloed.  [Anyone can contribute](https://about.gitlab.com/company/mission).  That means startups, enterprises, and humans all over the world push fixes, add features, and influence the roadmap.  Instead of [waiting months](http://selmiak.bplaced.net/games/pc/index.php?lang=eng&game=Loom&page=Audio-Drama--Game-Script#:~:text=I%20need%20to%20see%20at%20least%20eight%20hours%20ahead.%20EIGHT%20hours.) to discover rare edge cases, or last-minute gaps in "enterprise-readiness", or how that cool new unsupported networking protocol your CISO wants to use isn't supported yet, you get to take advantage of the investment from the last contributor who had the same problem.
+- **Sustainability.** You are not the only contributor.  Open-source software is public and highly visible.  Projects like osquery and Fleet have an incentive to be proactive about code reviews, semantic versioning, release notes, vulnerabilities, documentation, and other [secure development best practices](https://github.com/osquery/osquery/blob/master/ASSURANCE.md#security-implemented-in-development-lifecycle-processes).  For example, anybody in the community can suggest and review changes, but only maintainers with appropriate subject matter expertise can merge them.
 - **Accessibility.** You are smart and cool enough.  Open source isn't just [the Free Software movement](https://www.youtube.com/watch?v=UIDb6VBO9os) anymore.  Today, there are many other reasons to contribute and opportunities to contribute, even if you don't [yet know how](https://www.youtube.com/playlist?list=PL4nf6riqo7srdUHdhRSoABvES81Oygyp3) to write code.  (For example, try clicking "Edit this page" to make an improvement to this page of Fleet's handbook.)
 - **More timeless.** You are not doomed to disappear forever when you change jobs.  Why should your code?  In most jobs, most of the work you do becomes inaccessible when you quit.  But [open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674).
 
 
 ## Why handbook-first strategy?
-
 The Fleet handbook provides team members with up-to-date information about how to do things in the company. 
 
 At Fleet, we make changes to the handbook first.  That means, before any change to how we run the business is "live" or "official", it is first changed in the relevant [handbook pages](https://fleetdm.com/handbook) and [issue templates](https://github.com/fleetdm/confidential/tree/main/.github/ISSUE_TEMPLATE).
@@ -42,7 +40,6 @@ To contribute to the handbook, click "Edit this page" and make your [edits in Ma
 
 
 ## Why read documentation?
-
 There are three reasons for visiting [the docs](https://fleetdm.com/docs):
 - **Tire-kicking**: "I think this is cool, now is it something that I could ACTUALLY use? Does it ACTUALLY work? What all's in it?  What links can I share with my colleagues to help them see what I'm seeing?"
 - **Committed learning**: "I've decided to learn this. I need a curriculum to get me there; with content that makes it as easy as possible, surface-level as possible. I want to learn how Fleet works and how to do all the things."
@@ -83,7 +80,6 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 
 
 ## Why do we use a wireframe-first approach?
-
 Wireframing (usually as part of what Fleet calls ["drafting"](https://fleetdm.com/handbook/company/development-groups#making-changes)) provides a clear overview of page layout, information architecture, user flow, and functionality. The [wireframe-first approach](https://speakerdeck.com/mikermcneil/i-love-apis?slide=28) extends beyond what users see on their screens. Wireframe-first is also excellent for drafting APIs, config settings, CLI options, and even business processes.
 
 It's design thinking, applied to software development.
@@ -104,7 +100,6 @@ Here's why Fleet uses a wireframe-first approach:
 - Wireframes created to describe individual changes are disposable and may have slight stylistic inconsistencies.  Fleet's user interface styleguide in Figma is the source of truth for overarching design decisions like spacing, typography, and colors.
 - While the "wireframe first" practice is [still sometimes misunderstood](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall), today many modern high-performing teams now use a [wireframe-first methodology](https://speakerdeck.com/mikermcneil/i-love-apis), including [startups](https://www.forbes.com/sites/danwoods/2015/10/19/dont-get-ubered-apis-hold-key-to-digital-transformation/?sh=50112fea182c#:~:text=One%20recommendation%20that,deep%20experience) and [publicly-traded companies](https://about.gitlab.com/handbook/product-development-flow/#validation-phase-3-design).
 
-> _**Note:** The only exception to the wireframe-first policy is for temporary pages and experiments not listed in the navigation or sitemap, and which are housed behind /imagine ☁️🪟. You can read more about marketing's [experimentation process](https://fleetdm.com/handbook/marketing#experimentation)._
 
 
 ## Why do we use one repo?
@@ -153,7 +148,6 @@ Every group at Fleet maintains their own Slack channel, which all group members 
 
 
 ## Why make work visible?
-
 Work is tracked in [GitHub issues](https://github.com/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+).
 
 Every department organizes their work into [team-based kanban boards](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none).  This provides a consistent framework for how every team works, plans, and requests things from each other.
@@ -208,10 +202,9 @@ The Fleet product is released every three weeks. By syncing the whole company to
 - Align project planning and milestones across all teams, which helps us schedule our content calendar and manage company-wide goals.
 
 ## Why spend so much energy responding to every potential production incident?
-
 At Fleet, every 5xx response, timed-out request, and failed scheduled job is a P1 outage.
 
-As soon as the outage is detected in any production environment (including fleetdm.com, Fleet Sandbox, hosted customer environments, TUF, and others), we create an outage issue _immediately_: before we know for sure whether any real users are affected, and even before we know what the error message says.
+As soon as the outage is detected in any production environment (including fleetdm.com, hosted customer environments, TUF, and others), we create an outage issue _immediately_: before we know for sure whether any real users are affected, and even before we know what the error message says.
 
 Then, we determine impact quickly. We take a close look right away, even if we think it might not matter.  If there is any chance of it affecting even one user, we keep digging.  We reach out to affected users to acknowledge their problem, provide them with a workaround or some other way to make their day less painful.
 
@@ -225,7 +218,6 @@ Why bother with all that?  And why do it in this particular order?
 - **It helps us prevent future outages.** By finding outages sooner, we incentivize ourselves to fix the root cause sooner.  And by fixing bugs sooner, we prevent them from stacking and bleeding into one another, and we prevent ourselves from implementing future fixes and improvements on top of shaky foundations.  This makes contributions less risky and reduces the number of outages.
 
 ## Why make it obvious when stuff breaks?
-
 At Fleet, we detect and fix bugs as quickly as possible.  
 
 Breaking loudly means we can fix the break sooner and improve how fast and certain we are about making future changes.  Especially in an all-remote environment, this provides contributors with discipline around quality and stability of the main branch.  This is ["good annoying"](https://agilehope.blogspot.com/2014/12/diy-build-light-indicator.html).
@@ -236,12 +228,28 @@ If that happens by mistake, first priority is merging a fix, then notifying the 
 
 > Here is [an example of a deliberate decision to make broken images in Fleet fail more loudly](https://github.com/fleetdm/fleet/issues/12305#issuecomment-1671924257) so that they can't be overlooked, even though this might slow down short-term development.
 
+## Why keep issue templates simple?
+At Fleet, we optimize for the person submitting the issue, not the person receiving it.
+
+We avoid making the submitter read anything.  We prompt for as little information as possible.  Why?
+- When someone is submitting an issue, they are usually in a hurry.  They [might not even work here](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  Even short issue templates can cause confusion, lead to mistakes, and discourage future submissions.
+- The person receiving an issue has more context, and so will have an easier time filling in the gaps and, if necessary, following up to better understand.
+- This encourages [everyone to contribute](https://fleetdm.com/handbook/company#openness), and [keep contributing](https://fleetdm.com/handbook/company#results).
+
+For example, here is the [philosophy behind Fleet's bug report template](https://github.com/fleetdm/fleet/pull/13204#issuecomment-1678419117).
+
+
+## Why spend less?
+- **Default to efficiency. Reward richly.** At Fleet, we celebrate success and reward hard work.  But we do everyday things cheap.  And that is very important, because it shapes the kind of people we hire, and the kind of expectations we set for the team about what "comfortable" feels like.
+- **Offsites are not rewards.** Day to day, Fleet does not look rich.  Rich !== welcoming.  The company is open, not closed.  Work here means flexible collaboration, accessible people, and clear expectations.  And a rich, exciting future worth working for.  Not a rich, complacent baseline worth coasting for.
+- **Minimally viable comfort.**  We stay at La Quintas by the train tracks every single time unless customers are coming into the room and we need more space.  Even then, we accommodate in the spirit of _hospitality_, not to show off how well Fleet is doing.  They'll know how well we're doing by how great the product is, how great the support is, and [how that makes them feel](https://fleetdm.com/handbook/company#purpose).  They'll remember openness, flexibility, accessibility, and clarity in all of their interactions with the brand.  Not the view from our hotel rooms.
+- **Everyday efficiency.** Fleet isn't the place you work for the everyday amenities.  Like [Southwest Airlines](https://hbsp.harvard.edu/product/W94C04-PDF-ENG), Fleet is egalitarian and outsider-friendly.  We lift people up, but we remember where we came from.  The company is efficient and friendly, more than it is polished or formal.  Never show off.  Look smart _and_ real.  Make Fleet look easy and welcoming, never slick.  And rarely fancy.
+
 
 ## Why don't we sell like everyone else?
-
 Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
 - **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 conversation-starting](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
-- **Be a helper.**  We focus on [🔴being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for poeple is the way we win.
+- **Be a helper.**  We focus on [🔴being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for people is the way we win.
 - **Engineers first.** We always talk to engineers first, and learn how it's going.  Security and IT engineers are the people closest to the work, and the people best positioned to know what their organizations need.
 - **Fewer words.  Fewer pings.**  People are busy.  We don't waste their time.  Avoid dumping work on prospect's plates at all costs.  Light touches, no asks.  Every notification from Fleet is a ping they have to deal with.  We don't overload people with words and links.  We [🟢keep things simple](https://fleetdm.com/handbook/company#results) and [write briefly](http://www.paulgraham.com/writing44.html).
 - **Community-first.**  We go to conferences.  We write docs.  We are participants, not sponsors.  We don't write spammy articles and landing pages. We want people who choose Fleet to be successful, whether they are paying customers or not.  We are not pushy.  We are only as commercial as we have to be to help people out.
@@ -250,31 +258,30 @@ Many companies encourage salespeople to "spray and pray" email blasts, and to do
 
 
 ## Why don't we track leads differently?
-
 There are about as many "MQL" definitions as there are sales orgs in the world. Exaggerating here, but only somewhat.
 
 Fleet documents all KPI's with clear definitions that are simple to evaluate, easy to track, and highly iterable.
 
 - **Lead** == A "Lead" row in Salesforce.
   
-- **MQL** == a human from a 1000+ employee org that meets these parameters:
-  - The org is _NOT_ already a customer at the time of lead creation (even if they're from a different department).
-  - _NOT_ an existing open opportunity in the pipeline at the time of lead creation.
-  - The human has taken action in some way (e.g. signup on the website, showing up at the Fleet booth and doing a badge scan, or met a minimum threshold of engagement from LinkedIn outbound (threshold TBD-- for now they are excluded altogether)).
-    
-  - Multiple leads from the same org each count as _separate_ MQLs. However, Once the opportunity is created for an account, all MQLs associated with that account become "converted". Meaning they no longer count towards "open MQLs", though they still count as MQLs created. 
+- **MQL** == a human from an in-ICP organization that meets these parameters when the lead is created:
+  - Their organization is _not_ already a Fleet customer
+  - Their organization is _not_ already considering buying Fleet as part of a qualified, mutually beneficial opportunity
+  - Our friend, the human, has chosen to open or widen their line of communication with the company. This could come from an event or or sending a contact form message requesting a call.
+    - Attendees at events are considered MQLs if they have done any of the following:
+      -  Had a 5+ minute conversation or a badge scan at a physical event.
+      -  RSVPed yes to extracurricular in-person side event (e.g. dinner or activity) OR attended the in-person side event and a Fleetie was able to track their attendance.
+      -  RSVPed yes to a virtual event OR indicated intent by sending a follow-up email.
+  - Multiple people from the same org each count as _separate_ MQLs. <!-- However, Once the opportunity is created for an account, all MQLs associated with that account become "converted". Meaning they no longer count towards "open MQLs", though they still count as MQLs created. -->
+  - When an account converts to an opportunity, all subsequent new leads created for that account are ***NOT*** MQLs (i.e. do not count towards "MQLs created".). If an opportunity is marked "closed lost", then it is _no longer_ open, so subsequent new leads associated with the prospective customer are considered MQLs again.
 
-  - When an account converts to an opportunity, all subsequent new leads created for that account are ***NOT*** MQLs (i.e. do not count towards "MQLs created".). If an opportunity is marked "closed lost", then it is _no longer_ open. 
-
-  - Any new leads which are created for a closed opportunity are considered new MQLs created and open MQLs, as long as they ***actually qualify*** as fresh new action taken.
-
-- **Open MQL** == An MQL whose lead status is not _"disqualified" nor "converted"_.
+- **Open MQL** == An MQL whose lead status is neither _"disqualified" nor "converted"_.
   
 - **SQL** == An MQL whose lead status in Salesforce has exceeded a _certain threshold_, for **any** reason, from **any** source (threshold TBD: we aren't reporting these yet in KPIs)
   
-- **Lead source** == where a lead came from. To determine attribution, we will consider the lead source. (e.g. sales-sourced vs. marketing-sourced vs. misc-sourced leads can be determined by looking at the lead source. No need to establish any other *QL or change these.).
+- **Lead source** == where a lead came from. To determine attribution, we will consider the lead source. (e.g. sales-sourced vs. marketing-sourced vs. misc-sourced leads can be determined by looking at the lead source. No need to establish any other *QL or change these.)
 
-  - Instead of saying _"outbound lead"_ or _"inbound lead"_, you can say _"a lead from a badge scan at an event"_ or _"a lead from LinkedIn cold outboud"_ or _"a lead from a customer referral"_ or _"a lead from the website"_.
+  - Instead of saying _"outbound lead"_ or _"inbound lead"_, you can say _"a lead from a badge scan at an event"_ or _"a lead from a customer referral"_ or _"a lead from the website"_.
 
 - **Opportunity** == A _"Opportunity"_ row in Salesforce.
 
@@ -283,7 +290,6 @@ Fleet documents all KPI's with clear definitions that are simple to evaluate, ea
 
 
 ## Why does Fleet support query packs?
-
 As originally envisioned by Zach Wasserman and the team when creating osquery, packs are a way to import and export queries into (and out of!) any platform that speaks osquery, whether that's Fleet, [Security Onion](https://securityonionsolutions.com/), an EDR, or even Rapid7. Queries [should be portable](https://github.com/fleetdm/fleet/blob/f711e60de47c69ab8be5bc13cf73fedf88adc338/README.md#lighter-than-air) to minimize lock-in to particular tools.
 
 The "Packs" section of the UI that began in `kolide/fleet` c. 2017 was an early attempt to  segment and target formations of hosts that share certain characteristics.  This came with some difficulties with debugging and collaboration, since it could be hard to tell which queries were running on which hosts. It also made it harder to understand what performance impact running all those queries might cause.
@@ -295,7 +301,6 @@ The first step was to add a simpler way to schedule queries, and tuck away the l
 Packs will always be supported in Fleet.
 
 ## Why does Fleet use sentence case?
-
 Fleet uses sentence case capitalization for all headings, subheadings, button text in the Fleet product, fleetdm.com, the documentation, the handbook, marketing material, direct emails, in Slack, and in every other conceivable situation.
 
 In sentence case, we write and capitalize words as if they were in sentences:
@@ -306,17 +311,34 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 
 The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
 
+## Why not use superlatives?
+A superlative is an adjective or adverb that expresses the degree of a quality, such as "best," "worst," or "most beautiful."
+
+A superlative is a judgment or evaluation, [which only the customer can decide](https://twitter.com/mikermcneil/status/1686837625187930112). 
+
+✅ **Do:**
+
+<blockquote>
+Avoid using too many unnecessary words or superlatives, so your writing is shorter and easier to understand. 
+</blockquote>
+
+❌ **Don't:**
+
+<blockquote>
+ There exists an exceptionally significant rationale that unequivocally warrants refraining from the utilization of an exceptionally vast multitude of gratuitous, superfluous, surplus verbiage, or excessive superlatives when one is tasked with the composition of official documentation that is destined for perusal and comprehension by our distinguished and highly regarded clientele. When the writer in question opts to employ an excessively copious quantity, or even a modicum of superfluous verbiage that, in truth, does not contribute substantively to the essence and signification of the text, it invariably leads to an undue lengthening of the document and an exponentially augmented level of complexity in terms of comprehensibility.
+</blockquote>
+
+
 ## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
+MDM should be a capability, not a product category.
 
-Fleet is more than an MDM (mobile device management) solution.
+In Fleet, the word "enrolled" means "the host shows up in the dashboard and API".
 
-With Fleet, you can secure and investigate Macs, Windows servers, Chromebooks, and more by installing the fleetd agent (or chrome extension for Chromebooks). When we use the word "enroll" in Fleet, we want this to mean anytime one of these hosts shows up in Fleet and the user can see that sweet telemetry.
+When some tools like Workspace ONE say a host is "enrolled", they mean that data is being collected _and_ enforcement features are activated on that host.
 
-Fleet also has MDM features that allow IT admins to enforce OS settings, OS updates, and more. When we use the phrase "MDM on" in Fleet, it means a host has these features activated.
+Since Fleet is more than MDM, you can collect logs and health data on any computer.  You can also enforce OS settings on any computer.  But you don't have to enable both: for example, you can build an installer that only collects data, without enabling enforcement features like MDM protocol support and script execution.
 
-Workspace ONE and other MDM solutions use "enroll" to mean both telemetry is being collecting and enforcement features are activated.
-
-Since Fleet is more than MDM, you can collect telemetry on your Windows servers and you can enforce OS settings on your Macs. Or you can collect telemetry for both without enforcing OS settings.
+That means you can collect logs from Linux servers or Windows factory workstations without enabling remote script execution on those computers, even if you're using script execution on your Macs.
 
 
 
@@ -334,4 +356,4 @@ Please see [handbook/company/why-this-way#why-direct-responsibility](https://fle
 Please see [handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).
 
 <meta name="maintainedBy" value="mikermcneil">
-<meta name="title" value="Why this way?">
+<meta name="title" value="💭 Why this way?">

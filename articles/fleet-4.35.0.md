@@ -11,7 +11,7 @@ Fleet took the opportunity for this release to focus on improvements and bug fix
 
 * Combined the query and schedule features to provide a single interface for creating, scheduling, and tweaking queries at the global and team level.
 
-* Merged all functionality of the schedule page into the queries page.
+* Merged all functionality of the [schedule page](https://fleetdm.com/docs/get-started/faq#what-happened-to-the-schedule-page "What happened to the schedule page?") into the queries page.
 
 * Updated the save query modal to include scheduling-related fields.
 
