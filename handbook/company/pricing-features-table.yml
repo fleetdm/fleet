@@ -1,9 +1,9 @@
 - categoryName: Endpoint ops
   features:
-      #
-      #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦ ╦╔═╗╔═╗╦ ╔╦╗╦ ╦
-      #   ║║║╣ ╚╗╔╝║║  ║╣   ╠═╣║╣ ╠═╣║  ║ ╠═╣
-      #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╚═╝╩ ╩╩═╝╩ ╩ ╩
+    #
+    #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦ ╦╔═╗╔═╗╦ ╔╦╗╦ ╦
+    #   ║║║╣ ╚╗╔╝║║  ║╣   ╠═╣║╣ ╠═╣║  ║ ╠═╣
+    #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╚═╝╩ ╩╩═╝╩ ╩ ╩
     - industryName: Device health
       friendlyName: Automate device health
       description: Automatically report system health issues using webhooks or integrations, to notify or quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
@@ -15,13 +15,13 @@
       demos:
         - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
           quote: 
-          moreInfoUrl: 
+          moreInfoUrl: https://play.goconsensus.com/s4e490bb9
       buzzwords: [Device trust,Zero trust,Beyondcorp,Device attestation,Conditional access]
       waysToUse:
-        - description: Automatically manage the behavior of sick endpoints that are at higher risk of vulnerabilities.
-        - description: Implement conditional access based on device health using the Fleet API.
-        - description: Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.
-        - description: Control and restore access to applications by restricting access when devices do not meet particular security requirements.
+        - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
+        - description: Block access to corporate apps for users whose devices with unexpected settings, like disabled screen lock, passwords that are too short, unencrypted hard disks, and more
+        - description: Quickly implement conditional access based on device health using osquery and a simple REST API.
+        - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
           moreInfoUrl: https://duo.com/docs/device-health
         - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems.
         - description: Implement multivariate device trust
@@ -74,6 +74,7 @@
       buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Threat hunting]
       waysToUse:
         - description: Monitor devices that don't meet your organization's custom security policies
+        - description: Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.
         - description: Keep your devices compliant with customizable baselines, or use common benchmarks like CIS.
         - description: Discover security misconfigurations that increase attack surface.
         - description: Detect suspcious services listening on open ports that should not be connected to the internet, such as Remote Desktop Protocol (RDP).
@@ -371,12 +372,15 @@
 - categoryName: Device management
   features:
     - industryName: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
-      tier: Free
+      tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Remotely enforce macOS settings
+    - industryName: Remotely enforce OS settings
       tier: Free
       usualDepartment: IT
+      waysToUse:
+        - description: Deploy custom configuration profiles on macOS and Windows (coming soon) and verify that they're installed.
+        - description: Automatically re-deploy configuration profiles on macOS they're not installed.
       productCategories: [Device management]
     - industryName: Self service
       description: Provide resolution instructions for end users through Fleet Desktop that suggest how an end user can fix a posture issue themselves.
@@ -399,10 +403,18 @@
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: End-user macOS update reminders (via Nudge)
+      waysToUse:
+        - description: Ship a macOS workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup.
+        - description: Ship a Windows workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup. Coming soon (2023-12-31) #Customer-preston
+        - description: Customize the out-of-the-box setup experience for your end users.
+        - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
+    - industryName: Enforce OS updates
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management,Vulnerability management]
+      waysToUse:
+        - description: Enforce macOS updates via Nudge.
+        - description: Automatically update Windows after the end user reaches a deadline. Coming soon (2023-12-31) #Customer-preston
     - industryName: Encrypt macOS hard disks with FileVault
       tier: Premium
       usualDepartment: IT
@@ -416,9 +428,9 @@
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Update apps on macOS computers
+    - industryName: Install and update apps on macOS and Windows computers.
       tier: Premium
-      comingSoonOn: 2024-03-31
+      comingSoonOn: 2023-12-31 #Customer-reedtimmer and customer-preston
       usualDepartment: IT
       productCategories: [Device management]
     - industryName: Puppet module
@@ -468,7 +480,7 @@
         - description: Report on disk encryption status
         - description: Encrypt hard disks on macOS with FileVault
         - description: Escrow FileVault keys on macOS
-        - description: Encrypt hard disks on Windows with BitLocker
+        - description: Encrypt hard disks on Windows with BitLocker. Coming soon (2023-12-31) #Customer-preston
     - industryName: Audit queries and user activities
       tier: Free
       usualDepartment: Security
@@ -508,12 +520,19 @@
           moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
         - description: A top software company wanted to detect regressions when adding/changing queries and fail builds if queries were too expensive.
           moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
+      waysToUse:
+        - description: Monitor performance for automated queries.
+        - description: Monitor performance for live queries. Coming soon (2024-01-26) #Customer-blanco
     - industryName: Detect and surface issues with devices (policies)
       tier: Free
+    - industryName: Vulnerability dashboard
+      tier: Premium
+      comingSoonOn: 2024-03-31
+      waysToUse:
+        - description: Only show vulnerabilities that you care about. Coming soon (2024-03-31) #Customer-faltona and customer-rialto
     - industryName: Policy scoring
       friendlyName: Mark policies as critical
       tier: Premium
-      comingSoonOn: 2023-12-31
     - industryName: Vulnerability scores (EPSS and CVSS)
       tier: Premium
       usualDepartment: Security
@@ -528,6 +547,8 @@
       tier: Free
       usualDepartment: Security
       productCategories: [Endpoint operations]
+      waysToUse:
+        - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-01-26) #Customer-blanco
     - industryName: File carving (AWS S3)
       tier: Free
       usualDepartment: Security

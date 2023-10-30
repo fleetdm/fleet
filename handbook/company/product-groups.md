@@ -1,4 +1,4 @@
-# Product groups
+# 🛩️ Product groups
 
 ## Background
 When creating software, handoffs between teams or contributors are one of the most common sources of miscommunication and waste.  Like [GitLab](https://docs.google.com/document/d/1RxqS2nR5K0vN6DbgaBw7SEgpPLi0Kr9jXNGzpORT-OY/edit#heading=h.7sfw1n9c1i2t), Fleet uses product groups to minimize handoffs and maximize iteration and efficiency in the way we build the product.
@@ -286,4 +286,4 @@ Please see [📖handbook/company/product-groups#endpoint-ops-group](https://flee
 
 
 <meta name="maintainedBy" value="mikermcneil">
-<meta name="title" value="Product groups">
+<meta name="title" value="🛩️ Product groups">

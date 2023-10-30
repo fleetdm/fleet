@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -143,7 +142,7 @@ func createMacOSApp(version, authority string, notarize bool) error {
 
 	infoFile := filepath.Join(contentsDir, "Info.plist")
 	infoPListContents := fmt.Sprintf(infoPList, bundleIdentifier, version, version)
-	if err := ioutil.WriteFile(infoFile, []byte(infoPListContents), 0o644); err != nil {
+	if err := os.WriteFile(infoFile, []byte(infoPListContents), 0o644); err != nil {
 		return fmt.Errorf("create Info.plist file %q: %w", infoFile, err)
 	}
 

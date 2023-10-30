@@ -3,7 +3,6 @@ package nvd
 import (
 	"compress/gzip"
 	"context"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,12 +38,12 @@ func TestCPEFromSoftware(t *testing.T) {
 	reCache := newRegexpCache()
 
 	// checking a version that exists works
-	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
+	cpe, err := CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*", cpe)
 
 	// follows many deprecations
-	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", BundleIdentifier: "vendor2", Source: "apps"}, nil, reCache)
+	cpe, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", BundleIdentifier: "vendor2", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor2:product4:0.3:*:*:*:*:macos:*:*", cpe)
 }
@@ -137,7 +137,7 @@ func TestCPETranslations(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.Name, func(t *testing.T) {
-			cpe, err := CPEFromSoftware(db, tc.Software, tc.Translations, reCache)
+			cpe, err := CPEFromSoftware(log.NewNopLogger(), db, tc.Software, tc.Translations, reCache)
 			require.NoError(t, err)
 			require.Equal(t, tc.Expected, cpe)
 		})
@@ -166,22 +166,22 @@ func TestSyncCPEDatabase(t *testing.T) {
 		BundleIdentifier: "com.1password.1password",
 		Source:           "apps",
 	}
-	cpe, err := CPEFromSoftware(db, software, nil, reCache)
+	cpe, err := CPEFromSoftware(log.NewNopLogger(), db, software, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:*:*:*:*:macos:*:*", cpe)
 
-	npmCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "Adaltas Mixme 0.4.0 for Node.js", Version: "0.4.0", Source: "npm_packages"}, nil, reCache)
+	npmCPE, err := CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Adaltas Mixme 0.4.0 for Node.js", Version: "0.4.0", Source: "npm_packages"}, nil, reCache)
 	require.NoError(t, err)
 	assert.Equal(t, "cpe:2.3:a:adaltas:mixme:0.4.0:*:*:*:*:node.js:*:*", npmCPE)
 
-	windowsCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "HP Storage Data Protector 8.0 for Windows 8", Version: "8.0", Source: "programs"}, nil, reCache)
+	windowsCPE, err := CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "HP Storage Data Protector 8.0 for Windows 8", Version: "8.0", Source: "programs"}, nil, reCache)
 	require.NoError(t, err)
 	assert.Equal(t, "cpe:2.3:a:hp:storage_data_protector:8.0:*:*:*:*:windows:*:*", windowsCPE)
 
 	// but now we truncate to make sure searching for cpe fails
 	err = os.Truncate(dbPath, 0)
 	require.NoError(t, err)
-	_, err = CPEFromSoftware(db, software, nil, reCache)
+	_, err = CPEFromSoftware(log.NewNopLogger(), db, software, nil, reCache)
 	require.Error(t, err)
 
 	// and we make the db older than the release
@@ -203,7 +203,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	cpe, err = CPEFromSoftware(db, software, nil, reCache)
+	cpe, err = CPEFromSoftware(log.NewNopLogger(), db, software, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:*:*:*:*:macos:*:*", cpe)
 
@@ -421,7 +421,7 @@ func TestSyncsCPEFromURL(t *testing.T) {
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
-	stored, err := ioutil.ReadFile(dbPath)
+	stored, err := os.ReadFile(dbPath)
 	require.NoError(t, err)
 	assert.Equal(t, "Hello world!", string(stored))
 }
@@ -1312,7 +1312,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 
 	for _, tt := range testCases {
 		tt := tt
-		cpe, err := CPEFromSoftware(db, &tt.software, cpeTranslations, reCache)
+		cpe, err := CPEFromSoftware(log.NewNopLogger(), db, &tt.software, cpeTranslations, reCache)
 		require.NoError(t, err)
 		assert.Equal(t, tt.cpe, cpe, tt.software.Name)
 	}

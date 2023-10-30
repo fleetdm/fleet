@@ -42,3 +42,17 @@
   description: "Populate 🗓️ Ideas for future events"
   moreInfoUrl: "https://fleetdm.com/handbook/demand#book-an-event"
   dri: "drewbakerfdm"
+- 
+  task: "Review ongoing articles"
+  startedOn: "2023-10-02"
+  frequency: "Daily"
+  description: "Check 📃 Planned articles and complete steps in each issue"
+  moreInfoUrl: "https://fleetdm.com/handbook/demand#review-ongoing-articles"
+  dri: "spokanemac"
+- 
+  task: "Respond to a (Talk to an expert) request"
+  startedOn: "2023-08-28"
+  frequency: "Daily"
+  description: "Prepare, participate, and follow up scheduled Talk to an expert requests"
+  moreInfoUrl: "https://fleetdm.com/handbook/demand#talk-to-an-expert"
+  dri: "spokanemac"
