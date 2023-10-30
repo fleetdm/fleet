@@ -1353,7 +1353,7 @@ func TestSanitizeSoftware(t *testing.T) {
 			},
 		},
 		{
-			name: "Cloudflare WARP on Windows with invalid version",
+			name: "Cloudflare WARP on Windows, version not using full year",
 			h: &fleet.Host{
 				Platform: "windows",
 			},
@@ -1369,7 +1369,7 @@ func TestSanitizeSoftware(t *testing.T) {
 			},
 		},
 		{
-			name: "Cloudflare WARP on Windows with valid version",
+			name: "Cloudflare WARP on Windows, version using full year",
 			h: &fleet.Host{
 				Platform: "windows",
 			},
@@ -1381,6 +1381,38 @@ func TestSanitizeSoftware(t *testing.T) {
 			sanitized: &fleet.Software{
 				Name:    "Cloudflare WARP",
 				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows with invalid version",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foobar",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foobar",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows with invalid version",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foo.bar",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foo.bar",
 				Source:  "programs",
 			},
 		},

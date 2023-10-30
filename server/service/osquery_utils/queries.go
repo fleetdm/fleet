@@ -1259,7 +1259,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			mutateSoftware: func(s *fleet.Software) {
 				// Perform some sanity check on the version before mutating it.
 				parts := strings.Split(s.Version, ".")
-				if len(parts) == 0 {
+				if len(parts) <= 1 {
 					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
 					return
 				}
