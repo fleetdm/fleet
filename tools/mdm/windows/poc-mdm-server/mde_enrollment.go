@@ -40,11 +40,13 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 
 	/* Sign binary security token */
 	// Load raw Root CA
-	rootCertificateDer, err := ioutil.ReadFile("./identity/identity.crt")
+	//rootCertificateDer, err := ioutil.ReadFile("./identity/identity.crt")
+	rootCertificateDer, err := ioutil.ReadFile("./identity/dev_cert_mdmwindows_com.der")
 	if err != nil {
 		panic(err)
 	}
-	rootPrivateKeyDer, err := ioutil.ReadFile("./identity/identity.key")
+	//rootPrivateKeyDer, err := ioutil.ReadFile("./identity/identity.key")
+	rootPrivateKeyDer, err := ioutil.ReadFile("./identity/dev_cert_mdmwindows_com.key")
 	if err != nil {
 		panic(err)
 	}
@@ -67,7 +69,8 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode and verify CSR
-	csr, err := x509.ParseCertificateRequest(csrRaw)
+	//csr, err := x509.ParseCertificateRequest(csrRaw)
+	csr, err := ParseCertificateRequest2(csrRaw)
 	if err != nil {
 		panic(err)
 	}
@@ -150,84 +153,78 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 			<characteristic type="APPLICATION">
 				<parm name="APPID" value="w7" />
 				<parm name="PROVIDER-ID" value="DEMO MDM" />
-				<parm name="NAME" value="FleetDM Demo Server - Windows" />
+				<parm name="NAME" value="PoC Demo MDM Server" />
 				<parm name="ADDR" value="https://` + domain + `/ManagementServer/MDM.svc" />
 				<parm name="ServerList" value="https://` + domain + `/ManagementServer/ServerList.svc" />
 				<parm name="ROLE" value="4294967295" />
 				<parm name="BACKCOMPATRETRYDISABLED" />
+				<parm name="USEHWDEVID" />				
 				<parm name="CONNRETRYFREQ" value="6" />
 				<parm name="INITIALBACKOFFTIME" value="30000" />
 				<parm name="MAXBACKOFFTIME" value="120000" />
 				<parm name="DEFAULTENCODING" value="application/vnd.syncml.dm+xml" />
 				<characteristic type="APPAUTH">
-					<parm name="AAUTHLEVEL" value="CLIENT" />
-					<parm name="AAUTHTYPE" value="DIGEST" />
-					<parm name="AAUTHSECRET" value="dummy" />
-					<parm name="AAUTHDATA" value="nonce" />
+					<parm name="AAUTHLEVEL" value="CLIENT"/>
+					<parm name="AAUTHTYPE" value="DIGEST"/>					
+					<parm name="AAUTHSECRET" value="2jsidqgffx"/>
+					<parm name="AAUTHDATA" value="MzA5Mzc5MTU4MQ=="/>
 				</characteristic>
 				<characteristic type="APPAUTH">
-					<parm name="AAUTHLEVEL" value="APPSRV" />
-					<parm name="AAUTHTYPE" value="DIGEST" />
-					<parm name="AAUTHNAME" value="dummy" />
-					<parm name="AAUTHSECRET" value="dummy" />
-					<parm name="AAUTHDATA" value="nonce" />
+					<parm name="AAUTHLEVEL" value="APPSRV"/>
+					<parm name="AAUTHTYPE" value="DIGEST"/>
+					<parm name="AAUTHNAME" value="43f8bf59-75dd-4849-9e0f-9b8557346034"/>
+					<parm name="AAUTHSECRET" value="wrer3w5csb"/>
+					<parm name="AAUTHDATA" value="MzA5Mzc5MTU4MQ=="/>
 				</characteristic>
 			</characteristic>
 			<characteristic type="DMClient">
 				<characteristic type="Provider">
 					<characteristic type="DEMO MDM">
+						<parm name="UPN" value="infected@mdmwindows.com" />	
+						<parm name="EnableOmaDmKeepAliveMessage" value="true" datatype="boolean" />						
+						<parm name="RequireMessageSigning" value="true" datatype="boolean" />
 						<characteristic type="Poll">
-							<parm name="NumberOfFirstRetries" value="8" datatype="integer" />
-							<parm name="IntervalForFirstSetOfRetries" value="15" datatype="integer" />
-							<parm name="NumberOfSecondRetries" value="5" datatype="integer" />
-							<parm name="IntervalForSecondSetOfRetries" value="3" datatype="integer" />
+							<parm name="NumberOfFirstRetries" value="0" datatype="integer" />
+							<parm name="IntervalForFirstSetOfRetries" value="1" datatype="integer" />
+							<parm name="NumberOfSecondRetries" value="0" datatype="integer" />
+							<parm name="IntervalForSecondSetOfRetries" value="1" datatype="integer" />
 							<parm name="NumberOfRemainingScheduledRetries" value="0" datatype="integer" />
 							<parm name="IntervalForRemainingScheduledRetries" value="1560" datatype="integer" />
 							<parm name="PollOnLogin" value="true" datatype="boolean" />
 						</characteristic>
 					</characteristic>
 				</characteristic>
-			</characteristic>
+			</characteristic>	
 		</wap-provisioningdoc>`
 
 	wapProvisionProfileRaw := []byte(strings.ReplaceAll(strings.ReplaceAll(wapProvisionProfile, "\n", ""), "\t", ""))
 
-	// Create response payload
-	response := []byte(`
-		<s:Envelope
-			xmlns:s="http://www.w3.org/2003/05/soap-envelope"
-			xmlns:a="http://www.w3.org/2005/08/addressing"
-			xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
-			<s:Header>
-				<a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RSTRC/wstep</a:Action>
-				<a:RelatesTo>` + messageID + `</a:RelatesTo>
-				<o:Security
-					xmlns:o="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" s:mustUnderstand="1">
-					<u:Timestamp u:Id="_0">
-						<u:Created>2018-11-30T00:32:59.420Z</u:Created>
-						<u:Expires>2018-12-30T00:37:59.420Z</u:Expires>
-					</u:Timestamp>
-				</o:Security>
-			</s:Header>
-			<s:Body>
-				<RequestSecurityTokenResponseCollection
-					xmlns="http://docs.oasis-open.org/ws-sx/ws-trust/200512">
-					<RequestSecurityTokenResponse>
-						<TokenType>http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentToken</TokenType>
-						<DispositionMessage
-							xmlns="http://schemas.microsoft.com/windows/pki/2009/01/enrollment">
-						</DispositionMessage>
-						<RequestedSecurityToken>
-							<BinarySecurityToken
-								xmlns="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentProvisionDoc" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + base64.StdEncoding.EncodeToString(wapProvisionProfileRaw) + `
-							</BinarySecurityToken>
-						</RequestedSecurityToken>
-						<RequestID
-							xmlns="http://schemas.microsoft.com/windows/pki/2009/01/enrollment">0
-						</RequestID>
-					</RequestSecurityTokenResponse>
-				</RequestSecurityTokenResponseCollection>
-			</s:Body>
+	fmt.Printf("======================================\n%s\n======================================\n", string(wapProvisionProfileRaw))
+
+	response := []byte(` 
+		<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+		  <s:Header>
+			<Action mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RSTRC/wstep</Action>
+			<a:RelatesTo>` + messageID + `</a:RelatesTo>
+			<o:Security xmlns:o="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" s:mustUnderstand="1">
+			  <u:Timestamp u:Id="_0">
+				<u:Created>2023-06-14T17:34:39.314Z</u:Created>
+				<u:Expires>2023-06-14T17:44:39.314Z</u:Expires>
+			  </u:Timestamp>
+			</o:Security>
+		  </s:Header>
+		  <s:Body>
+			<RequestSecurityTokenResponseCollection xmlns="http://docs.oasis-open.org/ws-sx/ws-trust/200512">
+			  <RequestSecurityTokenResponse>
+				<TokenType>http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentToken</TokenType>
+				<DispositionMessage xmlns="http://schemas.microsoft.com/windows/pki/2009/01/enrollment"></DispositionMessage>
+				<RequestedSecurityToken>
+				  <BinarySecurityToken xmlns="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentProvisionDoc" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + base64.StdEncoding.EncodeToString(wapProvisionProfileRaw) + `</BinarySecurityToken>
+				</RequestedSecurityToken>
+				<RequestID xmlns="http://schemas.microsoft.com/windows/pki/2009/01/enrollment">0</RequestID>
+			  </RequestSecurityTokenResponse>
+			</RequestSecurityTokenResponseCollection>
+		  </s:Body>
 		</s:Envelope>`)
 
 	// Return response body
