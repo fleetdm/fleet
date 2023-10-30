@@ -8,7 +8,7 @@ import (
 	"github.com/kolide/launcher/pkg/osquery/tables/windowsupdatetable"
 
 	// Kolide tables
-	"github.com/kolide/launcher/pkg/osquery/tables/dsim_default_associations"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dsim_default_associations"
 	"github.com/kolide/launcher/pkg/osquery/tables/secedit"
 	"github.com/kolide/launcher/pkg/osquery/tables/wifi_networks"
 	"github.com/kolide/launcher/pkg/osquery/tables/wmitable"
