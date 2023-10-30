@@ -292,9 +292,6 @@ ON DUPLICATE KEY UPDATE
 			return ctxerr.Wrap(ctx, err, "selecting matching commands")
 		}
 
-		// TODO(roberto): no matching commands is a noop? should we
-		// store the results anyway? The full response is already
-		// stored at this point if we need to retrieve those at some point.
 		if len(matchingUUIDs) == 0 {
 			ds.logger.Log("warn", "unmatched commands", "uuids", cmdUUIDs)
 			return nil
