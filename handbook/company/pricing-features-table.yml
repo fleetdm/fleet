@@ -506,7 +506,7 @@
       tier: Premium
 - categoryName: Vulnerability management
   features:
-    - industryName: Detect vulnerable software
+    - industryName: Detect vulnerable software #TODO: find a better industryName and make this the friendly name. Maybe separate out export.
       tier: Free
       usualDepartment: Security
       productCategories: [Vulnerability management]
@@ -514,6 +514,9 @@
         - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
           quote: So we have some stuff today through Qualys, but it's just not very good. A lot of it is...it's just really noisy.  I'm trying to find out specifically, actually what packages are installed where, and then the ability to live query them.
           moreInfoUrl: https://docs.google.com/document/d/1JWtRsW1FUTCkZEESJj9-CvXjLXK4219by-C6vvVVyBY/edit
+      waysToUse:
+        - description: Email relevant, actually-installed vulnerabilities to responsible teams so they can fix them.
+          moreInfoUrl: https://docs.google.com/document/d/1oeCmT077o_5nxzLhnxs7kcg_4Qn1Pn1F5zx10nQOAp8/edit
     - industryName: Query performance monitoring
       tier: Free
       demos:
