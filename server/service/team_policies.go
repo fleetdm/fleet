@@ -376,6 +376,8 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.Query != nil {
 		if policy.Query != *p.Query {
 			shouldRemoveAll = true
+			policy.FailingHostCount = 0
+			policy.PassingHostCount = 0
 		}
 		policy.Query = *p.Query
 	}

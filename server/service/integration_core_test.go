@@ -1895,6 +1895,33 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 1)
 
+	mgpParams = modifyGlobalPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			Query: ptr.String("select * from users;"),
+		},
+	}
+	mgpResp = modifyGlobalPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), mgpParams, http.StatusOK, &mgpResp)
+	require.NotNil(t, gpResp.Policy)
+	assert.Equal(t, "TestQuery4", mgpResp.Policy.Name)
+	assert.Equal(t, "select * from users;", mgpResp.Policy.Query)
+	assert.Equal(t, "Some description updated", mgpResp.Policy.Description)
+	require.NotNil(t, mgpResp.Policy.Resolution)
+	assert.Equal(t, "some global resolution updated", *mgpResp.Policy.Resolution)
+	assert.Equal(t, "darwin", mgpResp.Policy.Platform)
+	assert.Equal(t, uint(0), mgpResp.Policy.FailingHostCount)
+	assert.Equal(t, uint(0), mgpResp.Policy.PassingHostCount)
+
+	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
+	listHostsResp = listHostsResponse{}
+	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 0)
+
+	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=failing", policiesResponse.Policies[0].ID)
+	listHostsResp = listHostsResponse{}
+	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 0)
+
 	deletePolicyParams := deleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
 	deletePolicyResp := deleteGlobalPoliciesResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
