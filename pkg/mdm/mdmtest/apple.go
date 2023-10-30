@@ -76,6 +76,16 @@ type TestAppleMDMClient struct {
 	scepKey *rsa.PrivateKey
 }
 
+// TestMDMAppleClientOption allows configuring a TestMDMClient.
+type TestMDMAppleClientOption func(*TestAppleMDMClient)
+
+// TestMDMAppleClientDebug configures the TestMDMClient to run in debug mode.
+func TestMDMAppleClientDebug() TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
+		c.debug = true
+	}
+}
+
 // AppleEnrollInfo contains the necessary information to enroll to an MDM server.
 type AppleEnrollInfo struct {
 	// SCEPChallenge is the SCEP challenge to present to the SCEP server when enrolling.
@@ -88,7 +98,7 @@ type AppleEnrollInfo struct {
 
 // NewTestMDMClientAppleDesktopManual will create a simulated device that will fetch
 // enrollment profile from Fleet as if it were a device running Fleet Desktop.
-func NewTestMDMClientAppleDesktopManual(serverURL string, desktopURLToken string, opts ...TestMDMClientOption) *TestAppleMDMClient {
+func NewTestMDMClientAppleDesktopManual(serverURL string, desktopURLToken string, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
 	c := TestAppleMDMClient{
 		UUID:         strings.ToUpper(uuid.New().String()),
 		SerialNumber: RandSerialNumber(),
@@ -107,7 +117,7 @@ func NewTestMDMClientAppleDesktopManual(serverURL string, desktopURLToken string
 
 // NewTestMDMClientAppleDEP will create a simulated device that will fetch
 // enrollment profile from Fleet as if it were a device running the DEP flow.
-func NewTestMDMClientAppleDEP(serverURL string, depURLToken string, opts ...TestMDMClientOption) *TestAppleMDMClient {
+func NewTestMDMClientAppleDEP(serverURL string, depURLToken string, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
 	c := TestAppleMDMClient{
 		UUID:         strings.ToUpper(uuid.New().String()),
 		SerialNumber: RandSerialNumber(),
@@ -126,7 +136,7 @@ func NewTestMDMClientAppleDEP(serverURL string, depURLToken string, opts ...Test
 
 // NewTestMDMClientDEP will create a simulated device that will not fetch the enrollment
 // profile from Fleet. The enrollment information is to be provided in the enrollInfo.
-func NewTestMDMClientAppleDirect(enrollInfo AppleEnrollInfo, opts ...TestMDMClientOption) *TestAppleMDMClient {
+func NewTestMDMClientAppleDirect(enrollInfo AppleEnrollInfo, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
 	c := TestAppleMDMClient{
 		UUID:         strings.ToUpper(uuid.New().String()),
 		SerialNumber: RandSerialNumber(),

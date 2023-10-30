@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -16,14 +17,24 @@ import (
 )
 
 type TestWindowsMDMClient struct {
-	deviceID           string
-	hardwareID         string
-	fleetServerURL     string
-	debug              bool
-	enrollmentType     fleet.WindowsMDMEnrollmentType
-	orbitNodeKey       string
+	// DeviceID identifies a MDM enrollment, sent and managed by the device.
+	DeviceID string
+	// hardwareID identifies a device.
+	hardwareID string
+	// fleetServerURL is the URL of the Fleet server, used to ping the MDM endpoints.
+	fleetServerURL string
+	// debug enables debug logging of request/responses.
+	debug bool
+	// enrollmentType is used to simulate different Windows enrollment
+	// types (programatic, automatic.)
+	enrollmentType fleet.WindowsMDMEnrollmentType
+	// orbitNodeKey is used for authentication during the programmatic enrollment.
+	orbitNodeKey string
+	// lastManagementResp tracks the last response we received from the server.
 	lastManagementResp *fleet.SyncML
-	responses          map[string]fleet.ProtoCmdOperation
+	// queuedCommandResponses tracks the commands that will be sent next
+	// time the device responds to the server.
+	queuedCommandResponses map[string]fleet.SyncMLCmd
 }
 
 // TestWindowsMDMClientOption allows configuring a
@@ -41,7 +52,7 @@ func TestWindowsMDMClientDebug() TestWindowsMDMClientOption {
 func NewTestMDMClientWindowsProgramatic(serverURL string, orbitNodeKey string, opts ...TestWindowsMDMClientOption) *TestWindowsMDMClient {
 	c := TestWindowsMDMClient{
 		fleetServerURL: serverURL,
-		deviceID:       uuid.NewString(),
+		DeviceID:       uuid.NewString(),
 		enrollmentType: fleet.WindowsMDMProgrammaticEnrollmentType,
 		orbitNodeKey:   orbitNodeKey,
 		hardwareID:     uuid.NewString(),
@@ -52,19 +63,31 @@ func NewTestMDMClientWindowsProgramatic(serverURL string, orbitNodeKey string, o
 	return &c
 }
 
-func (c *TestWindowsMDMClient) StartManagementSession() error {
+func (c *TestWindowsMDMClient) StartManagementSession() (map[string]fleet.ProtoCmdOperation, error) {
+	// Get SessionID
+	sessionIDInt := 0
+	if c.lastManagementResp != nil {
+		sessionID, err := c.lastManagementResp.GetSessionID()
+		if err != nil {
+			return nil, fmt.Errorf("session ID processing error %w", err)
+		}
+		sessionIDInt, err = strconv.Atoi(sessionID)
+		if err != nil {
+			return nil, fmt.Errorf("converting session ID to int: %w", err)
+		}
+	}
 	managementReq := []byte(`
 <SyncML xmlns="SYNCML:SYNCML1.2">
 <SyncHdr>
 	<VerDTD>1.2</VerDTD>
 	<VerProto>DM/1.2</VerProto>
-	<SessionID>1</SessionID>
+	<SessionID>` + fmt.Sprint(sessionIDInt+1) + `</SessionID>
 	<MsgID>1</MsgID>
 	<Target>
 	<LocURI>` + c.fleetServerURL + microsoft_mdm.MDE2ManagementPath + `</LocURI>
 	</Target>
 	<Source>
-	<LocURI>` + c.deviceID + `</LocURI>
+	<LocURI>` + c.DeviceID + `</LocURI>
 	</Source>
 </SyncHdr>
 <SyncBody>
@@ -88,7 +111,7 @@ func (c *TestWindowsMDMClient) StartManagementSession() error {
 		<Source>
 		<LocURI>./DevInfo/DevId</LocURI>
 		</Source>
-		<Data>` + c.deviceID + `</Data>
+		<Data>` + c.DeviceID + `</Data>
 	</Item>
 	<Item>
 		<Source>
@@ -120,39 +143,64 @@ func (c *TestWindowsMDMClient) StartManagementSession() error {
 </SyncML>
   `)
 
+	return c.doManagementReq(managementReq)
+}
+
+func (c *TestWindowsMDMClient) doManagementReq(rawXMLReq []byte) (map[string]fleet.ProtoCmdOperation, error) {
+	if c.debug {
+		fmt.Println("=============== management request ================")
+		fmt.Println(string(rawXMLReq))
+	}
+
 	// TODO: this request works because we're allowing devices without
 	// certificates to communicate with the server. We will need to include the
 	// certificate we generated during enrollment when we fix that.
-	managementResp, err := c.request(microsoft_mdm.MDE2ManagementPath, managementReq)
+	managementResp, err := c.request(microsoft_mdm.MDE2ManagementPath, rawXMLReq)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	rawXML, err := io.ReadAll(managementResp.Body)
+	rawXMLResp, err := io.ReadAll(managementResp.Body)
 	if err != nil {
-		return fmt.Errorf("reading response body: %w", err)
+		return nil, fmt.Errorf("reading response body: %w", err)
+	}
+
+	if c.debug {
+		fmt.Println("=============== management response ================")
+		fmt.Println(string(rawXMLResp))
 	}
 
 	var syncML fleet.SyncML
-	if err := xml.Unmarshal(rawXML, &syncML); err != nil {
-		return fmt.Errorf("unmarshalling response body: %w", err)
+	if err := xml.Unmarshal(rawXMLResp, &syncML); err != nil {
+		return nil, fmt.Errorf("unmarshalling response body: %w", err)
 	}
 	c.lastManagementResp = &syncML
 
-	return nil
+	cmds := make(map[string]fleet.ProtoCmdOperation)
+	for _, p := range c.lastManagementResp.GetOrderedCmds() {
+		cmds[p.Cmd.CmdID] = p
+	}
+
+	// before returning, clean up any lingering responses
+	c.queuedCommandResponses = make(map[string]fleet.SyncMLCmd)
+	return cmds, nil
 }
 
-func (c *TestWindowsMDMClient) Respond() error {
+func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperation, error) {
 	// Get SessionID
 	sessionID, err := c.lastManagementResp.GetSessionID()
 	if err != nil {
-		return fmt.Errorf("session ID processing error %w", err)
+		return nil, fmt.Errorf("session ID processing error %w", err)
 	}
 
 	// Get MessageID
 	messageID, err := c.lastManagementResp.GetMessageID()
 	if err != nil {
-		return fmt.Errorf("message ID processing error %w", err)
+		return nil, fmt.Errorf("message ID processing error %w", err)
+	}
+	messageIDInt, err := strconv.Atoi(messageID)
+	if err != nil {
+		return nil, fmt.Errorf("converting message ID to int: %w", err)
 	}
 
 	var msg fleet.SyncML
@@ -161,23 +209,37 @@ func (c *TestWindowsMDMClient) Respond() error {
 		VerDTD:    microsoft_mdm.SyncMLSupportedVersion,
 		VerProto:  microsoft_mdm.SyncMLVerProto,
 		SessionID: sessionID,
-		MsgID:     messageID,
-		Target:    &fleet.LocURI{LocURI: &c.deviceID},
-		Source: &fleet.LocURI{
+		MsgID:     fmt.Sprint(messageIDInt + 1),
+		Source:    &fleet.LocURI{LocURI: &c.DeviceID},
+		Target: &fleet.LocURI{
 			LocURI: ptr.String(c.fleetServerURL + microsoft_mdm.MDE2ManagementPath),
 		},
 	}
 
-	// iterate over operations and append them to the SyncML message
-	for _, protoCmd := range c.responses {
+	// iterate over mocked responses and append them to the SyncML message
+	for _, protoCmd := range c.queuedCommandResponses {
 		msg.AppendCommand(fleet.MDMRaw, protoCmd)
 	}
-	return nil
+
+	xmlReq, err := xml.MarshalIndent(msg, "", "\t")
+	if err != nil {
+		return nil, fmt.Errorf("serializing XML req: %w", err)
+	}
+
+	return c.doManagementReq(xmlReq)
 }
 
 // SetResponse sets a response for a specific command UUID.
-func (d *TestWindowsMDMClient) SetResponse(commandUUID string, op fleet.ProtoCmdOperation) {
-	d.responses[commandUUID] = op
+func (c *TestWindowsMDMClient) AppendResponse(op fleet.SyncMLCmd) {
+	c.queuedCommandResponses[op.CmdID] = op
+}
+
+func (c *TestWindowsMDMClient) GetCurrentMsgID() (string, error) {
+	msgID, err := c.lastManagementResp.GetMessageID()
+	if err != nil {
+		return "", fmt.Errorf("getting management response msg id: %w", err)
+	}
+	return msgID, nil
 }
 
 func (c *TestWindowsMDMClient) Enroll() error {
@@ -258,7 +320,7 @@ YioVozr1IWYySwWVzMf/SUwKZkKJCAJmSVcixE+4kxPkyPGyauIrN3wWC0zb+mjF
                     <ac:Value>A2-19-7D-41-B3-9C</ac:Value>
                 </ac:ContextItem>
                 <ac:ContextItem Name="DeviceID">
-                    <ac:Value>` + c.deviceID + `</ac:Value>
+                    <ac:Value>` + c.DeviceID + `</ac:Value>
                 </ac:ContextItem>
                 <ac:ContextItem Name="EnrollmentType">
                     <ac:Value>Full</ac:Value>

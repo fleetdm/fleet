@@ -1356,12 +1356,15 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 
 	// Iterate over the operations and process them
 	for _, protoCMD := range reqMsg.GetOrderedCmds() {
-		if protoCMD.Verb == mdm_types.CmdAlert {
-			// Alerts don't require a status response
+		// Alerts, Results and Status don't require a status response
+		switch protoCMD.Verb {
+		case mdm_types.CmdAlert:
 			err := svc.processIncomingAlertsCommands(ctx, reqMessageID, deviceID, protoCMD)
 			if err != nil {
 				return nil, fmt.Errorf("process incoming command: %w", err)
 			}
+			continue
+		case mdm_types.CmdStatus, mdm_types.CmdResults:
 			continue
 		}
 

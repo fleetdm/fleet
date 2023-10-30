@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -6802,7 +6803,155 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	d := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *orbitHost.OrbitNodeKey)
 	err := d.Enroll()
 	require.NoError(t, err)
-	fmt.Println(d)
+
+	mysql.AddHostUUIDToWinEnrollmentInTest(t, s.ds, orbitHost.UUID, d.DeviceID)
+
+	cmdOneUUID := uuid.New().String()
+	commandOne := &fleet.MDMWindowsCommand{
+		CommandUUID: cmdOneUUID,
+		RawCommand: []byte(fmt.Sprintf(`
+                     <Exec>
+                       <CmdID>%s</CmdID>
+                       <Item>
+                         <Target>
+                           <LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI>
+                         </Target>
+                         <Meta>
+                           <Format xmlns="syncml:metinf">null</Format>
+                           <Type>text/plain</Type>
+                         </Meta>
+                         <Data></Data>
+                       </Item>
+                     </Exec>
+		`, cmdOneUUID)),
+		TargetLocURI: "./Device/Vendor/MSFT/Reboot/RebootNow",
+	}
+	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{orbitHost.UUID}, commandOne)
+	require.NoError(t, err)
+
+	cmds, err := d.StartManagementSession()
+	require.NoError(t, err)
+	// 2 Status + 1 Exec
+	require.Len(t, cmds, 3)
+	receivedCmd := cmds[cmdOneUUID]
+	require.NotNil(t, receivedCmd)
+	require.Equal(t, receivedCmd.Verb, fleet.CmdExec)
+	require.Len(t, receivedCmd.Cmd.Items, 1)
+	require.EqualValues(t, "./Device/Vendor/MSFT/Reboot/RebootNow", *receivedCmd.Cmd.Items[0].Target)
+
+	msgID, err := d.GetCurrentMsgID()
+	require.NoError(t, err)
+
+	d.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: mdm_types.CmdStatus},
+		MsgRef:  &msgID,
+		CmdRef:  &cmdOneUUID,
+		Cmd:     ptr.String("Exec"),
+		Data:    ptr.String("200"),
+		Items:   nil,
+		CmdID:   uuid.NewString(),
+	})
+	cmds, err = d.SendResponse()
+	require.NoError(t, err)
+	// the ack of the message should be the only returned command
+	require.Len(t, cmds, 1)
+
+	cmdTwoUUID := uuid.New().String()
+	commandTwo := &fleet.MDMWindowsCommand{
+		CommandUUID: cmdTwoUUID,
+		RawCommand: []byte(fmt.Sprintf(`
+                    <Get>
+                      <CmdID>%s</CmdID>
+                      <Item>
+                        <Target>
+                          <LocURI>./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID</LocURI>
+                        </Target>
+                      </Item>
+                    </Get>
+		`, cmdTwoUUID)),
+		TargetLocURI: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
+	}
+	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{orbitHost.UUID}, commandTwo)
+	require.NoError(t, err)
+
+	cmdThreeUUID := uuid.New().String()
+	commandThree := &fleet.MDMWindowsCommand{
+		CommandUUID: cmdThreeUUID,
+		RawCommand: []byte(fmt.Sprintf(`
+                    <Replace>
+                       <CmdID>%s</CmdID>
+                       <Item>
+                         <Target>
+                           <LocURI>./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID</LocURI>
+                         </Target>
+                         <Meta>
+                           <Type xmlns="syncml:metinf">text/plain</Type>
+                           <Format xmlns="syncml:metinf">chr</Format>
+                         </Meta>
+                         <Data>1</Data>
+                       </Item>
+                    </Replace>
+		`, cmdThreeUUID)),
+		TargetLocURI: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
+	}
+	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{orbitHost.UUID}, commandThree)
+	require.NoError(t, err)
+
+	cmds, err = d.StartManagementSession()
+	require.NoError(t, err)
+	// two status + the two commands we enqueued
+	require.Len(t, cmds, 4)
+	receivedCmdTwo := cmds[cmdTwoUUID]
+	require.NotNil(t, receivedCmdTwo)
+	require.Equal(t, receivedCmdTwo.Verb, fleet.CmdGet)
+	require.Len(t, receivedCmdTwo.Cmd.Items, 1)
+	require.EqualValues(t, "./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID", *receivedCmdTwo.Cmd.Items[0].Target)
+
+	receivedCmdThree := cmds[cmdThreeUUID]
+	require.NotNil(t, receivedCmdThree)
+	require.Equal(t, receivedCmdThree.Verb, fleet.CmdReplace)
+	require.Len(t, receivedCmdThree.Cmd.Items, 1)
+	require.EqualValues(t, "./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID", *receivedCmdThree.Cmd.Items[0].Target)
+
+	// status 200 for command Two  (Get)
+	d.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: mdm_types.CmdStatus},
+		MsgRef:  &msgID,
+		CmdRef:  &cmdTwoUUID,
+		Cmd:     ptr.String("Get"),
+		Data:    ptr.String("200"),
+		Items:   nil,
+		CmdID:   uuid.NewString(),
+	})
+	// status 200 for command Three (Replace)
+	d.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: mdm_types.CmdStatus},
+		MsgRef:  &msgID,
+		CmdRef:  &cmdThreeUUID,
+		Cmd:     ptr.String("Replace"),
+		Data:    ptr.String("200"),
+		Items:   nil,
+		CmdID:   uuid.NewString(),
+	})
+	// results for command three (Replace)
+	d.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: mdm_types.CmdResults},
+		MsgRef:  &msgID,
+		CmdRef:  &cmdThreeUUID,
+		Cmd:     ptr.String("Replace"),
+		Data:    ptr.String("200"),
+		Items: []fleet.CmdItem{
+			{
+				Source: ptr.String("./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID"),
+				Data:   ptr.String("0"),
+			},
+		},
+		CmdID: uuid.NewString(),
+	})
+	cmds, err = d.SendResponse()
+	require.NoError(t, err)
+	// the ack of the message should be the only returned command
+	require.Len(t, cmds, 1)
 }
 
 func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
@@ -6830,7 +6979,7 @@ func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
 
 	err := s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
 	require.NoError(t, err)
-	mysql.AddHostUUIDToWinEnrollmentInTest(t, s.ds, enrolledDevice)
+	mysql.AddHostUUIDToWinEnrollmentInTest(t, s.ds, enrolledDevice.HostUUID, enrolledDevice.MDMDeviceID)
 
 	newRawCmd := func(cmdUUID string) []byte {
 		return []byte(fmt.Sprintf(`
