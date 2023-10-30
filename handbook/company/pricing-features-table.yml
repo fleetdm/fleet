@@ -127,6 +127,7 @@
     #  ╔═╗═╗ ╦╔═╗╔═╗╦═╗╔╦╗   ┬   ╔═╗╦ ╦╔╗╔╔═╗
     #  ║╣ ╔╩╦╝╠═╝║ ║╠╦╝ ║   ┌┼─  ╚═╗╚╦╝║║║║
     #  ╚═╝╩ ╚═╩  ╚═╝╩╚═ ╩   └┘   ╚═╝ ╩ ╝╚╝╚═╝
+    # TODO: Use a different, more specific industry name for this, to tie it explicitly to query automations.  Customer quotes like "feeder for the SIEM" (there are too many types of export for it to be this generic).  Also tie this into HIDS.  And with the idea of ingesting IoCs.  HIDS can be accomplished with query automations or with policies, so it may be worth combining them.  i.e. it becomes "Automated posture assessment" and then also "HIDS", where we talk about, in a single entry, how you can do HIDS with query logs and with policies.  See "open hids" in https://docs.google.com/document/d/1oeCmT077o_5nxzLhnxs7kcg_4Qn1Pn1F5zx10nQOAp8/edit
     - industryName: Automated export/sync
       friendlyName: Build custom query automations
       description: Ship logs with snapshots of any imaginable report, or monitor results for changes.
@@ -172,12 +173,12 @@
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
         - description: Meet compliance mandates
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
-    #  ╦ ╦╔═╗╦═╗╔═╗
-    #  ╚╦╝╠═╣╠╦╝╠═╣
-    #   ╩ ╩ ╩╩╚═╩ ╩
+    #  ╔╦╗╔═╗╦  ╦ ╦╔═╗╦═╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ┌─╦ ╦╔═╗╦═╗╔═╗─┐
+    #  ║║║╠═╣║  ║║║╠═╣╠╦╝║╣    ║║║╣  ║ ║╣ ║   ║ ║║ ║║║║  │ ╚╦╝╠═╣╠╦╝╠═╣ │
+    #  ╩ ╩╩ ╩╩═╝╚╩╝╩ ╩╩╚═╚═╝  ═╩╝╚═╝ ╩ ╚═╝╚═╝ ╩ ╩╚═╝╝╚╝  └─ ╩ ╩ ╩╩╚═╩ ╩─┘
     - industryName: Malware detection (YARA)
       fiendlyName: Scan files for malware signatures
-      description: Trigger automations when a file matches a YARA signature.
+      description: Report and trigger automations when malware or other unexpected files are detected on a host using YARA signatures.
       documentationUrl: https://fleetdm.com/tables/yara
       tier: Free
       dri: mikermcneil
@@ -344,7 +345,7 @@
       waysToUse:
         - description: (Vanta) Trigger a workflow based on a failing policy.
         - description: (Puppet) Easily issue MDM commands, standardize data across operating systems, and map macOS+Windows settings to computers with the Puppet module.
-        - description: (Jira) Automatically create Jira tickets in various situations.
+        - description: (Jira) Automatically create Jira tickets in various situations, including exporting vulnerabilities to Jira and syncing tickets.
         - description: (Torq) Build custom workflows that trigger in various situations.
         - description: (Zendesk) Automatically create Zendesk tickets in various situations.
         - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
