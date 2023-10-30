@@ -18,7 +18,6 @@ import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
-import { PolicyContext } from "context/policy";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 import {
@@ -134,14 +133,6 @@ const HostDetailsPage = ({
     availableTeams,
     setCurrentTeam,
   } = useContext(AppContext);
-  const {
-    setLastEditedQueryName,
-    setLastEditedQueryDescription,
-    setLastEditedQueryBody,
-    setLastEditedQueryResolution,
-    setLastEditedQueryCritical,
-    setPolicyTeamId,
-  } = useContext(PolicyContext);
   const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -509,7 +500,6 @@ const HostDetailsPage = ({
   };
 
   const onQueryHostCustom = () => {
-    setLastEditedQueryBody(DEFAULT_QUERY.query);
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
       PATHS.NEW_QUERY() + TAGGED_TEMPLATES.queryByHostRoute(host?.id)
