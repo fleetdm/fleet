@@ -3,8 +3,8 @@
 package table
 
 import (
-	"github.com/kolide/launcher/pkg/osquery/tables/crowdstrike/falcon_kernel_check"
-	"github.com/kolide/launcher/pkg/osquery/tables/crowdstrike/falconctl"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/crowdstrike/falcon_kernel_check"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/crowdstrike/falconctl"
 	"github.com/kolide/launcher/pkg/osquery/tables/cryptsetup"
 	"github.com/kolide/launcher/pkg/osquery/tables/gsettings"
 	"github.com/kolide/launcher/pkg/osquery/tables/xfconf"
