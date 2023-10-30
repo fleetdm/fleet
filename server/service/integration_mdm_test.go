@@ -255,6 +255,12 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		_, err := q.ExecContext(ctx, "DELETE FROM jobs")
 		return err
 	})
+
+	// clear any mdm windows enrollments
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM mdm_windows_enrollments")
+		return err
+	})
 }
 
 func (s *integrationMDMTestSuite) mockDEPResponse(handler http.Handler) {

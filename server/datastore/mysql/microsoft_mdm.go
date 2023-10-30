@@ -350,7 +350,7 @@ SELECT
     mwe.host_uuid,
     wmcr.command_uuid,
     wmcr.status_code as status,
-	wmcr.updated_at,
+    wmcr.updated_at,
     wmc.target_loc_uri as request_type,
     wmcr.raw_result as result
 FROM

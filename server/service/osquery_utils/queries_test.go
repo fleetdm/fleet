@@ -1294,6 +1294,36 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 	require.ErrorContains(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows), "parsing time")
 }
 
+func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	host := &fleet.Host{ID: 1, UUID: "mdm-windows-hw-uuid"}
+
+	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) error {
+		require.NotEmpty(t, deviceID)
+		require.Equal(t, host.UUID, hostUUID)
+		return nil
+	}
+
+	// if no rows, assume the registry key is not present (i.e. mdm is turned off) and do nothing
+	require.NoError(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{}))
+	require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+
+	// if multiple rows, expect error
+	require.Error(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{
+		{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+		{"name": "mdm-windows-hostname2", "data": "mdm-windows-device-id2"},
+	}))
+	require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+
+	// happy path
+	require.NoError(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{
+		{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+	}))
+	require.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+}
+
 func TestSanitizeSoftware(t *testing.T) {
 	for _, tc := range []struct {
 		name      string

@@ -1573,10 +1573,15 @@ func directIngestMacOSProfiles(
 }
 
 func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	if len(rows) != 1 {
+	if len(rows) == 0 {
+		// this registry key is only going to be present if the device is enrolled to mdm so assume that mdm is turned off
+		return nil
+	}
+
+	if len(rows) > 1 {
 		return ctxerr.Errorf(ctx, "directIngestMDMDeviceIDWindows invalid number of rows: %d", len(rows))
 	}
-	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["device_id"])
+	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
 }
 
 // go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
