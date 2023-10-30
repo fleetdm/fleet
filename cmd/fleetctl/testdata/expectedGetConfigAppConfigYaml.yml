@@ -27,6 +27,9 @@ spec:
     macos_updates:
       minimum_version: null
       deadline: null
+    windows_updates:
+      deadline_days: null
+      grace_period_days: null
     macos_settings:
       custom_settings:
     macos_setup:

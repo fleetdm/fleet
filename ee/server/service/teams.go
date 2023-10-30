@@ -826,6 +826,7 @@ func (svc *Service) createTeamFromSpec(
 			MDM: fleet.TeamMDM{
 				EnableDiskEncryption: enableDiskEncryption,
 				MacOSUpdates:         spec.MDM.MacOSUpdates,
+				WindowsUpdates:       spec.MDM.WindowsUpdates,
 				MacOSSettings:        macOSSettings,
 				MacOSSetup:           macOSSetup,
 			},

@@ -147,7 +147,9 @@ type MDM struct {
 	// backend, should be done only after careful analysis.
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 
-	MacOSUpdates          MacOSUpdates             `json:"macos_updates"`
+	MacOSUpdates   MacOSUpdates   `json:"macos_updates"`
+	WindowsUpdates WindowsUpdates `json:"windows_updates"`
+
 	MacOSSettings         MacOSSettings            `json:"macos_settings"`
 	MacOSSetup            MacOSSetup               `json:"macos_setup"`
 	MacOSMigration        MacOSMigration           `json:"macos_migration"`
@@ -231,7 +233,8 @@ func (m MacOSUpdates) Validate() error {
 
 // WindowsUpdates is part of AppConfig and defines the Windows update settings.
 type WindowsUpdates struct {
-	DeadlineDays optjson.String `json:"deadline"`
+	DeadlineDays    optjson.Int `json:"deadline_days"`
+	GracePeriodDays optjson.Int `json:"grace_period_days"`
 }
 
 // MacOSSettings contains settings specific to macOS.

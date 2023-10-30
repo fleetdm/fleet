@@ -130,6 +130,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			MinimumVersion: optjson.SetString("10.15.0"),
 			Deadline:       optjson.SetString("2021-01-01"),
 		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.Int{Set: true},
+			GracePeriodDays: optjson.Int{Set: true},
+		},
 		MacOSSetup: fleet.MacOSSetup{
 			// because the MacOSSetup was marshalled to JSON to be saved in the DB,
 			// it did get marshalled, and then when unmarshalled it was set (but
@@ -138,6 +142,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			BootstrapPackage:    optjson.String{Set: true},
 		},
 	}, team.Config.MDM)
+
+	// TODO(mna): add test for windows_updates
 
 	// an activity was created for team spec applied
 	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), 0)
