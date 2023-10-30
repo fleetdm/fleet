@@ -54,6 +54,6 @@ Thank you for your trust and partnership as we continue this exciting journey to
 <meta name="category" value="releases">
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
-<meta name="publishedOn" value="2023-09-07">
+<meta name="publishedOn" value="2023-10-17">
 <meta name="articleTitle" value="Introducing cross-platform script execution">
 <meta name="articleImageUrl" value="../website/assets/images/articles/introducing-cross-platform-script-execution-800x450@2x.png">

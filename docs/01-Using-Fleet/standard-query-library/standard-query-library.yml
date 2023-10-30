@@ -1021,7 +1021,7 @@ kind: query
 spec:
   name: Geolocate via ipapi.co
   platform: darwin, linux, windows
-  description: Geolocate a host using the (ipapi.co)[https://ipapi.co] in an emergency. Requires the curl table. [Learn more](https://fleetdm.com/guides/locate-assets-with-osquery).
+  description: Geolocate a host using the [ipapi.co](https://ipapi.co) in an emergency. Requires the curl table. [Learn more](https://fleetdm.com/guides/locate-assets-with-osquery).
   query: >-
     SELECT JSON_EXTRACT(result, '$.ip') AS ip,
     JSON_EXTRACT(result, '$.city') AS city,
@@ -1051,7 +1051,7 @@ kind: query
 spec:
   name: Get a list of Visual Studio Code extensions
   platform: darwin
-  description: Get a list of installed VS Code extensions. Requires (fleetd)[https://fleetdm.com/docs/using-fleet/fleetd].
+  description: Get a list of installed VS Code extensions. Requires [fleetd](https://fleetdm.com/docs/using-fleet/fleetd).
   query: |
     SELECT  split(user_path, '/', 1) as username,
         json_extract(value, '$.identifier.id') as id,

@@ -586,7 +586,7 @@ func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
 	return res, nil
 }
 
-func mdmAppleConfigurationRequiredEndpoints() []struct {
+func mdmConfigurationRequiredEndpoints() []struct {
 	method, path        string
 	deviceAuthenticated bool
 	premiumOnly         bool
@@ -630,6 +630,8 @@ func mdmAppleConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
+		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
+		{"GET", "/api/latest/fleet/mdm/disk_encryption/summary", false, true},
 	}
 }
 

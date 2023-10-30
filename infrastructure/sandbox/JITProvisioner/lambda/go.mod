@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/infrastructure/demo/JITProvisioner/lambda
 
-go 1.19
+go 1.21
 
 require (
 	github.com/akrylysov/algnhsa v0.12.1

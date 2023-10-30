@@ -12,7 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -58,7 +58,7 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 	defer resp.Body.Close()
 
 	if !httpSuccessStatus(resp.StatusCode) {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("error posting to %s: %d. %s", MaskSecretURLParams(url), resp.StatusCode, string(body))
 	}
 

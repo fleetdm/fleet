@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -32,7 +31,7 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 	dir, file := filepath.Split(path)
 	if dir == "" {
 		// If the file is in the current working directory, then dir will be "".
-		// However, this means that ioutil.TempFile will use the default directory
+		// However, this means that os.CreateTemp will use the default directory
 		// for temporary files, which is wrong.
 		dir = "."
 	}
@@ -42,7 +41,7 @@ func download(client *http.Client, u *url.URL, path string, extract bool) error 
 		return err
 	}
 
-	tmpFile, err := ioutil.TempFile(dir, file)
+	tmpFile, err := os.CreateTemp(dir, file)
 	if err != nil {
 		return fmt.Errorf("create temporary file: %w", err)
 	}
