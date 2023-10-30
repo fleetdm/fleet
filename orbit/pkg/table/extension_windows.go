@@ -5,7 +5,7 @@ package table
 import (
 	cisaudit "github.com/fleetdm/fleet/v4/orbit/pkg/table/cis_audit"
 	mdmbridge "github.com/fleetdm/fleet/v4/orbit/pkg/table/mdm"
-	"github.com/kolide/launcher/pkg/osquery/tables/windowsupdatetable"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/windowsupdatetable"
 
 	// Kolide tables
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dsim_default_associations"
