@@ -723,6 +723,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if err := spec.MDM.MacOSUpdates.Validate(); err != nil {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_updates", err.Error()))
 		}
+		if err := spec.MDM.WindowsUpdates.Validate(); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_updates", err.Error()))
+		}
 
 		if create {
 
@@ -897,6 +900,9 @@ func (svc *Service) editTeamFromSpec(
 	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set {
 		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
 	}
+	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
+		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
+	}
 
 	oldEnableDiskEncryption := team.Config.MDM.EnableDiskEncryption
 	if err := svc.applyTeamMacOSSettings(ctx, spec, &team.Config.MDM.MacOSSettings); err != nil {
@@ -927,6 +933,8 @@ func (svc *Service) editTeamFromSpec(
 		didUpdateBootstrapPackage = oldMacOSSetup.BootstrapPackage.Value != spec.MDM.MacOSSetup.BootstrapPackage.Value
 		team.Config.MDM.MacOSSetup.BootstrapPackage = spec.MDM.MacOSSetup.BootstrapPackage
 	}
+	// TODO(mna): doesn't look like we create an activity for macos updates when modified via spec? Doing the same for Windows, but should we?
+
 	if !appCfg.MDM.EnabledAndConfigured &&
 		((didUpdateSetupAssistant && team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value != "") ||
 			(didUpdateBootstrapPackage && team.Config.MDM.MacOSSetup.BootstrapPackage.Value != "")) {
