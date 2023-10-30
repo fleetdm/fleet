@@ -5,7 +5,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -365,7 +365,7 @@ func shouldRetry(pkgType string, opt packaging.Options, err error) bool {
 }
 
 func checkPEMCertificate(path string) error {
-	cert, err := ioutil.ReadFile(path)
+	cert, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}

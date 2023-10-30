@@ -179,6 +179,7 @@ const PolicyForm = ({
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
+      enableMultiselect: false, // Disables command + click creating multiple cursors
     });
 
     // @ts-expect-error
@@ -475,6 +476,12 @@ const PolicyForm = ({
           </h1>
           <p className={`${baseClass}__policy-description no-hover`}>
             {lastEditedQueryDescription}
+          </p>
+          <p className="resolve-title">
+            <strong>Resolve:</strong>
+          </p>
+          <p className={`${baseClass}__policy-resolution no-hover`}>
+            {lastEditedQueryResolution}
           </p>
         </div>
         <div className="author">{renderAuthor()}</div>

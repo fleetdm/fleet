@@ -170,9 +170,9 @@ The following CIS benchmark checks cannot be automated and must be addressed man
 
 Fleet's policies have been written against v1.12.0 of the benchmark. You can refer to the [CIS website](https://www.cisecurity.org/cis-benchmarks) for full details about this version.
 
-### Checks that require a Group Policy Template
+### Checks that require a Group Policy template
 
-38 items require Group Policy Template in place in order to audit them.
+Several items require Group Policy templates in place in order to audit them.
 These items are tagged with the label `CIS_group_policy_template_required` in the YAML file, and details about the required Group Policy templates can be found in each item's `resolution`.
 ```
 Example: 

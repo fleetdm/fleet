@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -716,7 +715,7 @@ func (t *TLS) ToTLSConfig() (*tls.Config, error) {
 	var rootCertPool *x509.CertPool
 	if t.TLSCA != "" {
 		rootCertPool = x509.NewCertPool()
-		pem, err := ioutil.ReadFile(t.TLSCA)
+		pem, err := os.ReadFile(t.TLSCA)
 		if err != nil {
 			return nil, fmt.Errorf("read server-ca pem: %w", err)
 		}

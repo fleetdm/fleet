@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -34,7 +33,7 @@ func main() {
 	if *appleBMToken == "" {
 		log.Fatal("must provide Apple BM token")
 	}
-	tok, err := ioutil.ReadFile(*appleBMToken)
+	tok, err := os.ReadFile(*appleBMToken)
 	if err != nil {
 		log.Fatal(err)
 	}

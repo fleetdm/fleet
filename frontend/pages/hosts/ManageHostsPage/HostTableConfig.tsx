@@ -15,7 +15,7 @@ import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import CustomLink from "components/CustomLink";
 import NotSupported from "components/NotSupported";
 
@@ -394,9 +394,8 @@ const allHostTableHeaders: IDataColumn[] = [
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
-            Settings can be updated remotely on <br/>
-            hosts with MDM turned on. To filter by<br/>
-            MDM status, head to the Dashboard page.
+            Settings can be updated remotely on hosts with MDM turned<br/>
+            on. To filter by MDM status, head to the Dashboard page.
           `}
         >
           MDM status
@@ -429,9 +428,8 @@ const allHostTableHeaders: IDataColumn[] = [
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
-            The MDM server that updates settings<br/>
-            on the host. To filter by MDM server URL,<br/>
-            head to the Dashboard page.
+            The MDM server that updates settings on the host. To<br/>
+            filter by MDM server URL, head to the Dashboard page.
           `}
         >
           MDM server URL
@@ -527,7 +525,7 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => (
       <TextCell
         value={{ timeString: cellProps.cell.value }}
-        formatter={HumanTimeDiffWithDateTip}
+        formatter={HumanTimeDiffWithFleetLaunchCutoff}
       />
     ),
   },
@@ -555,7 +553,7 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => (
       <TextCell
         value={{ timeString: cellProps.cell.value }}
-        formatter={HumanTimeDiffWithDateTip}
+        formatter={HumanTimeDiffWithFleetLaunchCutoff}
       />
     ),
   },
@@ -594,7 +592,7 @@ const allHostTableHeaders: IDataColumn[] = [
           value={{
             timeString: humanHostLastRestart(detail_updated_at, uptime),
           }}
-          formatter={HumanTimeDiffWithDateTip}
+          formatter={HumanTimeDiffWithFleetLaunchCutoff}
         />
       );
     },

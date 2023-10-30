@@ -12,6 +12,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     live_query_disabled: false,
     enable_analytics: true,
     deferred_save_host: false,
+    query_reports_disabled: false,
   },
   smtp_settings: {
     enable_smtp: false,
@@ -125,6 +126,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   },
   fleet_desktop: { transparency_url: "https://fleetdm.com/transparency" },
   mdm: {
+    enable_disk_encryption: false,
     windows_enabled_and_configured: true,
     apple_bm_default_team: "Apples",
     apple_bm_enabled_and_configured: true,

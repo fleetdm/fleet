@@ -762,6 +762,28 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				KernelVersion: "21.6.0",
 			},
 		},
+		// macOS with Rapid Security Response version
+		{
+			data: []map[string]string{
+				{
+					"name":           "macOS",
+					"version":        "13.4.1",
+					"major":          "13",
+					"minor":          "4",
+					"patch":          "1",
+					"build":          "22F82",
+					"arch":           "arm64",
+					"kernel_version": "21.6.0",
+					"extra":          "(c) ",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "macOS",
+				Version:       "13.4.1 (c)",
+				Arch:          "arm64",
+				KernelVersion: "21.6.0",
+			},
+		},
 		{
 			data: []map[string]string{
 				{
@@ -1130,7 +1152,7 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		}
 	}
 
-	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key string) error {
+	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
 			return errors.New("key mismatch")
 		}
