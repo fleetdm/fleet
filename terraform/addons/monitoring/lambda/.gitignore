@@ -1,2 +1,3 @@
 exports.sh
-lambda
+.lambda.zip
+bootstrap

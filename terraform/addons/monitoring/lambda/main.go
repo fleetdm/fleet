@@ -40,14 +40,14 @@ import (
 type NullEvent struct{}
 
 type OptionsStruct struct {
-	LambdaExecutionEnv string `long:"lambda-execution-environment" env:"AWS_EXECUTION_ENV"`
-	SNSTopicArns       string `long:"sns-topic-arn" env:"SNS_TOPIC_ARNS" required:"true"`
-	MySQLHost          string `long:"mysql-host" env:"MYSQL_HOST" required:"true"`
-	MySQLUser          string `long:"mysql-user" env:"MYSQL_USER" required:"true"`
-	MySQLSMSecret      string `long:"mysql-secretsmanager-secret" env:"MYSQL_SECRETSMANAGER_SECRET" required:"true"`
-	MySQLDatabase      string `long:"mysql-database" env:"MYSQL_DATABASE" required:"true"`
-	FleetEnv           string `long:"fleet-environment" env:"FLEET_ENV" required:"true"`
-	AWSRegion          string `long:"aws-region" env:"AWS_REGION" required:"true"`
+	LambdaRuntimeAPI string `long:"lambda-runtime-api" env:"AWS_LAMBDA_RUNTIME_API"`
+	SNSTopicArns     string `long:"sns-topic-arn" env:"SNS_TOPIC_ARNS" required:"true"`
+	MySQLHost        string `long:"mysql-host" env:"MYSQL_HOST" required:"true"`
+	MySQLUser        string `long:"mysql-user" env:"MYSQL_USER" required:"true"`
+	MySQLSMSecret    string `long:"mysql-secretsmanager-secret" env:"MYSQL_SECRETSMANAGER_SECRET" required:"true"`
+	MySQLDatabase    string `long:"mysql-database" env:"MYSQL_DATABASE" required:"true"`
+	FleetEnv         string `long:"fleet-environment" env:"FLEET_ENV" required:"true"`
+	AWSRegion        string `long:"aws-region" env:"AWS_REGION" required:"true"`
 }
 
 var options = OptionsStruct{}
@@ -57,6 +57,7 @@ func sendSNSMessage(msg string, sess *session.Session) {
 	fullMsg := fmt.Sprintf("Environment: %s\nMessage: %s", options.FleetEnv, msg)
 	svc := sns.New(sess)
 	for _, SNSTopicArn := range strings.Split(options.SNSTopicArns, ",") {
+		log.Printf("Sending '%s' to '%s'", fullMsg, SNSTopicArn)
 		result, err := svc.Publish(&sns.PublishInput{
 			Message:  &fullMsg,
 			TopicArn: &SNSTopicArn,
@@ -115,7 +116,7 @@ func checkDB(sess *session.Session) (err error) {
 		updated_at time.Time
 	}
 
-	rows, err := db.Query("SELECT b.name,IFNULL(status, 'missing cron'),IFNULL(updated_at, FROM_UNIXTIME(0)) AS updated_at FROM (SELECT 'vulnerabilities' AS name UNION ALL SELECT 'cleanups_then_aggregation' UNION ALL SELECT 'missing') b LEFT JOIN (SELECT name, status, updated_at FROM cron_stats WHERE id IN (SELECT MAX(id) FROM cron_stats WHERE status = 'completed' GROUP BY name)) a ON a.name = b.name;")
+	rows, err := db.Query("SELECT b.name,IFNULL(status, 'missing cron'),IFNULL(updated_at, FROM_UNIXTIME(0)) AS updated_at FROM (SELECT 'vulnerabilities' AS name UNION ALL SELECT 'cleanups_then_aggregation') b LEFT JOIN (SELECT name, status, updated_at FROM cron_stats WHERE id IN (SELECT MAX(id) FROM cron_stats WHERE status = 'completed' GROUP BY name)) a ON a.name = b.name;")
 	if err != nil {
 		log.Printf(err.Error())
 		sendSNSMessage("Unable to SELECT cron_stats table.  Unable to continue.", sess)
@@ -170,9 +171,11 @@ func main() {
 		}
 	}
 
-	if options.LambdaExecutionEnv == "AWS_Lambda_go1.x" {
+	if options.LambdaRuntimeAPI != "" {
+		log.Printf("Starting Lambda handler.")
 		lambda.Start(handler)
 	} else {
+		log.Printf("Lambda execution environment not found.  Falling back to local execution.")
 		if err = handler(context.Background(), NullEvent{}); err != nil {
 			log.Fatal(err)
 		}

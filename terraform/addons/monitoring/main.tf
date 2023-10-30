@@ -271,6 +271,9 @@ resource "aws_cloudwatch_metric_alarm" "acm_certificate_expired" {
 // Cron Monitoring
 resource "null_resource" "cron_monitoring_build" {
   count = var.cron_monitoring == null ? 0 : 1
+  triggers = {
+    go_changes = filesha256("${path.module}/lambda/main.go")
+  }
   provisioner "local-exec" {
     working_dir = "${path.module}/lambda"
     command     = <<-EOT
@@ -280,7 +283,7 @@ resource "null_resource" "cron_monitoring_build" {
   }
 }
 
-resource "archive_file" "cron_monitoring_lambda" {
+data "archive_file" "cron_monitoring_lambda" {
   count       = var.cron_monitoring == null ? 0 : 1
   depends_on  = [null_resource.cron_monitoring_build[0]]
   type        = "zip"
@@ -293,12 +296,37 @@ data "aws_secretsmanager_secret" "mysql_database_password" {
   name  = var.cron_monitoring.mysql_password_secret_name
 }
 
+resource "aws_security_group" "cron_monitoring" {
+  count       = var.cron_monitoring == null ? 0 : 1
+  name        = "${var.customer_prefix}_cron_monitoring"
+  description = "Security group for cron monitoring lambda (used by RDS to allow access in)"
+  vpc_id      = var.cron_monitoring.vpc_id
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}
+
+resource "aws_security_group_rule" "cron_monitoring_to_rds" {
+  count                    = var.cron_monitoring == null ? 0 : 1
+  type                     = "ingress"
+  from_port                = 3306
+  to_port                  = 3306
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.cron_monitoring[0].id
+  security_group_id        = var.cron_monitoring.rds_security_group_id
+}
+
 resource "aws_lambda_function" "cron_monitoring" {
   count = var.cron_monitoring == null ? 0 : 1
 
   depends_on = [
-    null_resource.cron_monitoring_build,
-    archive_file.cron_monitoring_lambda
+    null_resource.cron_monitoring_build[0],
+    data.archive_file.cron_monitoring_lambda[0]
   ]
 
   function_name                  = "${var.customer_prefix}_cron_monitoring"
@@ -306,7 +334,7 @@ resource "aws_lambda_function" "cron_monitoring" {
   memory_size                    = 256
   timeout                        = 300
   package_type                   = "Zip"
-  filename                       = archive_file.cron_monitoring_lambda[0].output_path
+  filename                       = data.archive_file.cron_monitoring_lambda[0].output_path
   handler                        = "bootstrap"
   reserved_concurrent_executions = 1
   description                    = "This function has the ability to log into a production database and validate that the Fleet crons are running properly"
@@ -314,16 +342,22 @@ resource "aws_lambda_function" "cron_monitoring" {
     mode = "Active"
   }
 
+  vpc_config {
+    # Every subnet should be able to reach an EFS mount target in the same Availability Zone. Cross-AZ mounts are not permitted.
+    subnet_ids         = var.cron_monitoring.subnet_ids
+    security_group_ids = [aws_security_group.cron_monitoring[0].id]
+  }
+
   role = aws_iam_role.cron_monitoring_lambda[0].arn
 
   environment {
     variables = {
-      MYSQL_HOST                 = var.cron_monitoring.mysql_host
-      MYSQL_DATABASE             = var.cron_monitoring.mysql_database
-      MYSQL_USER                 = var.cron_monitoring.mysql_user
-      MYSQL_PASSWORD_SECRET_NAME = data.aws_secretsmanager_secret.mysql_database_password[0].name
-      SNS_TOPIC_ARNS             = join(", ", lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns))
-      FLEET_ENV                  = var.customer_prefix
+      MYSQL_HOST                  = var.cron_monitoring.mysql_host
+      MYSQL_DATABASE              = var.cron_monitoring.mysql_database
+      MYSQL_USER                  = var.cron_monitoring.mysql_user
+      MYSQL_SECRETSMANAGER_SECRET = data.aws_secretsmanager_secret.mysql_database_password[0].name
+      SNS_TOPIC_ARNS              = join(",", lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns))
+      FLEET_ENV                   = var.customer_prefix
     }
   }
 
@@ -349,7 +383,7 @@ resource "aws_iam_role_policy_attachment" "cron_monitoring_lambda" {
 resource "aws_iam_role_policy_attachment" "cron_monitoring_lambda_managed" {
   count      = var.cron_monitoring == null ? 0 : 1
   role       = aws_iam_role.cron_monitoring_lambda[0].id
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
 resource "aws_iam_policy" "cron_monitoring_lambda" {
@@ -360,9 +394,16 @@ resource "aws_iam_policy" "cron_monitoring_lambda" {
 
 resource "aws_iam_role" "cron_monitoring_lambda" {
   count              = var.cron_monitoring == null ? 0 : 1
-  name               = "idp-scim-sync-lambda"
+  name               = "cron-monitoring-lambda"
   assume_role_policy = data.aws_iam_policy_document.cron_monitoring_lambda_assume_role.json
 }
+
+data "aws_region" "current" {}
+data "aws_caller_identity" "current" {}
+# data "aws_vpc" "fleet" {
+#   count = var.cron_monitoring == null ? 0 : 1
+#   id    = var.cron_monitoring.vpc_id
+# }
 
 data "aws_iam_policy_document" "cron_monitoring_lambda" {
   statement {
@@ -371,6 +412,7 @@ data "aws_iam_policy_document" "cron_monitoring_lambda" {
 
     actions = [
       "secretsmanager:GetResourcePolicy",
+      "secretsmanager:DescribeSecret",
       "secretsmanager:GetSecretValue"
     ]
 
@@ -379,6 +421,27 @@ data "aws_iam_policy_document" "cron_monitoring_lambda" {
     effect = "Allow"
 
   }
+
+  # statement {
+
+  #   actions = [
+  #     "ec2:CreateNetworkInterface",
+  #     "ec2:DeleteNetworkInterface",
+  #     "ec2:DescribeNetworkInterfaces",
+  #   ]
+
+  #   resources = ["arn:aws:ec2:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:network-interface/*"]
+
+  #   condition {
+  #     test     = "StringLike"
+  #     variable = "ec2:Vpc"
+  #     values = [
+  #       data.aws_vpc.fleet[0].arn
+  #     ]
+  #   }
+  #   effect = "Allow"
+
+  # }
 
   statement {
     sid = "SNSPublish"
