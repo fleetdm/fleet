@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<channel name="thunar-volman" version="1.0">
+  <property name="automount-media" type="empty">
+    <property name="enabled" type="bool" value="false"/>
+  </property>
+  <property name="automount-drives" type="empty">
+    <property name="enabled" type="bool" value="false"/>
+  </property>
+  <property name="autobrowse" type="empty">
+    <property name="enabled" type="bool" value="false"/>
+  </property>
+  <property name="autoopen" type="empty">
+    <property name="enabled" type="bool" value="false"/>
+  </property>
+</channel>

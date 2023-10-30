@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<channel name="xfce4-power-manager" version="1.0">
+  <property name="xfce4-power-manager" type="empty">
+    <property name="power-button-action" type="empty"/>
+    <property name="lock-screen-suspend-hibernate" type="bool" value="false"/>
+  </property>
+</channel>
