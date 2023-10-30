@@ -1,0 +1,4 @@
+
+                          SSID BSSID             RSSI CHANNEL HT CC SECURITY (auth/unicast/group)
+                 i got spaces! a0:a0:a0:a0:a0:a0 -92  108     Y  US WPA(PSK/AES,TKIP/TKIP) RSN(PSK/AES,TKIP/TKIP)
+                     no-spaces b1:b1:b1:b1:b1:b1 -91  116     N  EU RSN(PSK/AES/AES)

@@ -1,0 +1,130 @@
+[
+    {
+        "fullkey": "0/link auth",
+        "key": "link auth",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "wpa2-psk"
+    },
+    {
+        "fullkey": "0/BSSID",
+        "key": "BSSID",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "a0:a0:a0:a0:a0:a0"
+    },
+    {
+        "fullkey": "0/MCS",
+        "key": "MCS",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "8"
+    },
+    {
+        "fullkey": "0/channel",
+        "key": "channel",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "2"
+    },
+    {
+        "fullkey": "0/agrExtRSSI",
+        "key": "agrExtRSSI",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "0"
+    },
+    {
+        "fullkey": "0/agrCtlNoise",
+        "key": "agrCtlNoise",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "-94"
+    },
+    {
+        "fullkey": "0/op mode",
+        "key": "op mode",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "station"
+    },
+    {
+        "fullkey": "0/lastAssocStatus",
+        "key": "lastAssocStatus",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "0"
+    },
+    {
+        "fullkey": "0/state",
+        "key": "state",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "running"
+    },
+    {
+        "fullkey": "0/802.11 auth",
+        "key": "802.11 auth",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "open"
+    },
+    {
+        "fullkey": "0/SSID",
+        "key": "SSID",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "some netwerk"
+    },
+    {
+        "fullkey": "0/guardInterval",
+        "key": "guardInterval",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "800"
+    },
+    {
+        "fullkey": "0/NSS",
+        "key": "NSS",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "2"
+    },
+    {
+        "fullkey": "0/agrCtlRSSI",
+        "key": "agrCtlRSSI",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "-55"
+    },
+    {
+        "fullkey": "0/agrExtNoise",
+        "key": "agrExtNoise",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "0"
+    },
+    {
+        "fullkey": "0/lastTxRate",
+        "key": "lastTxRate",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "216"
+    }
+]

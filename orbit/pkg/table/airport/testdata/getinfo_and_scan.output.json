@@ -1,0 +1,242 @@
+[
+    {
+        "fullkey": "0/link auth",
+        "key": "link auth",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "wpa2-psk"
+    },
+    {
+        "fullkey": "0/BSSID",
+        "key": "BSSID",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "a0:a0:a0:a0:a0:a0"
+    },
+    {
+        "fullkey": "0/MCS",
+        "key": "MCS",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "8"
+    },
+    {
+        "fullkey": "0/channel",
+        "key": "channel",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "2"
+    },
+    {
+        "fullkey": "0/agrExtRSSI",
+        "key": "agrExtRSSI",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "0"
+    },
+    {
+        "fullkey": "0/agrCtlNoise",
+        "key": "agrCtlNoise",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "-94"
+    },
+    {
+        "fullkey": "0/op mode",
+        "key": "op mode",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "station"
+    },
+    {
+        "fullkey": "0/lastAssocStatus",
+        "key": "lastAssocStatus",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "0"
+    },
+    {
+        "fullkey": "0/state",
+        "key": "state",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "running"
+    },
+    {
+        "fullkey": "0/802.11 auth",
+        "key": "802.11 auth",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "open"
+    },
+    {
+        "fullkey": "0/SSID",
+        "key": "SSID",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "some netwerk"
+    },
+    {
+        "fullkey": "0/guardInterval",
+        "key": "guardInterval",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "800"
+    },
+    {
+        "fullkey": "0/NSS",
+        "key": "NSS",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "2"
+    },
+    {
+        "fullkey": "0/agrCtlRSSI",
+        "key": "agrCtlRSSI",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "-55"
+    },
+    {
+        "fullkey": "0/agrExtNoise",
+        "key": "agrExtNoise",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "0"
+    },
+    {
+        "fullkey": "0/lastTxRate",
+        "key": "lastTxRate",
+        "option": "getinfo",
+        "parent": "0",
+        "query": "*",
+        "value": "216"
+    },
+    {
+        "option": "scan",
+        "fullkey": "0/SSID",
+        "parent": "0",
+        "key": "SSID",
+        "value": "i got spaces!",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "parent": "0",
+        "fullkey": "0/BSSID",
+        "key": "BSSID",
+        "value": "a0:a0:a0:a0:a0:a0",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "0/RSSI",
+        "parent": "0",
+        "key": "RSSI",
+        "value": "-92",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "0/CHANNEL",
+        "parent": "0",
+        "key": "CHANNEL",
+        "value": "108",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "0/HT",
+        "parent": "0",
+        "key": "HT",
+        "value": "Y",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "0/CC",
+        "parent": "0",
+        "key": "CC",
+        "value": "US",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "0/SECURITY (auth/unicast/group)",
+        "parent": "0",
+        "key": "SECURITY (auth/unicast/group)",
+        "value": "WPA(PSK/AES,TKIP/TKIP) RSN(PSK/AES,TKIP/TKIP)",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/SSID",
+        "parent": "1",
+        "key": "SSID",
+        "value": "no-spaces",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/BSSID",
+        "parent": "1",
+        "key": "BSSID",
+        "value": "b1:b1:b1:b1:b1:b1",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/RSSI",
+        "parent": "1",
+        "key": "RSSI",
+        "value": "-91",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/CHANNEL",
+        "parent": "1",
+        "key": "CHANNEL",
+        "value": "116",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/HT",
+        "parent": "1",
+        "key": "HT",
+        "value": "N",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/CC",
+        "parent": "1",
+        "key": "CC",
+        "value": "EU",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/SECURITY (auth/unicast/group)",
+        "parent": "1",
+        "key": "SECURITY (auth/unicast/group)",
+        "value": "RSN(PSK/AES/AES)",
+        "query": "*"
+    }
+]
