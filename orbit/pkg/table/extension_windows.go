@@ -10,9 +10,9 @@ import (
 	// Kolide tables
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dsim_default_associations"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/secedit"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/wmitable"
 
 	"github.com/kolide/launcher/pkg/osquery/tables/wifi_networks"
-	"github.com/kolide/launcher/pkg/osquery/tables/wmitable"
 
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
