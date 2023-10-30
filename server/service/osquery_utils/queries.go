@@ -1175,7 +1175,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			level.Debug(logger).Log(
 				"msg", "host reported software with invalid last opened timestamp",
 				"host_id", host.ID,
-				"row", row,
+				"row", fmt.Sprintf("%+v", row),
 			)
 		}
 
@@ -1194,13 +1194,13 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			level.Debug(logger).Log(
 				"msg", "failed to parse software row",
 				"host_id", host.ID,
-				"row", row,
+				"row", fmt.Sprintf("%+v", row),
 				"err", err,
 			)
 			continue
 		}
 
-		sanitizeSoftware(host, s)
+		sanitizeSoftware(host, s, logger)
 
 		software = append(software, *s)
 
@@ -1231,7 +1231,7 @@ var macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
 // sanitizeSoftware performs any sanitization required to the ingested software fields.
 //
 // Some fields are reported with known incorrect values and we need to fix them before using them.
-func sanitizeSoftware(h *fleet.Host, s *fleet.Software) {
+func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 	softwareSanitizers := []struct {
 		checkSoftware  func(*fleet.Host, *fleet.Software) bool
 		mutateSoftware func(*fleet.Software)
@@ -1248,6 +1248,31 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software) {
 				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
 					s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
 				}
+			},
+		},
+		// In the Windows Registry, Cloudflare WARP defines its major version with the last two digits, e.g. `23.9.248.0`.
+		// On NVD, the vulnerabilities are reported using the full year, e.g. `2023.9.248.0`.
+		{
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return h.Platform == "windows" && s.Name == "Cloudflare WARP" && s.Source == "programs"
+			},
+			mutateSoftware: func(s *fleet.Software) {
+				// Perform some sanity check on the version before mutating it.
+				parts := strings.Split(s.Version, ".")
+				if len(parts) <= 1 {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
+					return
+				}
+				_, err := strconv.Atoi(parts[0])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+				// In case Cloudflare starts returning the full year.
+				if len(parts[0]) == 4 {
+					return
+				}
+				s.Version = "20" + s.Version // Cloudflare WARP was released on 2019.
 			},
 		},
 	}
