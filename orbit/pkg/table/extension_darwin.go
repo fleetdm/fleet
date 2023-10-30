@@ -23,13 +23,12 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/systemprofiler"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
 
 	// Kolide tables
 
-	"github.com/kolide/launcher/pkg/osquery/tables/mdmclient"
 	"github.com/kolide/launcher/pkg/osquery/tables/profiles"
-	"github.com/kolide/launcher/pkg/osquery/tables/systemprofiler"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
@@ -84,7 +83,6 @@ func PlatformTables() []osquery.OsqueryPlugin {
 
 		firmwarepasswd.TablePlugin(osqueryLogger),
 
-		mdmclient.TablePlugin(osqueryLogger),
 		systemprofiler.TablePlugin(osqueryLogger), // table name is "system_profiler"
 		// Table for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
 		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.PlistType), // table name is "parse_plist"
