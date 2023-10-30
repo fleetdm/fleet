@@ -50,7 +50,7 @@ func NewFalconctlOptionTable(logger log.Logger) *table.Plugin {
 	)
 
 	t := &falconctlOptionsTable{
-		logger:    log.With(logger, "table", "kolide_falconctl_options"),
+		logger:    log.With(logger, "table", "falconctl_options"),
 		tableName: "falconctl_options",
 		execFunc:  tablehelpers.Exec,
 	}

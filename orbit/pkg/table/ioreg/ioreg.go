@@ -6,7 +6,7 @@
 //
 // As the returned data is a complex nested plist, this uses the
 // dataflatten tooling. (See
-// https://godoc.org/github.com/kolide/launcher/pkg/dataflatten)
+// https://github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten)
 package ioreg
 
 import (

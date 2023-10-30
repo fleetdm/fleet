@@ -10,11 +10,11 @@
 //
 // As the returned data is a complex nested plist, this uses the
 // dataflatten tooling. (See
-// https://godoc.org/github.com/kolide/launcher/pkg/dataflatten)
+// https://github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten)
 //
 // Everything, minimal details:
 //
-//	osquery> select count(*) from kolide_system_profiler where datatype like "%" and detaillevel = "mini";
+//	osquery> select count(*) from system_profiler where datatype like "%" and detaillevel = "mini";
 //	+----------+
 //	| count(*) |
 //	+----------+
@@ -23,7 +23,7 @@
 //
 // Multiple data types (slightly redacted):
 //
-//	osquery> select fullkey, key, value, datatype from kolide_system_profiler where datatype in ("SPCameraDataType", "SPiBridgeDataType");
+//	osquery> select fullkey, key, value, datatype from system_profiler where datatype in ("SPCameraDataType", "SPiBridgeDataType");
 //	+----------------------+--------------------+------------------------------------------+-------------------+
 //	| fullkey              | key                | value                                    | datatype          |
 //	+----------------------+--------------------+------------------------------------------+-------------------+

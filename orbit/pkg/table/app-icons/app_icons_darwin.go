@@ -54,7 +54,7 @@ func AppIcons() *table.Plugin {
 func generateAppIcons(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	q, ok := queryContext.Constraints["path"]
 	if !ok || len(q.Constraints) == 0 {
-		return nil, errors.New("The kolide_app_icons table requires that you specify a constraint WHERE path =")
+		return nil, errors.New("The app_icons table requires that you specify a constraint WHERE path =")
 	}
 	path := q.Constraints[0].Expression
 	img, hash, err := getAppIcon(path, queryContext)

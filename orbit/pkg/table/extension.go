@@ -136,16 +136,16 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		// Orbit extensions.
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
 
-		// Kolide extensions.
 		firefox_preferences.TablePlugin(osqueryLogger),
-		// kolide_dev_table_tooling table allows running arbitrary commands. As of 2023/10/24, only 'echo' and 'cb_repcli' are supported.
-		// RepCLI info: https://community.carbonblack.com/t5/Knowledge-Base/Carbon-Black-Cloud-What-is-the-RepCLI-Utility/ta-p/61991
-		dev_table_tooling.TablePlugin(osqueryLogger),
 		cryptoinfotable.TablePlugin(osqueryLogger),
 		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.JsonType),  // table name is "parse_json"
 		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.JsonlType), // table name is "parse_jsonl"
 		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.XmlType),   // table name is "parse_xml"
 		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.IniType),   // table name is "parse_ini"
+
+		// dev_table_tooling table allows running arbitrary commands. As of 2023/10/24, only 'echo' and 'cb_repcli' are supported.
+		// RepCLI info: https://community.carbonblack.com/t5/Knowledge-Base/Carbon-Black-Cloud-What-is-the-RepCLI-Utility/ta-p/61991
+		dev_table_tooling.TablePlugin(osqueryLogger),
 	}
 	return plugins
 }

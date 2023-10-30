@@ -45,12 +45,12 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 
 	classes := tablehelpers.GetConstraints(queryContext, "class", tablehelpers.WithAllowedCharacters(allowedCharacters))
 	if len(classes) == 0 {
-		return nil, errors.New("The kolide_wmi table requires a wmi class")
+		return nil, errors.New("The wmi table requires a wmi class")
 	}
 
 	properties := tablehelpers.GetConstraints(queryContext, "properties", tablehelpers.WithAllowedCharacters(allowedCharacters+`,`))
 	if len(properties) == 0 {
-		return nil, errors.New("The kolide_wmi table requires wmi properties")
+		return nil, errors.New("The wmi table requires wmi properties")
 	}
 
 	// Get the list of namespaces to query. If not specified, that's

@@ -10,15 +10,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-kit/kit/log"
-	"github.com/kolide/launcher/pkg/osquery/tables/tablehelpers"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
 func TestXrdbParse(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		filename string
 		expected []map[string]string
 	}{

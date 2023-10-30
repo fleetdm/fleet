@@ -13,9 +13,9 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/windows/windowsupdate"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/kolide/launcher/pkg/windows/windowsupdate"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/scjalliance/comshim"
 )
@@ -49,7 +49,7 @@ func TablePlugin(mode tableMode, logger log.Logger) *table.Plugin {
 		t.name = "windows_updates"
 	case HistoryTable:
 		t.queryFunc = queryHistory
-		t.name = "kolide_windows_update_history"
+		t.name = "windows_update_history"
 	}
 
 	return table.NewPlugin(t.name, columns, t.generate)

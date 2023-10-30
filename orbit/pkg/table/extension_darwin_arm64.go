@@ -11,7 +11,7 @@ import (
 
 func appendTables(plugins []osquery.OsqueryPlugin) []osquery.OsqueryPlugin {
 	plugins = append(plugins,
-		// ARM64 Kolide tables
+		// arm64 tables
 		appicons.AppIcons(),
 	)
 	return plugins

@@ -16,17 +16,18 @@ import (
 
 func PlatformTables() []osquery.OsqueryPlugin {
 	return []osquery.OsqueryPlugin{
-		// Kolide extensions.
-		cryptsetup.TablePlugin(osqueryLogger),
+		cryptsetup.TablePlugin(osqueryLogger),            // table name is "cryptsetup_status"
+		falconctl.NewFalconctlOptionTable(osqueryLogger), // table name is "falconctl_option"
+		falcon_kernel_check.TablePlugin(osqueryLogger),   // table name is "falcon_kernel_check"
+		xfconf.TablePlugin(osqueryLogger),                // table name is "xfconf"
+		zfs.ZfsPropertiesPlugin(osqueryLogger),           // table name is "zfs_properties"
+		zfs.ZpoolPropertiesPlugin(osqueryLogger),         // table name is "zpool_properties"
+
 		// Linux Gnome settings and metadata
-		gsettings.Settings(osqueryLogger),
-		gsettings.Metadata(osqueryLogger),
+		gsettings.Settings(osqueryLogger), // table name is "gsettings"
+		gsettings.Metadata(osqueryLogger), // table name is "gsettings_metadata"
+
 		// Wrapper for /usr/bin/xrdb command.
-		xrdb.TablePlugin(osqueryLogger),
-		xfconf.TablePlugin(osqueryLogger), // table name is "xfconf"
-		falconctl.NewFalconctlOptionTable(osqueryLogger),
-		falcon_kernel_check.TablePlugin(osqueryLogger),
-		zfs.ZfsPropertiesPlugin(osqueryLogger),   // table name is "zfs_properties"
-		zfs.ZpoolPropertiesPlugin(osqueryLogger), // table name is "zpool_properties"
+		xrdb.TablePlugin(osqueryLogger), // table name is "xrdb"
 	}
 }
