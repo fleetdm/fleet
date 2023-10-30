@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/xml"
 	"fmt"
 	"strings"
 
@@ -305,7 +306,11 @@ ON DUPLICATE KEY UPDATE
 
 			rawResult := []byte{}
 			if result, ok := uuidsToResults[uuid]; ok && result.Data != nil {
-				rawResult = []byte(*result.Data)
+				var err error
+				rawResult, err = xml.Marshal(result)
+				if err != nil {
+					ds.logger.Log("err", err, "marshaling command result", "cmd_uuid", uuid)
+				}
 			}
 			args = append(args, enrollment.ID, uuid, rawResult, responseID, statusCode)
 			sb.WriteString("(?, ?, ?, ?, ?),")
@@ -318,11 +323,6 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		// dequeue the commands
-		// TODO(roberto): is this  the right place to dequeue the commands?
-		//
-		// If we didn't immediately get a response for a command we
-		// already sent, and we don't dequeue it, it's going to be sent
-		// again.  Is this what we want?
 		stmt, params, err = sqlx.In(dequeueCommandsStmt, matchingUUIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN to dequeue commands")
@@ -341,7 +341,7 @@ SELECT
     mwe.host_uuid,
     wmcr.command_uuid,
     wmcr.status_code as status,
-	wmcr.updated_at,
+    wmcr.updated_at,
     wmc.target_loc_uri as request_type,
     wmcr.raw_result as result
 FROM

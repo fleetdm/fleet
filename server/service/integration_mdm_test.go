@@ -6923,6 +6923,22 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Items:   nil,
 		CmdID:   uuid.NewString(),
 	})
+	// results for command two (Get)
+	cmdTwoRespUUID := uuid.NewString()
+	d.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: mdm_types.CmdResults},
+		MsgRef:  &msgID,
+		CmdRef:  &cmdTwoUUID,
+		Cmd:     ptr.String("Replace"),
+		Data:    ptr.String("200"),
+		Items: []fleet.CmdItem{
+			{
+				Source: ptr.String("./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID"),
+				Data:   ptr.String("0"),
+			},
+		},
+		CmdID: cmdTwoRespUUID,
+	})
 	// status 200 for command Three (Replace)
 	d.AppendResponse(fleet.SyncMLCmd{
 		XMLName: xml.Name{Local: mdm_types.CmdStatus},
@@ -6933,25 +6949,51 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Items:   nil,
 		CmdID:   uuid.NewString(),
 	})
-	// results for command three (Replace)
-	d.AppendResponse(fleet.SyncMLCmd{
-		XMLName: xml.Name{Local: mdm_types.CmdResults},
-		MsgRef:  &msgID,
-		CmdRef:  &cmdThreeUUID,
-		Cmd:     ptr.String("Replace"),
-		Data:    ptr.String("200"),
-		Items: []fleet.CmdItem{
-			{
-				Source: ptr.String("./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID"),
-				Data:   ptr.String("0"),
-			},
-		},
-		CmdID: uuid.NewString(),
-	})
 	cmds, err = d.SendResponse()
 	require.NoError(t, err)
 	// the ack of the message should be the only returned command
 	require.Len(t, cmds, 1)
+
+	// check command results
+	var getMDMCmdResp getMDMCommandResultsResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/commandresults", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", cmdOneUUID)
+	require.Len(t, getMDMCmdResp.Results, 1)
+	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
+	getMDMCmdResp.Results[0].UpdatedAt = time.Time{}
+	require.Equal(t, &fleet.MDMCommandResult{
+		HostUUID:    orbitHost.UUID,
+		CommandUUID: cmdOneUUID,
+		Status:      "200",
+		RequestType: "./Device/Vendor/MSFT/Reboot/RebootNow",
+		Result:      []byte{},
+		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
+	}, getMDMCmdResp.Results[0])
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/commandresults", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", cmdTwoUUID)
+	require.Len(t, getMDMCmdResp.Results, 1)
+	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
+	getMDMCmdResp.Results[0].UpdatedAt = time.Time{}
+	require.Equal(t, &fleet.MDMCommandResult{
+		HostUUID:    orbitHost.UUID,
+		CommandUUID: cmdTwoUUID,
+		Status:      "200",
+		RequestType: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
+		Result:      []byte(fmt.Sprintf(`<Results xmlns="SYNCML:SYNCML1.2"><CmdID>%s</CmdID><MsgRef>1</MsgRef><CmdRef>%s</CmdRef><Cmd>Replace</Cmd><Data>200</Data><Item><Source><LocURI>./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID</LocURI></Source><Data>0</Data></Item></Results>`, cmdTwoRespUUID, cmdTwoUUID)),
+		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
+	}, getMDMCmdResp.Results[0])
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/commandresults", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", cmdThreeUUID)
+	require.Len(t, getMDMCmdResp.Results, 1)
+	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
+	getMDMCmdResp.Results[0].UpdatedAt = time.Time{}
+	require.Equal(t, &fleet.MDMCommandResult{
+		HostUUID:    orbitHost.UUID,
+		CommandUUID: cmdThreeUUID,
+		Status:      "200",
+		RequestType: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
+		Result:      []byte{},
+		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
+	}, getMDMCmdResp.Results[0])
 }
 
 func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {

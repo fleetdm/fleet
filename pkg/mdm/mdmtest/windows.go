@@ -453,8 +453,8 @@ func (c *TestWindowsMDMClient) request(path string, reqBody []byte) (*http.Respo
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
-		// #nosec (this is only used for testing)
-		InsecureSkipVerify: true,
+		// Ignoring "G402: TLS InsecureSkipVerify set true", this is only used for automated testing.
+		InsecureSkipVerify: true, //nolint:gosec
 	}))
 	response, err := cc.Do(request)
 	if err != nil {
