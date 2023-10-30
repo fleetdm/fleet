@@ -335,6 +335,7 @@ resource "aws_lambda_function" "cron_monitoring" {
   timeout                        = 300
   package_type                   = "Zip"
   filename                       = data.archive_file.cron_monitoring_lambda[0].output_path
+  source_code_hash               = data.archive_file.cron_monitoring_lambda[0].output_base64sha256
   handler                        = "bootstrap"
   reserved_concurrent_executions = 1
   description                    = "This function has the ability to log into a production database and validate that the Fleet crons are running properly"
@@ -358,6 +359,7 @@ resource "aws_lambda_function" "cron_monitoring" {
       MYSQL_SECRETSMANAGER_SECRET = data.aws_secretsmanager_secret.mysql_database_password[0].name
       SNS_TOPIC_ARNS              = join(",", lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns))
       FLEET_ENV                   = var.customer_prefix
+      CRON_DELAY_TOLERANCE        = var.cron_monitoring.delay_tolerance
     }
   }
 
@@ -467,7 +469,7 @@ resource "aws_cloudwatch_log_group" "cron_monitoring_lambda" {
 resource "aws_cloudwatch_event_rule" "cron_monitoring_lambda" {
   count               = var.cron_monitoring == null ? 0 : 1
   name                = "${var.customer_prefix}-cron-monitoring"
-  schedule_expression = "rate(10 minutes)"
+  schedule_expression = "rate(${var.cron_monitoring.run_interval})"
   is_enabled          = true
 }
 

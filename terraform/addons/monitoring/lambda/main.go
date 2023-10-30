@@ -40,14 +40,15 @@ import (
 type NullEvent struct{}
 
 type OptionsStruct struct {
-	LambdaRuntimeAPI string `long:"lambda-runtime-api" env:"AWS_LAMBDA_RUNTIME_API"`
-	SNSTopicArns     string `long:"sns-topic-arn" env:"SNS_TOPIC_ARNS" required:"true"`
-	MySQLHost        string `long:"mysql-host" env:"MYSQL_HOST" required:"true"`
-	MySQLUser        string `long:"mysql-user" env:"MYSQL_USER" required:"true"`
-	MySQLSMSecret    string `long:"mysql-secretsmanager-secret" env:"MYSQL_SECRETSMANAGER_SECRET" required:"true"`
-	MySQLDatabase    string `long:"mysql-database" env:"MYSQL_DATABASE" required:"true"`
-	FleetEnv         string `long:"fleet-environment" env:"FLEET_ENV" required:"true"`
-	AWSRegion        string `long:"aws-region" env:"AWS_REGION" required:"true"`
+	LambdaRuntimeAPI   string `long:"lambda-runtime-api" env:"AWS_LAMBDA_RUNTIME_API"`
+	SNSTopicArns       string `long:"sns-topic-arn" env:"SNS_TOPIC_ARNS" required:"true"`
+	MySQLHost          string `long:"mysql-host" env:"MYSQL_HOST" required:"true"`
+	MySQLUser          string `long:"mysql-user" env:"MYSQL_USER" required:"true"`
+	MySQLSMSecret      string `long:"mysql-secretsmanager-secret" env:"MYSQL_SECRETSMANAGER_SECRET" required:"true"`
+	MySQLDatabase      string `long:"mysql-database" env:"MYSQL_DATABASE" required:"true"`
+	FleetEnv           string `long:"fleet-environment" env:"FLEET_ENV" required:"true"`
+	AWSRegion          string `long:"aws-region" env:"AWS_REGION" required:"true"`
+	CronDelayTolerance string `long:"cron-delay-tolerance" env:"CRON_DELAY_TOLERANCE" default:"2h"`
 }
 
 var options = OptionsStruct{}
@@ -122,7 +123,13 @@ func checkDB(sess *session.Session) (err error) {
 		sendSNSMessage("Unable to SELECT cron_stats table.  Unable to continue.", sess)
 		return err
 	}
-	twoHoursAgo := time.Now().Add(time.Duration(-2) * time.Hour)
+	cronDelayDuration, err := time.ParseDuration(options.CronDelayTolerance)
+	if err != nil {
+		log.Printf(err.Error())
+		sendSNSMessage("Unable to parse cron-delay-tolerance. Check lambda settings.", sess)
+		return err
+	}
+	cronAlertTimestamp := time.Now().Add(-1 * cronDelayDuration)
 	for rows.Next() {
 		var row CronStatsRow
 		if err := rows.Scan(&row.name, &row.status, &row.updated_at); err != nil {
@@ -131,10 +138,10 @@ func checkDB(sess *session.Session) (err error) {
 			return err
 		}
 		log.Printf("Row %s last updated at %s", row.name, row.updated_at.String())
-		if row.updated_at.Before(twoHoursAgo) {
-			log.Printf("*** %s hasn't updated in more than 2 hours, alerting! (status %s)", row.name, row.status)
+		if row.updated_at.Before(cronAlertTimestamp) {
+			log.Printf("*** %s hasn't updated in more than %s, alerting! (status %s)", options.CronDelayTolerance, row.name, row.status)
 			// Fire on the first match and return.  We only need to alert that the crons need looked at, not each cron.
-			sendSNSMessage(fmt.Sprintf("Fleet cron '%s' hasn't updated in more than 2 hours. Last status was '%s' at %s.", row.name, row.status, row.updated_at.String()), sess)
+			sendSNSMessage(fmt.Sprintf("Fleet cron '%s' hasn't updated in more than %s. Last status was '%s' at %s.", row.name, options.CronDelayTolerance, row.status, row.updated_at.String()), sess)
 			return nil
 		}
 	}

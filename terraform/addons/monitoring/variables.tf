@@ -67,6 +67,8 @@ variable "cron_monitoring" {
     vpc_id                     = string
     subnet_ids                 = list(string)
     rds_security_group_id      = string
+    delay_tolerance            = string
+    run_interval               = string    
   })
   default = null
 }
