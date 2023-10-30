@@ -298,7 +298,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 		byCPE := make(map[uint]int)
 		for _, cpe := range recent {
-			fmt.Printf("WTF: %+v\n", cpe)
 			byCPE[cpe.Affected()]++
 		}
 
