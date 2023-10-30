@@ -171,7 +171,7 @@ const PolicyForm = ({
   }, [lastEditedQueryBody, lastEditedQueryId]);
 
   const hasSavePermissions =
-    (!isEditMode && !isObserverPlus) || // save a new policy
+    !isEditMode || // save a new policy
     isGlobalAdmin ||
     isGlobalMaintainer ||
     (isTeamAdmin && policyTeamId === storedPolicy?.team_id) || // team admin cannot save global policy
