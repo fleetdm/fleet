@@ -272,7 +272,9 @@ resource "aws_cloudwatch_metric_alarm" "acm_certificate_expired" {
 resource "null_resource" "cron_monitoring_build" {
   count = var.cron_monitoring == null ? 0 : 1
   triggers = {
-    go_changes = filesha256("${path.module}/lambda/main.go")
+    main_go_changes = filesha256("${path.module}/lambda/main.go"),
+    go_mod_changes  = filesha256("${path.module}/lambda/go.mod")
+    go_sum_changes  = filesha256("${path.module}/lambda/go.sum")
   }
   provisioner "local-exec" {
     working_dir = "${path.module}/lambda"

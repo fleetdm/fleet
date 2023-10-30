@@ -98,6 +98,7 @@ func checkDB(sess *session.Session) (err error) {
 	}
 
 	db, err := sql.Open("mysql", cfg.FormatDSN())
+	defer db.Close()
 	if err != nil {
 		log.Printf(err.Error())
 		sendSNSMessage("Unable to connect to database. Cron status unknown.", sess)
@@ -118,6 +119,7 @@ func checkDB(sess *session.Session) (err error) {
 	}
 
 	rows, err := db.Query("SELECT b.name,IFNULL(status, 'missing cron'),IFNULL(updated_at, FROM_UNIXTIME(0)) AS updated_at FROM (SELECT 'vulnerabilities' AS name UNION ALL SELECT 'cleanups_then_aggregation') b LEFT JOIN (SELECT name, status, updated_at FROM cron_stats WHERE id IN (SELECT MAX(id) FROM cron_stats WHERE status = 'completed' GROUP BY name)) a ON a.name = b.name;")
+	defer rows.Close()
 	if err != nil {
 		log.Printf(err.Error())
 		sendSNSMessage("Unable to SELECT cron_stats table.  Unable to continue.", sess)
