@@ -54,7 +54,6 @@ variable "redis_config" {
     replication_group_id          = optional(string)
     elasticache_subnet_group_name = optional(string, "")
     allowed_security_group_ids    = optional(list(string), [])
-    create_security_group         = optional(bool, true)
     subnets                       = list(string)
     allowed_cidrs                 = list(string)
     availability_zones            = optional(list(string), [])
