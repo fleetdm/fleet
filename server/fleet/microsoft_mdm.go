@@ -3,6 +3,7 @@ package fleet
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -1354,4 +1355,25 @@ type MDMWindowsCommand struct {
 	TargetLocURI string    `db:"target_loc_uri"`
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
+}
+
+// GetEncodedBinarySecurityToken returns the base64 form of a input payload
+func GetEncodedBinarySecurityToken(typeID WindowsMDMEnrollmentType, payload string) (string, error) {
+	var pld WindowsMDMAccessTokenPayload
+	pld.Type = typeID
+
+	if typeID == WindowsMDMProgrammaticEnrollmentType {
+		pld.Payload.OrbitNodeKey = payload
+	} else if typeID == WindowsMDMAutomaticEnrollmentType {
+		pld.Payload.AuthToken = payload
+	} else {
+		return "", fmt.Errorf("invalid enrollment type: %v", typeID)
+	}
+
+	rawBytes, err := json.Marshal(pld)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.URLEncoding.EncodeToString(rawBytes), nil
 }

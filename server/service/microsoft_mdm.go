@@ -547,27 +547,6 @@ func NewBinarySecurityTokenPayload(encodedToken string) (fleet.WindowsMDMAccessT
 	return tokenPayload, nil
 }
 
-// GetEncodedBinarySecurityToken returns the base64 form of a input payload
-func GetEncodedBinarySecurityToken(typeID fleet.WindowsMDMEnrollmentType, payload string) (string, error) {
-	var pld fleet.WindowsMDMAccessTokenPayload
-	pld.Type = typeID
-
-	if typeID == fleet.WindowsMDMProgrammaticEnrollmentType {
-		pld.Payload.OrbitNodeKey = payload
-	} else if typeID == fleet.WindowsMDMAutomaticEnrollmentType {
-		pld.Payload.AuthToken = payload
-	} else {
-		return "", fmt.Errorf("invalid enrollment type: %v", typeID)
-	}
-
-	rawBytes, err := json.Marshal(pld)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.URLEncoding.EncodeToString(rawBytes), nil
-}
-
 // newParm returns a new ProvisioningDoc Parameter
 func newParm(name, value, datatype string) mdm_types.Param {
 	return mdm_types.Param{
@@ -957,7 +936,6 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 		// Validating the Binary Security Token Type used on Programmatic Enrollments
 		if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
 			host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
-			// host, err := svc.ds.HostByIdentifier(ctx, binSecToken.Payload.HostUUID)
 			if err != nil {
 				return "", fmt.Errorf("host data cannot be found %v", err)
 			}
@@ -1503,6 +1481,9 @@ func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context,
 	// Device is already enrolled, let's remove it
 	err = svc.ds.MDMWindowsDeleteEnrolledDevice(ctx, reqHWDeviceID)
 	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 

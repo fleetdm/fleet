@@ -283,7 +283,7 @@ func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T, addi
 func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 	// see https://developer.apple.com/documentation/devicemanagement/get_bootstrap_token
 	t := s.T()
-	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
@@ -896,7 +896,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 	})
 }
 
-func checkNextPayloads(t *testing.T, mdmDevice *mdmtest.TestMDMClient, forceDeviceErr bool) ([][]byte, []string) {
+func checkNextPayloads(t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient, forceDeviceErr bool) ([][]byte, []string) {
 	var cmd *micromdm.CommandPayload
 	var err error
 	installs := [][]byte{}
@@ -945,7 +945,7 @@ func setupExpectedFleetdProfile(t *testing.T, serverURL string, enrollSecret str
 	return b.Bytes()
 }
 
-func setupPusher(s *integrationMDMTestSuite, t *testing.T, mdmDevice *mdmtest.TestMDMClient) {
+func setupPusher(s *integrationMDMTestSuite, t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient) {
 	origPush := s.pushProvider.PushFunc
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
 		require.Len(t, pushes, 1)
@@ -1547,9 +1547,9 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 	require.True(t, tm3.Config.MDM.MacOSSettings.EnableDiskEncryption)
 }
 
-func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestMDMClient) {
+func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
 	desktopToken := uuid.New().String()
-	mdmDevice := mdmtest.NewTestMDMClientDesktopManual(fleetServerURL, desktopToken)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDesktopManual(fleetServerURL, desktopToken)
 	fleetHost, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -1595,7 +1595,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	globalProfile := mobileconfigForTest("N1", "I1")
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{globalProfile}}, http.StatusNoContent)
 
-	checkPostEnrollmentCommands := func(mdmDevice *mdmtest.TestMDMClient, shouldReceive bool) {
+	checkPostEnrollmentCommands := func(mdmDevice *mdmtest.TestAppleMDMClient, shouldReceive bool) {
 		// run the worker to process the DEP enroll request
 		s.runWorker()
 		// run the worker to assign configuration profiles
@@ -1712,7 +1712,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 	// Enroll one of the hosts
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
-	mdmDevice := mdmtest.NewTestMDMClientDEP(s.server.URL, depURLToken)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
 	mdmDevice.SerialNumber = devices[0].SerialNumber
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
@@ -1899,15 +1899,15 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	t := s.T()
 
 	// Enroll two devices into MDM
-	mdmEnrollInfo := mdmtest.EnrollInfo{
+	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	}
-	mdmDeviceA := mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)
+	mdmDeviceA := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)
 	err := mdmDeviceA.Enroll()
 	require.NoError(t, err)
-	mdmDeviceB := mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)
+	mdmDeviceB := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)
 	err = mdmDeviceB.Enroll()
 	require.NoError(t, err)
 
@@ -2010,7 +2010,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 func (s *integrationMDMTestSuite) TestDeviceMultipleAuthMessages() {
 	t := s.T()
 
-	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
@@ -2077,7 +2077,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	t := s.T()
 
 	// Enroll a device into MDM.
-	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
@@ -3414,7 +3414,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 		// always receive the "no team" profiles on mdm enrollment since it would
 		// not be part of any team yet (team assignment is done when it enrolls
 		// with orbit).
-		mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+		mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 			SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 			SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 			MDMURL:        s.server.URL + apple_mdm.MDMPath,
@@ -3933,7 +3933,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	unenrolledHost := createHostAndDeviceToken(t, s.ds, "unused")
 
 	// Create device enrolled in MDM but not enrolled via osquery.
-	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
@@ -4315,7 +4315,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	type deviceWithResponse struct {
 		bootstrapResponse string
-		device            *mdmtest.TestMDMClient
+		device            *mdmtest.TestAppleMDMClient
 	}
 
 	// Note: The responses specified here are not a 1:1 mapping of the possible responses specified
@@ -4329,30 +4329,30 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	// - Error means that the device will enroll and fail to install the bp
 	// - Offline means that the device will enroll but won't acknowledge nor fail the bp request
 	// - Pending means that the device won't enroll at all
-	mdmEnrollInfo := mdmtest.EnrollInfo{
+	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	}
 	noTeamDevices := []deviceWithResponse{
-		{"Acknowledge", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Acknowledge", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Acknowledge", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Error", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Offline", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Offline", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Pending", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Pending", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
+		{"Acknowledge", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Acknowledge", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Acknowledge", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Error", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Offline", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Offline", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Pending", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Pending", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
 	}
 
 	teamDevices := []deviceWithResponse{
-		{"Acknowledge", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Acknowledge", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Error", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Error", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Error", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Offline", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Pending", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
+		{"Acknowledge", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Acknowledge", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Error", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Error", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Error", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Offline", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Pending", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
 	}
 
 	expectedSerialsByTeamAndStatus := make(map[uint]map[fleet.MDMBootstrapPackageStatus][]string)
@@ -5599,7 +5599,7 @@ func (s *integrationMDMTestSuite) setTokenForTest(t *testing.T, email, password 
 func (s *integrationMDMTestSuite) TestSSO() {
 	t := s.T()
 
-	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 	})
 	var lastSubmittedProfile *godep.Profile
@@ -6256,7 +6256,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	require.Empty(t, resp.NudgeConfig)
 
 	// turn on MDM features
-	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
@@ -6311,7 +6311,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 	// create a new host, still receives the global config
 	h2 := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
-	mdmDevice = mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+	mdmDevice = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
@@ -6491,7 +6491,7 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithDeviceToken() {
 	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Preparing the GetPolicies Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
+	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
 	require.NoError(t, err)
 
 	requestBytes, err := s.newGetPoliciesMsg(true, encodedBinToken)
@@ -6564,7 +6564,7 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithInvalidUUID() {
 	require.NoError(t, err)
 
 	// Preparing the GetPolicies Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, "not_exists")
+	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, "not_exists")
 	require.NoError(t, err)
 
 	requestBytes, err := s.newGetPoliciesMsg(true, encodedBinToken)
@@ -6597,7 +6597,7 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
 	linuxHost := createOrbitEnrolledHost(t, "linux", "h1", s.ds)
 
 	// Preparing the GetPolicies Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *linuxHost.OrbitNodeKey)
+	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *linuxHost.OrbitNodeKey)
 	require.NoError(t, err)
 
 	requestBytes, err := s.newGetPoliciesMsg(true, encodedBinToken)
@@ -6631,7 +6631,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	_ = s.ds.MDMWindowsDeleteEnrolledDevice(context.Background(), windowsHost.UUID)
 
 	// Preparing the RequestSecurityToken Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
+	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
 	require.NoError(t, err)
 
 	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, false)
@@ -6717,7 +6717,7 @@ func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMiss
 	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Preparing the RequestSecurityToken Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
+	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
 	require.NoError(t, err)
 
 	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, true)
@@ -6794,6 +6794,15 @@ func (s *integrationMDMTestSuite) TestValidGetTOC() {
 	require.Contains(t, resTOCcontent, "Microsoft.AAD.BrokerPlugin")
 	require.Contains(t, resTOCcontent, "IsAccepted=true")
 	require.Contains(t, resTOCcontent, "OpaqueBlob=")
+}
+
+func (s *integrationMDMTestSuite) TestWindowsMDM() {
+	t := s.T()
+	orbitHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
+	d := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *orbitHost.OrbitNodeKey)
+	err := d.Enroll()
+	require.NoError(t, err)
+	fmt.Println(d)
 }
 
 func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
