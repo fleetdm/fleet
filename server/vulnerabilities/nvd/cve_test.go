@@ -279,9 +279,12 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		safeDS := &threadSafeDSMock{Store: ds}
 
 		softwareCPEs := []fleet.SoftwareCPE{
-			{CPE: "cpe:2.3:a:google:chrome:-:*:*:*:*:*:*:*", ID: 1, SoftwareID: 1},
-			{CPE: "cpe:2.3:a:mozilla:firefox:-:*:*:*:*:*:*:*", ID: 2, SoftwareID: 2},
-			{CPE: "cpe:2.3:a:haxx:curl:-:*:*:*:*:*:*:*", ID: 3, SoftwareID: 3},
+			{CPE: "cpe:2.3:a:google:chrome:*:*:*:*:*:*:*:*", ID: 1, SoftwareID: 1},
+			{CPE: "cpe:2.3:a:mozilla:firefox:*:*:*:*:*:*:*:*", ID: 2, SoftwareID: 2},
+			{CPE: "cpe:2.3:a:haxx:curl:*:*:*:*:*:*:*:*", ID: 3, SoftwareID: 3},
+		}
+		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+			return nil
 		}
 		ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 			return softwareCPEs, nil
@@ -295,6 +298,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 		byCPE := make(map[uint]int)
 		for _, cpe := range recent {
+			fmt.Printf("WTF: %+v\n", cpe)
 			byCPE[cpe.Affected()]++
 		}
 
