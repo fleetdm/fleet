@@ -650,4 +650,8 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaignBadRequest() {
 		Selected: fleet.HostTargets{HostIDs: []uint{host.ID}},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusForbidden, &createResp)
+
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	appCfg = fleet.AppConfig{ServerSettings: fleet.ServerSettings{LiveQueryDisabled: false, ServerURL: acResp.ServerSettings.ServerURL}, OrgInfo: fleet.OrgInfo{OrgName: acResp.OrgInfo.OrgName}}
+	s.DoRaw("PATCH", "/api/latest/fleet/config", jsonMustMarshal(t, appCfg), http.StatusOK)
 }
