@@ -198,8 +198,8 @@ module.exports = {
           return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
         });
 
-        if(!detailedInformationAboutThisHost.host){
-          return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), the response from the Fleet API did not include a host. Response from the Fleet API:`, detailedInformationAboutThisHost)
+        if(!detailedInformationAboutThisHost.host) {
+          throw new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), the response from the Fleet API did not include a host. Response from the Fleet API:`, detailedInformationAboutThisHost)
         }
 
         if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
@@ -288,7 +288,7 @@ module.exports = {
         });
 
         if(!detailedInformationAboutThisHost.host){
-          return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), the response from the Fleet API did not include a host. Response from the Fleet API:`, detailedInformationAboutThisHost)
+          throw new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), the response from the Fleet API did not include a host. Response from the Fleet API:`, detailedInformationAboutThisHost)
         }
 
         if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
