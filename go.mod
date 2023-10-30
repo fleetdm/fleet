@@ -18,6 +18,7 @@ require (
 	github.com/briandowns/spinner v1.13.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.2.1
+	github.com/clbanning/mxj v1.8.4
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.2
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
@@ -32,6 +33,7 @@ require (
 	github.com/getlantern/systray v1.2.2-0.20220329111105-6065fda28be8
 	github.com/getsentry/sentry-go v0.18.0
 	github.com/ghodss/yaml v1.0.0
+	github.com/go-ini/ini v1.67.0
 	github.com/go-kit/kit v0.12.0
 	github.com/go-kit/log v0.2.1
 	github.com/go-ole/go-ole v1.2.6
@@ -76,6 +78,7 @@ require (
 	github.com/oschwald/geoip2-golang v1.8.0
 	github.com/osquery/osquery-go v0.0.0-20231006172600-d6f325f636a9
 	github.com/patrickmn/go-cache v2.1.0+incompatible
+	github.com/peterbourgon/ff/v3 v3.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.13.0
 	github.com/quasilyte/go-ruleguard/dsl v0.3.22
@@ -181,7 +184,6 @@ require (
 	github.com/cavaliercoder/go-cpio v0.0.0-20180626203310-925f9528c45e // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/clbanning/mxj v1.8.4 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/dghubble/go-twitter v0.0.0-20210609183100-2fdbf421508e // indirect
 	github.com/dghubble/oauth1 v0.7.0 // indirect
@@ -208,7 +210,6 @@ require (
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.3.1 // indirect
 	github.com/go-git/go-git/v5 v5.4.2 // indirect
-	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
