@@ -116,14 +116,14 @@ const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDisplayConfig
   },
   verifying: {
     statusText: "Verifying",
-    iconName: "success-partial",
+    iconName: "success-outline",
     tooltip: () =>
       "The host acknowledged the MDM command to turn on disk encryption. Fleet is verifying with osquery and retrieving " +
       "the disk encryption key. This may take up to one hour.",
   },
   pending: {
     statusText: "Enforcing (pending)",
-    iconName: "pending-partial",
+    iconName: "pending-outline",
     tooltip: () =>
       "The host will receive the MDM command to turn on disk encryption when the host comes online.",
   },

@@ -114,7 +114,7 @@ const QueryReport = ({
       return (
         <div className={`${baseClass}__count `}>
           <TooltipWrapper
-            tipContent={`Fleet has retained a sample of early results for 
+            tipContent={`Fleet has retained a sample of early results for
             reference. Reporting is paused until existing data is deleted. <br/><br/>
             You can reset this report by updating the query's SQL, or by
             temporarily enabling the <b>discard data</b> setting and disabling it again.`}
@@ -142,7 +142,7 @@ const QueryReport = ({
             return (
               <EmptyTable
                 className={baseClass}
-                iconName="empty-software"
+                graphicName="empty-software"
                 header={"Nothing to report yet"}
                 info={"This query has returned no data so far."}
               />

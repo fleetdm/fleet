@@ -15,6 +15,7 @@ import EmptyHosts from "./EmptyHosts";
 import EmptyTeams from "./EmptyTeams";
 import EmptyPacks from "./EmptyPacks";
 import EmptySchedule from "./EmptySchedule";
+import CollectingResults from "./CollectingResults";
 
 export const GRAPHIC_MAP = {
   // Empty state graphics
@@ -36,6 +37,8 @@ export const GRAPHIC_MAP = {
   "file-pkg": FilePkg,
   "file-p7m": FileP7m,
   "file-pem": FilePem,
+  // Other graphics
+  "collecting-results": CollectingResults,
 };
 
 export type GraphicNames = keyof typeof GRAPHIC_MAP;
