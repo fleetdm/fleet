@@ -6,7 +6,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/crowdstrike/falcon_kernel_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/crowdstrike/falconctl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptsetup"
-	"github.com/kolide/launcher/pkg/osquery/tables/gsettings"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/gsettings"
 	"github.com/kolide/launcher/pkg/osquery/tables/xfconf"
 	"github.com/kolide/launcher/pkg/osquery/tables/xrdb"
 	"github.com/kolide/launcher/pkg/osquery/tables/zfs"
