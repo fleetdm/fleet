@@ -272,8 +272,8 @@ func checkCVEs(
 							}
 						}
 
-						// For chrome/firefox extensions we want only want to match vulnerabilities
-						// that are reported explicitly for target_sw == "chrome" and target_sw = "firefox".
+						// For chrome/firefox extensions we only want to match vulnerabilities
+						// that are reported explicitly for target_sw == "chrome" or target_sw = "firefox".
 						//
 						// Why? In many occassions the NVD dataset reports vulnerabilities in client applications
 						// with target_sw == "*", meaning the client application is vulnerable on all operating systems.
