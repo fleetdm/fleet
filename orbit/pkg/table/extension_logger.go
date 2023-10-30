@@ -31,7 +31,7 @@ func (l *Logger) SetLevelKey(key interface{}) *Logger {
 }
 
 // NewKolideLogger returns the Logger struct.
-func NewKolideLogger() *Logger {
+func NewOsqueryLogger() *Logger {
 	// Return a Logger struct with our global logger, and use the existing global config for the log level.
 	return &Logger{log.Logger}
 }

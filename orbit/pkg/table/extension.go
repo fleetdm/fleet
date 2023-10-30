@@ -47,8 +47,8 @@ type Extension interface {
 // Opt allows configuring a Runner.
 type Opt func(*Runner)
 
-// Logger for Kolide tables
-var kolideLogger *Logger
+// Logger for osquery tables
+var osqueryLogger *Logger
 
 // WithExtension registers the given Extension on the Runner.
 func WithExtension(t Extension) Opt {
@@ -70,7 +70,7 @@ func NewRunner(socket string, opts ...Opt) *Runner {
 func (r *Runner) Execute() error {
 	log.Debug().Msg("start osquery extension")
 
-	kolideLogger = NewKolideLogger()
+	osqueryLogger = NewOsqueryLogger()
 
 	if err := waitExtensionSocket(r.socket, 1*time.Minute); err != nil {
 		return err
@@ -136,15 +136,15 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
 
 		// Kolide extensions.
-		firefox_preferences.TablePlugin(kolideLogger),
+		firefox_preferences.TablePlugin(osqueryLogger),
 		// kolide_dev_table_tooling table allows running arbitrary commands. As of 2023/10/24, only 'echo' and 'cb_repcli' are supported.
 		// RepCLI info: https://community.carbonblack.com/t5/Knowledge-Base/Carbon-Black-Cloud-What-is-the-RepCLI-Utility/ta-p/61991
-		dev_table_tooling.TablePlugin(kolideLogger),
-		cryptoinfotable.TablePlugin(kolideLogger),
-		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonType),  // table name is "parse_json"
-		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonlType), // table name is "parse_jsonl"
-		dataflattentable.TablePlugin(kolideLogger, dataflattentable.XmlType),   // table name is "parse_xml"
-		dataflattentable.TablePlugin(kolideLogger, dataflattentable.IniType),   // table name is "parse_ini"
+		dev_table_tooling.TablePlugin(osqueryLogger),
+		cryptoinfotable.TablePlugin(osqueryLogger),
+		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.JsonType),  // table name is "parse_json"
+		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.JsonlType), // table name is "parse_jsonl"
+		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.XmlType),   // table name is "parse_xml"
+		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.IniType),   // table name is "parse_ini"
 	}
 	return plugins
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/corestorage"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dscl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filevault_prk"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filevault_status"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/find_cmd"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmware_eficheck_integrity_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/nvram_info"
@@ -23,7 +24,6 @@ import (
 	"github.com/kolide/launcher/pkg/osquery/tables/airport"
 	"github.com/kolide/launcher/pkg/osquery/tables/apple_silicon_security_policy"
 	"github.com/kolide/launcher/pkg/osquery/tables/dataflattentable"
-	"github.com/kolide/launcher/pkg/osquery/tables/filevault"
 	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
 	"github.com/kolide/launcher/pkg/osquery/tables/ioreg"
 	"github.com/kolide/launcher/pkg/osquery/tables/mdmclient"
@@ -73,22 +73,22 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
 
 		// Kolide tables
-		filevault.TablePlugin(kolideLogger),
+		filevault_status.TablePlugin(osqueryLogger),
 		// firmwarepasswd table. Only returns valid data on a Mac with an Intel processor. Background: https://support.apple.com/en-us/HT204455
-		firmwarepasswd.TablePlugin(kolideLogger),
-		ioreg.TablePlugin(kolideLogger),
-		profiles.TablePlugin(kolideLogger),
-		airport.TablePlugin(kolideLogger),
-		firmwarepasswd.TablePlugin(kolideLogger),
-		apple_silicon_security_policy.TablePlugin(kolideLogger),
-		mdmclient.TablePlugin(kolideLogger),
-		systemprofiler.TablePlugin(kolideLogger), // table name is "system_profiler"
+		firmwarepasswd.TablePlugin(osqueryLogger),
+		ioreg.TablePlugin(osqueryLogger),
+		profiles.TablePlugin(osqueryLogger),
+		airport.TablePlugin(osqueryLogger),
+		firmwarepasswd.TablePlugin(osqueryLogger),
+		apple_silicon_security_policy.TablePlugin(osqueryLogger),
+		mdmclient.TablePlugin(osqueryLogger),
+		systemprofiler.TablePlugin(osqueryLogger), // table name is "system_profiler"
 		// Table for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
-		dataflattentable.TablePlugin(kolideLogger, dataflattentable.PlistType), // table name is "parse_plist"
-		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonType),  // table name is "parse_json"
-		dataflattentable.TablePlugin(kolideLogger, dataflattentable.JsonlType), // table name is "parse_jsonl"
-		dataflattentable.TablePlugin(kolideLogger, dataflattentable.XmlType),   // table name is "parse_xml"
-		dataflattentable.TablePlugin(kolideLogger, dataflattentable.IniType),   // table name is "parse_ini"
+		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.PlistType), // table name is "parse_plist"
+		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.JsonType),  // table name is "parse_json"
+		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.JsonlType), // table name is "parse_jsonl"
+		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.XmlType),   // table name is "parse_xml"
+		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.IniType),   // table name is "parse_ini"
 
 	}
 
