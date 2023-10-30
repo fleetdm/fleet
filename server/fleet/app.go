@@ -237,6 +237,20 @@ type WindowsUpdates struct {
 	GracePeriodDays optjson.Int `json:"grace_period_days"`
 }
 
+// Equal returns true if the values of the fields of w and other are equal. It
+// returns false otherwise. If e.g. w.DeadlineDays.Value == 0 but its .Valid
+// field == false (i.e. it is null), it is not equal to
+// other.DeadlineDays.Value == 0 with its .Valid field == true.
+func (w WindowsUpdates) Equal(other WindowsUpdates) bool {
+	if w.DeadlineDays.Value != other.DeadlineDays.Value || w.DeadlineDays.Valid != other.DeadlineDays.Valid {
+		return false
+	}
+	if w.GracePeriodDays.Value != other.GracePeriodDays.Value || w.GracePeriodDays.Valid != other.GracePeriodDays.Valid {
+		return false
+	}
+	return true
+}
+
 func (w WindowsUpdates) Validate() error {
 	const (
 		minDeadline    = 0

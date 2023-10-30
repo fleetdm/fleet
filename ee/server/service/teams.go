@@ -137,7 +137,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 
-	var macOSMinVersionUpdated, macOSDiskEncryptionUpdated, macOSEnableEndUserAuthUpdated bool
+	var macOSMinVersionUpdated, windowsUpdatesUpdated, macOSDiskEncryptionUpdated, macOSEnableEndUserAuthUpdated bool
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
 			if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
@@ -147,6 +147,16 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates.MinimumVersion.Value != payload.MDM.MacOSUpdates.MinimumVersion.Value ||
 					team.Config.MDM.MacOSUpdates.Deadline.Value != payload.MDM.MacOSUpdates.Deadline.Value
 				team.Config.MDM.MacOSUpdates = *payload.MDM.MacOSUpdates
+			}
+		}
+
+		if payload.MDM.WindowsUpdates != nil {
+			if err := payload.MDM.WindowsUpdates.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("windows_updates", err.Error())
+			}
+			if payload.MDM.WindowsUpdates.DeadlineDays.Set || payload.MDM.WindowsUpdates.GracePeriodDays.Set {
+				windowsUpdatesUpdated = team.Config.MDM.WindowsUpdates.Equal(*payload.MDM.WindowsUpdates)
+				team.Config.MDM.WindowsUpdates = *payload.MDM.WindowsUpdates
 			}
 		}
 
@@ -222,6 +232,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos min version edited")
 		}
+	}
+	if windowsUpdatesUpdated {
+		// TODO(mna): create edited windows updates	activity
 	}
 	if macOSDiskEncryptionUpdated {
 		var act fleet.ActivityDetails

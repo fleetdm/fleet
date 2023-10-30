@@ -675,13 +675,8 @@ func (svc *Service) validateMDM(
 	}
 
 	// WindowsUpdates
-	updatingWindowsDeadline := mdm.WindowsUpdates.DeadlineDays.Set &&
-		(mdm.WindowsUpdates.DeadlineDays.Value != oldMdm.WindowsUpdates.DeadlineDays.Value ||
-			mdm.WindowsUpdates.DeadlineDays.Valid != oldMdm.WindowsUpdates.DeadlineDays.Valid)
-	updatingWindowsGrace := mdm.WindowsUpdates.GracePeriodDays.Set &&
-		(mdm.WindowsUpdates.GracePeriodDays.Value != oldMdm.WindowsUpdates.GracePeriodDays.Value ||
-			mdm.WindowsUpdates.GracePeriodDays.Valid != oldMdm.WindowsUpdates.GracePeriodDays.Valid)
-	if updatingWindowsDeadline || updatingWindowsGrace {
+	updatingWindowsUpdates := !mdm.WindowsUpdates.Equal(oldMdm.WindowsUpdates)
+	if updatingWindowsUpdates {
 		// TODO: Should we validate MDM configured on here too?
 
 		if !license.IsPremium() {
