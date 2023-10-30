@@ -1037,7 +1037,7 @@ type Datastore interface {
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
 
-	// MDMWindowsInsertCommandForDevices inserts a single command that may
+	// MDMWindowsInsertCommandForHosts inserts a single command that may
 	// target multiple hosts identified by their UUID, enqueuing one command
 	// for each device.
 	MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
