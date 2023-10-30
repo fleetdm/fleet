@@ -441,6 +441,16 @@
       productCategories: [Device management]
 - categoryName: Inventory management
   features:
+    - industryName: Software inventory
+      tier: Free
+      waysToUse:
+        - description: Implement software inventory recommendations from the SANS 20 / CIS 18.
+          moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
+    - industryName: Hardware inventory
+      tier: Free
+      waysToUse:
+        - description: Implement hardware and infrastructure inventory recommendations from the SANS 20 / CIS 18.
+          moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
     - industryName: Device inventory dashboard
       tier: Free
     - industryName: Browse installed software packages
