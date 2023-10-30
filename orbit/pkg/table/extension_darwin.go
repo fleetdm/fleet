@@ -4,7 +4,6 @@ package table
 
 import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/airport"
-	appicons "github.com/fleetdm/fleet/v4/orbit/pkg/table/app-icons"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/apfs"
@@ -75,7 +74,6 @@ func PlatformTables() []osquery.OsqueryPlugin {
 
 		// Kolide tables
 		airport.TablePlugin(osqueryLogger),
-		appicons.AppIcons(),
 		apple_silicon_security_policy.TablePlugin(osqueryLogger),
 		filevault_status.TablePlugin(osqueryLogger),
 		// firmwarepasswd table. Only returns valid data on a Mac with an Intel processor. Background: https://support.apple.com/en-us/HT204455
