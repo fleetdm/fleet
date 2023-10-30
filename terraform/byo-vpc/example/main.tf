@@ -17,7 +17,7 @@ provider "aws" {
 }
 
 locals {
-  fleet_image = "fleetdm/fleet:v4.37.0"
+  fleet_image = "fleetdm/fleet:v4.39.0"
 }
 
 resource "random_pet" "main" {}

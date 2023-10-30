@@ -144,8 +144,9 @@ func main() {
 			Usage: "Get Orbit version",
 		},
 		&cli.StringFlag{
-			Name:  "log-file",
-			Usage: "Log to this file path in addition to stderr",
+			Name:    "log-file",
+			Usage:   "Log to this file path in addition to stderr",
+			EnvVars: []string{"ORBIT_LOG_FILE"},
 		},
 		&cli.BoolFlag{
 			Name:    "fleet-desktop",
@@ -346,7 +347,7 @@ func main() {
 		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
 
 		// sofwareupdated is a macOS daemon that automatically updates Apple software.
-		if !c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
+		if c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
 			log.Warn().Msg("fleetd no longer automatically kickstarts softwareupdated. The --disable-kickstart-softwareupdated flag, which was previously used to disable this behavior, has been deprecated and will be removed in a future version")
 		}
 
@@ -622,6 +623,7 @@ func main() {
 		const (
 			renewEnrollmentProfileCommandFrequency = time.Hour
 			windowsMDMEnrollmentCommandFrequency   = time.Hour
+			windowsMDMBitlockerCommandFrequency    = time.Hour
 		)
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL)
 		configFetcher = update.ApplyRunScriptsConfigFetcherMiddleware(configFetcher, c.Bool("enable-scripts"), orbitClient)
@@ -638,6 +640,7 @@ func main() {
 			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
 		case "windows":
 			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient)
+			configFetcher = update.ApplyWindowsMDMBitlockerFetcherMiddleware(configFetcher, windowsMDMBitlockerCommandFrequency, orbitClient)
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
@@ -719,6 +722,9 @@ func main() {
 				return fmt.Errorf("writing token: %w", err)
 			}
 
+			// Note that the deviceClient used by orbit must not define a retry on
+			// invalid token, because its goal is to detect invalid tokens when
+			// making requests with this client.
 			deviceClient, err := service.NewDeviceClient(
 				fleetURL,
 				c.Bool("insecure"),
@@ -761,18 +767,31 @@ func main() {
 				for {
 					select {
 					case <-rotationTicker.C:
+						rotationTicker.Reset(rotationDuration)
+
 						log.Debug().Msgf("checking if token has changed or expired, cached mtime: %s", trw.GetMtime())
 						hasChanged, err := trw.HasChanged()
 						if err != nil {
 							log.Error().Err(err).Msg("error checking if token has changed")
 						}
-						if hasChanged || trw.HasExpired() {
+
+						exp, remain := trw.HasExpired()
+
+						// rotate if the token file has been modified, if the token is
+						// expired or if it is very close to expire.
+						if hasChanged || exp || remain <= time.Second {
 							log.Info().Msg("token TTL expired, rotating token")
 
 							if err := trw.Rotate(); err != nil {
 								log.Error().Err(err).Msg("error rotating token")
 							}
+						} else if remain > 0 && remain < rotationDuration {
+							// check again when the token will expire, which will happen
+							// before the next rotation check
+							rotationTicker.Reset(remain)
+							log.Debug().Msgf("token will expire soon, checking again in: %s", remain)
 						}
+
 					case <-remoteCheckTicker.C:
 						log.Debug().Msgf("initiating remote token check after %s", remoteCheckDuration)
 						if err := deviceClient.CheckToken(trw.GetCached()); err != nil {

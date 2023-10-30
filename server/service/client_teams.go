@@ -82,3 +82,15 @@ func (c *Client) ApplyPolicies(specs []*fleet.PolicySpec) error {
 	var responseBody applyPolicySpecsResponse
 	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
+
+// ApplyTeamScripts sends the list of scripts to be applied for the specified
+// team.
+func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, opts fleet.ApplySpecOptions) error {
+	verb, path := "POST", "/api/latest/fleet/scripts/batch"
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return err
+	}
+	query.Add("team_name", tmName)
+	return c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, nil, query.Encode())
+}

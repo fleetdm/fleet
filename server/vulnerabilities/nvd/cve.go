@@ -21,6 +21,7 @@ import (
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -206,11 +207,11 @@ func checkCVEs(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	softwareCPEs []softwareCPEWithNVDMeta,
-	file string,
+	jsonFile string,
 	collectVulns bool,
 	knownNVDBugRules CPEMatchingRules,
 ) ([]fleet.SoftwareVulnerability, error) {
-	dict, err := cvefeed.LoadJSONDictionary(file)
+	dict, err := cvefeed.LoadJSONDictionary(jsonFile)
 	if err != nil {
 		return nil, err
 	}
@@ -225,20 +226,22 @@ func checkCVEs(
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
+	logger = log.With(logger, "json_file", jsonFile)
+
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
 		goRoutineKey := i
 		go func() {
 			defer wg.Done()
 
-			logKey := fmt.Sprintf("cpe-processing-%d", goRoutineKey)
-			level.Debug(logger).Log(logKey, "start")
+			logger := log.With(logger, "routine", goRoutineKey)
+			level.Debug(logger).Log("msg", "start")
 
 			for {
 				select {
 				case softwareCPE, more := <-softwareCPECh:
 					if !more {
-						level.Debug(logger).Log(logKey, "done")
+						level.Debug(logger).Log("msg", "done")
 						return
 					}
 
@@ -258,7 +261,7 @@ func checkCVEs(
 
 						resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), softwareCPE.meta, dict, logger)
 						if err != nil {
-							level.Debug(logger).Log(logKey, "error", "err", err)
+							level.Debug(logger).Log("err", err)
 						}
 
 						vuln := fleet.SoftwareVulnerability{
@@ -273,20 +276,20 @@ func checkCVEs(
 
 					}
 				case <-ctx.Done():
-					level.Debug(logger).Log(logKey, "quitting")
+					level.Debug(logger).Log("msg", "quitting")
 					return
 				}
 			}
 		}()
 	}
 
-	level.Debug(logger).Log("pushing cpes", "start")
+	level.Debug(logger).Log("msg", "pushing cpes")
 
 	for _, cpe := range softwareCPEs {
 		softwareCPECh <- cpe
 	}
 	close(softwareCPECh)
-	level.Debug(logger).Log("pushing cpes", "done")
+	level.Debug(logger).Log("msg", "cpes pushed")
 	wg.Wait()
 
 	return foundVulns, nil

@@ -6,9 +6,9 @@
         <div class="d-flex flex-row justify-content-center align-items-start">
           <%/* Hero text */%>
           <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
-            <h4>Open-source device management</h4>
-            <h1>Lighter than air</h1>
-            <p>Lightweight management for laptops and servers.<br class="d-sm-block d-none"> Designed for APIs, GitOps, webhooks, YAML, and humans.</p>
+            <h4>For teams with thousands of computers</h4>
+            <h1>Untangle your endpoints</h1>
+            <p>Replace the sprawl you inherited with open-source code that works the way you want.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
               <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
               <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
@@ -19,74 +19,119 @@
     </div>
   </div>
   <%/* Row of logos */%>
-  <div purpose="hero-logos" style="max-width: 1080px;" class="mx-auto d-flex flex-md-row flex-column align-items-center justify-content-center">
-    <div purpose="logo-column" class="flex-row d-flex justify-content-between align-items-center mb-4 mb-md-0">
-      <a href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery"><img purpose="snowflake-logo" class="ml-md-auto" alt="Snowflake logo" src="/images/logo-snowflake-167x40@2x.png"></a>
-      <a href="#community"><img purpose="wayfair-logo" alt="Wayfair logo" src="/images/logo-wayfair-color-147x32@2x.png"></a>
-      <a class="d-block" href="#community"><img purpose="uber-logo" alt="Uber logo" class="" src="/images/logo-uber-dark-84x30@2x.png"></a>
+  <div purpose="hero-logos" class="mx-auto d-flex flex-column align-items-center justify-content-center">
+    <%/* >991px logos all on one row */%>
+    <div purpose="logo-column" class="w-100 flex-row d-lg-flex d-none justify-content-between align-items-center">
+      <a href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery"><img purpose="snowflake-logo" class="ml-auto" alt="Snowflake logo" src="/images/logo-snowflake-117x28@2x.png"></a>
+      <a href="#community"><img purpose="wayfair-logo" alt="Wayfair logo" src="/images/logo-wayfair-110x24@2x.png"></a>
+      <a class="d-block" href="#community"><img purpose="uber-logo" alt="Uber logo" class="" src="/images/logo-uber-70x24@2x.png"></a>
+      <a class="d-block" href="#community"><img purpose="fastly-logo" alt="Fastly logo" class="" src="/images/logo-fastly-75x30@2x.png"></a>
+      <a href="#community"><img purpose="atlassian-logo" alt="Atlassian logo" src="/images/logo-atlassian-140x18@2x.png"></a>
+      <a href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="gusto-logo" alt="Gusto logo" src="/images/logo-gusto-64x24@2x.png"></a>
+      <a href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="segment-logo" alt="Segment logo" class="mr-auto" src="/images/logo-segment-112x24@2x.png"></a>
     </div>
-    <div purpose="logo-column" class="d-flex flex-row justify-content-between align-items-start align-items-md-center">
-      <a href="#community"><img purpose="atlassian-logo" alt="Atlassian logo" src="/images/logo-atlassian-194x24@2x.png"></a>
-      <a href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="segment-logo" alt="Segment logo" class="mr-md-auto" src="/images/logo-segment-139x30@2x.png"></a>
+    <%/* >576px logos - two rows */%>
+    <div purpose="logo-column" class="d-sm-flex d-none d-lg-none flex-row justify-content-between align-items-start align-items-md-center">
+      <a href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery"><img purpose="snowflake-logo" class="ml-md-auto" alt="Snowflake logo" src="/images/logo-snowflake-117x28@2x.png"></a>
+      <a href="#community"><img purpose="wayfair-logo" alt="Wayfair logo" src="/images/logo-wayfair-110x24@2x.png"></a>
+      <a class="d-block" href="#community"><img purpose="uber-logo" alt="Uber logo" class="" src="/images/logo-uber-70x24@2x.png"></a>
+      <a class="d-block" href="#community"><img purpose="fastly-logo" alt="Fastly logo" class="" src="/images/logo-fastly-75x30@2x.png"></a>
     </div>
-    <div purpose="logo-column" class="d-flex flex-row justify-content-between align-items-center">
-      <a purpose="bottom-row-uber-logo" href="#community" target="_blank"><img style="height: 20px; width: auto" alt="Uber logo" src="/images/logo-uber-dark-84x30@2x.png"></a>
+
+    <div purpose="logo-column" class="d-sm-flex d-none d-lg-none flex-row justify-content-between align-items-center mb-0">
+      <a href="#community"><img purpose="atlassian-logo" alt="Atlassian logo" src="/images/logo-atlassian-140x18@2x.png"></a>
+      <a href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="gusto-logo" alt="Gusto logo" src="/images/logo-gusto-64x24@2x.png"></a>
+      <a href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="segment-logo" alt="Segment logo" class="mr-md-auto" src="/images/logo-segment-112x24@2x.png"></a>
+    </div>
+
+    <%/* <576px logos - three rows */%>
+    <div purpose="logo-column" class="d-flex d-sm-none flex-row justify-content-center align-items-center">
+      <a class="mr-3" href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery"><img purpose="snowflake-logo" alt="Snowflake logo" src="/images/logo-snowflake-117x28@2x.png"></a>
+      <a class="ml-3" href="#community"><img purpose="wayfair-logo" alt="Wayfair logo" src="/images/logo-wayfair-110x24@2x.png"></a>
+    </div>
+    <div purpose="logo-column" class="d-flex d-sm-none flex-row justify-content-between align-items-center">
+      <a class="d-block" href="#community"><img class="mx-0" purpose="uber-logo" alt="Uber logo" src="/images/logo-uber-70x24@2x.png"></a>
+      <a class="d-block" href="#community"><img class="mx-auto" purpose="fastly-logo" alt="Fastly logo" src="/images/logo-fastly-75x30@2x.png"></a>
+      <a href="#community"><img class="mx-0" purpose="atlassian-logo" alt="Atlassian logo" src="/images/logo-atlassian-140x18@2x.png"></a>
+    </div>
+    <div purpose="logo-column" class="d-flex d-sm-none flex-row justify-content-center align-items-center mb-0">
+      <a class="mr-3" href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="gusto-logo" alt="Gusto logo" src="/images/logo-gusto-64x24@2x.png"></a>
+      <a class="ml-3" href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="segment-logo" alt="Segment logo" class="mr-md-auto" src="/images/logo-segment-112x24@2x.png"></a>
     </div>
   </div>
   <%/* Homepage content */%>
   <div purpose="homepage-content" class="container">
+    <%/* Testimonial videos */%>
+    <div purpose="testimonials" class="d-flex flex-md-row flex-column justify-content-center card-deck">
+      <div purpose="testimonial" class="d-flex flex-xl-row flex-column-reverse card" @click="clickOpenVideoModal('austin-anderson')">
+        <div purpose="testimonial-text" class="card-body">
+          <img alt="an opening quotation mark" style="width:18px; margin-bottom: 16px;" src="/images/quote-icon-18x12@2x.png">
+          <p purpose="testimonial-quote">We can build it exactly the way we want it. Which is just not possible on other platforms.</p>
+          <p class="mb-0"><strong>Austin Anderson</strong></p>
+          <p>Cybersecurity team senior manager</p>
+        </div>
+        <div purpose="testimonial-video" class="card-title">
+        </div>
+      </div>
+      <div purpose="testimonial" class="d-flex flex-xl-row flex-column-reverse card" @click="clickOpenVideoModal('nick-fohs')">
+        <div purpose="testimonial-text" class="card-body">
+          <img alt="an opening quotation mark" style="width:18px; margin-bottom: 16px;" src="/images/quote-icon-18x12@2x.png">
+          <p purpose="testimonial-quote">Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners.</p>
+          <p class="mb-0"><strong>Nick Fohs</strong></p>
+          <p>Systems and infrastructure manager</p>
+        </div>
+        <div purpose="testimonial-video" class="card-title">
+        </div>
+      </div>
+    </div>
+
+    <div purpose="category-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
+      <div purpose="category-switch-option" class="all" :class="[selectedCategory === 'endpoint-ops' ? 'selected' : '']" @click="selectedCategory = 'endpoint-ops'">Endpoint ops</div>
+      <div purpose="category-switch-option" class="security" :class="[selectedCategory === 'device-management' ? 'selected' : '']" @click="selectedCategory = 'device-management'">Device management</div>
+      <div purpose="category-switch-option" class="it" :class="[selectedCategory === 'vulnerability-management' ? 'selected' : '']" @click="selectedCategory = 'vulnerability-management'">Vuln<span class="d-inline d-md-none d-lg-inline">erability</span> management</div>
+      <div purpose="category-tier-switch" :class="selectedCategory+'-selected'"></div>
+    </div>
+
+    <%/* Endpoint ops block */%>
+    <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" :class="[selectedCategory === 'endpoint-ops' ? ' show' : 'hidden']">
+      <div purpose="category-text-block" class="d-flex flex-column">
+        <h3>Focus on data, not vendors</h3>
+        <p>Use a consistent interface to deploy, update, and manage thousands of workstations and servers with open standards and data.</p>
+        <a purpose="animated-arrow-button-red" href="/osquery-management">More about endpoint ops</a>
+      </div>
+      <div purpose="category-image">
+        <img alt="Endpoint ops" purpose="endpoint-ops-image" src="/images/homepage-endpoint-ops-617x440@2x.png">
+      </div>
+    </div>
 
     <%/* Device management block */%>
-    <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
-      <div purpose="platform-left-text-block" class="d-flex flex-column">
-        <h3>GitOps-driven MDM</h3>
+    <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" :class="[selectedCategory === 'device-management' ? 'show' : 'hidden']">
+      <div purpose="category-text-block" class="d-flex flex-column">
+        <h3>Manage devices like code</h3>
         <p>Automate the management of your fleet of devices with increased visibility and control, improved stability, all while automating configuration deployments using GitOps.</p>
-        <a purpose="animated-arrow-button-red" href="/device-management">More about device management</a>
+        <a purpose="animated-arrow-button-red" class="text-nowrap" href="/device-management">More about device management</a>
       </div>
-      <div purpose="platform-image">
-        <img alt="GitOps-driven MDM" src="/images/homepage-fleet-ui-536x389@2x.png">
+      <div purpose="category-image">
+        <img alt="GitOps-driven MDM" purpose="device-management-image" src="/images/homepage-device-management-617x440@2x.png">
       </div>
     </div>
 
     <%/* Vulnerability management block */%>
-    <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
-      <div purpose="platform-image">
-        <img alt="Vulnerability management" src="/images/homepage-vulnerability-management-530x458@2x.png">
+    <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" :class="[selectedCategory === 'vulnerability-management' ? 'show' : 'hidden']">
+      <div purpose="category-text-block" class="d-flex flex-column">
+        <h3>Build the security platform your team actually wants</h3>
+        <p>Monitor vulnerabilities in operating systems, software packages, and browser plugins. Show how quickly CVEs are resolved, and which teams need extra help.</p>
+        <a purpose="lg-animated-arrow-button-red" href="/vulnerability-management">More about vulnerability<br> management</a>
       </div>
-      <div purpose="platform-right-text-block" class="d-flex flex-column">
-        <h3>Know what’s going on with your computers</h3>
-        <p>Monitor vulnerabilities in software packages, operating systems, and browser plugins. Show how quickly CVEs are resolved, and which teams need extra help.</p>
-        <a purpose="animated-arrow-button-red" href="/vulnerability-management">More about vulnerability management</a>
-      </div>
-    </div>
-
-    <%/* Security compliance block */%>
-    <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
-      <div purpose="platform-left-text-block" class="d-flex flex-column">
-        <h3>Simplify security compliance</h3>
-        <p>Policies make it easy to keep your devices compliant with your organization’s custom rules and common benchmarks like CIS. Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.</p>
-        <a purpose="animated-arrow-button-red" href="/compliance">More about security compliance</a>
-      </div>
-      <div purpose="platform-image">
-        <img alt="Security compliance" src="/images/homepage-security-compliance-520x337@2x.png">
+      <div purpose="category-image">
+        <img alt="Vulnerability management" purpose="vulnerability-management-image" src="/images/homepage-vulnerability-management-617x440@2x.png">
       </div>
     </div>
 
-    <%/* Osquery management block */%>
-    <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-center mx-auto align-items-center">
-      <div purpose="platform-image">
-        <img alt="Osquery management" src="/images/homepage-osquery-management-543x371@2x.png">
-      </div>
-      <div purpose="platform-right-text-block" class="d-flex flex-column">
-        <h3>Deploy osquery at scale</h3>
-        <p>Fleet provides a centralized management interface for osquery to deploy, update, and manage osquery agents across a thousand or one hundred thousand devices.</p>
-        <a purpose="animated-arrow-button-red" href="/osquery-management">More about osquery management</a>
-      </div>
-    </div>
 
     <%/* Supported platforms */%>
     <div purpose="supported-platforms" class="d-flex flex-column">
-      <h2>Supported platforms</h2>
+      <h2>An open API for every endpoint</h2>
       <div class="card-deck d-flex flex-row flex-wrap justify-content-center mx-auto">
           <div purpose="supported-platform" class="">
             <img alt="Linux" src="/images/homepage-platform-linux-41x48@2x.png">
@@ -175,7 +220,7 @@
     </div>
 
     <div purpose="homepage-text-block" class="text-center mx-auto">
-      <h2>Open through and through</h2>
+      <h2>Open by design</h2>
       <p>Fleet is dedicated to flexibility, accessibility, and clarity. We think everyone can contribute and that tools should be as easy as possible for everyone to understand.</p>
     </div>
 
@@ -184,8 +229,8 @@
       <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-start justify-content-center">
         <div purpose="feature" class="ml-sm-0">
           <img alt="transparency" src="/images/homepage-icon-transparency-54x64@2x.png" class="mx-auto mx-sm-0">
-          <h5>Transparency: user-first</h5>
-          <p>Fleet champions a user-first transparency model with its open-source software, allowing users to see what's being monitored and how. Read more on Fleet’s <a href="/transparency">transparency</a> page. </p>
+          <h5>Scope transparency</h5>
+          <p>Let end users see the source code for exactly <a href="/docs/using-fleet/fleet-desktop">how they are being monitored</a>, and set clear expectations about what is and isn’t acceptable use of work computers.</p>
         </div>
 
         <div purpose="feature">
@@ -267,5 +312,12 @@
     <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-md-flex d-lg-none" src="/images/homepage-cloud-city-banner-md-990x375@2x.png">
     <img alt="A glass city floating on top of fluffy white clouds" class="d-flex d-md-none" src="/images/homepage-cloud-city-banner-sm-375x168@2x.png">
   </div>
+
+  <modal purpose="video-modal" v-if="modal === 'austin-anderson'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/G5Ry_vQPaYc?si=vv0AfRe30yssWWRM&amp;controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>
+  <modal purpose="video-modal" v-if="modal === 'nick-fohs'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/fs5ULAR4e4A?si=pChZBt_sSNj13goP&amp;controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

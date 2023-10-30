@@ -6,6 +6,7 @@ import ChevronLeft from "./ChevronLeft";
 import ChevronRight from "./ChevronRight";
 import ChevronUp from "./ChevronUp";
 import ChevronDown from "./ChevronDown";
+import CollectingResults from "./CollectingResults";
 import Columns from "./Columns";
 import Disable from "./Disable";
 import Close from "./Close";
@@ -63,6 +64,7 @@ export const ICON_MAP = {
   "chevron-up": ChevronUp,
   "chevron-down": ChevronDown,
   check: Check,
+  "collecting-results": CollectingResults,
   columns: Columns,
   disable: Disable,
   close: Close,

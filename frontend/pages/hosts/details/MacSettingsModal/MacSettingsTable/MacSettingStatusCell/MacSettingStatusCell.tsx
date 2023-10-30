@@ -10,7 +10,10 @@ import {
   MacMdmProfileOperationType,
 } from "interfaces/mdm";
 
-import { MacSettingsTableStatusValue } from "../MacSettingsTableConfig";
+import {
+  isMdmProfileStatus,
+  OsSettingsTableStatusValue,
+} from "../MacSettingsTableConfig";
 import TooltipContent, {
   TooltipInnerContentFunc,
   TooltipInnerContentOption,
@@ -26,7 +29,7 @@ type ProfileDisplayOption = {
 } | null;
 
 type OperationTypeOption = Record<
-  MacSettingsTableStatusValue,
+  OsSettingsTableStatusValue,
   ProfileDisplayOption
 >;
 type ProfileDisplayConfig = Record<
@@ -41,8 +44,8 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
       iconName: "pending-outline",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
-          ? "The host will receive the MDM command to install the disk encryption profile when the " +
-            "host comes online."
+          ? "The hosts will receive the MDM command to turn on disk encryption " +
+            "when the hosts come online."
           : "The host will receive the MDM command to install the configuration profile when the " +
             "host comes online.",
     },
@@ -56,8 +59,8 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
       iconName: "success",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
-          ? "The host turned disk encryption on and " +
-            "sent their key to Fleet. Fleet verified with osquery."
+          ? "The host turned disk encryption on and sent the key to Fleet. " +
+            "Fleet verified with osquery."
           : "The host installed the configuration profile. Fleet verified with osquery.",
     },
     verifying: {
@@ -65,8 +68,9 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
       iconName: "success-outline",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
-          ? "The host acknowledged the MDM command to install disk encryption profile. Fleet is " +
-            "verifying with osquery and retrieving the disk encryption key. This may take up to one hour."
+          ? "The host acknowledged the MDM command to turn on disk encryption. " +
+            "Fleet is verifying with osquery and retrieving the disk encryption key. " +
+            "This may take up to one hour."
           : "The host acknowledged the MDM command to install the configuration profile. Fleet is " +
             "verifying with osquery.",
     },
@@ -98,9 +102,41 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
   },
 };
 
+type WindowsDiskEncryptionDisplayConfig = Omit<
+  OperationTypeOption,
+  "action_required"
+>;
+
+const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDisplayConfig = {
+  verified: {
+    statusText: "Verified",
+    iconName: "success",
+    tooltip: () =>
+      "The host turned disk encryption on and sent the key to Fleet. Fleet verified with osquery.",
+  },
+  verifying: {
+    statusText: "Verifying",
+    iconName: "success-partial",
+    tooltip: () =>
+      "The host acknowledged the MDM command to turn on disk encryption. Fleet is verifying with osquery and retrieving " +
+      "the disk encryption key. This may take up to one hour.",
+  },
+  pending: {
+    statusText: "Enforcing (pending)",
+    iconName: "pending-partial",
+    tooltip: () =>
+      "The host will receive the MDM command to turn on disk encryption when the host comes online.",
+  },
+  failed: {
+    statusText: "Failed",
+    iconName: "error",
+    tooltip: null,
+  },
+};
+
 interface IMacSettingStatusCellProps {
-  status: MacSettingsTableStatusValue;
-  operationType: MacMdmProfileOperationType;
+  status: OsSettingsTableStatusValue;
+  operationType: MacMdmProfileOperationType | null;
   profileName: string;
 }
 
@@ -108,8 +144,18 @@ const MacSettingStatusCell = ({
   status,
   operationType,
   profileName = "",
-}: IMacSettingStatusCellProps): JSX.Element => {
-  const diplayOption = PROFILE_DISPLAY_CONFIG[operationType]?.[status];
+}: IMacSettingStatusCellProps) => {
+  let displayOption: ProfileDisplayOption = null;
+
+  // windows hosts do not have an operation type at the moment and their display options are
+  // different than mac hosts.
+  if (!operationType && isMdmProfileStatus(status)) {
+    displayOption = WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG[status];
+  }
+
+  if (operationType) {
+    displayOption = PROFILE_DISPLAY_CONFIG[operationType]?.[status];
+  }
 
   const isDeviceUser = window.location.pathname
     .toLowerCase()
@@ -118,8 +164,8 @@ const MacSettingStatusCell = ({
   const isDiskEncryptionProfile =
     profileName === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME;
 
-  if (diplayOption) {
-    const { statusText, iconName, tooltip } = diplayOption;
+  if (displayOption) {
+    const { statusText, iconName, tooltip } = displayOption;
     const tooltipId = uniqueId();
     return (
       <span className={baseClass}>

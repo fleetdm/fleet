@@ -84,6 +84,7 @@ interface ITableContainerProps {
   customControl?: () => JSX.Element;
   stackControls?: boolean;
   onSelectSingleRow?: (value: Row | IRowProps) => void;
+  /** Use for clientside filtering: Use key global for filtering on any column, or use column id as key */
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;

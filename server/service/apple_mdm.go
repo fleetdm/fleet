@@ -18,6 +18,7 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -609,7 +610,6 @@ func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{
 	}, nil
 }
 
-// QUESTION: workflow for developing new APIs? whats your setup quickly test code working?
 func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
 	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -1026,9 +1026,9 @@ func (svc *Service) EnqueueMDMAppleCommand(
 			if mysqlErr.Number == mysqlerr.ER_NO_REFERENCED_ROW_2 {
 				err := fleet.NewInvalidArgumentError(
 					"device_ids",
-					fmt.Sprintf("at least one of the hosts is not enrolled in MDM: %v", err),
-				).WithStatus(http.StatusConflict)
-				return http.StatusConflict, nil, ctxerr.Wrap(ctx, err, "enqueue command")
+					fmt.Sprintf("at least one of the hosts is not enrolled in MDM or is not a macOS device: %v", err),
+				).WithStatus(http.StatusBadRequest)
+				return http.StatusBadRequest, nil, ctxerr.Wrap(ctx, err, "enqueue command")
 			}
 		}
 
@@ -1474,13 +1474,13 @@ func (r batchSetMDMAppleProfilesResponse) Status() int { return http.StatusNoCon
 
 func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetMDMAppleProfilesRequest)
-	if err := svc.BatchSetMDMAppleProfiles(ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun); err != nil {
+	if err := svc.BatchSetMDMAppleProfiles(ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false); err != nil {
 		return batchSetMDMAppleProfilesResponse{Err: err}, nil
 	}
 	return batchSetMDMAppleProfilesResponse{}, nil
 }
 
-func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte, dryRun bool) error {
+func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte, dryRun, skipBulkPending bool) error {
 	if tmID != nil && tmName != nil {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
@@ -1577,8 +1577,11 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	if tmID != nil {
 		bulkTeamID = *tmID
 	}
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+
+	if !skipBulkPending {
+		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+		}
 	}
 
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
@@ -1716,8 +1719,8 @@ func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload
 
 	var didUpdate, didUpdateMacOSDiskEncryption bool
 	if payload.EnableDiskEncryption != nil {
-		if ac.MDM.MacOSSettings.EnableDiskEncryption != *payload.EnableDiskEncryption {
-			ac.MDM.MacOSSettings.EnableDiskEncryption = *payload.EnableDiskEncryption
+		if ac.MDM.EnableDiskEncryption.Value != *payload.EnableDiskEncryption {
+			ac.MDM.EnableDiskEncryption = optjson.SetBool(*payload.EnableDiskEncryption)
 			didUpdate = true
 			didUpdateMacOSDiskEncryption = true
 		}
@@ -1729,7 +1732,7 @@ func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload
 		}
 		if didUpdateMacOSDiskEncryption {
 			var act fleet.ActivityDetails
-			if ac.MDM.MacOSSettings.EnableDiskEncryption {
+			if ac.MDM.EnableDiskEncryption.Value {
 				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
 				if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
 					return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
@@ -2276,7 +2279,10 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		if err != nil {
 			return err
 		}
-		if info.InstalledFromDEP {
+
+		// TODO: improve this to not enqueue the job if a host that is
+		// assigned in ABM is manually enrolling for some reason.
+		if info.DEPAssignedToFleet || info.InstalledFromDEP {
 			svc.logger.Log("info", "queueing post-enroll task for newly enrolled DEP device", "host_uuid", r.ID)
 
 			var tmID *uint
@@ -2727,4 +2733,81 @@ func ReconcileProfiles(
 	}
 
 	return nil
+}
+
+func (svc *Service) maybeRestorePendingDEPHost(ctx context.Context, host *fleet.Host) error {
+	if host.Platform != "darwin" {
+		return nil
+	}
+
+	license, ok := license.FromContext(ctx)
+	if !ok {
+		return ctxerr.New(ctx, "maybe restore pending DEP host: missing license")
+	} else if license.Tier != fleet.TierPremium {
+		// only premium tier supports DEP so nothing more to do
+		return nil
+	}
+
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "maybe restore pending DEP host: get app config")
+	} else if !ac.MDM.AppleBMEnabledAndConfigured {
+		// if ABM is not enabled and configured, nothing more to do
+		return nil
+	}
+
+	dep, err := svc.ds.GetHostDEPAssignment(ctx, host.ID)
+	switch {
+	case err != nil && !fleet.IsNotFound(err):
+		return ctxerr.Wrap(ctx, err, "maybe restore pending DEP host: get host dep assignment")
+	case dep != nil && dep.DeletedAt == nil:
+		return svc.restorePendingDEPHost(ctx, host, ac)
+	default:
+		// no DEP assignment was found or the DEP assignment was deleted in ABM
+		// so nothing more to do
+	}
+
+	return nil
+}
+
+func (svc *Service) restorePendingDEPHost(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) error {
+	tmID, err := svc.getConfigAppleBMDefaultTeamID(ctx, appCfg)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "restore pending dep host")
+	}
+	host.TeamID = tmID
+
+	if err := svc.ds.RestoreMDMApplePendingDEPHost(ctx, host); err != nil {
+		return ctxerr.Wrap(ctx, err, "restore pending dep host")
+	}
+
+	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger,
+		worker.MacosSetupAssistantHostsTransferred, tmID, host.HardwareSerial); err != nil {
+		return ctxerr.Wrap(ctx, err, "restore pending dep host")
+	}
+
+	return nil
+}
+
+func (svc *Service) getConfigAppleBMDefaultTeamID(ctx context.Context, appCfg *fleet.AppConfig) (*uint, error) {
+	var tmID *uint
+	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
+		team, err := svc.ds.TeamByName(ctx, name)
+		switch {
+		case fleet.IsNotFound(err):
+			level.Debug(svc.logger).Log(
+				"msg",
+				"unable to find default team assigned in config, mdm devices won't be assigned to a team",
+				"team_name",
+				name,
+			)
+			return nil, nil
+		case err != nil:
+			return nil, ctxerr.Wrap(ctx, err, "get default team for mdm devices")
+		case team != nil:
+			tmID = &team.ID
+		}
+	}
+
+	return tmID, nil
 }

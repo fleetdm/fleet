@@ -7,16 +7,17 @@ spec:
       enable_host_users: true
       enable_software_inventory: true
     mdm:
+      enable_disk_encryption: false
       macos_updates:
         minimum_version: null
         deadline: null
       macos_settings:
         custom_settings:
-        enable_disk_encryption: false
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
         macos_setup_assistant:
+    scripts: null
     name: team1
 ---
 apiVersion: v1
@@ -36,14 +37,15 @@ spec:
       enable_host_users: false
       enable_software_inventory: false
     mdm:
+      enable_disk_encryption: false
       macos_updates:
         minimum_version: "12.3.1"
         deadline: "2021-12-14"
       macos_settings:
         custom_settings:
-        enable_disk_encryption: false
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
         macos_setup_assistant:
+    scripts: null
     name: team2
