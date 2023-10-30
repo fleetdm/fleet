@@ -114,6 +114,7 @@ const PolicyForm = ({
     isGlobalObserver,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isObserverPlus,
     isOnGlobalTeam,
     isPremiumTier,
     isSandboxMode,
@@ -170,7 +171,7 @@ const PolicyForm = ({
   }, [lastEditedQueryBody, lastEditedQueryId]);
 
   const hasSavePermissions =
-    !isEditMode || // save a new policy
+    (!isEditMode && !isObserverPlus) || // save a new policy
     isGlobalAdmin ||
     isGlobalMaintainer ||
     (isTeamAdmin && policyTeamId === storedPolicy?.team_id) || // team admin cannot save global policy
@@ -466,7 +467,8 @@ const PolicyForm = ({
     );
   };
 
-  // Observers and observer+ of existing query, team role viewing inherited policy
+  // Observers and observer+ of existing policy, team role viewing inherited policy
+  // Observer+ can run existing policy
   const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
@@ -503,6 +505,18 @@ const PolicyForm = ({
         />
       )}
       {renderLiveQueryWarning()}
+      {isObserverPlus && ( // Observer+ can run existing policies
+        <div className={`${baseClass}__button-wrap`}>
+          <Button
+            className={`${baseClass}__run`}
+            variant="blue-green"
+            onClick={goToSelectTargets}
+            disabled={isEditMode && !isAnyPlatformSelected}
+          >
+            Run
+          </Button>
+        </div>
+      )}
     </form>
   );
 
