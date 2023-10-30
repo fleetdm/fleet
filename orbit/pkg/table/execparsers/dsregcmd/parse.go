@@ -2,6 +2,7 @@ package dsregcmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -14,8 +15,10 @@ import (
 //
 // Because we're using a bufio.Scanner, we can't match the entire header in one shot.
 // Instead we match the first line, and then the section title.
-var startHeaderRegex = regexp.MustCompile(`^\s*\+\-+\+\s*$`)
-var titleRegex = regexp.MustCompile(`^\s*\|\s*(.+?)\s*\|\s*$`)
+var (
+	startHeaderRegex = regexp.MustCompile(`^\s*\+\-+\+\s*$`)
+	titleRegex       = regexp.MustCompile(`^\s*\|\s*(.+?)\s*\|\s*$`)
+)
 
 // Capture output like:
 //
@@ -35,7 +38,7 @@ func parseDsreg(reader io.Reader) (any, error) {
 		// Check if we've found a section header. If so, grab the next line and get the section title.
 		if startHeaderRegex.MatchString(line) {
 			if ok := scanner.Scan(); !ok {
-				return nil, fmt.Errorf("failed to read second section header line")
+				return nil, errors.New("failed to read second section header line")
 			}
 			line = scanner.Text()
 			m := titleRegex.FindStringSubmatch(line)
@@ -47,13 +50,14 @@ func parseDsreg(reader io.Reader) (any, error) {
 
 			// Consume the last line of the section header.
 			if ok := scanner.Scan(); !ok {
-				return nil, fmt.Errorf("failed to read third section header line")
-			} else {
-				line := scanner.Text()
-				if !startHeaderRegex.MatchString(line) {
-					return nil, fmt.Errorf("third section header line mismatch: %s", line)
-				}
+				return nil, errors.New("failed to read second section header line")
 			}
+
+			line := scanner.Text()
+			if !startHeaderRegex.MatchString(line) {
+				return nil, fmt.Errorf("third section header line mismatch: %s", line)
+			}
+
 			continue
 		}
 

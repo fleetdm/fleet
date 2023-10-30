@@ -47,7 +47,7 @@ func (p *parser) parseDumpstate(reader io.Reader) (any, error) {
 			continue
 		}
 
-		return nil, fmt.Errorf("no device name(s) given in remotectl dumpstate output")
+		return nil, errors.New("no device name(s) given in remotectl dumpstate output")
 	}
 
 	return results, nil
