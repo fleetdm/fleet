@@ -1,4 +1,4 @@
-# Why this way?
+# 💭 Why this way?
 
 At Fleet, we rarely label ideas as drafts or theories.  Everything is [always in draft](https://about.gitlab.com/handbook/values/#everything-is-in-draft) and subject to change in future iterations.
 
@@ -356,4 +356,4 @@ Please see [handbook/company/why-this-way#why-direct-responsibility](https://fle
 Please see [handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).
 
 <meta name="maintainedBy" value="mikermcneil">
-<meta name="title" value="Why this way?">
+<meta name="title" value="💭 Why this way?">

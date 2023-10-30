@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -80,7 +80,7 @@ func TestTrigger(t *testing.T) {
 
 	os.Stdout = oldStdout
 	w.Close()
-	out, _ := ioutil.ReadAll(r)
+	out, _ := io.ReadAll(r)
 	outlines := strings.Split(string(out), "\n")
 	require.Len(t, outlines, len(testCases)+1)
 
