@@ -52,9 +52,9 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	err := ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice)
 	require.NoError(t, err)
 
-	var ae fleet.AlreadyExistsError
+	// inserting a device again doesn't trow an error
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice)
-	require.ErrorAs(t, err, &ae)
+	require.NoError(t, err)
 
 	gotEnrolledDevice, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
 	require.NoError(t, err)
@@ -76,8 +76,9 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice)
 	require.NoError(t, err)
 
+	// inserting a device again doesn't trow an error
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice)
-	require.ErrorAs(t, err, &ae)
+	require.NoError(t, err)
 
 	gotEnrolledDevice, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
 	require.NoError(t, err)

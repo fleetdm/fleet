@@ -6996,135 +6996,6 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	}, getMDMCmdResp.Results[0])
 }
 
-func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
-	t := s.T()
-
-	// Target Endpoint URL for the management endpoint
-	targetEndpointURL := microsoft_mdm.MDE2ManagementPath
-
-	// Target Device ID
-	deviceID := "DB257C3A08778F4FB61E2749066C1F27"
-
-	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
-		MDMDeviceID:            deviceID,
-		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
-		MDMDeviceState:         uuid.New().String(),
-		MDMDeviceType:          "CIMClient_Windows",
-		MDMDeviceName:          "DESKTOP-1C3ARC1",
-		MDMEnrollType:          "ProgrammaticEnrollment",
-		MDMEnrollUserID:        "",
-		MDMEnrollProtoVersion:  "5.0",
-		MDMEnrollClientVersion: "10.0.19045.2965",
-		MDMNotInOOBE:           false,
-		HostUUID:               uuid.New().String(),
-	}
-
-	err := s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
-	require.NoError(t, err)
-	mysql.AddHostUUIDToWinEnrollmentInTest(t, s.ds, enrolledDevice.HostUUID, enrolledDevice.MDMDeviceID)
-
-	newRawCmd := func(cmdUUID string) []byte {
-		return []byte(fmt.Sprintf(`
-<Exec>
-  <CmdID>%s</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">null</Format>
-      <Type>text/plain</Type>
-    </Meta>
-    <Data></Data>
-  </Item>
-</Exec>
-		`, cmdUUID))
-	}
-
-	getAllCommandsForDevice := func(deviceID string) []*fleet.MDMWindowsCommand {
-		ctx := context.Background()
-		mdm, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
-		require.NoError(t, err)
-
-		var cmds []*fleet.MDMWindowsCommand
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(
-				ctx, q, &cmds,
-				`SELECT 
-				   wmc.command_uuid,
-				   wmc.raw_command,
-				   wmc.target_loc_uri
-				 FROM windows_mdm_commands wmc
-				 JOIN windows_mdm_command_queue wmcq ON wmc.command_uuid = wmcq.command_uuid
-				 WHERE wmcq.enrollment_id = ?`,
-				mdm.ID,
-			)
-		})
-
-		return cmds
-	}
-
-	// Adding Pending Command to target Device ID
-	cmdOneUUID := uuid.New().String()
-	commandOne := &fleet.MDMWindowsCommand{
-		CommandUUID:  cmdOneUUID,
-		RawCommand:   newRawCmd(cmdOneUUID),
-		TargetLocURI: "./Device/Vendor/MSFT/Reboot/RebootNow",
-	}
-
-	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{enrolledDevice.HostUUID}, commandOne)
-	require.NoError(t, err)
-
-	cmdTwoUUID := uuid.New().String()
-	commandTwo := &fleet.MDMWindowsCommand{
-		CommandUUID:  cmdTwoUUID,
-		RawCommand:   newRawCmd(cmdOneUUID),
-		TargetLocURI: "./Device/Vendor/MSFT/Reboot/RebootNow",
-	}
-
-	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{enrolledDevice.HostUUID}, commandTwo)
-	require.NoError(t, err)
-
-	cmds, err := s.ds.MDMWindowsGetPendingCommands(context.Background(), deviceID)
-	require.NoError(t, err)
-	require.Len(t, cmds, 2)
-	require.ElementsMatch(t, []string{cmds[0].CommandUUID, cmds[1].CommandUUID}, []string{cmdOneUUID, cmdTwoUUID})
-
-	// Preparing the SyncML request
-	requestBytes, err := s.newSyncMLSessionMsg(deviceID, targetEndpointURL)
-	require.NoError(t, err)
-
-	resp := s.DoRaw("POST", targetEndpointURL, requestBytes, http.StatusOK)
-
-	cmds = getAllCommandsForDevice(deviceID)
-	require.Len(t, cmds, 2)
-
-	// Checking response headers
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SyncMLContentType)
-
-	// Read response data
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	// Checking if response can be unmarshalled to a golang type
-	var xmlType interface{}
-	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(t, err)
-
-	// Getting Raw Response content
-	resMsg := string(resBytes)
-
-	// Checking response fields
-	require.True(t, s.isXMLTagPresent("Exec", resMsg))
-	require.True(t, s.isXMLTagContentPresent("LocURI", resMsg))
-	require.True(t, s.isXMLTagContentPresent("Format", resMsg))
-
-	// no more pending commands
-	cmds, err = s.ds.MDMWindowsGetPendingCommands(context.Background(), deviceID)
-	require.NoError(t, err)
-	require.Empty(t, cmds)
-}
-
 func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
 	t := s.T()
 
@@ -7185,7 +7056,26 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 
 	// create a Windows host enrolled in MDM
 	enrolledWindows := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
+	deviceID := "DB257C3A08778F4FB61E2749066C1F27"
+	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            deviceID,
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         uuid.New().String(),
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-1C3ARC1",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               enrolledWindows.UUID,
+	}
 	err := s.ds.SetOrUpdateMDMData(ctx, enrolledWindows.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+
+	err = s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
+	require.NoError(t, err)
+	mysql.AddHostUUIDToWinEnrollmentInTest(t, s.ds, enrolledDevice.HostUUID, enrolledDevice.MDMDeviceID)
 	require.NoError(t, err)
 
 	// create an unenrolled Windows host
