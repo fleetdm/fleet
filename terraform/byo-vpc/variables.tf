@@ -55,6 +55,7 @@ variable "redis_config" {
     elasticache_subnet_group_name = optional(string, "")
     allowed_security_group_ids    = optional(list(string), [])
     subnets                       = list(string)
+    allowed_cidrs                 = list(string)
     availability_zones            = optional(list(string), [])
     cluster_size                  = optional(number, 3)
     instance_type                 = optional(string, "cache.m5.large")
@@ -77,6 +78,7 @@ variable "redis_config" {
     elasticache_subnet_group_name = ""
     allowed_security_group_ids    = []
     subnets                       = null
+    allowed_cidrs                 = null
     availability_zones            = []
     cluster_size                  = 3
     instance_type                 = "cache.m5.large"
