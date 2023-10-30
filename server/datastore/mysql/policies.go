@@ -108,7 +108,6 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 // SavePolicy updates some fields of the given policy on the datastore.
 //
 // Currently SavePolicy does not allow updating the team of an existing policy.
-// TODO: update this to take a shouldRemoveAll bool to call new func IFF query changed (look at where this is called to figure that out)
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error {
 	sql := `
 		UPDATE policies
