@@ -2040,6 +2040,8 @@ func (s *integrationEnterpriseTestSuite) TestDefaultAppleBMTeam() {
 	require.Equal(t, tm.Name, acResp.MDM.AppleBMDefaultTeam)
 }
 
+// TODO(mna): create a TestMDMWindowsUpdates
+
 func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 	t := s.T()
 
