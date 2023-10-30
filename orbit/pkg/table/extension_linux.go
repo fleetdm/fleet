@@ -9,7 +9,8 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/gsettings"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/xfconf"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/xrdb"
-	"github.com/kolide/launcher/pkg/osquery/tables/zfs"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/zfs"
+
 	"github.com/osquery/osquery-go"
 )
 
