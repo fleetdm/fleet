@@ -2,16 +2,16 @@ package dataflattentable
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/kolide/launcher/pkg/dataflatten"
 	"github.com/kolide/launcher/pkg/osquery/tables/tablehelpers"
 	"github.com/kolide/launcher/pkg/traces"
 	"github.com/osquery/osquery-go/plugin/table"
-	"github.com/pkg/errors"
 )
 
 type bytesFlattener interface {
@@ -86,7 +86,7 @@ func (t *execTableV2) generate(ctx context.Context, queryContext table.QueryCont
 	execOutput, err := tablehelpers.Exec(ctx, t.logger, t.timeoutSeconds, t.execPaths, t.execArgs, t.includeStderr)
 	if err != nil {
 		// exec will error if there's no binary, so we never want to record that
-		if os.IsNotExist(errors.Cause(err)) {
+		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
 		}
 		traces.SetError(span, err)
