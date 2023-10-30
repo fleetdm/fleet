@@ -344,7 +344,6 @@ resource "aws_lambda_function" "cron_monitoring" {
   }
 
   vpc_config {
-    # Every subnet should be able to reach an EFS mount target in the same Availability Zone. Cross-AZ mounts are not permitted.
     subnet_ids         = var.cron_monitoring.subnet_ids
     security_group_ids = [aws_security_group.cron_monitoring[0].id]
   }
@@ -402,10 +401,6 @@ resource "aws_iam_role" "cron_monitoring_lambda" {
 
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
-# data "aws_vpc" "fleet" {
-#   count = var.cron_monitoring == null ? 0 : 1
-#   id    = var.cron_monitoring.vpc_id
-# }
 
 data "aws_iam_policy_document" "cron_monitoring_lambda" {
   statement {
@@ -423,27 +418,6 @@ data "aws_iam_policy_document" "cron_monitoring_lambda" {
     effect = "Allow"
 
   }
-
-  # statement {
-
-  #   actions = [
-  #     "ec2:CreateNetworkInterface",
-  #     "ec2:DeleteNetworkInterface",
-  #     "ec2:DescribeNetworkInterfaces",
-  #   ]
-
-  #   resources = ["arn:aws:ec2:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:network-interface/*"]
-
-  #   condition {
-  #     test     = "StringLike"
-  #     variable = "ec2:Vpc"
-  #     values = [
-  #       data.aws_vpc.fleet[0].arn
-  #     ]
-  #   }
-  #   effect = "Allow"
-
-  # }
 
   statement {
     sid = "SNSPublish"
