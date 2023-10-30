@@ -543,6 +543,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// TODO(mna): create Windows Updates activity if required
+
 	if appConfig.MDM.EnableDiskEncryption.Valid && oldAppConfig.MDM.EnableDiskEncryption.Value != appConfig.MDM.EnableDiskEncryption.Value {
 		if oldAppConfig.MDM.EnabledAndConfigured {
 			var act fleet.ActivityDetails
@@ -670,6 +672,25 @@ func (svc *Service) validateMDM(
 	}
 	if err := mdm.MacOSUpdates.Validate(); err != nil {
 		invalid.Append("macos_updates", err.Error())
+	}
+
+	// WindowsUpdates
+	updatingWindowsDeadline := mdm.WindowsUpdates.DeadlineDays.Set &&
+		(mdm.WindowsUpdates.DeadlineDays.Value != oldMdm.WindowsUpdates.DeadlineDays.Value ||
+			mdm.WindowsUpdates.DeadlineDays.Valid != oldMdm.WindowsUpdates.DeadlineDays.Valid)
+	updatingWindowsGrace := mdm.WindowsUpdates.GracePeriodDays.Set &&
+		(mdm.WindowsUpdates.GracePeriodDays.Value != oldMdm.WindowsUpdates.GracePeriodDays.Value ||
+			mdm.WindowsUpdates.GracePeriodDays.Valid != oldMdm.WindowsUpdates.GracePeriodDays.Valid)
+	if updatingWindowsDeadline || updatingWindowsGrace {
+		// TODO: Should we validate MDM configured on here too?
+
+		if !license.IsPremium() {
+			invalid.Append("windows_updates.deadline_days", ErrMissingLicense.Error())
+			return
+		}
+	}
+	if err := mdm.WindowsUpdates.Validate(); err != nil {
+		invalid.Append("windows_updates", err.Error())
 	}
 
 	// EndUserAuthentication

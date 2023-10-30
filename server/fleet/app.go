@@ -237,6 +237,38 @@ type WindowsUpdates struct {
 	GracePeriodDays optjson.Int `json:"grace_period_days"`
 }
 
+func (w WindowsUpdates) Validate() error {
+	const (
+		minDeadline    = 0
+		maxDeadline    = 30
+		minGracePeriod = 0
+		maxGracePeriod = 7
+	)
+
+	// both must be specified or not specified
+	if w.DeadlineDays.Valid != w.GracePeriodDays.Valid {
+		if w.DeadlineDays.Valid && !w.GracePeriodDays.Valid {
+			return errors.New("grace_period_days is required when deadline_days is provided")
+		} else if !w.DeadlineDays.Valid && w.GracePeriodDays.Valid {
+			return errors.New("deadline_days is required when grace_period_days is provided")
+		}
+	}
+
+	// if both are unspecified, nothing more to validate, updates are not enforced.
+	if !w.DeadlineDays.Valid {
+		return nil
+	}
+
+	// at this point, both fields are set
+	if w.DeadlineDays.Value < minDeadline || w.DeadlineDays.Value > maxDeadline {
+		return fmt.Errorf("deadline_days must be an integer between %d and %d", minDeadline, maxDeadline)
+	}
+	if w.GracePeriodDays.Value < minGracePeriod || w.GracePeriodDays.Value > maxGracePeriod {
+		return fmt.Errorf("grace_period_days must be an integer between %d and %d", minGracePeriod, maxGracePeriod)
+	}
+	return nil
+}
+
 // MacOSSettings contains settings specific to macOS.
 type MacOSSettings struct {
 	// CustomSettings is a slice of configuration profile file paths.
