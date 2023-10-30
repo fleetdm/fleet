@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/kolide/launcher/pkg/osquery/tables/execparsers/dsregcmd"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/execparsers/dsregcmd"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,7 +14,7 @@ import (
 func TestFlattenerFromParser(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		name         string
 		input        []byte
 		parser       parser
@@ -39,7 +39,6 @@ func TestFlattenerFromParser(t *testing.T) {
 			require.Len(t, rows, tt.expectedRows)
 		})
 	}
-
 }
 
 func readTestFile(t *testing.T, filepath string) []byte {

@@ -1,0 +1,456 @@
+Name            : apr-util
+Version         : 1.6.1-9
+Description     : The Apache Portable Runtime
+Architecture    : x86_64
+URL             : https://apr.apache.org/
+Licenses        : APACHE
+Groups          : None
+Provides        : None
+Depends On      : apr  expat  libxcrypt
+Optional Deps   : gdbm: enable gdbm support [installed]
+                  libldap: enable ldap support [installed]
+                  unixodbc: enable odbc support
+                  mariadb-libs: enable mysql/mariadb support
+                  postgresql-libs: enable postgres support
+                  db: enable berkley db support [installed]
+                  sqlite: enable sqlite support [installed]
+                  nss: enable nss crypto support [installed]
+                  openssl: enable openssl crypto support [installed]
+Required By     : apache
+Optional For    : None
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 681.17 KiB
+Packager        : Felix Yan <felixonmars@archlinux.org>
+Build Date      : Sat Nov 13 13:00:12 2021
+Install Date    : Tue Jul 26 11:47:15 2022
+Install Reason  : Installed as a dependency for another package
+Install Script  : No
+Validated By    : Signature
+
+Name            : archlinux-keyring
+Version         : 20220713-1
+Description     : Arch Linux PGP keyring
+Architecture    : any
+URL             : https://gitlab.archlinux.org/archlinux/archlinux-keyring/
+Licenses        : GPL3
+Groups          : None
+Provides        : None
+Depends On      : None
+Optional Deps   : None
+Required By     : pacman
+Optional For    : None
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 1561.82 KiB
+Packager        : Christian Hesse <eworm@archlinux.org>
+Build Date      : Wed Jul 13 02:57:11 2022
+Install Date    : Tue Jul 26 11:46:30 2022
+Install Reason  : Installed as a dependency for another package
+Install Script  : Yes
+Validated By    : Signature
+
+Name            : base
+Version         : 2-2
+Description     : Minimal package set to define a basic Arch Linux installation
+Architecture    : any
+URL             : https://www.archlinux.org
+Licenses        : GPL
+Groups          : None
+Provides        : None
+Depends On      : filesystem  gcc-libs  glibc  bash  coreutils  file  findutils  gawk  grep  procps-ng  sed  tar  gettext  pciutils  psmisc  shadow  util-linux  bzip2  gzip  xz  licenses  pacman  systemd  systemd-sysvcompat  iputils  iproute2
+Optional Deps   : linux: bare metal support [installed]
+Required By     : None
+Optional For    : None
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 0.00 B
+Packager        : Evangelos Foutras <evangelos@foutrelis.com>
+Build Date      : Wed Nov 13 09:21:49 2019
+Install Date    : Tue Jul 26 09:49:03 2022
+Install Reason  : Explicitly installed
+Install Script  : No
+Validated By    : Signature
+
+Name            : binutils
+Version         : 2.38-6
+Description     : A set of programs to assemble and manipulate binary and object files
+Architecture    : x86_64
+URL             : https://www.gnu.org/software/binutils/
+Licenses        : GPL3  GPL  FDL1.3  custom:FSFAP
+Groups          : base-devel
+Provides        : None
+Depends On      : glibc  zlib  libelf
+Optional Deps   : debuginfod: for debuginfod server/client functionality
+Required By     : gcc  mkinitcpio
+Optional For    : None
+Conflicts With  : binutils-multilib
+Replaces        : binutils-multilib
+Installed Size  : 30.91 MiB
+Packager        : Evangelos Foutras <foutrelis@archlinux.org>
+Build Date      : Mon Jun 27 15:56:44 2022
+Install Date    : Tue Jul 26 11:36:44 2022
+Install Reason  : Installed as a dependency for another package
+Install Script  : No
+Validated By    : Signature
+
+Name            : bzip2
+Version         : 1.0.8-4
+Description     : A high-quality data compression program
+Architecture    : x86_64
+URL             : https://sourceware.org/bzip2/
+Licenses        : BSD
+Groups          : None
+Provides        : libbz2.so=1.0-64
+Depends On      : glibc  sh
+Optional Deps   : None
+Required By     : base  boost-libs  ffmpeg  file  freetype2  gnupg  gst-plugins-bad  imlib2  libarchive  libelf  libgsf  pcre  pcre2  python  python2  qemu-block-dmg  unzip  yelp  zip
+Optional For    : mkinitcpio
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 144.23 KiB
+Packager        : Levente Polyak <anthraxx@archlinux.org>
+Build Date      : Mon Nov  2 14:03:27 2020
+Install Date    : Tue Jul 26 09:49:01 2022
+Install Reason  : Installed as a dependency for another package
+Install Script  : No
+Validated By    : Signature
+
+Name            : ca-certificates
+Version         : 20210603-1
+Description     : Common CA certificates (default providers)
+Architecture    : any
+URL             : https://src.fedoraproject.org/rpms/ca-certificates
+Licenses        : GPL2
+Groups          : None
+Provides        : None
+Depends On      : ca-certificates-mozilla
+Optional Deps   : None
+Required By     : curl  neon
+Optional For    : openssl
+Conflicts With  : ca-certificates-cacert<=20140824-4
+Replaces        : ca-certificates-cacert<=20140824-4
+Installed Size  : 0.00 B
+Packager        : Jan Alexander Steffens (heftig) <heftig@archlinux.org>
+Build Date      : Thu Jun  3 13:36:41 2021
+Install Date    : Tue Jul 26 09:49:02 2022
+Install Reason  : Installed as a dependency for another package
+Install Script  : No
+Validated By    : Signature
+
+Name            : cheese
+Version         : 41.1-2
+Description     : Take photos and videos with your webcam, with fun graphical effects
+Architecture    : x86_64
+URL             : https://wiki.gnome.org/Apps/Cheese
+Licenses        : GPL
+Groups          : gnome
+Provides        : None
+Depends On      : gtk3  gstreamer  gst-plugins-bad  gst-plugins-base  gst-plugins-good  clutter-gst  clutter-gtk  libcanberra  librsvg  gnome-desktop  libgudev  dconf  gnome-video-effects  libcheese=41.1-2
+Optional Deps   : None
+Required By     : None
+Optional For    : None
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 2.64 MiB
+Packager        : Jan Alexander Steffens (heftig) <heftig@archlinux.org>
+Build Date      : Thu Feb 10 15:35:37 2022
+Install Date    : Tue Jul 26 11:47:09 2022
+Install Reason  : Explicitly installed
+Install Script  : No
+Validated By    : Signature
+
+Name            : coreutils
+Version         : 9.1-1
+Description     : The basic file, shell and text manipulation utilities of the GNU operating system
+Architecture    : x86_64
+URL             : https://www.gnu.org/software/coreutils/
+Licenses        : GPL3
+Groups          : None
+Provides        : None
+Depends On      : glibc  acl  attr  gmp  libcap  openssl
+Optional Deps   : None
+Required By     : base  ca-certificates-utils  linux  mkinitcpio  p11-kit  util-linux
+Optional For    : None
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 15.24 MiB
+Packager        : Sébastien Luttringer <seblu@seblu.net>
+Build Date      : Sun Apr 17 12:21:13 2022
+Install Date    : Tue Jul 26 09:49:01 2022
+Install Reason  : Installed as a dependency for another package
+Install Script  : No
+Validated By    : Signature
+
+Name            : gnome-shell
+Version         : 1:42.3.1-1
+Description     : Next generation desktop shell
+Architecture    : x86_64
+URL             : https://wiki.gnome.org/Projects/GnomeShell
+Licenses        : GPL
+Groups          : gnome
+Provides        : None
+Depends On      : accountsservice  gcr  gjs  gnome-bluetooth-3.0  upower  gnome-session  gtk4  gnome-settings-daemon  gsettings-desktop-schemas  libcanberra-pulse  libgdm  libsecret  mutter  libnma  unzip  libibus  gnome-autoar  gnome-disk-utility  libsoup3  libgweather-4  gst-plugins-base-libs  libmutter-10.so=0-64
+Optional Deps   : gnome-control-center: System settings [installed]
+                  evolution-data-server: Evolution calendar integration [installed]
+                  gst-plugins-good: Screen recording [installed]
+                  gst-plugin-pipewire: Screen recording
+Required By     : gdm  gnome-shell-extensions
+Optional For    : None
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 10.76 MiB
+Packager        : Jan Alexander Steffens (heftig) <heftig@archlinux.org>
+Build Date      : Mon Jul  4 17:01:26 2022
+Install Date    : Tue Jul 26 11:47:11 2022
+Install Reason  : Explicitly installed
+Install Script  : No
+Validated By    : Signature
+
+Name            : gnome-software
+Version         : 42.3-1
+Description     : GNOME Software Tools
+Architecture    : x86_64
+URL             : https://wiki.gnome.org/Apps/Software/
+Licenses        : GPL
+Groups          : gnome
+Provides        : None
+Depends On      : libxmlb  gsettings-desktop-schemas  libpackagekit-glib  gtk4  libadwaita  gnome-online-accounts  appstream  libsysprof-capture
+Optional Deps   : flatpak: Flatpak support plugin [installed]
+                  fwupd: fwupd support plugin
+                  malcontent: Parental control plugin [installed]
+Required By     : None
+Optional For    : None
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 8.97 MiB
+Packager        : Jan Alexander Steffens (heftig) <heftig@archlinux.org>
+Build Date      : Thu Jun 30 16:41:10 2022
+Install Date    : Tue Jul 26 11:47:14 2022
+Install Reason  : Explicitly installed
+Install Script  : No
+Validated By    : Signature
+
+Name            : gnome-terminal
+Version         : 3.44.1-1
+Description     : The GNOME Terminal Emulator
+Architecture    : x86_64
+URL             : https://wiki.gnome.org/Apps/Terminal
+Licenses        : GPL
+Groups          : gnome
+Provides        : None
+Depends On      : vte3  gsettings-desktop-schemas
+Optional Deps   : None
+Required By     : None
+Optional For    : None
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 7.81 MiB
+Packager        : Jan Alexander Steffens (heftig) <heftig@archlinux.org>
+Build Date      : Sat May 28 11:26:02 2022
+Install Date    : Tue Jul 26 11:47:14 2022
+Install Reason  : Explicitly installed
+Install Script  : No
+Validated By    : Signature
+
+Name            : linux
+Version         : 5.18.14.arch1-1
+Description     : The Linux kernel and modules
+Architecture    : x86_64
+URL             : https://github.com/archlinux/linux/commits/v5.18.14-arch1
+Licenses        : GPL2
+Groups          : None
+Provides        : VIRTUALBOX-GUEST-MODULES  WIREGUARD-MODULE
+Depends On      : coreutils  kmod  initramfs
+Optional Deps   : wireless-regdb: to set the correct wireless channels of your country
+                  linux-firmware: firmware images needed for some devices [installed]
+Required By     : None
+Optional For    : base
+Conflicts With  : None
+Replaces        : virtualbox-guest-modules-arch  wireguard-arch
+Installed Size  : 176.28 MiB
+Packager        : Jan Alexander Steffens (heftig) <heftig@archlinux.org>
+Build Date      : Sat Jul 23 05:46:17 2022
+Install Date    : Tue Jul 26 09:49:03 2022
+Install Reason  : Explicitly installed
+Install Script  : No
+Validated By    : Signature
+
+Name            : osquery
+Version         : 5.3.0-2
+Description     : SQL powered operating system instrumentation, monitoring, and analytics
+Architecture    : x86_64
+URL             : https://osquery.io
+Licenses        : Apache  GPL2
+Groups          : None
+Provides        : None
+Depends On      : zlib
+Optional Deps   : None
+Required By     : None
+Optional For    : None
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 41.21 MiB
+Packager        : Anatol Pomozov <anatol.pomozov@gmail.com>
+Build Date      : Thu Jun  2 13:11:23 2022
+Install Date    : Tue Jul 26 12:19:07 2022
+Install Reason  : Explicitly installed
+Install Script  : No
+Validated By    : Signature
+
+Name            : pacman
+Version         : 6.0.1-5
+Description     : A library-based package manager with dependency support
+Architecture    : x86_64
+URL             : https://www.archlinux.org/pacman/
+Licenses        : GPL
+Groups          : base-devel
+Provides        : libalpm.so=13-64
+Depends On      : bash  glibc  libarchive  curl  gpgme  pacman-mirrorlist  archlinux-keyring
+Optional Deps   : perl-locale-gettext: translation support in makepkg-template
+Required By     : appstream-glib  base  yay
+Optional For    : None
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 4.70 MiB
+Packager        : Morten Linderud <foxboron@archlinux.org>
+Build Date      : Mon May  9 11:12:11 2022
+Install Date    : Tue Jul 26 11:36:45 2022
+Install Reason  : Installed as a dependency for another package
+Install Script  : No
+Validated By    : Signature
+
+Name            : x264
+Version         : 3:0.164.r3081.19856cc-2
+Description     : Open Source H264/AVC video encoder
+Architecture    : x86_64
+URL             : https://www.videolan.org/developers/x264.html
+Licenses        : GPL
+Groups          : None
+Provides        : libx264  libx264.so=164-64
+Depends On      : liblsmash.so=2-64
+Optional Deps   : None
+Required By     : ffmpeg
+Optional For    : None
+Conflicts With  : libx264  libx264-10bit  libx264-all
+Replaces        : libx264  libx264-10bit  libx264-all
+Installed Size  : 3.74 MiB
+Packager        : Evangelos Foutras <foutrelis@archlinux.org>
+Build Date      : Sun Mar  6 09:09:54 2022
+Install Date    : Tue Jul 26 11:47:08 2022
+Install Reason  : Installed as a dependency for another package
+Install Script  : No
+Validated By    : Signature
+
+Name            : xorgproto
+Version         : 2022.1-1
+Description     : combined X.Org X11 Protocol headers
+Architecture    : any
+URL             : https://xorg.freedesktop.org/
+Licenses        : custom
+Groups          : None
+Provides        : None
+Depends On      : None
+Optional Deps   : None
+Required By     : libx11  xorg-server-devel
+Optional For    : None
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 1459.76 KiB
+Packager        : Andreas Radke <andyrtr@archlinux.org>
+Build Date      : Thu Apr 21 12:32:08 2022
+Install Date    : Tue Jul 26 11:35:38 2022
+Install Reason  : Installed as a dependency for another package
+Install Script  : No
+Validated By    : Signature
+
+Name            : xz
+Version         : 5.2.5-3
+Description     : Library and command line tools for XZ and LZMA compressed files
+Architecture    : x86_64
+URL             : https://tukaani.org/xz/
+Licenses        : GPL  LGPL  custom
+Groups          : None
+Provides        : None
+Depends On      : sh
+Optional Deps   : None
+Required By     : base  ffmpeg  file  imlib2  kmod  libarchive  libelf  libtiff  libunwind  libxml2  libxmlb  ostree  raptor  systemd  systemd-libs  yelp  zstd
+Optional For    : mkinitcpio  python
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 954.53 KiB
+Packager        : Pierre Schmitz <pierre@archlinux.de>
+Build Date      : Thu Apr  7 13:44:20 2022
+Install Date    : Tue Jul 26 09:49:01 2022
+Install Reason  : Installed as a dependency for another package
+Install Script  : No
+Validated By    : Signature
+
+Name            : yelp
+Version         : 42.1-2
+Description     : Get help with GNOME
+Architecture    : x86_64
+URL             : https://wiki.gnome.org/Apps/Yelp
+Licenses        : GPL
+Groups          : gnome
+Provides        : None
+Depends On      : webkit2gtk-4.1  yelp-xsl  libxslt  xz  bzip2  libhandy
+Optional Deps   : None
+Required By     : gnome-user-docs
+Optional For    : None
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 2.43 MiB
+Packager        : Jan Alexander Steffens (heftig) <heftig@archlinux.org>
+Build Date      : Sat Apr  2 17:30:17 2022
+Install Date    : Tue Jul 26 11:47:14 2022
+Install Reason  : Explicitly installed
+Install Script  : No
+Validated By    : Signature
+
+Name            : zbar
+Version         : 0.23.1-9
+Description     : Application and library for reading bar codes from various sources
+Architecture    : x86_64
+URL             : https://github.com/mchehab/zbar
+Licenses        : LGPL
+Groups          : None
+Provides        : zbar-gtk  zbar-qt  python-zbar
+Depends On      : dbus  imagemagick  libsm  libxv  v4l-utils
+Optional Deps   : gtk3: for zbar-gtk [installed]
+                  qt5-x11extras: for zbar-qt
+                  python: for zbar python bindings [installed]
+Required By     : gst-plugins-bad
+Optional For    : None
+Conflicts With  : zbar-gtk  zbar-qt  python-zbar
+Replaces        : zbar-gtk  zbar-qt  python-zbar
+Installed Size  : 794.29 KiB
+Packager        : Felix Yan <felixonmars@archlinux.org>
+Build Date      : Thu Dec  2 14:52:41 2021
+Install Date    : Tue Jul 26 11:47:08 2022
+Install Reason  : Installed as a dependency for another package
+Install Script  : No
+Validated By    : Signature
+
+Name            : zlib
+Version         : 1:1.2.12-2
+Description     : Compression library implementing the deflate compression method found in gzip and PKZIP
+Architecture    : x86_64
+URL             : https://www.zlib.net/
+Licenses        : custom
+Groups          : None
+Provides        : None
+Depends On      : glibc
+Optional Deps   : None
+Required By     : apache  binutils  boost-libs  btrfs-progs  cairo  cracklib  curl  exempi  exiv2  ffmpeg  file  freetype2  ghostscript  git  glib2  gmime3  gnupg  gnutls  js91  kmod  libarchive  libavif  libelf  libfontenc  libpng  libproxy  libssh  libssh2  libsynctex  libtiff  libunwind  libxml2  llvm-libs  man-db  neon  nss  openexr  openjpeg2  openmpi  openpmix  openssh  osquery  ostree  pcre  pcre2  protobuf  python  python2  qemu-img  qemu-system-x86  raptor  rtmpdump  sqlite  sudo  taglib  vim  webkit2gtk  webkit2gtk-4.1  zstd
+Optional For    : None
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 337.59 KiB
+Packager        : Evangelos Foutras <foutrelis@archlinux.org>
+Build Date      : Sun Apr 24 00:19:33 2022
+Install Date    : Tue Jul 26 09:49:01 2022
+Install Reason  : Installed as a dependency for another package
+Install Script  : No
+Validated By    : Signature
+

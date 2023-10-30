@@ -1,0 +1,17 @@
+Last metadata expiration check: 0:06:32 ago on Fri 28 Jul 2023 04:45:20 AM MDT.
+
+apr-util.x86_64                    1.5.2-6.el7_9.1          updates                                       
+autofs.x86_64                      1:5.0.7-116.el7_9.1      updates                                       
+bind-libs.x86_64                   32:9.11.4-26.P2.el7_9.13 updates                                       
+brave-browser.x86_64               1.56.14-1                brave-browser-rpm-release.s3.brave.com_x86_64_
+brave-keyring.noarch               1.14-1                   brave-browser-rpm-release.s3.brave.com_x86_64_
+firefox.x86_64                     102.12.0-1.el7.centos    updates                                       
+java-1.8.0-openjdk.x86_64          1:1.8.0.372.b07-1.el7_9  updates                                       
+java-1.8.0-openjdk-headless.x86_64 1:1.8.0.372.b07-1.el7_9  updates                                                                          
+openssl.x86_64                     1:1.0.2k-26.el7_9        updates                                       
+openssl-libs.x86_64                1:1.0.2k-26.el7_9        updates                                       
+osquery.x86_64                     5.9.1-1.linux            osquery-s3-rpm-repo                           
+perf.x86_64                        3.10.0-1160.92.1.el7     updates                                       
+python.x86_64                      2.7.5-93.el7_9           updates                                       
+sudo.x86_64                        1.8.23-10.el7_9.3        updates                                       
+zlib.x86_64                        1.2.7-21.el7_9           updates                                       

@@ -1,0 +1,17 @@
+Listing...
+accountsservice/jammy-updates,jammy-security 22.07.5-2ubuntu1.4 amd64 [upgradable from: 22.07.5-2ubuntu1.3]
+apt-utils/jammy-updates 2.4.9 amd64 [upgradable from: 2.4.8]
+apt/jammy-updates 2.4.9 amd64 [upgradable from: 2.4.8]
+base-files/jammy-updates 12ubuntu4.3 amd64 [upgradable from: 12ubuntu4.2]
+binutils-common/jammy-updates,jammy-security 2.38-4ubuntu2.2 amd64 [upgradable from: 2.38-4ubuntu2.1]
+binutils-x86-64-linux-gnu/jammy-updates,jammy-security 2.38-4ubuntu2.2 amd64 [upgradable from: 2.38-4ubuntu2.1]
+dpkg/jammy-updates 1.21.1ubuntu2.2 amd64 [upgradable from: 1.21.1ubuntu2.1]
+libkrb5-3/jammy-updates 1.19.2-2ubuntu0.2 amd64 [upgradable from: 1.19.2-2ubuntu0.1]
+libldap-common/jammy-updates,jammy-updates 2.5.14+dfsg-0ubuntu0.22.04.2 all [upgradable from: 2.5.13+dfsg-0ubuntu0.22.04.1]
+openssl/jammy-updates,jammy-security 3.0.2-0ubuntu1.10 amd64 [upgradable from: 3.0.2-0ubuntu1.8]
+perl-base/jammy-updates,jammy-security 5.34.0-3ubuntu1.2 amd64 [upgradable from: 5.34.0-3ubuntu1.1]
+perl-modules-5.34/jammy-updates,jammy-updates,jammy-security,jammy-security 5.34.0-3ubuntu1.2 all [upgradable from: 5.34.0-3ubuntu1.1]
+sudo/jammy-updates,jammy-security 1.9.9-1ubuntu2.4 amd64 [upgradable from: 1.9.9-1ubuntu2.3]
+vim/jammy-updates,jammy-security 2:8.2.3995-1ubuntu2.9 amd64 [upgradable from: 2:8.2.3995-1ubuntu2.3]
+xxd/jammy-updates,jammy-security 2:8.2.3995-1ubuntu2.9 amd64 [upgradable from: 2:8.2.3995-1ubuntu2.3]
+

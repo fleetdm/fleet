@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
-	"github.com/kolide/launcher/pkg/dataflatten"
-	"github.com/kolide/launcher/pkg/osquery/tables/tablehelpers"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
 )
@@ -78,7 +78,6 @@ func TablePlugin(logger log.Logger, dataSourceType DataSourceType) osquery.Osque
 	}
 
 	return table.NewPlugin(t.tableName, columns, t.generate)
-
 }
 
 func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {

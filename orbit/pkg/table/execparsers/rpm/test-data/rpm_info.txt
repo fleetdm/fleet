@@ -1,0 +1,328 @@
+Name        : apr-util
+Version     : 1.5.2
+Release     : 6.el7
+Architecture: x86_64
+Install Date: Mon 12 Dec 2022 11:59:35 PM MST
+Group       : System Environment/Libraries
+Size        : 198751
+License     : ASL 2.0
+Signature   : RSA/SHA256, Thu 03 Jul 2014 06:39:25 PM MDT, Key ID 24c6a8a7f4a80eb5
+Source RPM  : apr-util-1.5.2-6.el7.src.rpm
+Build Date  : Mon 09 Jun 2014 08:31:06 PM MDT
+Build Host  : worker1.bsys.centos.org
+Relocations : (not relocatable)
+Packager    : CentOS BuildSystem <http://bugs.centos.org>
+Vendor      : CentOS
+URL         : http://apr.apache.org/
+Summary     : Apache Portable Runtime Utility library
+Description :
+The mission of the Apache Portable Runtime (APR) is to provide a
+free library of C data structures and routines.  This library
+contains additional utility interfaces for APR; including support
+for XML, LDAP, database interfaces, URI parsing and more.
+Name        : autofs
+Epoch       : 1
+Version     : 5.0.7
+Release     : 116.el7_9
+Architecture: x86_64
+Install Date: Tue 13 Dec 2022 12:02:47 AM MST
+Group       : System Environment/Daemons
+Size        : 5437236
+License     : GPLv2+
+Signature   : RSA/SHA256, Thu 17 Dec 2020 01:33:09 PM MST, Key ID 24c6a8a7f4a80eb5
+Source RPM  : autofs-5.0.7-116.el7_9.src.rpm
+Build Date  : Tue 15 Dec 2020 09:27:45 AM MST
+Build Host  : x86-01.bsys.centos.org
+Relocations : (not relocatable)
+Packager    : CentOS BuildSystem <http://bugs.centos.org>
+Vendor      : CentOS
+Summary     : A tool for automatically mounting and unmounting filesystems
+Description :
+autofs is a daemon which automatically mounts filesystems when you use
+them, and unmounts them later when you are not using them.  This can
+include network filesystems, CD-ROMs, floppies, and so forth.
+Name        : bind-libs
+Epoch       : 32
+Version     : 9.11.4
+Release     : 26.P2.el7_9.10
+Architecture: x86_64
+Install Date: Tue 13 Dec 2022 12:00:46 AM MST
+Group       : Unspecified
+Size        : 189208
+License     : MPLv2.0
+Signature   : RSA/SHA256, Tue 04 Oct 2022 04:57:39 AM MDT, Key ID 24c6a8a7f4a80eb5
+Source RPM  : bind-9.11.4-26.P2.el7_9.10.src.rpm
+Build Date  : Tue 04 Oct 2022 01:09:32 AM MDT
+Build Host  : x86-01.bsys.centos.org
+Relocations : (not relocatable)
+Packager    : CentOS BuildSystem <http://bugs.centos.org>
+Vendor      : CentOS
+URL         : http://www.isc.org/products/BIND/
+Summary     : Libraries used by the BIND DNS packages
+Description :
+Contains heavyweight version of BIND suite libraries used by both named DNS
+server and utilities in bind-utils package.
+Name        : brave-browser
+Version     : 1.45.133
+Release     : 1
+Architecture: x86_64
+Install Date: Tue 20 Dec 2022 08:21:53 AM MST
+Group       : Applications/Internet
+Size        : 334168552
+License     : Multiple, see https://brave.com/
+Signature   : RSA/SHA512, Fri 25 Nov 2022 09:12:49 AM MST, Key ID a8580bdc82d3dc6c
+Source RPM  : brave-browser-1.45.133-1.src.rpm
+Build Date  : Thu 24 Nov 2022 04:45:49 PM MST
+Build Host  : lion.king
+Relocations : /opt 
+Packager    : Brave Software <support@brave.com>
+Vendor      : Brave Software, Inc.
+URL         : https://brave.com/
+Summary     : Brave Web Browser
+Description :
+The web browser from Brave
+
+Browse faster by blocking ads and trackers that violate your privacy and cost you time and money.
+Name        : brave-keyring
+Version     : 1.10
+Release     : 1
+Architecture: noarch
+Install Date: Tue 20 Dec 2022 08:21:42 AM MST
+Group       : Unspecified
+Size        : 4519
+License     : MPL-2.0
+Signature   : RSA/SHA512, Wed 18 May 2022 01:56:23 PM MDT, Key ID a8580bdc82d3dc6c
+Source RPM  : brave-keyring-1.10-1.src.rpm
+Build Date  : Wed 18 May 2022 12:59:45 PM MDT
+Build Host  : 9ef2e0178a26
+Relocations : (not relocatable)
+URL         : https://www.brave.com/
+Summary     : Brave Browser keyring and repository files
+Description :
+The Brave keyring setup installs the keyring files necessary for validating
+packages. In the future it will install the yum.repos.d repository for for
+fetching the packages.
+Name        : firefox
+Version     : 102.6.0
+Release     : 1.el7.centos
+Architecture: x86_64
+Install Date: Tue 20 Dec 2022 08:39:11 AM MST
+Group       : Unspecified
+Size        : 284250145
+License     : MPLv1.1 or GPLv2+ or LGPLv2+
+Signature   : RSA/SHA256, Mon 19 Dec 2022 09:00:48 AM MST, Key ID 24c6a8a7f4a80eb5
+Source RPM  : firefox-102.6.0-1.el7.centos.src.rpm
+Build Date  : Thu 15 Dec 2022 10:20:49 AM MST
+Build Host  : x86-02.bsys.centos.org
+Relocations : (not relocatable)
+Packager    : CentOS BuildSystem <http://bugs.centos.org>
+Vendor      : CentOS
+URL         : https://www.mozilla.org/firefox/
+Summary     : Mozilla Firefox Web browser
+Description :
+Mozilla Firefox is an open-source web browser, designed for standards
+compliance, performance and portability.
+Name        : java-1.8.0-openjdk
+Epoch       : 1
+Version     : 1.8.0.352.b08
+Release     : 2.el7_9
+Architecture: x86_64
+Install Date: Tue 13 Dec 2022 12:03:07 AM MST
+Group       : Development/Languages
+Size        : 661711
+License     : ASL 1.1 and ASL 2.0 and BSD and BSD with advertising and GPL+ and GPLv2 and GPLv2 with exceptions and IJG and LGPLv2+ and MIT and MPLv2.0 and Public Domain and W3C and zlib
+Signature   : RSA/SHA256, Tue 25 Oct 2022 08:51:04 AM MDT, Key ID 24c6a8a7f4a80eb5
+Source RPM  : java-1.8.0-openjdk-1.8.0.352.b08-2.el7_9.src.rpm
+Build Date  : Fri 21 Oct 2022 08:50:19 AM MDT
+Build Host  : x86-01.bsys.centos.org
+Relocations : (not relocatable)
+Packager    : CentOS BuildSystem <http://bugs.centos.org>
+Vendor      : CentOS
+URL         : http://openjdk.java.net/
+Summary     : OpenJDK 8 Runtime Environment
+Description :
+The OpenJDK 8 runtime environment.
+Name        : java-1.8.0-openjdk-headless
+Epoch       : 1
+Version     : 1.8.0.352.b08
+Release     : 2.el7_9
+Architecture: x86_64
+Install Date: Tue 13 Dec 2022 12:02:11 AM MST
+Group       : Development/Languages
+Size        : 115839072
+License     : ASL 1.1 and ASL 2.0 and BSD and BSD with advertising and GPL+ and GPLv2 and GPLv2 with exceptions and IJG and LGPLv2+ and MIT and MPLv2.0 and Public Domain and W3C and zlib
+Signature   : RSA/SHA256, Tue 25 Oct 2022 08:51:30 AM MDT, Key ID 24c6a8a7f4a80eb5
+Source RPM  : java-1.8.0-openjdk-1.8.0.352.b08-2.el7_9.src.rpm
+Build Date  : Fri 21 Oct 2022 08:50:19 AM MDT
+Build Host  : x86-01.bsys.centos.org
+Relocations : (not relocatable)
+Packager    : CentOS BuildSystem <http://bugs.centos.org>
+Vendor      : CentOS
+URL         : http://openjdk.java.net/
+Summary     : OpenJDK 8 Headless Runtime Environment
+Description :
+The OpenJDK 8 runtime environment without audio and video support.
+Name        : openssl
+Epoch       : 1
+Version     : 1.0.2k
+Release     : 25.el7_9
+Architecture: x86_64
+Install Date: Tue 13 Dec 2022 12:00:55 AM MST
+Group       : System Environment/Libraries
+Size        : 833689
+License     : OpenSSL
+Signature   : RSA/SHA256, Mon 28 Mar 2022 01:53:50 PM MDT, Key ID 24c6a8a7f4a80eb5
+Source RPM  : openssl-1.0.2k-25.el7_9.src.rpm
+Build Date  : Mon 28 Mar 2022 09:43:15 AM MDT
+Build Host  : x86-01.bsys.centos.org
+Relocations : (not relocatable)
+Packager    : CentOS BuildSystem <http://bugs.centos.org>
+Vendor      : CentOS
+URL         : http://www.openssl.org/
+Summary     : Utilities from the general purpose cryptography library with TLS implementation
+Description :
+The OpenSSL toolkit provides support for secure communications between
+machines. OpenSSL includes a certificate management tool and shared
+libraries which provide various cryptographic algorithms and
+protocols.
+Name        : openssl-libs
+Epoch       : 1
+Version     : 1.0.2k
+Release     : 25.el7_9
+Architecture: x86_64
+Install Date: Tue 13 Dec 2022 12:00:01 AM MST
+Group       : System Environment/Libraries
+Size        : 3208412
+License     : OpenSSL
+Signature   : RSA/SHA256, Mon 28 Mar 2022 01:53:51 PM MDT, Key ID 24c6a8a7f4a80eb5
+Source RPM  : openssl-1.0.2k-25.el7_9.src.rpm
+Build Date  : Mon 28 Mar 2022 09:43:15 AM MDT
+Build Host  : x86-01.bsys.centos.org
+Relocations : (not relocatable)
+Packager    : CentOS BuildSystem <http://bugs.centos.org>
+Vendor      : CentOS
+URL         : http://www.openssl.org/
+Summary     : A general purpose cryptography library with TLS implementation
+Description :
+OpenSSL is a toolkit for supporting cryptography. The openssl-libs
+package contains the libraries that are used by various applications which
+support cryptographic algorithms and protocols.
+Name        : osquery
+Version     : 5.6.0
+Release     : 1.linux
+Architecture: x86_64
+Install Date: Tue 13 Dec 2022 12:05:17 AM MST
+Group       : default
+Size        : 52293565
+License     : Apache 2.0 or GPL 2.0
+Signature   : RSA/SHA256, Tue 22 Nov 2022 11:22:33 AM MST, Key ID 97a80c63c9d8b80b
+Source RPM  : osquery-5.6.0-1.linux.src.rpm
+Build Date  : Mon 10 Oct 2022 11:04:49 AM MDT
+Build Host  : 30f90807e71d
+Relocations : /opt/osquery 
+Vendor      : osquery
+URL         : https://osquery.io
+Summary     : osquery built using CMake
+Description :
+osquery is an operating system instrumentation toolchain.
+Name        : perf
+Version     : 3.10.0
+Release     : 1160.81.1.el7
+Architecture: x86_64
+Install Date: Tue 20 Dec 2022 08:38:58 AM MST
+Group       : Development/System
+Size        : 6803147
+License     : GPLv2
+Signature   : RSA/SHA256, Mon 19 Dec 2022 09:59:35 AM MST, Key ID 24c6a8a7f4a80eb5
+Source RPM  : kernel-3.10.0-1160.81.1.el7.src.rpm
+Build Date  : Fri 16 Dec 2022 10:47:00 AM MST
+Build Host  : kbuilder.bsys.centos.org
+Relocations : (not relocatable)
+Packager    : CentOS BuildSystem <http://bugs.centos.org>
+Vendor      : CentOS
+URL         : http://www.kernel.org/
+Summary     : Performance monitoring for the Linux kernel
+Description :
+This package contains the perf tool, which enables performance monitoring
+of the Linux kernel.
+Name        : python
+Version     : 2.7.5
+Release     : 92.el7_9
+Architecture: x86_64
+Install Date: Tue 13 Dec 2022 12:00:03 AM MST
+Group       : Development/Languages
+Size        : 80835
+License     : Python
+Signature   : RSA/SHA256, Wed 29 Jun 2022 09:12:24 AM MDT, Key ID 24c6a8a7f4a80eb5
+Source RPM  : python-2.7.5-92.el7_9.src.rpm
+Build Date  : Tue 28 Jun 2022 09:55:39 AM MDT
+Build Host  : x86-02.bsys.centos.org
+Relocations : (not relocatable)
+Packager    : CentOS BuildSystem <http://bugs.centos.org>
+Vendor      : CentOS
+URL         : http://www.python.org/
+Summary     : An interpreted, interactive, object-oriented programming language
+Description :
+Python is an interpreted, interactive, object-oriented programming
+language often compared to Tcl, Perl, Scheme or Java. Python includes
+modules, classes, exceptions, very high level dynamic data types and
+dynamic typing. Python supports interfaces to many system calls and
+libraries, as well as to various windowing systems (X11, Motif, Tk,
+Mac and MFC).
+
+Programmers can write new built-in modules for Python in C or C++.
+Python can be used as an extension language for applications that need
+a programmable interface.
+
+Note that documentation for Python is provided in the python-docs
+package.
+
+This package provides the "python" executable; most of the actual
+implementation is within the "python-libs" package.
+Name        : sudo
+Version     : 1.8.23
+Release     : 10.el7_9.2
+Architecture: x86_64
+Install Date: Tue 13 Dec 2022 12:05:13 AM MST
+Group       : Applications/System
+Size        : 3200193
+License     : ISC
+Signature   : RSA/SHA256, Fri 15 Oct 2021 08:01:02 AM MDT, Key ID 24c6a8a7f4a80eb5
+Source RPM  : sudo-1.8.23-10.el7_9.2.src.rpm
+Build Date  : Thu 14 Oct 2021 06:29:07 AM MDT
+Build Host  : x86-01.bsys.centos.org
+Relocations : (not relocatable)
+Packager    : CentOS BuildSystem <http://bugs.centos.org>
+Vendor      : CentOS
+URL         : http://www.courtesan.com/sudo/
+Summary     : Allows restricted root access for specified users
+Description :
+Sudo (superuser do) allows a system administrator to give certain
+users (or groups of users) the ability to run some (or all) commands
+as root while logging all commands and arguments. Sudo operates on a
+per-command basis.  It is not a replacement for the shell.  Features
+include: the ability to restrict what commands a user may run on a
+per-host basis, copious logging of each command (providing a clear
+audit trail of who did what), a configurable timeout of the sudo
+command, and the ability to use the same configuration file (sudoers)
+on many different machines.
+Name        : zlib
+Version     : 1.2.7
+Release     : 20.el7_9
+Architecture: x86_64
+Install Date: Mon 12 Dec 2022 11:59:14 PM MST
+Group       : System Environment/Libraries
+Size        : 185206
+License     : zlib and Boost
+Signature   : RSA/SHA256, Fri 13 May 2022 08:34:55 AM MDT, Key ID 24c6a8a7f4a80eb5
+Source RPM  : zlib-1.2.7-20.el7_9.src.rpm
+Build Date  : Thu 12 May 2022 08:58:15 AM MDT
+Build Host  : x86-02.bsys.centos.org
+Relocations : (not relocatable)
+Packager    : CentOS BuildSystem <http://bugs.centos.org>
+Vendor      : CentOS
+URL         : http://www.zlib.net/
+Summary     : The compression and decompression library
+Description :
+Zlib is a general-purpose, patent-free, lossless data compression
+library which is used by many different programs.

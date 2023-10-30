@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/kolide/launcher/pkg/dataflatten"
-	"github.com/kolide/launcher/pkg/osquery/tables/tablehelpers"
 	"github.com/osquery/osquery-go/plugin/table"
 )
 

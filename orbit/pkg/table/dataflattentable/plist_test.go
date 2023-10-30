@@ -6,8 +6,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/kolide/launcher/pkg/dataflatten"
-	"github.com/kolide/launcher/pkg/osquery/tables/tablehelpers"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,7 +16,7 @@ func TestPlist(t *testing.T) {
 	t.Parallel()
 	plistTable := Table{flattenFileFunc: dataflatten.PlistFile}
 
-	var tests = []struct {
+	tests := []struct {
 		paths    []string
 		queries  []string
 		expected []map[string]string
@@ -34,7 +34,8 @@ func TestPlist(t *testing.T) {
 					"key":     "SCNetworkInterfaceType",
 					"parent":  "Interfaces/fw0",
 					"value":   "FireWire",
-				}},
+				},
+			},
 		},
 		{
 			paths: []string{filepath.Join("testdata", "com.apple.launchservices.secure.plist")},
@@ -76,5 +77,4 @@ func TestPlist(t *testing.T) {
 
 		require.EqualValues(t, tt.expected, rows)
 	}
-
 }

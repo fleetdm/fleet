@@ -1,0 +1,63 @@
+Local device
+	UUID: 4D259086-B8CF-4A99-A2FB-**REDACTED**
+	Messaging Protocol Version: 3
+	Product Type: iMacPro1,1
+	OS Build: 13.3.1 (22E261)
+	Properties: {
+		AppleInternal => false
+		CPUArchitecture => x86_64h
+		EffectiveProductionStatusSEP => false
+		EthernetMacAddress => d0:81:7a:da:38:c3
+		HWModel => J137AP
+		HasSEP => true
+	}
+	Services:
+		com.apple.corecaptured.remoteservice
+		com.apple.CSCSupportd
+		com.apple.mobile.notification_proxy.remote
+		com.apple.mobile.storage_mounter_proxy.bridge
+		com.apple.security.cryptexd.remote
+		com.apple.sysdiagnose.remote
+		com.apple.remote.installcoordination_proxy
+		com.apple.dt.remoteFetchSymbols
+		com.apple.osanalytics.logRelay
+		com.apple.testmanagerd.remote.automation
+		com.apple.mobile.storage_mounter_proxy.bridge.macOS
+		ssh
+
+Found localbridge (bridge)
+	State: connected (connectable)
+	UUID: 37D16267-478D-4B4D-BAD2-**REDACTED**
+	Product Type: iBridge2,1
+	OS Build: 7.4 (20P4252)
+	Messaging Protocol Version: 3
+	Heartbeat:
+		Last successful heartbeat sent 5.960s ago, received 5.957s ago (took 0.003s)
+		41701 heartbeats sent, 0 received
+	Properties: {
+		AppleInternal => false
+		CPUArchitecture => arm64
+	}
+	Services:
+		com.apple.eos.LASecureIO
+		com.apple.instruments.dtservicehub
+			Properties: {
+				Features => [<capacity = 1>
+					0: com.apple.dt.profile
+				]
+				version => 1
+			}
+		com.apple.icloud.findmydeviced.bridge
+			Version: 1
+			Properties: {
+				ServiceVersion => 1
+				UsesRemoteXPC => true
+				Features => [<capacity = 2>
+					0: com.apple.dt.profile
+					1: com.apple.dt.profile2
+				]
+			}
+	Local Services:
+		com.apple.remote.installcoordination_proxy
+		com.apple.sysdiagnose.remote
+		com.apple.CSCSupportd

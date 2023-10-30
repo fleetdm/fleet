@@ -1,0 +1,18 @@
+General Info:
+	Sensor Version: 2.14.0.1234321
+	DeviceId: 123453928
+	DeviceHash: test6b7v9Xo5bX50okW5KABCD+wHxb/YZeSzrZACKo0=
+	Quarantine: No
+Sensor Status:
+	State: Enabled
+	Details:
+		LiveResponse: NoSession
+		LiveResponse: Enabled
+		LiveResponse: NoKillSwitch
+Cloud Status:
+	Server Address: https://dev-prod06.example.com
+	Registered: Yes
+	Proxy: No
+Rules Status:
+	Policy Name: LinuxDefaultPolicy
+	Policy Timestamp: 02/20/2023 

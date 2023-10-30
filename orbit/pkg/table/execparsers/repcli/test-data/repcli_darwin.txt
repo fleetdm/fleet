@@ -1,0 +1,77 @@
+General Info: 
+    Sensor Version: 3.7.2.81
+    Kernel Type: System Extension
+    System Extension: Running
+    Kernel File Filter: Connected
+    Background Scan: Complete
+    Sensor Restarts: 1911
+    Last Reset: not set
+    FIPS Mode: Disabled
+Full Disk Access Configurations: 
+    Repmgr: Not Configured
+    System Extension: Unknown
+    OSQuery: Unknown
+    Uninstall Helper: Unknown
+    Uninstall UI: Unknown
+Sensor State: 
+    State: Enabled
+    Details: 
+        Shutdown In Progress
+        LiveResponse:NoSession
+        LiveResponse:NoKillSwitch
+        LiveResponse:Enabled
+        FullDiskAccess:NotEnabled
+    SvcStable: Yes
+    Boot Count: 103
+    First Boot After OS Upgrade: No
+    Service Uptime: 155110500 ms
+    Service Waketime: 37860000 ms
+Cloud Status: 
+    Server Address: https://dev-prod05.example.com
+    Registered: Yes
+    Next Check-In: Now
+    Private Logging: Disabled
+    Next Cloud Upgrade: None
+    MDM Device ID: 99999999-4C8C-45A0-B3EA-053672776382
+    Platform Type: CLIENT_ARM64
+Proxy Settings: 
+    Proxy Configured: No
+Queues: 
+    Reputation Resubmit: 
+        Outstanding: 0
+        Max Outstanding: 0
+        Total Queued: 0
+    Reputation Expedited: 
+        Outstanding: 0
+        Max Outstanding: 2
+        Total Queued: 50
+        Last Queue ID: 50
+        Last Completed ID: 50
+    Reputation Slow: 
+        Resubmit: 0
+        Ready: 128
+        Stale: 715
+        Demand: 0
+    LiveQueries: 
+        Outstanding: 0
+        Peak: 2
+        Completed: 0
+    PSCEvents Batch Upload: 
+        Uploaded: 1727
+        Failed: 0
+        Pending: 0
+        Mean Data Rate (B/s): 7583
+Enforcement Status: 
+    Execution Blocks: 0
+    Network Restrictions: 0
+Rules Status: 
+    Policy Name: Workstations
+    Policy Timestamp: 08/22/2023 15:19:53
+    Endpoint Standard Product: Enabled
+    Enterprise EDR Product: Enabled
+    Active Policies: 
+        Sensor Telemetry Reporting Policy Revision[3]: Enabled(Built-in)
+        EEDR Reporting Revision[18]: Enabled(Manifest)
+        Device Control Reporting Policy Revision[5]: Enabled(Manifest)
+        DC Allow External Devices Revision[1]: Enabled(Manifest)
+

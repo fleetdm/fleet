@@ -8,9 +8,9 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/go-kit/kit/log"
-	"github.com/kolide/launcher/pkg/dataflatten"
-	"github.com/kolide/launcher/pkg/osquery/tables/tablehelpers"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,7 +29,7 @@ func TestDataFlattenTablePlist_Animals(t *testing.T) {
 		"json":  {logger: logger, flattenFileFunc: dataflatten.JsonFile},
 	}
 
-	var tests = []struct {
+	tests := []struct {
 		queries  []string
 		expected []map[string]string
 	}{
@@ -79,7 +79,6 @@ func TestDataFlattenTablePlist_Animals(t *testing.T) {
 			require.EqualValues(t, tt.expected, rows, "table type %s test", dataType)
 		}
 	}
-
 }
 
 func TestDataFlattenTables(t *testing.T) {
@@ -87,7 +86,7 @@ func TestDataFlattenTables(t *testing.T) {
 
 	logger := log.NewNopLogger()
 
-	var tests = []struct {
+	tests := []struct {
 		testTables   map[string]Table
 		testFile     string
 		queries      []string
@@ -154,9 +153,7 @@ func TestDataFlattenTables(t *testing.T) {
 				} else {
 					require.Len(t, rows, tt.expectedRows)
 				}
-
 			})
 		}
 	}
-
 }

@@ -24,11 +24,11 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("cis_audit", cisaudit.Columns(), cisaudit.Generate),
 
 		// Kolide extensions.
-		dsim_default_associations.TablePlugin(kolideLogger), // table name is "dsim_default_associations"
-		secedit.TablePlugin(kolideLogger),                   // table name is "secedit"
-		wifi_networks.TablePlugin(kolideLogger),             // table name is "wifi_networks"
-		wmitable.TablePlugin(kolideLogger),                  // table name is "wmi"
+		dsim_default_associations.TablePlugin(osqueryLogger), // table name is "dsim_default_associations"
+		secedit.TablePlugin(osqueryLogger),                   // table name is "secedit"
+		wifi_networks.TablePlugin(osqueryLogger),             // table name is "wifi_networks"
+		wmitable.TablePlugin(osqueryLogger),                  // table name is "wmi"
 		// windows_updates table
-		windowsupdatetable.TablePlugin(windowsupdatetable.UpdatesTable, kolideLogger),
+		windowsupdatetable.TablePlugin(windowsupdatetable.UpdatesTable, osqueryLogger),
 	}
 }

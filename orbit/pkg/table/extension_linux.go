@@ -16,16 +16,16 @@ import (
 func PlatformTables() []osquery.OsqueryPlugin {
 	return []osquery.OsqueryPlugin{
 		// Kolide extensions.
-		cryptsetup.TablePlugin(kolideLogger),
+		cryptsetup.TablePlugin(osqueryLogger),
 		// Linux Gnome settings and metadata
-		gsettings.Settings(kolideLogger),
-		gsettings.Metadata(kolideLogger),
+		gsettings.Settings(osqueryLogger),
+		gsettings.Metadata(osqueryLogger),
 		// Wrapper for /usr/bin/xrdb command.
-		xrdb.TablePlugin(kolideLogger),
-		xfconf.TablePlugin(kolideLogger), // table name is "xfconf"
-		falconctl.NewFalconctlOptionTable(kolideLogger),
-		falcon_kernel_check.TablePlugin(kolideLogger),
-		zfs.ZfsPropertiesPlugin(kolideLogger),   // table name is "zfs_properties"
-		zfs.ZpoolPropertiesPlugin(kolideLogger), // table name is "zpool_properties"
+		xrdb.TablePlugin(osqueryLogger),
+		xfconf.TablePlugin(osqueryLogger), // table name is "xfconf"
+		falconctl.NewFalconctlOptionTable(osqueryLogger),
+		falcon_kernel_check.TablePlugin(osqueryLogger),
+		zfs.ZfsPropertiesPlugin(osqueryLogger),   // table name is "zfs_properties"
+		zfs.ZpoolPropertiesPlugin(osqueryLogger), // table name is "zpool_properties"
 	}
 }

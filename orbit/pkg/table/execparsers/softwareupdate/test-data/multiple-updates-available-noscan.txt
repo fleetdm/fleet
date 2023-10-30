@@ -1,0 +1,7 @@
+Software Update Tool
+
+Software Update found the following new or updated software:
+* Label: Command Line Tools for Xcode-14.3
+	Title: Command Line Tools for Xcode, Version: 14.3, Size: 711888KiB, Recommended: YES, 
+* Label: macOS Ventura 13.4 Beta-22F5027f
+	Title: macOS Ventura 13.4 Beta, Version: 13.4, Size: 11487824K, Recommended: YES, Action: restart, 

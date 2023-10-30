@@ -1,0 +1,9 @@
+
++----------------------------------------------------------------------+
+| Device State                                                         |
+
+             AzureAdJoined : NO                                         
+          EnterpriseJoined : NO                                         
+              DomainJoined : NO                                         
+               Device Name : lenovo-thinkpad                            
+                                                                        

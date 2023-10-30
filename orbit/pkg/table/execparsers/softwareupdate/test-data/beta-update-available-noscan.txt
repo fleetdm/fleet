@@ -1,0 +1,5 @@
+Software Update Tool
+
+Software Update found the following new or updated software:
+* Label: macOS Ventura 13.3 Beta 3-22E5236f
+	Title: macOS Ventura 13.3 Beta 3, Version: 13.3, Size: 3310848K, Recommended: YES, Action: restart, 

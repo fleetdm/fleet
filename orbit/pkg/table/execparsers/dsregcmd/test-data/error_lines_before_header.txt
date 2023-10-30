@@ -1,0 +1,54 @@
+
+
+             AzureAdJoined : NO                                         
+          EnterpriseJoined : NO                                         
+              DomainJoined : NO                                         
+               Device Name : lenovo-thinkpad                            
+                                                                        
++----------------------------------------------------------------------+
+| User State                                                           |
++----------------------------------------------------------------------+
+                                                                        
+                    NgcSet : NO                                         
+           WorkplaceJoined : NO                                         
+             WamDefaultSet : ERROR                                      
+                                                                        
++----------------------------------------------------------------------+
+| SSO State                                                            |
++----------------------------------------------------------------------+
+                                                                        
+                AzureAdPrt : NO                                         
+       AzureAdPrtAuthority : NO                                         
+             EnterprisePrt : NO                                         
+    EnterprisePrtAuthority : NO                                         
+                                                                        
++----------------------------------------------------------------------+
+| IE Proxy Config for Current User                                     |
++----------------------------------------------------------------------+
+
+      Auto Detect Settings : YES
+    Auto-Configuration URL :
+         Proxy Server List :
+         Proxy Bypass List :
+
++----------------------------------------------------------------------+
+| WinHttp Default Proxy Config                                         |
++----------------------------------------------------------------------+
+
+               Access Type : DIRECT
+
++----------------------------------------------------------------------+
+| Ngc Prerequisite Check                                               |
++----------------------------------------------------------------------+
+
+            IsDeviceJoined : NO
+             IsUserAzureAD : NO
+             PolicyEnabled : NO
+          PostLogonEnabled : YES
+            DeviceEligible : YES
+        SessionIsNotRemote : YES
+            CertEnrollment : none
+              PreReqResult : WillNotProvision
+
+For more information, please visit https://www.microsoft.com/aadjerrors
+
