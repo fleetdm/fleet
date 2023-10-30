@@ -225,9 +225,17 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			includedCVEs:      []string{"CVE-2022-4610", "CVE-2022-4611", "CVE-2022-4613", "CVE-2022-4612"},
 			continuestoUpdate: true,
 		},
-		"cpe:2.3:a:zoom:zoom:5.0.4301.0407:*:*:*:*:chrome:*:*": {
+		"cpe:2.3:a:avira:password_manager:2.18.4.38471:*:*:*:*:firefox:*:*": {
+			includedCVEs:      []string{"CVE-2022-28795"},
 			continuestoUpdate: true,
-			excludedCVEs:      []string{"CVE-2021-28133"}, // CVE-2021-28133 is a vulnerability in the Zoom application, not the Zoom extension.
+		},
+		"cpe:2.3:a:zoom:zoom:5.0.4301.0407:*:*:*:*:chrome:*:*": {
+			excludedCVEs:      []string{"CVE-2021-28133"}, // CVE-2021-28133 is a vulnerability in the Zoom application, not the extension.
+			continuestoUpdate: true,
+		},
+		"cpe:2.3:a:bitwarden:bitwarden:1.55.0:*:*:*:*:firefox:*:*": {
+			excludedCVEs:      []string{"CVE-2023-38840"}, // CVE-2023-38840 is a vulnerability in the Bitwarden application, not the extension.
+			continuestoUpdate: true,
 		},
 	}
 
