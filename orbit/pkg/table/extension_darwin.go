@@ -4,8 +4,10 @@ package table
 
 import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/airport"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/apple_silicon_security_policy"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/apfs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/corestorage"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dscl"
@@ -13,6 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filevault_status"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/find_cmd"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmware_eficheck_integrity_check"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmwarepasswd"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ioreg"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/nvram_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pmset"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
@@ -22,10 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
 
 	// Kolide tables
-	"github.com/kolide/launcher/pkg/osquery/tables/apple_silicon_security_policy"
-	"github.com/kolide/launcher/pkg/osquery/tables/dataflattentable"
-	"github.com/kolide/launcher/pkg/osquery/tables/firmwarepasswd"
-	"github.com/kolide/launcher/pkg/osquery/tables/ioreg"
+
 	"github.com/kolide/launcher/pkg/osquery/tables/mdmclient"
 	"github.com/kolide/launcher/pkg/osquery/tables/profiles"
 	"github.com/kolide/launcher/pkg/osquery/tables/systemprofiler"
