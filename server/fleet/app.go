@@ -229,6 +229,11 @@ func (m MacOSUpdates) Validate() error {
 	return nil
 }
 
+// WindowsUpdates is part of AppConfig and defines the Windows update settings.
+type WindowsUpdates struct {
+	DeadlineDays optjson.String `json:"deadline"`
+}
+
 // MacOSSettings contains settings specific to macOS.
 type MacOSSettings struct {
 	// CustomSettings is a slice of configuration profile file paths.
