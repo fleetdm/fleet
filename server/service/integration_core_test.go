@@ -1847,6 +1847,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	require.NotNil(t, mgpResp.Policy.Resolution)
 	assert.Equal(t, "some global resolution updated", *mgpResp.Policy.Resolution)
 	assert.Equal(t, "darwin", mgpResp.Policy.Platform)
+	assert.Equal(t, uint(0), mgpResp.Policy.FailingHostCount)
+	assert.Equal(t, uint(0), mgpResp.Policy.PassingHostCount)
 
 	ggpResp := getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), getPolicyByIDRequest{}, http.StatusOK, &ggpResp)
