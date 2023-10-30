@@ -8,7 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptsetup"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/gsettings"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/xfconf"
-	"github.com/kolide/launcher/pkg/osquery/tables/xrdb"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/xrdb"
 	"github.com/kolide/launcher/pkg/osquery/tables/zfs"
 	"github.com/osquery/osquery-go"
 )
