@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
 
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -270,6 +271,12 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 		}
 
+		if config.IsMDMFeatureFlagEnabled() &&
+			mdmConfig.EnableDiskEncryption &&
+			host.IsEligibleForBitLockerEncryption() {
+			notifs.EnforceBitLockerEncryption = true
+		}
+
 		return fleet.OrbitConfig{
 			Flags:         opts.CommandLineStartUpFlags,
 			Extensions:    extensionsFiltered,
@@ -298,6 +305,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		if err != nil {
 			return fleet.OrbitConfig{}, err
 		}
+	}
+
+	if appConfig.MDM.WindowsEnabledAndConfigured &&
+		config.IsMDMFeatureFlagEnabled() &&
+		appConfig.MDM.EnableDiskEncryption.Value &&
+		host.IsEligibleForBitLockerEncryption() {
+		notifs.EnforceBitLockerEncryption = true
 	}
 
 	return fleet.OrbitConfig{
@@ -502,4 +516,79 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit disk encryption key
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitPostDiskEncryptionKeyRequest struct {
+	OrbitNodeKey  string `json:"orbit_node_key"`
+	EncryptionKey []byte `json:"encryption_key"`
+	ClientError   string `json:"client_error"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitPostDiskEncryptionKeyRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitPostDiskEncryptionKeyRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitPostDiskEncryptionKeyResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitPostDiskEncryptionKeyResponse) error() error { return r.Err }
+func (r orbitPostDiskEncryptionKeyResponse) Status() int  { return http.StatusNoContent }
+
+func postOrbitDiskEncryptionKeyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitPostDiskEncryptionKeyRequest)
+	if err := svc.SetOrUpdateDiskEncryptionKey(ctx, string(req.EncryptionKey), req.ClientError); err != nil {
+		return orbitPostDiskEncryptionKeyResponse{Err: err}, nil
+	}
+	return orbitPostDiskEncryptionKeyResponse{}, nil
+}
+
+func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return newOsqueryError("internal error: missing host from request context")
+	}
+	if !host.MDMInfo.IsFleetEnrolled() {
+		return badRequest("host is not enrolled with fleet")
+	}
+
+	var (
+		encryptedEncryptionKey string
+		decryptable            *bool
+	)
+
+	// only set the encryption key if there was no client error
+	if clientError == "" && encryptionKey != "" {
+		wstepCert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
+		if err != nil {
+			// should never return an error because the WSTEP is first parsed and
+			// cached at the start of the fleet serve process.
+			return ctxerr.Wrap(ctx, err, "get WSTEP certificate")
+		}
+		enc, err := microsoft_mdm.Encrypt(encryptionKey, wstepCert.Leaf)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "encrypt the key with WSTEP certificate")
+		}
+		encryptedEncryptionKey = enc
+		decryptable = ptr.Bool(true)
+	}
+
+	if err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encryptedEncryptionKey, clientError, decryptable); err != nil {
+		return ctxerr.Wrap(ctx, err, "set or update disk encryption key")
+	}
+
+	return nil
 }

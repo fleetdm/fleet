@@ -133,26 +133,28 @@
     <div style="padding-bottom: 60px; background-color: #F9FAFC;" purpose="page-wrap">
 
       <div class="header" purpose="header-container" data-nosnippet>
-        <div purpose="page-header" class="container-fluid d-flex align-items-center justify-content-between pt-3 pb-3 px-3 px-md-4">
-          <a purpose="header-logo" href="/">
-            <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
-          </a>
-          <div purpose="header-nav">
-            <a href="/logout" purpose="logout-btn" class="justify-content-end px-3 py-2 <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" style="text-decoration: none; line-height: 23px;">Log out</a>
+        <div purpose="header-background">
+          <div purpose="page-header" class="container-fluid d-flex align-items-center justify-content-between pt-3 pb-3 px-3 px-md-4">
+            <a purpose="header-logo" href="/">
+              <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
+            </a>
+            <div purpose="header-nav">
+              <a href="/logout" purpose="logout-btn" class="justify-content-end px-3 py-2 <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" style="text-decoration: none; line-height: 23px;">Log out</a>
+            </div>
           </div>
+          <%if(me && me.isSuperAdmin) {%>
+          <div purpose="admin-nav" class="d-flex flex-row align-items-center px-5">
+            <div class=" justif-self-start">
+              <span>Admin pages</span>
+            </div>
+            <div class="d-flex flex-row align-self-end">
+              <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
+              <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
+              <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/sandbox-waitlist">Manage Fleet Sandbox waitlist</a>
+            </div>
+          </div>
+          <%} %>
         </div>
-        <%if(me && me.isSuperAdmin) {%>
-        <div purpose="admin-nav" class="d-flex flex-row align-items-center px-5">
-          <div class=" justif-self-start">
-            <span>Admin pages</span>
-          </div>
-          <div class="d-flex flex-row align-self-end">
-            <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
-            <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
-            <a class="px-3 py-2" style="text-decoration: none; line-height: 23px;" href="/admin/sandbox-waitlist">Manage Fleet Sandbox waitlist</a>
-          </div>
-        </div>
-        <%} %>
       </div>
 
       <%- body %>
@@ -243,7 +245,7 @@
     <script src="/js/pages/entrance/signup.page.js"></script>
     <script src="/js/pages/faq.page.js"></script>
     <script src="/js/pages/fleet-mdm.page.js"></script>
-    <script src="/js/pages/get-started.page.js"></script>
+    <script src="/js/pages/fleetctl-preview.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
     <script src="/js/pages/imagine/defcon-31.page.js"></script>
@@ -252,6 +254,7 @@
     <script src="/js/pages/imagine/launch-party.page.js"></script>
     <script src="/js/pages/imagine/rapid-7-alternative.page.js"></script>
     <script src="/js/pages/imagine/unused-software.page.js"></script>
+    <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/landing.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>

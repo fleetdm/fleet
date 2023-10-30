@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -199,7 +198,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 	enrollLock.Lock()
 	defer enrollLock.Unlock()
 
-	orbitNodeKey, err := ioutil.ReadFile(oc.nodeKeyFilePath)
+	orbitNodeKey, err := os.ReadFile(oc.nodeKeyFilePath)
 	switch {
 	case err == nil:
 		return string(orbitNodeKey), nil
@@ -337,4 +336,19 @@ func OrbitRetryInterval() time.Duration {
 		}
 	}
 	return constant.OrbitEnrollRetrySleep
+}
+
+// SetOrUpdateDiskEncryptionKey sends a request to the server to set or update the disk
+// encryption keys and result of the encryption process
+func (oc *OrbitClient) SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error {
+	verb, path := "POST", "/api/fleet/orbit/disk_encryption_key"
+
+	var resp orbitPostDiskEncryptionKeyResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitPostDiskEncryptionKeyRequest{
+		EncryptionKey: diskEncryptionStatus.EncryptionKey,
+		ClientError:   diskEncryptionStatus.ClientError,
+	}, &resp); err != nil {
+		return err
+	}
+	return nil
 }

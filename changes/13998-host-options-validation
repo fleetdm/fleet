@@ -1,0 +1,19 @@
+Cleaned up REST API input validation for hosts, carves, users endpoints.
+
+For the following endpoints:
+/api/v1/fleet/hosts
+/api/v1/fleet/hosts/count
+/api/v1/fleet/hosts/report
+  - converted validation errors from 500 to 400 HTTP status code
+  - added validation that policy_id must be present when policy_response is specified
+  - added validation that policy_response must be `passing` or `failing`
+  - added validation that `os_name` must be specified with `os_version`
+
+For the following endpoint:
+/api/v1/fleet/users
+  - converted team_id validation error from 500 to 400 HTTP status code
+
+For the following endpoint:
+/api/v1/fleet/carves
+  - added rest-api.md documentation for `page`, `per_page`, `order_key`, `order_direction`, and `expired`
+  - converted `expired` validation error from 500 to 400 HTTP status code

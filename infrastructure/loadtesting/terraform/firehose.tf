@@ -6,11 +6,6 @@ resource "aws_s3_bucket" "osquery-results" { #tfsec:ignore:aws-s3-encryption-cus
   #checkov:skip=CKV_AWS_21:dev env
 }
 
-resource "aws_s3_bucket_acl" "osquery-results" {
-  bucket = aws_s3_bucket.osquery-results.id
-  acl    = "private"
-}
-
 resource "aws_s3_bucket_server_side_encryption_configuration" "osquery-results" {
   bucket = aws_s3_bucket.osquery-results.id
 
@@ -48,11 +43,6 @@ resource "aws_s3_bucket" "osquery-status" { #tfsec:ignore:aws-s3-encryption-cust
   #checkov:skip=CKV_AWS_18:dev env
   #checkov:skip=CKV_AWS_144:dev env
   #checkov:skip=CKV_AWS_21:dev env
-}
-
-resource "aws_s3_bucket_acl" "osquery-status" {
-  bucket = aws_s3_bucket.osquery-status.id
-  acl    = "private"
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "osquery-status" {
