@@ -84,7 +84,7 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		profiles.TablePlugin(osqueryLogger),
 
 		firmwarepasswd.TablePlugin(osqueryLogger),
-		
+
 		mdmclient.TablePlugin(osqueryLogger),
 		systemprofiler.TablePlugin(osqueryLogger), // table name is "system_profiler"
 		// Table for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/

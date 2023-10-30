@@ -22,12 +22,12 @@ void Icon(CFDataRef *iconDataRef, char* path) {
 import (
 	"C"
 )
+
 import (
 	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
-
 	"fmt"
 	"hash/crc64"
 	"image"
@@ -78,7 +78,7 @@ func generateAppIcons(ctx context.Context, queryContext table.QueryContext) ([]m
 }
 
 func getAppIcon(appPath string, queryContext table.QueryContext) (image.Image, uint64, error) {
-	var data C.CFDataRef = 0
+	var data C.CFDataRef
 	C.Icon(&data, C.CString(appPath))
 	defer C.CFRelease(C.CFTypeRef(data))
 
