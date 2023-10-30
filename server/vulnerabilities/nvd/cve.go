@@ -259,6 +259,26 @@ func checkCVEs(
 							}
 						}
 
+						// For chrome extensions we want only want to match vulnerabilities
+						// that are reported explicitly for target_sw == "chrome".
+						//
+						// Why? In many occassions the NVD dataset reports vulnerabilities in client applications
+						// with target_sw == "*", meaning the client application is vulnerable on all operating systems.
+						// Such rules we want to ignore here to prevent many false positives that do not apply to the
+						// Chrome environment.
+						if softwareCPE.meta.TargetSW == "chrome" {
+							var exactMatchTargetSW bool
+							for _, attr := range matches.CVE.Config() {
+								if attr.TargetSW == "chrome" {
+									exactMatchTargetSW = true
+									break
+								}
+							}
+							if !exactMatchTargetSW {
+								continue
+							}
+						}
+
 						resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), softwareCPE.meta, dict, logger)
 						if err != nil {
 							level.Debug(logger).Log("err", err)

@@ -70,6 +70,9 @@ func main() {
 	var softwareCPEs []fleet.SoftwareCPE
 	ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
 		softwareCPEs = cpes
+		for _, cpe := range cpes {
+			fmt.Printf("Matched CPE: %s\n", cpe.CPE)
+		}
 		return int64(len(cpes)), nil
 	}
 	ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
@@ -86,6 +89,10 @@ func main() {
 	err := nvd.TranslateSoftwareToCPE(ctx, ds, *vulnDBDir, logger)
 	if err != nil {
 		panic(err)
+	}
+	if len(softwareCPEs) == 0 {
+		fmt.Println("Unable to match a CPE for the software...")
+		return
 	}
 	fmt.Println("Translating CPEs to CVEs...")
 	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, *vulnDBDir, logger, true, 1*time.Hour)
