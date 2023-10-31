@@ -155,7 +155,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, fleet.NewInvalidArgumentError("windows_updates", err.Error())
 			}
 			if payload.MDM.WindowsUpdates.DeadlineDays.Set || payload.MDM.WindowsUpdates.GracePeriodDays.Set {
-				windowsUpdatesUpdated = team.Config.MDM.WindowsUpdates.Equal(*payload.MDM.WindowsUpdates)
+				windowsUpdatesUpdated = !team.Config.MDM.WindowsUpdates.Equal(*payload.MDM.WindowsUpdates)
 				team.Config.MDM.WindowsUpdates = *payload.MDM.WindowsUpdates
 			}
 		}
