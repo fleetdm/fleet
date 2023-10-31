@@ -51,7 +51,6 @@ import {
   TAGGED_TEMPLATES,
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
-import { DEFAULT_QUERY } from "utilities/constants";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 
 import HostSummaryCard from "../cards/HostSummary";
@@ -371,16 +370,6 @@ const HostDetailsPage = ({
     setPathname(location.pathname + location.search);
   }, [location]);
 
-  // Used to set host's team in AppContext for RBAC action dropdown
-  useEffect(() => {
-    if (host?.team_id) {
-      const hostsTeam = availableTeams?.find(
-        (team) => team.id === host.team_id
-      );
-      setCurrentTeam(hostsTeam);
-    }
-  }, [host]);
-
   const titleData = normalizeEmptyValues(
     pick(host, [
       "id",
@@ -584,6 +573,7 @@ const HostDetailsPage = ({
 
     return (
       <HostActionDropdown
+        hostTeamId={host.team_id}
         onSelect={onSelectHostAction}
         hostStatus={host.status}
         hostMdmEnrollemntStatus={host.mdm.enrollment_status}
