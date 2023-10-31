@@ -171,6 +171,34 @@ func TestWindowsUpdatesEqual(t *testing.T) {
 	}
 }
 
+func TestWIndowsUpdatesEnabledForHost(t *testing.T) {
+	hostWithRequirements := &Host{
+		OsqueryHostID: ptr.String("notempty"),
+		Platform:      "windows",
+		MDMInfo: &HostMDM{
+			IsServer: false,
+			Enrolled: true,
+			Name:     WellKnownMDMFleet,
+		},
+	}
+	cases := []struct {
+		w    WindowsUpdates
+		host *Host
+		want bool
+	}{
+		{WindowsUpdates{}, &Host{}, false},
+		{WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: false}, GracePeriodDays: optjson.Int{Set: true, Valid: false}}, hostWithRequirements, false},
+		{WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: true}, GracePeriodDays: optjson.Int{Set: true, Valid: false}}, hostWithRequirements, false},
+		{WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: true}, GracePeriodDays: optjson.Int{Set: true, Valid: true}}, hostWithRequirements, true},
+		{WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(2)}, &Host{}, false},
+		{WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(2)}, hostWithRequirements, true},
+	}
+
+	for _, tc := range cases {
+		require.Equal(t, tc.want, tc.w.EnabledForHost(tc.host))
+	}
+}
+
 func TestMacOSUpdatesEnabledForHost(t *testing.T) {
 	hostWithRequirements := &Host{
 		OsqueryHostID: ptr.String("notempty"),

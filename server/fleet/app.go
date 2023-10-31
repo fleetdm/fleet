@@ -237,6 +237,16 @@ type WindowsUpdates struct {
 	GracePeriodDays optjson.Int `json:"grace_period_days"`
 }
 
+// EnabledForHost returns a boolean indicating if enforced Windows OS updates
+// are enabled for the host. Note that the provided Host needs to be loaded
+// with full MDMInfo data for the check to be valid.
+func (w WindowsUpdates) EnabledForHost(h *Host) bool {
+	return w.DeadlineDays.Valid &&
+		w.GracePeriodDays.Valid &&
+		h.IsOsqueryEnrolled() &&
+		h.MDMInfo.IsFleetEnrolled()
+}
+
 // Equal returns true if the values of the fields of w and other are equal. It
 // returns false otherwise. If e.g. w.DeadlineDays.Value == 0 but its .Valid
 // field == false (i.e. it is null), it is not equal to
