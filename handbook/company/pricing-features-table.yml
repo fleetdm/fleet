@@ -1,9 +1,9 @@
 - categoryName: Endpoint ops
   features:
-      #
-      #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦ ╦╔═╗╔═╗╦ ╔╦╗╦ ╦
-      #   ║║║╣ ╚╗╔╝║║  ║╣   ╠═╣║╣ ╠═╣║  ║ ╠═╣
-      #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╚═╝╩ ╩╩═╝╩ ╩ ╩
+    #
+    #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦ ╦╔═╗╔═╗╦ ╔╦╗╦ ╦
+    #   ║║║╣ ╚╗╔╝║║  ║╣   ╠═╣║╣ ╠═╣║  ║ ╠═╣
+    #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╚═╝╩ ╩╩═╝╩ ╩ ╩
     - industryName: Device health
       friendlyName: Automate device health
       description: Automatically report system health issues using webhooks or integrations, to notify or quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
@@ -15,13 +15,13 @@
       demos:
         - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
           quote: 
-          moreInfoUrl: 
+          moreInfoUrl: https://play.goconsensus.com/s4e490bb9
       buzzwords: [Device trust,Zero trust,Beyondcorp,Device attestation,Conditional access]
       waysToUse:
-        - description: Automatically manage the behavior of sick endpoints that are at higher risk of vulnerabilities.
-        - description: Implement conditional access based on device health using the Fleet API.
-        - description: Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.
-        - description: Control and restore access to applications by restricting access when devices do not meet particular security requirements.
+        - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
+        - description: Block access to corporate apps for users whose devices with unexpected settings, like disabled screen lock, passwords that are too short, unencrypted hard disks, and more
+        - description: Quickly implement conditional access based on device health using osquery and a simple REST API.
+        - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
           moreInfoUrl: https://duo.com/docs/device-health
         - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems.
         - description: Implement multivariate device trust
@@ -74,6 +74,7 @@
       buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Threat hunting]
       waysToUse:
         - description: Monitor devices that don't meet your organization's custom security policies
+        - description: Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.
         - description: Keep your devices compliant with customizable baselines, or use common benchmarks like CIS.
         - description: Discover security misconfigurations that increase attack surface.
         - description: Detect suspcious services listening on open ports that should not be connected to the internet, such as Remote Desktop Protocol (RDP).
@@ -126,6 +127,7 @@
     #  ╔═╗═╗ ╦╔═╗╔═╗╦═╗╔╦╗   ┬   ╔═╗╦ ╦╔╗╔╔═╗
     #  ║╣ ╔╩╦╝╠═╝║ ║╠╦╝ ║   ┌┼─  ╚═╗╚╦╝║║║║
     #  ╚═╝╩ ╚═╩  ╚═╝╩╚═ ╩   └┘   ╚═╝ ╩ ╝╚╝╚═╝
+    # TODO: Use a different, more specific industry name for this, to tie it explicitly to query automations.  Customer quotes like "feeder for the SIEM" (there are too many types of export for it to be this generic).  Also tie this into HIDS.  And with the idea of ingesting IoCs.  HIDS can be accomplished with query automations or with policies, so it may be worth combining them.  i.e. it becomes "Automated posture assessment" and then also "HIDS", where we talk about, in a single entry, how you can do HIDS with query logs and with policies.  See "open hids" in https://docs.google.com/document/d/1oeCmT077o_5nxzLhnxs7kcg_4Qn1Pn1F5zx10nQOAp8/edit
     - industryName: Automated export/sync
       friendlyName: Build custom query automations
       description: Ship logs with snapshots of any imaginable report, or monitor results for changes.
@@ -165,18 +167,18 @@
         - description: Monitor critical files on production Debian servers
         - description: Detect anomalous filesystem activity
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
-        - description: Pinpoint unintended changes
+        - description: Detect unintended changes
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
         - description: Verify update status and monitor system health
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
         - description: Meet compliance mandates
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
-    #  ╦ ╦╔═╗╦═╗╔═╗
-    #  ╚╦╝╠═╣╠╦╝╠═╣
-    #   ╩ ╩ ╩╩╚═╩ ╩
+    #  ╔╦╗╔═╗╦  ╦ ╦╔═╗╦═╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ┌─╦ ╦╔═╗╦═╗╔═╗─┐
+    #  ║║║╠═╣║  ║║║╠═╣╠╦╝║╣    ║║║╣  ║ ║╣ ║   ║ ║║ ║║║║  │ ╚╦╝╠═╣╠╦╝╠═╣ │
+    #  ╩ ╩╩ ╩╩═╝╚╩╝╩ ╩╩╚═╚═╝  ═╩╝╚═╝ ╩ ╚═╝╚═╝ ╩ ╩╚═╝╝╚╝  └─ ╩ ╩ ╩╩╚═╩ ╩─┘
     - industryName: Malware detection (YARA)
       fiendlyName: Scan files for malware signatures
-      description: Trigger automations when a file matches a YARA signature.
+      description: Report and trigger automations when malware or other unexpected files are detected on a host using YARA signatures.
       documentationUrl: https://fleetdm.com/tables/yara
       tier: Free
       dri: mikermcneil
@@ -343,7 +345,7 @@
       waysToUse:
         - description: (Vanta) Trigger a workflow based on a failing policy.
         - description: (Puppet) Easily issue MDM commands, standardize data across operating systems, and map macOS+Windows settings to computers with the Puppet module.
-        - description: (Jira) Automatically create Jira tickets in various situations.
+        - description: (Jira) Automatically create Jira tickets in various situations, including exporting vulnerabilities to Jira and syncing tickets.
         - description: (Torq) Build custom workflows that trigger in various situations.
         - description: (Zendesk) Automatically create Zendesk tickets in various situations.
         - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
@@ -439,6 +441,16 @@
       productCategories: [Device management]
 - categoryName: Inventory management
   features:
+    - industryName: Software inventory
+      tier: Free
+      waysToUse:
+        - description: Implement software inventory recommendations from the SANS 20 / CIS 18.
+          moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
+    - industryName: Hardware inventory
+      tier: Free
+      waysToUse:
+        - description: Implement hardware and infrastructure inventory recommendations from the SANS 20 / CIS 18.
+          moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
     - industryName: Device inventory dashboard
       tier: Free
     - industryName: Browse installed software packages
@@ -504,7 +516,7 @@
       tier: Premium
 - categoryName: Vulnerability management
   features:
-    - industryName: Detect vulnerable software
+    - industryName: Detect vulnerable software #TODO: find a better industryName and make this the friendly name. Maybe separate out export.
       tier: Free
       usualDepartment: Security
       productCategories: [Vulnerability management]
@@ -512,6 +524,9 @@
         - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
           quote: So we have some stuff today through Qualys, but it's just not very good. A lot of it is...it's just really noisy.  I'm trying to find out specifically, actually what packages are installed where, and then the ability to live query them.
           moreInfoUrl: https://docs.google.com/document/d/1JWtRsW1FUTCkZEESJj9-CvXjLXK4219by-C6vvVVyBY/edit
+      waysToUse:
+        - description: Email relevant, actually-installed vulnerabilities to responsible teams so they can fix them.
+          moreInfoUrl: https://docs.google.com/document/d/1oeCmT077o_5nxzLhnxs7kcg_4Qn1Pn1F5zx10nQOAp8/edit
     - industryName: Query performance monitoring
       tier: Free
       demos:

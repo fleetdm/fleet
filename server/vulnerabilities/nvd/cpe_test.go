@@ -3,7 +3,6 @@ package nvd
 import (
 	"compress/gzip"
 	"context"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -422,7 +421,7 @@ func TestSyncsCPEFromURL(t *testing.T) {
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
-	stored, err := ioutil.ReadFile(dbPath)
+	stored, err := os.ReadFile(dbPath)
 	require.NoError(t, err)
 	assert.Equal(t, "Hello world!", string(stored))
 }
