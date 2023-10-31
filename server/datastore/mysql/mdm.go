@@ -53,12 +53,6 @@ WHERE
    nvq.active = 1
 `
 
-	// TODO(roberto): note how we're not filtering by `active = 1` on windows.
-	// Nano behaves like this:
-	// - When a device is unenrolled, all pending commands are set `active = 0`
-	// - When a command is delivered, the entry is removed from the table
-	//
-	// In Windows, we set `active = 0` when we get the results of the command. What we should do?
 	windowsStmt := `
 SELECT
     mwe.host_uuid,

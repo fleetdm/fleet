@@ -34,9 +34,6 @@ CREATE TABLE windows_mdm_command_queue (
 	enrollment_id INT(10) UNSIGNED NOT NULL,
 	command_uuid  VARCHAR(127) NOT NULL,
 
-	-- whether the command should be processed or not (can be deactivated to be ignored)
-	active        BOOLEAN NOT NULL DEFAULT 1,
-
 	created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
