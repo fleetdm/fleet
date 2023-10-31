@@ -1446,8 +1446,6 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		return nil, fmt.Errorf("store incoming msgs: %w", err)
 	}
 
-	// TODO(mna): we need to store the full response, and each command's results/status, in a single tx.
-
 	// Iterate over the operations and process them
 	for _, protoCMD := range reqMsg.GetOrderedCmds() {
 		// Alerts, Results and Status don't require a status response
