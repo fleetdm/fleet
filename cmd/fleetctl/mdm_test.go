@@ -208,6 +208,9 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
 				return nil
 			}
+			ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+				return &fleet.HostMDMDiskEncryption{}, nil
+			}
 			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
 				return map[string]error{}, nil
 			}
