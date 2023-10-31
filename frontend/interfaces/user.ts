@@ -1,5 +1,7 @@
 import PropTypes from "prop-types";
+
 import teamInterface, { ITeam } from "./team";
+import { Role } from "./role";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -49,7 +51,7 @@ export interface IUser {
   gravatar_url?: string;
   gravatar_url_dark?: string;
   sso_enabled: boolean;
-  global_role: UserRole | null;
+  global_role: Role | null;
   api_only: boolean;
   teams: ITeam[];
 }
@@ -63,7 +65,7 @@ export interface IUserUpdateBody {
   name: string;
   email?: string;
   sso_enabled?: boolean;
-  role?: UserRole;
+  role?: Role;
   id: number;
 }
 

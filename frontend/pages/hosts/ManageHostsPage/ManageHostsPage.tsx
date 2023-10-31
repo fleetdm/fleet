@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import FileSaver from "file-saver";
 import classNames from "classnames";
 
+import { usePermissions } from "utilities/roleBaseAccessControls/roleBaseAccessControls";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
@@ -138,8 +139,9 @@ const ManageHostsPage = ({
     setFilteredHostsPath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
-
   const { setResetSelectedRows } = useContext(TableContext);
+
+  const { hasPermission } = usePermissions();
 
   const {
     currentTeamId,
@@ -253,10 +255,10 @@ const ManageHostsPage = ({
   }, [activeLabel, labelID]);
 
   // ========= derived permissions
-  const canEnrollHosts =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canEnrollHosts = hasPermission("host.create");
+  const canAddNewLabels = hasPermission("label.create");
+
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
 
   const { data: labels, refetch: refetchLabels } = useQuery<
     ILabelsResponse,

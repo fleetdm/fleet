@@ -8,9 +8,21 @@ export default PropTypes.shape({
   helpText: PropTypes.string,
 });
 
-export interface IRole {
-  disabled: boolean;
-  label: string;
-  value: UserRole;
-  helpText?: string;
-}
+/** roles names we use in response and requests to the API. */
+export type Role =
+  | "admin"
+  | "maintainer"
+  | "observer"
+  | "observer_plus"
+  | "gitops";
+
+/** role names as they apppear displayed in the UI */
+export type RoleDisplay =
+  | "Admin"
+  | "Maintainer"
+  | "Observer"
+  | "Observer+"
+  | "GitOps"
+  | "Unassigned"
+  | "Various"
+  | "";

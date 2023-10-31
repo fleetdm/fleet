@@ -34,6 +34,7 @@ const DEFAULT_OPTIONS: IDropdownOption[] = [
 
 // eslint-disable-next-line import/prefer-default-export
 interface IHostActionConfigOptions {
+  canTransferHost: boolean;
   isPremiumTier: boolean;
   isGlobalAdmin: boolean;
   isGlobalMaintainer: boolean;
@@ -47,9 +48,10 @@ interface IHostActionConfigOptions {
   isSandboxMode: boolean;
 }
 
-const canTransferTeam = (config: IHostActionConfigOptions) => {
-  const { isPremiumTier, isGlobalAdmin, isGlobalMaintainer } = config;
-  return isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
+const canTransferTeam = (canTransferHost: boolean) => {
+  return canTransferHost;
+  // const { isPremiumTier, isGlobalAdmin, isGlobalMaintainer } = config;
+  // return isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
 };
 
 const canEditMdm = (config: IHostActionConfigOptions) => {
@@ -89,7 +91,7 @@ const filterOutOptions = (
   options: IDropdownOption[],
   config: IHostActionConfigOptions
 ) => {
-  if (!canTransferTeam(config)) {
+  if (!canTransferTeam(config.canTransferHost)) {
     options = options.filter((option) => option.value !== "transfer");
   }
 

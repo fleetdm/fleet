@@ -1,8 +1,9 @@
 import React, { useState, useContext } from "react";
 
 import { ITeam } from "interfaces/team";
-import { IRole } from "interfaces/role";
 import { UserRole } from "interfaces/user";
+import { Role } from "interfaces/role";
+
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -55,7 +56,7 @@ const SelectRoleForm = ({
     defaultTeamRole.toLowerCase()
   );
 
-  const updateSelectedRole = (newRoleValue: UserRole) => {
+  const updateSelectedRole = (newRoleValue: Role) => {
     const updatedTeam = { ...currentTeam };
 
     updatedTeam.role = newRoleValue;
@@ -74,9 +75,7 @@ const SelectRoleForm = ({
           className={`${baseClass}__role-dropdown`}
           options={roleOptions({ isPremiumTier, isApiOnly })}
           searchable={false}
-          onChange={(newRoleValue: UserRole) =>
-            updateSelectedRole(newRoleValue)
-          }
+          onChange={(newRoleValue: Role) => updateSelectedRole(newRoleValue)}
           testId={`${name}-checkbox`}
         />
       </div>

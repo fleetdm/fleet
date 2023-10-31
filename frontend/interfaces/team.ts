@@ -1,8 +1,10 @@
 import PropTypes from "prop-types";
+
 import { IConfigFeatures, IWebhookSettings } from "./config";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { IIntegrations } from "./integration";
 import { UserRole } from "./user";
+import { Role } from "./role";
 
 export default PropTypes.shape({
   id: PropTypes.number.isRequired,
@@ -42,7 +44,7 @@ export interface ITeam extends ITeamSummary {
   user_count?: number;
   host_count?: number;
   secrets?: IEnrollSecret[];
-  role?: UserRole; // role value is included when the team is in the context of a user
+  role?: Role | null; // role value is included when the team is in the context of a user
   mdm?: {
     enable_disk_encryption: boolean;
     macos_updates: {
