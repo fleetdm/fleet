@@ -194,7 +194,7 @@ Use [on-call runbooks](https://github.com/fleetdm/confidential/tree/main/infrast
 
 ## Responsibilities
 
-#### First-line response
+### Respond to messages and alerts
 
 Customer Success is responsible for the first response to messages in private customer Slack channels.
 
@@ -207,21 +207,20 @@ We respond within 1-hour during business hours and 4 hours outside business hour
 > Response SLAs help us measure and guarantee the responsiveness that a customer [can expect](https://fleetdm.com/handbook/company#values) from Fleet.  But SLAs aside, when a Fleet customer has an emergency or other time-sensitive situation ongoing, it is Fleet's priority to help them find them a solution quickly.
 
 ### Onboard a customer support engineer
-What do you do every day? What does the path to success look like in this role and what can you do to contribute quickly at Fleet? To onboard a customer support engineer at Fleet it's important to understand the [continued training needed](https://docs.google.com/document/d/1GB8i_VMaFxeb9ipLock9MVWGJ2RqIW8lZ5n3MLiXG4s/edit).
+Follow the [training steps for this role](https://docs.google.com/document/d/1GB8i_VMaFxeb9ipLock9MVWGJ2RqIW8lZ5n3MLiXG4s/edit).
 
 ### Onboard a customer success manager
-What do you do every day? What does the path to success look like in this role and what can you do to contribute quickly at Fleet? To onboard a customer success manager at Fleet it's important to understand the [continued training needed](https://docs.google.com/document/d/1itrBeztwjK253Q548wbveVWdDaldBYCEOS6Cbz5Z4Uc/edit).
+Follow the [training steps for this role](https://docs.google.com/document/d/1itrBeztwjK253Q548wbveVWdDaldBYCEOS6Cbz5Z4Uc/edit).
 
 ### Onboard a customer solutions architect
-What do you do every day? What does the path to success look like in this role and what can you do to contribute quickly at Fleet? To onboard a customer solutions architect at Fleet it's important to understand the [continued training needed](https://docs.google.com/document/d/1G26Aqmn4tSKa7s0jMcSRqNTtz6h47Tvf8Ddi2-cP1ek/edit#heading=h.2i16pc77rnb7).
+Follow the [training steps for this role](https://docs.google.com/document/d/1G26Aqmn4tSKa7s0jMcSRqNTtz6h47Tvf8Ddi2-cP1ek/edit#heading=h.2i16pc77rnb7).
 
 ### Onboard an infrastructure engineer
-What do you do every day? What does the path to success look like in this role and what can you do to contribute quickly at Fleet? To onboard a customer solutions architect at Fleet it's important to understand the [continued training needed](https://docs.google.com/document/d/1G26Aqmn4tSKa7s0jMcSRqNTtz6h47Tvf8Ddi2-cP1ek/edit#heading=h.2i16pc77rnb7).
-
+Follow the [training steps for this role](https://docs.google.com/document/d/1G26Aqmn4tSKa7s0jMcSRqNTtz6h47Tvf8Ddi2-cP1ek/edit#heading=h.2i16pc77rnb7).
 
 ## Rituals
 
-<rituals :rituals="rituals['handbook/customers/sales.rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/customers/customer-success.rituals.yml']"></rituals>
 
 
 <meta name="maintainedBy" value="zayhanlon">

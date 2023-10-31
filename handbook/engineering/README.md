@@ -242,7 +242,7 @@ Immediately after publishing a new release, we close out the associated GitHub i
 
 12. Announce that `main` is unfrozen and the milestone has been closed in #help-engineering.
 
-## on-call rotation
+## On-call rotation
 - [The rotation](#the-rotation)
 - [Responsibilities](#responsibilities)
 - [Clearing the plate](#clearing-the-plate)
