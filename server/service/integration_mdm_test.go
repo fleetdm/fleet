@@ -7046,8 +7046,8 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 			fleetdExecCmd = c
 		}
 	}
-	require.Equal(t, "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall", fleetdAddCmd.Cmd.GetTargetURI())
-	require.Equal(t, "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall", fleetdExecCmd.Cmd.GetTargetURI())
+	require.Equal(t, microsoft_mdm.FleetdWindowsInstallerGUID, fleetdAddCmd.Cmd.GetTargetURI())
+	require.Equal(t, microsoft_mdm.FleetdWindowsInstallerGUID, fleetdExecCmd.Cmd.GetTargetURI())
 }
 
 func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {

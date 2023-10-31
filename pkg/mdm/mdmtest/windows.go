@@ -482,8 +482,7 @@ func (c *TestWindowsMDMClient) request(path string, reqBody []byte) (*http.Respo
 	return response, nil
 }
 
-func (c *TestWindowsMDMClient) getToken() (string, string, error) {
-	var binarySecToken, tokenValueType string
+func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType string, err error) {
 	switch c.enrollmentType {
 	case fleet.WindowsMDMAutomaticEnrollmentType:
 		claims := &jwt.MapClaims{

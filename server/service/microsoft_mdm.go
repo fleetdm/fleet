@@ -1293,7 +1293,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	<CmdID>` + addCommandUUID + `</CmdID>
 	<Item>
 		<Target>
-			<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall</LocURI>
+			<LocURI>` + mdm.FleetdWindowsInstallerGUID + `</LocURI>
 		</Target>
 	</Item>
 </Add>`)
@@ -1306,7 +1306,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	<CmdID>` + execCommandUUID + `</CmdID>
 	<Item>
 		<Target>
-			<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall</LocURI>
+			<LocURI>` + mdm.FleetdWindowsInstallerGUID + `</LocURI>
 		</Target>
 		<Data>
 			<MsiInstallJob id="{A427C0AA-E2D5-40DF-ACE8-0D726A6BE096}">
@@ -1340,7 +1340,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	addFleetdCmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  addCommandUUID,
 		RawCommand:   rawAddCmd,
-		TargetLocURI: "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall",
+		TargetLocURI: mdm.FleetdWindowsInstallerGUID,
 	}
 	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, addFleetdCmd); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert add command to install fleetd")
@@ -1349,7 +1349,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	execFleetCmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  execCommandUUID,
 		RawCommand:   rawExecCmd,
-		TargetLocURI: "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall",
+		TargetLocURI: mdm.FleetdWindowsInstallerGUID,
 	}
 	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, execFleetCmd); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert exec command to install fleetd")
