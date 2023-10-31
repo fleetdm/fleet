@@ -6932,10 +6932,61 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
-- [List all software](#list-all-software)
+- [List software titles](#list-software-titles)
+- [List software versions](#list-software-versions)
 - [Count software](#count-software)
+- [Get software title](#get-software-title)
 
-### List all software
+### List software titles
+
+`GET /api/v1/fleet/software_titles`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                |
+| ----------------------- | ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
+| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `cve_published`, `cvss_score`, `epss_probability` and `cisa_known_exploit`. Default is `hosts_count` (descending).      |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                              |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
+
+#### Example
+
+`GET /api/v1/fleet/software_titles`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_titles": [
+    {
+      "id": 12,
+      "title": "Firefox.app",
+      "versions_count": 3,
+      "source": "apps",
+      "hosts_count": "48",
+      "epss_probability": 0.01537,
+      "versions": [123, 124, 127]  
+    },
+    {
+      "id": 22,
+      "title": "Google Chrome.app",
+      "versions_count": 5,
+      "source": "apps",
+      "hosts_count": "345",
+      "epss_probability": 0.01537,
+      "versions": [331, 332, 334, 348, 351]
+    }
+  ]
+}
+```
+
+### List software versions
 
 `GET /api/v1/fleet/software`
 
@@ -6945,7 +6996,7 @@ Deletes the session specified by ID. When the user associated with the session n
 | ----------------------- | ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page.                                                                                                                                                          |
-| order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `cve_published`, `cvss_score`, `epss_probability` and `cisa_known_exploit`. Default is `hosts_count` (descending).      |
+| order_key               | string  | query | What to order results by. Allowed fields are `title`, `hosts_count`, `epss_probability`. Default is `hosts_count` (descending).      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
@@ -7013,6 +7064,51 @@ Deletes the session specified by ID. When the user associated with the session n
 ```json
 {
   "count": 43
+}
+```
+
+### Get software title
+
+`GET /api/v1/fleet/software_titles/{id}`
+
+#### Example
+
+`GET /api/v1/fleet/software_titles/12`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title": {
+    "id": 12,
+    "title": "Firefox.app",
+    "versions_count": 3,
+    "source": "apps",
+    "hosts_count": "48",
+    "epss_probability": 0.01537,
+    "versions": [ 
+      {
+        "id": 123,
+        "version": "117.0",
+        "epss_probability": 0.01537,
+        "hosts_count": "37"
+      },
+      {
+        "id": 124,
+        "version": "116.0",
+        "epss_probability": 0.01547,
+        "hosts_count": "7"
+      },
+      {
+        "id": 127,
+        "version": "115.5",
+        "epss_probability": 0.02132,
+        "hosts_count": "4"
+      }
+    ]  
+  }
 }
 ```
 ---
