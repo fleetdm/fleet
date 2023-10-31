@@ -8852,18 +8852,11 @@ func (s *integrationMDMTestSuite) newSyncMLUnenrollMsg(deviceID string, manageme
 				<CmdID>4</CmdID>
 				<Data>1226</Data>
 				<Item>
-<<<<<<< HEAD
 					<Meta>
 					<Type xmlns="syncml:metinf">com.microsoft:mdm.unenrollment.userrequest</Type>
 					<Format xmlns="syncml:metinf">int</Format>
 					</Meta>
 					<Data>1</Data>
-=======
-					<Source>
-					<LocURI>./DevInfo/DevId</LocURI>
-					</Source>
-					<Data>` + deviceID + `</Data>
->>>>>>> origin/main
 				</Item>
 				</Alert>
 				<Final/>
