@@ -3879,7 +3879,7 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 
 ### Add custom OS setting (configuration profile)
 
-> [Add custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#add-custom-macos-setting-configuration-profile) (`POST /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.40. It is maintained for backwards compatibility. Please use the API endpoint.
+> [Add custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#add-custom-macos-setting-configuration-profile) (`POST /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 Add a configuration profile to enforce custom settings on macOS and Windows hosts.
 
