@@ -16,7 +16,7 @@ The `Icon` directory includes global styling, the global `Icon` component, and t
 
 The `icons` directory includes separate files for all SVG components for Fleet icons.
 
-Each component can be modified to take various props including but not limited to `color` using `frontend/styles/var/colors.ts`, `size` using `frontend/styles/var/icon_sizes`, or `direction` using custom SVG paths (e.g., `Chevron.tsx`).
+Each component can be modified to take various props including but not limited to `color` using `frontend/styles/var/colors.ts` or `size` using `frontend/styles/var/icon_sizes`.
 
 `index.ts` maps all icon names used in `<Icon name="icon-name" />` to its respective SVG component.
 

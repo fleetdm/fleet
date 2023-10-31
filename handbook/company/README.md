@@ -28,12 +28,10 @@ Fleet Device Management Inc. is an all-remote company with 40+ team members spre
 ### Open source
 Fleet is open by design.  The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
-### Every day
-When something is written down in the handbook, we actually mean it.  This helps us know what to expect from one another.  You can read more about what it's like to work at Fleet in ["📖Company/Communications"](https://fleetdm.com/handbook/company/communications).
-
-
-## Why this way?
+### Why this way?
 At Fleet, we write things down.  Even when we might be wrong.  This helps us move quickly, provides clarity, and enables asynchronous work.  The "Why this way?" page in the handbook discusses some of our most important decisions about the best way to work and the reasoning for them.  For example: _"Why open source?"_, _"Why do we use a wireframe-first approach?"_, _"Why direct responsibility?_, and _"Why handbook-first strategy?"_  You can read more about these principles and suggest improvements in ["📖Company/Why this way?"](https://fleetdm.com/handbook/company/why-this-way)
+
+> You can read more about what it's like to work at Fleet in ["📖Company/Communications"](https://fleetdm.com/handbook/company/communications).
 
 
 ## Open positions
@@ -140,10 +138,7 @@ To provide clarity about decision-making, [responsibility](https://fleetdm.com/h
 - 🫧 [Demand](https://fleetdm.com/handbook/demand): The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other programs.
 - 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product.
 - 🦢 [Product Design](https://fleetdm.com/handbook/product): The Product Design department is directly responsible for defining and prioritizing the changes made to the core product.
-
-
-### CEO
-Get to know Fleet's CEO and tips for collaborating with him in 📖[handbook/ceo](https://fleetdm.com/handbook/ceo).
+- 🐈‍⬛ [CEO](https://fleetdm.com/handbook/ceo): Get to know Fleet's CEO and tips for collaborating with him in 📖[handbook/ceo](https://fleetdm.com/handbook/ceo).
 
 ## Advisors
 While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including
