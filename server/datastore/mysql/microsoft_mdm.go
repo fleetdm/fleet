@@ -163,10 +163,10 @@ func (ds *Datastore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUU
 func (ds *Datastore) mdmWindowsInsertHostCommandDB(ctx context.Context, tx sqlx.ExecerContext, hostUUID, commandUUID string) error {
 	stmt := `
 INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid)
-VALUES ((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ?), ?)
+VALUES ((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ?), ?)
 `
 
-	if _, err := tx.ExecContext(ctx, stmt, hostUUID, commandUUID); err != nil {
+	if _, err := tx.ExecContext(ctx, stmt, hostUUID, hostUUID, commandUUID); err != nil {
 		if isDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommandQueue", commandUUID))
 		}

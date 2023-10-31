@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
 	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -1267,6 +1268,96 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string
 	return true, nil
 }
 
+func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID string) error {
+	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting enroll secrets")
+	}
+
+	if len(secrets) == 0 {
+		level.Warn(svc.logger).Log("msg", "unable to find a global enroll secret to install fleetd")
+		return nil
+	}
+
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	fleetURL := appCfg.ServerSettings.ServerURL
+	globalEnrollSecret := secrets[0].Secret
+	addCommandUUID := uuid.NewString()
+	execCommandUUID := uuid.NewString()
+
+	rawAddCmd := []byte(`
+<Add>
+	<CmdID>` + addCommandUUID + `</CmdID>
+	<Item>
+		<Target>
+			<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall</LocURI>
+		</Target>
+	</Item>
+</Add>`)
+
+	// keeping the same GUID will prevent the MSI to be installed multiple times - it will be
+	// installed only the first time the message is issued.
+	// FleetURL and FleetSecret properties are passed to the Fleet MSI
+	rawExecCmd := []byte(`
+<Exec>
+	<CmdID>` + execCommandUUID + `</CmdID>
+	<Item>
+		<Target>
+			<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall</LocURI>
+		</Target>
+		<Data>
+			<MsiInstallJob id="{A427C0AA-E2D5-40DF-ACE8-0D726A6BE096}">
+			<Product Version="1.0.0.0">
+				<Download>
+					<ContentURLList>
+						<ContentURL>https://download.fleetdm.com/fleetd-base.msi</ContentURL>
+					</ContentURLList>
+				</Download>
+				<Validation>
+					<FileHash>9F89C57D1B34800480B38BD96186106EB6418A82B137A0D56694BF6FFA4DDF1A</FileHash>
+				</Validation>
+				<Enforcement>
+					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + globalEnrollSecret + `"</CommandLine>
+					<TimeOut>10</TimeOut>
+					<RetryCount>1</RetryCount>
+					<RetryInterval>5</RetryInterval>
+				</Enforcement>
+			</Product>
+			</MsiInstallJob>
+		</Data>
+		<Meta>
+			<Type xmlns="syncml:metinf">text/plain</Type>
+			<Format xmlns="syncml:metinf">xml</Format>
+		</Meta>
+	</Item>
+</Exec>
+`)
+
+	// TODO: add ability to batch-enqueue multiple commands at the same time
+	addFleetdCmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  addCommandUUID,
+		RawCommand:   []byte(rawAddCmd),
+		TargetLocURI: "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall",
+	}
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, addFleetdCmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert add command to install fleetd")
+	}
+
+	execFleetCmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  execCommandUUID,
+		RawCommand:   []byte(rawExecCmd),
+		TargetLocURI: "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall",
+	}
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, execFleetCmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert exec command to install fleetd")
+	}
+
+	return nil
+}
+
 // Alerts Handlers
 
 // New session Alert Handler
@@ -1279,8 +1370,7 @@ func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string
 	}
 
 	if !fleetdPresent {
-		// TODO: Command should be enqueued here once the new commands tables are in place
-		return nil
+		return svc.enqueueInstallFleetdCommand(ctx, deviceID)
 	}
 
 	return nil

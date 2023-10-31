@@ -7020,6 +7020,36 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	}, getMDMCmdResp.Results[0])
 }
 
+func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
+	t := s.T()
+	ctx := context.Background()
+
+	// define a global enroll secret
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+
+	azureMail := "foo.bar.baz@example.com"
+	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail)
+	require.NoError(t, d.Enroll())
+
+	cmds, err := d.StartManagementSession()
+	require.NoError(t, err)
+
+	// 2 status + 2 commands to install fleetd
+	require.Len(t, cmds, 4)
+	var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
+	for _, c := range cmds {
+		switch c.Verb {
+		case "Add":
+			fleetdAddCmd = c
+		case "Exec":
+			fleetdExecCmd = c
+		}
+	}
+	require.Equal(t, "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall", fleetdAddCmd.Cmd.GetTargetURI())
+	require.Equal(t, "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall", fleetdExecCmd.Cmd.GetTargetURI())
+}
+
 func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
 	t := s.T()
 

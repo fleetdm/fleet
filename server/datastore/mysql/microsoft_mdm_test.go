@@ -161,6 +161,18 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
+
+	// commands can be added by device id as well
+	cmd.CommandUUID = uuid.NewString()
+	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{d1.MDMDeviceID, d2.MDMDeviceID}, cmd)
+	require.NoError(t, err)
+	// command enqueued and created
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+	require.NoError(t, err)
+	require.Len(t, cmds, 2)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+	require.NoError(t, err)
+	require.Len(t, cmds, 2)
 }
 
 func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {

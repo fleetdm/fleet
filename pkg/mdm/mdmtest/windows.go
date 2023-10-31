@@ -3,6 +3,7 @@ package mdmtest
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 )
 
@@ -28,8 +30,8 @@ type TestWindowsMDMClient struct {
 	// enrollmentType is used to simulate different Windows enrollment
 	// types (programatic, automatic.)
 	enrollmentType fleet.WindowsMDMEnrollmentType
-	// orbitNodeKey is used for authentication during the programmatic enrollment.
-	orbitNodeKey string
+	// tokenIdentifier is used for authentication during the programmatic enrollment.
+	tokenIdentifier string
 	// lastManagementResp tracks the last response we received from the server.
 	lastManagementResp *fleet.SyncML
 	// queuedCommandResponses tracks the commands that will be sent next
@@ -51,11 +53,25 @@ func TestWindowsMDMClientDebug() TestWindowsMDMClientOption {
 
 func NewTestMDMClientWindowsProgramatic(serverURL string, orbitNodeKey string, opts ...TestWindowsMDMClientOption) *TestWindowsMDMClient {
 	c := TestWindowsMDMClient{
-		fleetServerURL: serverURL,
-		DeviceID:       uuid.NewString(),
-		enrollmentType: fleet.WindowsMDMProgrammaticEnrollmentType,
-		orbitNodeKey:   orbitNodeKey,
-		hardwareID:     uuid.NewString(),
+		fleetServerURL:  serverURL,
+		DeviceID:        uuid.NewString(),
+		enrollmentType:  fleet.WindowsMDMProgrammaticEnrollmentType,
+		tokenIdentifier: orbitNodeKey,
+		hardwareID:      uuid.NewString(),
+	}
+	for _, fn := range opts {
+		fn(&c)
+	}
+	return &c
+}
+
+func NewTestMDMClientWindowsAutomatic(serverURL string, email string, opts ...TestWindowsMDMClientOption) *TestWindowsMDMClient {
+	c := TestWindowsMDMClient{
+		fleetServerURL:  serverURL,
+		DeviceID:        uuid.NewString(),
+		enrollmentType:  fleet.WindowsMDMAutomaticEnrollmentType,
+		tokenIdentifier: email,
+		hardwareID:      uuid.NewString(),
 	}
 	for _, fn := range opts {
 		fn(&c)
@@ -251,9 +267,9 @@ func (c *TestWindowsMDMClient) Enroll() error {
 		return err
 	}
 
-	binarySecToken, err := fleet.GetEncodedBinarySecurityToken(c.enrollmentType, c.orbitNodeKey)
+	binarySecToken, tokenValueType, err := c.getToken()
 	if err != nil {
-		return fmt.Errorf("generating encoded security token: %w", err)
+		return fmt.Errorf("getting binary token: %w", err)
 	}
 
 	enrollReq := []byte(`
@@ -272,7 +288,7 @@ func (c *TestWindowsMDMClient) Enroll() error {
         </a:ReplyTo>
         <a:To s:mustUnderstand="1">` + c.fleetServerURL + microsoft_mdm.MDE2EnrollPath + `</a:To>
         <wsse:Security s:mustUnderstand="1">
-            <wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + binarySecToken + `</wsse:BinarySecurityToken>
+            <wsse:BinarySecurityToken ValueType="` + tokenValueType + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + binarySecToken + `</wsse:BinarySecurityToken>
         </wsse:Security>
     </s:Header>
     <s:Body>
@@ -396,10 +412,9 @@ func (c *TestWindowsMDMClient) Discovery() error {
 }
 
 func (c *TestWindowsMDMClient) Policy() error {
-	binarySecToken, err := fleet.GetEncodedBinarySecurityToken(c.enrollmentType, c.orbitNodeKey)
-	fmt.Println(binarySecToken)
+	binarySecToken, tokenValueType, err := c.getToken()
 	if err != nil {
-		return fmt.Errorf("generating encoded security token: %w", err)
+		return fmt.Errorf("getting binary token: %w", err)
 	}
 
 	policyReq := []byte(`
@@ -418,7 +433,7 @@ func (c *TestWindowsMDMClient) Policy() error {
         </a:ReplyTo>
         <a:To s:mustUnderstand="1">` + c.fleetServerURL + microsoft_mdm.MDE2PolicyPath + `</a:To>
         <wsse:Security s:mustUnderstand="1">
-            <wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + binarySecToken + `</wsse:BinarySecurityToken>
+            <wsse:BinarySecurityToken ValueType="` + tokenValueType + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + binarySecToken + `</wsse:BinarySecurityToken>
         </wsse:Security>
     </s:Header>
     <s:Body
@@ -465,4 +480,35 @@ func (c *TestWindowsMDMClient) request(path string, reqBody []byte) (*http.Respo
 	}
 
 	return response, nil
+}
+
+func (c *TestWindowsMDMClient) getToken() (string, string, error) {
+	var binarySecToken, tokenValueType string
+	switch c.enrollmentType {
+	case fleet.WindowsMDMAutomaticEnrollmentType:
+		claims := &jwt.MapClaims{
+			"upn":         c.tokenIdentifier,
+			"tid":         "tenant_id",
+			"unique_name": "foo_bar",
+			"scp":         "mdm_delegation",
+		}
+
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		tokenString, err := token.SignedString([]byte("foo"))
+		if err != nil {
+			return "", "", err
+		}
+
+		tokenValueType = microsoft_mdm.BinarySecurityAzureEnroll
+		binarySecToken = base64.URLEncoding.EncodeToString([]byte(tokenString))
+	case fleet.WindowsMDMProgrammaticEnrollmentType:
+		var err error
+		tokenValueType = microsoft_mdm.BinarySecurityDeviceEnroll
+		binarySecToken, err = fleet.GetEncodedBinarySecurityToken(c.enrollmentType, c.tokenIdentifier)
+		if err != nil {
+			return "", "", fmt.Errorf("generating encoded security token: %w", err)
+		}
+	}
+
+	return binarySecToken, tokenValueType, nil
 }
