@@ -31,9 +31,9 @@ interface IStatusIndicatorWithIconProps {
 
 const statusIconNameMapping: Record<IndicatorStatus, IconNames> = {
   success: "success",
-  successPartial: "success-partial",
+  successPartial: "success-outline",
   pending: "pending",
-  pendingPartial: "pending-partial",
+  pendingPartial: "pending-outline",
   error: "error",
 };
 

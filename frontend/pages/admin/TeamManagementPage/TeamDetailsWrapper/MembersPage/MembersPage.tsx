@@ -374,13 +374,13 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
 
   const emptyState = () => {
     const emptyMembers: IEmptyTableProps = {
-      iconName: "empty-members",
+      graphicName: "empty-members",
       header: "This team doesn't have any members yet.",
       info:
         "Expecting to see new team members listed here? Try again in a few seconds as the system catches up.",
     };
     if (searchString !== "") {
-      delete emptyMembers.iconName;
+      delete emptyMembers.graphicName;
       emptyMembers.header = "We couldn’t find any members.";
       emptyMembers.info =
         "Expecting to see members? Try again in a few seconds as the system catches up.";
@@ -449,7 +449,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
           inputPlaceHolder={"Search"}
           emptyComponent={() =>
             EmptyTable({
-              iconName: emptyState().iconName,
+              graphicName: emptyState().graphicName,
               header: emptyState().header,
               info: emptyState().info,
               primaryButton: emptyState().primaryButton,

@@ -62,7 +62,7 @@ const EulaUploader = ({ onUpload }: IEulaUploaderProps) => {
         />
       </p>
       <FileUploader
-        icon="file-pdf"
+        graphicName="file-pdf"
         message="PDF (.pdf)"
         onFileUpload={onUploadFile}
         accept=".pdf"
