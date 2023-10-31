@@ -253,6 +253,9 @@ const (
 
 	// Alert payload user-driven unenrollment request
 	AlertUserUnenrollmentRequest = "com.microsoft:mdm.unenrollment.userrequest"
+
+	// FleetdWindowsInstallerGUID is the GUID used for fleetd on Windows
+	FleetdWindowsInstallerGUID = "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall"
 )
 
 // MS-MDM Message constants

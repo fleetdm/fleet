@@ -6826,6 +6826,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	d := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *orbitHost.OrbitNodeKey)
 	err := d.Enroll()
 	require.NoError(t, err)
+	mysql.AddHostUUIDToWinEnrollmentInTest(t, s.ds, enrolledDevice)
 
 	mysql.AddHostUUIDToWinEnrollmentInTest(t, s.ds, orbitHost.UUID, d.DeviceID)
 
@@ -7017,6 +7018,36 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Result:      []byte{},
 		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
 	}, getMDMCmdResp.Results[0])
+}
+
+func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
+	t := s.T()
+	ctx := context.Background()
+
+	// define a global enroll secret
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+
+	azureMail := "foo.bar.baz@example.com"
+	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail)
+	require.NoError(t, d.Enroll())
+
+	cmds, err := d.StartManagementSession()
+	require.NoError(t, err)
+
+	// 2 status + 2 commands to install fleetd
+	require.Len(t, cmds, 4)
+	var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
+	for _, c := range cmds {
+		switch c.Verb {
+		case "Add":
+			fleetdAddCmd = c
+		case "Exec":
+			fleetdExecCmd = c
+		}
+	}
+	require.Equal(t, microsoft_mdm.FleetdWindowsInstallerGUID, fleetdAddCmd.Cmd.GetTargetURI())
+	require.Equal(t, microsoft_mdm.FleetdWindowsInstallerGUID, fleetdExecCmd.Cmd.GetTargetURI())
 }
 
 func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
