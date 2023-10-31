@@ -108,7 +108,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
-			ListOptions: fleet.ListOptions{OrderKey: "updated_at"},
+			ListOptions: fleet.ListOptions{OrderKey: "hostname"},
 		})
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
