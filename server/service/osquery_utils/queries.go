@@ -158,6 +158,7 @@ var hostDetailQueries = map[string]DetailQuery{
 					rows[0]["minor"],
 					rows[0]["patch"],
 					rows[0]["build"],
+					rows[0]["extra"],
 				))
 			}
 
@@ -446,7 +447,7 @@ var extraDetailQueries = map[string]DetailQuery{
 			)
 			UNION ALL
 			SELECT * FROM (
-				SELECT "is_federated" AS "key", data as "value" FROM registry 
+				SELECT "is_federated" AS "key", data as "value" FROM registry
 				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\IsFederated'
 				LIMIT 1
 			)
@@ -513,6 +514,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.major,
 		os.minor,
 		os.patch,
+		os.extra,
 		os.build,
 		os.arch,
 		os.platform,
@@ -609,7 +611,7 @@ var mdmQueries = map[string]DetailQuery{
 	// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
 	"mdm_disk_encryption_key_file_lines_darwin": {
 		Query: fmt.Sprintf(`
-	WITH 
+	WITH
 		de AS (SELECT IFNULL((%s), 0) as encrypted),
 		fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
 	SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;`, usesMacOSDiskEncryptionQuery),
@@ -910,7 +912,7 @@ var softwareChrome = DetailQuery{
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
   '' AS vendor,
-  path AS installed_path
+  '' AS installed_path
 FROM chrome_extensions`,
 	Platforms:        []string{"chrome"},
 	DirectIngestFunc: directIngestSoftware,
@@ -985,12 +987,13 @@ func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.
 	minor := rows[0]["minor"]
 	patch := rows[0]["patch"]
 	build := rows[0]["build"]
+	extra := rows[0]["extra"]
 	arch := rows[0]["arch"]
 	kernelVersion := rows[0]["kernel_version"]
 	platform := rows[0]["platform"]
 
 	hostOS := fleet.OperatingSystem{Name: name, Arch: arch, KernelVersion: kernelVersion, Platform: platform}
-	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build)
+	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build, extra)
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSUnixLike update host operating system")
@@ -1000,7 +1003,7 @@ func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.
 
 // parseOSVersion returns a point release string for an operating system. Parsing rules
 // depend on available data, which varies between operating systems.
-func parseOSVersion(name string, version string, major string, minor string, patch string, build string) string {
+func parseOSVersion(name string, version string, major string, minor string, patch string, build string, extra string) string {
 	var osVersion string
 	switch {
 	case strings.Contains(strings.ToLower(name), "ubuntu"):
@@ -1017,6 +1020,11 @@ func parseOSVersion(name string, version string, major string, minor string, pat
 	}
 
 	osVersion = strings.Trim(osVersion, ".")
+
+	// extra is the Apple Rapid Security Response version
+	if extra != "" {
+		osVersion = fmt.Sprintf("%s %s", osVersion, strings.TrimSpace(extra))
+	}
 
 	return osVersion
 }
@@ -1460,7 +1468,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 
 	// it's okay if the key comes empty, this can happen and if the disk is
 	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"], "", nil)
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -1511,7 +1519,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 
 	// it's okay if the key comes empty, this can happen and if the disk is
 	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b))
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b), "", nil)
 }
 
 func directIngestMacOSProfiles(
@@ -1617,7 +1625,7 @@ func GetDetailQueries(
 				unknownQueries = append(unknownQueries, name)
 				continue
 			}
-			if override == nil {
+			if override == nil || *override == "" {
 				delete(generatedMap, name)
 			} else {
 				query.Query = *override

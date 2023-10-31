@@ -1197,7 +1197,7 @@ Once you have the above follow these steps:
   - **With Sails.js installed globally:** start the server by running `sails lift`.
 4. When the server has started, the Fleet website will be availible at [http://localhost:2024](http://localhost:2024)
     
-  > **Note:** Some features, such as Fleet Sandbox, Self-service license dispenser, and account creation are not availible when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw` in the [#g-website](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack..
+  > **Note:** Some features, such as self-service license dispenser and account creation, are not available when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw` in the [#g-website](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack.
 
 
 #### The "Deploy Fleet Website" GitHub action failed
@@ -1239,13 +1239,13 @@ When conducting an incident post-mortem, answer the following three questions:
 
 Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
 
-### Experimentation
+### Landing pages and website experiments
 
-In order for marketing to iterate rapidly we have created a process of experimentation. This will allow a small group of marketers to draft, review and publish a page or a flyer or an experiment without getting a series of approvals. Experiments should be short-lived, temporary things intended for a small audience. When an experiment succeeds it should immediately be turned into a part of Fleet'd rituals and then go through the proper wireframe-first approach. 
+Experimental pages are short-lived, temporary landing pages intended for a small audience. All experiments and landing pages need to go through the standard [drafting process](https://fleetdm.com/handbook/company/product-groups#making-changes) before they are created.
 
-Website experiments and landing pages should live behind `/imagine` url. Which is hidden from the sitemap and intended to be linked to from ads and marketing campaigns. Design experiments (flyers, swag, etc.) should be limited to small audiences (less than 500 people) to avoid damaging the brand or confusing our customers. In general, experiments that are of a design nature should be targeted at prospects and random users, never targeted at our customers.
+Website experiments and landing pages live behind `/imagine` url. Which is hidden from the sitemap and intended to be linked to from ads and marketing campaigns. Design experiments (flyers, swag, etc.) should be limited to small audiences (less than 500 people) to avoid damaging the brand or confusing our customers. In general, experiments that are of a design nature should be targeted at prospects and random users, never targeted at our customers.
 
-Some examples of experiments that would qualify to get a rapid approach:
+Some examples of experiments that would live behind the `/imagine` url:
 - A flyer for a meetup "Free shirt to the person who can solve this riddle!"
 - A landing page for a movie screening presented by Fleet
 - A landing page for a private event
@@ -1253,8 +1253,6 @@ Some examples of experiments that would qualify to get a rapid approach:
 - An A/B test on product positioning
 - A giveaway page for a conference
 - Table-top signage for a conference booth or meetup
-
-#### Landing pages
 
 The Fleet website has a built-in landing page generator that can be used to quickly create a new page that lives under the /imagine/ url.
 

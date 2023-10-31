@@ -5,19 +5,26 @@ import { IHostMdmData } from "interfaces/host";
 import {
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   // FLEET_FILEVAULT_PROFILE_IDENTIFIER,
-  IHostMacMdmProfile,
+  IHostMdmProfile,
   MdmProfileStatus,
+  isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
 import MacSettingStatusCell from "./MacSettingStatusCell";
+import { generateWinDiskEncryptionProfile } from "../../helpers";
 
-export interface IMacSettingsTableRow
-  extends Omit<IHostMacMdmProfile, "status"> {
-  status: MacSettingsTableStatusValue;
+export interface ITableRowOsSettings extends Omit<IHostMdmProfile, "status"> {
+  status: OsSettingsTableStatusValue;
 }
 
-export type MacSettingsTableStatusValue = MdmProfileStatus | "action_required";
+export type OsSettingsTableStatusValue = MdmProfileStatus | "action_required";
+
+export const isMdmProfileStatus = (
+  status: string
+): status is MdmProfileStatus => {
+  return status !== "action_required";
+};
 
 interface IHeaderProps {
   column: {
@@ -31,7 +38,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: IMacSettingsTableRow;
+    original: ITableRowOsSettings;
   };
 }
 
@@ -91,20 +98,34 @@ const tableHeaders: IDataColumn[] = [
   },
 ];
 
-export const generateTableData = (
-  hostMDMData?: Pick<IHostMdmData, "profiles" | "macos_settings">
-) => {
-  let rows: IMacSettingsTableRow[] = [];
-  if (!hostMDMData) {
-    return rows;
+const makeWindowsRows = ({ os_settings }: IHostMdmData) => {
+  if (
+    !os_settings?.disk_encryption?.status ||
+    !isWindowsDiskEncryptionStatus(os_settings.disk_encryption.status)
+  ) {
+    return null;
   }
 
-  const { profiles, macos_settings } = hostMDMData;
+  const rows: ITableRowOsSettings[] = [];
+  rows.push(
+    generateWinDiskEncryptionProfile(
+      os_settings.disk_encryption.status,
+      os_settings.disk_encryption.detail
+    )
+  );
+
+  return rows;
+};
+
+const makeDarwinRows = ({
+  profiles,
+  macos_settings,
+}: IHostMdmData): ITableRowOsSettings[] | null => {
   if (!profiles) {
-    return rows;
+    return null;
   }
-  rows = profiles;
 
+  let rows: ITableRowOsSettings[] = profiles;
   if (macos_settings?.disk_encryption === "action_required") {
     rows = profiles.map((p) => {
       // TODO: this is a brittle check for the filevault profile
@@ -118,6 +139,24 @@ export const generateTableData = (
   }
 
   return rows;
+};
+
+export const generateTableData = (
+  hostMDMData?: IHostMdmData,
+  platform?: string
+) => {
+  if (!platform || !hostMDMData) {
+    return null;
+  }
+
+  switch (platform) {
+    case "windows":
+      return makeWindowsRows(hostMDMData);
+    case "darwin":
+      return makeDarwinRows(hostMDMData);
+    default:
+      return null;
+  }
 };
 
 export default tableHeaders;

@@ -78,7 +78,7 @@ Using the migration scripts located in fleet/test/upgrade/
 <tr><td>Release blockers</td><td>Verify there are no outstanding release blocking tickets.</td><td>
   
 1. Check [this](https://github.com/fleetdm/fleet/labels/~release%20blocker) filter to view all open `~release blocker` tickets.
-2. If any are found raise an alarm in the `#help-engineering` and `#help-product` channels.
+2. If any are found raise an alarm in the `#help-engineering` and `#help-product-design` channels.
 </td><td>pass/fail</td></tr>
 </table>
   

@@ -3,9 +3,9 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/csv"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,7 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/gocarina/gocsv"
@@ -637,7 +637,7 @@ func (r addHostsToTeamResponse) error() error { return r.Err }
 
 func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addHostsToTeamRequest)
-	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs)
+	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs, false)
 	if err != nil {
 		return addHostsToTeamResponse{Err: err}, nil
 	}
@@ -645,7 +645,7 @@ func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return addHostsToTeamResponse{}, err
 }
 
-func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
 	// This is currently treated as a "team write". If we ever give users
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
@@ -657,8 +657,10 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
 		return err
 	}
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	if !skipBulkPending {
+		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+		}
 	}
 	serials, err := svc.ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
 	if err != nil {
@@ -917,22 +919,40 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 
 	var profiles []fleet.HostMDMAppleProfile
-	if ac.MDM.EnabledAndConfigured {
-		profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
-		}
-
-		// determine disk encryption and action required here based on profiles and
-		// raw decryptable key status.
-		host.MDM.DetermineDiskEncryptionStatus(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
-
-		for _, p := range profs {
-			if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
-				p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured {
+		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
+		switch host.Platform {
+		case "windows":
+			if ac.MDM.WindowsEnabledAndConfigured && license.IsPremium(ctx) {
+				hde, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
+				switch {
+				case err != nil:
+					return nil, ctxerr.Wrap(ctx, err, "get host mdm bitlocker status")
+				case hde != nil:
+					host.MDM.OSSettings.DiskEncryption = *hde
+				default:
+					host.MDM.OSSettings.DiskEncryption = fleet.HostMDMDiskEncryption{}
+				}
 			}
-			p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
-			profiles = append(profiles, p)
+		case "darwin":
+			if ac.MDM.EnabledAndConfigured {
+				profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
+				}
+
+				// determine disk encryption and action required here based on profiles and
+				// raw decryptable key status.
+				host.MDM.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
+
+				for _, p := range profs {
+					if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
+						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+					}
+					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
+					profiles = append(profiles, p)
+				}
+			}
 		}
 	}
 	host.MDM.Profiles = &profiles
@@ -1563,25 +1583,48 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		return nil, err
 	}
 
+	// The middleware checks that either Apple or Windows MDM are configured and
+	// enabled, but here we must check if the specific one is enabled for that
+	// particular host's platform.
+	var decryptCert *tls.Certificate
+	switch host.FleetPlatform() {
+	case "windows":
+		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+			return nil, err
+		}
+
+		// use Microsoft's WSTEP certificate for decrypting
+		cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
+		}
+		decryptCert = cert
+
+	default:
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return nil, err
+		}
+
+		// use Apple's SCEP certificate for decrypting
+		cert, _, _, err := svc.config.MDM.AppleSCEP()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting Apple SCEP certificate to decrypt key")
+		}
+		decryptCert = cert
+	}
+
 	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
-
 	if key.Decryptable == nil || !*key.Decryptable {
-		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "getting host encryption key")
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not decryptable")
 	}
 
-	cert, _, _, err := svc.config.MDM.AppleSCEP()
+	decryptedKey, err := mdm.DecryptBase64CMS(key.Base64Encrypted, decryptCert.Leaf, decryptCert.PrivateKey)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
+		return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
 	}
-
-	decryptedKey, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
-	}
-
 	key.DecryptedValue = string(decryptedKey)
 
 	err = svc.ds.NewActivity(
@@ -1597,153 +1640,4 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 	}
 
 	return key, nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Run Script on a Host (async)
-////////////////////////////////////////////////////////////////////////////////
-
-type runScriptRequest struct {
-	HostID         uint   `json:"host_id"`
-	ScriptContents string `json:"script_contents"`
-}
-
-type runScriptResponse struct {
-	Err         error  `json:"error,omitempty"`
-	HostID      uint   `json:"host_id,omitempty"`
-	ExecutionID string `json:"execution_id,omitempty"`
-}
-
-func (r runScriptResponse) error() error { return r.Err }
-func (r runScriptResponse) Status() int  { return http.StatusAccepted }
-
-func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*runScriptRequest)
-
-	var noWait time.Duration
-	result, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{
-		HostID:         req.HostID,
-		ScriptContents: req.ScriptContents,
-	}, noWait)
-	if err != nil {
-		return runScriptResponse{Err: err}, nil
-	}
-	return runScriptResponse{HostID: result.HostID, ExecutionID: result.ExecutionID}, nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Run Script on a Host (sync)
-////////////////////////////////////////////////////////////////////////////////
-
-type runScriptSyncResponse struct {
-	Err error `json:"error,omitempty"`
-	*fleet.HostScriptResult
-	HostTimeout bool `json:"host_timeout"`
-}
-
-func (r runScriptSyncResponse) error() error { return r.Err }
-func (r runScriptSyncResponse) Status() int {
-	if r.HostTimeout {
-		return http.StatusGatewayTimeout
-	}
-	return http.StatusOK
-}
-
-// this is to be used only by tests, to be able to use a shorter timeout.
-var testRunScriptWaitForResult time.Duration
-
-// waitForResultTime is the default timeout for the synchronous script execution.
-const waitForResultTime = time.Minute
-
-func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	waitForResult := waitForResultTime
-	if testRunScriptWaitForResult != 0 {
-		waitForResult = testRunScriptWaitForResult
-	}
-
-	req := request.(*runScriptRequest)
-	result, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{
-		HostID:         req.HostID,
-		ScriptContents: req.ScriptContents,
-	}, waitForResult)
-	var hostTimeout bool
-	if err != nil {
-		if !errors.Is(err, context.DeadlineExceeded) {
-			return runScriptSyncResponse{Err: err}, nil
-		}
-		// We should still return the execution id and host id in this timeout case,
-		// so the user knows what script request to look at in the UI. We cannot
-		// return an error (field Err) in this case, as the errorer interface's
-		// rendering logic would take over and only render the error part of the
-		// response struct.
-		hostTimeout = true
-	}
-	result.Message = result.UserMessage(hostTimeout)
-	return runScriptSyncResponse{
-		HostScriptResult: result,
-		HostTimeout:      hostTimeout,
-	}, nil
-}
-
-func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return nil, fleet.ErrMissingLicense
-}
-
-// //////////////////////////////////////////////////////////////////////////////
-// Get script result for a host
-// //////////////////////////////////////////////////////////////////////////////
-type getScriptResultRequest struct {
-	ExecutionID string `url:"execution_id"`
-}
-
-type getScriptResultResponse struct {
-	ScriptContents string `json:"script_contents"`
-	ExitCode       *int64 `json:"exit_code"`
-	Output         string `json:"output"`
-	Message        string `json:"message"`
-	HostName       string `json:"hostname"`
-	HostTimeout    bool   `json:"host_timeout"`
-	HostID         uint   `json:"host_id"`
-	ExecutionID    string `json:"execution_id"`
-	Runtime        int    `json:"runtime"`
-
-	Err error `json:"error,omitempty"`
-}
-
-func (r getScriptResultResponse) error() error { return r.Err }
-
-func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*getScriptResultRequest)
-	scriptResult, err := svc.GetScriptResult(ctx, req.ExecutionID)
-	if err != nil {
-		return getScriptResultResponse{Err: err}, nil
-	}
-
-	// check if a minute has passed since the script was created at
-	hostTimeout := scriptResult.HostTimeout(waitForResultTime)
-	scriptResult.Message = scriptResult.UserMessage(hostTimeout)
-
-	return &getScriptResultResponse{
-		ScriptContents: scriptResult.ScriptContents,
-		ExitCode:       scriptResult.ExitCode,
-		Output:         scriptResult.Output,
-		Message:        scriptResult.Message,
-		HostName:       scriptResult.Hostname,
-		HostTimeout:    hostTimeout,
-		HostID:         scriptResult.HostID,
-		ExecutionID:    scriptResult.ExecutionID,
-		Runtime:        scriptResult.Runtime,
-	}, nil
-}
-
-func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return nil, fleet.ErrMissingLicense
 }

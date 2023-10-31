@@ -19,7 +19,7 @@ import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
-import { QUERIES_PAGE_STEPS } from "utilities/constants";
+import { LIVE_POLICY_STEPS } from "utilities/constants";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
@@ -127,7 +127,7 @@ const PolicyPage = ({
     };
   }, []);
 
-  const [step, setStep] = useState(QUERIES_PAGE_STEPS[1]);
+  const [step, setStep] = useState(LIVE_POLICY_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
   const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
   const [targetedLabels, setTargetedLabels] = useState<ILabel[]>([]);
@@ -260,7 +260,7 @@ const PolicyPage = ({
       storedPolicyError,
       createPolicy,
       onOsqueryTableSelect,
-      goToSelectTargets: () => setStep(QUERIES_PAGE_STEPS[2]),
+      goToSelectTargets: () => setStep(LIVE_POLICY_STEPS[2]),
       onOpenSchemaSidebar,
       renderLiveQueryWarning,
     };
@@ -272,8 +272,8 @@ const PolicyPage = ({
       targetedLabels,
       targetedTeams,
       targetsTotalCount,
-      goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
-      goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
+      goToQueryEditor: () => setStep(LIVE_POLICY_STEPS[1]),
+      goToRunQuery: () => setStep(LIVE_POLICY_STEPS[3]),
       setSelectedTargets,
       setTargetedHosts,
       setTargetedLabels,
@@ -285,21 +285,21 @@ const PolicyPage = ({
       selectedTargets,
       storedPolicy,
       setSelectedTargets,
-      goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
+      goToQueryEditor: () => setStep(LIVE_POLICY_STEPS[1]),
       targetsTotalCount,
     };
 
     switch (step) {
-      case QUERIES_PAGE_STEPS[2]:
+      case LIVE_POLICY_STEPS[2]:
         return <SelectTargets {...step2Opts} />;
-      case QUERIES_PAGE_STEPS[3]:
+      case LIVE_POLICY_STEPS[3]:
         return <RunQuery {...step3Opts} />;
       default:
         return <QueryEditor {...step1Opts} />;
     }
   };
 
-  const isFirstStep = step === QUERIES_PAGE_STEPS[1];
+  const isFirstStep = step === LIVE_POLICY_STEPS[1];
   const showSidebar =
     isFirstStep &&
     isSidebarOpen &&

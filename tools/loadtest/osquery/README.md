@@ -119,6 +119,68 @@ set ENROLL_SECRET=<...>
 osqueryd.exe --verbose=true --tls_dump=true --pidfile="C:\Users\Lucas Rodriguez\Downloads\osqueryd\local\osquery.pid" --database_path="C:\Users\Lucas Rodriguez\Downloads\osqueryd\local\osquery.db" --logger_path="C:\Users\Lucas Rodriguez\Downloads\osqueryd\local\osqueryd_log" --host_identifier=instance --tls_server_certs="C:\Users\Lucas Rodriguez\Downloads\osqueryd\local\fleet.crt" --enroll_secret_env=ENROLL_SECRET --tls_hostname=host.docker.internal:8080 --enroll_tls_endpoint=/api/v1/osquery/enroll --config_plugin=tls --config_tls_endpoint=/api/v1/osquery/config --config_refresh=60 --disable_distributed=false --distributed_plugin=tls --distributed_tls_max_attempts=10 --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write --logger_plugin=tls --logger_tls_endpoint=/api/v1/osquery/log --disable_carver=false --carver_disable_function=false --carver_start_endpoint=/api/v1/osquery/carve/begin --carver_continue_endpoint=/api/v1/osquery/carve/block --carver_block_size=2000000 --extensions_autoload="C:\Program Files\Fleetd\extensions.load" --allow_unsafe --enable_watchdog_debug --distributed_denylist_duration 0 --enable_extensions_watchdog > osqueryd.log 2>&1 
 ```
 
+## Linux (Ubuntu)
+
+### Build fleetd_tables extension
+```sh
+make fleetd-tables-linux
+```
+Store the resulting `fleetd_tables_linux.ext` file in `$HOME` directory on the Linux device.
+
+### Run osquery
+
+> Download and install osquery on Linux device if needed. https://www.osquery.io/downloads/official
+
+```shell
+mkdir -p $HOME/osqueryd/osquery_log
+echo "$HOME/fleetd_tables_linux.ext" > $HOME/extensions.load
+```
+
+Update `FLEET_SERVER`, `FLEET_SERVER_CRT`, and `ENROLL_SECRET` below as needed.
+
+```shell
+export FLEET_SERVER=host.docker.internal:8080
+export FLEET_SERVER_CRT=$HOME/fleet.crt
+sudo ENROLL_SECRET=<...> /opt/osquery/bin/osqueryd \
+    --verbose=true \
+    --tls_dump=true \
+    --pidfile=$HOME/osqueryd/osquery.pid \
+    --database_path=$HOME/osqueryd/osquery.db \
+    --logger_path=$HOME/osqueryd/osquery_log \
+    --host_identifier=instance \
+    --tls_server_certs=$FLEET_SERVER_CRT \
+    --enroll_secret_env=ENROLL_SECRET \
+    --tls_hostname=$FLEET_SERVER \
+    --enroll_tls_endpoint=/api/v1/osquery/enroll \
+    --config_plugin=tls \
+    --config_tls_endpoint=/api/v1/osquery/config \
+    --config_refresh=60 \
+    --disable_distributed=false \
+    --distributed_plugin=tls \
+    --distributed_tls_max_attempts=10 \
+    --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read \
+    --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write \
+    --logger_plugin=tls,filesystem \
+    --logger_tls_endpoint=/api/v1/osquery/log \
+    --disable_carver=false \
+    --carver_disable_function=false \
+    --carver_start_endpoint=/api/v1/osquery/carve/begin \
+    --carver_continue_endpoint=/api/v1/osquery/carve/block \
+    --carver_block_size=2000000 \
+    --extensions_autoload=$HOME/extensions.load \
+    --allow_unsafe \
+    --enable_watchdog_debug \
+    --distributed_denylist_duration 0 \
+    --enable_extensions_watchdog 2>&1 | tee /tmp/osqueryd.log
+```
+
+### Run osqueryi (shell)
+If you just need the osquery shell, and do not need to connect to Fleet server.
+
+```shell
+sudo /opt/osquery/bin/osqueryd -S --extension $HOME/fleetd_tables_linux.ext --allow_unsafe
+```
+
 ## Log analysis
 
 The following (macOS) commands and scripts can be used to analyze the load in the device (as monitored by the watchdog process).

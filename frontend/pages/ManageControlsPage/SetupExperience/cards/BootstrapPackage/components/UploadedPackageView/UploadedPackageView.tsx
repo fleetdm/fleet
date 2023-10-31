@@ -28,7 +28,7 @@ const UploadedPackageView = ({
         This package is automatically installed on hosts that automatically
         enroll to this team. Delete the package to upload a new one.{" "}
         <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup"
+          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience"
           text="Learn more"
           newTab
         />
