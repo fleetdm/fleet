@@ -4,6 +4,7 @@ import { createCustomRenderer } from "test/test-utils";
 
 import createMockPolicy from "__mocks__/policyMock";
 import createMockUser from "__mocks__/userMock";
+import createMockConfig from "__mocks__/configMock";
 
 import PolicyForm from "./PolicyForm";
 
@@ -38,6 +39,7 @@ describe("PolicyForm - component", () => {
           isOnGlobalTeam: true,
           isPremiumTier: true,
           isSandboxMode: false,
+          config: createMockConfig(),
         },
       },
     });
@@ -93,6 +95,7 @@ describe("PolicyForm - component", () => {
           isOnGlobalTeam: true,
           isPremiumTier: true,
           isSandboxMode: false,
+          config: createMockConfig(),
         },
       },
     });
@@ -122,9 +125,9 @@ describe("PolicyForm - component", () => {
 
     await user.hover(screen.getByRole("button", { name: "Save" }));
 
-    expect(
-      container.querySelector("#policy-form__button-wrap--tooltip")
-    ).toHaveTextContent(/to save or run the policy/i);
+    expect(container.querySelector("#save-policy-button")).toHaveTextContent(
+      /to save or run the policy/i
+    );
   });
 
   // TODO: Consider testing save button is disabled for a sql error
