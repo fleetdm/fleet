@@ -196,7 +196,7 @@ type MDMCommandResult struct {
 // MDMCommand represents an MDM command that has been enqueued for
 // execution.
 type MDMCommand struct {
-	// DeviceID is the MDM enrollment ID. This is the same as the host UUID.
+	// HostUUID is the UUID of the host targeted by the command.
 	HostUUID string `json:"host_uuid" db:"host_uuid"`
 	// CommandUUID is the unique identifier of the command.
 	CommandUUID string `json:"command_uuid" db:"command_uuid"`
@@ -205,7 +205,7 @@ type MDMCommand struct {
 	// RequestType is the command's request type, which is basically the
 	// command name.
 	RequestType string `json:"request_type" db:"request_type"`
-	// Status is the command status. One of Acknowledged, Error, or NotNow.
+	// Status is the command status. One of Pending, Acknowledged, Error, or NotNow.
 	Status string `json:"status" db:"status"`
 	// Hostname is the hostname of the host that executed the command.
 	Hostname string `json:"hostname" db:"hostname"`

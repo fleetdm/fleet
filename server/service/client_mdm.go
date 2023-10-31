@@ -265,3 +265,22 @@ func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name strin
 	}
 	return c.authenticatedRequest(request, verb, path, nil)
 }
+
+func (c *Client) MDMListCommands() ([]*fleet.MDMCommand, error) {
+	const defaultCommandsPerPage = 1000
+
+	verb, path := http.MethodGet, "/api/latest/fleet/mdm/commands"
+
+	query := url.Values{}
+	query.Set("per_page", fmt.Sprint(defaultCommandsPerPage))
+	query.Set("order_key", "updated_at")
+	query.Set("order_direction", "desc")
+
+	var responseBody listMDMCommandsResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())
+	if err != nil {
+		return nil, fmt.Errorf("send request: %w", err)
+	}
+
+	return responseBody.Results, nil
+}
