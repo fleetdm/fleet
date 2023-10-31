@@ -3957,7 +3957,7 @@ of duplicate payload display name or duplicate payload identifier (macOS profile
 
 ### List custom OS settings (configuration profiles)
 
-> [List custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#list-custom-macos-settings-configuration-profiles) (`GET /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.40. It is maintained for backwards compatibility. Please use the API endpoint.
+> [List custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#list-custom-macos-settings-configuration-profiles) (`GET /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 Get a list of the configuration profiles in Fleet.
 
