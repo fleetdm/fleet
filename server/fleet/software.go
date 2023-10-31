@@ -123,7 +123,8 @@ type SoftwareIterator interface {
 }
 
 type SoftwareListOptions struct {
-	ListOptions
+	// ListOptions cannot be embedded in order to unmarshall with validation.
+	ListOptions ListOptions `url:"list_options"`
 
 	// HostID filters software to the specified host if not nil.
 	HostID           *uint

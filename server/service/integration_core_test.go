@@ -765,6 +765,9 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
 	require.Len(t, lsResp.Software, 0)
 	require.Nil(t, lsResp.CountsUpdatedAt)
+
+	// request with invalid parameters
+	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusBadRequest, &lsResp, "per_page", "2", "page", "-10")
 }
 
 func (s *integrationTestSuite) TestGlobalPolicies() {
