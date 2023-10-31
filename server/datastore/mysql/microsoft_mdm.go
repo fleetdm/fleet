@@ -57,7 +57,7 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			enroll_proto_version,
 			enroll_client_version,
 			not_in_oobe,
-      host_uuid)
+			host_uuid)
 		VALUES
 			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
@@ -70,7 +70,7 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			enroll_proto_version  = VALUES(enroll_proto_version),
 			enroll_client_version = VALUES(enroll_client_version),
 			not_in_oobe           = VALUES(not_in_oobe),
-      host_uuid             = VALUES(host_uuid)
+			host_uuid             = VALUES(host_uuid)
 	`
 	_, err := ds.writer(ctx).ExecContext(
 		ctx,

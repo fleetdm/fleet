@@ -229,7 +229,7 @@ func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperatio
 	return c.doManagementReq(xmlReq)
 }
 
-// SetResponse sets a response for a specific command UUID.
+// AppendResponse sets a response for a specific command UUID.
 func (c *TestWindowsMDMClient) AppendResponse(op fleet.SyncMLCmd) {
 	c.queuedCommandResponses[op.CmdID] = op
 }
@@ -270,7 +270,7 @@ func (c *TestWindowsMDMClient) Enroll() error {
         <a:ReplyTo>
             <a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
         </a:ReplyTo>
-        <a:To s:mustUnderstand="1">https://roperzh-fleet.ngrok.io/api/mdm/microsoft/enroll</a:To>
+        <a:To s:mustUnderstand="1">` + c.fleetServerURL + microsoft_mdm.MDE2EnrollPath + `</a:To>
         <wsse:Security s:mustUnderstand="1">
             <wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + binarySecToken + `</wsse:BinarySecurityToken>
         </wsse:Security>
