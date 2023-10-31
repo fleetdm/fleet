@@ -81,7 +81,6 @@ LEFT JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmcq.command_u
 	)
 	jointStmt, params := appendListOptionsWithCursorToSQL(jointStmt, nil, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand
-	fmt.Println(jointStmt)
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, jointStmt, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list commands")
 	}

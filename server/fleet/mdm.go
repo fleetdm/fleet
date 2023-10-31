@@ -193,7 +193,7 @@ type MDMCommandResult struct {
 	Hostname string `json:"hostname" db:"-"`
 }
 
-// MDMCommand represents an MDM Apple command that has been enqueued for
+// MDMCommand represents an MDM command that has been enqueued for
 // execution.
 type MDMCommand struct {
 	// DeviceID is the MDM enrollment ID. This is the same as the host UUID.
