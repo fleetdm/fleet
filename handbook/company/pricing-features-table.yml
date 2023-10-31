@@ -166,7 +166,7 @@
         - description: Monitor critical files on production Debian servers
         - description: Detect anomalous filesystem activity
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
-        - description: Pinpoint unintended changes
+        - description: Detect unintended changes
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
         - description: Verify update status and monitor system health
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
