@@ -1275,7 +1275,6 @@ CREATE TABLE `users` (
 CREATE TABLE `windows_mdm_command_queue` (
   `enrollment_id` int(10) unsigned NOT NULL,
   `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`enrollment_id`,`command_uuid`),

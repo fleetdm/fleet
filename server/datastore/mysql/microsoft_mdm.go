@@ -200,7 +200,6 @@ ON
 	wmc.command_uuid = wmcq.command_uuid
 WHERE
 	mwe.mdm_device_id = ? AND
-	wmcq.active AND
 	NOT EXISTS (
 		SELECT 1
 		FROM
@@ -227,7 +226,7 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 
 	const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
 
-	const dequeueCommandsStmt = `UPDATE windows_mdm_command_queue SET active = 0 WHERE command_uuid IN (?)`
+	const dequeueCommandsStmt = `DELETE FROM windows_mdm_command_queue WHERE command_uuid IN (?)`
 
 	// raw_results and status_code values might be inserted on different requests?
 	// TODO: which response_id should we be tracking then? for now, using
