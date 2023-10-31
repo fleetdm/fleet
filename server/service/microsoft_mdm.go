@@ -1184,6 +1184,11 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	return htmlBuf.String(), nil
 }
 
+// isValidUPN checks if the provided user ID is a valid UPN
+func isValidUPN(userID string) bool {
+	return upnRegex.MatchString(userID)
+}
+
 // isTrustedRequest checks if the incoming request was sent from MDM enrolled device
 func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) error {
 	if reqSyncML == nil {
@@ -1241,11 +1246,6 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 
 // regex to validate UPN
 var upnRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-
-// isValidUPN checks if the provided user ID is a valid UPN
-func isValidUPN(userID string) bool {
-	return upnRegex.MatchString(userID)
-}
 
 // isFleetdPresentOnDevice checks if the device requires Fleetd to be deployed
 func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string) (bool, error) {

@@ -7,7 +7,7 @@ describe("ViewAllHostsLink - component", () => {
     render(<ViewAllHostsLink />);
 
     const text = screen.getByText("View all hosts");
-    const icon = screen.getByTestId("chevron-icon");
+    const icon = screen.getByTestId("chevron-down-icon");
 
     expect(text).toBeInTheDocument();
     expect(icon).toBeInTheDocument();

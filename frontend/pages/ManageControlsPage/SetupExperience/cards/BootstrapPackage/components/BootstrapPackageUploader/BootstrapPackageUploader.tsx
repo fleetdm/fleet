@@ -60,14 +60,14 @@ const BootstrapPackageUploader = ({
         (ex. Munki, Chef, or Puppet) on hosts that automatically enroll to
         Fleet.{" "}
         <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup#bootstrap-package"
+          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#bootstrap-package"
           text="Learn more"
           newTab
         />
       </p>
       <FileUploader
         message="Package (.pkg)"
-        icon="file-pkg"
+        graphicName="file-pkg"
         accept=".pkg"
         onFileUpload={onUploadFile}
         isLoading={showLoading}

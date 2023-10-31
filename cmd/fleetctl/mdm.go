@@ -35,6 +35,8 @@ func mdmRunCommand() *cli.Command {
 		Aliases: []string{"run_command"},
 		Usage:   "Run a custom MDM command on macOS and Windows hosts.",
 		Flags: []cli.Flag{
+			contextFlag(),
+			debugFlag(),
 			&cli.StringSliceFlag{
 				Name:     "hosts",
 				Usage:    "Hosts specified by hostname, uuid, osquery_host_id or node_key that you want to target.",

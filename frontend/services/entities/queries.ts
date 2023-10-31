@@ -1,7 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest, { getError } from "services";
 import endpoints from "utilities/endpoints";
-import { ISelectedTargets } from "interfaces/target";
+import { ISelectedTargetsForApi } from "interfaces/target";
 import { AxiosResponse } from "axios";
 import {
   ICreateQueryRequestBody,
@@ -52,12 +52,12 @@ export default {
   }: {
     query: string;
     queryId: number | null;
-    selected: ISelectedTargets;
+    selected: ISelectedTargetsForApi;
   }) => {
-    const { RUN_QUERY } = endpoints;
+    const { LIVE_QUERY } = endpoints;
 
     try {
-      const { campaign } = await sendRequest("POST", RUN_QUERY, {
+      const { campaign } = await sendRequest("POST", LIVE_QUERY, {
         query,
         query_id: queryId,
         selected,

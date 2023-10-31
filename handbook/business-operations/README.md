@@ -13,6 +13,7 @@ The BizOps department is directly responsible for these traditional functions: P
 
 
 ## Contact us
+- To request changes to admin permissions on core business systems (Google, AWS via Google Groups, 1Password, Vanta, or Slack), [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Admin%20permissions%20request%3A+_______________________).
 - To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
   - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) for this department, including pending tasks and the status of new requests.
@@ -35,6 +36,7 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 | 🐋 SC            | ✅ | ✅ | ❌ | ❌ | ✅
 | 🫧 SDR           | ✅ | ✅ | ✅ | ❌ | ❌
 | ⚗️ PM            | ❌ | ❌ | ❌ | ✅ | ✅
+| ⚗️ PD            | ❌ | ❌ | ❌ | ✅ | ✅
 | 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
 |   Other roles    | ❌ | ❌ | ❌ | ❌ | ❌
 
@@ -66,6 +68,20 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 
 
 ## Responsibilities
+
+### Secure company-issued equipment for a team member
+As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The BizOps engineer will work with the new team member to get their equipment requested and shipped to them on time.
+
+- [**Check the Fleet IT warehouse**](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) before purchasing any equipment including laptops, monitors, and Yubikeys to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
+
+- Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The BizOps team can arrange for same-day pickup at a store local to the Fleetie if needed.
+  - **Note:** Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](https://www.fleetdm.com/handbook/communications#spending-company-money). 
+
+  - When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
+
+- Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries that Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. 
+
+ > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
 
 ### Add a seat to Salesforce
 Here are the steps we take to grant appropriate Salesforce licenses to a new hire:
@@ -217,6 +233,7 @@ The following table lists this department's rituals, frequency, and Directly Res
 | Vanta check | Monthly | Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time. | Nathan Holliday |
 | Investor reporting | Quarterly | Provide updated metrics for CRV in Chronograph. | Nathanael Holliday |
 | Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | Joanne Stableford |
+| KPI roundup + weekly update | Weekly | Update KPI spreadsheet with BizOps KPI data by 5pm US central time every Friday.  At 5pm check other department KPIs to make sure they have been updated, and if not, notify DRIs and the apprentice to the CEO which KPIs have not been updated. | Nathanael Holliday |
 
 
 <!--

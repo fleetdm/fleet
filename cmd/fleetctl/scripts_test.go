@@ -88,7 +88,7 @@ func TestRunScriptCommand(t *testing.T) {
 			scriptPath: func() string {
 				return writeTmpScriptContents(t, maxChars, ".sh")
 			},
-			expectErrMsg: `Script is too large. It’s limited to 10,000 characters (approximately 125 lines).`,
+			expectErrMsg: `Script is too large. It's limited to 10,000 characters (approximately 125 lines).`,
 		},
 		{
 			name:         "script empty",
