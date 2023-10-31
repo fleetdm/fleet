@@ -3894,7 +3894,6 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Update disk encryption enforcement](#update-disk-encryption-enforcement)
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
 - [Get macOS settings statistics](#get-macos-settings-statistics)
-- [Run custom macOS MDM command](#run-custom-macos-mdm-command)
 - [Run custom MDM command](#run-custom-mdm-command)
 - [Get custom MDM command results](#get-custom-mdm-command-results)
 - [List custom MDM commands](#list-custom-mdm-commands)
@@ -4195,10 +4194,7 @@ Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to 
 }
 ```
 
-### Run custom macOS MDM command
-
-> This endpoint is deprecated as of Fleet 4.40. It is maintained for backwards compatibility.
-> Please use the [Run custom MDM command](#run-custom-mdm-command) endpoint instead.
+### Run custom MDM command
 
 This endpoint tells Fleet to run a custom MDM command, on the targeted macOS hosts, the next time they come online.
 
@@ -4224,40 +4220,7 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 ```json
 {
   "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
-  "platform": "darwin",
   "request_type": "ProfileList"
-}
-```
-
-### Run custom MDM command
-
-This endpoint tells Fleet to run a custom MDM command, on the targeted macOS or Windows hosts, the next time they come online.
-
-`POST /api/v1/fleet/mdm/commands/run`
-
-#### Parameters
-
-| Name                      | Type   | In    | Description                                                               |
-| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) or [Windows's documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/0353f3d6-dbe2-42b6-b8d5-50db9333bba4). Supported formats are standard ([RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)) and raw (unpadded) encoding ([RFC 4648 section 3.2](https://www.rfc-editor.org/rfc/rfc4648.html#section-3.2)) |
-| host_uuids                | array  | json  | An array of host UUIDs enrolled in Fleet's MDM on which the command should run.                   |
-
-
-Note that the Apple `EraseDevice` and `DeviceLock` commands and the Windows `RemoteWipe` command are _available in Fleet Premium_ only.
-
-#### Example
-
-`POST /api/v1/fleet/mdm/commands/run`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
-  "platform": "windows",
-  "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow"
 }
 ```
 
