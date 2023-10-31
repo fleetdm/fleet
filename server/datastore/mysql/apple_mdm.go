@@ -354,7 +354,7 @@ WHERE
 func (ds *Datastore) ListMDMAppleCommands(
 	ctx context.Context,
 	tmFilter fleet.TeamFilter,
-	listOpts *fleet.MDMAppleCommandListOptions,
+	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMAppleCommand, error) {
 	stmt := fmt.Sprintf(`
 SELECT

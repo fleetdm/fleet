@@ -1455,7 +1455,7 @@ func getMDMCommandsCommand() *cli.Command {
 				return err
 			}
 
-			results, err := client.MDMAppleListCommands()
+			results, err := client.MDMListCommands()
 			if err != nil {
 				return err
 			}

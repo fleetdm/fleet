@@ -6826,8 +6826,6 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	d := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *orbitHost.OrbitNodeKey)
 	err := d.Enroll()
 	require.NoError(t, err)
-	mysql.AddHostUUIDToWinEnrollmentInTest(t, s.ds, enrolledDevice)
-
 	mysql.AddHostUUIDToWinEnrollmentInTest(t, s.ds, orbitHost.UUID, d.DeviceID)
 
 	cmdOneUUID := uuid.New().String()

@@ -2229,13 +2229,13 @@ func TestGetMDMCommands(t *testing.T) {
 	}
 	var empty bool
 	var listErr error
-	ds.ListMDMAppleCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
+	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
 		if empty || listErr != nil {
 			return nil, listErr
 		}
-		return []*fleet.MDMAppleCommand{
+		return []*fleet.MDMCommand{
 			{
-				DeviceID:    "h1",
+				HostUUID:    "h1",
 				CommandUUID: "u1",
 				UpdatedAt:   time.Date(2023, 4, 12, 9, 5, 0, 0, time.UTC),
 				RequestType: "ProfileList",
@@ -2243,11 +2243,11 @@ func TestGetMDMCommands(t *testing.T) {
 				Hostname:    "host1",
 			},
 			{
-				DeviceID:    "h2",
+				HostUUID:    "h2",
 				CommandUUID: "u2",
 				UpdatedAt:   time.Date(2023, 4, 11, 9, 5, 0, 0, time.UTC),
-				RequestType: "ListApps",
-				Status:      "Acknowledged",
+				RequestType: "./Device/Vendor/MSFT/Reboot/RebootNow",
+				Status:      "200",
 				Hostname:    "host2",
 			},
 		}, nil
@@ -2268,13 +2268,13 @@ func TestGetMDMCommands(t *testing.T) {
 	buf, err = runAppNoChecks([]string{"get", "mdm-commands"})
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), strings.TrimSpace(`
-+----+----------------------+-------------+--------------+----------+
-| ID |         TIME         |    TYPE     |    STATUS    | HOSTNAME |
-+----+----------------------+-------------+--------------+----------+
-| u1 | 2023-04-12T09:05:00Z | ProfileList | Acknowledged | host1    |
-+----+----------------------+-------------+--------------+----------+
-| u2 | 2023-04-11T09:05:00Z | ListApps    | Acknowledged | host2    |
-+----+----------------------+-------------+--------------+----------+
++----+----------------------+---------------------------------------+--------------+----------+
+| ID |         TIME         |                 TYPE                  |    STATUS    | HOSTNAME |
++----+----------------------+---------------------------------------+--------------+----------+
+| u1 | 2023-04-12T09:05:00Z | ProfileList                           | Acknowledged | host1    |
++----+----------------------+---------------------------------------+--------------+----------+
+| u2 | 2023-04-11T09:05:00Z | ./Device/Vendor/MSFT/Reboot/RebootNow |          200 | host2    |
++----+----------------------+---------------------------------------+--------------+----------+
 `))
 }
 

@@ -626,7 +626,7 @@ type Service interface {
 
 	// ListMDMAppleCommands returns a list of MDM Apple commands corresponding to
 	// the specified options.
-	ListMDMAppleCommands(ctx context.Context, opts *MDMAppleCommandListOptions) ([]*MDMAppleCommand, error)
+	ListMDMAppleCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMAppleCommand, error)
 
 	// UploadMDMAppleInstaller uploads an Apple installer to Fleet.
 	UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*MDMAppleInstaller, error)
@@ -801,6 +801,9 @@ type Service interface {
 
 	// GetMDMCommandResults returns the execution results of a command identified by a CommandUUID.
 	GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
+
+	// ListMDMCommands returns MDM commands based on the provided options.
+	ListMDMCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMCommand, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Execution
