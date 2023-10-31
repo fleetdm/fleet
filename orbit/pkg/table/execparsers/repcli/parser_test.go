@@ -18,7 +18,7 @@ var repcli_mac_status []byte
 func TestParse(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		name     string
 		input    []byte
 		expected map[string]any
@@ -191,7 +191,7 @@ You Should Not See this erroneous L1n3
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			p := New()
+			p := parser{}
 			result, err := p.Parse(bytes.NewReader(tt.input))
 			require.NoError(t, err, "unexpected error parsing input")
 

@@ -34,7 +34,7 @@ var dumpstate_with_features string
 func TestParse(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		name                string
 		input               []byte
 		expectedDeviceCount int
@@ -89,7 +89,7 @@ func TestParse(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			p := New()
+			p := parser{}
 			result, err := p.Parse(bytes.NewReader(tt.input))
 			if tt.expectedErr {
 				assert.Error(t, err)
