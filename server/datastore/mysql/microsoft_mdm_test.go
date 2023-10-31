@@ -85,6 +85,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	require.NotZero(t, gotEnrolledDevice.CreatedAt)
 	require.Equal(t, enrolledDevice.MDMDeviceID, gotEnrolledDevice.MDMDeviceID)
 	require.Equal(t, enrolledDevice.MDMHardwareID, gotEnrolledDevice.MDMHardwareID)
+	require.Empty(t, gotEnrolledDevice.HostUUID)
 
 	err = ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
 	require.NoError(t, err)

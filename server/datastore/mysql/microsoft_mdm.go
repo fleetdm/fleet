@@ -28,7 +28,8 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		enroll_client_version,
 		not_in_oobe,
 		created_at,
-		updated_at
+		updated_at,
+		host_uuid
 		FROM mdm_windows_enrollments WHERE mdm_device_id = ?`
 
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
@@ -55,10 +56,10 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			enroll_user_id,
 			enroll_proto_version,
 			enroll_client_version,
-			not_in_oobe
-		      )
+			not_in_oobe,
+      host_uuid)
 		VALUES
-			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			mdm_device_id         = VALUES(mdm_device_id),
 			device_state          = VALUES(device_state),
@@ -68,7 +69,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			enroll_user_id        = VALUES(enroll_user_id),
 			enroll_proto_version  = VALUES(enroll_proto_version),
 			enroll_client_version = VALUES(enroll_client_version),
-			not_in_oobe           = VALUES(not_in_oobe)
+			not_in_oobe           = VALUES(not_in_oobe),
+      host_uuid             = VALUES(host_uuid)
 	`
 	_, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -82,7 +84,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 		device.MDMEnrollUserID,
 		device.MDMEnrollProtoVersion,
 		device.MDMEnrollClientVersion,
-		device.MDMNotInOOBE)
+		device.MDMNotInOOBE,
+		device.HostUUID)
 	if err != nil {
 		if isDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsEnrolledDevice", device.MDMHardwareID))
@@ -369,5 +372,14 @@ WHERE
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
 	}
+
 	return results, nil
+}
+
+func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) error {
+	stmt := `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE mdm_device_id = ?`
+
+	_, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID)
+
+	return err
 }
