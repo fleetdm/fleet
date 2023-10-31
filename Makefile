@@ -435,14 +435,7 @@ desktop-linux:
 	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
 		mkdir /output/fleet-desktop && \
 		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
-		cp /usr/lib/x86_64-linux-gnu/libayatana-appindicator3.so.1 \
-		/usr/lib/x86_64-linux-gnu/libayatana-ido3-0.4.so.0 \
-		/usr/lib/x86_64-linux-gnu/libayatana-indicator3.so.7 \
-		/lib/x86_64-linux-gnu/libm.so.6 \
-		/usr/lib/x86_64-linux-gnu/libcairo.so.2 \
-		/usr/lib/x86_64-linux-gnu/libdbusmenu-gtk3.so.4 \
-		/usr/lib/x86_64-linux-gnu/libdbusmenu-glib.so.4 \
-		/output/fleet-desktop && cd /output && \
+		cd /output && \
 		tar czf desktop.tar.gz fleet-desktop && \
 		rm -r fleet-desktop"
 
