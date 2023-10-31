@@ -1312,13 +1312,13 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "PyCharm.app",
+				Name:             "User PyCharm Custom Name.app", // 2023/10/31: The actual product name must be part of the app name per our code in CPEFromSoftware
 				Source:           "apps",
-				Version:          "2022.1",
+				Version:          "2019.2",
 				Vendor:           "",
 				BundleIdentifier: "com.jetbrains.pycharm",
 			},
-			cpe: "cpe:2.3:a:jetbrains:pycharm:2022.1:*:*:*:*:macos:*:*",
+			cpe: "cpe:2.3:a:jetbrains:pycharm:2019.2:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
