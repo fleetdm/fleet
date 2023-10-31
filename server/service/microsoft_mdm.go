@@ -1339,7 +1339,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	// TODO: add ability to batch-enqueue multiple commands at the same time
 	addFleetdCmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  addCommandUUID,
-		RawCommand:   []byte(rawAddCmd),
+		RawCommand:   rawAddCmd,
 		TargetLocURI: "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall",
 	}
 	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, addFleetdCmd); err != nil {
@@ -1348,7 +1348,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 
 	execFleetCmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  execCommandUUID,
-		RawCommand:   []byte(rawExecCmd),
+		RawCommand:   rawExecCmd,
 		TargetLocURI: "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall",
 	}
 	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, execFleetCmd); err != nil {
