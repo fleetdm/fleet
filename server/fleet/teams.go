@@ -374,6 +374,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 
 	var mdmSpec TeamSpecMDM
 	mdmSpec.MacOSUpdates = t.Config.MDM.MacOSUpdates
+	mdmSpec.WindowsUpdates = t.Config.MDM.WindowsUpdates
 	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
 	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
