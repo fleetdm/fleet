@@ -193,13 +193,48 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			// because the MacOSSetup was marshalled to JSON to be saved in the DB,
-			// it did get marshalled, and then when unmarshalled it was set (but
-			// null).
 			MacOSSetupAssistant: optjson.String{Set: true},
 			BootstrapPackage:    optjson.String{Set: true},
 		},
 	}, team.Config.MDM)
+
+	// get the team via the GET endpoint, check that it properly returns the mdm settings
+	var getTmResp getTeamResponse
+	s.DoJSON("GET", "/api/latest/fleet/teams/"+fmt.Sprint(team.ID), nil, http.StatusOK, &getTmResp)
+	require.Equal(t, fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("10.15.0"),
+			Deadline:       optjson.SetString("2021-01-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(1),
+			GracePeriodDays: optjson.SetInt(1),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.String{Set: true},
+			BootstrapPackage:    optjson.String{Set: true},
+		},
+	}, getTmResp.Team.Config.MDM)
+
+	// get the team via the list teams endpoint, check that it properly returns the mdm settings
+	var listTmResp listTeamsResponse
+	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listTmResp, "query", teamName)
+	require.True(t, len(listTmResp.Teams) > 0)
+	require.Equal(t, team.ID, listTmResp.Teams[0].ID)
+	require.Equal(t, fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("10.15.0"),
+			Deadline:       optjson.SetString("2021-01-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(1),
+			GracePeriodDays: optjson.SetInt(1),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.String{Set: true},
+			BootstrapPackage:    optjson.String{Set: true},
+		},
+	}, listTmResp.Teams[0].Config.MDM)
 
 	// dry-run with invalid agent options
 	agentOpts = json.RawMessage(`{"config": {"nope": 1}}`)
@@ -1773,6 +1808,25 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	require.Equal(t, 5, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
 	require.Equal(t, 2, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
 	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "deadline_days": 5, "grace_period_days": 2}`, team.ID, team.Name), 0)
+
+	// get the team via the GET endpoint, check that it properly returns the mdm
+	// settings.
+	var getTmResp getTeamResponse
+	s.DoJSON("GET", "/api/latest/fleet/teams/"+fmt.Sprint(team.ID), nil, http.StatusOK, &getTmResp)
+	require.Equal(t, fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(5),
+			GracePeriodDays: optjson.SetInt(2),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.String{Set: true},
+			BootstrapPackage:    optjson.String{Set: true},
+		},
+	}, getTmResp.Team.Config.MDM)
 
 	// only update the deadline
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
