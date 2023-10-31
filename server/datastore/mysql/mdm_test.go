@@ -98,7 +98,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Pending", cmds[0].Status)
 
 	appleCmdUUID := uuid.New().String()
-	appleCmd := createRawAppleCmd(appleCmdUUID)
+	appleCmd := createRawAppleCmd("ProfileList", appleCmdUUID)
 	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
 	err = commander.EnqueueCommand(ctx, []string{macH.UUID}, appleCmd)
 	require.NoError(t, err)
