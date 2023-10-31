@@ -694,6 +694,8 @@ type MDMWindowsUpdateCommandReceivedResultFunc func(ctx context.Context, deviceI
 
 type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
 
+type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) error
+
 type GetMDMCommandPlatformFunc func(ctx context.Context, commandUUID string) (string, error)
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
@@ -1718,6 +1720,9 @@ type DataStore struct {
 
 	GetMDMWindowsCommandResultsFunc        GetMDMWindowsCommandResultsFunc
 	GetMDMWindowsCommandResultsFuncInvoked bool
+
+	UpdateMDMWindowsEnrollmentsHostUUIDFunc        UpdateMDMWindowsEnrollmentsHostUUIDFunc
+	UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked bool
 
 	GetMDMCommandPlatformFunc        GetMDMCommandPlatformFunc
 	GetMDMCommandPlatformFuncInvoked bool
@@ -4101,6 +4106,13 @@ func (s *DataStore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID
 	s.GetMDMWindowsCommandResultsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMWindowsCommandResultsFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) error {
+	s.mu.Lock()
+	s.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMWindowsEnrollmentsHostUUIDFunc(ctx, hostUUID, mdmDeviceID)
 }
 
 func (s *DataStore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
