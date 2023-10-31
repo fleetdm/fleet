@@ -39,7 +39,7 @@ var update_available_scan []byte
 func TestParse(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		name     string
 		input    []byte
 		expected []map[string]string
@@ -152,7 +152,7 @@ func TestParse(t *testing.T) {
 			t.Parallel()
 		})
 
-		p := New()
+		p := parser{}
 		result, err := p.Parse(bytes.NewReader(tt.input))
 		require.NoError(t, err, "unexpected error parsing input")
 
