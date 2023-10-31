@@ -382,7 +382,7 @@ type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
 type PolicyByNameFunc func(ctx context.Context, name string) (*fleet.Policy, error)
 
-type SavePolicyFunc func(ctx context.Context, p *fleet.Policy) error
+type SavePolicyFunc func(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error
 
 type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error)
 
@@ -3041,11 +3041,11 @@ func (s *DataStore) PolicyByName(ctx context.Context, name string) (*fleet.Polic
 	return s.PolicyByNameFunc(ctx, name)
 }
 
-func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
+func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error {
 	s.mu.Lock()
 	s.SavePolicyFuncInvoked = true
 	s.mu.Unlock()
-	return s.SavePolicyFunc(ctx, p)
+	return s.SavePolicyFunc(ctx, p, shouldRemoveAllPolicyMemberships)
 }
 
 func (s *DataStore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
