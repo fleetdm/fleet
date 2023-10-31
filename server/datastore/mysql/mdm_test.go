@@ -46,6 +46,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		UUID:          uuid.NewString(),
 		Platform:      "windows",
 	})
+	require.NoError(t, err)
 	windowsEnrollment := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            uuid.New().String(),
 		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
