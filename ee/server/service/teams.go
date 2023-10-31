@@ -234,7 +234,25 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 	if windowsUpdatesUpdated {
-		// TODO(mna): create edited windows updates	activity
+		var deadline, grace *int
+		if team.Config.MDM.WindowsUpdates.DeadlineDays.Valid {
+			deadline = &team.Config.MDM.WindowsUpdates.DeadlineDays.Value
+		}
+		if team.Config.MDM.WindowsUpdates.GracePeriodDays.Valid {
+			grace = &team.Config.MDM.WindowsUpdates.GracePeriodDays.Value
+		}
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedWindowsUpdates{
+				TeamID:          &team.ID,
+				TeamName:        &team.Name,
+				DeadlineDays:    deadline,
+				GracePeriodDays: grace,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos min version edited")
+		}
 	}
 	if macOSDiskEncryptionUpdated {
 		var act fleet.ActivityDetails
@@ -933,7 +951,8 @@ func (svc *Service) editTeamFromSpec(
 		didUpdateBootstrapPackage = oldMacOSSetup.BootstrapPackage.Value != spec.MDM.MacOSSetup.BootstrapPackage.Value
 		team.Config.MDM.MacOSSetup.BootstrapPackage = spec.MDM.MacOSSetup.BootstrapPackage
 	}
-	// TODO(mna): doesn't look like we create an activity for macos updates when modified via spec? Doing the same for Windows, but should we?
+	// TODO(mna): doesn't look like we create an activity for macos updates when
+	// modified via spec? Doing the same for Windows, but should we?
 
 	if !appCfg.MDM.EnabledAndConfigured &&
 		((didUpdateSetupAssistant && team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value != "") ||

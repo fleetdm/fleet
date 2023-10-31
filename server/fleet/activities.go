@@ -767,10 +767,10 @@ func (a ActivityTypeEditedMacOSMinVersion) Documentation() (activity string, det
 }
 
 type ActivityTypeEditedWindowsUpdates struct {
-	TeamID           *uint   `json:"team_id"`
-	TeamName         *string `json:"team_name"`
-	DeadlineDays     *int    `json:"deadline_days"`
-	GracePeriondDays *int    `json:"grace_period_days"`
+	TeamID          *uint   `json:"team_id"`
+	TeamName        *string `json:"team_name"`
+	DeadlineDays    *int    `json:"deadline_days"`
+	GracePeriodDays *int    `json:"grace_period_days"`
 }
 
 func (a ActivityTypeEditedWindowsUpdates) ActivityName() string {
