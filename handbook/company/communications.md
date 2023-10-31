@@ -512,7 +512,7 @@ Expectations during onboarding:
 - Even after the first 3 days, during the rest of their first 2 weeks, completing onboarding tasks on time is a new team member's [highest priority](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training).
 
 ### Sightseeing tour
-During their first day at Fleet, new team members join a sightseeing tour call with the acting Head of People (CEO). During this call, the new team member will participate in an interactive tour of the seven main attractions in our all-remote company, including the primary tools used company-wide, what the human experience is like, and when/why we use them at Fleet.
+During their first day at Fleet, new team members join a sightseeing tour call. During this call, the new team member will participate in an interactive tour of the seven main attractions in our all-remote company, including the primary tools used company-wide, what the human experience is like, and when/why we use them at Fleet.
 
 In this meeting, we'll take a look at:
 - Handbook: values, purpose, key pages to pay special attention to
@@ -528,13 +528,16 @@ In this meeting, we'll take a look at:
   - The watering hole (#oooh-, #random, #news, #help-).
 
 ### Contributor experience training
-During their first week at Fleet, every new team member schedules a contributor experience training call with the acting Head of People (CEO). During this call, the new team member will share their screen, and the acting Head of People will:
+During their first week at Fleet, every new team member schedules a contributor experience training call. During this call, the new team member will share their screen, and their counterpart will:
 - make sure emails will get seen and responded to quickly.
 - make sure Slack messages will get seen and responded to quickly.
 - make sure you know where your issues are tracked, which kanban board you use, and what the columns mean.
 - make sure you can succeed with submitting a PR with the GitHub web editor, modifying docs or handbook, and working with Markdown.
 - talk about Google calendar.
-- give you a quick tour of the Fleet Google drive folder.
+- give you a quick tour of the Fleet Google Drive folder.
+
+![image](https://github.com/fleetdm/fleet/assets/618009/e7b356ad-c99b-4bf3-95b8-d466643e4bd4)
+
 
 <!-- 
 TODO: Merge this commented-out stuff with the above
@@ -552,7 +555,7 @@ A high level overview of the Company values
 -->
 
 ### Onboarding retrospective
-At the end of their first two weeks of onboarding at Fleet, every new team member schedules a onboarding retro call with the acting Head of People (CEO).  Agenda: 
+At the end of their first two weeks of onboarding at Fleet, every new team member schedules a onboarding retro call.  Agenda: 
 > Welcome once again to the team! Please tell me about your first few weeks at Fleet. How did your onboarding/training go? What didn't you manage to get to? Anything you weren't sure how to do? Any feedback on how we can make the experience better for Fleet's next hire?
 
 Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#ownership).  If possible, apply onboarding feedback to the handbook and issue templates in realtime, during this call.  This avoids backlogging tasks that may just get out of date before we get around to them anyway.
