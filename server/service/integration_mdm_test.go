@@ -4433,7 +4433,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 			DeviceIDs: []string{linuxHost.UUID, windowsHost.UUID},
 		}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "is not a macOS device")
+	require.Contains(t, errMsg, "at least one of the hosts is not enrolled in MDM or is not an elegible device")
 
 	// call with payload that is not a valid, plist-encoded MDM command
 	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",

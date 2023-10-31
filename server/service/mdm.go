@@ -574,8 +574,8 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 			if mysqlErr.Number == mysqlerr.ER_NO_REFERENCED_ROW_2 {
 				err := fleet.NewInvalidArgumentError(
 					"device_ids",
-					fmt.Sprintf("at least one of the hosts is not enrolled in MDM: %v", err),
-				).WithStatus(http.StatusConflict)
+					fmt.Sprintf("at least one of the hosts is not enrolled in MDM or is not an elegible device: %v", err),
+				).WithStatus(http.StatusBadRequest)
 				return nil, ctxerr.Wrap(ctx, err, "enqueue command")
 			}
 		}
