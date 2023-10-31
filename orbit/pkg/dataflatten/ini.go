@@ -2,6 +2,7 @@
 // tend to have random spaces. Bummer, since
 // https://github.com/pelletier/go-toml/pull/433 was right
 
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package dataflatten
 
 import (

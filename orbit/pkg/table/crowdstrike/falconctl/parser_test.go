@@ -1,3 +1,4 @@
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package falconctl
 
 import (
@@ -12,7 +13,7 @@ import (
 func TestParseOptions(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		name        string
 		input       []byte
 		expected    any
@@ -38,7 +39,6 @@ func TestParseOptions(t *testing.T) {
 			expected: map[string]any{"apd": "is not set"},
 		},
 		{
-
 			name:     "--aph",
 			input:    []byte(`aph is not set,`),
 			expected: map[string]any{"aph": "is not set"},
@@ -116,7 +116,6 @@ func TestParseOptions(t *testing.T) {
 
 		// something with a bunch of things
 		{
-
 			name:  "normal",
 			input: readTestFile(t, path.Join("test-data", "options.txt")),
 			expected: map[string]any{
@@ -128,7 +127,8 @@ func TestParseOptions(t *testing.T) {
 				"metadata-query": "enable",
 				"rfm-reason":     "is not set",
 				"rfm-state":      "is not set",
-				"version":        "6.38.13501.0"},
+				"version":        "6.38.13501.0",
+			},
 		},
 		{
 			name:     "--rfm-state --rfm-reason --aph",
@@ -157,7 +157,6 @@ func TestParseOptions(t *testing.T) {
 			require.Equal(t, tt.expected, actual)
 		})
 	}
-
 }
 
 func readTestFile(t *testing.T, filepath string) []byte {

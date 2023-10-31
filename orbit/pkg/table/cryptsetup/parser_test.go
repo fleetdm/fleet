@@ -1,3 +1,4 @@
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package cryptsetup
 
 import (
@@ -13,7 +14,7 @@ import (
 func TestParseStatusErrors(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		input string
 	}{
 		{
@@ -38,15 +39,14 @@ func TestParseStatusErrors(t *testing.T) {
 			data, err := parseStatus([]byte(tt.input))
 			assert.Error(t, err, "parseStatus")
 			assert.Nil(t, data, "data is nil")
-
 		})
 	}
-
 }
+
 func TestParseStatus(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		infile       string
 		len          int
 		status       string

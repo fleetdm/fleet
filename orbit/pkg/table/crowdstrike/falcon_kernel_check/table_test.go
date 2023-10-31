@@ -1,5 +1,6 @@
 package falcon_kernel_check
 
+// based on github.com/kolide/launcher/pkg/osquery/tables
 import (
 	"testing"
 

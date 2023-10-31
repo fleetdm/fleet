@@ -2,6 +2,7 @@
 // `/usr/sbin/firmwarepasswd` tool. This should be considered beta at
 // best. It serves a bit as a pattern for future exec work.
 
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package firmwarepasswd
 
 import (

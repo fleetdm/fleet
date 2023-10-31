@@ -1,3 +1,4 @@
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package repcli
 
 // repcli is responsible for parsing the output of the CarbonBlack

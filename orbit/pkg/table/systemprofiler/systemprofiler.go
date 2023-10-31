@@ -34,6 +34,7 @@
 //	| 0/ibridge_build      | ibridge_build      | 14Y000                                   | SPiBridgeDataType |
 //	| 0/ibridge_model_name | ibridge_model_name | Apple T1 Security Chip                   | SPiBridgeDataType |
 //	+----------------------+--------------------+------------------------------------------+-------------------+
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package systemprofiler
 
 import (

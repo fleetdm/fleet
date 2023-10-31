@@ -3,6 +3,7 @@
 //
 // It is originally from
 // https://github.com/ceshihao/windowsupdate/blob/master/oleconv.go
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package oleconv
 
 import (

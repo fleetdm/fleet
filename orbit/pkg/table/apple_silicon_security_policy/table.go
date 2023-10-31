@@ -1,6 +1,7 @@
 //go:build darwin
 // +build darwin
 
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package apple_silicon_security_policy
 
 import (

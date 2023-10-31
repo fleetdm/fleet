@@ -35,6 +35,7 @@
 //     *  data/users/#id        Return the users, and rewrite the users array to be a map with the id as the key
 //
 // See the test suite for extensive examples.
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package dataflatten
 
 import (

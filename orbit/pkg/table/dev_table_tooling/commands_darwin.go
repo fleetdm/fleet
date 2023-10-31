@@ -1,6 +1,7 @@
 //go:build darwin
 // +build darwin
 
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package dev_table_tooling
 
 var allowedCommands = map[string]allowedCommand{

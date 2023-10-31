@@ -1,6 +1,7 @@
 //go:build windows
 // +build windows
 
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package dev_table_tooling
 
 import "path/filepath"

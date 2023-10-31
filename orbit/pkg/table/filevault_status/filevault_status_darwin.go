@@ -3,6 +3,7 @@
 
 // based on https://github.com/fleetdm/launcher/blob/main/pkg/osquery/tables/filevault
 
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package filevault_status
 
 import (

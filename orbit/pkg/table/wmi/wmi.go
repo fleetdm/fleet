@@ -30,6 +30,7 @@
 //
 // Get-WmiObject -Query "select * from win32_service where name='WinRM'"
 // Get-WmiObject  -namespace root\cimv2\security\MicrosoftTpm -Query "SELECT * FROM Win32_Tpm"
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package wmi
 
 import (

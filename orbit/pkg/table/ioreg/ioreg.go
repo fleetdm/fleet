@@ -7,6 +7,7 @@
 // As the returned data is a complex nested plist, this uses the
 // dataflatten tooling. (See
 // https://github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten)
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package ioreg
 
 import (
