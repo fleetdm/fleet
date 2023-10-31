@@ -419,7 +419,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	})
 
 	t.Run("ListMDMAppleCommands", func(t *testing.T) {
-		ds.ListMDMAppleCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, opt *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
+		ds.ListMDMAppleCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, opt *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
 			return []*fleet.MDMAppleCommand{
 				{DeviceID: "no team", TeamID: nil},
 				{DeviceID: "tm1", TeamID: ptr.Uint(1)},
@@ -446,7 +446,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		for _, c := range listCmdsCases {
 			t.Run(c.desc, func(t *testing.T) {
 				ctx = test.UserContext(ctx, c.user)
-				res, err := svc.ListMDMAppleCommands(ctx, &fleet.MDMAppleCommandListOptions{})
+				res, err := svc.ListMDMAppleCommands(ctx, &fleet.MDMCommandListOptions{})
 				checkAuthErr(t, err, c.shouldFail)
 				if c.shouldFail {
 					return

@@ -80,17 +80,17 @@ func (c *Client) MDMGetCommandResults(commandUUID string) ([]*fleet.MDMCommandRe
 	return responseBody.Results, nil
 }
 
-func (c *Client) MDMAppleListCommands() ([]*fleet.MDMAppleCommand, error) {
+func (c *Client) MDMListCommands() ([]*fleet.MDMCommand, error) {
 	const defaultCommandsPerPage = 1000
 
-	verb, path := http.MethodGet, "/api/latest/fleet/mdm/apple/commands"
+	verb, path := http.MethodGet, "/api/latest/fleet/mdm/commands"
 
 	query := url.Values{}
 	query.Set("per_page", fmt.Sprint(defaultCommandsPerPage))
 	query.Set("order_key", "updated_at")
 	query.Set("order_direction", "desc")
 
-	var responseBody listMDMAppleCommandsResponse
+	var responseBody listMDMCommandsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("send request: %w", err)

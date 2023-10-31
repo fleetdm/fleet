@@ -192,3 +192,25 @@ type MDMCommandResult struct {
 	// afterwards. To make that explicit, the db field tag is explicitly ignored.
 	Hostname string `json:"hostname" db:"-"`
 }
+
+// MDMCommand represents an MDM Apple command that has been enqueued for
+// execution.
+type MDMCommand struct {
+	// DeviceID is the MDM enrollment ID. This is the same as the host UUID.
+	HostUUID string `json:"host_uuid" db:"host_uuid"`
+	// CommandUUID is the unique identifier of the command.
+	CommandUUID string `json:"command_uuid" db:"command_uuid"`
+	// UpdatedAt is the last update timestamp of the command result.
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// RequestType is the command's request type, which is basically the
+	// command name.
+	RequestType string `json:"request_type" db:"request_type"`
+	// Status is the command status. One of Acknowledged, Error, or NotNow.
+	Status string `json:"status" db:"status"`
+	// Hostname is the hostname of the host that executed the command.
+	Hostname string `json:"hostname" db:"hostname"`
+	// TeamID is the host's team, null if the host is in no team. This is used
+	// to authorize the user to see the command, it is not returned as part of
+	// the response payload.
+	TeamID *uint `json:"-" db:"team_id"`
+}
