@@ -209,6 +209,32 @@ spec:
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	ds.ApplyEnrollSecretsFuncInvoked = false
 
+	// add windows updates settings to team1
+	filename = writeTmpYml(t, `
+---
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days: 5
+        grace_period_days: 1
+`)
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	newMDMSettings = fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("12.3.1"),
+			Deadline:       optjson.SetString("2011-03-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(5),
+			GracePeriodDays: optjson.SetInt(1),
+		},
+	}
+	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
+
 	mobileCfgPath := writeTmpMobileconfig(t, "N1")
 	filename = writeTmpYml(t, fmt.Sprintf(`
 apiVersion: v1
@@ -226,6 +252,10 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(5),
+			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{mobileCfgPath},
@@ -263,6 +293,10 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(5),
+			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSettings: fleet.MacOSSettings{ // macos settings not provided, so not cleared
 			CustomSettings: []string{mobileCfgPath},
@@ -321,6 +355,9 @@ spec:
       macos_updates:
         minimum_version:
         deadline:
+      windows_updates:
+        deadline_days:
+        grace_period_days:
       macos_settings:
         custom_settings:
 `)
@@ -329,6 +366,10 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.Int{Set: true},
+			GracePeriodDays: optjson.Int{Set: true},
 		},
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{},
@@ -409,6 +450,9 @@ spec:
     macos_updates:
       minimum_version: 12.1.1
       deadline: 2011-02-01
+    windows_updates:
+      deadline_days: 5
+      grace_period_days: 1
 `)
 
 	newMDMSettings := fleet.MDM{
@@ -417,6 +461,10 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("12.1.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(5),
+			GracePeriodDays: optjson.SetInt(1),
 		},
 	}
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
@@ -437,6 +485,7 @@ spec:
   agent_options:
   mdm:
     macos_updates:
+    windows_updates:
 `)
 
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
@@ -445,6 +494,33 @@ spec:
 	assert.True(t, savedAppConfig.Features.EnableSoftwareInventory)
 	// agent options were cleared, provided but empty
 	assert.Nil(t, savedAppConfig.AgentOptions)
+	// MDM settings unchanged, not provided
+	assert.Equal(t, newMDMSettings, savedAppConfig.MDM)
+
+	name = writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days:
+      grace_period_days:
+`)
+
+	newMDMSettings = fleet.MDM{
+		AppleBMDefaultTeam:  "team1",
+		AppleBMTermsExpired: false,
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("12.1.1"),
+			Deadline:       optjson.SetString("2011-02-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.Int{Set: true},
+			GracePeriodDays: optjson.Int{Set: true},
+		},
+	}
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	require.NotNil(t, savedAppConfig)
 	assert.Equal(t, newMDMSettings, savedAppConfig.MDM)
 }
 
@@ -963,6 +1039,9 @@ spec:
     macos_updates:
       minimum_version: 10.10.10
       deadline: 2020-02-02
+    windows_updates:
+      deadline_days: 1
+      grace_period_days: 0
     macos_settings:
       custom_settings:
       - %s
@@ -986,6 +1065,10 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("2020-02-02"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(1),
+			GracePeriodDays: optjson.SetInt(0),
 		},
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{mobileConfigPath},
@@ -1025,6 +1108,10 @@ spec:
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("2020-02-02"),
 		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(1),
+			GracePeriodDays: optjson.SetInt(0),
+		},
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{mobileConfigPath},
 		},
@@ -1047,6 +1134,9 @@ spec:
       macos_updates:
         minimum_version: 10.10.10
         deadline: 1992-03-01
+      windows_updates:
+        deadline_days: 0
+        grace_period_days: 1
       macos_settings:
         custom_settings:
           - %s
@@ -1068,6 +1158,10 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(0),
+			GracePeriodDays: optjson.SetInt(1),
 		},
 	}, savedTeam.Config.MDM)
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, teamEnrollSecrets)
@@ -1104,6 +1198,10 @@ spec:
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(0),
+			GracePeriodDays: optjson.SetInt(1),
+		},
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
 		},
@@ -1135,6 +1233,10 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(0),
+			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),

@@ -95,8 +95,8 @@
 					"deadline": "2021-12-14"
 				},
 				"windows_updates": {
-					"deadline_days": null,
-					"grace_period_days": null
+					"deadline_days": 7,
+					"grace_period_days": 3
 				},
 				"macos_settings": {
 					"custom_settings": null

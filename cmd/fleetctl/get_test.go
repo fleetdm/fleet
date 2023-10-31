@@ -161,6 +161,10 @@ func TestGetTeams(t *testing.T) {
 									MinimumVersion: optjson.SetString("12.3.1"),
 									Deadline:       optjson.SetString("2021-12-14"),
 								},
+								WindowsUpdates: fleet.WindowsUpdates{
+									DeadlineDays:    optjson.SetInt(7),
+									GracePeriodDays: optjson.SetInt(3),
+								},
 							},
 						},
 					},
@@ -560,6 +564,12 @@ func TestGetConfig(t *testing.T) {
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
 			SMTPSettings:          &fleet.SMTPSettings{},
 			SSOSettings:           &fleet.SSOSettings{},
+			MDM: fleet.MDM{
+				WindowsUpdates: fleet.WindowsUpdates{
+					DeadlineDays:    optjson.SetInt(7),
+					GracePeriodDays: optjson.SetInt(3),
+				},
+			},
 		}, nil
 	}
 
@@ -1988,6 +1998,10 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 				MacOSUpdates: fleet.MacOSUpdates{
 					MinimumVersion: optjson.SetString("12.3.1"),
 					Deadline:       optjson.SetString("2021-12-14"),
+				},
+				WindowsUpdates: fleet.WindowsUpdates{
+					DeadlineDays:    optjson.SetInt(7),
+					GracePeriodDays: optjson.SetInt(3),
 				},
 			},
 		},

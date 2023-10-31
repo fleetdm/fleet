@@ -50,8 +50,8 @@
 				"deadline": null
 			},
 			"windows_updates": {
-				"deadline_days": null,
-				"grace_period_days": null
+				"deadline_days": 7,
+				"grace_period_days": 3
 			},
 			"macos_migration": {
 				"enable": false,
