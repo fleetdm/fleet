@@ -4172,7 +4172,7 @@ Get aggregate status counts of Apple disk encryption profiles applying to macOS 
 Get aggregate status counts of all OS settings (configuration profiles and disk encryption) enforced on hosts.
 
 For Fleet Premium users, the counts can
-optionally be filtered by team id. If no team id is specified, team profiles are excluded from the
+optionally be filtered by `team_id`. If no `team_id` is specified, team profiles are excluded from the
 results (i.e., only profiles that are associated with "No team" are listed).
 
 `GET /api/v1/fleet/mdm/profiles/summary`
