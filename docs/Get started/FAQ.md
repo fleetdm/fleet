@@ -87,19 +87,23 @@ Since Fleet is self-managed, some metadata is stored wherever it is deployed (e.
 
 ## Can I fork Fleet's source code and build upon it myself to create my own features?
 
-Anyone is free to fork the project. We are always interested to hear feedback, and we are happy to take pull requests and ideas upstream any time we can.
+Potentially! Fleet is open core with a [source code license](https://github.com/fleetdm/fleet/blob/main/LICENSE) similar to GitLab's.
+
+Anyone is free to contribute to the free or paid features of the project. We are always interested to hear feedback, and we are happy to take pull requests and ideas upstream any time we can. 
+
 
 ## Can I buy support or services separate from Fleet Premium?
 
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
-<!--
-## Using Fleet
-
 ### Can you host Fleet for me?
 
-Fleet offers managed cloud hosting for large deployments.  Unfortunately, while organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, we are not currently able to provide hosting for deployments smaller than 1000 hosts.  If you are comfortable doing so, you can still [buy a license](https://fleetdm.com/customers/register) and host Fleet yourself.
+Fleet offers managed cloud hosting for large deployments.
 
+While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, the company does not currently provide hosting for deployments smaller than 1000 hosts.  (Fortunately, you can always [buy a license](https://fleetdm.com/customers/register) and host Fleet Premium yourself.)
+
+<!--
+## Using Fleet
 
 ### How can I switch to Fleet from Kolide Fleet?
 
