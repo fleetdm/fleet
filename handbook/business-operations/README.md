@@ -15,10 +15,11 @@ This handbook page details processes specific to working [with](#what-we-do) and
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) for this department, including pending tasks and the status of new requests.
 - If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-business-operations](https://fleetdm.slack.com/archives/C047N5L6EGH) Slack channel.
 
-## What we do
-The Business Operations department is directly responsible for the functions of all Finance, People, Legal, IT, and Revenue Operations (RevOps). For example, We assist with **legal questions**, requests for **admin access for a tool** used at Fleet, and **hiring activities**. 
+
+
 
 ## Responsibilities
+The Business Operations department is directly responsible for the functions of all Finance, People, Legal, IT, and Revenue Operations (RevOps). 
 
 ### Manualy check payroll
 Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
