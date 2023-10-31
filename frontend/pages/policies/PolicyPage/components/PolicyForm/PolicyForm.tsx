@@ -609,11 +609,15 @@ const PolicyForm = ({
               backgroundColor={COLORS["tooltip-bg"]}
               data-html
             >
-              {disabledLiveQuery
-                ? "Live queries are disabled in organization settings"
-                : `Select the platform(s) this <br />
-              policy will be checked on <br />
-              to save or run the policy.`}
+              {disabledLiveQuery ? (
+                <>Live queries are disabled in organization settings</>
+              ) : (
+                <>
+                  Select the platform(s) this <br />
+                  policy will be checked on <br />
+                  to save or run the policy.
+                </>
+              )}
             </ReactTooltip>
           </div>
         </form>
