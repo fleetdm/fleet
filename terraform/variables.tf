@@ -393,8 +393,12 @@ variable "alb_config" {
     security_groups      = optional(list(string), [])
     access_logs          = optional(map(string), {})
     allowed_cidrs        = optional(list(string), ["0.0.0.0/0"])
+    allowed_ipv6_cidrs   = optional(list(string), ["::/0"])
+    egress_cidrs         = optional(list(string), ["0.0.0.0/0"])
+    egress_ipv6_cidrs    = optional(list(string), ["::/0"])
     extra_target_groups  = optional(any, [])
     https_listener_rules = optional(any, [])
+    tls_policy           = optional(string, "ELBSecurityPolicy-TLS-1-2-2017-01")
   })
   default = {}
 }
