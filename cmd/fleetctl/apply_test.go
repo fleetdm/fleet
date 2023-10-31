@@ -2652,6 +2652,124 @@ spec:
 			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
 		},
 		{
+			desc: "windows_updates.deadline_days but grace period empty",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days: 5
+`,
+			wantErr: `422 Validation Failed: grace_period_days is required when deadline_days is provided`,
+		},
+		{
+			desc: "windows_updates.grace_period_days but deadline empty",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        grace_period_days: 5
+`,
+			wantErr: `422 Validation Failed: deadline_days is required when grace_period_days is provided`,
+		},
+		{
+			desc: "windows_updates.deadline_days out of range",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days: 9999
+        grace_period_days: 1
+`,
+			wantErr: `422 Validation Failed: deadline_days must be an integer between 0 and 30`,
+		},
+		{
+			desc: "windows_updates.grace_period_days out of range",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days: 1
+        grace_period_days: 9999
+`,
+			wantErr: `422 Validation Failed: grace_period_days must be an integer between 0 and 7`,
+		},
+		{
+			desc: "windows_updates.deadline_days not a number",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days: abc
+        grace_period_days: 1
+`,
+			wantErr: `400 Bad Request: invalid value type at 'specs.mdm.windows_updates.deadline_days': expected int but got string`,
+		},
+		{
+			desc: "windows_updates.grace_period_days not a number",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days: 1
+        grace_period_days: true
+`,
+			wantErr: `400 Bad Request: invalid value type at 'specs.mdm.windows_updates.grace_period_days': expected int but got bool`,
+		},
+		{
+			desc: "windows_updates valid",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days: 5
+        grace_period_days: 1
+`,
+			wantOutput: `[+] applied 1 teams`,
+		},
+		{
+			desc: "windows_updates unset valid",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days:
+        grace_period_days:
+`,
+			wantOutput: `[+] applied 1 teams`,
+		},
+		{
 			desc: "missing required sso entity_id",
 			spec: `
 apiVersion: v1
@@ -2853,6 +2971,108 @@ spec:
       deadline: "2022-01"
 `,
 			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+		},
+		{
+			desc: "app config windows_updates.deadline_days but grace period empty",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days: 5
+`,
+			wantErr: `422 Validation Failed: grace_period_days is required when deadline_days is provided`,
+		},
+		{
+			desc: "app config windows_updates.grace_period_days but deadline empty",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      grace_period_days: 5
+`,
+			wantErr: `422 Validation Failed: deadline_days is required when grace_period_days is provided`,
+		},
+		{
+			desc: "app config windows_updates.deadline_days out of range",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days: 9999
+      grace_period_days: 1
+`,
+			wantErr: `422 Validation Failed: deadline_days must be an integer between 0 and 30`,
+		},
+		{
+			desc: "app config windows_updates.grace_period_days out of range",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days: 1
+      grace_period_days: 9999
+`,
+			wantErr: `422 Validation Failed: grace_period_days must be an integer between 0 and 7`,
+		},
+		{
+			desc: "app config windows_updates.deadline_days not a number",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days: abc
+      grace_period_days: 1
+`,
+			wantErr: `400 Bad request: failed to decode app config`,
+		},
+		{
+			desc: "app config windows_updates.grace_period_days not a number",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days: 1
+      grace_period_days: true
+`,
+			wantErr: `400 Bad request: failed to decode app config`,
+		},
+		{
+			desc: "app config windows_updates valid",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days: 5
+      grace_period_days: 1
+`,
+			wantOutput: `[+] applied fleet config`,
+		},
+		{
+			desc: "app config windows_updates unset valid",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days:
+      grace_period_days:
+`,
+			wantOutput: `[+] applied fleet config`,
 		},
 		{
 			desc: "app config macos_settings.enable_disk_encryption without a value",
