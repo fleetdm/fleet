@@ -1,5 +1,4 @@
 # Customer Success
-
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## What we do
@@ -18,11 +17,7 @@ The customer success department is directly responsible for ensuring that custom
 - To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-customer-success&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
   - Any Fleet team member can [view the kanban board](https://github.com/fleetdm/fleet#workspaces/-g-customer-success-642c83a53e96760014c978bd/board) for this department, including pending tasks and the status of new requests.
   - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
-- If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-customer-success](https://fleetdm.slack.com/archives/C062D0THVV1) Slack channel.
-
-
-## Customer support
-Customer support engineers (CSEs) serve as Fleet's first line of communication related to technical support questions or bug reports from the customer and community base.  
+- If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-customer-success](https://fleetdm.slack.com/archives/C062D0THVV1) Slack channel. 
 
 ### Customer support service level agreements (SLAs)
 
@@ -59,9 +54,6 @@ Note: Fleet business hours for support are Monday-Friday, 6AM-4PM Pacific Time, 
 
 ##### Things to note: 
 - New customer channels that the automation will run in must be configured manually. Submit requests for additions to the Zapier administator. 
-
-### Bug report
-Any customer or community member can file a 🦟 ["Bug report"](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=).
 
 #### Customer codenames
 Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
@@ -102,7 +94,6 @@ When creating a new issue, make sure the following:
 #### Assistance from engineering
 Customer team members can [reach the engineering oncall](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer) for assistance by writing a message with `@oncall` in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) channel of the Fleet Slack. Additional help can be obtained by messaging your friendly Solutions Consultant in the [#help-solutions-consulting channel](https://fleetdm.slack.com/archives/C05HZ2LHEL8).
 
-
 ### Customer support process 
 This section outlines Fleet's customer and community support process.
 - The customer support engineering (CSE) team handles basic help desk resolution and service delivery issues (P2 and P3) with assistance from on-call and the solutions consulting team as needed.
@@ -117,7 +108,6 @@ Support issues should be handled in the relevant Slack channel rather than Direc
 
 An automated weekly [on-call handoff](https://fleetdm.com/handbook/engineering#handoff) Slack thread in #g-engineering provides the opportunity to discuss highlights, improvements, and hand off ongoing issues.
 
-## Customer success 
 Customer success managers (CSMs) serve as the primary point of contact for Fleet Premium customers and are responsible for ensuring that customer's desired outcomes are achieved.  
 
 ### Invite new customer DRI
@@ -150,19 +140,13 @@ To schedule a recurring meeting, follow the instructions in the customer success
   - an alternative date and time. Suggest two to three options from which the customer can choose.
     - Confirm that contact information is accurate and that the customer can receive and access meeting invites.
 
-### Generate a trial license key
-1. Fleet's self-service license key creator is the best way to generate a proof of concept (POC) or renewal/expansion Fleet Premium license key. 
-    - [Here is a tutorial on using the self-service method](https://www.loom.com/share/b519e6a42a7d479fa628e394ee1d1517) (internal video)
-    - Pre-sales license key DRI is the Director of Solutions Consulting
-    - Post-sales license key DRI is the VP of Customer Success
 
-2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
 ## Managed Cloud 
 
 Managed Cloud is our hosted Fleet offering for Fleet Premium and Fleet Ultimate customers. All managed Fleet instances receive 24/7 monitoring and on-call support from Customer Success. 
 
-### 24/7 on-call
+### Assume infrastructure on-call 
 
 The 24/7 on-call (aka infrastructure on-call) responsibility happens in shifts of one week.
 
@@ -188,40 +172,43 @@ All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1.
 
 When the current 24/7 on-call engineer is unable to meet the response time SLAs, it is their responsibility to arrange and designate a replacement who will assume the @oncall-infrastructure Slack alias.
 
-#### Runbooks
 
-Use [on-call runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme) to guide your response. Runbooks provided detailed, step-by-step instructions to quickly and effectively respond to and resolve most 24/7 on-call alerts. 
+ 
 
 ## Responsibilities
 
-### Respond to messages and alerts
+### Generate a trial license key
+1. Fleet's self-service license key creator is the best way to generate a proof of concept (POC) or renewal/expansion Fleet Premium license key. 
+    - [Here is a tutorial on using the self-service method](https://www.loom.com/share/b519e6a42a7d479fa628e394ee1d1517) (internal video)
+    - Pre-sales license key DRI is the Director of Solutions Consulting
+    - Post-sales license key DRI is the VP of Customer Success
 
-Customer Success is responsible for the first response to messages in private customer Slack channels.
+2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
-Customer Support Engineers are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. 
-
-The 24/7 on-call is responsible for alarms related to fleetdm.com and Fleet Managed Cloud, as well as delivering 24/7 support for Fleet Ultimate customers.
-
-We respond within 1-hour during business hours and 4 hours outside business hours. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information, while researching/escalating to find answers internally.
+### Respond to messages and alerts 
+<!-- TODO: Rephrase to correct audince -->
+Customer Success is responsible for the first response to messages in private customer Slack channels. Customer Support Engineers are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. 
+- The 24/7 on-call is responsible for alarms related to fleetdm.com and Fleet Managed Cloud, as well as delivering 24/7 support for Fleet Premium customers. Use [on-call runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme) to guide your response. Runbooks provided detailed, step-by-step instructions to quickly and effectively respond to and resolve most 24/7 on-call alerts.
+- We respond within 1-hour during business hours and 4 hours outside business hours. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information while researching/escalating to find answers internally.
 
 > Response SLAs help us measure and guarantee the responsiveness that a customer [can expect](https://fleetdm.com/handbook/company#values) from Fleet.  But SLAs aside, when a Fleet customer has an emergency or other time-sensitive situation ongoing, it is Fleet's priority to help them find them a solution quickly.
 
-### Onboard a customer support engineer
-Follow the [training steps for this role](https://docs.google.com/document/d/1GB8i_VMaFxeb9ipLock9MVWGJ2RqIW8lZ5n3MLiXG4s/edit).
 
-### Onboard a customer success manager
-Follow the [training steps for this role](https://docs.google.com/document/d/1itrBeztwjK253Q548wbveVWdDaldBYCEOS6Cbz5Z4Uc/edit).
-
-### Onboard a customer solutions architect
-Follow the [training steps for this role](https://docs.google.com/document/d/1G26Aqmn4tSKa7s0jMcSRqNTtz6h47Tvf8Ddi2-cP1ek/edit#heading=h.2i16pc77rnb7).
-
-### Onboard an infrastructure engineer
-Follow the [training steps for this role](https://docs.google.com/document/d/1G26Aqmn4tSKa7s0jMcSRqNTtz6h47Tvf8Ddi2-cP1ek/edit#heading=h.2i16pc77rnb7).
+### Onboard a customer success team member
+- **Customer Success Manager:** Follow the [training steps for this role](https://docs.google.com/document/d/1itrBeztwjK253Q548wbveVWdDaldBYCEOS6Cbz5Z4Uc/edit).
+- **Customer Solutions Architect (CSA):** Follow the [training steps for this role](https://docs.google.com/document/d/1G26Aqmn4tSKa7s0jMcSRqNTtz6h47Tvf8Ddi2-cP1ek/edit#heading=h.2i16pc77rnb7).
+- **Customer Support Engineer (CSE):** Follow the [training steps for this role](https://docs.google.com/document/d/1GB8i_VMaFxeb9ipLock9MVWGJ2RqIW8lZ5n3MLiXG4s/edit).
+- **Infrastructure Engineer:** Follow the [training steps for this role](https://docs.google.com/document/d/1G26Aqmn4tSKa7s0jMcSRqNTtz6h47Tvf8Ddi2-cP1ek/edit#heading=h.2i16pc77rnb7).
 
 ## Rituals
 
 <rituals :rituals="rituals['handbook/customers/customer-success.rituals.yml']"></rituals>
 
+#### Stubs
+The following stubs are included only to make links backward compatible.
+
+##### Runbooks
+Please see []()
 
 <meta name="maintainedBy" value="zayhanlon">
 <meta name="title" value="🏹 Customer Success">
