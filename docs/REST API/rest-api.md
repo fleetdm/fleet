@@ -4013,7 +4013,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 ### Get or download custom OS setting (configuration profile)
 
-> [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`) API endpoint is deprecated as of Fleet 4.40. It is maintained for backwards compatibility. Please use the API endpoint.
+> [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 `GET /api/v1/fleet/mdm/profiles/{profile_id}`
 
