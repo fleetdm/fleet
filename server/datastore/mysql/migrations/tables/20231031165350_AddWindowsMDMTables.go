@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20231024105026, Down_20231024105026)
+	MigrationClient.AddMigration(Up_20231031165350, Down_20231031165350)
 }
 
-func Up_20231024105026(tx *sql.Tx) error {
+func Up_20231031165350(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 -- This table contains the commands, which may target multiple devices.
 CREATE TABLE windows_mdm_commands (
@@ -113,6 +113,6 @@ CREATE TABLE windows_mdm_command_results (
 	return nil
 }
 
-func Down_20231024105026(tx *sql.Tx) error {
+func Down_20231031165350(tx *sql.Tx) error {
 	return nil
 }
