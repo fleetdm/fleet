@@ -80,10 +80,6 @@ func PlatformTables() []osquery.OsqueryPlugin {
 
 		// Table for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
 		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.PlistType), // table name is "parse_plist"
-		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.JsonType),  // table name is "parse_json"
-		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.JsonlType), // table name is "parse_jsonl"
-		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.XmlType),   // table name is "parse_xml"
-		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.IniType),   // table name is "parse_ini"
 	}
 
 	// append platform specific tables
