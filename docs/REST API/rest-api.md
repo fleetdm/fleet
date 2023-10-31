@@ -4015,13 +4015,13 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 > [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
-`GET /api/v1/fleet/mdm/profiles/{profile_id}`
+`GET /api/v1/fleet/mdm/profiles/{id}`
 
 #### Parameters
 
 | Name                      | Type    | In    | Description                                             |
 | ------------------------- | ------- | ----- | ------------------------------------------------------- |
-| profile_id                | integer | url   | **Required** The id of the profile to download.         |
+| id                        | integer | url   | **Required** The ID of the profile to download.         |
 | alt                       | string  | query | If specified and set to "media", downloads the profile. |
 
 #### Example (get a profile info)
@@ -4091,13 +4091,13 @@ solely on the response status code returned by this endpoint.
 
 > [Delete custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#delete-custom-macos-setting-configuration-profile) (`DELETE /api/v1/fleet/mdm/apple/profiles/{profile_id}`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
-`DELETE /api/v1/fleet/mdm/profiles/{profile_id}`
+`DELETE /api/v1/fleet/mdm/profiles/{id}`
 
 #### Parameters
 
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
-| profile_id                | integer | url   | **Required** The id of the profile to delete.                             |
+| id                | integer | url   | **Required** The ID of the profile to delete.                             |
 
 #### Example
 
@@ -4181,7 +4181,7 @@ results (i.e., only profiles that are associated with "No team" are listed).
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
+| team_id                   | string | query | _Available in Fleet Premium_ The team ID to filter profiles.              |
 
 #### Example
 
