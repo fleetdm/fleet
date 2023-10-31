@@ -22,7 +22,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
-	"github.com/google/uuid"
 	"github.com/micromdm/nanomdm/mdm"
 )
 
@@ -607,21 +606,20 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 		}
 	}
 
-	winCmd := &fleet.MDMWindowsPendingCommand{
-		CommandUUID:  uuid.New().String(),
-		CmdVerb:      fleet.CmdExec,
-		SettingURI:   cmdMsg.GetTargetURI(),
-		SettingValue: cmdMsg.GetTargetData(),
-		DataType:     uint16(cmdMsg.DataType()),
-		SystemOrigin: false,
+	winCmd := &fleet.MDMWindowsCommand{
+		// TODO: using the provided ID to mimic Apple, but seems better if
+		// we're full in control of it, what we should do?
+		CommandUUID:  cmdMsg.CmdID,
+		RawCommand:   rawXMLCmd,
+		TargetLocURI: cmdMsg.GetTargetURI(),
 	}
-	if err := svc.ds.MDMWindowsInsertPendingCommandForDevices(ctx, deviceIDs, winCmd); err != nil {
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, deviceIDs, winCmd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "insert pending windows mdm command")
 	}
 
 	return &fleet.CommandEnqueueResult{
 		CommandUUID: winCmd.CommandUUID,
-		RequestType: winCmd.SettingURI,
+		RequestType: winCmd.TargetLocURI,
 		Platform:    "windows",
 	}, nil
 }

@@ -470,6 +470,10 @@ var hostRefs = []string{
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
 // deleted from when a host is deleted in Fleet:
 // - host_dep_assignments
+// - mdm tables (nano and windows) containing enrollment information, as we
+// want to keep the enrollment relationship even if the host is temporarily
+// deleted from the UI. Re-enrollment sometimes is not straightforward like it
+// is for osquery/fleetd
 
 // additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
 // above. They use the host.uuid instead. Additionally, the column name that refers to

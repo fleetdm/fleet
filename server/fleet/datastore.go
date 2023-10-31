@@ -1025,14 +1025,11 @@ type Datastore interface {
 	// WSTEPAssociateCertHash associates a certificate hash with a device.
 	WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error
 
-	// MDMWindowsGetEnrolledDevice receives a Windows MDM HW device id and returns the device information.
-	MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
-
 	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
 
 	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the HW device id.
-	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
+	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceHWID string) error
 
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
@@ -1040,28 +1037,16 @@ type Datastore interface {
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
 
-	// MDMWindowsInsertPendingCommand inserts a command that will be sent to a device
-	MDMWindowsInsertPendingCommand(ctx context.Context, cmd *MDMWindowsPendingCommand) error
-
-	// MDMWindowsInsertPendingCommandForDevices inserts a command that targets multiple devices,
-	// creating one pending command row for each device, with all of the rest of the command
-	// information the same for all devices.
-	MDMWindowsInsertPendingCommandForDevices(ctx context.Context, deviceIDs []string, cmd *MDMWindowsPendingCommand) error
+	// MDMWindowsInsertCommandForHosts inserts a single command that may
+	// target multiple hosts identified by their UUID, enqueuing one command
+	// for each device.
+	MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
 
 	// MDMWindowsGetPendingCommands returns all the pending commands for a device
-	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsPendingCommand, error)
+	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsCommand, error)
 
-	// MDMWindowsUpdatePendingCommand updates the status of a pending command
-	MDMWindowsInsertCommand(ctx context.Context, cmd *MDMWindowsCommand) error
-
-	// MDMWindowsUpdateCommandErrorCode updates the error code of a command
-	MDMWindowsUpdateCommandErrorCode(ctx context.Context, deviceID, sessionID, messageID, commandID, errorCode string) error
-
-	// MDMWindowsListCommands returns all the commands sent to a device
-	MDMWindowsListCommands(ctx context.Context, deviceID string) ([]*MDMWindowsCommand, error)
-
-	// MDMWindowsUpdateCommandReceivedResult updates the received result of a command
-	MDMWindowsUpdateCommandReceivedResult(ctx context.Context, deviceID, sessionID, messageID, commandID, receivedValue string) error
+	// MDMWindowsSaveResponse saves a full response
+	MDMWindowsSaveResponse(ctx context.Context, deviceID string, fullResponse *SyncML) error
 
 	// GetMDMWindowsCommands returns the results of command
 	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)

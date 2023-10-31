@@ -3,6 +3,7 @@ package fleet
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -46,6 +47,9 @@ type SoapRequest struct {
 	XMLNSAC   *string       `xml:"ac,attr,omitempty"`
 	Header    RequestHeader `xml:"Header"`
 	Body      BodyRequest   `xml:"Body"`
+
+	// Raw XML, stored alongside the decoded fields for convenience
+	Raw []byte `xml:"-"`
 }
 
 // GetHeaderBinarySecurityToken returns the header BinarySecurityToken if present
@@ -805,6 +809,8 @@ func (msg WapProvisioningDoc) GetEncodedB64Representation() (string, error) {
 /// Contains the information of the enrolled Windows host
 
 type MDMWindowsEnrolledDevice struct {
+	ID                     uint      `db:"id"`
+	HostUUID               string    `db:"host_uuid"`
 	MDMDeviceID            string    `db:"mdm_device_id"`
 	MDMHardwareID          string    `db:"mdm_hardware_id"`
 	MDMDeviceState         string    `db:"device_state"`
@@ -817,7 +823,6 @@ type MDMWindowsEnrolledDevice struct {
 	MDMNotInOOBE           bool      `db:"not_in_oobe"`
 	CreatedAt              time.Time `db:"created_at"`
 	UpdatedAt              time.Time `db:"updated_at"`
-	HostUUID               string    `db:"host_uuid"`
 }
 
 func (e MDMWindowsEnrolledDevice) AuthzType() string {
@@ -841,6 +846,9 @@ type SyncML struct {
 	Xmlns    string   `xml:"xmlns,attr"`
 	SyncHdr  SyncHdr  `xml:"SyncHdr"`
 	SyncBody SyncBody `xml:"SyncBody"`
+
+	// Raw XML, stored alongside the decoded fields for convenience
+	Raw []byte `xml:"-"`
 }
 
 type SyncHdr struct {
@@ -913,15 +921,13 @@ type ProtoCmdOperation struct {
 
 // Protocol Command
 type SyncMLCmd struct {
-	XMLName      xml.Name  `xml:",omitempty"`
-	CmdID        string    `xml:"CmdID"`
-	MsgRef       *string   `xml:"MsgRef,omitempty"`
-	CmdRef       *string   `xml:"CmdRef,omitempty"`
-	Cmd          *string   `xml:"Cmd,omitempty"`
-	Data         *string   `xml:"Data,omitempty"`
-	Items        []CmdItem `xml:"Item,omitempty"`
-	UUID         string    `xml:"-"`
-	SystemOrigin bool      `xml:"-"`
+	XMLName xml.Name  `xml:",omitempty"`
+	CmdID   string    `xml:"CmdID"`
+	MsgRef  *string   `xml:"MsgRef,omitempty"`
+	CmdRef  *string   `xml:"CmdRef,omitempty"`
+	Cmd     *string   `xml:"Cmd,omitempty"`
+	Data    *string   `xml:"Data,omitempty"`
+	Items   []CmdItem `xml:"Item,omitempty"`
 }
 
 // ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
@@ -1333,11 +1339,7 @@ func (cmd *SyncMLCmd) GetTargetData() string {
 }
 
 func (cmd *SyncMLCmd) ShouldBeTracked(cmdVerb string) bool {
-	if cmd.IsEmpty() {
-		return false
-	}
-
-	if (cmdVerb == "") || (cmdVerb == CmdResults) || (cmdVerb == CmdStatus) || (cmd.UUID == "") {
+	if (cmdVerb == "") || cmd.CmdRef == nil || *cmd.CmdRef == "0" {
 		return false
 	}
 
@@ -1345,36 +1347,33 @@ func (cmd *SyncMLCmd) ShouldBeTracked(cmdVerb string) bool {
 }
 
 // /////////////////////////////////////////////////////////////
-// MDMWindowsPendingCommand type
-// Represents a command in the windows_mdm_pending_commands table
-type MDMWindowsPendingCommand struct {
+// MDMWindowsCommand type
+// Represents a command in the windows_mdm_commands table
+type MDMWindowsCommand struct {
 	CommandUUID  string    `db:"command_uuid"`
-	DeviceID     string    `db:"device_id"`
-	CmdVerb      string    `db:"cmd_verb"`
-	SettingURI   string    `db:"setting_uri"`
-	SettingValue string    `db:"setting_value"`
-	DataType     uint16    `db:"data_type"`
-	SystemOrigin bool      `db:"system_origin"`
+	RawCommand   []byte    `db:"raw_command"`
+	TargetLocURI string    `db:"target_loc_uri"`
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
 }
 
-// /////////////////////////////////////////////////////////////
-// MDMWindowsCommand type
-// Represents a command that has been already sent and
-// that is stored in the windows_mdm_commands table
-type MDMWindowsCommand struct {
-	CommandUUID  string    `db:"command_uuid"`
-	DeviceID     string    `db:"device_id"`
-	SessionID    string    `db:"session_id"`
-	MessageID    string    `db:"message_id"`
-	CommandID    string    `db:"command_id"`
-	CmdVerb      string    `db:"cmd_verb"`
-	SettingURI   string    `db:"setting_uri"`
-	SettingValue string    `db:"setting_value"`
-	SystemOrigin bool      `db:"system_origin"`
-	ErrorCode    string    `db:"rx_error_code"`
-	CmdResult    string    `db:"rx_cmd_result"`
-	CreatedAt    time.Time `db:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at"`
+// GetEncodedBinarySecurityToken returns the base64 form of a input payload
+func GetEncodedBinarySecurityToken(typeID WindowsMDMEnrollmentType, payload string) (string, error) {
+	var pld WindowsMDMAccessTokenPayload
+	pld.Type = typeID
+
+	if typeID == WindowsMDMProgrammaticEnrollmentType {
+		pld.Payload.OrbitNodeKey = payload
+	} else if typeID == WindowsMDMAutomaticEnrollmentType {
+		pld.Payload.AuthToken = payload
+	} else {
+		return "", fmt.Errorf("invalid enrollment type: %v", typeID)
+	}
+
+	rawBytes, err := json.Marshal(pld)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.URLEncoding.EncodeToString(rawBytes), nil
 }

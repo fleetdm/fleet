@@ -668,29 +668,19 @@ type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
 
 type WSTEPAssociateCertHashFunc func(ctx context.Context, deviceUUID string, hash string) error
 
-type MDMWindowsGetEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error)
-
 type MDMWindowsInsertEnrolledDeviceFunc func(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error
 
-type MDMWindowsDeleteEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID string) error
+type MDMWindowsDeleteEnrolledDeviceFunc func(ctx context.Context, mdmDeviceHWID string) error
 
 type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
 type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) error
 
-type MDMWindowsInsertPendingCommandFunc func(ctx context.Context, cmd *fleet.MDMWindowsPendingCommand) error
+type MDMWindowsInsertCommandForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error
 
-type MDMWindowsInsertPendingCommandForDevicesFunc func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsPendingCommand) error
+type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error)
 
-type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error)
-
-type MDMWindowsInsertCommandFunc func(ctx context.Context, cmd *fleet.MDMWindowsCommand) error
-
-type MDMWindowsUpdateCommandErrorCodeFunc func(ctx context.Context, deviceID string, sessionID string, messageID string, commandID string, errorCode string) error
-
-type MDMWindowsListCommandsFunc func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error)
-
-type MDMWindowsUpdateCommandReceivedResultFunc func(ctx context.Context, deviceID string, sessionID string, messageID string, commandID string, receivedValue string) error
+type MDMWindowsSaveResponseFunc func(ctx context.Context, deviceID string, fullResponse *fleet.SyncML) error
 
 type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
 
@@ -1682,9 +1672,6 @@ type DataStore struct {
 	WSTEPAssociateCertHashFunc        WSTEPAssociateCertHashFunc
 	WSTEPAssociateCertHashFuncInvoked bool
 
-	MDMWindowsGetEnrolledDeviceFunc        MDMWindowsGetEnrolledDeviceFunc
-	MDMWindowsGetEnrolledDeviceFuncInvoked bool
-
 	MDMWindowsInsertEnrolledDeviceFunc        MDMWindowsInsertEnrolledDeviceFunc
 	MDMWindowsInsertEnrolledDeviceFuncInvoked bool
 
@@ -1697,26 +1684,14 @@ type DataStore struct {
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc        MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked bool
 
-	MDMWindowsInsertPendingCommandFunc        MDMWindowsInsertPendingCommandFunc
-	MDMWindowsInsertPendingCommandFuncInvoked bool
-
-	MDMWindowsInsertPendingCommandForDevicesFunc        MDMWindowsInsertPendingCommandForDevicesFunc
-	MDMWindowsInsertPendingCommandForDevicesFuncInvoked bool
+	MDMWindowsInsertCommandForHostsFunc        MDMWindowsInsertCommandForHostsFunc
+	MDMWindowsInsertCommandForHostsFuncInvoked bool
 
 	MDMWindowsGetPendingCommandsFunc        MDMWindowsGetPendingCommandsFunc
 	MDMWindowsGetPendingCommandsFuncInvoked bool
 
-	MDMWindowsInsertCommandFunc        MDMWindowsInsertCommandFunc
-	MDMWindowsInsertCommandFuncInvoked bool
-
-	MDMWindowsUpdateCommandErrorCodeFunc        MDMWindowsUpdateCommandErrorCodeFunc
-	MDMWindowsUpdateCommandErrorCodeFuncInvoked bool
-
-	MDMWindowsListCommandsFunc        MDMWindowsListCommandsFunc
-	MDMWindowsListCommandsFuncInvoked bool
-
-	MDMWindowsUpdateCommandReceivedResultFunc        MDMWindowsUpdateCommandReceivedResultFunc
-	MDMWindowsUpdateCommandReceivedResultFuncInvoked bool
+	MDMWindowsSaveResponseFunc        MDMWindowsSaveResponseFunc
+	MDMWindowsSaveResponseFuncInvoked bool
 
 	GetMDMWindowsCommandResultsFunc        GetMDMWindowsCommandResultsFunc
 	GetMDMWindowsCommandResultsFuncInvoked bool
@@ -4017,13 +3992,6 @@ func (s *DataStore) WSTEPAssociateCertHash(ctx context.Context, deviceUUID strin
 	return s.WSTEPAssociateCertHashFunc(ctx, deviceUUID, hash)
 }
 
-func (s *DataStore) MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
-	s.mu.Lock()
-	s.MDMWindowsGetEnrolledDeviceFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMWindowsGetEnrolledDeviceFunc(ctx, mdmDeviceID)
-}
-
 func (s *DataStore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
 	s.mu.Lock()
 	s.MDMWindowsInsertEnrolledDeviceFuncInvoked = true
@@ -4031,11 +3999,11 @@ func (s *DataStore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *
 	return s.MDMWindowsInsertEnrolledDeviceFunc(ctx, device)
 }
 
-func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error {
+func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceHWID string) error {
 	s.mu.Lock()
 	s.MDMWindowsDeleteEnrolledDeviceFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceID)
+	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceHWID)
 }
 
 func (s *DataStore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
@@ -4052,53 +4020,25 @@ func (s *DataStore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Conte
 	return s.MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc(ctx, mdmDeviceID)
 }
 
-func (s *DataStore) MDMWindowsInsertPendingCommand(ctx context.Context, cmd *fleet.MDMWindowsPendingCommand) error {
+func (s *DataStore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
 	s.mu.Lock()
-	s.MDMWindowsInsertPendingCommandFuncInvoked = true
+	s.MDMWindowsInsertCommandForHostsFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsInsertPendingCommandFunc(ctx, cmd)
+	return s.MDMWindowsInsertCommandForHostsFunc(ctx, hostUUIDs, cmd)
 }
 
-func (s *DataStore) MDMWindowsInsertPendingCommandForDevices(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsPendingCommand) error {
-	s.mu.Lock()
-	s.MDMWindowsInsertPendingCommandForDevicesFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMWindowsInsertPendingCommandForDevicesFunc(ctx, deviceIDs, cmd)
-}
-
-func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsPendingCommand, error) {
+func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
 	s.mu.Lock()
 	s.MDMWindowsGetPendingCommandsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsGetPendingCommandsFunc(ctx, deviceID)
 }
 
-func (s *DataStore) MDMWindowsInsertCommand(ctx context.Context, cmd *fleet.MDMWindowsCommand) error {
+func (s *DataStore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, fullResponse *fleet.SyncML) error {
 	s.mu.Lock()
-	s.MDMWindowsInsertCommandFuncInvoked = true
+	s.MDMWindowsSaveResponseFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsInsertCommandFunc(ctx, cmd)
-}
-
-func (s *DataStore) MDMWindowsUpdateCommandErrorCode(ctx context.Context, deviceID string, sessionID string, messageID string, commandID string, errorCode string) error {
-	s.mu.Lock()
-	s.MDMWindowsUpdateCommandErrorCodeFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMWindowsUpdateCommandErrorCodeFunc(ctx, deviceID, sessionID, messageID, commandID, errorCode)
-}
-
-func (s *DataStore) MDMWindowsListCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
-	s.mu.Lock()
-	s.MDMWindowsListCommandsFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMWindowsListCommandsFunc(ctx, deviceID)
-}
-
-func (s *DataStore) MDMWindowsUpdateCommandReceivedResult(ctx context.Context, deviceID string, sessionID string, messageID string, commandID string, receivedValue string) error {
-	s.mu.Lock()
-	s.MDMWindowsUpdateCommandReceivedResultFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMWindowsUpdateCommandReceivedResultFunc(ctx, deviceID, sessionID, messageID, commandID, receivedValue)
+	return s.MDMWindowsSaveResponseFunc(ctx, deviceID, fullResponse)
 }
 
 func (s *DataStore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {

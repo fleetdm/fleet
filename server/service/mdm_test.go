@@ -420,7 +420,7 @@ func TestRunMDMCommandValidations(t *testing.T) {
 func TestEnqueueWindowsMDMCommand(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
-	ds.MDMWindowsInsertPendingCommandForDevicesFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsPendingCommand) error {
+	ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
 		return nil
 	}
 

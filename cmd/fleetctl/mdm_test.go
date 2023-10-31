@@ -205,7 +205,7 @@ func TestMDMRunCommand(t *testing.T) {
 				}
 				return hosts, nil
 			}
-			ds.MDMWindowsInsertPendingCommandForDevicesFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsPendingCommand) error {
+			ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
 				return nil
 			}
 			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {

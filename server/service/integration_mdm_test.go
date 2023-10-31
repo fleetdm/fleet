@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -289,7 +290,7 @@ func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T, addi
 func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 	// see https://developer.apple.com/documentation/devicemanagement/get_bootstrap_token
 	t := s.T()
-	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
@@ -902,7 +903,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 	})
 }
 
-func checkNextPayloads(t *testing.T, mdmDevice *mdmtest.TestMDMClient, forceDeviceErr bool) ([][]byte, []string) {
+func checkNextPayloads(t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient, forceDeviceErr bool) ([][]byte, []string) {
 	var cmd *micromdm.CommandPayload
 	var err error
 	installs := [][]byte{}
@@ -951,7 +952,7 @@ func setupExpectedFleetdProfile(t *testing.T, serverURL string, enrollSecret str
 	return b.Bytes()
 }
 
-func setupPusher(s *integrationMDMTestSuite, t *testing.T, mdmDevice *mdmtest.TestMDMClient) {
+func setupPusher(s *integrationMDMTestSuite, t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient) {
 	origPush := s.pushProvider.PushFunc
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
 		require.Len(t, pushes, 1)
@@ -1553,9 +1554,9 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 	require.True(t, tm3.Config.MDM.MacOSSettings.EnableDiskEncryption)
 }
 
-func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestMDMClient) {
+func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
 	desktopToken := uuid.New().String()
-	mdmDevice := mdmtest.NewTestMDMClientDesktopManual(fleetServerURL, desktopToken)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDesktopManual(fleetServerURL, desktopToken)
 	fleetHost, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -1601,7 +1602,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	globalProfile := mobileconfigForTest("N1", "I1")
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{globalProfile}}, http.StatusNoContent)
 
-	checkPostEnrollmentCommands := func(mdmDevice *mdmtest.TestMDMClient, shouldReceive bool) {
+	checkPostEnrollmentCommands := func(mdmDevice *mdmtest.TestAppleMDMClient, shouldReceive bool) {
 		// run the worker to process the DEP enroll request
 		s.runWorker()
 		// run the worker to assign configuration profiles
@@ -1718,7 +1719,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 	// Enroll one of the hosts
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
-	mdmDevice := mdmtest.NewTestMDMClientDEP(s.server.URL, depURLToken)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
 	mdmDevice.SerialNumber = devices[0].SerialNumber
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
@@ -1905,15 +1906,15 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	t := s.T()
 
 	// Enroll two devices into MDM
-	mdmEnrollInfo := mdmtest.EnrollInfo{
+	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	}
-	mdmDeviceA := mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)
+	mdmDeviceA := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)
 	err := mdmDeviceA.Enroll()
 	require.NoError(t, err)
-	mdmDeviceB := mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)
+	mdmDeviceB := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)
 	err = mdmDeviceB.Enroll()
 	require.NoError(t, err)
 
@@ -2016,7 +2017,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 func (s *integrationMDMTestSuite) TestDeviceMultipleAuthMessages() {
 	t := s.T()
 
-	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
@@ -2083,7 +2084,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	t := s.T()
 
 	// Enroll a device into MDM.
-	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
@@ -3420,7 +3421,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 		// always receive the "no team" profiles on mdm enrollment since it would
 		// not be part of any team yet (team assignment is done when it enrolls
 		// with orbit).
-		mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+		mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 			SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 			SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 			MDMURL:        s.server.URL + apple_mdm.MDMPath,
@@ -3939,7 +3940,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	unenrolledHost := createHostAndDeviceToken(t, s.ds, "unused")
 
 	// Create device enrolled in MDM but not enrolled via osquery.
-	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
@@ -4321,7 +4322,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	type deviceWithResponse struct {
 		bootstrapResponse string
-		device            *mdmtest.TestMDMClient
+		device            *mdmtest.TestAppleMDMClient
 	}
 
 	// Note: The responses specified here are not a 1:1 mapping of the possible responses specified
@@ -4335,30 +4336,30 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	// - Error means that the device will enroll and fail to install the bp
 	// - Offline means that the device will enroll but won't acknowledge nor fail the bp request
 	// - Pending means that the device won't enroll at all
-	mdmEnrollInfo := mdmtest.EnrollInfo{
+	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	}
 	noTeamDevices := []deviceWithResponse{
-		{"Acknowledge", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Acknowledge", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Acknowledge", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Error", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Offline", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Offline", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Pending", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Pending", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
+		{"Acknowledge", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Acknowledge", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Acknowledge", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Error", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Offline", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Offline", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Pending", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Pending", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
 	}
 
 	teamDevices := []deviceWithResponse{
-		{"Acknowledge", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Acknowledge", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Error", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Error", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Error", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Offline", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
-		{"Pending", mdmtest.NewTestMDMClientDirect(mdmEnrollInfo)},
+		{"Acknowledge", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Acknowledge", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Error", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Error", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Error", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Offline", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
+		{"Pending", mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)},
 	}
 
 	expectedSerialsByTeamAndStatus := make(map[uint]map[fleet.MDMBootstrapPackageStatus][]string)
@@ -5605,7 +5606,7 @@ func (s *integrationMDMTestSuite) setTokenForTest(t *testing.T, email, password 
 func (s *integrationMDMTestSuite) TestSSO() {
 	t := s.T()
 
-	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 	})
 	var lastSubmittedProfile *godep.Profile
@@ -6262,7 +6263,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	require.Empty(t, resp.NudgeConfig)
 
 	// turn on MDM features
-	mdmDevice := mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
@@ -6317,7 +6318,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 	// create a new host, still receives the global config
 	h2 := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
-	mdmDevice = mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+	mdmDevice = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
@@ -6497,7 +6498,7 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithDeviceToken() {
 	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Preparing the GetPolicies Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
+	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
 	require.NoError(t, err)
 
 	requestBytes, err := s.newGetPoliciesMsg(true, encodedBinToken)
@@ -6570,7 +6571,7 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithInvalidUUID() {
 	require.NoError(t, err)
 
 	// Preparing the GetPolicies Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, "not_exists")
+	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, "not_exists")
 	require.NoError(t, err)
 
 	requestBytes, err := s.newGetPoliciesMsg(true, encodedBinToken)
@@ -6603,7 +6604,7 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
 	linuxHost := createOrbitEnrolledHost(t, "linux", "h1", s.ds)
 
 	// Preparing the GetPolicies Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *linuxHost.OrbitNodeKey)
+	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *linuxHost.OrbitNodeKey)
 	require.NoError(t, err)
 
 	requestBytes, err := s.newGetPoliciesMsg(true, encodedBinToken)
@@ -6637,7 +6638,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	_ = s.ds.MDMWindowsDeleteEnrolledDevice(context.Background(), windowsHost.UUID)
 
 	// Preparing the RequestSecurityToken Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
+	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
 	require.NoError(t, err)
 
 	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, false)
@@ -6740,7 +6741,7 @@ func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMiss
 	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Preparing the RequestSecurityToken Request message
-	encodedBinToken, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
+	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
 	require.NoError(t, err)
 
 	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, true)
@@ -6819,100 +6820,203 @@ func (s *integrationMDMTestSuite) TestValidGetTOC() {
 	require.Contains(t, resTOCcontent, "OpaqueBlob=")
 }
 
-func (s *integrationMDMTestSuite) TestValidManagementRequestNoAuth() {
+func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	t := s.T()
+	orbitHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
+	d := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *orbitHost.OrbitNodeKey)
+	err := d.Enroll()
+	require.NoError(t, err)
 
-	// Target Endpoint URL for the management endpoint
-	targetEndpointURL := microsoft_mdm.MDE2ManagementPath
+	mysql.AddHostUUIDToWinEnrollmentInTest(t, s.ds, orbitHost.UUID, d.DeviceID)
 
-	// Target Device ID
-	deviceID := "DB257C3A08778F4FB61E2749066C1F27"
-
-	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
-		MDMDeviceID:            deviceID,
-		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
-		MDMDeviceState:         uuid.New().String(),
-		MDMDeviceType:          "CIMClient_Windows",
-		MDMDeviceName:          "DESKTOP-1C3ARC1",
-		MDMEnrollType:          "ProgrammaticEnrollment",
-		MDMEnrollUserID:        "",
-		MDMEnrollProtoVersion:  "5.0",
-		MDMEnrollClientVersion: "10.0.19045.2965",
-		MDMNotInOOBE:           false,
+	cmdOneUUID := uuid.New().String()
+	commandOne := &fleet.MDMWindowsCommand{
+		CommandUUID: cmdOneUUID,
+		RawCommand: []byte(fmt.Sprintf(`
+                     <Exec>
+                       <CmdID>%s</CmdID>
+                       <Item>
+                         <Target>
+                           <LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI>
+                         </Target>
+                         <Meta>
+                           <Format xmlns="syncml:metinf">null</Format>
+                           <Type>text/plain</Type>
+                         </Meta>
+                         <Data></Data>
+                       </Item>
+                     </Exec>
+		`, cmdOneUUID)),
+		TargetLocURI: "./Device/Vendor/MSFT/Reboot/RebootNow",
 	}
-
-	err := s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
+	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{orbitHost.UUID}, commandOne)
 	require.NoError(t, err)
 
-	// Adding Pending Command to target Device ID
-	pendingCmd := &fleet.MDMWindowsPendingCommand{
-		CommandUUID:  uuid.New().String(),
-		DeviceID:     deviceID,
-		CmdVerb:      fleet.CmdGet,
-		SettingURI:   "./testuri",
-		SettingValue: "testdata",
-		DataType:     2,
-		SystemOrigin: false,
-	}
+	cmds, err := d.StartManagementSession()
+	require.NoError(t, err)
+	// 2 Status + 1 Exec
+	require.Len(t, cmds, 3)
+	receivedCmd := cmds[cmdOneUUID]
+	require.NotNil(t, receivedCmd)
+	require.Equal(t, receivedCmd.Verb, fleet.CmdExec)
+	require.Len(t, receivedCmd.Cmd.Items, 1)
+	require.EqualValues(t, "./Device/Vendor/MSFT/Reboot/RebootNow", *receivedCmd.Cmd.Items[0].Target)
 
-	err = s.ds.MDMWindowsInsertPendingCommand(context.Background(), pendingCmd)
+	msgID, err := d.GetCurrentMsgID()
 	require.NoError(t, err)
 
-	// Adding Command to target Device ID
-	// This is used to test error code tracking functionality
-	// Error code is arriving as part of device management request and it is saved to MDM commands table
-	newCmd := &fleet.MDMWindowsCommand{
-		CommandUUID:  uuid.New().String(),
-		DeviceID:     deviceID,
-		SessionID:    "1",
-		MessageID:    "2",
-		CommandID:    "5",
-		CmdVerb:      fleet.CmdGet,
-		SettingURI:   "./DevDetail/Ext/Microsoft/LocalTime",
-		SystemOrigin: false,
-	}
-
-	err = s.ds.MDMWindowsInsertCommand(context.Background(), newCmd)
+	d.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: mdm_types.CmdStatus},
+		MsgRef:  &msgID,
+		CmdRef:  &cmdOneUUID,
+		Cmd:     ptr.String("Exec"),
+		Data:    ptr.String("200"),
+		Items:   nil,
+		CmdID:   uuid.NewString(),
+	})
+	cmds, err = d.SendResponse()
 	require.NoError(t, err)
-
-	cmds, err := s.ds.MDMWindowsListCommands(context.Background(), deviceID)
-	require.NoError(t, err)
+	// the ack of the message should be the only returned command
 	require.Len(t, cmds, 1)
-	require.True(t, (cmds[0].ErrorCode == ""))
 
-	// Preparing the SyncML request
-	requestBytes, err := s.newSyncMLSessionMsg(deviceID, targetEndpointURL)
+	cmdTwoUUID := uuid.New().String()
+	commandTwo := &fleet.MDMWindowsCommand{
+		CommandUUID: cmdTwoUUID,
+		RawCommand: []byte(fmt.Sprintf(`
+                    <Get>
+                      <CmdID>%s</CmdID>
+                      <Item>
+                        <Target>
+                          <LocURI>./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID</LocURI>
+                        </Target>
+                      </Item>
+                    </Get>
+		`, cmdTwoUUID)),
+		TargetLocURI: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
+	}
+	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{orbitHost.UUID}, commandTwo)
 	require.NoError(t, err)
 
-	resp := s.DoRaw("POST", targetEndpointURL, requestBytes, http.StatusOK)
-
-	// Checking that Command error code was updated
-
-	cmds, err = s.ds.MDMWindowsListCommands(context.Background(), deviceID)
+	cmdThreeUUID := uuid.New().String()
+	commandThree := &fleet.MDMWindowsCommand{
+		CommandUUID: cmdThreeUUID,
+		RawCommand: []byte(fmt.Sprintf(`
+                    <Replace>
+                       <CmdID>%s</CmdID>
+                       <Item>
+                         <Target>
+                           <LocURI>./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID</LocURI>
+                         </Target>
+                         <Meta>
+                           <Type xmlns="syncml:metinf">text/plain</Type>
+                           <Format xmlns="syncml:metinf">chr</Format>
+                         </Meta>
+                         <Data>1</Data>
+                       </Item>
+                    </Replace>
+		`, cmdThreeUUID)),
+		TargetLocURI: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
+	}
+	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{orbitHost.UUID}, commandThree)
 	require.NoError(t, err)
+
+	cmds, err = d.StartManagementSession()
+	require.NoError(t, err)
+	// two status + the two commands we enqueued
+	require.Len(t, cmds, 4)
+	receivedCmdTwo := cmds[cmdTwoUUID]
+	require.NotNil(t, receivedCmdTwo)
+	require.Equal(t, receivedCmdTwo.Verb, fleet.CmdGet)
+	require.Len(t, receivedCmdTwo.Cmd.Items, 1)
+	require.EqualValues(t, "./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID", *receivedCmdTwo.Cmd.Items[0].Target)
+
+	receivedCmdThree := cmds[cmdThreeUUID]
+	require.NotNil(t, receivedCmdThree)
+	require.Equal(t, receivedCmdThree.Verb, fleet.CmdReplace)
+	require.Len(t, receivedCmdThree.Cmd.Items, 1)
+	require.EqualValues(t, "./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID", *receivedCmdThree.Cmd.Items[0].Target)
+
+	// status 200 for command Two  (Get)
+	d.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: mdm_types.CmdStatus},
+		MsgRef:  &msgID,
+		CmdRef:  &cmdTwoUUID,
+		Cmd:     ptr.String("Get"),
+		Data:    ptr.String("200"),
+		Items:   nil,
+		CmdID:   uuid.NewString(),
+	})
+	// results for command two (Get)
+	cmdTwoRespUUID := uuid.NewString()
+	d.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: mdm_types.CmdResults},
+		MsgRef:  &msgID,
+		CmdRef:  &cmdTwoUUID,
+		Cmd:     ptr.String("Replace"),
+		Data:    ptr.String("200"),
+		Items: []fleet.CmdItem{
+			{
+				Source: ptr.String("./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID"),
+				Data:   ptr.String("0"),
+			},
+		},
+		CmdID: cmdTwoRespUUID,
+	})
+	// status 200 for command Three (Replace)
+	d.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: mdm_types.CmdStatus},
+		MsgRef:  &msgID,
+		CmdRef:  &cmdThreeUUID,
+		Cmd:     ptr.String("Replace"),
+		Data:    ptr.String("200"),
+		Items:   nil,
+		CmdID:   uuid.NewString(),
+	})
+	cmds, err = d.SendResponse()
+	require.NoError(t, err)
+	// the ack of the message should be the only returned command
 	require.Len(t, cmds, 1)
-	require.True(t, (cmds[0].ErrorCode == microsoft_mdm.CmdStatusOK))
 
-	// Checking response headers
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SyncMLContentType)
+	// check command results
+	var getMDMCmdResp getMDMCommandResultsResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/commandresults", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", cmdOneUUID)
+	require.Len(t, getMDMCmdResp.Results, 1)
+	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
+	getMDMCmdResp.Results[0].UpdatedAt = time.Time{}
+	require.Equal(t, &fleet.MDMCommandResult{
+		HostUUID:    orbitHost.UUID,
+		CommandUUID: cmdOneUUID,
+		Status:      "200",
+		RequestType: "./Device/Vendor/MSFT/Reboot/RebootNow",
+		Result:      []byte{},
+		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
+	}, getMDMCmdResp.Results[0])
 
-	// Read response data
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/commandresults", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", cmdTwoUUID)
+	require.Len(t, getMDMCmdResp.Results, 1)
+	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
+	getMDMCmdResp.Results[0].UpdatedAt = time.Time{}
+	require.Equal(t, &fleet.MDMCommandResult{
+		HostUUID:    orbitHost.UUID,
+		CommandUUID: cmdTwoUUID,
+		Status:      "200",
+		RequestType: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
+		Result:      []byte(fmt.Sprintf(`<Results xmlns="SYNCML:SYNCML1.2"><CmdID>%s</CmdID><MsgRef>1</MsgRef><CmdRef>%s</CmdRef><Cmd>Replace</Cmd><Data>200</Data><Item><Source><LocURI>./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID</LocURI></Source><Data>0</Data></Item></Results>`, cmdTwoRespUUID, cmdTwoUUID)),
+		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
+	}, getMDMCmdResp.Results[0])
 
-	// Checking if response can be unmarshalled to an golang type
-	var xmlType interface{}
-	err = xml.Unmarshal(resBytes, &xmlType)
-	require.NoError(t, err)
-
-	// Getting Raw Response content
-	resMsg := string(resBytes)
-
-	// Checking response fields
-	require.True(t, s.isXMLTagPresent("Get", resMsg))
-	require.True(t, s.isXMLTagContentPresent("Type", resMsg))
-	require.True(t, s.isXMLTagContentPresent("Format", resMsg))
-	require.True(t, s.checkIfXMLTagContains("Data", pendingCmd.SettingValue, resMsg))
+	s.DoJSON("GET", "/api/latest/fleet/mdm/commandresults", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", cmdThreeUUID)
+	require.Len(t, getMDMCmdResp.Results, 1)
+	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
+	getMDMCmdResp.Results[0].UpdatedAt = time.Time{}
+	require.Equal(t, &fleet.MDMCommandResult{
+		HostUUID:    orbitHost.UUID,
+		CommandUUID: cmdThreeUUID,
+		Status:      "200",
+		RequestType: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
+		Result:      []byte{},
+		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
+	}, getMDMCmdResp.Results[0])
 }
 
 func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
@@ -6975,7 +7079,26 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 
 	// create a Windows host enrolled in MDM
 	enrolledWindows := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
+	deviceID := "DB257C3A08778F4FB61E2749066C1F27"
+	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            deviceID,
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         uuid.New().String(),
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-1C3ARC1",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               enrolledWindows.UUID,
+	}
 	err := s.ds.SetOrUpdateMDMData(ctx, enrolledWindows.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+
+	err = s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
+	require.NoError(t, err)
+	mysql.AddHostUUIDToWinEnrollmentInTest(t, s.ds, enrolledDevice.HostUUID, enrolledDevice.MDMDeviceID)
 	require.NoError(t, err)
 
 	// create an unenrolled Windows host
@@ -7327,96 +7450,6 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 		`)
 
 	return requestBytes, nil
-}
-
-func (s *integrationMDMTestSuite) newSyncMLSessionMsg(deviceID string, managementUrl string) ([]byte, error) {
-	if len(managementUrl) == 0 {
-		return nil, errors.New("managementUrl is empty")
-	}
-
-	return []byte(`
-			 <SyncML xmlns="SYNCML:SYNCML1.2">
-			<SyncHdr>
-				<VerDTD>1.2</VerDTD>
-				<VerProto>DM/1.2</VerProto>
-				<SessionID>1</SessionID>
-				<MsgID>1</MsgID>
-				<Target>
-				<LocURI>` + managementUrl + `</LocURI>
-				</Target>
-				<Source>
-				<LocURI>` + deviceID + `</LocURI>
-				</Source>
-			</SyncHdr>
-			<SyncBody>
-				<Alert>
-				<CmdID>2</CmdID>
-				<Data>1201</Data>
-				</Alert>
-				<Alert>
-				<CmdID>3</CmdID>
-				<Data>1224</Data>
-				<Item>
-					<Meta>
-					<Type xmlns="syncml:metinf">com.microsoft/MDM/LoginStatus</Type>
-					</Meta>
-					<Data>user</Data>
-				</Item>
-				</Alert>
-				<Replace>
-				<CmdID>4</CmdID>
-				<Item>
-					<Source>
-					<LocURI>./DevInfo/DevId</LocURI>
-					</Source>
-					<Data>` + deviceID + `</Data>
-				</Item>
-				<Item>
-					<Source>
-					<LocURI>./DevInfo/Man</LocURI>
-					</Source>
-					<Data>VMware, Inc.</Data>
-				</Item>
-				<Item>
-					<Source>
-					<LocURI>./DevInfo/Mod</LocURI>
-					</Source>
-					<Data>VMware7,1</Data>
-				</Item>
-				<Item>
-					<Source>
-					<LocURI>./DevInfo/DmV</LocURI>
-					</Source>
-					<Data>1.3</Data>
-				</Item>
-				<Item>
-					<Source>
-					<LocURI>./DevInfo/Lang</LocURI>
-					</Source>
-					<Data>en-US</Data>
-				</Item>
-				</Replace>
-				<Status>
-					<CmdID>5</CmdID>
-					<MsgRef>2</MsgRef>
-					<CmdRef>5</CmdRef>
-					<Cmd>Get</Cmd>
-					<Data>200</Data>
-				</Status>
-				<Results>
-					<CmdID>6</CmdID>
-					<MsgRef>2</MsgRef>
-					<CmdRef>5</CmdRef>
-					<Item>
-						<Source>
-						<LocURI>./DevDetail/Ext/Microsoft/LocalTime</LocURI>
-						</Source>
-						<Data>2023-10-18T06:16:24.0000756-07:00</Data>
-					</Item>
-				</Results>
-				<Final/>
-			</SyncBody>
-			</SyncML>`), nil
 }
 
 func (s *integrationMDMTestSuite) newSyncMLUnenrollMsg(deviceID string, managementUrl string) ([]byte, error) {
