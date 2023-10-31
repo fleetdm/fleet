@@ -1,59 +1,26 @@
 # Business Operations
-This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) the Business Operations (BizOps) department.
-
-## What we do
-The BizOps department is directly responsible for these traditional functions: People, Finance, Legal, IT, and Revenue Operations (RevOps).  
+This handbook page details processes specific to working [with](#what-we-do) and [within](#responsibilities) the Business Operations (BizOps) department.  
 
 ## Team
 | Role                          | Contributor(s)           |
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Business Operations   | [Joanne Stableford](https://www.linkedin.com/in/joanne-stableford/) _([@jostableford](https://github.com/JoStableford))_
-| Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
+| Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_, [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 | Head of Revenue Operations    | [Taylor Hughes](https://www.linkedin.com/in/taylorhughes834/) _([@hughestaylor](https://github.com/hughestaylor))_
 
 
 ## Contact us
-- To request changes to admin permissions on core business systems (Google, AWS via Google Groups, 1Password, Vanta, or Slack), [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Admin%20permissions%20request%3A+_______________________).
 - To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
-  - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
+  - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) for this department, including pending tasks and the status of new requests.
-  - Submit legal questions and requests to Business Operations department. (Business Operations will escalate first-of-its-kind agreements to the CEO.  The CEO will review business terms and consult with lawyers as necessary.)
 - If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-business-operations](https://fleetdm.slack.com/archives/C047N5L6EGH) Slack channel.
-  - If you need help during onboarding ask in [#help-onboarding](https://fleetdm.slack.com/archives/C02QG7P5571).
-  - For all questions related to your company credit card, ask in [#help-brex](https://fleetdm.slack.com/archives/C0396TYH4EP).
 
+## What we do
+The Business Operations department is directly responsible for the functions of all Finance, People, Legal, IT, and Revenue Operations (RevOps). For example, We assist with **legal questions**, requests for **admin access for a tool** used at Fleet, and **hiring activities**. 
 
-## Tools we use
-There are a number of tools that are used throughout Fleet. Some of these tools are used company-wide, while others are department-specific. You can see a list of those tools in ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing).
+## Responsibilities
 
-### Role-specific licenses
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from BizOps](https://fleetdm.com/handbook/business-operations#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
-
-| Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_ |
-|:-----------------|:---|:---|:----|:---|:---|
-| 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
-| 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
-| 🐋 SC            | ✅ | ✅ | ❌ | ❌ | ✅
-| 🫧 SDR           | ✅ | ✅ | ✅ | ❌ | ❌
-| ⚗️ PM            | ❌ | ❌ | ❌ | ✅ | ✅
-| ⚗️ PD            | ❌ | ❌ | ❌ | ✅ | ✅
-| 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
-|   Other roles    | ❌ | ❌ | ❌ | ❌ | ❌
-
-> **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
-
-### Namecheap
-Domain name registrations are handled through Namecheap. Access is managed via 1Password. <!-- TODO: Move into "tools we use" sheet -->
-
-### Vetty
-Fleet team members with access to Fleet's infrastructure undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical". <!-- TODO: Move into "tools we use" sheet -->
-
-## Recurring expenses
-Recurring monthly or annual expenses are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(¶confidential Google Sheet)_, along with their payment source. Reconciliation of recurring expenses happens monthly.
-
-> Use this spreadsheet as the source of truth.  Always make changes to it first before adding or removing a recurring expense. Only track significant expenses. (Other things besides amount can make a payment significant; like it being an individualized expense, for example.)
-
-## Payroll
+### Manualy check payroll
 Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
  - Salaried fleeties are automated in Gusto and Plane.
  - Hourly fleeties and consultants are a manual process each month in Gusto and Plane.
@@ -67,7 +34,16 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 | [US contractor payroll](https://fleetdm.com/handbook/business-operations#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Business Operations
 
 
-## Responsibilities
+### Reconcile monthly recurring expenses
+Recurring monthly or annual expenses, such as the tools we use throughout Fleet, are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(¶confidential Google Sheet)_, along with their payment source. Reconciliation of recurring expenses happens monthly. <!-- TODO: Merge "🧮 The Numbers" and  ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing) -->
+
+> Use this spreadsheet as the source of truth.  Always make changes to it first before adding or removing a recurring expense. Only track significant expenses. (Other things besides amount can make a payment significant; like it being an individualized expense, for example.)
+
+### Register a domain for Fleet
+Domain name registrations are handled through Namecheap. Access is managed via 1Password. <!-- TODO: Move into "tools we use" sheet --> 
+
+### Access a background check
+Fleet team members with access to Fleet's infrastructure undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
 
 ### Secure company-issued equipment for a team member
 As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The BizOps engineer will work with the new team member to get their equipment requested and shipped to them on time.
@@ -82,6 +58,22 @@ As soon as an offer is accepted, Fleet provides laptops and YubiKey security key
 - Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries that Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. 
 
  > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
+
+### Grant role-specific license to a team member
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from BizOps](https://fleetdm.com/handbook/business-operations#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
+
+| Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_ |
+|:-----------------|:---|:---|:----|:---|:---|
+| 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
+| 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
+| 🐋 SC            | ✅ | ✅ | ❌ | ❌ | ✅
+| 🫧 SDR           | ✅ | ✅ | ✅ | ❌ | ❌
+| ⚗️ PM            | ❌ | ❌ | ❌ | ✅ | ✅
+| ⚗️ PD            | ❌ | ❌ | ❌ | ✅ | ✅
+| 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
+|   Other roles    | ❌ | ❌ | ❌ | ❌ | ❌
+
+> **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
 
 ### Add a seat to Salesforce
 Here are the steps we take to grant appropriate Salesforce licenses to a new hire:
@@ -264,140 +256,18 @@ Note: These are out of date, but retained for future reference.  TODO: Deal with
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
-##### Open positions
-Please see 📖[handbook/company#open-positions](https://fleetdm.com/handbook/company#open-positions) for a list of open job postings at Fleet.
+##### Vetty
+Please see [hanbook/business-operations#access-a-background-check](https://www.fleetdm.com/handbook/business-operations#access-a-background-check).
 
-##### Weekly updates
-Please see 📖[handbook/ceo#weekly-updates](https://fleetdm.com/handbook/ceo#send-the-weekly-update)
+##### Role-specific licenses  
+Please see [hanbook/business-operations#grant-role-specific-license-to-a-team member](https://www.fleetdm.com/handbook/business-operations#grant-role-specific-license-to-a-team-member).
 
-##### Directly responsible individuals
-Please see 📖[handbook/company/why-this-way#why-direct-responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to learn more about DRIs.
+##### Recurring expenses
+##### Tools we use
+Please see [hanbook/business-operations#grant-role-specific-license-to-a-team member](https://www.fleetdm.com/handbook/business-operations#reconcile-monthly-recurring-expenses).
 
-##### Security
-Please see [📖handbook/company/communications#security](https://fleetdm.com/handbook/company/communications#security).
-
-##### Vendor questionnaires
-Please see [📖handbook/company/communications#vendor-questionnaires](https://fleetdm.com/handbook/company/communications#vendor-questionnaires)
-
-##### Getting a contract signed
-Please see [📖handbook/company/communications#getting-a-contract-signed](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed)
-
-##### Getting a contract reviewed
-Please see [📖handbook/company/communications#getting-a-contract-reviewed](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed)
-
-#### Zapier and DocuSign
-Please see [📖handbook/ceo#zapier-and-docusign](https://fleetdm.com/handbook/ceo#zapier-and-docusign)
-
-#### Gong
-Please see [📖handbook/company/communications#gong](https://fleetdm.com/handbook/company/communications#gong).
-
-#### Troubleshooting Gong
-Please see [📖handbook/company/communications#troubleshooting-gong](https://fleetdm.com/handbook/company/communications#troubleshooting-gong).
-
-##### Excluding calls from being recorded
-Please see [📖handbook/company/communications#excluding-calls-from-being-recorted](https://fleetdm.com/handbook/company/communications#excluding-calls-from-being-recorted).
-
-##### Salesforce
-Please see [📖handbook/business-operations#add-a-seat-to-salesforce](https://fleetdm.com/handbook/business-operations#add-a-seat-to-salesforce).
-
-##### Intake
-##### Kanban
-##### Legal Operations
-##### IT Operations
-##### Finance Operations
-##### Taxes and compliance
-##### State quarterly payroll and tax filings
-##### CorpNet state registration process
-##### Annual reporting for capital credit line
-##### Equity grants
-##### Finance rituals
-##### Monthly rituals
-##### Quarterly rituals
-##### Informing managers about hours worked
-##### Monthly accounting
-Please see above on this page for the latest content for these topics within the new framework for departmental handbook pages.
-
-##### Zoom
-##### Slack
-##### Email relays
-##### Meetings
-##### Scheduling a meeting
-##### Internal meeting scheduling
-##### Modifying an event organized by someone else
-##### External meeting scheduling
-##### Performance feedback
-##### Levels of confidentiality
-##### Relocating
-##### Celebrations
-##### Workiversaries
-##### Spending company money
-##### Brex
-##### Travel
-##### Attending conferences or company travel
-##### Non-travel purchases that exceed a Brex cardholder's limit
-##### Reimbursements
-##### Individualized expenses
-##### Benefits
-##### Paid time off
-##### Taking time off 
-##### Holidays
-##### New parent leave
-##### Retirement contributions
-##### US based team members
-##### Non-US team members
-##### Coworking
-##### Team member onboarding
-##### Before the start date
-##### Recommendations for new teammates
-##### Training expectations
-##### Sightseeing tour
-##### Contributor experience training
-##### Onboarding retrospective
-##### Compensation
-##### Compensation changes
-##### Reprovisioning equipment
-##### Equipment retention and replacement
-##### Equipment
-##### Laptops
-##### Purchasing a company-issued device
-##### Selecting a laptop
-##### Buying other new equipment
-##### Tracking equipment
-##### Returning equipment
-##### Github
-##### GitHub labels
-Please see 📖[handbook/company/communications](https://fleetdm.com/handbook/company/communications) for all sections above.
-
-##### Hiring
-##### Consultants
-##### Hiring a consultant
-##### Who ISN'T a consultant?
-##### Sending a consulting agreement
-##### Updating a consultant's fee
-##### Advisor
-##### Adding an advisor
-##### Finalizing a new advisor
-##### Core team member
-##### Creating a new position
-##### Approving a new position
-##### Recruiting
-##### Receiving job applications
-##### Candidate correspondence email templates
-##### Hiring restrictions
-##### Incompatible former employers
-##### Incompatible locations
-##### Interviewing
-##### Hiring a new team member
-##### Making an offer
-##### Steps after an offer is accepted
-##### Key reviews
-##### Tracking hours
-##### Informing managers about hours worked
-##### Departures
-##### Communicating departures
-Please see 📖[handbook/company/leadership](https://fleetdm.com/handbook/company/leadership) for all sections above.
-
-
+##### Namecheap
+Please see [handbook/register-a-domain-for-fleet](https://www.fleetdm.com/handbook/business-operations#register-a-domain-for-fleet).
 
 <meta name="maintainedBy" value="jostableford">
 <meta name="title" value="🔦 Business Operations">
