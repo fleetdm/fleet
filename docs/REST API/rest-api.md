@@ -4185,7 +4185,7 @@ results (i.e., only profiles that are associated with "No team" are listed).
 
 #### Example
 
-Get aggregate status counts of MDM profiles applying to macOS and Windows hosts enrolled to Fleet that are not assigned to any team.
+Get aggregate status counts of profiles for to macOS and Windows hosts that are assigned to "No team".
 
 `GET /api/v1/fleet/mdm/profiles/summary`
 
