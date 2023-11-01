@@ -584,6 +584,27 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  editedWindowsOSUpdateOptions: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        updated the Windows OS update options (
+        <b>
+          Deadline: {activity.details?.deadline} days / Grace period:{" "}
+          {activity.details?.grace_period} days
+        </b>
+        ) on hosts assigned to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
 };
 
 const getDetail = (
@@ -708,6 +729,9 @@ const getDetail = (
     }
     case ActivityType.EditedScript: {
       return TAGGED_TEMPLATES.editedScript(activity);
+    }
+    case ActivityType.EditedWindowsOSUpdateOptions: {
+      return TAGGED_TEMPLATES.editedWindowsOSUpdateOptions(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
