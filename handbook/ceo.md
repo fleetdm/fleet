@@ -233,9 +233,7 @@ Once the Business Operations department approves inventory to be shipped from Fl
 
 The day before the All hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
-#### After the All hands
-TODO: rename to imperative mood (see rituals.yml)
-
+#### Share recording of all hands meeting
 The Apprentice will post a link to the All hands Gong recording and slide deck in Slack.
 
 Template to use:
