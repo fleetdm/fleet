@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/micromdm/nanomdm/mdm"
@@ -880,4 +881,57 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+// authorizeAllHostsTeams is a helper function that loads the hosts
+// corresponding to the hostUUIDs and authorizes the context user to execute
+// the specified authzAction (e.g. fleet.ActionWrite) for all the hosts' teams
+// with the specified authorizer, which is typically a struct that can set a
+// TeamID field and defines an authorization subject, such as
+// fleet.MDMCommandAuthz.
+//
+// On success, the list of hosts is returned (which may be empty, it is up to
+// the caller to return an error if needed when no hosts are found).
+func (svc *Service) authorizeAllHostsTeams(ctx context.Context, hostUUIDs []string, authzAction any, authorizer fleet.TeamIDSetter) ([]*fleet.Host, error) {
+	// load hosts (lite) by uuids, check that the user has the rights to run
+	// commands for every affected team.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	// here we use a global admin as filter because we want to get all hosts that
+	// correspond to those uuids. Only after we get those hosts will we check
+	// authorization for the current user, for all teams affected by that host.
+	// Without this, only hosts that the user can view would be returned and the
+	// actual authorization check might only be done on a subset of the requsted
+	// hosts.
+	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, hostUUIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// collect the team IDs and verify that the user has access to run commands
+	// on all affected teams.
+	teamIDs := make(map[uint]bool, len(hosts))
+	for _, h := range hosts {
+		var id uint
+		if h.TeamID != nil {
+			id = *h.TeamID
+		}
+		teamIDs[id] = true
+	}
+
+	for tmID := range teamIDs {
+		authzTeamID := &tmID
+		if tmID == 0 {
+			authzTeamID = nil
+		}
+		authorizer.SetTeamID(authzTeamID)
+
+		if err := svc.authz.Authorize(ctx, authorizer, authzAction); err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+	}
+	return hosts, nil
 }

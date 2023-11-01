@@ -379,10 +379,10 @@ WHERE
 
 func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) error {
 	stmt := `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE mdm_device_id = ?`
-
-	_, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID)
-
-	return err
+	if _, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting host_uuid for windows enrollment")
+	}
+	return nil
 }
 
 // whereBitLockerStatus returns a string suitable for inclusion within a SQL WHERE clause to filter by

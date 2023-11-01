@@ -493,15 +493,6 @@ type NanoEnrollment struct {
 	TokenUpdateTally int    `json:"-" db:"token_update_tally"`
 }
 
-// MDMCommandListOptions defines the options to control the list of MDM
-// Apple Commands to return. Although it only supports the standard list
-// options for now, in the future we expect to add filtering options.
-//
-// https://github.com/fleetdm/fleet/issues/11008#issuecomment-1503466119
-type MDMCommandListOptions struct {
-	ListOptions
-}
-
 // MDMAppleCommand represents an MDM Apple command that has been enqueued for
 // execution. It is similar to MDMAppleCommandResult, but a separate struct is
 // used as there are plans to evolve the `fleetctl get mdm-commands` command

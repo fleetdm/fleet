@@ -215,6 +215,15 @@ type MDMCommand struct {
 	TeamID *uint `json:"-" db:"team_id"`
 }
 
+// MDMCommandListOptions defines the options to control the list of MDM
+// Commands to return. Although it only supports the standard list
+// options for now, in the future we expect to add filtering options.
+//
+// https://github.com/fleetdm/fleet/issues/11008#issuecomment-1503466119
+type MDMCommandListOptions struct {
+	ListOptions
+}
+
 type MDMPlatformsCounts struct {
 	MacOS   uint `db:"macos" json:"macos"`
 	Windows uint `db:"windows" json:"windows"`

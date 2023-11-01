@@ -632,6 +632,8 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
 		{"POST", "/api/latest/fleet/mdm/commands/run", false, false},
+		{"GET", "/api/latest/fleet/mdm/commandresults", false, false},
+		{"GET", "/api/latest/fleet/mdm/commands", false, false},
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
 		{"GET", "/api/latest/fleet/mdm/disk_encryption/summary", false, true},
 	}

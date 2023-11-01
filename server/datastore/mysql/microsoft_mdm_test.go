@@ -496,11 +496,13 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 
 	err := ds.MDMWindowsInsertEnrolledDevice(ctx, d1)
 	require.NoError(t, err)
-	AddHostUUIDToWinEnrollmentInTest(t, ds, d1.HostUUID, d1.MDMDeviceID)
+	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, d1.HostUUID, d1.MDMDeviceID)
+	require.NoError(t, err)
 
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, d2)
 	require.NoError(t, err)
-	AddHostUUIDToWinEnrollmentInTest(t, ds, d2.HostUUID, d2.MDMDeviceID)
+	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, d2.HostUUID, d2.MDMDeviceID)
+	require.NoError(t, err)
 
 	cmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  uuid.NewString(),
@@ -558,7 +560,8 @@ func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
 	}
 	err := ds.MDMWindowsInsertEnrolledDevice(ctx, d)
 	require.NoError(t, err)
-	AddHostUUIDToWinEnrollmentInTest(t, ds, d.HostUUID, d.MDMDeviceID)
+	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, d.HostUUID, d.MDMDeviceID)
+	require.NoError(t, err)
 
 	// device without commands
 	cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d.MDMDeviceID)

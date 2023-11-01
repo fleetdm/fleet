@@ -412,6 +412,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 				_, err = svc.GetMDMAppleCommandResults(ctx, c.cmdUUID)
 				checkAuthErr(t, err, c.shoudFailWithAuth)
 
+				// TODO(sarah): move test to shared file
 				_, err = svc.GetMDMCommandResults(ctx, c.cmdUUID)
 				checkAuthErr(t, err, c.shoudFailWithAuth)
 			})

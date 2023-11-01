@@ -7303,7 +7303,8 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	d := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *orbitHost.OrbitNodeKey)
 	err := d.Enroll()
 	require.NoError(t, err)
-	mysql.AddHostUUIDToWinEnrollmentInTest(t, s.ds, orbitHost.UUID, d.DeviceID)
+	err = s.ds.UpdateMDMWindowsEnrollmentsHostUUID(context.Background(), orbitHost.UUID, d.DeviceID)
+	require.NoError(t, err)
 
 	cmdOneUUID := uuid.New().String()
 	commandOne := &fleet.MDMWindowsCommand{
@@ -7605,7 +7606,7 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 
 	err = s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
 	require.NoError(t, err)
-	mysql.AddHostUUIDToWinEnrollmentInTest(t, s.ds, enrolledDevice.HostUUID, enrolledDevice.MDMDeviceID)
+	err = s.ds.UpdateMDMWindowsEnrollmentsHostUUID(context.Background(), enrolledDevice.HostUUID, enrolledDevice.MDMDeviceID)
 	require.NoError(t, err)
 
 	// create an unenrolled Windows host

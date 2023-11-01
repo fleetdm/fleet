@@ -61,7 +61,8 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		HostUUID:               windowsH.UUID,
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
-	AddHostUUIDToWinEnrollmentInTest(t, ds, windowsEnrollment.HostUUID, windowsEnrollment.MDMDeviceID)
+	require.NoError(t, err)
+	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, windowsEnrollment.HostUUID, windowsEnrollment.MDMDeviceID)
 	require.NoError(t, err)
 
 	// enroll a macOS device
