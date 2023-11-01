@@ -181,6 +181,62 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				},
 			},
 		},
+		// CVE-2023-26369 is not using the target_sw attribute
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2023-26369": {},
+			},
+			CPESpecs: []CPEMatchingRuleSpec{
+				{
+					Vendor:           "adobe",
+					Product:          "acrobat",
+					TargetSW:         "windows",
+					SemVerConstraint: ">= 20.001.3005, < 20.005.30524",
+				},
+				{
+					Vendor:           "adobe",
+					Product:          "acrobat",
+					TargetSW:         "macos",
+					SemVerConstraint: ">= 20.001.3005, < 20.005.30524",
+				},
+				{
+					Vendor:           "adobe",
+					Product:          "acrobat_reader",
+					TargetSW:         "windows",
+					SemVerConstraint: ">= 20.001.3005, < 20.005.30524",
+				},
+				{
+					Vendor:           "adobe",
+					Product:          "acrobat_reader",
+					TargetSW:         "macos",
+					SemVerConstraint: ">= 20.001.3005, < 20.005.30524",
+				},
+				{
+					Vendor:           "adobe",
+					Product:          "acrobat_dc",
+					TargetSW:         "windows",
+					SemVerConstraint: ">= 15.007.20033, < 23.006.20320",
+				},
+				{
+					Vendor:           "adobe",
+					Product:          "acrobat_dc",
+					TargetSW:         "macos",
+					SemVerConstraint: ">= 15.007.20033, < 23.006.20320",
+				},
+				{
+					Vendor:           "adobe",
+					Product:          "acrobat_reader_dc",
+					TargetSW:         "windows",
+					SemVerConstraint: ">= 15.007.20033, < 23.006.20320",
+				},
+				{
+					Vendor:           "adobe",
+					Product:          "acrobat_reader_dc",
+					TargetSW:         "macos",
+					SemVerConstraint: ">= 15.007.20033, < 23.006.20320",
+				},
+			},
+		},
 	}
 
 	for i, rule := range rules {
