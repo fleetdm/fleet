@@ -269,18 +269,23 @@ resource "aws_cloudwatch_metric_alarm" "acm_certificate_expired" {
 }
 
 // Cron Monitoring
+locals {
+  cron_lambda_binary = "${path.module}/lambda/bootstrap"
+}
+
 resource "null_resource" "cron_monitoring_build" {
   count = var.cron_monitoring == null ? 0 : 1
   triggers = {
     main_go_changes = filesha256("${path.module}/lambda/main.go"),
     go_mod_changes  = filesha256("${path.module}/lambda/go.mod")
     go_sum_changes  = filesha256("${path.module}/lambda/go.sum")
+    binary_exists   = fileexists(local.cron_lambda_binary)
   }
   provisioner "local-exec" {
     working_dir = "${path.module}/lambda"
     command     = <<-EOT
       go get
-      GOOS=linux GOARCH=amd64 go build -tags lambda.norpc -o bootstrap main.go
+      GOOS=linux GOARCH=amd64 go build -tags lambda.norpc -o "${local.cron_lambda_binary}" main.go
     EOT
   }
 }
@@ -290,7 +295,7 @@ data "archive_file" "cron_monitoring_lambda" {
   depends_on  = [null_resource.cron_monitoring_build[0]]
   type        = "zip"
   output_path = "${path.module}/lambda/.lambda.zip"
-  source_file = "${path.module}/lambda/bootstrap"
+  source_file = local.cron_lambda_binary
 }
 
 data "aws_secretsmanager_secret" "mysql_database_password" {
