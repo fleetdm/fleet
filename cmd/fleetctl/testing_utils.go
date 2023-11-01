@@ -56,7 +56,12 @@ func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 		return &fleet.AppConfig{}, nil
 	}
 
-	cachedDS := cached_mysql.New(ds)
+	var cachedDS fleet.Datastore
+	if len(opts) > 0 && opts[0].NoCacheDatastore {
+		cachedDS = ds
+	} else {
+		cachedDS = cached_mysql.New(ds)
+	}
 	_, server := service.RunServerForTestsWithDS(t, cachedDS, opts...)
 	os.Setenv("FLEET_SERVER_ADDRESS", server.URL)
 

@@ -723,7 +723,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			)
 	}
 
-	if match := opts.MatchQuery; match != "" {
+	if match := opts.ListOptions.MatchQuery; match != "" {
 		match = likePattern(match)
 		ds = ds.Where(
 			goqu.Or(
@@ -817,7 +817,7 @@ func countSoftwareDB(
 	opts fleet.SoftwareListOptions,
 ) (int, error) {
 	opts.ListOptions = fleet.ListOptions{
-		MatchQuery: opts.MatchQuery,
+		MatchQuery: opts.ListOptions.MatchQuery,
 	}
 
 	sql, args, err := selectSoftwareSQL(opts)
