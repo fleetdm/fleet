@@ -1,2 +1,0 @@
-org.gnome.rhythmbox.plugins.webremote access-key ''
-org.gnome.rhythmbox.plugins.webremote foo-bar 2

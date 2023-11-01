@@ -3,8 +3,6 @@
 package table
 
 import (
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/airport"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/apple_silicon_security_policy"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
@@ -23,7 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/systemprofiler"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
@@ -69,11 +66,8 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		// we are renaming the one from the macadmins extension to avoid collision
 		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
 
-		airport.TablePlugin(osqueryLogger),                       // table name is "airport_util"
-		apple_silicon_security_policy.TablePlugin(osqueryLogger), // table name is "apple_silicon_security_policy"
-		filevault_status.TablePlugin(osqueryLogger),              // table name is "filevault_status"
-		ioreg.TablePlugin(osqueryLogger),                         // table name is "ioreg"
-		systemprofiler.TablePlugin(osqueryLogger),                // table name is "system_profiler"
+		filevault_status.TablePlugin(osqueryLogger), // table name is "filevault_status"
+		ioreg.TablePlugin(osqueryLogger),            // table name is "ioreg"
 
 		// firmwarepasswd table. Only returns valid data on a Mac with an Intel processor. Background: https://support.apple.com/en-us/HT204455
 		firmwarepasswd.TablePlugin(osqueryLogger), // table name is "firmwarepasswd"

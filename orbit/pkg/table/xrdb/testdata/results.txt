@@ -1,8 +1,0 @@
-*customization: -color
-Xft.dpi:        96
-Xft.antialias:  1
-Xft.hinting:    1
-Xft.hintstyle:  hintslight
-Xft.rgba:       rgb
-Xcursor.size:   24
-Xcursor.theme:  Yaru
