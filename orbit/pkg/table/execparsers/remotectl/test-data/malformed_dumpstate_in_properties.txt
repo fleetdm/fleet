@@ -1,5 +1,0 @@
-Local device
-	UUID: 4D259086-B8CF-4A99-A2FB-**REDACTED**
-	Properties: {
-		AppleInternal: false
-	}
