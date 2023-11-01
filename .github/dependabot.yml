@@ -23,7 +23,7 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-    # Disable version updates for npm dependencies
+    # Disable version updates for docker dependencies
     open-pull-requests-limit: 0
     reviewers:
       - "fleetdm/go"
