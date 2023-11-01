@@ -728,6 +728,12 @@ func (svc *Service) validateMDM(
 			return
 		}
 	}
+	if !svc.config.MDM.IsMicrosoftWSTEPSet() {
+		if mdm.WindowsEnabledAndConfigured {
+			invalid.Append("mdm.windows_enabled_and_configured", "Windows WSTEP configuration must be provided to enable Windows MDM")
+			return
+		}
+	}
 
 	// if either macOS or Windows MDM is enabled, this setting can be set.
 	if !mdm.AtLeastOnePlatformEnabledAndConfigured() {
