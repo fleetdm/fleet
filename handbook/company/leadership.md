@@ -380,7 +380,12 @@ From time to time, someone's job title changes.  To do this, Business Operations
 2. If there is a compensation change, update "Equity plan".  Use the first day of a month as the date, and enter this in the corresponding column.
 3. If applicable, schedule the change in the appropriate payroll system.  (Don't worry about updating job titles in the payroll system.)
 
+## Performance feedback
+Fleet errors on the side of over communicating performance mangement and believes in open and honest two way discussions.
 
+1. Deliver negative feedback privately whenever possible, and be constructive not punitive. Celebrate positive feedback publicly.
+2. Performance mangement is a part of every 1:1 document. Start each 1:1 by delivering performance feedback.
+4. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing.
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🛠️ Leadership">
