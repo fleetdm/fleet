@@ -3413,10 +3413,18 @@ func (s *integrationTestSuite) TestUsers() {
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID+1), params, http.StatusNotFound, &modResp)
 
-	// perform a required password change as the user themselves
-	s.token = s.getTestToken(u.Email, userRawPwd)
 	var perfPwdResetResp performRequiredPasswordResetResponse
 	newRawPwd := test.GoodPassword2
+	// Try a required password change without authorization
+	s.DoJSON(
+		"POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
+			Password: newRawPwd,
+			ID:       u.ID,
+		}, http.StatusForbidden, &perfPwdResetResp,
+	)
+
+	// perform a required password change as the user themselves
+	s.token = s.getTestToken(u.Email, userRawPwd)
 	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 		Password: newRawPwd,
 		ID:       u.ID,
