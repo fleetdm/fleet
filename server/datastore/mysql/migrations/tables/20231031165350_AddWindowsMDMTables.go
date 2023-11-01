@@ -114,6 +114,6 @@ CREATE TABLE windows_mdm_command_results (
 }
 
 func Down_20231031165350(tx *sql.Tx) error {
-	// temp change
+	// REFERENCES hosts (id)
 	return nil
 }
