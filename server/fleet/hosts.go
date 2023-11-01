@@ -316,6 +316,9 @@ type Host struct {
 	// The boolean is based on information ingested from the Apple DEP API that is stored in the
 	// host_dep_assignments table.
 	DEPAssignedToFleet *bool `json:"dep_assigned_to_fleet,omitempty" db:"dep_assigned_to_fleet" csv:"-"`
+
+	// LastRestarted is a UNIX timestamp that indicates when the Host was last restarted.
+	LastRestarted *int64 `json:"last_restarted" db:"last_restarted"`
 }
 
 type MDMHostData struct {

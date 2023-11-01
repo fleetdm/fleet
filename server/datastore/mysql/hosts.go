@@ -853,9 +853,9 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 
 	sql += hostMDMSelect
 
-	if opt.ListOptions.OrderKey == "uptime" {
+	if opt.ListOptions.OrderKey == "last_restarted" {
 		sql += `,
-		-FLOOR(UNIX_TIMESTAMP() * 1000 - (((UNIX_TIMESTAMP() - UNIX_TIMESTAMP(detail_updated_at)) * 1000) + (uptime / 1000000))) AS uptime
+		-FLOOR(UNIX_TIMESTAMP() * 1000 - (((UNIX_TIMESTAMP() - UNIX_TIMESTAMP(detail_updated_at)) * 1000) + (uptime / 1000000))) AS last_restarted
 		`
 	}
 

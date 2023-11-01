@@ -87,13 +87,13 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
   const condensed =
     users.length === 4
       ? users
-          .slice(-4)
-          .map((u) => u.email)
-          .reverse()
+        .slice(-4)
+        .map((u) => u.email)
+        .reverse()
       : users
-          .slice(-3)
-          .map((u) => u.email)
-          .reverse() || [];
+        .slice(-3)
+        .map((u) => u.email)
+        .reverse() || [];
   return users.length > 4
     ? condensed.concat(`+${users.length - 3} more`) // TODO: confirm limit
     : condensed;
@@ -345,9 +345,8 @@ const allHostTableHeaders: IDataColumn[] = [
         return (
           <>
             <span
-              className={`text-cell ${
-                users.length > 1 ? "text-muted tooltip" : ""
-              }`}
+              className={`text-cell ${users.length > 1 ? "text-muted tooltip" : ""
+                }`}
               data-tip
               data-for={`device_mapping__${cellProps.row.original.id}`}
               data-tip-disable={users.length <= 1}
@@ -568,7 +567,7 @@ const allHostTableHeaders: IDataColumn[] = [
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    accessor: "uptime",
+    accessor: "last_restarted",
     Cell: (cellProps: ICellProps) => {
       const { uptime, detail_updated_at, platform } = cellProps.row.original;
 
