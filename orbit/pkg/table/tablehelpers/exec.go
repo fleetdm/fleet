@@ -1,3 +1,4 @@
+// based on github.com/kolide/launcher/pkg/osquery/tables
 package tablehelpers
 
 // based on https://github.com/fleetdm/launcher/blob/main/pkg/osquery/tables/tablehelpers
