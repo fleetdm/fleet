@@ -853,6 +853,12 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 
 	sql += hostMDMSelect
 
+	if opt.ListOptions.OrderKey == "uptime" {
+		sql += `,
+		-FLOOR(UNIX_TIMESTAMP() * 1000 - (((UNIX_TIMESTAMP() - UNIX_TIMESTAMP(detail_updated_at)) * 1000) + (uptime / 1000000))) AS uptime
+		`
+	}
+
 	if opt.DeviceMapping {
 		sql += `,
     COALESCE(dm.device_mapping, 'null') as device_mapping
