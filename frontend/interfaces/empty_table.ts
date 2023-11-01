@@ -1,7 +1,7 @@
-import { IconNames } from "components/icons";
+import { GraphicNames } from "components/graphics";
 
 export interface IEmptyTableProps {
-  iconName?: IconNames;
+  graphicName?: GraphicNames;
   header?: JSX.Element | string;
   info?: JSX.Element | string;
   additionalInfo?: JSX.Element | string;

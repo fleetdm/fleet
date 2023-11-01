@@ -10,27 +10,21 @@ interface IClockProps {
 
 const Clock = ({
   color = "ui-fleet-black-75",
-  size = "small",
+  size = "medium",
 }: IClockProps) => {
   return (
     <svg
+      xmlns="http://www.w3.org/2000/svg"
       width={ICON_SIZES[size]}
       height={ICON_SIZES[size]}
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 12 13"
+      viewBox="0 0 16 16"
     >
       <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M6 11a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm0 1.5a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"
         fill={COLORS[color]}
-      />
-      <path
         fillRule="evenodd"
+        d="M14 8A6 6 0 112 8a6 6 0 0112 0zm2 0A8 8 0 110 8a8 8 0 0116 0zM8.75 4a.75.75 0 00-1.5 0v4a.75.75 0 00.126.416l2 3a.75.75 0 101.248-.832L8.75 7.773V4z"
         clipRule="evenodd"
-        d="M6 3.125a.75.75 0 0 1 .75.75V5.75h1.125a.75.75 0 0 1 0 1.5H6a.75.75 0 0 1-.75-.75V3.875a.75.75 0 0 1 .75-.75Z"
-        fill={COLORS[color]}
       />
     </svg>
   );

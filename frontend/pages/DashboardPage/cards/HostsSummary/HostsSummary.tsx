@@ -50,7 +50,7 @@ const HostsSummary = ({
 
   const renderMacCount = (teamId?: number) => (
     <SummaryTile
-      iconName="apple-circled"
+      iconName="darwin"
       count={macCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
@@ -63,7 +63,8 @@ const HostsSummary = ({
 
   const renderWindowsCount = (teamId?: number) => (
     <SummaryTile
-      iconName="windows-circled"
+      iconName="windows"
+      circledIcon
       count={windowsCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
@@ -76,7 +77,8 @@ const HostsSummary = ({
 
   const renderLinuxCount = (teamId?: number) => (
     <SummaryTile
-      iconName="linux-circled"
+      iconName="linux"
+      circledIcon
       count={linuxCount}
       isLoading={isLoadingHostsSummary}
       showUI={showHostsUI}
@@ -94,7 +96,8 @@ const HostsSummary = ({
 
     return (
       <SummaryTile
-        iconName="chrome-circled"
+        iconName="chrome"
+        circledIcon
         count={chromeCount}
         isLoading={isLoadingHostsSummary}
         showUI={showHostsUI}

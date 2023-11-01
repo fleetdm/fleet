@@ -1290,6 +1290,46 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "6.0.1",
 			}, cpe: "",
 		},
+		{
+			software: fleet.Software{
+				Name:             "IntelliJ IDEA.app",
+				Source:           "apps",
+				Version:          "2022.3.3",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.intellij",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2022.3.3:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "IntelliJ IDEA CE.app",
+				Source:           "apps",
+				Version:          "2022.3.3",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.intellij.ce",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2022.3.3:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "User PyCharm Custom Name.app", // 2023/10/31: The actual product name must be part of the app name per our code in CPEFromSoftware
+				Source:           "apps",
+				Version:          "2019.2",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.pycharm",
+			},
+			cpe: "cpe:2.3:a:jetbrains:pycharm:2019.2:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "PyCharm Community Edition.app",
+				Source:           "apps",
+				Version:          "2022.1",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.pycharm.ce",
+			},
+			cpe: "cpe:2.3:a:jetbrains:pycharm:2022.1:*:*:*:*:macos:*:*",
+		},
 	}
 
 	tempDir := t.TempDir()

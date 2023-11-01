@@ -365,7 +365,7 @@ const Integrations = (): JSX.Element => {
 
   const emptyState = () => {
     const emptyIntegrations: IEmptyTableProps = {
-      iconName: "empty-integrations",
+      graphicName: "empty-integrations",
       header: "Set up integrations",
       info:
         "Create tickets automatically when Fleet detects new software vulnerabilities or hosts failing policies.",
@@ -422,7 +422,7 @@ const Integrations = (): JSX.Element => {
           resultsTitle={"integrations"}
           emptyComponent={() =>
             EmptyTable({
-              iconName: emptyState().iconName,
+              graphicName: emptyState().graphicName,
               header: emptyState().header,
               info: emptyState().info,
               additionalInfo: emptyState().additionalInfo,
