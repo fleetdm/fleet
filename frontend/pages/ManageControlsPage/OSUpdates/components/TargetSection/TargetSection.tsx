@@ -87,9 +87,6 @@ const TargetSection = ({
   const isMacMdmEnabled = config.mdm.enabled_and_configured;
   const isWindowsMdmEnabled = config.mdm.windows_enabled_and_configured;
 
-  const defaultWindowsDeadlineDays = "3";
-  const defaultWindowsGracePeriodDays = "5";
-
   // Loading state rendering
   if (isLoadingTeam) {
     return <Spinner />;
@@ -101,6 +98,16 @@ const TargetSection = ({
     teamData
   );
   const defaultMacOSDeadline = getDefaultMacOSDeadline(
+    currentTeamId,
+    config,
+    teamData
+  );
+  const defaultWindowsDeadlineDays = getDefaultWindowsDeadlineDays(
+    currentTeamId,
+    config,
+    teamData
+  );
+  const defaultWindowsGracePeriodDays = getDefaultWindowsGracePeriodDays(
     currentTeamId,
     config,
     teamData

@@ -5,7 +5,9 @@ import {
   AccordionItemButton,
   AccordionItemHeading,
   AccordionItemPanel,
+  AccordionItemState,
 } from "react-accessible-accordion";
+import classnames from "classnames";
 
 import Icon from "components/Icon";
 
@@ -13,6 +15,12 @@ import MacOSTargetForm from "../MacOSTargetForm";
 import WindowsTargetForm from "../WindowsTargetForm";
 
 const baseClass = "platforms-accordion";
+
+const generateIconClassNames = (expanded?: boolean) => {
+  return classnames(`${baseClass}__item-icon`, {
+    [`${baseClass}__item-closed`]: !expanded,
+  });
+};
 
 interface IPlatformsAccordionProps {
   currentTeamId: number;
@@ -43,7 +51,14 @@ const PlatformsAccordion = ({
         <AccordionItemHeading>
           <AccordionItemButton className={`${baseClass}__accordion-button`}>
             <span>macOS</span>
-            <Icon name="chevron" direction="up" />
+            <AccordionItemState>
+              {({ expanded }) => (
+                <Icon
+                  name="chevron-up"
+                  className={generateIconClassNames(expanded)}
+                />
+              )}
+            </AccordionItemState>
           </AccordionItemButton>
         </AccordionItemHeading>
         <AccordionItemPanel className={`${baseClass}__accordion-panel`}>
@@ -60,7 +75,14 @@ const PlatformsAccordion = ({
         <AccordionItemHeading>
           <AccordionItemButton className={`${baseClass}__accordion-button`}>
             <span>Windows</span>
-            <Icon name="chevron" direction="up" />
+            <AccordionItemState>
+              {({ expanded }) => (
+                <Icon
+                  name="chevron-up"
+                  className={generateIconClassNames(expanded)}
+                />
+              )}
+            </AccordionItemState>
           </AccordionItemButton>
         </AccordionItemHeading>
         <AccordionItemPanel className={`${baseClass}__accordion-panel`}>

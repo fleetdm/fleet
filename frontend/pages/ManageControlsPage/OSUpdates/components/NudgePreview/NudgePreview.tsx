@@ -3,6 +3,7 @@ import React from "react";
 import CustomLink from "components/CustomLink";
 
 import MacOSUpdateScreenshot from "../../../../../../assets/images/nudge-screenshot.png";
+import WindowsUpdateScreenshot from "../../../../../../assets/images/windows-nudge-screenshot.png";
 
 const baseClass = "nudge-preview";
 
@@ -47,7 +48,7 @@ const NudgeImage = ({ platform }: INudgeImageProps) => {
   return (
     <img
       className={`${baseClass}__preview-img`}
-      src={platform === "mac" ? MacOSUpdateScreenshot : MacOSUpdateScreenshot}
+      src={platform === "mac" ? MacOSUpdateScreenshot : WindowsUpdateScreenshot}
       alt="OS update preview screenshot"
     />
   );
