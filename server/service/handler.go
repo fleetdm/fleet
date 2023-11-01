@@ -338,6 +338,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ue.GET("/api/_version_/fleet/queries/{id:[0-9]+}", getQueryEndpoint, getQueryRequest{})
 	ue.GET("/api/_version_/fleet/queries", listQueriesEndpoint, listQueriesRequest{})
+	ue.GET("/api/_version_/fleet/queries/{id:[0-9]+}/report", getQueryReportEndpoint, getQueryReportRequest{})
 	ue.POST("/api/_version_/fleet/queries", createQueryEndpoint, createQueryRequest{})
 	ue.PATCH("/api/_version_/fleet/queries/{id:[0-9]+}", modifyQueryEndpoint, modifyQueryRequest{})
 	ue.DELETE("/api/_version_/fleet/queries/{name}", deleteQueryEndpoint, deleteQueryRequest{})
@@ -445,18 +446,36 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/scripts/run", runScriptEndpoint, runScriptRequest{})
 	ue.POST("/api/_version_/fleet/scripts/run/sync", runScriptSyncEndpoint, runScriptRequest{})
 	ue.GET("/api/_version_/fleet/scripts/results/{execution_id}", getScriptResultEndpoint, getScriptResultRequest{})
+	ue.POST("/api/_version_/fleet/scripts", createScriptEndpoint, createScriptRequest{})
+	ue.GET("/api/_version_/fleet/scripts", listScriptsEndpoint, listScriptsRequest{})
+	ue.GET("/api/_version_/fleet/scripts/{script_id:[0-9]+}", getScriptEndpoint, getScriptRequest{})
+	ue.DELETE("/api/_version_/fleet/scripts/{script_id:[0-9]+}", deleteScriptEndpoint, deleteScriptRequest{})
+	ue.POST("/api/_version_/fleet/scripts/batch", batchSetScriptsEndpoint, batchSetScriptsRequest{})
+
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/scripts", getHostScriptDetailsEndpoint, getHostScriptDetailsRequest{})
 
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
 	// NOTE: remember to update
-	// `service.mdmAppleConfigurationRequiredEndpoints` when you add an
+	// `service.mdmConfigurationRequiredEndpoints` when you add an
 	// endpoint that's behind the mdmConfiguredMiddleware, this applies
 	// both to this set of endpoints and to any public/token-authenticated
 	// endpoints using `neMDM` below in this file.
 	mdmConfiguredMiddleware := mdmconfigured.NewMDMConfigMiddleware(svc)
 	mdmAppleMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+
+	// Deprecated: POST /mdm/apple/enqueue is now deprecated, replaced by the
+	// platform-agnostic POST /mdm/commands/run. It is still supported
+	// indefinitely for backwards compatibility.
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/enqueue", enqueueMDMAppleCommandEndpoint, enqueueMDMAppleCommandRequest{})
+	// Deprecated: POST /mdm/apple/commandresults is now deprecated, replaced by the
+	// platform-agnostic POST /mdm/commands/commandresults. It is still supported
+	// indefinitely for backwards compatibility.
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/commandresults", getMDMAppleCommandResultsEndpoint, getMDMAppleCommandResultsRequest{})
+	// Deprecated: POST /mdm/apple/commands is now deprecated, replaced by the
+	// platform-agnostic POST /mdm/commands/commands. It is still supported
+	// indefinitely for backwards compatibility.
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/commands", listMDMAppleCommandsEndpoint, listMDMAppleCommandsRequest{})
+
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/filevault/summary", getMdmAppleFileVaultSummaryEndpoint, getMDMAppleFileVaultSummaryRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles", newMDMAppleConfigProfileEndpoint, newMDMAppleConfigProfileRequest{})
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesEndpoint, listMDMAppleConfigProfilesRequest{})
@@ -484,7 +503,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// host-specific mdm routes
 	mdmAppleMW.PATCH("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/unenroll", mdmAppleCommandRemoveEnrollmentProfileEndpoint, mdmAppleCommandRemoveEnrollmentProfileRequest{})
-	mdmAppleMW.GET("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
+
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/lock", deviceLockEndpoint, deviceLockRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/wipe", deviceWipeEndpoint, deviceWipeRequest{})
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
@@ -499,6 +518,13 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileEndpoint, preassignMDMAppleProfileRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentEndpoint, matchMDMApplePreassignmentRequest{})
+
+	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleOrWindowsMDM())
+	mdmAnyMW.POST("/api/_version_/fleet/mdm/commands/run", runMDMCommandEndpoint, runMDMCommandRequest{})
+	mdmAnyMW.GET("/api/_version_/fleet/mdm/commandresults", getMDMCommandResultsEndpoint, getMDMCommandResultsRequest{})
+	mdmAnyMW.GET("/api/_version_/fleet/mdm/commands", listMDMCommandsEndpoint, listMDMCommandsRequest{})
+	mdmAnyMW.GET("/api/_version_/fleet/mdm/disk_encryption/summary", getMDMDiskEncryptionSummaryEndpoint, getMDMDiskEncryptionSummaryRequest{})
+	mdmAnyMW.GET("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
 
 	// the following set of mdm endpoints must always be accessible (even
 	// if MDM is not configured) as it bootstraps the setup of MDM
@@ -587,6 +613,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	oe.POST("/api/fleet/orbit/scripts/request", getOrbitScriptEndpoint, orbitGetScriptRequest{})
 	oe.POST("/api/fleet/orbit/scripts/result", postOrbitScriptResultEndpoint, orbitPostScriptResultRequest{})
 
+	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
+	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, orbitPostDiskEncryptionKeyRequest{})
+
 	// unauthenticated endpoints - most of those are either login-related,
 	// invite-related or host-enrolling. So they typically do some kind of
 	// one-time authentication by verifying that a valid secret token is provided
@@ -597,7 +626,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// These endpoint are token authenticated.
 	// NOTE: remember to update
-	// `service.mdmAppleConfigurationRequiredEndpoints` when you add an
+	// `service.mdmConfigurationRequiredEndpoints` when you add an
 	// endpoint that's behind the mdmConfiguredMiddleware, this applies
 	// both to this set of endpoints and to any user authenticated
 	// endpoints using `mdmAppleMW.*` above in this file.

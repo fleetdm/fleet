@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -158,6 +159,7 @@ var hostDetailQueries = map[string]DetailQuery{
 					rows[0]["minor"],
 					rows[0]["patch"],
 					rows[0]["build"],
+					rows[0]["extra"],
 				))
 			}
 
@@ -446,7 +448,7 @@ var extraDetailQueries = map[string]DetailQuery{
 			)
 			UNION ALL
 			SELECT * FROM (
-				SELECT "is_federated" AS "key", data as "value" FROM registry 
+				SELECT "is_federated" AS "key", data as "value" FROM registry
 				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\IsFederated'
 				LIMIT 1
 			)
@@ -513,6 +515,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.major,
 		os.minor,
 		os.patch,
+		os.extra,
 		os.build,
 		os.arch,
 		os.platform,
@@ -609,7 +612,7 @@ var mdmQueries = map[string]DetailQuery{
 	// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
 	"mdm_disk_encryption_key_file_lines_darwin": {
 		Query: fmt.Sprintf(`
-	WITH 
+	WITH
 		de AS (SELECT IFNULL((%s), 0) as encrypted),
 		fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
 	SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;`, usesMacOSDiskEncryptionQuery),
@@ -626,6 +629,11 @@ var mdmQueries = map[string]DetailQuery{
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryptionKeyFileDarwin,
 		Discovery:        discoveryTable("filevault_prk"),
+	},
+	"mdm_device_id_windows": {
+		Query:            `SELECT name, data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\OMADM\MDMDeviceID\DeviceClientId';`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestMDMDeviceIDWindows,
 	},
 }
 
@@ -910,7 +918,7 @@ var softwareChrome = DetailQuery{
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
   '' AS vendor,
-  path AS installed_path
+  '' AS installed_path
 FROM chrome_extensions`,
 	Platforms:        []string{"chrome"},
 	DirectIngestFunc: directIngestSoftware,
@@ -985,12 +993,13 @@ func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.
 	minor := rows[0]["minor"]
 	patch := rows[0]["patch"]
 	build := rows[0]["build"]
+	extra := rows[0]["extra"]
 	arch := rows[0]["arch"]
 	kernelVersion := rows[0]["kernel_version"]
 	platform := rows[0]["platform"]
 
 	hostOS := fleet.OperatingSystem{Name: name, Arch: arch, KernelVersion: kernelVersion, Platform: platform}
-	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build)
+	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build, extra)
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSUnixLike update host operating system")
@@ -1000,7 +1009,7 @@ func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.
 
 // parseOSVersion returns a point release string for an operating system. Parsing rules
 // depend on available data, which varies between operating systems.
-func parseOSVersion(name string, version string, major string, minor string, patch string, build string) string {
+func parseOSVersion(name string, version string, major string, minor string, patch string, build string, extra string) string {
 	var osVersion string
 	switch {
 	case strings.Contains(strings.ToLower(name), "ubuntu"):
@@ -1017,6 +1026,11 @@ func parseOSVersion(name string, version string, major string, minor string, pat
 	}
 
 	osVersion = strings.Trim(osVersion, ".")
+
+	// extra is the Apple Rapid Security Response version
+	if extra != "" {
+		osVersion = fmt.Sprintf("%s %s", osVersion, strings.TrimSpace(extra))
+	}
 
 	return osVersion
 }
@@ -1167,7 +1181,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			level.Debug(logger).Log(
 				"msg", "host reported software with invalid last opened timestamp",
 				"host_id", host.ID,
-				"row", row,
+				"row", fmt.Sprintf("%+v", row),
 			)
 		}
 
@@ -1186,13 +1200,13 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			level.Debug(logger).Log(
 				"msg", "failed to parse software row",
 				"host_id", host.ID,
-				"row", row,
+				"row", fmt.Sprintf("%+v", row),
 				"err", err,
 			)
 			continue
 		}
 
-		sanitizeSoftware(host, s)
+		sanitizeSoftware(host, s, logger)
 
 		software = append(software, *s)
 
@@ -1223,7 +1237,7 @@ var macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
 // sanitizeSoftware performs any sanitization required to the ingested software fields.
 //
 // Some fields are reported with known incorrect values and we need to fix them before using them.
-func sanitizeSoftware(h *fleet.Host, s *fleet.Software) {
+func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 	softwareSanitizers := []struct {
 		checkSoftware  func(*fleet.Host, *fleet.Software) bool
 		mutateSoftware func(*fleet.Software)
@@ -1240,6 +1254,31 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software) {
 				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
 					s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
 				}
+			},
+		},
+		// In the Windows Registry, Cloudflare WARP defines its major version with the last two digits, e.g. `23.9.248.0`.
+		// On NVD, the vulnerabilities are reported using the full year, e.g. `2023.9.248.0`.
+		{
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return h.Platform == "windows" && s.Name == "Cloudflare WARP" && s.Source == "programs"
+			},
+			mutateSoftware: func(s *fleet.Software) {
+				// Perform some sanity check on the version before mutating it.
+				parts := strings.Split(s.Version, ".")
+				if len(parts) <= 1 {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
+					return
+				}
+				_, err := strconv.Atoi(parts[0])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+				// In case Cloudflare starts returning the full year.
+				if len(parts[0]) == 4 {
+					return
+				}
+				s.Version = "20" + s.Version // Cloudflare WARP was released on 2019.
 			},
 		},
 	}
@@ -1460,7 +1499,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 
 	// it's okay if the key comes empty, this can happen and if the disk is
 	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"], "", nil)
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -1511,7 +1550,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 
 	// it's okay if the key comes empty, this can happen and if the disk is
 	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b))
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b), "", nil)
 }
 
 func directIngestMacOSProfiles(
@@ -1566,6 +1605,18 @@ func directIngestMacOSProfiles(
 	return apple_mdm.VerifyHostMDMProfiles(ctx, ds, host, installed)
 }
 
+func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	if len(rows) == 0 {
+		// this registry key is only going to be present if the device is enrolled to mdm so assume that mdm is turned off
+		return nil
+	}
+
+	if len(rows) > 1 {
+		return ctxerr.Errorf(ctx, "directIngestMDMDeviceIDWindows invalid number of rows: %d", len(rows))
+	}
+	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
+}
+
 // go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
 
 func GetDetailQueries(
@@ -1604,6 +1655,9 @@ func GetDetailQueries(
 
 	if appConfig != nil && appConfig.MDM.EnabledAndConfigured {
 		for key, query := range mdmQueries {
+			if slices.Equal(query.Platforms, []string{"windows"}) && !appConfig.MDM.WindowsEnabledAndConfigured {
+				continue
+			}
 			generatedMap[key] = query
 		}
 	}
@@ -1617,7 +1671,7 @@ func GetDetailQueries(
 				unknownQueries = append(unknownQueries, name)
 				continue
 			}
-			if override == nil {
+			if override == nil || *override == "" {
 				delete(generatedMap, name)
 			} else {
 				query.Query = *override

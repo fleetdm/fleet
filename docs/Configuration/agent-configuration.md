@@ -464,4 +464,3 @@ The agents may take several seconds to update because Fleet has to wait for the 
 
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure agent options.">
-<meta name="navSection" value="Agent">

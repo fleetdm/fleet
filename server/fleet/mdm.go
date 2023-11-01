@@ -135,3 +135,105 @@ type HostMDMProfileRetryCount struct {
 	ProfileIdentifier string `db:"profile_identifier"`
 	Retries           uint   `db:"retries"`
 }
+
+// TeamIDSetter defines the method to set a TeamID value on a struct,
+// which helps define authorization helpers based on teams.
+type TeamIDSetter interface {
+	SetTeamID(tid *uint)
+}
+
+// CommandEnqueueResult is the result of a command execution on enrolled Apple devices.
+type CommandEnqueueResult struct {
+	// CommandUUID is the unique identifier for the command.
+	CommandUUID string `json:"command_uuid,omitempty"`
+	// RequestType is the name of the command.
+	RequestType string `json:"request_type,omitempty"`
+	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
+	FailedUUIDs []string `json:"failed_uuids,omitempty"`
+	// Platform is the platform of the hosts targeted by the command.
+	Platform string `json:"platform"`
+}
+
+// MDMCommandAuthz is used to check user authorization to read/write an
+// MDM command.
+type MDMCommandAuthz struct {
+	TeamID *uint `json:"team_id"` // required for authorization by team
+}
+
+// SetTeamID implements the TeamIDSetter interface.
+func (m *MDMCommandAuthz) SetTeamID(tid *uint) {
+	m.TeamID = tid
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (m MDMCommandAuthz) AuthzType() string {
+	return "mdm_command"
+}
+
+// MDMCommandResult holds the result of a command execution provided by
+// the target device.
+type MDMCommandResult struct {
+	// HostUUID is the MDM enrollment ID. Note: For Windows devices, host uuid is distinct from
+	// device id.
+	HostUUID string `json:"host_uuid" db:"host_uuid"`
+	// CommandUUID is the unique identifier of the command.
+	CommandUUID string `json:"command_uuid" db:"command_uuid"`
+	// Status is the command status. One of Acknowledged, Error, or NotNow.
+	Status string `json:"status" db:"status"`
+	// UpdatedAt is the last update timestamp of the command result.
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// RequestType is the command's request type, which is basically the
+	// command name.
+	RequestType string `json:"request_type" db:"request_type"`
+	// Result is the original command result XML plist. If the status is Error, it will include the
+	// ErrorChain key with more information.
+	Result []byte `json:"result" db:"result"`
+	// Hostname is not filled by the query, it is filled in the service layer
+	// afterwards. To make that explicit, the db field tag is explicitly ignored.
+	Hostname string `json:"hostname" db:"-"`
+}
+
+// MDMCommand represents an MDM command that has been enqueued for
+// execution.
+type MDMCommand struct {
+	// HostUUID is the UUID of the host targeted by the command.
+	HostUUID string `json:"host_uuid" db:"host_uuid"`
+	// CommandUUID is the unique identifier of the command.
+	CommandUUID string `json:"command_uuid" db:"command_uuid"`
+	// UpdatedAt is the last update timestamp of the command result.
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// RequestType is the command's request type, which is basically the
+	// command name.
+	RequestType string `json:"request_type" db:"request_type"`
+	// Status is the command status. One of Pending, Acknowledged, Error, or NotNow.
+	Status string `json:"status" db:"status"`
+	// Hostname is the hostname of the host that executed the command.
+	Hostname string `json:"hostname" db:"hostname"`
+	// TeamID is the host's team, null if the host is in no team. This is used
+	// to authorize the user to see the command, it is not returned as part of
+	// the response payload.
+	TeamID *uint `json:"-" db:"team_id"`
+}
+
+// MDMCommandListOptions defines the options to control the list of MDM
+// Commands to return. Although it only supports the standard list
+// options for now, in the future we expect to add filtering options.
+//
+// https://github.com/fleetdm/fleet/issues/11008#issuecomment-1503466119
+type MDMCommandListOptions struct {
+	ListOptions
+}
+
+type MDMPlatformsCounts struct {
+	MacOS   uint `db:"macos" json:"macos"`
+	Windows uint `db:"windows" json:"windows"`
+}
+
+type MDMDiskEncryptionSummary struct {
+	Verified            MDMPlatformsCounts `db:"verified" json:"verified"`
+	Verifying           MDMPlatformsCounts `db:"verifying" json:"verifying"`
+	ActionRequired      MDMPlatformsCounts `db:"action_required" json:"action_required"`
+	Enforcing           MDMPlatformsCounts `db:"enforcing" json:"enforcing"`
+	Failed              MDMPlatformsCounts `db:"failed" json:"failed"`
+	RemovingEnforcement MDMPlatformsCounts `db:"removing_enforcement" json:"removing_enforcement"`
+}

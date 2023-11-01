@@ -30,7 +30,7 @@ Continuing Fleet’s 🟣 Openness and GitOps forward approach to MDM, we are ex
 
 With this addition, administrators can have different setup experiences for each team—allowing a conference room computer to skip all setup screens while users see the screens they need. Controlling the macOS Setup Assistant using a JSON file allows for version control, review, and approval using a GitOps workflow. Additionally, when Apple releases new features (keys), administrators do not need to wait for a Fleet release to support these new features.
 
-Learn more about customizing the [macOS Setup Assistant](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#macos-setup-assistant) experience.
+Learn more about customizing the [macOS Setup Assistant](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#macos-setup-assistant) experience.
 
 
 ## More new features, improvements, and bug fixes

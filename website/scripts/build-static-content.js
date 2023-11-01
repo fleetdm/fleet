@@ -586,7 +586,7 @@ module.exports = {
 
           let pageTitle = openPosition.jobTitle;
 
-          let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n\n## Want to join the team?\n\nWant to join the team?\n\nReach out to [${openPosition.hiringManagerName} on Linkedin](${openPosition.hiringManagerLinkedInUrl}).`;
+          let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div><div purpose="quote-attribution"><strong>Dhruv Majumdar</strong><p>Director Of Cyber Risk & Advisory</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\nReach out to [${openPosition.hiringManagerName} on Linkedin](${openPosition.hiringManagerLinkedInUrl}).`;
 
 
           let htmlStringForThisPosition = await sails.helpers.strings.toHtml.with({mdString: mdStringForThisOpenPosition});
@@ -625,7 +625,7 @@ module.exports = {
           ).replace(/[^a-z0-9\-]/ig,'');
 
           // Determine the rootRelativeUrlPath for this open position, this will be used as the page's URL and to check if a markdown page already exists with this page's URL
-          let rootRelativeUrlPath = '/handbook/company/'+encodeURIComponent(_.kebabCase(openPosition.jobTitle));
+          let rootRelativeUrlPath = '/handbook/company/open-positions/'+encodeURIComponent(_.kebabCase(openPosition.jobTitle));
 
           // If there is an existing page with the generated url, throw an error.
           if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
@@ -798,19 +798,29 @@ module.exports = {
           }
           // Validate all features in a category.
           for(let feature of category.features){
-            if(!feature.name) { // Throw an error if a feature is missing a `name`.
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category is missing a "name". To resolve, add a "name" to this feature '+feature);
+            if(feature.name) {// Compatibility check
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category has a "name" which is no longer supported. To resolve, add a "industryName" to this feature '+feature);
+            }
+            if(feature.industryName !== undefined) {
+              if(!feature.industryName || typeof feature.industryName !== 'string') {
+                throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category has a missing or invalid "industryName". To resolve, set an "industryName" as a valid, non-empty string for this feature '+feature);
+              }
+              feature.name = feature.industryName;//« This is just an alias. FUTURE: update code elsewhere to use the new property instead, and delete this aliasing.
             }
             if(!feature.tier) { // Throw an error if a feature is missing a `tier`.
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature is missing a "tier". To resolve, add a "tier" (either "Free" or "Premium") to this feature.');
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.industryName+'" feature is missing a "tier". To resolve, add a "tier" (either "Free" or "Premium") to this feature.');
             } else if(!_.contains(['Free', 'Premium'], feature.tier)){ // Throw an error if a feature's `tier` is not "Free" or "Premium".
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature has an invalid "tier". to resolve, change the value of this features "tier" (currently set to '+feature.tier+') to be either "Free" or "Premium".');
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.industryName+'" feature has an invalid "tier". to resolve, change the value of this features "tier" (currently set to '+feature.tier+') to be either "Free" or "Premium".');
             }
-            if(feature.comingSoon === undefined) { // Throw an error if a feature is missing a `comingSoon` value
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature is missing a "comingSoon" value (boolean). To resolve, add a comingSoon value to this feature.');
-            } else if(typeof feature.comingSoon !== 'boolean'){ // Throw an error if the `comingSoon` value is not a boolean.
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature has an invalid "comingSoon" value (currently set to '+feature.comingSoon+'). To resolve, change the value of "comingSoon" for this feature to be either "true" or "false".');
+            if(feature.comingSoon) {// Compatibility check
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category has "comingSoon", which is no longer supported. To resolve, remove "comingSoon" or add "comingSoonOn" (YYYY-MM-DD) to this feature '+feature);
             }
+            if(feature.comingSoonOn !== undefined) {
+              if(typeof feature.comingSoonOn !== 'string'){
+                throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.industryName+'" feature has an invalid "comingSoonOn" value (currently set to '+feature.comingSoonOn+', but expecting a string like \'YYYY-MM-DD\'.)');
+              }
+              feature.comingSoon = true;//« This is just an alias. FUTURE: update code elsewhere to use the new property instead, and delete this aliasing.
+            }//ﬁ
           }
         }
         builtStaticContent.pricingTable = pricingTableCategories;

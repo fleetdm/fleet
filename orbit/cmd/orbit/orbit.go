@@ -144,8 +144,9 @@ func main() {
 			Usage: "Get Orbit version",
 		},
 		&cli.StringFlag{
-			Name:  "log-file",
-			Usage: "Log to this file path in addition to stderr",
+			Name:    "log-file",
+			Usage:   "Log to this file path in addition to stderr",
+			EnvVars: []string{"ORBIT_LOG_FILE"},
 		},
 		&cli.BoolFlag{
 			Name:    "fleet-desktop",
@@ -346,7 +347,7 @@ func main() {
 		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
 
 		// sofwareupdated is a macOS daemon that automatically updates Apple software.
-		if !c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
+		if c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
 			log.Warn().Msg("fleetd no longer automatically kickstarts softwareupdated. The --disable-kickstart-softwareupdated flag, which was previously used to disable this behavior, has been deprecated and will be removed in a future version")
 		}
 
@@ -622,6 +623,7 @@ func main() {
 		const (
 			renewEnrollmentProfileCommandFrequency = time.Hour
 			windowsMDMEnrollmentCommandFrequency   = time.Hour
+			windowsMDMBitlockerCommandFrequency    = time.Hour
 		)
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL)
 		configFetcher = update.ApplyRunScriptsConfigFetcherMiddleware(configFetcher, c.Bool("enable-scripts"), orbitClient)
@@ -638,6 +640,7 @@ func main() {
 			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
 		case "windows":
 			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient)
+			configFetcher = update.ApplyWindowsMDMBitlockerFetcherMiddleware(configFetcher, windowsMDMBitlockerCommandFrequency, orbitClient)
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second

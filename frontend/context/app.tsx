@@ -376,7 +376,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isTeamObserver: state.isTeamObserver,
     isTeamMaintainer: state.isTeamMaintainer,
     isTeamAdmin: state.isTeamAdmin,
-    isTeamMaintainerOrTeamAdmin: state.isTeamMaintainer,
+    isTeamMaintainerOrTeamAdmin: state.isTeamMaintainerOrTeamAdmin,
     isAnyTeamAdmin: state.isAnyTeamAdmin,
     isOnlyObserver: state.isOnlyObserver,
     isObserverPlus: state.isObserverPlus,

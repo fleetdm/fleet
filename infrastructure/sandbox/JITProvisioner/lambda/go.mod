@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/infrastructure/demo/JITProvisioner/lambda
 
-go 1.19
+go 1.21
 
 require (
 	github.com/akrylysov/algnhsa v0.12.1
@@ -179,7 +179,7 @@ require (
 	google.golang.org/api v0.121.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
-	google.golang.org/grpc v1.55.0 // indirect
+	google.golang.org/grpc v1.56.3 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/guregu/null.v3 v3.5.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect

@@ -6,6 +6,7 @@ import { IEulaMetadataResponse } from "services/entities/mdm";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import Graphic from "components/Graphic";
 
 const baseClass = "eula-list-item";
 
@@ -22,7 +23,7 @@ const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__value-group ${baseClass}__list-item-data`}>
-        <Icon name="file-pdf" />
+        <Graphic name="file-pdf" />
         <div className={`${baseClass}__list-item-info`}>
           <span className={`${baseClass}__list-item-name`}>
             {eulaData.name}
