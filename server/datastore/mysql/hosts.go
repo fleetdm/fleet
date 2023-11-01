@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -465,11 +464,16 @@ var hostRefs = []string{
 	"host_disk_encryption_keys",
 	"host_software_installed_paths",
 	"host_script_results",
+	"query_results",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
 // deleted from when a host is deleted in Fleet:
 // - host_dep_assignments
+// - mdm tables (nano and windows) containing enrollment information, as we
+// want to keep the enrollment relationship even if the host is temporarily
+// deleted from the UI. Re-enrollment sometimes is not straightforward like it
+// is for osquery/fleetd
 
 // additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
 // above. They use the host.uuid instead. Additionally, the column name that refers to
@@ -2284,40 +2288,74 @@ func (ds *Datastore) ListHostsLiteByUUIDs(ctx context.Context, filter fleet.Team
 
 	stmt := fmt.Sprintf(`
 SELECT
-	id,
-	created_at,
-	updated_at,
-	osquery_host_id,
-	node_key,
-	hostname,
-	uuid,
-	hardware_serial,
-	hardware_model,
-	computer_name,
-	platform,
-	team_id,
-	distributed_interval,
-	logger_tls_period,
-	config_tls_refresh,
-	detail_updated_at,
-	label_updated_at,
-	last_enrolled_at,
-	policy_updated_at,
-	refetch_requested,
-	refetch_critical_queries_until
-FROM hosts
-WHERE uuid IN (?) AND %s
-		`, ds.whereFilterHostsByTeams(filter, "hosts"),
+	h.id,
+	h.created_at,
+	h.updated_at,
+	h.osquery_host_id,
+	h.node_key,
+	h.hostname,
+	h.uuid,
+	h.hardware_serial,
+	h.hardware_model,
+	h.computer_name,
+	h.platform,
+	h.team_id,
+	h.distributed_interval,
+	h.logger_tls_period,
+	h.config_tls_refresh,
+	h.detail_updated_at,
+	h.label_updated_at,
+	h.last_enrolled_at,
+	h.policy_updated_at,
+	h.refetch_requested,
+	h.refetch_critical_queries_until,
+	hm.host_id,
+	hm.enrolled,
+	hm.server_url,
+	hm.installed_from_dep,
+	hm.mdm_id,
+	COALESCE(hm.is_server, false) AS is_server,
+	COALESCE(mdms.name, ?) AS name
+FROM
+	hosts h
+LEFT OUTER JOIN
+	host_mdm hm
+ON
+	hm.host_id = h.id
+LEFT OUTER JOIN
+	mobile_device_management_solutions mdms
+ON
+	hm.mdm_id = mdms.id
+WHERE h.uuid IN (?) AND %s
+		`, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	stmt, args, err := sqlx.In(stmt, uuids)
+	stmt, args, err := sqlx.In(stmt, fleet.UnknownMDMName, uuids)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to select hosts by uuid")
 	}
 
-	var hosts []*fleet.Host
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt, args...); err != nil {
+	var hostsWithMDM []*hostWithMDMInfo
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostsWithMDM, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by uuid")
+	}
+
+	hosts := make([]*fleet.Host, 0, len(hostsWithMDM))
+	for _, h := range hostsWithMDM {
+		host := h.Host
+		// leave MDMInfo nil unless it has mdm information
+		if h.HostID != nil {
+			host.MDMInfo = &fleet.HostMDM{
+				HostID:           *h.HostID,
+				Enrolled:         *h.Enrolled,
+				ServerURL:        *h.ServerURL,
+				InstalledFromDep: *h.InstalledFromDep,
+				IsServer:         *h.IsServer,
+				MDMID:            h.MDMID,
+				Name:             *h.Name,
+			}
+		}
+		hosts = append(hosts, &host)
 	}
 
 	return hosts, nil
@@ -4364,110 +4402,4 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 	}
 
 	return result, nil
-}
-
-func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
-	const (
-		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output) VALUES (?, ?, ?, '')`
-		getStmt = `SELECT id, host_id, execution_id, script_contents, created_at FROM host_script_results WHERE id = ?`
-	)
-
-	execID := uuid.New().String()
-	result, err := ds.writer(ctx).ExecContext(ctx, insStmt,
-		request.HostID,
-		execID,
-		request.ScriptContents,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "new host script execution request")
-	}
-
-	var script fleet.HostScriptResult
-	id, _ := result.LastInsertId()
-	if err := ds.writer(ctx).GetContext(ctx, &script, getStmt, id); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting the created host script result to return")
-	}
-	return &script, nil
-}
-
-func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
-	const updStmt = `
-  UPDATE host_script_results SET
-    output = ?,
-    runtime = ?,
-    exit_code = ?
-  WHERE
-    host_id = ? AND
-    execution_id = ?`
-
-	const maxOutputRuneLen = 10000
-	output := result.Output
-	if len(output) > utf8.UTFMax*maxOutputRuneLen {
-		// truncate the bytes as we know the output is too long, no point
-		// converting more bytes than needed to runes.
-		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
-	}
-	if utf8.RuneCountInString(output) > maxOutputRuneLen {
-		outputRunes := []rune(output)
-		output = string(outputRunes[len(outputRunes)-maxOutputRuneLen:])
-	}
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, updStmt,
-		output,
-		result.Runtime,
-		result.ExitCode,
-		result.HostID,
-		result.ExecutionID,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "update host script result")
-	}
-	return nil
-}
-
-func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error) {
-	const listStmt = `
-  SELECT
-    id,
-    host_id,
-    execution_id,
-    script_contents
-  FROM
-    host_script_results
-  WHERE
-    host_id = ? AND
-    exit_code IS NULL AND
-    created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
-
-	var results []*fleet.HostScriptResult
-	seconds := int(ignoreOlder.Seconds())
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID, seconds); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list pending host script results")
-	}
-	return results, nil
-}
-
-func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
-	const getStmt = `
-  SELECT
-    id,
-    host_id,
-    execution_id,
-    script_contents,
-    output,
-    runtime,
-    exit_code,
-    created_at
-  FROM
-    host_script_results
-  WHERE
-    execution_id = ?`
-
-	var result fleet.HostScriptResult
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, getStmt, execID); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("HostScriptResult").WithName(execID))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get host script result")
-	}
-	return &result, nil
 }

@@ -98,21 +98,18 @@ export type IWindowsDiskEncryptionStatus = Extract<
 export const isWindowsDiskEncryptionStatus = (
   status: DiskEncryptionStatus
 ): status is IWindowsDiskEncryptionStatus => {
-  return !["action_required", "removing_enforcement"].includes(status);
+  switch (status) {
+    case "verified":
+    case "verifying":
+    case "enforcing":
+    case "failed":
+      return true;
+    default:
+      return false;
+  }
 };
 
 export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
-
-// TODO: update when we have API
-export interface IMdmScript {
-  id: number;
-  name: string;
-  ran: number;
-  pending: number;
-  errors: number;
-  created_at: string;
-  updated_at: string;
-}
 
 export interface IMdmSSOReponse {
   url: string;

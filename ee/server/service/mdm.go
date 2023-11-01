@@ -724,14 +724,24 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		svc.logger.Log("mdm-sso-callback", "IdP UserID doesn't look like an email, using raw value")
 		username = auth.UserID()
 	}
-	idpAcc := fleet.MDMIdPAccount{
-		UUID:     uuid.New().String(),
+
+	err = svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
 		Username: username,
 		Fullname: auth.UserDisplayName(),
 		Email:    auth.UserID(),
-	}
-	if err := svc.ds.InsertMDMIdPAccount(ctx, &idpAcc); err != nil {
+	})
+	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "saving account data from IdP")
+	}
+
+	idpAcc, err := svc.ds.GetMDMIdPAccountByEmail(
+		// use the primary db as the account might have been just
+		// inserted
+		ctxdb.RequirePrimary(ctx, true),
+		auth.UserID(),
+	)
+	if err != nil {
+		return "", "", "", ctxerr.Wrap(ctx, err, "retrieving new account data from IdP")
 	}
 
 	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
@@ -854,13 +864,13 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 
 	// create profiles for that team via the service call, so that uniqueness
 	// of profile identifier/name is verified, activity created, etc.
-	if err := svc.BatchSetMDMAppleProfiles(ctx, &team.ID, nil, rawProfiles, false); err != nil {
+	if err := svc.BatchSetMDMAppleProfiles(ctx, &team.ID, nil, rawProfiles, false, true); err != nil {
 		return err
 	}
 
 	// assign host to that team via the service call, which will trigger
 	// deployment of the profiles.
-	if err := svc.AddHostsToTeam(ctx, &team.ID, []uint{host.ID}); err != nil {
+	if err := svc.AddHostsToTeam(ctx, &team.ID, []uint{host.ID}, true); err != nil {
 		return err
 	}
 

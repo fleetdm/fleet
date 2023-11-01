@@ -66,11 +66,11 @@ type Datastore interface {
 
 	// ApplyQueries applies a list of queries (likely from a yaml file) to the datastore. Existing queries are updated,
 	// and new queries are created.
-	ApplyQueries(ctx context.Context, authorID uint, queries []*Query) error
+	ApplyQueries(ctx context.Context, authorID uint, queries []*Query, queriesToDiscardResults map[uint]struct{}) error
 	// NewQuery creates a new query object in thie datastore. The returned query should have the ID updated.
 	NewQuery(ctx context.Context, query *Query, opts ...OptionalArg) (*Query, error)
 	// SaveQuery saves changes to an existing query object.
-	SaveQuery(ctx context.Context, query *Query) error
+	SaveQuery(ctx context.Context, query *Query, shouldDiscardResults bool) error
 	// DeleteQuery deletes an existing query object on a team. If teamID is nil, then the query is
 	// looked up in the 'global' team.
 	DeleteQuery(ctx context.Context, teamID *uint, name string) error
@@ -84,13 +84,15 @@ type Datastore interface {
 	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, error)
 	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
 	// given teamID. If teamID is nil, then all scheduled queries for the 'global' team are returned.
-	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint) ([]*Query, error)
+	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*Query, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
-	QueryByName(ctx context.Context, teamID *uint, name string, opts ...OptionalArg) (*Query, error)
+	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)
 	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
 	// identified query
 	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
+	// CleanupGlobalDiscardQueryResults deletes all cached query results. Used in cleanups_then_aggregation cron.
+	CleanupGlobalDiscardQueryResults(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CampaignStore defines the distributed query campaign related datastore methods
@@ -197,10 +199,12 @@ type Datastore interface {
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
 
 	// ListHostsLiteByUUIDs returns the "lite" version of hosts corresponding to
-	// the provided uuids and filtered according to the provided team filters.
-	// The "lite" version is a subset of the fields related to the host. See
-	// documentation of Datastore.HostLite for more information, or the
-	// implementation for the exact list.
+	// the provided uuids and filtered according to the provided team filters. It
+	// does include the MDMInfo information (unlike HostLite and
+	// ListHostsLiteByIDs) because listing hosts by UUIDs is commonly used to
+	// support MDM-related operations, where the UUID is often the only available
+	// identifier. The "lite" version is a subset of the fields related to the
+	// host. See the implementation for the exact list.
 	ListHostsLiteByUUIDs(ctx context.Context, filter TeamFilter, uuids []string) ([]*Host, error)
 
 	// ListHostsLiteByIDs returns the "lite" version of hosts corresponding to
@@ -392,6 +396,15 @@ type Datastore interface {
 	ScheduledQueryIDsByName(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// QueryResultsStore
+
+	// QueryResultRows returns all the stored results of a query (from all hosts).
+	QueryResultRows(ctx context.Context, queryID uint) ([]*ScheduledQueryResultRow, error)
+	ResultCountForQuery(ctx context.Context, queryID uint) (int, error)
+	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
+	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow) error
+
+	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
 
 	// NewTeam creates a new Team object in the store.
@@ -510,7 +523,7 @@ type Datastore interface {
 	// SavePolicy updates some fields of the given policy on the datastore.
 	//
 	// It is also used to update team policies.
-	SavePolicy(ctx context.Context, p *Policy) error
+	SavePolicy(ctx context.Context, p *Policy, shouldRemoveAllPolicyMemberships bool) error
 
 	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
@@ -826,11 +839,11 @@ type Datastore interface {
 	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMAppleCommandResult, error)
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
 
 	// ListMDMAppleCommands returns a list of MDM Apple commands that have been
 	// executed, based on the provided options.
-	ListMDMAppleCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMAppleCommandListOptions) ([]*MDMAppleCommand, error)
+	ListMDMAppleCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMAppleCommand, error)
 
 	// NewMDMAppleInstaller creates and stores an Apple installer to Fleet.
 	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
@@ -941,8 +954,11 @@ type Datastore interface {
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
 
-	// GetMDMIdPAccount returns MDM IdP account that matches the given token.
-	GetMDMIdPAccount(ctx context.Context, uuid string) (*MDMIdPAccount, error)
+	// GetMDMIdPAccountByUUID returns MDM IdP account that matches the given token.
+	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
+
+	// GetMDMIdPAccountByEmail returns MDM IdP account that matches the given email.
+	GetMDMIdPAccountByEmail(ctx context.Context, email string) (*MDMIdPAccount, error)
 
 	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
@@ -1023,16 +1039,44 @@ type Datastore interface {
 	// WSTEPAssociateCertHash associates a certificate hash with a device.
 	WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error
 
-	// MDMWindowsGetEnrolledDevice receives a Windows MDM HW device id and returns the device information.
-	MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
 	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
+
 	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the HW device id.
-	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
+	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceHWID string) error
+
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
+
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
+
+	// MDMWindowsInsertCommandForHosts inserts a single command that may
+	// target multiple hosts identified by their UUID, enqueuing one command
+	// for each device.
+	MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
+
+	// MDMWindowsGetPendingCommands returns all the pending commands for a device
+	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsCommand, error)
+
+	// MDMWindowsSaveResponse saves a full response
+	MDMWindowsSaveResponse(ctx context.Context, deviceID string, fullResponse *SyncML) error
+
+	// GetMDMWindowsCommands returns the results of command
+	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
+
+	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID.
+	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// MDM Commands
+
+	// GetMDMCommandPlatform returns the platform (i.e. "darwin" or "windows") for the given command.
+	GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error)
+
+	// ListMDMAppleCommands returns a list of MDM Apple commands that have been
+	// executed, based on the provided options.
+	ListMDMCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMCommand, error)
 
 	// GetMDMWindowsBitLockerSummary summarizes the current state of Windows disk encryption on
 	// each Windows host in the specified team (or, if no team is specified, each host that is not assigned
@@ -1042,7 +1086,7 @@ type Datastore interface {
 	//
 	// Note that the returned status will be nil if the host is reported to be a Windows
 	// server or if disk encryption is disabled for the host's team (or no team, as applicable).
-	GetMDMWindowsBitLockerStatus(ctx context.Context, host *Host) (*DiskEncryptionStatus, error)
+	GetMDMWindowsBitLockerStatus(ctx context.Context, host *Host) (*HostMDMDiskEncryption, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
@@ -1062,6 +1106,30 @@ type Datastore interface {
 	// older than the ignoreOlder duration are ignored, considered too old to be
 	// pending.
 	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*HostScriptResult, error)
+
+	// NewScript creates a new saved script.
+	NewScript(ctx context.Context, script *Script) (*Script, error)
+
+	// Script returns the saved script corresponding to id.
+	Script(ctx context.Context, id uint) (*Script, error)
+
+	// GetScriptContents returns the raw script contents of the corresponding
+	// script.
+	GetScriptContents(ctx context.Context, id uint) ([]byte, error)
+
+	// DeleteScript deletes the script identified by its id.
+	DeleteScript(ctx context.Context, id uint) error
+
+	// ListScripts returns a paginated list of scripts corresponding to the
+	// criteria.
+	ListScripts(ctx context.Context, teamID *uint, opt ListOptions) ([]*Script, *PaginationMetadata, error)
+
+	// GetHostScriptDetails returns the list of host script details for saved scripts applicable to
+	// a given host.
+	GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts ListOptions) ([]*HostScriptDetail, *PaginationMetadata, error)
+
+	// BatchSetScripts sets the scripts for the given team or no team.
+	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) error
 }
 
 const (

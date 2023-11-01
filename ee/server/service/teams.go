@@ -771,19 +771,19 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 func (svc *Service) createTeamFromSpec(
 	ctx context.Context,
 	spec *fleet.TeamSpec,
-	defaults *fleet.AppConfig,
+	appCfg *fleet.AppConfig,
 	secrets []*fleet.EnrollSecret,
 	dryRun bool,
 ) (*fleet.Team, error) {
 	agentOptions := &spec.AgentOptions
 	if len(spec.AgentOptions) == 0 {
-		agentOptions = defaults.AgentOptions
+		agentOptions = appCfg.AgentOptions
 	}
 
 	// if a team spec is not provided, use the global features, otherwise
 	// build a new config from the spec with default values applied.
 	var err error
-	features := defaults.Features
+	features := appCfg.Features
 	if spec.Features != nil {
 		features, err = unmarshalWithGlobalDefaults(spec.Features)
 		if err != nil {
@@ -796,8 +796,8 @@ func (svc *Service) createTeamFromSpec(
 		return nil, err
 	}
 	macOSSetup := spec.MDM.MacOSSetup
-	if macOSSetup.MacOSSetupAssistant.Set || macOSSetup.BootstrapPackage.Set {
-		if !defaults.MDM.EnabledAndConfigured {
+	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" {
+		if !appCfg.MDM.EnabledAndConfigured {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
@@ -809,7 +809,7 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
-	if enableDiskEncryption && !defaults.MDM.AtLeastOnePlatformEnabledAndConfigured() {
+	if enableDiskEncryption && !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm",
 			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
 	}
@@ -836,7 +836,8 @@ func (svc *Service) createTeamFromSpec(
 		return nil, err
 	}
 
-	if enableDiskEncryption && defaults.MDM.EnabledAndConfigured {
+	if enableDiskEncryption && appCfg.MDM.EnabledAndConfigured {
+		// TODO: Are we missing an activity or anything else for BitLocker here?
 		if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
 		}
@@ -883,7 +884,7 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
 	}
 
-	oldMacOSDiskEncryption := team.Config.MDM.EnableDiskEncryption
+	oldEnableDiskEncryption := team.Config.MDM.EnableDiskEncryption
 	if err := svc.applyTeamMacOSSettings(ctx, spec, &team.Config.MDM.MacOSSettings); err != nil {
 		return err
 	}
@@ -896,40 +897,47 @@ func (svc *Service) editTeamFromSpec(
 	} else if de := team.Config.MDM.MacOSSettings.DeprecatedEnableDiskEncryption; de != nil {
 		team.Config.MDM.EnableDiskEncryption = *de
 	}
-	if team.Config.MDM.EnableDiskEncryption && !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() {
+	didUpdateDiskEncryption := team.Config.MDM.EnableDiskEncryption != oldEnableDiskEncryption
+	if !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() && didUpdateDiskEncryption && team.Config.MDM.EnableDiskEncryption {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm",
 			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
 	}
 
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
-	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set || spec.MDM.MacOSSetup.BootstrapPackage.Set {
-		if !appCfg.MDM.EnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
-				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
-		}
-		if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set {
-			team.Config.MDM.MacOSSetup.MacOSSetupAssistant = spec.MDM.MacOSSetup.MacOSSetupAssistant
-		}
-		if spec.MDM.MacOSSetup.BootstrapPackage.Set {
-			team.Config.MDM.MacOSSetup.BootstrapPackage = spec.MDM.MacOSSetup.BootstrapPackage
-		}
+	var didUpdateSetupAssistant, didUpdateBootstrapPackage bool
+	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set {
+		didUpdateSetupAssistant = oldMacOSSetup.MacOSSetupAssistant.Value != spec.MDM.MacOSSetup.MacOSSetupAssistant.Value
+		team.Config.MDM.MacOSSetup.MacOSSetupAssistant = spec.MDM.MacOSSetup.MacOSSetupAssistant
+	}
+	if spec.MDM.MacOSSetup.BootstrapPackage.Set {
+		didUpdateBootstrapPackage = oldMacOSSetup.BootstrapPackage.Value != spec.MDM.MacOSSetup.BootstrapPackage.Value
+		team.Config.MDM.MacOSSetup.BootstrapPackage = spec.MDM.MacOSSetup.BootstrapPackage
+	}
+	if !appCfg.MDM.EnabledAndConfigured &&
+		((didUpdateSetupAssistant && team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value != "") ||
+			(didUpdateBootstrapPackage && team.Config.MDM.MacOSSetup.BootstrapPackage.Value != "")) {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
+			`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 	}
 
-	var didUpdateMacOSEndUserAuth bool
-	if spec.MDM.MacOSSetup.EnableEndUserAuthentication != oldMacOSSetup.EnableEndUserAuthentication {
+	didUpdateMacOSEndUserAuth := spec.MDM.MacOSSetup.EnableEndUserAuthentication != oldMacOSSetup.EnableEndUserAuthentication
+	if didUpdateMacOSEndUserAuth && spec.MDM.MacOSSetup.EnableEndUserAuthentication {
 		if !appCfg.MDM.EnabledAndConfigured {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
 				`Couldn't update macos_setup.enable_end_user_authentication because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
-		if spec.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
+		if appCfg.MDM.EndUserAuthentication.IsEmpty() {
 			// TODO: update this error message to include steps to resolve the issue once docs for IdP
 			// config are available
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
 				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`))
 		}
-		didUpdateMacOSEndUserAuth = true
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
+
+	if spec.Scripts.Set {
+		team.Config.Scripts = spec.Scripts
+	}
 
 	if len(secrets) > 0 {
 		team.Secrets = secrets
@@ -949,7 +957,8 @@ func (svc *Service) editTeamFromSpec(
 			return err
 		}
 	}
-	if appCfg.MDM.EnabledAndConfigured && oldMacOSDiskEncryption != team.Config.MDM.EnableDiskEncryption {
+	if appCfg.MDM.EnabledAndConfigured && didUpdateDiskEncryption {
+		// TODO: Are we missing an activity or anything else for BitLocker here?
 		var act fleet.ActivityDetails
 		if team.Config.MDM.EnableDiskEncryption {
 			act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
@@ -1012,6 +1021,8 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 			field = "enable_disk_encryption"
 		}
 		if !appCfg.MDM.EnabledAndConfigured {
+			// TODO: Address potential edge cases when teams that previously utilized MDM features
+			// are edited later edited when MDM disabled
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("macos_settings.%s", field),
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}

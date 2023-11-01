@@ -1128,6 +1128,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: ""
@@ -1142,6 +1143,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc 2
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: ""
@@ -1156,6 +1158,7 @@ kind: query
 spec:
   automations_enabled: true
   description: some desc 4
+  discard_data: false
   interval: 60
   logging: differential_ignore_removals
   min_osquery_version: 5.3.0
@@ -1165,9 +1168,9 @@ spec:
   query: select 4;
   team: ""
 `
-	expectedJSONGlobal := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query4","description":"some desc 4","query":"select 4;","team":"","interval":60,"observer_can_run":true,"platform":"darwin,windows","min_osquery_version":"5.3.0","automations_enabled":true,"logging":"differential_ignore_removals"}}
+	expectedJSONGlobal := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query4","description":"some desc 4","query":"select 4;","team":"","interval":60,"observer_can_run":true,"platform":"darwin,windows","min_osquery_version":"5.3.0","automations_enabled":true,"logging":"differential_ignore_removals","discard_data":false}}
 `
 
 	expectedTeam := `+--------+-------------+-----------+--------+----------------------------+
@@ -1191,6 +1194,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc 3
+  discard_data: false
   interval: 3600
   logging: snapshot
   min_osquery_version: 5.4.0
@@ -1200,7 +1204,7 @@ spec:
   query: select 3;
   team: Foobar
 `
-	expectedJSONTeam := `{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"darwin","min_osquery_version":"5.4.0","automations_enabled":false,"logging":"snapshot"}}
+	expectedJSONTeam := `{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"darwin","min_osquery_version":"5.4.0","automations_enabled":false,"logging":"snapshot","discard_data":false}}
 `
 
 	assert.Equal(t, expectedGlobal, runAppForTest(t, []string{"get", "queries"}))
@@ -1233,7 +1237,7 @@ func TestGetQuery(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		if teamID == nil {
 			if name != "globalQuery1" {
 				return nil, &notFoundError{}
@@ -1276,6 +1280,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: ""
@@ -1285,7 +1290,7 @@ spec:
   query: select 1;
   team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"globalQuery1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"globalQuery1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "globalQuery1"}))
@@ -1298,6 +1303,7 @@ kind: query
 spec:
   automations_enabled: true
   description: some team desc
+  discard_data: false
   interval: 3600
   logging: differential
   min_osquery_version: 5.2.0
@@ -1307,7 +1313,7 @@ spec:
   query: select 2;
   team: Foobar
 `
-	expectedJson = `{"kind":"query","apiVersion":"v1","spec":{"name":"teamQuery1","description":"some team desc","query":"select 2;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"linux","min_osquery_version":"5.2.0","automations_enabled":true,"logging":"differential"}}
+	expectedJson = `{"kind":"query","apiVersion":"v1","spec":{"name":"teamQuery1","description":"some team desc","query":"select 2;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"linux","min_osquery_version":"5.2.0","automations_enabled":true,"logging":"differential","discard_data":false}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--team", "1", "teamQuery1"}))
@@ -1432,6 +1438,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc 2
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: ""
@@ -1441,7 +1448,7 @@ spec:
   query: select 2;
   team: ""
 `
-			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
+			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
 `
 
 			assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
@@ -1509,6 +1516,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: ""
@@ -1523,6 +1531,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc 2
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: ""
@@ -1537,6 +1546,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc 3
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: ""
@@ -1546,9 +1556,9 @@ spec:
   query: select 3;
   team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
@@ -2011,6 +2021,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
 		return nil
 	}
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+		return nil
+	}
 
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
 	yamlFilePath := writeTmpYml(t, actualYaml)
@@ -2050,22 +2063,16 @@ func TestGetMDMCommandResults(t *testing.T) {
 			{ID: 2, UUID: uuids[1], Hostname: "host2"},
 		}, nil
 	}
-	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
-		if commandUUID == "no-such-cmd" {
-			return "", &notFoundError{}
-		}
-		return "test", nil
-	}
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+	getCommandResults := func(commandUUID string) ([]*fleet.MDMCommandResult, error) {
 		switch commandUUID {
 		case "empty-cmd":
 			return nil, nil
 		case "fail-cmd":
 			return nil, io.EOF
 		default:
-			return []*fleet.MDMAppleCommandResult{
+			return []*fleet.MDMCommandResult{
 				{
-					DeviceID:    "device1",
+					HostUUID:    "device1",
 					CommandUUID: commandUUID,
 					Status:      "Acknowledged",
 					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
@@ -2073,7 +2080,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 					Result:      []byte(rawXml),
 				},
 				{
-					DeviceID:    "device2",
+					HostUUID:    "device2",
 					CommandUUID: commandUUID,
 					Status:      "Error",
 					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
@@ -2083,30 +2090,98 @@ func TestGetMDMCommandResults(t *testing.T) {
 			}, nil
 		}
 	}
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+		return getCommandResults(commandUUID)
+	}
+	ds.GetMDMWindowsCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+		return getCommandResults(commandUUID)
+	}
+	var platform string
+	ds.GetMDMCommandPlatformFunc = func(ctx context.Context, commandUUID string) (string, error) {
+		if commandUUID == "no-such-cmd" {
+			return "", &notFoundError{}
+		}
+		return platform, nil
+	}
 
-	_, err := runAppNoChecks([]string{"get", "mdm-command-results"})
-	require.Error(t, err)
-	require.ErrorContains(t, err, `Required flag "id" not set`)
+	t.Run("command flag required", func(t *testing.T) {
+		_, err := runAppNoChecks([]string{"get", "mdm-command-results"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `Required flag "id" not set`)
+	})
 
-	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
-	require.Error(t, err)
-	require.ErrorContains(t, err, `The command doesn't exist.`)
+	t.Run("command not found", func(t *testing.T) {
+		platform = "darwin"
+		_, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `The command doesn't exist.`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
 
-	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
-	require.Error(t, err)
-	require.ErrorContains(t, err, `EOF`)
+		platform = "windows"
+		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `The command doesn't exist.`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
 
-	buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
-	require.NoError(t, err)
-	require.Contains(t, buf.String(), strings.TrimSpace(`
+	t.Run("command results error", func(t *testing.T) {
+		platform = "darwin"
+		_, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `EOF`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		ds.GetMDMAppleCommandResultsFuncInvoked = false
+
+		platform = "windows"
+		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `EOF`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		ds.GetMDMWindowsCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
+
+	t.Run("command results empty", func(t *testing.T) {
+		expectedOutput := strings.TrimSpace(`
 +----+------+------+--------+----------+---------+
 | ID | TIME | TYPE | STATUS | HOSTNAME | RESULTS |
 +----+------+------+--------+----------+---------+
-`))
+`)
 
-	buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
-	require.NoError(t, err)
-	require.Contains(t, buf.String(), strings.TrimSpace(`
+		platform = "darwin"
+		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		ds.GetMDMAppleCommandResultsFuncInvoked = false
+
+		platform = "windows"
+		buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		ds.GetMDMWindowsCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
+
+	t.Run("command results", func(t *testing.T) {
+		expectedOutput := strings.TrimSpace(`
 +-----------+----------------------+------+--------------+----------+---------------------------------------------------+
 |    ID     |         TIME         | TYPE |    STATUS    | HOSTNAME |                      RESULTS                      |
 +-----------+----------------------+------+--------------+----------+---------------------------------------------------+
@@ -2134,7 +2209,28 @@ func TestGetMDMCommandResults(t *testing.T) {
 |           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
 |           |                      |      |              |          | </plist>                                          |
 +-----------+----------------------+------+--------------+----------+---------------------------------------------------+
-`))
+`)
+
+		platform = "darwin"
+		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		ds.GetMDMAppleCommandResultsFuncInvoked = false
+
+		platform = "windows"
+		buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		ds.GetMDMWindowsCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
 }
 
 func TestGetMDMCommands(t *testing.T) {
@@ -2145,13 +2241,13 @@ func TestGetMDMCommands(t *testing.T) {
 	}
 	var empty bool
 	var listErr error
-	ds.ListMDMAppleCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
+	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
 		if empty || listErr != nil {
 			return nil, listErr
 		}
-		return []*fleet.MDMAppleCommand{
+		return []*fleet.MDMCommand{
 			{
-				DeviceID:    "h1",
+				HostUUID:    "h1",
 				CommandUUID: "u1",
 				UpdatedAt:   time.Date(2023, 4, 12, 9, 5, 0, 0, time.UTC),
 				RequestType: "ProfileList",
@@ -2159,11 +2255,11 @@ func TestGetMDMCommands(t *testing.T) {
 				Hostname:    "host1",
 			},
 			{
-				DeviceID:    "h2",
+				HostUUID:    "h2",
 				CommandUUID: "u2",
 				UpdatedAt:   time.Date(2023, 4, 11, 9, 5, 0, 0, time.UTC),
-				RequestType: "ListApps",
-				Status:      "Acknowledged",
+				RequestType: "./Device/Vendor/MSFT/Reboot/RebootNow",
+				Status:      "200",
 				Hostname:    "host2",
 			},
 		}, nil
@@ -2184,13 +2280,13 @@ func TestGetMDMCommands(t *testing.T) {
 	buf, err = runAppNoChecks([]string{"get", "mdm-commands"})
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), strings.TrimSpace(`
-+----+----------------------+-------------+--------------+----------+
-| ID |         TIME         |    TYPE     |    STATUS    | HOSTNAME |
-+----+----------------------+-------------+--------------+----------+
-| u1 | 2023-04-12T09:05:00Z | ProfileList | Acknowledged | host1    |
-+----+----------------------+-------------+--------------+----------+
-| u2 | 2023-04-11T09:05:00Z | ListApps    | Acknowledged | host2    |
-+----+----------------------+-------------+--------------+----------+
++----+----------------------+---------------------------------------+--------------+----------+
+| ID |         TIME         |                 TYPE                  |    STATUS    | HOSTNAME |
++----+----------------------+---------------------------------------+--------------+----------+
+| u1 | 2023-04-12T09:05:00Z | ProfileList                           | Acknowledged | host1    |
++----+----------------------+---------------------------------------+--------------+----------+
+| u2 | 2023-04-11T09:05:00Z | ./Device/Vendor/MSFT/Reboot/RebootNow |          200 | host2    |
++----+----------------------+---------------------------------------+--------------+----------+
 `))
 }
 

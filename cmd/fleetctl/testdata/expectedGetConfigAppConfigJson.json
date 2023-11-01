@@ -11,6 +11,7 @@
     "server_settings": {
       "server_url": "",
       "live_query_disabled": false,
+      "query_reports_disabled": false,
       "enable_analytics": false,
       "deferred_save_host": false
     },
@@ -110,6 +111,7 @@
         "metadata_url": "",
         "idp_name": ""
       }
-    }
+    },
+    "scripts": null
   }
 }

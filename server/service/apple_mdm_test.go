@@ -314,7 +314,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		for _, c := range enqueueCmdCases {
 			t.Run(c.desc, func(t *testing.T) {
 				ctx = test.UserContext(ctx, c.user)
-				_, _, err = svc.EnqueueMDMAppleCommand(ctx, rawB64FreeCmd, c.uuids)
+				_, err = svc.EnqueueMDMAppleCommand(ctx, rawB64FreeCmd, c.uuids)
 				checkAuthErr(t, err, c.shoudFailWithAuth)
 			})
 		}
@@ -335,7 +335,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
     <string>uuid</string>
 </dict>
 </plist>`, "DeviceLock")))
-		_, _, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"})
+		_, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"})
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())
 	})
@@ -346,15 +346,23 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		"uuidNoTm":      {"host4"},
 		"uuidMixTm1Tm2": {"host1", "host3"},
 	}
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+	getResults := func(commandUUID string) ([]*fleet.MDMCommandResult, error) {
 		hosts := cmdUUIDToHostUUIDs[commandUUID]
-		res := make([]*fleet.MDMAppleCommandResult, 0, len(hosts))
+		res := make([]*fleet.MDMCommandResult, 0, len(hosts))
 		for _, h := range hosts {
-			res = append(res, &fleet.MDMAppleCommandResult{
-				DeviceID: h,
+			res = append(res, &fleet.MDMCommandResult{
+				HostUUID: h,
 			})
 		}
 		return res, nil
+	}
+
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+		return getResults(commandUUID)
+	}
+
+	ds.GetMDMCommandPlatformFunc = func(ctx context.Context, commandUUID string) (string, error) {
+		return "darwin", nil
 	}
 
 	t.Run("GetMDMAppleCommandResults", func(t *testing.T) {
@@ -403,12 +411,16 @@ func TestAppleMDMAuthorization(t *testing.T) {
 				ctx = test.UserContext(ctx, c.user)
 				_, err = svc.GetMDMAppleCommandResults(ctx, c.cmdUUID)
 				checkAuthErr(t, err, c.shoudFailWithAuth)
+
+				// TODO(sarah): move test to shared file
+				_, err = svc.GetMDMCommandResults(ctx, c.cmdUUID)
+				checkAuthErr(t, err, c.shoudFailWithAuth)
 			})
 		}
 	})
 
 	t.Run("ListMDMAppleCommands", func(t *testing.T) {
-		ds.ListMDMAppleCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, opt *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
+		ds.ListMDMAppleCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, opt *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
 			return []*fleet.MDMAppleCommand{
 				{DeviceID: "no team", TeamID: nil},
 				{DeviceID: "tm1", TeamID: ptr.Uint(1)},
@@ -435,7 +447,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		for _, c := range listCmdsCases {
 			t.Run(c.desc, func(t *testing.T) {
 				ctx = test.UserContext(ctx, c.user)
-				res, err := svc.ListMDMAppleCommands(ctx, &fleet.MDMAppleCommandListOptions{})
+				res, err := svc.ListMDMAppleCommands(ctx, &fleet.MDMCommandListOptions{})
 				checkAuthErr(t, err, c.shouldFail)
 				if c.shouldFail {
 					return
@@ -1530,7 +1542,7 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.BatchSetMDMAppleProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false)
+			err := svc.BatchSetMDMAppleProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
@@ -1541,6 +1553,43 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			require.False(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
 		})
 	}
+}
+
+func TestMDMBatchSetAppleProfilesBoolArgs(t *testing.T) {
+	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 1, Name: name}, nil
+	}
+	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: id, Name: "team"}, nil
+	}
+	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
+		return nil
+	}
+
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	// dry run doesn't call methods that save stuff in the db
+	err := svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{}, true, false)
+	require.NoError(t, err)
+	require.False(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
+	require.False(t, ds.BulkSetPendingMDMAppleHostProfilesFuncInvoked)
+	require.False(t, ds.NewActivityFuncInvoked)
+
+	// skipping bulk set only skips that method
+	err = svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{}, false, true)
+	require.NoError(t, err)
+	require.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
+	require.False(t, ds.BulkSetPendingMDMAppleHostProfilesFuncInvoked)
+	require.True(t, ds.NewActivityFuncInvoked)
 }
 
 func TestUpdateMDMAppleSettings(t *testing.T) {

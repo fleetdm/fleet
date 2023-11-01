@@ -39,6 +39,7 @@ spec:
       metadata: ""
       metadata_url: ""
       entity_id: ""
+  scripts: null
   org_info:
     org_logo_url: ""
     org_logo_url_light_background: ""
@@ -48,6 +49,7 @@ spec:
     deferred_save_host: false
     enable_analytics: false
     live_query_disabled: false
+    query_reports_disabled: false
     server_url: ""
   smtp_settings:
     authentication_method: ""

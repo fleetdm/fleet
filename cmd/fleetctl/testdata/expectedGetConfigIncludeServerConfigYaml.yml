@@ -39,6 +39,7 @@ spec:
       metadata: ""
       metadata_url: ""
       entity_id: ""
+  scripts: null
   license:
     expiration: "0001-01-01T00:00:00Z"
     tier: free
@@ -87,6 +88,7 @@ spec:
     deferred_save_host: false
     enable_analytics: false
     live_query_disabled: false
+    query_reports_disabled: false
     server_url: ""
   smtp_settings:
     authentication_method: ""

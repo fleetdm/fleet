@@ -38,6 +38,7 @@
 					"macos_setup_assistant": null
 				}
 			},
+			"scripts": null,
 			"user_count": 99,
 			"host_count": 42
 		}
@@ -98,6 +99,7 @@
 					"macos_setup_assistant": null
 				}
 			},
+			"scripts": null,
 			"user_count": 87,
 			"host_count": 43
 		}

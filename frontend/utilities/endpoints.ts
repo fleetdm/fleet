@@ -82,7 +82,7 @@ export default {
   PERFORM_REQUIRED_PASSWORD_RESET: `/${API_VERSION}/fleet/perform_required_password_reset`,
   QUERIES: `/${API_VERSION}/fleet/queries`,
   RESET_PASSWORD: `/${API_VERSION}/fleet/reset_password`,
-  RUN_QUERY: `/${API_VERSION}/fleet/queries/run`,
+  LIVE_QUERY: `/${API_VERSION}/fleet/queries/run`,
   SCHEDULE_QUERY: `/${API_VERSION}/fleet/packs/schedule`,
   SCHEDULED_QUERIES: (packId: number): string => {
     return `/${API_VERSION}/fleet/packs/${packId}/scheduled`;
@@ -124,6 +124,10 @@ export default {
   VERSION: `/${API_VERSION}/fleet/version`,
 
   // SCRIPTS
+  HOST_SCRIPTS: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/scripts`,
+  SCRIPTS: `/${API_VERSION}/fleet/scripts`,
+  SCRIPT: (id: number) => `/${API_VERSION}/fleet/scripts/${id}`,
   SCRIPT_RESULT: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/results/${executionId}`,
+  SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
 };

@@ -1,7 +1,7 @@
 import React from "react";
 
 import Icon from "components/Icon";
-import { DISK_ENCRYPTION_QUERY_PARAM_NAME } from "services/entities/hosts";
+import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
 
 export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "query",
@@ -18,7 +18,8 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "os_version",
   "munki_issue_id",
   "low_disk_space",
-  DISK_ENCRYPTION_QUERY_PARAM_NAME,
+  HOSTS_QUERY_PARAMS.OS_SETTINGS,
+  HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
   "bootstrap_package",
 ] as const;
 
@@ -81,7 +82,7 @@ export const getHostSelectStatuses = (isSandboxMode = false) => {
   ];
 };
 
-export const MAC_SETTINGS_FILTER_OPTIONS = [
+export const OS_SETTINGS_FILTER_OPTIONS = [
   {
     disabled: false,
     label: "Verified",

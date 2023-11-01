@@ -2,7 +2,10 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
-import HumanTimeDiffWithDateTip from "./HumanTimeDiffWithDateTip";
+import {
+  HumanTimeDiffWithDateTip,
+  HumanTimeDiffWithFleetLaunchCutoff,
+} from "./HumanTimeDiffWithDateTip";
 
 const EMPTY_STRING = "Unavailable";
 const INVALID_STRING = "Invalid date";
@@ -32,5 +35,13 @@ describe("HumanTimeDiffWithDateTip - component", () => {
 
     const invalidStringText = screen.getByText(INVALID_STRING);
     expect(invalidStringText).toBeInTheDocument();
+  });
+
+  it("returns never if configured to cutoff dates before Fleet was created", async () => {
+    render(
+      <HumanTimeDiffWithFleetLaunchCutoff timeString="1970-01-02T00:00:00Z" />
+    );
+
+    expect(screen.getByText(/never/i)).toBeInTheDocument();
   });
 });

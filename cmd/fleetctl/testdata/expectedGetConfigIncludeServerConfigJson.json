@@ -11,6 +11,7 @@
     "server_settings": {
       "server_url": "",
       "live_query_disabled": false,
+      "query_reports_disabled": false,
       "enable_analytics": false,
       "deferred_save_host": false
     },
@@ -69,6 +70,7 @@
         "idp_name": ""
       }
     },
+    "scripts": null,
     "sso_settings": {
       "enable_jit_provisioning": false,
       "enable_jit_role_sync": false,

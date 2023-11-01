@@ -15,14 +15,13 @@ import (
 	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	kithttp "github.com/go-kit/kit/transport/http"
-	"gopkg.in/guregu/null.v3"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli/v2"
+	"gopkg.in/guregu/null.v3"
 )
 
 const (
@@ -462,6 +461,7 @@ func getQueriesCommand() *cli.Command {
 							MinOsqueryVersion:  query.MinOsqueryVersion,
 							AutomationsEnabled: query.AutomationsEnabled,
 							Logging:            query.Logging,
+							DiscardData:        query.DiscardData,
 						}); err != nil {
 							return fmt.Errorf("unable to print query: %w", err)
 						}
@@ -830,7 +830,7 @@ func getHostsCommand() *cli.Command {
 
 				if c.Bool("mdm") || c.Bool("mdm-pending") {
 					// print an error if MDM is not configured
-					if err := client.CheckMDMEnabled(); err != nil {
+					if err := client.CheckAnyMDMEnabled(); err != nil {
 						return err
 					}
 
@@ -1401,11 +1401,11 @@ func getMDMCommandResultsCommand() *cli.Command {
 			}
 
 			// print an error if MDM is not configured
-			if err := client.CheckMDMEnabled(); err != nil {
+			if err := client.CheckAnyMDMEnabled(); err != nil {
 				return err
 			}
 
-			res, err := client.MDMAppleGetCommandResults(c.String("id"))
+			res, err := client.MDMGetCommandResults(c.String("id"))
 			if err != nil {
 				var nfe service.NotFoundErr
 				if errors.As(err, &nfe) {
@@ -1462,11 +1462,11 @@ func getMDMCommandsCommand() *cli.Command {
 			}
 
 			// print an error if MDM is not configured
-			if err := client.CheckMDMEnabled(); err != nil {
+			if err := client.CheckAnyMDMEnabled(); err != nil {
 				return err
 			}
 
-			results, err := client.MDMAppleListCommands()
+			results, err := client.MDMListCommands()
 			if err != nil {
 				return err
 			}
