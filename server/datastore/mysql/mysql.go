@@ -7,8 +7,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -487,7 +487,7 @@ func checkConfig(conf *config.MysqlConfig) error {
 	// Check if file exists on disk
 	// If file exists read contents
 	if conf.PasswordPath != "" {
-		fileContents, err := ioutil.ReadFile(conf.PasswordPath)
+		fileContents, err := os.ReadFile(conf.PasswordPath)
 		if err != nil {
 			return err
 		}

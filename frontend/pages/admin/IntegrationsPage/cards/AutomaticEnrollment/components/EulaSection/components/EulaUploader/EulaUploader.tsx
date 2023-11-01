@@ -56,13 +56,13 @@ const EulaUploader = ({ onUpload }: IEulaUploaderProps) => {
         Require end users to agree to a EULA when they first setup their new
         macOS hosts.{" "}
         <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup"
+          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience"
           text="Learn more"
           newTab
         />
       </p>
       <FileUploader
-        icon="file-pdf"
+        graphicName="file-pdf"
         message="PDF (.pdf)"
         onFileUpload={onUploadFile}
         accept=".pdf"

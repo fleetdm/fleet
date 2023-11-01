@@ -69,6 +69,7 @@ func testPoliciesNewGlobalPolicyLegacy(t *testing.T, ds *Datastore) {
 		Description: "query1 desc",
 		Query:       "select 1;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
@@ -87,6 +88,7 @@ func testPoliciesNewGlobalPolicyLegacy(t *testing.T, ds *Datastore) {
 		Description: "query2 desc",
 		Query:       "select 42;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	_, err = ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
@@ -233,6 +235,7 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 		Description: "query1 desc",
 		Query:       "select 1;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	p, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
@@ -251,6 +254,7 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 		Description: "query2 desc",
 		Query:       "select 42;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	p2, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
@@ -390,6 +394,7 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 		Description: "query1 desc",
 		Query:       "select 1;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -401,6 +406,7 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 		Description: "query2 desc",
 		Query:       "select 1;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -918,6 +924,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 		Description: "query1 desc",
 		Query:       "select 1;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	gp, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
@@ -931,6 +938,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 		Description: "query2 desc",
 		Query:       "select 42;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	tp, err := ds.NewTeamPolicy(context.Background(), team1.ID, &user1.ID, fleet.PolicyPayload{
@@ -1066,6 +1074,7 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 		Description: "query1 desc",
 		Query:       "select 1;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	team1Policy, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
@@ -1078,6 +1087,7 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 		Description: "query2 desc",
 		Query:       "select 2;",
 		Saved:       true,
+		Logging:     fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	globalPolicy, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
@@ -1311,7 +1321,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 			Name:  "non-existent query",
 			Query: "select 1;",
 		},
-	})
+	}, false)
 	require.Error(t, err)
 	var nfe *notFoundError
 	require.True(t, errors.As(err, &nfe))
@@ -1349,7 +1359,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	gp2 := *gp
 	gp2.Name = "global query updated"
 	gp2.Critical = true
-	err = ds.SavePolicy(ctx, &gp2)
+	err = ds.SavePolicy(ctx, &gp2, false)
 	require.NoError(t, err)
 	gp, err = ds.Policy(ctx, gp.ID)
 	require.NoError(t, err)
@@ -1363,12 +1373,24 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	tp2.Description = "team1 query desc updated"
 	tp2.Resolution = ptr.String("team1 query resolution updated")
 	tp2.Critical = false
-	err = ds.SavePolicy(ctx, &tp2)
+	err = ds.SavePolicy(ctx, &tp2, true)
 	require.NoError(t, err)
 	tp1, err = ds.Policy(ctx, tp1.ID)
 	tp2.UpdateCreateTimestamps = tp1.UpdateCreateTimestamps
 	require.NoError(t, err)
 	require.Equal(t, tp1, &tp2)
+
+	loadMembershipStmt, args, err := sqlx.In(`SELECT policy_id, host_id FROM policy_membership WHERE policy_id = ?`, tp2.ID)
+	require.NoError(t, err)
+
+	type polHostIDs struct {
+		PolicyID uint `db:"policy_id"`
+		HostID   uint `db:"host_id"`
+	}
+	var rows []polHostIDs
+	err = ds.writer(context.Background()).SelectContext(context.Background(), &rows, loadMembershipStmt, args...)
+	require.NoError(t, err)
+	require.Len(t, rows, 0)
 }
 
 func testPoliciesDelUser(t *testing.T, ds *Datastore) {
@@ -1702,9 +1724,9 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	}
 
 	// updating without change works fine
-	err = ds.SavePolicy(ctx, polsByName["g1"])
+	err = ds.SavePolicy(ctx, polsByName["g1"], false)
 	require.NoError(t, err)
-	err = ds.SavePolicy(ctx, polsByName["t2"])
+	err = ds.SavePolicy(ctx, polsByName["t2"], false)
 	require.NoError(t, err)
 	// apply specs that result in an update (without change) works fine
 	err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
@@ -1756,7 +1778,7 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	g1 := polsByName["g1"]
 	g1.Platform = "linux"
 	polsByName["g1"] = g1
-	err = ds.SavePolicy(ctx, g1)
+	err = ds.SavePolicy(ctx, g1, false)
 	require.NoError(t, err)
 	wantHostsByPol["g1"] = []uint{globalHosts[hostDeb].ID, globalHosts[hostLin].ID}
 	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
@@ -1765,7 +1787,7 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	t1 := polsByName["t1"]
 	t1.Platform = "windows,darwin"
 	polsByName["t1"] = t1
-	err = ds.SavePolicy(ctx, t1)
+	err = ds.SavePolicy(ctx, t1, false)
 	require.NoError(t, err)
 	wantHostsByPol["t1"] = []uint{teamHosts[hostWin].ID, teamHosts[hostMac].ID}
 	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)

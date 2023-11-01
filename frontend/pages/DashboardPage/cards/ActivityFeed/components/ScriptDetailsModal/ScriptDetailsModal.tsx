@@ -31,7 +31,7 @@ const ScriptContent = ({ content }: IScriptContentProps) => {
 const StatusMessageRunning = () => (
   <div className={`${baseClass}__status-message`}>
     <p>
-      <Icon name="pending-partial" />
+      <Icon name="pending-outline" />
       Script is running. To see if the script finished, close this modal and
       open it again.
     </p>
@@ -41,7 +41,7 @@ const StatusMessageRunning = () => (
 const StatusMessageSuccess = () => (
   <div className={`${baseClass}__status-message`}>
     <p>
-      <Icon name="success-partial" />
+      <Icon name="success-outline" />
       Exit code: 0 (Script ran successfully.)
     </p>
   </div>
@@ -167,7 +167,7 @@ const ScriptDetailsModal = ({
   onCancel,
 }: IScriptDetailsModalProps) => {
   const { data, isLoading, isError } = useQuery<IScriptResultResponse>(
-    ["scriptDetailsModal"],
+    ["scriptDetailsModal", scriptExecutionId],
     () => {
       return scriptsAPI.getScriptResult(scriptExecutionId);
     },

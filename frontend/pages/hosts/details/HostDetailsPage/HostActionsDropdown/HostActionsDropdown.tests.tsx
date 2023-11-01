@@ -1,8 +1,11 @@
 import React from "react";
 import { noop } from "lodash";
 import { screen } from "@testing-library/react";
-
 import { createCustomRenderer } from "test/test-utils";
+
+import createMockUser from "__mocks__/userMock";
+import createMockTeam from "__mocks__/teamMock";
+
 import HostActionsDropdown from "./HostActionsDropdown";
 
 describe("Host Actions Dropdown", () => {
@@ -13,12 +16,14 @@ describe("Host Actions Dropdown", () => {
           app: {
             isPremiumTier: true,
             isGlobalAdmin: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus={null}
@@ -36,12 +41,14 @@ describe("Host Actions Dropdown", () => {
           app: {
             isPremiumTier: true,
             isGlobalMaintainer: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus={null}
@@ -59,12 +66,14 @@ describe("Host Actions Dropdown", () => {
       context: {
         app: {
           isPremiumTier: true,
+          currentUser: createMockUser(),
         },
       },
     });
 
     const { user } = render(
       <HostActionsDropdown
+        hostTeamId={null}
         onSelect={noop}
         hostStatus="online"
         hostMdmEnrollemntStatus={null}
@@ -84,12 +93,14 @@ describe("Host Actions Dropdown", () => {
           app: {
             isMdmEnabledAndConfigured: true,
             isGlobalAdmin: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
@@ -108,12 +119,14 @@ describe("Host Actions Dropdown", () => {
           app: {
             isMdmEnabledAndConfigured: true,
             isGlobalMaintainer: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
@@ -131,13 +144,16 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             isMdmEnabledAndConfigured: true,
-            isTeamAdmin: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "admin" })],
+            }),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={1}
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
@@ -150,18 +166,21 @@ describe("Host Actions Dropdown", () => {
       expect(screen.getByText("Turn off MDM")).toBeInTheDocument();
     });
 
-    it("renders the action when the host is enrolled in mdm and the user is a team maintainer", async () => {
+    it("renders the action when the host is enrolled in mdm and the user is at least a team maintainer", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
             isMdmEnabledAndConfigured: true,
-            isTeamMaintainer: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "maintainer" })],
+            }),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={1}
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
@@ -179,13 +198,14 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             isMdmEnabledAndConfigured: true,
-            isTeamMaintainer: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
@@ -203,13 +223,16 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             isMdmEnabledAndConfigured: true,
-            isTeamMaintainer: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "maintainer" })],
+            }),
           },
         },
       });
 
       const { user, debug } = render(
         <HostActionsDropdown
+          hostTeamId={1}
           onSelect={noop}
           hostStatus="offline"
           hostMdmEnrollemntStatus="On (automatic)"
@@ -233,12 +256,14 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             isGlobalAdmin: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
@@ -255,12 +280,14 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             isGlobalMaintainer: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
@@ -276,13 +303,16 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isTeamAdmin: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "admin" })],
+            }),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={1}
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
@@ -298,13 +328,16 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isTeamMaintainer: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "maintainer" })],
+            }),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={1}
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"

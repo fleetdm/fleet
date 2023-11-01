@@ -87,11 +87,12 @@ const PlatformCompatibility = ({
             className="platform"
           >
             <Icon
-              name={isCompatible ? "check" : "ex"}
+              name={isCompatible ? "check" : "close"}
               className={
                 isCompatible ? "compatible-platform" : "incompatible-platform"
               }
               color={isCompatible ? "status-success" : "status-error"}
+              size="small"
             />
             {platform}
           </span>

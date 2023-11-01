@@ -1,7 +1,11 @@
 import React from "react";
 
-import { FileVaultProfileStatus } from "interfaces/mdm";
-import { IFileVaultSummaryResponse } from "services/entities/mdm";
+import { DiskEncryptionStatus } from "interfaces/mdm";
+import {
+  IDiskEncryptionStatusAggregate,
+  IDiskEncryptionSummaryResponse,
+} from "services/entities/mdm";
+import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -12,7 +16,7 @@ import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndica
 interface IStatusCellValue {
   displayName: string;
   statusName: IndicatorStatus;
-  value: FileVaultProfileStatus;
+  value: DiskEncryptionStatus;
   tooltip?: string | JSX.Element;
 }
 
@@ -28,6 +32,7 @@ interface ICellProps {
   };
   row: {
     original: {
+      includeWindows: boolean;
       status: IStatusCellValue;
       teamId: number;
     };
@@ -72,15 +77,53 @@ const defaultTableHeaders: IDataColumn[] = [
     },
   },
   {
-    title: "Hosts",
+    title: "macOS hosts",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        disableSortBy={false}
+        disableSortBy
       />
     ),
-    accessor: "hosts",
+    disableSortBy: true,
+    accessor: "macosHosts",
+    Cell: ({
+      cell: { value: aggregateCount },
+      row: { original },
+    }: ICellProps) => {
+      return (
+        <div className="disk-encryption-table__aggregate-table-data">
+          <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
+          {/* TODO: WINDOWS FEATURE FLAG: remove this conditional when windows mdm
+          is released. the view all UI will show in the windows column when we
+          release the feature. */}
+          {!original.includeWindows && (
+            <ViewAllHostsLink
+              className="view-hosts-link"
+              queryParams={{
+                [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: original.status.value,
+                team_id: original.teamId,
+              }}
+            />
+          )}
+        </div>
+      );
+    },
+  },
+];
+
+const windowsTableHeader: IDataColumn[] = [
+  {
+    title: "Windows hosts",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+        disableSortBy
+      />
+    ),
+    disableSortBy: true,
+    accessor: "windowsHosts",
     Cell: ({
       cell: { value: aggregateCount },
       row: { original },
@@ -91,7 +134,7 @@ const defaultTableHeaders: IDataColumn[] = [
           <ViewAllHostsLink
             className="view-hosts-link"
             queryParams={{
-              macos_settings_disk_encryption: original.status.value,
+              [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: original.status.value,
               team_id: original.teamId,
             }}
           />
@@ -101,15 +144,17 @@ const defaultTableHeaders: IDataColumn[] = [
   },
 ];
 
-type StatusNames = keyof IFileVaultSummaryResponse;
-
-type StatusEntry = [StatusNames, number];
-
-export const generateTableHeaders = (): IDataColumn[] => {
+// TODO: WINDOWS FEATURE FLAG: return all headers when windows feature flag is removed.
+export const generateTableHeaders = (
+  includeWindows: boolean
+): IDataColumn[] => {
+  return includeWindows
+    ? [...defaultTableHeaders, ...windowsTableHeader]
+    : defaultTableHeaders;
   return defaultTableHeaders;
 };
 
-const STATUS_CELL_VALUES: Record<FileVaultProfileStatus, IStatusCellValue> = {
+const STATUS_CELL_VALUES: Record<DiskEncryptionStatus, IStatusCellValue> = {
   verified: {
     displayName: "Verified",
     statusName: "success",
@@ -122,8 +167,8 @@ const STATUS_CELL_VALUES: Record<FileVaultProfileStatus, IStatusCellValue> = {
     statusName: "successPartial",
     value: "verifying",
     tooltip:
-      "These hosts acknowledged the MDM command to install disk encryption profile. " +
-      "Fleet is verifying with osquery and retrieving the disk encryption key. This may take up to one hour.",
+      "These hosts acknowledged the MDM command to turn on disk encryption. Fleet is verifying with " +
+      "osquery and retrieving the disk encryption key. This may take up to one hour.",
   },
   action_required: {
     displayName: "Action required (pending)",
@@ -141,7 +186,7 @@ const STATUS_CELL_VALUES: Record<FileVaultProfileStatus, IStatusCellValue> = {
     statusName: "pendingPartial",
     value: "enforcing",
     tooltip:
-      "These hosts will receive the MDM command to install the disk encryption profile when the hosts come online.",
+      "These hosts will receive the MDM command to turn on disk encryption when the hosts come online.",
   },
   failed: {
     displayName: "Failed",
@@ -153,21 +198,41 @@ const STATUS_CELL_VALUES: Record<FileVaultProfileStatus, IStatusCellValue> = {
     statusName: "pendingPartial",
     value: "removing_enforcement",
     tooltip:
-      "These hosts will receive the MDM command to remove the disk encryption profile when the hosts come online.",
+      "These hosts will receive the MDM command to turn off disk encryption when the hosts come online.",
   },
 };
 
+type StatusEntry = [DiskEncryptionStatus, IDiskEncryptionStatusAggregate];
+
+// Order of the status column. We want the order to always be the same.
+const STATUS_ORDER = [
+  "verified",
+  "verifying",
+  "failed",
+  "action_required",
+  "enforcing",
+  "removing_enforcement",
+] as const;
+
 export const generateTableData = (
-  data?: IFileVaultSummaryResponse,
+  // TODO: WINDOWS FEATURE FLAG: remove includeWindows when windows feature flag is removed.
+  // This is used to conditionally show "View all hosts" link in table cells.
+  includeWindows: boolean,
+  data?: IDiskEncryptionSummaryResponse,
   currentTeamId?: number
 ) => {
   if (!data) return [];
-  const entries = Object.entries(data) as StatusEntry[];
 
-  return entries.map(([status, numHosts]) => ({
-    // eslint-disable-next-line object-shorthand
+  const rowFromStatusEntry = (
+    status: DiskEncryptionStatus,
+    statusAggregate: IDiskEncryptionStatusAggregate
+  ) => ({
+    includeWindows,
     status: STATUS_CELL_VALUES[status],
-    hosts: numHosts,
+    macosHosts: statusAggregate.macos,
+    windowsHosts: statusAggregate.windows,
     teamId: currentTeamId,
-  }));
+  });
+
+  return STATUS_ORDER.map((status) => rowFromStatusEntry(status, data[status]));
 };

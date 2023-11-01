@@ -41,7 +41,7 @@ It is always advised to [back up the database](https://dev.mysql.com/doc/refman/
 
 Database migrations in Fleet are intended to be run while the server is offline. Osquery is designed to be resilient to short downtime from the server, so no data will be lost from `osqueryd` clients in this process. Even on large Fleet installations, downtime during migrations is usually only seconds to minutes.
 
-First, take the existing servers offline.
+> First, take the existing servers offline.
 
 Run database migrations:
 

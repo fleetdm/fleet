@@ -762,6 +762,28 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				KernelVersion: "21.6.0",
 			},
 		},
+		// macOS with Rapid Security Response version
+		{
+			data: []map[string]string{
+				{
+					"name":           "macOS",
+					"version":        "13.4.1",
+					"major":          "13",
+					"minor":          "4",
+					"patch":          "1",
+					"build":          "22F82",
+					"arch":           "arm64",
+					"kernel_version": "21.6.0",
+					"extra":          "(c) ",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "macOS",
+				Version:       "13.4.1 (c)",
+				Arch:          "arm64",
+				KernelVersion: "21.6.0",
+			},
+		},
 		{
 			data: []map[string]string{
 				{
@@ -872,6 +894,18 @@ func TestAppConfigReplaceQuery(t *testing.T) {
 	replacementMap["users"] = nil
 	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
 	_, exists := queries["users"]
+	assert.False(t, exists)
+
+	// put the query back again
+	replacementMap["users"] = ptr.String("select 1 from blah")
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	assert.NotEqual(t, originalQuery, queries["users"].Query)
+	assert.Equal(t, "select 1 from blah", queries["users"].Query)
+
+	// empty strings are also ignored
+	replacementMap["users"] = ptr.String("")
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	_, exists = queries["users"]
 	assert.False(t, exists)
 }
 
@@ -1118,7 +1152,7 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		}
 	}
 
-	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key string) error {
+	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
 			return errors.New("key mismatch")
 		}
@@ -1318,9 +1352,87 @@ func TestSanitizeSoftware(t *testing.T) {
 				Version: "1.2.3",
 			},
 		},
+		{
+			name: "Cloudflare WARP on Windows, version not using full year",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "23.9.248.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows, version using full year",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows with invalid version",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foobar",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foobar",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows with invalid version",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foo.bar",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foo.bar",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Other on Windows",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Other",
+				Version: "1.2.3",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Other",
+				Version: "1.2.3",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			sanitizeSoftware(tc.h, tc.s)
+			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())
 			require.Equal(t, tc.sanitized, tc.s)
 		})
 	}

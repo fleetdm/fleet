@@ -64,7 +64,7 @@ const EmptySoftwareTable = ({
 
   return (
     <EmptyTable
-      iconName="empty-software"
+      graphicName="empty-software"
       header={emptySoftware.header}
       info={emptySoftware.info}
     />
