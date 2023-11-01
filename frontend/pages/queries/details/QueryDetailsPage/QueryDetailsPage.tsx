@@ -1,7 +1,9 @@
-import React, { useContext } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
+import ReactTooltip from "react-tooltip";
+import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -54,6 +56,9 @@ const QueryDetailsPage = ({
 }: IQueryDetailsPageProps): JSX.Element => {
   const queryId = parseInt(paramsQueryId, 10);
   const queryParams = location.query;
+  const teamId = location.query.team_id
+    ? parseInt(location.query.team_id, 10)
+    : undefined;
 
   // Functions to avoid race conditions
   const serverSortBy: ISortOption[] = (() => {
@@ -69,16 +74,21 @@ const QueryDetailsPage = ({
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
-    isAnyTeamMaintainerOrTeamAdmin,
+    isTeamMaintainerOrTeamAdmin,
     isObserverPlus,
     isAnyTeamObserverPlus,
     config,
     filteredQueriesPath,
+    availableTeams,
+    setCurrentTeam,
+    currentTeam,
   } = useContext(AppContext);
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryObserverCanRun,
+    lastEditedQueryDiscardData,
+    lastEditedQueryLoggingType,
     setLastEditedQueryId,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -93,6 +103,14 @@ const QueryDetailsPage = ({
 
   // Title that shows up on browser tabs (e.g., Query details | Discover TLS certificates | Fleet for osquery)
   document.title = `Query details | ${lastEditedQueryName} | Fleet for osquery`;
+
+  const [disabledCachingGlobally, setDisabledCachingGlobally] = useState(true);
+
+  useEffect(() => {
+    if (config) {
+      setDisabledCachingGlobally(config.server_settings.query_reports_disabled);
+    }
+  }, [config]);
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
@@ -141,14 +159,25 @@ const QueryDetailsPage = ({
     }
   );
 
+  // Used to set host's team in AppContext for RBAC action buttons
+  useEffect(() => {
+    if (storedQuery?.team_id) {
+      const querysTeam = availableTeams?.find(
+        (team) => team.id === storedQuery.team_id
+      );
+      setCurrentTeam(querysTeam);
+    }
+  }, [storedQuery]);
+
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
   const isClipped =
     (queryReport?.results?.length ?? 0) >= QUERY_REPORT_RESULTS_LIMIT;
+  const disabledLiveQuery = config?.server_settings.live_query_disabled;
 
   const renderHeader = () => {
     const canEditQuery =
-      isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
+      isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backToQueriesPath = () => {
@@ -175,7 +204,7 @@ const QueryDetailsPage = ({
                 {canEditQuery && (
                   <Button
                     onClick={() => {
-                      queryId && router.push(PATHS.EDIT_QUERY(queryId));
+                      queryId && router.push(PATHS.EDIT_QUERY(queryId, teamId));
                     }}
                     className={`${baseClass}__manage-automations button`}
                     variant="brand"
@@ -190,15 +219,33 @@ const QueryDetailsPage = ({
                   <div
                     className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
                   >
-                    <Button
-                      className={`${baseClass}__run`}
-                      variant="blue-green"
-                      onClick={() => {
-                        queryId && router.push(PATHS.LIVE_QUERY(queryId));
-                      }}
+                    <div
+                      data-tip
+                      data-for="live-query-button"
+                      // Tooltip shows when live queries are globally disabled
+                      data-tip-disable={!disabledLiveQuery}
                     >
-                      Live query
-                    </Button>
+                      <Button
+                        className={`${baseClass}__run`}
+                        variant="blue-green"
+                        onClick={() => {
+                          queryId && router.push(PATHS.LIVE_QUERY(queryId));
+                        }}
+                        disabled={disabledLiveQuery}
+                      >
+                        Live query
+                      </Button>
+                    </div>
+                    <ReactTooltip
+                      className="live-query-button-tooltip"
+                      place="top"
+                      effect="solid"
+                      backgroundColor={COLORS["tooltip-bg"]}
+                      id="live-query-button"
+                      data-html
+                    >
+                      Live queries are disabled in organization settings
+                    </ReactTooltip>
                   </div>
                 )}
               </div>
@@ -208,7 +255,8 @@ const QueryDetailsPage = ({
             <div className={`${baseClass}__settings`}>
               <div className={`${baseClass}__automations`}>
                 <TooltipWrapper
-                  tipContent={`Query automations let you send data to your log destination on a schedule. When automations are <b>on</b>, data is sent according to a query’s frequency.`}
+                  // TODO - change to JSX after tooltip refactor
+                  tipContent={`Query automations let you send data to your log <br />destination on a schedule. When automations are <b>on</b>, <br />data is sent according to a query’s frequency.`}
                 >
                   Automations:
                 </TooltipWrapper>
@@ -250,12 +298,9 @@ const QueryDetailsPage = ({
   );
 
   const renderReport = () => {
-    const disabledCachingGlobally =
-      config?.server_settings.query_reports_disabled || true;
-    const discardDataEnabled = storedQuery?.discard_data || true;
-    const loggingSnapshot = storedQuery?.logging === "snapshot";
+    const loggingSnapshot = lastEditedQueryLoggingType === "snapshot";
     const disabledCaching =
-      disabledCachingGlobally || discardDataEnabled || !loggingSnapshot;
+      disabledCachingGlobally || lastEditedQueryDiscardData || !loggingSnapshot;
     const emptyCache = (queryReport?.results?.length ?? 0) === 0;
 
     // Loading state
@@ -276,7 +321,7 @@ const QueryDetailsPage = ({
           queryUpdatedAt={storedQuery?.updated_at}
           disabledCaching={disabledCaching}
           disabledCachingGlobally={disabledCachingGlobally}
-          discardDataEnabled={discardDataEnabled}
+          discardDataEnabled={lastEditedQueryDiscardData}
           loggingSnapshot={loggingSnapshot}
         />
       );

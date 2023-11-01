@@ -51,12 +51,7 @@ const DiscardDataOption = ({
           >
             <>
               Edit anyway
-              <Icon
-                name="chevron"
-                direction="right"
-                color="core-fleet-blue"
-                size="small"
-              />
+              <Icon name="chevron-right" color="core-fleet-blue" size="small" />
             </>
           </Link>
         </>
@@ -84,17 +79,19 @@ const DiscardDataOption = ({
           </>
         </InfoBanner>
       )}
-      <Checkbox
-        name="discardData"
-        onChange={setDiscardData}
-        value={discardData}
-        wrapperClassName={
-          disable ? `${baseClass}__disabled-discard-data-checkbox` : ""
-        }
-      >
-        <b>Discard data</b>
-      </Checkbox>
-      {renderHelpText()}
+      <div className="form-field-with-help-text">
+        <Checkbox
+          name="discardData"
+          onChange={setDiscardData}
+          value={discardData}
+          wrapperClassName={
+            disable ? `${baseClass}__disabled-discard-data-checkbox` : ""
+          }
+        >
+          <b>Discard data</b>
+        </Checkbox>
+        {renderHelpText()}
+      </div>
     </div>
   );
 };

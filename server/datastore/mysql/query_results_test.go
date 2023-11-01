@@ -28,6 +28,7 @@ func TestQueryResults(t *testing.T) {
 		{"CountForQueryAndHost", testCountResultsForQueryAndHost},
 		{"Overwrite", testOverwriteQueryResultRows},
 		{"MaxRows", testQueryResultRowsDoNotExceedMaxRows},
+		{"QueryResultRows", testQueryResultRows},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -135,7 +136,7 @@ func getQueryResultRows(t *testing.T, ds *Datastore) {
 	require.Equal(t, resultRow3[0].LastFetched.Unix(), results[0].LastFetched.Unix())
 	require.JSONEq(t, string(resultRow3[0].Data), string(results[0].Data))
 
-	// Assert that QueryResultRows returns empty slice when no results are found
+	// Assert that QueryResultRowsForHost returns empty slice when no results are found
 	results, err = ds.QueryResultRowsForHost(context.Background(), 999, 999)
 	require.NoError(t, err)
 	require.Len(t, results, 0)
@@ -310,6 +311,20 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	require.Equal(t, overwriteRows[0].HostID, results[0].HostID)
 	require.Equal(t, overwriteRows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
 	require.JSONEq(t, string(overwriteRows[0].Data), string(results[0].Data))
+
+	// Test calling OverwriteQueryResultRows with a query that doesn't exist (e.g. a deleted query).
+	overwriteRows = []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     9999,
+			HostID:      host.ID,
+			LastFetched: newMockTime,
+			Data: json.RawMessage(
+				`{"model": "USB Mouse", "vendor": "Logitech"}`,
+			),
+		},
+	}
+	err = ds.OverwriteQueryResultRows(context.Background(), overwriteRows)
+	require.NoError(t, err)
 }
 
 func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
@@ -359,6 +374,31 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 	host2Results, err := ds.QueryResultRowsForHost(context.Background(), query.ID, host2.ID)
 	require.NoError(t, err)
 	require.Len(t, host2Results, 0)
+}
+
+func testQueryResultRows(t *testing.T, ds *Datastore) {
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	query := test.NewQuery(t, ds, nil, "Overwrite Test Query", "SELECT 1", user.ID, true)
+
+	mockTime := time.Now().UTC().Truncate(time.Second)
+
+	overwriteRows := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     query.ID,
+			HostID:      9999,
+			LastFetched: mockTime,
+			Data: json.RawMessage(
+				`{"model": "USB Mouse", "vendor": "Logitech"}`,
+			),
+		},
+	}
+	err := ds.OverwriteQueryResultRows(context.Background(), overwriteRows)
+	require.NoError(t, err)
+
+	// Test calling QueryResultRows with a query that has an entry with a host that doesn't exist anymore.
+	results, err := ds.QueryResultRows(context.Background(), query.ID)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
 }
 
 func (ds *Datastore) SaveQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {

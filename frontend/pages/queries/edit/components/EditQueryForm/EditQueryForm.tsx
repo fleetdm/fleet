@@ -67,7 +67,7 @@ interface IEditQueryFormProps {
   isStoredQueryLoading: boolean;
   isQuerySaving: boolean;
   isQueryUpdating: boolean;
-  saveQuery: (formData: ICreateQueryRequestBody) => void;
+  onSubmitNewQuery: (formData: ICreateQueryRequestBody) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   onUpdate: (formData: ICreateQueryRequestBody) => void;
   onOpenSchemaSidebar: () => void;
@@ -117,7 +117,7 @@ const EditQueryForm = ({
   isStoredQueryLoading,
   isQuerySaving,
   isQueryUpdating,
-  saveQuery,
+  onSubmitNewQuery,
   onOsqueryTableSelect,
   onUpdate,
   onOpenSchemaSidebar,
@@ -161,11 +161,17 @@ const EditQueryForm = ({
     isGlobalMaintainer,
     isObserverPlus,
     isAnyTeamObserverPlus,
+    config,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const savedQueryMode = !!queryIdForEdit;
+  const disabledLiveQuery = config?.server_settings.live_query_disabled;
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
+  // NOTE: SaveQueryModal is only being used to create a new query in this component.
+  // It's easy to confuse with other names like promptSaveQuery, promptSaveAsNewQuery, etc.,
+  // which are used in connection with existing (i.e. previously saved) queries rather
+  // than new queries. Consider renaming some things to distinguish the various flows.
   const [showSaveQueryModal, setShowSaveQueryModal] = useState(false);
   const [showQueryEditor, setShowQueryEditor] = useState(
     isObserverPlus || isAnyTeamObserverPlus || false
@@ -324,7 +330,9 @@ const EditQueryForm = ({
         })
         .then((response: { query: ISchedulableQuery }) => {
           setIsSaveAsNewLoading(false);
-          router.push(PATHS.EDIT_QUERY(response.query.id));
+          router.push(
+            PATHS.QUERY(response.query.id, response.query.team_id ?? undefined)
+          );
           renderFlash("success", `Successfully added query.`);
         })
         .catch((createError: { data: IApiError }) => {
@@ -538,7 +546,7 @@ const EditQueryForm = ({
 
   // Observers and observer+ of existing query
   const renderNonEditableForm = (
-    <form className={`${baseClass}__wrapper`}>
+    <form className={`${baseClass}`}>
       <div className={`${baseClass}__title-bar`}>
         <div className="name-description">
           <h1 className={`${baseClass}__query-name no-hover`}>
@@ -583,18 +591,36 @@ const EditQueryForm = ({
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
         >
-          <Button
-            className={`${baseClass}__run`}
-            variant="blue-green"
-            onClick={() => {
-              router.push(
-                PATHS.LIVE_QUERY(queryIdForEdit) +
-                  TAGGED_TEMPLATES.queryByHostRoute(hostId)
-              );
-            }}
+          <div
+            data-tip
+            data-for="live-query-button"
+            // Tooltip shows when live queries are globally disabled
+            data-tip-disable={!disabledLiveQuery}
           >
-            Live query
-          </Button>
+            <Button
+              className={`${baseClass}__run`}
+              variant="blue-green"
+              onClick={() => {
+                router.push(
+                  PATHS.LIVE_QUERY(queryIdForEdit) +
+                    TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                );
+              }}
+              disabled={disabledLiveQuery}
+            >
+              Live query
+            </Button>
+          </div>
+          <ReactTooltip
+            className={`live-query-button-tooltip`}
+            place="top"
+            effect="solid"
+            backgroundColor={COLORS["tooltip-bg"]}
+            id="live-query-button"
+            data-html
+          >
+            Live queries are disabled in organization settings
+          </ReactTooltip>
         </div>
       )}
     </form>
@@ -638,7 +664,7 @@ const EditQueryForm = ({
 
     return (
       <>
-        <form className={`${baseClass}__wrapper`} autoComplete="off">
+        <form className={`${baseClass}`} autoComplete="off">
           <div className={`${baseClass}__title-bar`}>
             <div className="name-description">
               {renderName()}
@@ -680,13 +706,12 @@ const EditQueryForm = ({
                   This is how often your query collects data.
                 </div>
               </div>
-              <div className={`${baseClass}__observers-can-run`}>
+              <div className={"form-field-with-help-text"}>
                 <Checkbox
                   value={lastEditedQueryObserverCanRun}
                   onChange={(value: boolean) =>
                     setLastEditedQueryObserverCanRun(value)
                   }
-                  wrapperClassName={"observer-can-run-wrapper"}
                 >
                   Observers can run
                 </Checkbox>
@@ -803,25 +828,43 @@ const EditQueryForm = ({
                 </div>
               </>
             )}
-            <Button
-              className={`${baseClass}__run`}
-              variant="blue-green"
-              onClick={() => {
-                router.push(
-                  PATHS.LIVE_QUERY(queryIdForEdit) +
-                    TAGGED_TEMPLATES.queryByHostRoute(hostId)
-                );
-              }}
+            <div
+              data-tip
+              data-for="live-query-button"
+              // Tooltip shows when live queries are globally disabled
+              data-tip-disable={!disabledLiveQuery}
             >
-              Live query
-            </Button>
+              <Button
+                className={`${baseClass}__run`}
+                variant="blue-green"
+                onClick={() => {
+                  router.push(
+                    PATHS.LIVE_QUERY(queryIdForEdit) +
+                      TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                  );
+                }}
+                disabled={disabledLiveQuery}
+              >
+                Live query
+              </Button>
+            </div>
+            <ReactTooltip
+              className={`live-query-button-tooltip`}
+              place="top"
+              effect="solid"
+              backgroundColor={COLORS["tooltip-bg"]}
+              id="live-query-button"
+              data-html
+            >
+              Live queries are disabled in organization settings
+            </ReactTooltip>
           </div>
         </form>
         {showSaveQueryModal && (
           <SaveQueryModal
             queryValue={lastEditedQueryBody}
             apiTeamIdForQuery={apiTeamIdForQuery}
-            saveQuery={saveQuery}
+            saveQuery={onSubmitNewQuery}
             toggleSaveQueryModal={toggleSaveQueryModal}
             backendValidators={backendValidators}
             isLoading={isQuerySaving}

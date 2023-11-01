@@ -55,6 +55,7 @@ const PolicyPage = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
+    config,
   } = useContext(AppContext);
   const {
     lastEditedQueryBody,
@@ -225,7 +226,7 @@ const PolicyPage = ({
   };
 
   const renderLiveQueryWarning = (): JSX.Element | null => {
-    if (isLiveQueryRunnable) {
+    if (isLiveQueryRunnable || config?.server_settings.live_query_disabled) {
       return null;
     }
 

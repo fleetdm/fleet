@@ -228,6 +228,7 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryFailed,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
+				Detail:        "some mdm profile install error",
 			},
 			fleet.DiskEncryptionFailed,
 			"",
@@ -280,6 +281,7 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryFailed,
 				OperationType: fleet.MDMAppleOperationTypeRemove,
+				Detail:        "some mdm profile removal error",
 			},
 			fleet.DiskEncryptionFailed,
 			"",
@@ -327,11 +329,13 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 			if c.wantState == "" {
 				require.Nil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
 				require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+				require.Empty(t, hostDetail.MDM.OSSettings.DiskEncryption.Detail)
 			} else {
 				require.NotNil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
 				require.Equal(t, c.wantState, *hostDetail.MDM.MacOSSettings.DiskEncryption)
 				require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
 				require.Equal(t, c.wantState, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
+				require.Equal(t, c.fvProf.Detail, hostDetail.MDM.OSSettings.DiskEncryption.Detail)
 			}
 			if c.wantAction == "" {
 				require.Nil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
@@ -343,6 +347,7 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 				require.NotNil(t, hostDetail.MDM.Profiles)
 				profs := *hostDetail.MDM.Profiles
 				require.Equal(t, c.wantStatus, profs[0].Status)
+				require.Equal(t, c.fvProf.Detail, profs[0].Detail)
 			} else {
 				require.Nil(t, *hostDetail.MDM.Profiles)
 			}
@@ -396,11 +401,11 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
 		}
-		ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.DiskEncryptionStatus, error) {
+		ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 			if c.wantStatus == "" {
 				return nil, nil
 			}
-			return &c.wantStatus, nil
+			return &fleet.HostMDMDiskEncryption{Status: &c.wantStatus, Detail: ""}, nil
 		}
 		ds.GetHostMDMProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
 			return nil, nil
@@ -469,9 +474,9 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
 	}
-	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.DiskEncryptionStatus, error) {
+	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 		verified := fleet.DiskEncryptionVerified
-		return &verified, nil
+		return &fleet.HostMDMDiskEncryption{Status: &verified, Detail: ""}, nil
 	}
 	ds.GetHostMDMProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
 		return nil, nil
@@ -668,7 +673,7 @@ func TestHostAuth(t *testing.T) {
 			err = svc.DeleteHosts(ctx, []uint{2}, fleet.HostListOptions{}, nil)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
-			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1})
+			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1}, false)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), fleet.HostListOptions{}, nil)

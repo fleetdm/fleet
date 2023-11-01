@@ -1,0 +1,1 @@
+* Added the ability to list recent Windows MDM commands via `fleetctl` and the API.

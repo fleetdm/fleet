@@ -205,6 +205,10 @@
         margin-bottom: $pad-large;
       }
 
+      &__disabled-usage-statistics-checkbox {
+        @include disabled;
+      }
+
       .component__tooltip-wrapper {
         margin-bottom: $pad-xsmall;
       }

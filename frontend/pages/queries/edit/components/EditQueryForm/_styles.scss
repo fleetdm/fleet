@@ -1,9 +1,22 @@
 .edit-query-form {
-  &__wrapper {
-    position: relative;
-    font-size: $x-small;
+  position: relative;
+  font-size: $x-small;
 
-    .form-field--input {
+  .form-field--input {
+    margin: 0;
+  }
+
+  .form-field-with-help-text {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+
+    .form-field {
+      margin-bottom: 0;
+      font-weight: bold;
+    }
+
+    .help-text {
       margin: 0;
     }
   }
@@ -125,6 +138,7 @@
     resize: none;
     white-space: normal;
     background-color: transparent;
+    overflow: hidden;
     &:hover:not(.focus-visible):not(.no-hover) {
       color: $core-vibrant-blue;
       cursor: pointer;

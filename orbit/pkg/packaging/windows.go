@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -190,7 +189,7 @@ func writeWixFile(opt Options, rootPath string) error {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, contents.Bytes(), 0o666); err != nil {
+	if err := os.WriteFile(path, contents.Bytes(), 0o666); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -209,7 +208,7 @@ func writeEventLogFile(opt Options, rootPath string) error {
 		return fmt.Errorf("event log manifest creation: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
+	if err := os.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("event log manifest creation: %w", err)
 	}
 
@@ -228,7 +227,7 @@ func writePowershellInstallerUtilsFile(opt Options, rootPath string) error {
 		return fmt.Errorf("powershell installer utils transform: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
+	if err := os.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("powershell installer utils file write: %w", err)
 	}
 
@@ -251,7 +250,7 @@ func writeManifestXML(vParts []string, orbitPath string) (string, error) {
 		return "", fmt.Errorf("parsing manifest.xml template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(filePath, contents.Bytes(), constant.DefaultFileMode); err != nil {
+	if err := os.WriteFile(filePath, contents.Bytes(), constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("writing manifest.xml file: %w", err)
 	}
 

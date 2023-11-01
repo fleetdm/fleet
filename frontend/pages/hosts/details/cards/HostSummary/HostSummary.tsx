@@ -13,7 +13,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
-import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import {
   getHostDiskEncryptionTooltipMessage,
@@ -42,7 +42,6 @@ interface IHostSummaryProps {
   isPremiumTier?: boolean;
   isSandboxMode?: boolean;
   isOnlyObserver?: boolean;
-  toggleOSPolicyModal?: () => void;
   toggleMacSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
   hostMdmProfiles?: IHostMdmProfile[];
@@ -63,7 +62,6 @@ const HostSummary = ({
   isPremiumTier,
   isSandboxMode = false,
   isOnlyObserver,
-  toggleOSPolicyModal,
   toggleMacSettingsModal,
   toggleBootstrapPackageModal,
   hostMdmProfiles,
@@ -129,7 +127,7 @@ const HostSummary = ({
           data-for="host-issue-count"
           data-tip-disable={false}
         >
-          <Icon name="issue" color="ui-fleet-black-50" />
+          <Icon name="error-outline" color="ui-fleet-black-50" />
         </span>
         <ReactTooltip
           place="bottom"
@@ -197,7 +195,8 @@ const HostSummary = ({
       isWindowsDiskEncryptionStatus(osSettings.disk_encryption.status)
     ) {
       const winDiskEncryptionProfile: IHostMdmProfile = generateWinDiskEncryptionProfile(
-        osSettings.disk_encryption.status
+        osSettings.disk_encryption.status,
+        osSettings.disk_encryption.detail
       );
       hostMdmProfiles = hostMdmProfiles
         ? [...hostMdmProfiles, winDiskEncryptionProfile]
@@ -276,19 +275,7 @@ const HostSummary = ({
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Operating system</span>
-          <span className="info-flex__data">
-            {isOnlyObserver || deviceUser ? (
-              `${titleData.os_version}`
-            ) : (
-              <Button
-                onClick={() => toggleOSPolicyModal?.()}
-                variant="text-link"
-                className={`${baseClass}__os-policy-button`}
-              >
-                {titleData.os_version}
-              </Button>
-            )}
-          </span>
+          <span className="info-flex__data">{titleData.os_version}</span>
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Osquery</span>
@@ -299,7 +286,9 @@ const HostSummary = ({
   };
 
   const lastFetched = titleData.detail_updated_at ? (
-    <HumanTimeDiffWithDateTip timeString={titleData.detail_updated_at} />
+    <HumanTimeDiffWithFleetLaunchCutoff
+      timeString={titleData.detail_updated_at}
+    />
   ) : (
     ": unavailable"
   );

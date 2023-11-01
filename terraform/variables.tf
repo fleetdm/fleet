@@ -215,7 +215,7 @@ variable "fleet_config" {
   type = object({
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
-    image                        = optional(string, "fleetdm/fleet:v4.38.1")
+    image                        = optional(string, "fleetdm/fleet:v4.39.0")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
     depends_on                   = optional(list(any), [])
@@ -393,8 +393,12 @@ variable "alb_config" {
     security_groups      = optional(list(string), [])
     access_logs          = optional(map(string), {})
     allowed_cidrs        = optional(list(string), ["0.0.0.0/0"])
+    allowed_ipv6_cidrs   = optional(list(string), ["::/0"])
+    egress_cidrs         = optional(list(string), ["0.0.0.0/0"])
+    egress_ipv6_cidrs    = optional(list(string), ["::/0"])
     extra_target_groups  = optional(any, [])
     https_listener_rules = optional(any, [])
+    tls_policy           = optional(string, "ELBSecurityPolicy-TLS-1-2-2017-01")
   })
   default = {}
 }

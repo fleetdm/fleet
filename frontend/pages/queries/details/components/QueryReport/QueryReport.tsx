@@ -15,6 +15,7 @@ import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import TooltipWrapper from "components/TooltipWrapper";
+import EmptyTable from "components/EmptyTable";
 
 import generateResultsTableHeaders from "./QueryReportTableConfig";
 
@@ -80,10 +81,6 @@ const QueryReport = ({
     setShowQueryModal(!showQueryModal);
   };
 
-  const renderNoResults = () => {
-    return <p className="no-results-message">TODO</p>;
-  };
-
   const renderTableButtons = () => {
     return (
       <div className={`${baseClass}__results-cta`}>
@@ -117,7 +114,7 @@ const QueryReport = ({
       return (
         <div className={`${baseClass}__count `}>
           <TooltipWrapper
-            tipContent={`Fleet has retained a sample of early results for 
+            tipContent={`Fleet has retained a sample of early results for
             reference. Reporting is paused until existing data is deleted. <br/><br/>
             You can reset this report by updating the query's SQL, or by
             temporarily enabling the <b>discard data</b> setting and disabling it again.`}
@@ -140,7 +137,17 @@ const QueryReport = ({
         <TableContainer
           columns={tableHeaders}
           data={tableResults(queryReport?.results || [])}
-          emptyComponent={renderNoResults}
+          // All empty states are handled in QueryDetailsPage.tsx and returned in lieu of QueryReport.tsx
+          emptyComponent={() => {
+            return (
+              <EmptyTable
+                className={baseClass}
+                graphicName="empty-software"
+                header={"Nothing to report yet"}
+                info={"This query has returned no data so far."}
+              />
+            );
+          }}
           isLoading={false}
           isClientSidePagination
           isClientSideFilter

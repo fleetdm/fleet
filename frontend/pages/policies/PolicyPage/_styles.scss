@@ -106,10 +106,6 @@
     display: flex;
     align-items: center;
 
-    span {
-      font-weight: $bold;
-    }
-
     .icon-tooltip {
       margin-left: $pad-small;
     }
@@ -149,5 +145,9 @@
     .form-field--checkbox {
       margin-bottom: 0;
     }
+
+    // .inverse {
+    //   flex-direction: row-reverse; // Switches the text to the left side of checkbox as all checkboxes are now display flex
+    // }
   }
 }

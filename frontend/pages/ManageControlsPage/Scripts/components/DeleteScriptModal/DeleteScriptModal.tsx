@@ -44,7 +44,7 @@ const DeleteScriptModal = ({
         <p>
           This action will cancel script{" "}
           <span className={`${baseClass}__script-name`}>{scriptName}</span> from
-          running on macOS hosts on which the scrupt hasn&apos;t run yet.
+          running on macOS hosts on which the script hasn&apos;t run yet.
         </p>
         <div className="modal-cta-wrap">
           <Button
