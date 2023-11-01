@@ -279,7 +279,8 @@ resource "null_resource" "cron_monitoring_build" {
     main_go_changes = filesha256("${path.module}/lambda/main.go"),
     go_mod_changes  = filesha256("${path.module}/lambda/go.mod")
     go_sum_changes  = filesha256("${path.module}/lambda/go.sum")
-    binary_exists   = fileexists(local.cron_lambda_binary)
+    # Make sure to always have a unique trigger if the file doesn't exist
+    binary_exists   = fileexists(local.cron_lambda_binary) ? true : timestamp()
   }
   provisioner "local-exec" {
     working_dir = "${path.module}/lambda"
