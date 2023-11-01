@@ -195,7 +195,7 @@ It is sometimes necessary to delay the release to allow time to complete partial
 3. The Engineering Manager, QA lead, and [release ritual DRI](#rituals) must all approve the feature work PR before it is unfrozen and merged.
 
 ### Release readiness
-After each product group finishes their QA process during the freeze period, the EM @ mentions the release ritual DRI in the #help-qa Slack channel. When all EMs have certified that they are ready for release, the release ritual DRI begins the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md). 
+After each product group finishes their QA process during the freeze period, the QA lead for the product group moves the smoke testing ticket to the "Ready for release" column and @ mentions the release ritual DRI in a comment indicating that the product group is ready for release. When all QA leads have updated the smoke testing ticket and commented that they are ready for release, the release ritual DRI begins the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md). 
 
 ### Release day
 Documentation on completing the release process can be found [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md).
