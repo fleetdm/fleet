@@ -264,7 +264,8 @@ module "osquery-carve" {
 }
 
 module "monitoring" {
-  source                      = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=tf-mod-addon-monitoring-v1.0.0"
+  # source                      = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=tf-mod-addon-monitoring-v1.0.0"
+  source                      = "../../../../terraform/addons/monitoring"
   customer_prefix             = local.customer
   fleet_ecs_service_name      = module.main.byo-vpc.byo-db.byo-ecs.service.name
   fleet_min_containers        = module.main.byo-vpc.byo-db.byo-ecs.service.desired_count
@@ -274,11 +275,25 @@ module "monitoring" {
   alb_arn_suffix              = module.main.byo-vpc.byo-db.alb.lb_arn_suffix
   sns_topic_arns_map = {
     alb_httpcode_5xx = [module.notify_slack.slack_topic_arn]
+    cron_monitoring  = [module.notify_slack.slack_topic_arn]
   }
   mysql_cluster_members = module.main.byo-vpc.rds.cluster_members
   # The cloudposse module seems to have a nested list here.
   redis_cluster_members = module.main.byo-vpc.redis.member_clusters[0]
   acm_certificate_arn   = module.acm.acm_certificate_arn
+  cron_monitoring = {
+    mysql_host                 = module.main.byo-vpc.rds.cluster_reader_endpoint
+    mysql_database             = module.main.byo-vpc.rds.cluster_database_name
+    mysql_user                 = module.main.byo-vpc.rds.cluster_master_username
+    mysql_password_secret_name = module.main.byo-vpc.secrets.secret_ids["${local.customer}-database-password"]
+    rds_security_group_id      = module.main.byo-vpc.rds.security_group_id
+    subnet_ids                 = module.main.vpc.private_subnets
+    vpc_id                     = module.main.vpc.vpc_id
+    # Format of https://pkg.go.dev/time#ParseDuration
+    delay_tolerance            = "2h"
+    # Interval format for: https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html#rate-based
+    run_interval               = "1 hour"
+  }
 }
 
 module "logging_alb" {

@@ -148,8 +148,6 @@ func checkDB(sess *session.Session) (err error) {
 		}
 	}
 
-	// select name, status, updated_at from cron_stats where id in (select max(id) from cron_stats group by name);
-
 	return nil
 }
 
@@ -180,6 +178,7 @@ func main() {
 		}
 	}
 
+	// When running from Lambda, this should be read from the environment.
 	if options.LambdaRuntimeAPI != "" {
 		log.Printf("Starting Lambda handler.")
 		lambda.Start(handler)
