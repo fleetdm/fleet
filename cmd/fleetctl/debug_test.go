@@ -8,9 +8,9 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -99,7 +99,7 @@ func TestDebugConnectionCommand(t *testing.T) {
 		// get the invalid certificate (for example.com)
 		dir := t.TempDir()
 		certPath := filepath.Join(dir, "cert.pem")
-		require.NoError(t, ioutil.WriteFile(certPath, []byte(exampleDotComCertDotPem), 0o600))
+		require.NoError(t, os.WriteFile(certPath, []byte(exampleDotComCertDotPem), 0o600))
 
 		buf, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", certPath, srv.URL})
 		// 2 successes: resolve host, dial address
@@ -123,7 +123,7 @@ func rawCertToPemFile(t *testing.T, raw []byte) string {
 
 	dir := t.TempDir()
 	certPath := filepath.Join(dir, "cert.pem")
-	require.NoError(t, ioutil.WriteFile(certPath, buf.Bytes(), 0o600))
+	require.NoError(t, os.WriteFile(certPath, buf.Bytes(), 0o600))
 	return certPath
 }
 

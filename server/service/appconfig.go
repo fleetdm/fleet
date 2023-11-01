@@ -367,6 +367,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// If the license is Premium, we should always send usage statisics.
+	if license.IsPremium() {
+		appConfig.ServerSettings.EnableAnalytics = true
+	}
+
 	// TODO: move this logic to the AppConfig unmarshaller? we need to do
 	// this because we unmarshal twice into appConfig:
 	//
@@ -538,6 +543,28 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// if the Windows updates requirements changed, create the corresponding
+	// activity.
+	if !oldAppConfig.MDM.WindowsUpdates.Equal(appConfig.MDM.WindowsUpdates) {
+		var deadline, grace *int
+		if appConfig.MDM.WindowsUpdates.DeadlineDays.Valid {
+			deadline = &appConfig.MDM.WindowsUpdates.DeadlineDays.Value
+		}
+		if appConfig.MDM.WindowsUpdates.GracePeriodDays.Valid {
+			grace = &appConfig.MDM.WindowsUpdates.GracePeriodDays.Value
+		}
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedWindowsUpdates{
+				DeadlineDays:    deadline,
+				GracePeriodDays: grace,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos min version modification")
+		}
+	}
+
 	if appConfig.MDM.EnableDiskEncryption.Valid && oldAppConfig.MDM.EnableDiskEncryption.Value != appConfig.MDM.EnableDiskEncryption.Value {
 		if oldAppConfig.MDM.EnabledAndConfigured {
 			var act fleet.ActivityDetails
@@ -606,34 +633,34 @@ func (svc *Service) validateMDM(
 	if mdm.EnableDiskEncryption.Value && !license.IsPremium() {
 		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
 	}
-	if oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !license.IsPremium() {
+	if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !license.IsPremium() {
 		invalid.Append("macos_setup.macos_setup_assistant", ErrMissingLicense.Error())
 	}
-	if oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value && !license.IsPremium() {
+	if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value && !license.IsPremium() {
 		invalid.Append("macos_setup.bootstrap_package", ErrMissingLicense.Error())
 	}
-	if oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !license.IsPremium() {
+	if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !license.IsPremium() {
 		invalid.Append("macos_setup.enable_end_user_authentication", ErrMissingLicense.Error())
 	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
 	if !oldMdm.EnabledAndConfigured {
-		if len(mdm.MacOSSettings.CustomSettings) != len(oldMdm.MacOSSettings.CustomSettings) {
+		if len(mdm.MacOSSettings.CustomSettings) > 0 && len(mdm.MacOSSettings.CustomSettings) != len(oldMdm.MacOSSettings.CustomSettings) {
 			invalid.Append("macos_settings.custom_settings",
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 
-		if oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value {
+		if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value {
 			invalid.Append("macos_setup.macos_setup_assistant",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 
-		if oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
+		if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
 			invalid.Append("macos_setup.bootstrap_package",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
-		if oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication {
+		if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication {
 			invalid.Append("macos_setup.enable_end_user_authentication",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
@@ -656,6 +683,8 @@ func (svc *Service) validateMDM(
 		mdm.MacOSUpdates.Deadline != oldMdm.MacOSUpdates.Deadline
 
 	if updatingVersion || updatingDeadline {
+		// TODO: Should we validate MDM configured on here too?
+
 		if !license.IsPremium() {
 			invalid.Append("macos_updates.minimum_version", ErrMissingLicense.Error())
 			return
@@ -665,9 +694,25 @@ func (svc *Service) validateMDM(
 		invalid.Append("macos_updates", err.Error())
 	}
 
+	// WindowsUpdates
+	updatingWindowsUpdates := !mdm.WindowsUpdates.Equal(oldMdm.WindowsUpdates)
+	if updatingWindowsUpdates {
+		// TODO: Should we validate MDM configured on here too?
+
+		if !license.IsPremium() {
+			invalid.Append("windows_updates.deadline_days", ErrMissingLicense.Error())
+			return
+		}
+	}
+	if err := mdm.WindowsUpdates.Validate(); err != nil {
+		invalid.Append("windows_updates", err.Error())
+	}
+
 	// EndUserAuthentication
 	// only validate SSO settings if they changed
 	if mdm.EndUserAuthentication.SSOProviderSettings != oldMdm.EndUserAuthentication.SSOProviderSettings {
+		// TODO: Should we validate MDM configured on here too?
+
 		if !license.IsPremium() {
 			invalid.Append("end_user_authentication", ErrMissingLicense.Error())
 			return
@@ -684,6 +729,7 @@ func (svc *Service) validateMDM(
 			invalid.Append("macos_setup.enable_end_user_authentication",
 				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
 		}
+		// TODO: Should we validate MDM configured on here too?
 	}
 
 	updatingMacOSMigration := mdm.MacOSMigration.Enable != oldMdm.MacOSMigration.Enable ||
@@ -692,6 +738,8 @@ func (svc *Service) validateMDM(
 
 	// MacOSMigration validation
 	if updatingMacOSMigration {
+		// TODO: Should we validate MDM configured on here too?
+
 		if mdm.MacOSMigration.Enable {
 			if license.Tier != fleet.TierPremium {
 				invalid.Append("macos_migration.enable", ErrMissingLicense.Error())
@@ -719,7 +767,7 @@ func (svc *Service) validateMDM(
 
 	// if either macOS or Windows MDM is enabled, this setting can be set.
 	if !mdm.AtLeastOnePlatformEnabledAndConfigured() {
-		if mdm.EnableDiskEncryption.Valid && mdm.EnableDiskEncryption.Value != oldMdm.EnableDiskEncryption.Value {
+		if mdm.EnableDiskEncryption.Valid && mdm.EnableDiskEncryption.Value && mdm.EnableDiskEncryption.Value != oldMdm.EnableDiskEncryption.Value {
 			invalid.Append("mdm.enable_disk_encryption",
 				`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
 		}

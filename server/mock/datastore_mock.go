@@ -382,7 +382,7 @@ type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
 type PolicyByNameFunc func(ctx context.Context, name string) (*fleet.Policy, error)
 
-type SavePolicyFunc func(ctx context.Context, p *fleet.Policy) error
+type SavePolicyFunc func(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error
 
 type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error)
 
@@ -628,7 +628,9 @@ type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint)
 
 type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
 
-type GetMDMIdPAccountFunc func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error)
+type GetMDMIdPAccountByUUIDFunc func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error)
+
+type GetMDMIdPAccountByEmailFunc func(ctx context.Context, email string) (*fleet.MDMIdPAccount, error)
 
 type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error)
 
@@ -1630,8 +1632,11 @@ type DataStore struct {
 	InsertMDMIdPAccountFunc        InsertMDMIdPAccountFunc
 	InsertMDMIdPAccountFuncInvoked bool
 
-	GetMDMIdPAccountFunc        GetMDMIdPAccountFunc
-	GetMDMIdPAccountFuncInvoked bool
+	GetMDMIdPAccountByUUIDFunc        GetMDMIdPAccountByUUIDFunc
+	GetMDMIdPAccountByUUIDFuncInvoked bool
+
+	GetMDMIdPAccountByEmailFunc        GetMDMIdPAccountByEmailFunc
+	GetMDMIdPAccountByEmailFuncInvoked bool
 
 	GetMDMAppleFileVaultSummaryFunc        GetMDMAppleFileVaultSummaryFunc
 	GetMDMAppleFileVaultSummaryFuncInvoked bool
@@ -3036,11 +3041,11 @@ func (s *DataStore) PolicyByName(ctx context.Context, name string) (*fleet.Polic
 	return s.PolicyByNameFunc(ctx, name)
 }
 
-func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
+func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error {
 	s.mu.Lock()
 	s.SavePolicyFuncInvoked = true
 	s.mu.Unlock()
-	return s.SavePolicyFunc(ctx, p)
+	return s.SavePolicyFunc(ctx, p, shouldRemoveAllPolicyMemberships)
 }
 
 func (s *DataStore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
@@ -3897,11 +3902,18 @@ func (s *DataStore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMI
 	return s.InsertMDMIdPAccountFunc(ctx, account)
 }
 
-func (s *DataStore) GetMDMIdPAccount(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+func (s *DataStore) GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
 	s.mu.Lock()
-	s.GetMDMIdPAccountFuncInvoked = true
+	s.GetMDMIdPAccountByUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMIdPAccountFunc(ctx, uuid)
+	return s.GetMDMIdPAccountByUUIDFunc(ctx, uuid)
+}
+
+func (s *DataStore) GetMDMIdPAccountByEmail(ctx context.Context, email string) (*fleet.MDMIdPAccount, error) {
+	s.mu.Lock()
+	s.GetMDMIdPAccountByEmailFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMIdPAccountByEmailFunc(ctx, email)
 }
 
 func (s *DataStore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {

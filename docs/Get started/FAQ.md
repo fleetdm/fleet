@@ -1,11 +1,109 @@
 # FAQ
 
-## Using Fleet
+## What is the easiest way to deploy Fleet?
+
+Fleet provides a standard [Terraform module](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform) that deploys Fleet with best practices, along with [cloud cost calculators](https://fleetdm.com/docs/deploy/reference-architectures#cloud-providers) used by some of Fleet’s largest customers with hundreds of thousands of hosts.  Fleet Premium customers can also opt for managed hosting provided by Fleet.  You can also deploy Fleet anywhere you want.
+
+You can enroll servers and laptops using a simple installer or automatically deliver the agent using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc.
+
+By default, Fleet keeps agents up to date automatically.  For self-managed instances, Fleet provides a [migration runner](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet).
+
+## What options do I have for access control?  What about auditing admin activity?
+
+Fleet lets you define [role-based access](https://fleetdm.com/docs/using-fleet/manage-access#manage-access) controls, the ability to assign different admins for different groups of hosts, and rolling deployments. 
+Fleet has built-in [audit logging](https://fleetdm.com/docs/rest-api/rest-api#activities) (accessed through API or streamed to a data lake.) 
+
+In addition, you can do GitOps because you can control your Fleet instance through a git repo, allowing you to use your standard CI/CD and approval process.  This also tracks the history of changes as commits.
+
+## Does Fleet include pre-built queries?
+
+Fleet comes with a [built-in query library](https://fleetdm.com/queries) for reporting device health and also includes over 400 optional [built-in CIS policies](https://fleetdm.com/docs/using-fleet/cis-benchmarks) for Mac and Windows.
+
+You can easily write queries yourself with query auto-complete, as well as import query packs for HID to detect IOCs using Yara or other intrusion detection mechanisms from the community or other vendors. Or, you can import policies to monitor for high-impact vulnerabilities such as a particular TPM chip; for example, a large vehicle manufacturer uses Fleet to do this.
+
+Customers can build on these built-in policies to monitor ongoing compliance with regulator standards like NIST, PCI, ISO, SOC, and HIPAA.
+
+## Has anyone stress-tested Fleet? How many hosts can the Fleet server handle?
+
+Fleet is used in production deployments with hundreds of thousands of hosts and has been stress-tested to 150,000 online and 400,000 total enrolled hosts.
+
+It’s standard deployment practice to have multiple Fleet servers behind a load balancer.  However, the MySQL database is typically the performance bottleneck and a single Fleet server can handle tens of thousands of hosts.
+
+## Will Fleet slow down my servers?  What about my employee laptops?
+
+Unlike legacy systems, Fleet gives you complete control over how frequent and labor-intensive the scanning is.
+
+When you collect data with Fleet, the [performance impact](https://fleetdm.com/releases/fleet-4.5.0) is automatically reported.  You can analyze CPU, memory, and network usage or just compare whether a query's performance impact is “minimal,” “considerable,” or “excessive.”  You can easily compare the average performance of a scan across all systems or troubleshoot performance on an individual host.  If one of your queries gets too rowdy on a particular host, Fleet will [temporarily disable it](https://fleetdm.com/docs/using-fleet/osquery-process).
+
+You can test changes on a small subset of hosts first, then roll them out to the rest of your organization.
+
+## Is Fleet MIT licensed?
+
+We have different licenses for portions of our software which are noted in the [LICENSE](https://github.com/fleetdm/fleet/blob/main/LICENSE) file in our docs. The majority of Fleet is MIT licensed. Paid features require a license key.
+
+## What is your commitment to open source stewardship?
+
+- When a feature is free and open source we won't move that feature to a paid tier. Features might be removed from the open source codebase in other cases, for example when combining features from multiple tiers into one new feature.
+
+- The majority of new capabilities added to Fleet will benefit all users, not just customers.
+
+- We won't introduce features into the open source codebase with a fixed delay; if a feature is planned to land in both it will be released simultaneously in both.
+
+- We will always release and open source all tests that we have for any open source feature.
+
+- The free version of Fleet is enterprise ready.
+
+- The open source codebase will not contain any artificial limits on the number of hosts, users, size, or performance.
+
+- The majority of new features contributed by Fleet Device Management Inc will be open source.
+
+- The product will be available for download without leaving an email address or logging in.
+
+- We will always allow you to benchmark the performance of Fleet. (Fleet also [load tests the platform before every release](https://fleetdm.com/handbook/engineering#rituals), with increasingly ambitious targets. The scale of realtime reporting supported by Fleet has increased 5,000% since 2019. Today, Fleet deployments supports 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)
+
+## How do I contact Fleet for support?
+
+Find out how to contact support in [our handbook](https://fleetdm.com/handbook/customers#contacting-fleet).
+
+## What if we choose not to renew?
+
+If you opt not to renew Fleet Premium, you can continue using the free version of Fleet (same code base, just unconfigure the license key.)
+
+## Can we buy a licence to access premium features with reduced support for a reduced cost?
+
+We aren’t able to sell licenses and support separately.
+
+## Do you offer pricing for ephemeral hosts which may scale up or down?
+
+For now, the number of hosts is the maximum cap of distinct agents enrolled at any given time.
+
+## When run locally, what resources does the Fleet app typically consume on an individual instance, and when run in HA, at high volume? And how is latency on an individual instance vs clustered deployment?
+
+Like any modern application, Fleet scales horizontally. The biggest potential bottleneck for Fleet is the number of hosts being monitored, so that's where we've devoted the most attention when testing. The largest number of hosts we've had a customer ask about was 350,000, for all of the production servers and employee laptops of a publicly traded company.
+
+## Where's the data stored?
+
+Since Fleet is self-managed, some metadata is stored wherever it is deployed (e.g. Amazon, Azure, Google, your own data center, hybrid cloud, anywhere). That's done using a MySQL database, but the bulk of the data flows directly into a tool like Splunk or ElasticSearch. You can send that information to any of Fleet's supported log destinations.
+
+## Can I fork Fleet's source code and build upon it myself to create my own features?
+
+Potentially! Fleet is open core with a [source code license](https://github.com/fleetdm/fleet/blob/main/LICENSE) similar to GitLab's.
+
+Anyone is free to contribute to the free or paid features of the project. We are always interested to hear feedback, and we are happy to take pull requests and ideas upstream any time we can. 
+
+
+## Can I buy support or services separate from Fleet Premium?
+
+The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
 ### Can you host Fleet for me?
 
-Fleet offers managed cloud hosting for large deployments.  Unfortunately, while organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, we are not currently able to provide hosting for deployments smaller than 1000 hosts.  If you are comfortable doing so, you can still [buy a license](https://fleetdm.com/customers/register) and host Fleet yourself.
+Fleet offers managed cloud hosting for large deployments.
 
+While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, the company does not currently provide hosting for deployments smaller than 1000 hosts.  (Fortunately, you can always [buy a license](https://fleetdm.com/customers/register) and host Fleet Premium yourself.)
+
+<!--
+## Using Fleet
 
 ### How can I switch to Fleet from Kolide Fleet?
 
@@ -208,12 +306,6 @@ Currently, Fleet only stores the current state of your hosts (when they last com
 The [REST API](https://fleetdm.com/docs/using-fleet/rest-api) is somewhat similar to fleetctl, but it tends to be used more by other computer programs rather than human users (although humans can use it too). For example, our [Fleet UI](https://fleetdm.com/docs/using-fleet/rest-api) talks to the server via the REST API. Folks can also use the REST API if they want to build their own programs that talk to the Fleet server.
 
 The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human users to make interfacing with the Fleet server user-friendly and visually appealing. It also makes things simpler and more accessible to a broader range of users.
-
-### How do I issue MDM commands with `fleetctl` and an applied `--context` option?
-
-[fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli#logging-in-to-an-existing-fleet-instance) allows users to maintain a context for the environment that they are logging into. This is useful when maintaining a development / staging / production workflow. When issuing MDM commands in combination with the `--context` option, please use the following syntax:
-
-`fleetctl mdm --context dev run-command --payload=restart-device.xml --host=hostname`
 
 
 ### Why can't I run queries with `fleetctl` using a new API-only user?
@@ -602,7 +694,7 @@ For any automated workflows that use the schedule endpoints on the API, we recom
 - The DELETE endpoint will delete the specified query.
 
 Finally, "shard" has been retired as an option for queries. In its place, we recommend using a canary team or a live query to test the impact of a query before deploying it more broadly.
-
+-->
 
 
 <meta name="description" value="Commonly asked questions and answers about deployment from the Fleet community.">

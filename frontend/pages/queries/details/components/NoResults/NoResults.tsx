@@ -56,7 +56,7 @@ const NoResults = ({
 
     return (
       <EmptyTable
-        iconName="collecting-results"
+        graphicName="collecting-results"
         header={"Collecting results..."}
         info={collectingResultsInfo()}
       />
@@ -126,7 +126,7 @@ const NoResults = ({
   return (
     <EmptyTable
       className={baseClass}
-      iconName="empty-software"
+      graphicName="empty-software"
       header={emptyHeader}
       info={emptyDetails}
     />

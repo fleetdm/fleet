@@ -762,6 +762,28 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				KernelVersion: "21.6.0",
 			},
 		},
+		// macOS with Rapid Security Response version
+		{
+			data: []map[string]string{
+				{
+					"name":           "macOS",
+					"version":        "13.4.1",
+					"major":          "13",
+					"minor":          "4",
+					"patch":          "1",
+					"build":          "22F82",
+					"arch":           "arm64",
+					"kernel_version": "21.6.0",
+					"extra":          "(c) ",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "macOS",
+				Version:       "13.4.1 (c)",
+				Arch:          "arm64",
+				KernelVersion: "21.6.0",
+			},
+		},
 		{
 			data: []map[string]string{
 				{
@@ -1330,9 +1352,87 @@ func TestSanitizeSoftware(t *testing.T) {
 				Version: "1.2.3",
 			},
 		},
+		{
+			name: "Cloudflare WARP on Windows, version not using full year",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "23.9.248.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows, version using full year",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows with invalid version",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foobar",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foobar",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows with invalid version",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foo.bar",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foo.bar",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Other on Windows",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Other",
+				Version: "1.2.3",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Other",
+				Version: "1.2.3",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			sanitizeSoftware(tc.h, tc.s)
+			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())
 			require.Equal(t, tc.sanitized, tc.s)
 		})
 	}

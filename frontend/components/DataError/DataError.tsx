@@ -32,7 +32,7 @@ const DataError = ({
       <div className={`${baseClass}__${card ? "card" : "inner"}`}>
         <div className="info">
           <span className="info__header">
-            <Icon name="alert" />
+            <Icon name="error" />
             Something&apos;s gone wrong.
           </span>
 

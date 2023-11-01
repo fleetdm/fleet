@@ -33,6 +33,9 @@ spec:
     macos_updates:
       deadline: null
       minimum_version: null
+    windows_updates:
+      deadline_days: null
+      grace_period_days: null
     end_user_authentication:
       idp_name: ""
       issuer_uri: ""
@@ -47,7 +50,7 @@ spec:
     contact_url: https://fleetdm.com/company/contact
   server_settings:
     deferred_save_host: false
-    enable_analytics: false
+    enable_analytics: true
     live_query_disabled: false
     query_reports_disabled: false
     server_url: https://example.org

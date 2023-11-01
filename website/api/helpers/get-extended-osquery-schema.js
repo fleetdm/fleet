@@ -184,6 +184,17 @@ module.exports = {
         let mergedTableColumns = [];
         for (let osquerySchemaColumn of osquerySchemaTable.columns) { // iterate through the columns in the osquery schema table
           if(!fleetOverridesForTable.columns) { // If there are no column overrides for this table, we'll add the column unchanged.
+            if(osquerySchemaColumn.platforms !== undefined) {// If the column in the osquery schema has a platforms value, we'll normalize the names
+              let platformWithNormalizedNames = [];
+              for(let platform of osquerySchemaColumn.platforms) {
+                if(platform === 'darwin') {// darwin » macOS
+                  platformWithNormalizedNames.push('macOS');
+                } else if(platform === 'windows' || platform === 'linux') {// Note: we're ignoring all other platform values (e.g, win32 and cygwin).
+                  platformWithNormalizedNames.push(_.capitalize(platform));
+                }
+              }
+              osquerySchemaColumn.platforms = platformWithNormalizedNames;
+            }
             mergedTableColumns.push(osquerySchemaColumn);
           } else {// If the Fleet overrides JSON has column data for this table, we'll find the matching column and use the values from the Fleet overrides in the final schema.
             let columnHasFleetOverrides = _.find(fleetOverridesForTable.columns, {'name': osquerySchemaColumn.name});
