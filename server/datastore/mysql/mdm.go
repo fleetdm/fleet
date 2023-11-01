@@ -62,11 +62,11 @@ SELECT
     wmc.target_loc_uri as request_type,
     h.hostname,
     h.team_id
-FROM windows_mdm_command_queue wmcq
-INNER JOIN mdm_windows_enrollments mwe ON wmcq.enrollment_id = mwe.id
+FROM windows_mdm_commands wmc
+LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid
+LEFT JOIN windows_mdm_command_results wmcr ON wmc.command_uuid = wmcr.command_uuid
+INNER JOIN mdm_windows_enrollments mwe ON wmcq.enrollment_id = mwe.id OR wmcr.enrollment_id = mwe.id
 INNER JOIN hosts h ON h.uuid = mwe.host_uuid
-INNER JOIN windows_mdm_commands wmc ON wmc.command_uuid = wmcq.command_uuid
-LEFT JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmcq.command_uuid
 `
 
 	jointStmt := fmt.Sprintf(

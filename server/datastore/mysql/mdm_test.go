@@ -8,6 +8,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
+	"github.com/micromdm/nanomdm/mdm"
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,6 +66,8 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, windowsEnrollment.HostUUID, windowsEnrollment.MDMDeviceID)
 	require.NoError(t, err)
+	windowsEnrollment, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, windowsEnrollment.MDMDeviceID)
+	require.NoError(t, err)
 
 	// enroll a macOS device
 	macH, err := ds.NewHost(ctx, &fleet.Host{
@@ -100,7 +104,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 
 	appleCmdUUID := uuid.New().String()
 	appleCmd := createRawAppleCmd("ProfileList", appleCmdUUID)
-	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	commander, appleCommanderStorage := createMDMAppleCommanderAndStorage(t, ds)
 	err = commander.EnqueueCommand(ctx, []string{macH.UUID}, appleCmd)
 	require.NoError(t, err)
 
@@ -119,4 +123,42 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, winCmd.CommandUUID, cmds[1].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
 	require.Equal(t, "Pending", cmds[1].Status)
+
+	// store results for both commands
+	err = appleCommanderStorage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: macH.UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: appleCmdUUID,
+		Status:      "Acknowledged",
+		RequestType: "ProfileList",
+		Raw:         []byte(appleCmd),
+	})
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, windowsEnrollment.ID, "")
+		if err != nil {
+			return err
+		}
+		resID, _ := res.LastInsertId()
+		_, err = tx.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, status_code, response_id) VALUES (?, ?, ?, ?, ?)`, windowsEnrollment.ID, winCmd.CommandUUID, "", "200", resID)
+		return err
+	})
+
+	// we get both commands
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "hostname"},
+		})
+	require.NoError(t, err)
+	require.Len(t, cmds, 2)
+	require.Equal(t, appleCmdUUID, cmds[0].CommandUUID)
+	require.Equal(t, "ProfileList", cmds[0].RequestType)
+	require.Equal(t, "Acknowledged", cmds[0].Status)
+	require.Equal(t, winCmd.CommandUUID, cmds[1].CommandUUID)
+	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
+	require.Equal(t, "200", cmds[1].Status)
 }
