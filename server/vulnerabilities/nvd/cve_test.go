@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -110,20 +108,6 @@ var firefox93WindowsVulnerabilities = []string{
 	"CVE-2022-29915",
 }
 
-func printMemUsage() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
-	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
-	fmt.Printf("\tNumGC = %v\n", m.NumGC)
-}
-
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
-}
-
 type threadSafeDSMock struct {
 	mu sync.Mutex
 	*mock.Store
@@ -160,30 +144,30 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		includedCVEs []string
 		// continuesToUpdate indicates if the product/software
 		// continues to register new CVE vulnerabilities.
-		continuestoUpdate bool
+		continuesToUpdate bool
 	}{
 		"cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:macos:*:*": {
 			includedCVEs:      []string{"CVE-2012-6369"},
-			continuestoUpdate: false,
+			continuesToUpdate: false,
 		},
 		"cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:*:*:*": {
 			includedCVEs:      []string{"CVE-2012-6369"},
-			continuestoUpdate: false,
+			continuesToUpdate: false,
 		},
 		"cpe:2.3:a:pypa:pip:9.0.3:*:*:*:*:python:*:*": {
 			includedCVEs: []string{
 				"CVE-2019-20916",
 				"CVE-2021-3572",
 			},
-			continuestoUpdate: false,
+			continuesToUpdate: false,
 		},
 		"cpe:2.3:a:mozilla:firefox:93.0:*:*:*:*:windows:*:*": {
 			includedCVEs:      firefox93WindowsVulnerabilities,
-			continuestoUpdate: true,
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:mozilla:firefox:93.0.100:*:*:*:*:windows:*:*": {
 			includedCVEs:      firefox93WindowsVulnerabilities,
-			continuestoUpdate: true,
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:apple:icloud:1.0:*:*:*:*:macos:*:*": {
 			excludedCVEs: []string{
@@ -219,23 +203,23 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				"CVE-2016-7656",
 				"CVE-2017-2383",
 			},
-			continuestoUpdate: true,
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:clickstudios:passwordstate:9.5.8.4:*:*:*:*:chrome:*:*": {
 			includedCVEs:      []string{"CVE-2022-4610", "CVE-2022-4611", "CVE-2022-4613", "CVE-2022-4612"},
-			continuestoUpdate: true,
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:avira:password_manager:2.18.4.38471:*:*:*:*:firefox:*:*": {
 			includedCVEs:      []string{"CVE-2022-28795"},
-			continuestoUpdate: true,
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:zoom:zoom:5.0.4301.0407:*:*:*:*:chrome:*:*": {
 			excludedCVEs:      []string{"CVE-2021-28133"}, // CVE-2021-28133 is a vulnerability in the Zoom application, not the extension.
-			continuestoUpdate: true,
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:bitwarden:bitwarden:1.55.0:*:*:*:*:firefox:*:*": {
 			excludedCVEs:      []string{"CVE-2023-38840"}, // CVE-2023-38840 is a vulnerability in the Bitwarden application, not the extension.
-			continuestoUpdate: true,
+			continuesToUpdate: true,
 		},
 	}
 
@@ -273,15 +257,13 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			return nil
 		}
 
-		_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), false, 1*time.Hour)
+		_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), false, 1*time.Hour)
 		require.NoError(t, err)
-
-		printMemUsage()
 
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 
 		for cpe, tc := range cveTests {
-			if tc.continuestoUpdate {
+			if tc.continuesToUpdate {
 				// Given that new vulnerabilities can be found on these
 				// packages/products, we check that at least the
 				// known ones are found.
@@ -309,9 +291,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			{CPE: "cpe:2.3:a:google:chrome:*:*:*:*:*:*:*:*", ID: 1, SoftwareID: 1},
 			{CPE: "cpe:2.3:a:mozilla:firefox:*:*:*:*:*:*:*:*", ID: 2, SoftwareID: 2},
 			{CPE: "cpe:2.3:a:haxx:curl:*:*:*:*:*:*:*:*", ID: 3, SoftwareID: 3},
-		}
-		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
-			return nil
 		}
 		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
 			return nil
