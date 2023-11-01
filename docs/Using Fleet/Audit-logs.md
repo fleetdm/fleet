@@ -32,7 +32,7 @@ Example:
 You can automatically send these logs to your log destination. Learn how to configure this [here](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
 
 To view activities in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
-	
+
 ## Activity types
 
 ### Type `created_pack`
@@ -915,6 +915,28 @@ This activity contains the following fields:
 {
   "team_id": 123,
   "team_name": "Workstations"
+}
+```
+
+### Type `edited_windows_os_update_options`
+
+Generated when a user edits the Windows OS update options of a team (or no team).
+
+This activity contains the following fields:
+
+- "team_id": The ID of the team that the Windows OS update options apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the Windows OS update options apply to, `null` if they apply to devices that are not in a team.
+- "deadline": The deadline (in number of days) by which the Windows OS update must be applied.
+- "grace_period": The grace period (in number of days) after the deadline during which the Windows OS update can be applied.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations",
+  "deadline": 1,
+  "grace_period": 1
 }
 ```
 

@@ -75,6 +75,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeAddedScript{},
 	ActivityTypeDeletedScript{},
 	ActivityTypeEditedScript{},
+
+	ActivityTypeEditedWindowsOSUpdateOptions{},
 }
 
 type ActivityDetails interface {
@@ -1124,6 +1126,31 @@ func (a ActivityTypeEditedScript) Documentation() (activity, details, detailsExa
 - "team_name": The name of the team that the scripts apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
   "team_id": 123,
   "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedWindowsOSUpdateOptions struct {
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+	Deadline    string  `json:"deadline"`
+	GracePeriod string  `json:"grace_period"`
+}
+
+func (a ActivityTypeEditedWindowsOSUpdateOptions) ActivityName() string {
+	return "edited_windows_os_update_options"
+}
+
+func (a ActivityTypeEditedWindowsOSUpdateOptions) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user edits the Windows OS update options of a team (or no team).`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the Windows OS update options apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the Windows OS update options apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "deadline": The deadline (in number of days) by which the Windows OS update must be applied.
+- "grace_period": The grace period (in number of days) after the deadline during which the Windows OS update can be applied.`, `{
+	"team_id": 123,
+	"team_name": "Workstations",
+	"deadline": 1,
+	"grace_period": 1
 }`
 }
 
