@@ -147,7 +147,9 @@ type MDM struct {
 	// backend, should be done only after careful analysis.
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 
-	MacOSUpdates          MacOSUpdates             `json:"macos_updates"`
+	MacOSUpdates   MacOSUpdates   `json:"macos_updates"`
+	WindowsUpdates WindowsUpdates `json:"windows_updates"`
+
 	MacOSSettings         MacOSSettings            `json:"macos_settings"`
 	MacOSSetup            MacOSSetup               `json:"macos_setup"`
 	MacOSMigration        MacOSMigration           `json:"macos_migration"`
@@ -226,6 +228,68 @@ func (m MacOSUpdates) Validate() error {
 		return errors.New(`deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`)
 	}
 
+	return nil
+}
+
+// WindowsUpdates is part of AppConfig and defines the Windows update settings.
+type WindowsUpdates struct {
+	DeadlineDays    optjson.Int `json:"deadline_days"`
+	GracePeriodDays optjson.Int `json:"grace_period_days"`
+}
+
+// EnabledForHost returns a boolean indicating if enforced Windows OS updates
+// are enabled for the host. Note that the provided Host needs to be loaded
+// with full MDMInfo data for the check to be valid.
+func (w WindowsUpdates) EnabledForHost(h *Host) bool {
+	return w.DeadlineDays.Valid &&
+		w.GracePeriodDays.Valid &&
+		h.IsOsqueryEnrolled() &&
+		h.MDMInfo.IsFleetEnrolled()
+}
+
+// Equal returns true if the values of the fields of w and other are equal. It
+// returns false otherwise. If e.g. w.DeadlineDays.Value == 0 but its .Valid
+// field == false (i.e. it is null), it is not equal to
+// other.DeadlineDays.Value == 0 with its .Valid field == true.
+func (w WindowsUpdates) Equal(other WindowsUpdates) bool {
+	if w.DeadlineDays.Value != other.DeadlineDays.Value || w.DeadlineDays.Valid != other.DeadlineDays.Valid {
+		return false
+	}
+	if w.GracePeriodDays.Value != other.GracePeriodDays.Value || w.GracePeriodDays.Valid != other.GracePeriodDays.Valid {
+		return false
+	}
+	return true
+}
+
+func (w WindowsUpdates) Validate() error {
+	const (
+		minDeadline    = 0
+		maxDeadline    = 30
+		minGracePeriod = 0
+		maxGracePeriod = 7
+	)
+
+	// both must be specified or not specified
+	if w.DeadlineDays.Valid != w.GracePeriodDays.Valid {
+		if w.DeadlineDays.Valid && !w.GracePeriodDays.Valid {
+			return errors.New("grace_period_days is required when deadline_days is provided")
+		} else if !w.DeadlineDays.Valid && w.GracePeriodDays.Valid {
+			return errors.New("deadline_days is required when grace_period_days is provided")
+		}
+	}
+
+	// if both are unspecified, nothing more to validate, updates are not enforced.
+	if !w.DeadlineDays.Valid {
+		return nil
+	}
+
+	// at this point, both fields are set
+	if w.DeadlineDays.Value < minDeadline || w.DeadlineDays.Value > maxDeadline {
+		return fmt.Errorf("deadline_days must be an integer between %d and %d", minDeadline, maxDeadline)
+	}
+	if w.GracePeriodDays.Value < minGracePeriod || w.GracePeriodDays.Value > maxGracePeriod {
+		return fmt.Errorf("grace_period_days must be an integer between %d and %d", minGracePeriod, maxGracePeriod)
+	}
 	return nil
 }
 

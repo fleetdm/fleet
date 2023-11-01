@@ -130,6 +130,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			MinimumVersion: optjson.SetString("10.15.0"),
 			Deadline:       optjson.SetString("2021-01-01"),
 		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.Int{Set: true},
+			GracePeriodDays: optjson.Int{Set: true},
+		},
 		MacOSSetup: fleet.MacOSSetup{
 			// because the MacOSSetup was marshalled to JSON to be saved in the DB,
 			// it did get marshalled, and then when unmarshalled it was set (but
@@ -141,6 +145,96 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	// an activity was created for team spec applied
 	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), 0)
+
+	// dry-run with invalid windows updates
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"mdm": map[string]any{
+					"windows_updates": map[string]any{
+						"deadline_days":     -1,
+						"grace_period_days": 1,
+					},
+				},
+			},
+		},
+	}
+	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "deadline_days must be an integer between 0 and 30")
+
+	// apply valid windows updates settings
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"mdm": map[string]any{
+					"windows_updates": map[string]any{
+						"deadline_days":     1,
+						"grace_period_days": 1,
+					},
+				},
+			},
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+	team, err = s.ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.Equal(t, applyResp.TeamIDsByName[teamName], team.ID)
+	require.Equal(t, fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("10.15.0"),
+			Deadline:       optjson.SetString("2021-01-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(1),
+			GracePeriodDays: optjson.SetInt(1),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.String{Set: true},
+			BootstrapPackage:    optjson.String{Set: true},
+		},
+	}, team.Config.MDM)
+
+	// get the team via the GET endpoint, check that it properly returns the mdm settings
+	var getTmResp getTeamResponse
+	s.DoJSON("GET", "/api/latest/fleet/teams/"+fmt.Sprint(team.ID), nil, http.StatusOK, &getTmResp)
+	require.Equal(t, fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("10.15.0"),
+			Deadline:       optjson.SetString("2021-01-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(1),
+			GracePeriodDays: optjson.SetInt(1),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.String{Set: true},
+			BootstrapPackage:    optjson.String{Set: true},
+		},
+	}, getTmResp.Team.Config.MDM)
+
+	// get the team via the list teams endpoint, check that it properly returns the mdm settings
+	var listTmResp listTeamsResponse
+	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listTmResp, "query", teamName)
+	require.True(t, len(listTmResp.Teams) > 0)
+	require.Equal(t, team.ID, listTmResp.Teams[0].ID)
+	require.Equal(t, fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("10.15.0"),
+			Deadline:       optjson.SetString("2021-01-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(1),
+			GracePeriodDays: optjson.SetInt(1),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.String{Set: true},
+			BootstrapPackage:    optjson.String{Set: true},
+		},
+	}, listTmResp.Teams[0].Config.MDM)
 
 	// dry-run with invalid agent options
 	agentOpts = json.RawMessage(`{"config": {"nope": 1}}`)
@@ -155,7 +249,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest, "dry_run", "true")
 
 	// dry-run with empty body
-	res := s.DoRaw("POST", "/api/latest/fleet/spec/teams", nil, http.StatusBadRequest, "force", "true")
+	res = s.DoRaw("POST", "/api/latest/fleet/spec/teams", nil, http.StatusBadRequest, "force", "true")
 	errBody, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Contains(t, string(errBody), `"Expected JSON Body"`)
@@ -187,7 +281,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 	}
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
-	errMsg := extractServerErrorText(res.Body)
+	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
 
 	// dry-run with macos disk encryption set to false, no error
@@ -1688,7 +1782,164 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.Len(t, appCfgResp.Integrations.Zendesk, 0)
 }
 
-func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
+func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
+	t := s.T()
+
+	// Create a team
+	team := &fleet.Team{
+		Name:        t.Name(),
+		Description: "Team description",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "XYZ"}},
+	}
+	var tmResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &tmResp)
+	require.Equal(t, team.Name, tmResp.Team.Name)
+	team.ID = tmResp.Team.ID
+
+	// modify the team's config
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"windows_updates": &fleet.WindowsUpdates{
+				DeadlineDays:    optjson.SetInt(5),
+				GracePeriodDays: optjson.SetInt(2),
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Equal(t, 5, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
+	require.Equal(t, 2, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
+	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "deadline_days": 5, "grace_period_days": 2}`, team.ID, team.Name), 0)
+
+	// get the team via the GET endpoint, check that it properly returns the mdm
+	// settings.
+	var getTmResp getTeamResponse
+	s.DoJSON("GET", "/api/latest/fleet/teams/"+fmt.Sprint(team.ID), nil, http.StatusOK, &getTmResp)
+	require.Equal(t, fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(5),
+			GracePeriodDays: optjson.SetInt(2),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			MacOSSetupAssistant: optjson.String{Set: true},
+			BootstrapPackage:    optjson.String{Set: true},
+		},
+	}, getTmResp.Team.Config.MDM)
+
+	// only update the deadline
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"windows_updates": &fleet.WindowsUpdates{
+				DeadlineDays:    optjson.SetInt(6),
+				GracePeriodDays: optjson.SetInt(2),
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Equal(t, 6, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
+	require.Equal(t, 2, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
+	lastActivity := s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "deadline_days": 6, "grace_period_days": 2}`, team.ID, team.Name), 0)
+
+	// setting the macos updates doesn't alter the windows updates
+	tmResp = teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"macos_updates": &fleet.MacOSUpdates{
+				MinimumVersion: optjson.SetString("10.15.0"),
+				Deadline:       optjson.SetString("2021-01-01"),
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2021-01-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, 6, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
+	require.Equal(t, 2, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
+	// did not create a new activity for windows updates
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), "", lastActivity)
+	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), ``, 0)
+
+	// sending a nil MDM or WindowsUpdates config doesn't modify anything
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": nil,
+	}, http.StatusOK, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"windows_updates": nil,
+		},
+	}, http.StatusOK, &tmResp)
+	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2021-01-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, 6, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
+	require.Equal(t, 2, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
+	// no new activity is created
+	s.lastActivityMatches("", "", lastActivity)
+
+	// sending empty WindowsUpdates fields empties both fields
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"windows_updates": map[string]any{
+				"deadline_days":     nil,
+				"grace_period_days": nil,
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.False(t, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Valid)
+	require.False(t, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Valid)
+	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "deadline_days": null, "grace_period_days": null}`, team.ID, team.Name), 0)
+
+	// error checks:
+
+	// try to set an invalid deadline
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"windows_updates": map[string]any{
+				"deadline_days":     1000,
+				"grace_period_days": 1,
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// try to set an invalid grace period
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"windows_updates": map[string]any{
+				"deadline_days":     1,
+				"grace_period_days": 1000,
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// try to set a deadline but not a grace period
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"windows_updates": map[string]any{
+				"deadline_days": 1,
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// try to set a grace period but no deadline
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"windows_updates": map[string]any{
+				"grace_period_days": 1,
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// try to set an empty grace period but a non-empty deadline
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"windows_updates": map[string]any{
+				"deadline_days":     1,
+				"grace_period_days": nil,
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesTeamConfig() {
 	t := s.T()
 
 	// Create a team
@@ -1727,6 +1978,24 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	lastActivity := s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2025-10-01"}`, team.ID, team.Name), 0)
+
+	// setting the windows updates doesn't alter the macos updates
+	tmResp = teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"mdm": map[string]any{
+			"windows_updates": &fleet.WindowsUpdates{
+				DeadlineDays:    optjson.SetInt(10),
+				GracePeriodDays: optjson.SetInt(2),
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
+	require.Equal(t, 10, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
+	require.Equal(t, 2, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
+	// did not create a new activity for macos updates
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), "", lastActivity)
+	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), ``, 0)
 
 	// sending a nil MDM or MacOSUpdate config doesn't modify anything
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
@@ -2032,6 +2301,146 @@ func (s *integrationEnterpriseTestSuite) TestDefaultAppleBMTeam() {
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.Equal(t, tm.Name, acResp.MDM.AppleBMDefaultTeam)
+}
+
+func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
+	t := s.T()
+
+	// keep the last activity, to detect newly created ones
+	var activitiesResp listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "a.id", "order_direction", "desc")
+	var lastActivity uint
+	if len(activitiesResp.Activities) > 0 {
+		lastActivity = activitiesResp.Activities[0].ID
+	}
+
+	checkInvalidConfig := func(config string) {
+		// try to set an invalid config
+		acResp := appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(config), http.StatusUnprocessableEntity, &acResp)
+
+		// get the appconfig, nothing changed
+		acResp = appConfigResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.Equal(t, fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}}, acResp.MDM.WindowsUpdates)
+
+		// no activity got created
+		activitiesResp = listActivitiesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "a.id", "order_direction", "desc")
+		require.Condition(t, func() bool {
+			return (lastActivity == 0 && len(activitiesResp.Activities) == 0) ||
+				(len(activitiesResp.Activities) > 0 && activitiesResp.Activities[0].ID == lastActivity)
+		})
+	}
+
+	// missing grace period
+	checkInvalidConfig(`{"mdm": {
+		"windows_updates": {
+			"deadline_days": 1
+		}
+	}}`)
+
+	// missing deadline
+	checkInvalidConfig(`{"mdm": {
+		"windows_updates": {
+			"grace_period_days": 1
+		}
+	}}`)
+
+	// invalid deadline
+	checkInvalidConfig(`{"mdm": {
+		"windows_updates": {
+			"grace_period_days": 1,
+			"deadline_days": -1
+		}
+	}}`)
+
+	// invalid grace period
+	checkInvalidConfig(`{"mdm": {
+		"windows_updates": {
+			"grace_period_days": -1,
+			"deadline_days": 1
+		}
+	}}`)
+
+	// valid config
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"windows_updates": {
+					"deadline_days": 5,
+					"grace_period_days": 1
+				}
+			}
+		}`), http.StatusOK, &acResp)
+	require.Equal(t, 5, acResp.MDM.WindowsUpdates.DeadlineDays.Value)
+	require.Equal(t, 1, acResp.MDM.WindowsUpdates.GracePeriodDays.Value)
+
+	// edited windows updates activity got created
+	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":5, "grace_period_days":1, "team_id": null, "team_name": null}`, 0)
+
+	// get the appconfig
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Equal(t, 5, acResp.MDM.WindowsUpdates.DeadlineDays.Value)
+	require.Equal(t, 1, acResp.MDM.WindowsUpdates.GracePeriodDays.Value)
+
+	// update the deadline
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"windows_updates": {
+					"deadline_days": 6,
+					"grace_period_days": 1
+				}
+			}
+		}`), http.StatusOK, &acResp)
+	require.Equal(t, 6, acResp.MDM.WindowsUpdates.DeadlineDays.Value)
+	require.Equal(t, 1, acResp.MDM.WindowsUpdates.GracePeriodDays.Value)
+
+	// another edited windows updates activity got created
+	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":6, "grace_period_days":1, "team_id": null, "team_name": null}`, 0)
+
+	// update something unrelated - the transparency url
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"transparency_url": "customURL"}}`), http.StatusOK, &acResp)
+	require.Equal(t, 6, acResp.MDM.WindowsUpdates.DeadlineDays.Value)
+	require.Equal(t, 1, acResp.MDM.WindowsUpdates.GracePeriodDays.Value)
+
+	// no activity got created
+	s.lastActivityMatches("", ``, lastActivity)
+
+	// clear the Windows requirement
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"windows_updates": {
+					"deadline_days": null,
+					"grace_period_days": null
+				}
+			}
+		}`), http.StatusOK, &acResp)
+	require.False(t, acResp.MDM.WindowsUpdates.DeadlineDays.Valid)
+	require.False(t, acResp.MDM.WindowsUpdates.GracePeriodDays.Valid)
+
+	// edited windows updates activity got created with empty requirement
+	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":null, "grace_period_days":null, "team_id": null, "team_name": null}`, 0)
+
+	// update again with empty windows requirement
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"windows_updates": {
+					"deadline_days": null,
+					"grace_period_days": null
+				}
+			}
+		}`), http.StatusOK, &acResp)
+	require.False(t, acResp.MDM.WindowsUpdates.DeadlineDays.Valid)
+	require.False(t, acResp.MDM.WindowsUpdates.GracePeriodDays.Valid)
+
+	// no activity got created
+	s.lastActivityMatches("", ``, lastActivity)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {

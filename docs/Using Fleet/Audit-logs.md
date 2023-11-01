@@ -610,6 +610,27 @@ This activity contains the following fields:
 }
 ```
 
+### Type `edited_windows_updates`
+
+Generated when the Windows OS updates deadline or grace period is modified.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a team.
+- "deadline_days": The number of days before updates are installed, `null` if the requirement was removed.
+- "grace_period_days": The number of days after the deadline before the host is forced to restart, `null` if the requirement was removed.
+
+#### Example
+
+```json
+{
+  "team_id": 3,
+  "team_name": "Workstations",
+  "deadline_days": 5,
+  "grace_period_days": 2
+}
+```
+
 ### Type `read_host_disk_encryption_key`
 
 Generated when a user reads the disk encryption key for a host.

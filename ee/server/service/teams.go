@@ -137,7 +137,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 
-	var macOSMinVersionUpdated, macOSDiskEncryptionUpdated, macOSEnableEndUserAuthUpdated bool
+	var macOSMinVersionUpdated, windowsUpdatesUpdated, macOSDiskEncryptionUpdated, macOSEnableEndUserAuthUpdated bool
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
 			if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
@@ -147,6 +147,16 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates.MinimumVersion.Value != payload.MDM.MacOSUpdates.MinimumVersion.Value ||
 					team.Config.MDM.MacOSUpdates.Deadline.Value != payload.MDM.MacOSUpdates.Deadline.Value
 				team.Config.MDM.MacOSUpdates = *payload.MDM.MacOSUpdates
+			}
+		}
+
+		if payload.MDM.WindowsUpdates != nil {
+			if err := payload.MDM.WindowsUpdates.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("windows_updates", err.Error())
+			}
+			if payload.MDM.WindowsUpdates.DeadlineDays.Set || payload.MDM.WindowsUpdates.GracePeriodDays.Set {
+				windowsUpdatesUpdated = !team.Config.MDM.WindowsUpdates.Equal(*payload.MDM.WindowsUpdates)
+				team.Config.MDM.WindowsUpdates = *payload.MDM.WindowsUpdates
 			}
 		}
 
@@ -218,6 +228,27 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				TeamName:       &team.Name,
 				MinimumVersion: team.Config.MDM.MacOSUpdates.MinimumVersion.Value,
 				Deadline:       team.Config.MDM.MacOSUpdates.Deadline.Value,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos min version edited")
+		}
+	}
+	if windowsUpdatesUpdated {
+		var deadline, grace *int
+		if team.Config.MDM.WindowsUpdates.DeadlineDays.Valid {
+			deadline = &team.Config.MDM.WindowsUpdates.DeadlineDays.Value
+		}
+		if team.Config.MDM.WindowsUpdates.GracePeriodDays.Valid {
+			grace = &team.Config.MDM.WindowsUpdates.GracePeriodDays.Value
+		}
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedWindowsUpdates{
+				TeamID:          &team.ID,
+				TeamName:        &team.Name,
+				DeadlineDays:    deadline,
+				GracePeriodDays: grace,
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos min version edited")
@@ -710,6 +741,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if err := spec.MDM.MacOSUpdates.Validate(); err != nil {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_updates", err.Error()))
 		}
+		if err := spec.MDM.WindowsUpdates.Validate(); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_updates", err.Error()))
+		}
 
 		if create {
 
@@ -826,6 +860,7 @@ func (svc *Service) createTeamFromSpec(
 			MDM: fleet.TeamMDM{
 				EnableDiskEncryption: enableDiskEncryption,
 				MacOSUpdates:         spec.MDM.MacOSUpdates,
+				WindowsUpdates:       spec.MDM.WindowsUpdates,
 				MacOSSettings:        macOSSettings,
 				MacOSSetup:           macOSSetup,
 			},
@@ -883,6 +918,9 @@ func (svc *Service) editTeamFromSpec(
 	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set {
 		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
 	}
+	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
+		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
+	}
 
 	oldEnableDiskEncryption := team.Config.MDM.EnableDiskEncryption
 	if err := svc.applyTeamMacOSSettings(ctx, spec, &team.Config.MDM.MacOSSettings); err != nil {
@@ -913,6 +951,9 @@ func (svc *Service) editTeamFromSpec(
 		didUpdateBootstrapPackage = oldMacOSSetup.BootstrapPackage.Value != spec.MDM.MacOSSetup.BootstrapPackage.Value
 		team.Config.MDM.MacOSSetup.BootstrapPackage = spec.MDM.MacOSSetup.BootstrapPackage
 	}
+	// TODO(mna): doesn't look like we create an activity for macos updates when
+	// modified via spec? Doing the same for Windows, but should we?
+
 	if !appCfg.MDM.EnabledAndConfigured &&
 		((didUpdateSetupAssistant && team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value != "") ||
 			(didUpdateBootstrapPackage && team.Config.MDM.MacOSSetup.BootstrapPackage.Value != "")) {

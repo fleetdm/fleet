@@ -878,6 +878,10 @@ None.
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
     },
+    "windows_updates": {
+      "deadline_days": 5,
+      "grace_period_days": 1
+    },
     "macos_settings": {
       "custom_settings": ["path/to/profile1.mobileconfig"],
       "enable_disk_encryption": true
@@ -1078,6 +1082,8 @@ Modifies the Fleet's configuration with the supplied information.
 | windows_enabled_and_configured    | boolean | body  | _mdm settings_. Enables Windows MDM support. |
 | minimum_version                   | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. **Requires Fleet Premium license** |
 | deadline                          | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. **Requires Fleet Premium license** |
+| deadline_days                     | integer | body  | _mdm.windows_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows. **Requires Fleet Premium license** |
+| grace_period_days                 | integer | body  | _mdm.windows_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates. **Requires Fleet Premium license** |
 | enable                          | boolean  | body  | _mdm.macos_migration settings_. Whether to enable the end user migration workflow for devices migrating from your old MDM solution. **Requires Fleet Premium license** |
 | mode                          | string  | body  | _mdm.macos_migration settings_. The end user migration workflow mode for devices migrating from your old MDM solution. Options are `"voluntary"` or `"forced"`. **Requires Fleet Premium license** |
 | webhook_url                          | string  | body  | _mdm.macos_migration settings_. The webhook url configured to receive requests to unenroll devices migrating from your old MDM solution. **Requires Fleet Premium license** |
@@ -1172,6 +1178,10 @@ Note that when making changes to the `integrations` object, all integrations mus
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
+    },
+    "windows_updates": {
+      "deadline_days": 5,
+      "grace_period_days": 1
     },
     "macos_settings": {
       "custom_settings": ["path/to/profile1.mobileconfig"],
@@ -7354,6 +7364,10 @@ _Available in Fleet Premium_
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01"
       },
+      "windows_updates": {
+        "deadline_days": 5,
+        "grace_period_days": 1
+      },
       "macos_settings": {
         "custom_settings": ["path/to/profile.mobileconfig"],
         "enable_disk_encryption": false
@@ -7471,6 +7485,9 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;macos_updates                               | object  | body | MacOS updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+| &nbsp;&nbsp;windows_updates                             | object  | body | Windows updates settings.                                                                                                                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;deadline_days                   | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;grace_period_days               | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates.                                                                    |
 | &nbsp;&nbsp;macos_settings                              | object  | body | MacOS-specific settings.                                                                                                                                                                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true.                                                                                        |
 | &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS devices.                                                                                                                                                                                  |
@@ -7533,6 +7550,10 @@ _Available in Fleet Premium_
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01"
+      },
+      "windows_updates": {
+        "deadline_days": 5,
+        "grace_period_days": 1
       },
       "macos_settings": {
         "custom_settings": ["path/to/profile.mobileconfig"],

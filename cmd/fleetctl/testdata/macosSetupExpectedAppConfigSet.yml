@@ -33,6 +33,9 @@ spec:
     macos_updates:
       deadline: null
       minimum_version: null
+    windows_updates:
+      deadline_days: null
+      grace_period_days: null
     end_user_authentication:
       idp_name: ""
       issuer_uri: ""

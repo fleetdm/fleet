@@ -31,10 +31,11 @@ type TeamPayload struct {
 // need to be able which part of the MDM config was provided in the request,
 // so the fields are pointers to structs.
 type TeamPayloadMDM struct {
-	EnableDiskEncryption optjson.Bool   `json:"enable_disk_encryption"`
-	MacOSUpdates         *MacOSUpdates  `json:"macos_updates"`
-	MacOSSettings        *MacOSSettings `json:"macos_settings"`
-	MacOSSetup           *MacOSSetup    `json:"macos_setup"`
+	EnableDiskEncryption optjson.Bool    `json:"enable_disk_encryption"`
+	MacOSUpdates         *MacOSUpdates   `json:"macos_updates"`
+	WindowsUpdates       *WindowsUpdates `json:"windows_updates"`
+	MacOSSettings        *MacOSSettings  `json:"macos_settings"`
+	MacOSSetup           *MacOSSetup     `json:"macos_setup"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -147,17 +148,19 @@ type TeamWebhookSettings struct {
 }
 
 type TeamMDM struct {
-	EnableDiskEncryption bool          `json:"enable_disk_encryption"`
-	MacOSUpdates         MacOSUpdates  `json:"macos_updates"`
-	MacOSSettings        MacOSSettings `json:"macos_settings"`
-	MacOSSetup           MacOSSetup    `json:"macos_setup"`
+	EnableDiskEncryption bool           `json:"enable_disk_encryption"`
+	MacOSUpdates         MacOSUpdates   `json:"macos_updates"`
+	WindowsUpdates       WindowsUpdates `json:"windows_updates"`
+	MacOSSettings        MacOSSettings  `json:"macos_settings"`
+	MacOSSetup           MacOSSetup     `json:"macos_setup"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
 }
 
 type TeamSpecMDM struct {
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
-	MacOSUpdates MacOSUpdates `json:"macos_updates"`
+	MacOSUpdates   MacOSUpdates   `json:"macos_updates"`
+	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
 	// A map is used for the macos settings so that we can easily detect if its
 	// sub-keys were provided or not in an "apply" call. E.g. if the
@@ -371,6 +374,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 
 	var mdmSpec TeamSpecMDM
 	mdmSpec.MacOSUpdates = t.Config.MDM.MacOSUpdates
+	mdmSpec.WindowsUpdates = t.Config.MDM.WindowsUpdates
 	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
 	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup

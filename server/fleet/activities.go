@@ -49,6 +49,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeMDMUnenrolled{},
 
 	ActivityTypeEditedMacOSMinVersion{},
+	ActivityTypeEditedWindowsUpdates{},
 
 	ActivityTypeReadHostDiskEncryptionKey{},
 
@@ -762,6 +763,31 @@ func (a ActivityTypeEditedMacOSMinVersion) Documentation() (activity string, det
   "team_name": "Workstations",
   "minimum_version": "13.0.1",
   "deadline": "2023-06-01"
+}`
+}
+
+type ActivityTypeEditedWindowsUpdates struct {
+	TeamID          *uint   `json:"team_id"`
+	TeamName        *string `json:"team_name"`
+	DeadlineDays    *int    `json:"deadline_days"`
+	GracePeriodDays *int    `json:"grace_period_days"`
+}
+
+func (a ActivityTypeEditedWindowsUpdates) ActivityName() string {
+	return "edited_windows_updates"
+}
+
+func (a ActivityTypeEditedWindowsUpdates) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when the Windows OS updates deadline or grace period is modified.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the Windows OS updates settings applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the Windows OS updates settings applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "deadline_days": The number of days before updates are installed, ` + "`null`" + ` if the requirement was removed.
+- "grace_period_days": The number of days after the deadline before the host is forced to restart, ` + "`null`" + ` if the requirement was removed.`, `{
+  "team_id": 3,
+  "team_name": "Workstations",
+  "deadline_days": 5,
+  "grace_period_days": 2
 }`
 }
 
