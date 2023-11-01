@@ -1774,7 +1774,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Len(t, resp.Platforms, 0)
 
 	// invalid low_disk_space value is still validated and results in error
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusInternalServerError, &resp, "low_disk_space", "1234") // TODO: should be 400, see #4406
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusBadRequest, &resp, "low_disk_space", "1234")
 }
 
 func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
@@ -4844,17 +4844,15 @@ func (s *integrationTestSuite) TestSessionInfo() {
 	assert.Equal(t, ssn.ID, getResp.SessionID)
 	assert.Equal(t, uint(1), getResp.UserID)
 
-	// get info about session - non-existing: appears to deliberately return 500 due to forbidden,
-	// which takes precedence vs the not found returned by the datastore (it still shouldn't be a
-	// 500 though).
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID+1), nil, http.StatusInternalServerError, &getResp)
+	// get info about session
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID+1), nil, http.StatusBadRequest, &getResp)
 
 	// delete session
 	var delResp deleteSessionResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusOK, &delResp)
 
-	// delete session - non-existing: again, 500 due to forbidden instead of 404.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusInternalServerError, &delResp)
+	// delete session - non-existing
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusBadRequest, &delResp)
 }
 
 func (s *integrationTestSuite) TestAppConfig() {
@@ -6342,7 +6340,7 @@ func (s *integrationTestSuite) TestSandboxEndpoints() {
 	formBody := make(url.Values)
 	formBody.Set("email", validEmail)
 	formBody.Set("password", validPwd)
-	res := s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusInternalServerError, hdrs)
+	res := s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusForbidden, hdrs)
 	require.NotEqual(t, http.StatusOK, res.StatusCode)
 
 	// installers endpoint is not enabled

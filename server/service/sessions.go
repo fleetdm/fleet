@@ -42,7 +42,7 @@ func getInfoAboutSessionEndpoint(ctx context.Context, request interface{}, svc f
 	req := request.(*getInfoAboutSessionRequest)
 	session, err := svc.GetInfoAboutSession(ctx, req.ID)
 	if err != nil {
-		return getInfoAboutSessionResponse{Err: err}, nil
+		return nil, ctxerr.Wrap(ctx, badRequest(err.Error()))
 	}
 
 	return getInfoAboutSessionResponse{
@@ -88,7 +88,7 @@ func deleteSessionEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	req := request.(*deleteSessionRequest)
 	err := svc.DeleteSession(ctx, req.ID)
 	if err != nil {
-		return deleteSessionResponse{Err: err}, nil
+		return nil, ctxerr.Wrap(ctx, badRequest(err.Error()))
 	}
 	return deleteSessionResponse{}, nil
 }

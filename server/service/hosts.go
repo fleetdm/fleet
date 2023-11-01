@@ -458,8 +458,10 @@ func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.
 	req := request.(*getHostSummaryRequest)
 	if req.LowDiskSpace != nil {
 		if *req.LowDiskSpace < 1 || *req.LowDiskSpace > 100 {
-			err := ctxerr.Errorf(ctx, "invalid low_disk_space threshold, must be between 1 and 100: %d", *req.LowDiskSpace)
-			return getHostSummaryResponse{Err: err}, nil
+			err := ctxerr.Wrap(
+				ctx, badRequest(fmt.Sprintf("invalid low_disk_space threshold, must be between 1 and 100: %d", *req.LowDiskSpace)),
+			)
+			return nil, err
 		}
 	}
 

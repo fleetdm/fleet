@@ -35,10 +35,13 @@ func (m *Middleware) AuthzCheck() endpoint.Middleware {
 			var authFailedError *fleet.AuthFailedError
 			var authRequiredError *fleet.AuthRequiredError
 			var authHeaderRequiredError *fleet.AuthHeaderRequiredError
+			// If request validation failed, return that error
+			var badRequest *fleet.BadRequestError
 			if errors.As(err, &authFailedError) ||
 				errors.As(err, &authRequiredError) ||
 				errors.As(err, &authHeaderRequiredError) ||
-				errors.Is(err, fleet.ErrPasswordResetRequired) {
+				errors.Is(err, fleet.ErrPasswordResetRequired) ||
+				errors.As(err, &badRequest) {
 				return nil, err
 			}
 
