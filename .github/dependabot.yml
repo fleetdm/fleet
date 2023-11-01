@@ -6,8 +6,6 @@ updates:
 # Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
-    schedule:
-      interval: "daily"
     pull-request-branch-name:
       # Default is "/" which makes "docker tag" fail with
       # "not a valid repository/tag: invalid reference format".
@@ -19,8 +17,6 @@ updates:
 # Maintain dependencies for Dockerfiles
   - package-ecosystem: "docker"
     directory: "/"
-    schedule:
-      interval: "daily"
     reviewers:
       - "fleetdm/go"
       - "fleetdm/infra"
@@ -38,8 +34,6 @@ updates:
     directory: "/website"
     labels:
       - "website"
-    schedule:
-      interval: "daily"
     # Disable version updates
     open-pull-requests-limit: 0
     allow:
@@ -56,8 +50,6 @@ updates:
 # Maintain dependencies for Go
   - package-ecosystem: "gomod"
     directory: "/"
-    schedule:
-      interval: "daily"
     # Disable version updates
     open-pull-requests-limit: 0
     reviewers:
@@ -73,8 +65,6 @@ updates:
 # Maintain dependencies for npm
   - package-ecosystem: "npm"
     directory: "/"
-    schedule:
-      interval: "daily"
     # Disable version updates
     open-pull-requests-limit: 0
     reviewers:
