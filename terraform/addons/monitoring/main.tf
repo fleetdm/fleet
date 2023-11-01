@@ -285,7 +285,7 @@ resource "null_resource" "cron_monitoring_build" {
     working_dir = "${path.module}/lambda"
     command     = <<-EOT
       go get
-      GOOS=linux GOARCH=amd64 go build -tags lambda.norpc -o "${local.cron_lambda_binary}" main.go
+      GOOS=linux GOARCH=amd64 go build -tags lambda.norpc -o bootstrap main.go
     EOT
   }
 }
