@@ -4,14 +4,21 @@
 
 Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source systems management platform and security agent. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
 
-<!-- With great power comes great openness.  With agents come agency. -->
-
 We are dedicated to clearing the thicket:
 - 🔌 making security and IT interoperable and easy to automate
 - 🚪 an inviting (outsider-friendly) way to manage computers, CVEs, and infrastructure
 - 🪟 clarity and trust through open-source software
 
 This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.com/handbook/company/communications#strategy), [operating principles](#why-this-way), and [brand](https://fleetdm.com/logos).
+
+<!--
+With great power
+comes great openness
+With agents comes agency
+Lighter than air
+Light in every corner
+Open by design
+-->
 
 ## Culture
 
@@ -21,12 +28,10 @@ Fleet Device Management Inc. is an all-remote company with 40+ team members spre
 ### Open source
 Fleet is open by design.  The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
-### Every day
-When something is written down in the handbook, we actually mean it.  This helps us know what to expect from one another.  You can read more about what it's like to work at Fleet in ["📖Company/Communications"](https://fleetdm.com/handbook/company/communications).
-
-
-## Why this way?
+### Why this way?
 At Fleet, we write things down.  Even when we might be wrong.  This helps us move quickly, provides clarity, and enables asynchronous work.  The "Why this way?" page in the handbook discusses some of our most important decisions about the best way to work and the reasoning for them.  For example: _"Why open source?"_, _"Why do we use a wireframe-first approach?"_, _"Why direct responsibility?_, and _"Why handbook-first strategy?"_  You can read more about these principles and suggest improvements in ["📖Company/Why this way?"](https://fleetdm.com/handbook/company/why-this-way)
+
+> You can read more about what it's like to work at Fleet in ["📖Company/Communications"](https://fleetdm.com/handbook/company/communications).
 
 
 ## Open positions
@@ -100,6 +105,10 @@ Take the time to make [yourself](https://fleetdm.com/handbook/business-operatio
 - **Public by default.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality) carefully.
 - **Speak freely.** Interrupt and be interrupted.  Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way).   <!-- Commit to candor.  Speak your mind. -->
 
+<!--
+What about the sixth value?
+(🪩 dumb luck)
+-->
 
 ## History
 
@@ -125,20 +134,18 @@ Fleet raised its Series A funding round.  The world now has at least 1.65 millio
 To provide clarity about decision-making, [responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility), and resources, everyone at Fleet has a manager, and [every manager](https://fleetdm.com/handbook/company#management) has direct reports.  Fleet's organizational chart is accessible company-wide as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
 
 - 🔦 [Business Operations](https://fleetdm.com/handbook/business-operations): The Business Operations department is directly responsible for these traditional functions: People, Finance, Legal, IT, and Revenue Operations (RevOps).
+- 🏹 [Customer Success](https://fleetdm.com/handbook/customer-success): The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
 - 🐋 [Sales](https://fleetdm.com/handbook/sales): The Sales department is directly responsible for attaining the revenue goals of Fleet and helping customers deliver on their objectives.
 - 🫧 [Demand](https://fleetdm.com/handbook/demand): The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other programs.
 - 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product.
 - 🦢 [Product Design](https://fleetdm.com/handbook/product): The Product Design department is directly responsible for defining and prioritizing the changes made to the core product.
-
-
-### CEO
-Get to know Fleet's CEO and tips for collaborating with him in 📖[handbook/ceo](https://fleetdm.com/handbook/ceo).
+- 🐈‍⬛ [CEO](https://fleetdm.com/handbook/ceo): Get to know Fleet's CEO and tips for collaborating with him in 📖[handbook/ceo](https://fleetdm.com/handbook/ceo).
 
 ## Advisors
 While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including
 [Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/ceo).)
 
-
+<!--
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
@@ -153,7 +160,7 @@ Please see [📖handbook/company/communications#email-relays](https://fleetdm.co
 ##### Tools we use
 
 Please see [📖Business Operations#tools-we-use](https://fleetdm.com/handbook/business-operations#tools-we-use).
-
+-->
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🔭 Company">

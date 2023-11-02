@@ -2074,8 +2074,8 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	acc := &fleet.MDMIdPAccount{
-		UUID:     "ABC-DEF",
 		Username: "email@example.com",
+		Email:    "email@example.com",
 		Fullname: "John Doe",
 	}
 
@@ -2086,14 +2086,25 @@ func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	err = ds.InsertMDMIdPAccount(ctx, acc)
 	require.NoError(t, err)
 
-	out, err := ds.GetMDMIdPAccount(ctx, acc.UUID)
+	out, err := ds.GetMDMIdPAccountByEmail(ctx, acc.Email)
 	require.NoError(t, err)
+	// update the acc UUID
+	acc.UUID = out.UUID
 	require.Equal(t, acc, out)
 
 	var nfe fleet.NotFoundError
-	out, err = ds.GetMDMIdPAccount(ctx, "BAD-TOKEN")
+	out, err = ds.GetMDMIdPAccountByEmail(ctx, "bad@email.com")
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, out)
+
+	out, err = ds.GetMDMIdPAccountByUUID(ctx, acc.UUID)
+	require.NoError(t, err)
+	require.Equal(t, acc, out)
+
+	out, err = ds.GetMDMIdPAccountByUUID(ctx, "BAD-TOKEN")
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, out)
+
 }
 
 func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {
@@ -2992,28 +3003,14 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	createRawCmd := func(cmdUUID string) string {
-		return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Command</key>
-    <dict>
-        <key>ManagedOnly</key>
-        <false/>
-        <key>RequestType</key>
-        <string>ProfileList</string>
-    </dict>
-    <key>CommandUUID</key>
-    <string>%s</string>
-</dict>
-</plist>`, cmdUUID)
-	}
-
 	// no enrolled host, unknown command
 	res, err := ds.GetMDMAppleCommandResults(ctx, uuid.New().String())
 	require.NoError(t, err)
 	require.Empty(t, res)
+
+	p, err := ds.GetMDMCommandPlatform(ctx, uuid.New().String())
+	require.True(t, fleet.IsNotFound(err))
+	require.Empty(t, p)
 
 	// create some hosts, all enrolled
 	enrolledHosts := make([]*fleet.Host, 3)
@@ -3046,7 +3043,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 
 	// enqueue a command for an unenrolled host fails with a foreign key error (no enrollment)
 	uuid1 := uuid.New().String()
-	err = commander.EnqueueCommand(ctx, []string{unenrolledHost.UUID}, createRawCmd(uuid1))
+	err = commander.EnqueueCommand(ctx, []string{unenrolledHost.UUID}, createRawAppleCmd("ProfileList", uuid1))
 	require.Error(t, err)
 	var mysqlErr *mysql.MySQLError
 	require.ErrorAs(t, err, &mysqlErr)
@@ -3057,9 +3054,13 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, res)
 
+	p, err = ds.GetMDMCommandPlatform(ctx, uuid1)
+	require.True(t, fleet.IsNotFound(err))
+	require.Empty(t, p)
+
 	// enqueue a command for a couple of enrolled hosts
 	uuid2 := uuid.New().String()
-	rawCmd2 := createRawCmd(uuid2)
+	rawCmd2 := createRawAppleCmd("ProfileList", uuid2)
 	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[0].UUID, enrolledHosts[1].UUID}, rawCmd2)
 	require.NoError(t, err)
 
@@ -3067,6 +3068,10 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	res, err = ds.GetMDMAppleCommandResults(ctx, uuid2)
 	require.NoError(t, err)
 	require.Empty(t, res)
+	// but it's already enqueued
+	p, err = ds.GetMDMCommandPlatform(ctx, uuid2)
+	require.NoError(t, err)
+	require.Equal(t, "darwin", p)
 
 	// simulate a result for enrolledHosts[0]
 	err = storage.StoreCommandReport(&mdm.Request{
@@ -3086,13 +3091,16 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.Len(t, res, 1)
 	require.NotZero(t, res[0].UpdatedAt)
 	res[0].UpdatedAt = time.Time{}
-	require.Equal(t, res[0], &fleet.MDMAppleCommandResult{
-		DeviceID:    enrolledHosts[0].UUID,
+	require.Equal(t, res[0], &fleet.MDMCommandResult{
+		HostUUID:    enrolledHosts[0].UUID,
 		CommandUUID: uuid2,
 		Status:      "Acknowledged",
 		RequestType: "ProfileList",
 		Result:      []byte(rawCmd2),
 	})
+	p, err = ds.GetMDMCommandPlatform(ctx, uuid2)
+	require.NoError(t, err)
+	require.Equal(t, "darwin", p)
 
 	// simulate a result for enrolledHosts[1]
 	err = storage.StoreCommandReport(&mdm.Request{
@@ -3116,22 +3124,26 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	require.NotZero(t, res[1].UpdatedAt)
 	res[1].UpdatedAt = time.Time{}
 
-	require.ElementsMatch(t, res, []*fleet.MDMAppleCommandResult{
+	require.ElementsMatch(t, res, []*fleet.MDMCommandResult{
 		{
-			DeviceID:    enrolledHosts[0].UUID,
+			HostUUID:    enrolledHosts[0].UUID,
 			CommandUUID: uuid2,
 			Status:      "Acknowledged",
 			RequestType: "ProfileList",
 			Result:      []byte(rawCmd2),
 		},
 		{
-			DeviceID:    enrolledHosts[1].UUID,
+			HostUUID:    enrolledHosts[1].UUID,
 			CommandUUID: uuid2,
 			Status:      "Error",
 			RequestType: "ProfileList",
 			Result:      []byte(rawCmd2),
 		},
 	})
+
+	p, err = ds.GetMDMCommandPlatform(ctx, uuid2)
+	require.NoError(t, err)
+	require.Equal(t, "darwin", p)
 
 	// delete host [0] and verify that it didn't delete its command results
 	err = ds.DeleteHost(ctx, enrolledHosts[0].ID)
@@ -3145,22 +3157,26 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 	res[0].UpdatedAt = time.Time{}
 	require.NotZero(t, res[1].UpdatedAt)
 	res[1].UpdatedAt = time.Time{}
-	require.ElementsMatch(t, res, []*fleet.MDMAppleCommandResult{
+	require.ElementsMatch(t, res, []*fleet.MDMCommandResult{
 		{
-			DeviceID:    enrolledHosts[0].UUID,
+			HostUUID:    enrolledHosts[0].UUID,
 			CommandUUID: uuid2,
 			Status:      "Acknowledged",
 			RequestType: "ProfileList",
 			Result:      []byte(rawCmd2),
 		},
 		{
-			DeviceID:    enrolledHosts[1].UUID,
+			HostUUID:    enrolledHosts[1].UUID,
 			CommandUUID: uuid2,
 			Status:      "Error",
 			RequestType: "ProfileList",
 			Result:      []byte(rawCmd2),
 		},
 	})
+
+	p, err = ds.GetMDMCommandPlatform(ctx, uuid2)
+	require.NoError(t, err)
+	require.Equal(t, "darwin", p)
 }
 
 func createMDMAppleCommanderAndStorage(t *testing.T, ds *Datastore) (*apple_mdm.MDMAppleCommander, *NanoMDMStorage) {
@@ -3291,24 +3307,6 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	createRawCmd := func(reqType, cmdUUID string) string {
-		return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Command</key>
-    <dict>
-        <key>ManagedOnly</key>
-        <false/>
-        <key>RequestType</key>
-        <string>%s</string>
-    </dict>
-    <key>CommandUUID</key>
-    <string>%s</string>
-</dict>
-</plist>`, reqType, cmdUUID)
-	}
-
 	// create some enrolled hosts
 	enrolledHosts := make([]*fleet.Host, 3)
 	for i := 0; i < 3; i++ {
@@ -3334,18 +3332,18 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	commander, storage := createMDMAppleCommanderAndStorage(t, ds)
 
 	// no commands yet
-	res, err := ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	res, err := ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, res)
 
 	// enqueue a command for enrolled hosts [0] and [1]
 	uuid1 := uuid.New().String()
-	rawCmd1 := createRawCmd("ListApps", uuid1)
+	rawCmd1 := createRawAppleCmd("ListApps", uuid1)
 	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[0].UUID, enrolledHosts[1].UUID}, rawCmd1)
 	require.NoError(t, err)
 
 	// command has no results yet, so the status is empty
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
 	require.Len(t, res, 2)
 
@@ -3386,7 +3384,7 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// command is now listed with a status for this result
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
 	require.Len(t, res, 2)
 
@@ -3427,7 +3425,7 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// both results are now listed
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
 	require.Len(t, res, 2)
 
@@ -3457,7 +3455,7 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 
 	// enqueue another command for enrolled hosts [1] and [2]
 	uuid2 := uuid.New().String()
-	rawCmd2 := createRawCmd("InstallApp", uuid2)
+	rawCmd2 := createRawAppleCmd("InstallApp", uuid2)
 	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[1].UUID, enrolledHosts[2].UUID}, rawCmd2)
 	require.NoError(t, err)
 
@@ -3484,19 +3482,19 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// results are listed
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
 	require.Len(t, res, 4)
 
 	// page-by-page: first page
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{
 		ListOptions: fleet.ListOptions{Page: 0, PerPage: 3, OrderKey: "device_id", OrderDirection: fleet.OrderDescending},
 	})
 	require.NoError(t, err)
 	require.Len(t, res, 3)
 
 	// page-by-page: second page
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{
 		ListOptions: fleet.ListOptions{Page: 1, PerPage: 3, OrderKey: "device_id", OrderDirection: fleet.OrderDescending},
 	})
 	require.NoError(t, err)
@@ -3518,14 +3516,14 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// u1 is an observer, so if IncludeObserver is not set, returns nothing
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: u1}, &fleet.MDMAppleCommandListOptions{
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: u1}, &fleet.MDMCommandListOptions{
 		ListOptions: fleet.ListOptions{PerPage: 3},
 	})
 	require.NoError(t, err)
 	require.Len(t, res, 0)
 
 	// now with IncludeObserver set to true
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: u1, IncludeObserver: true}, &fleet.MDMAppleCommandListOptions{
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: u1, IncludeObserver: true}, &fleet.MDMCommandListOptions{
 		ListOptions: fleet.ListOptions{PerPage: 3, OrderKey: "updated_at", OrderDirection: fleet.OrderDescending},
 	})
 	require.NoError(t, err)
@@ -3549,7 +3547,7 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 		return err
 	})
 	// only two results are listed
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMAppleCommandListOptions{})
+	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
 	require.Len(t, res, 2)
 }
@@ -5260,4 +5258,22 @@ func TestRestorePendingDEPHost(t *testing.T) {
 		expectedHost.UUID = mdmEnrolledHost.UUID
 		checkStoredHost(t, mdmEnrolledHost.ID, &expectedHost)
 	})
+}
+
+func createRawAppleCmd(reqType, cmdUUID string) string {
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagedOnly</key>
+        <false/>
+        <key>RequestType</key>
+        <string>%s</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, reqType, cmdUUID)
 }

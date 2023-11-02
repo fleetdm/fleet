@@ -42,7 +42,6 @@ interface IHostSummaryProps {
   isPremiumTier?: boolean;
   isSandboxMode?: boolean;
   isOnlyObserver?: boolean;
-  toggleOSPolicyModal?: () => void;
   toggleMacSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
   hostMdmProfiles?: IHostMdmProfile[];
@@ -63,7 +62,6 @@ const HostSummary = ({
   isPremiumTier,
   isSandboxMode = false,
   isOnlyObserver,
-  toggleOSPolicyModal,
   toggleMacSettingsModal,
   toggleBootstrapPackageModal,
   hostMdmProfiles,
@@ -129,7 +127,7 @@ const HostSummary = ({
           data-for="host-issue-count"
           data-tip-disable={false}
         >
-          <Icon name="issue" color="ui-fleet-black-50" />
+          <Icon name="error-outline" color="ui-fleet-black-50" />
         </span>
         <ReactTooltip
           place="bottom"
@@ -277,19 +275,7 @@ const HostSummary = ({
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Operating system</span>
-          <span className="info-flex__data">
-            {isOnlyObserver || deviceUser ? (
-              `${titleData.os_version}`
-            ) : (
-              <Button
-                onClick={() => toggleOSPolicyModal?.()}
-                variant="text-link"
-                className={`${baseClass}__os-policy-button`}
-              >
-                {titleData.os_version}
-              </Button>
-            )}
-          </span>
+          <span className="info-flex__data">{titleData.os_version}</span>
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Osquery</span>

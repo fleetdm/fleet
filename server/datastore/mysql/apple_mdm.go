@@ -318,15 +318,15 @@ func (ds *Datastore) GetMDMAppleCommandRequestType(ctx context.Context, commandU
 	return rt, err
 }
 
-func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
 	query := `
 SELECT
-    ncr.id as device_id,
+    ncr.id as host_uuid,
     ncr.command_uuid,
     ncr.status,
     ncr.result,
-		ncr.updated_at,
-		nc.request_type
+    ncr.updated_at,
+    nc.request_type
 FROM
     nano_command_results ncr
 INNER JOIN
@@ -337,7 +337,7 @@ WHERE
     ncr.command_uuid = ?
 `
 
-	var results []*fleet.MDMAppleCommandResult
+	var results []*fleet.MDMCommandResult
 	err := sqlx.SelectContext(
 		ctx,
 		ds.reader(ctx),
@@ -354,7 +354,7 @@ WHERE
 func (ds *Datastore) ListMDMAppleCommands(
 	ctx context.Context,
 	tmFilter fleet.TeamFilter,
-	listOpts *fleet.MDMAppleCommandListOptions,
+	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMAppleCommand, error) {
 	stmt := fmt.Sprintf(`
 SELECT
@@ -2196,17 +2196,29 @@ func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDM
       INSERT INTO mdm_idp_accounts
         (uuid, username, fullname, email)
       VALUES
-        (?, ?, ?, ?)
+        (UUID(), ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         username   = VALUES(username),
-        fullname   = VALUES(fullname),
-        email      = VALUES(email)`
+        fullname   = VALUES(fullname)`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.UUID, account.Username, account.Fullname, account.Email)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, account.Username, account.Fullname, account.Email)
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
 }
 
-func (ds *Datastore) GetMDMIdPAccount(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+func (ds *Datastore) GetMDMIdPAccountByEmail(ctx context.Context, email string) (*fleet.MDMIdPAccount, error) {
+	stmt := `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE email = ?`
+	var acct fleet.MDMIdPAccount
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with email %s", email)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select mdm_idp_accounts by email")
+	}
+	return &acct, nil
+}
+
+func (ds *Datastore) GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
 	stmt := `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE uuid = ?`
 	var acct fleet.MDMIdPAccount
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, uuid)

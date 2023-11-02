@@ -97,6 +97,7 @@ data "aws_iam_policy_document" "gha-permissions" {
       "glue:*",
       "ses:*",
       "wafv2:*",
+      "events:*",
     ]
     resources = ["*"]
   }

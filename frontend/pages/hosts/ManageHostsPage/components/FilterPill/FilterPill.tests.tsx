@@ -52,7 +52,9 @@ describe("Filter Pill Component", () => {
       <FilterPill label="Test Pill" onClear={spy} />
     );
 
-    await user.click(within(screen.getByRole("button")).getByTestId("ex-icon"));
+    await user.click(
+      within(screen.getByRole("button")).getByTestId("close-icon")
+    );
 
     expect(spy).toHaveBeenCalled();
   });
