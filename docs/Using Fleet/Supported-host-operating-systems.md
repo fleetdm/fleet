@@ -27,7 +27,7 @@ The osquery installer generated for MacOS by `fleetctl package` does not include
 The osquery installer will run on Linux distributions where `glibc` is >= 2.2 (there is ongoing work to make osquery work with `glibc` 2.12+).
 If you aren't sure what version of `glibc` your distribution is using, [DistroWatch](https://distrowatch.com/) is a great resource. 
 
-> Fedora has disabled systray icons by default and requires a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) to be installed to include the Fleet desktop icon.
+> Fedora, CentOS 8 and 9 has disabled systray icons by default and requires a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) to be installed to include the Fleet desktop icon.
 
 
 <meta name="pageOrderInSection" value="1200">
