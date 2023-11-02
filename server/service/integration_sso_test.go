@@ -104,8 +104,8 @@ func (s *integrationSSOTestSuite) TestSSOInvalidMetadataURL() {
 	)
 	require.NotNil(t, acResp)
 
-	var resGet ssoSettingsResponse
-	s.DoJSON("GET", "/api/v1/fleet/sso", nil, http.StatusBadRequest, &resGet)
+	var resIni initiateSSOResponse
+	s.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, http.StatusBadRequest, &resIni)
 }
 
 func (s *integrationSSOTestSuite) TestSSOValidation() {
