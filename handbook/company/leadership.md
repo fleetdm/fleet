@@ -116,30 +116,23 @@ Consultants aren't required to do any of those things.
 
 #### Sending a consulting agreement
 
-To hire a non-US consultant, please [submit a custom request](https://fleetdm.com/handbook/business-operations#intake).
+To hire a consultant, please [submit a request from the BizOps team](https://fleetdm.com/handbook/business-operations#contact-us).
 
-To hire a US-based consultant, send them an agreement using the "Contractor agreement (US)" template in [DocuSign](https://www.docusign.com/).
-(This template is located in the "¶¶ Classified templates" folder, which is only accessible via certain Docusign accounts in 1Password.)
-
-> _**Note:** The Docusign template labeled "Contractor agreement (US)" is actually used for both consultants and [core team members in the US who are classified as 1099 contractors or billed corp-to-corp as vendors](#hiring-a-new-team-member).  You may also sometimes hear this referred to as Fleet's "Consulting agreement". Same thing._
-
-To send a US consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
+To send a consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
+To send an international consulting agreement to an individual (not a business), you will also need the individual's date of birth.
 
 There are some defaults that we use for these agreements:
    - Term: Default to one month unless otherwise discussed.
-   - Services rendered: Copy and paste from the [language in this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
+   - Services rendered: See the [language in this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
    - Work will commence and complete by dates: Start date and end of term date
    - Fee: Get from the consultant.
    - Hours: Default to 10 hr/week.
-   - All US consultants track their hours weekly in Gusto.
 
-Then hit send!  After all of the signatures are there in Docusign, automation will trigger that uploads the completed document to the appropriate Google Drive folder, and that makes a Slack message appear in the `#help-classified` channel.
-
-Finally, create a [custom request](https://fleetdm.com/handbook/business-operations#intake) titled "New US consultant: _____________" and request that this new consultant be registered with Fleet.  (Business Operations will receive this request and take care of next steps, which include things like providing a place for the company to report their hours weekly in the KPIs sheet, and providing access to Slack and any relevant company tools.)
+If the terms will differ from these defaults, please include the details in the request to BizOps.
 
 #### Updating a consultant's fee
  - Direct message Mike McNeil with hourly rate change information.
- - After CEO approval, Mike McNeil will issue a new contractor agreement with the updated fee via DocuSign.
+ - After CEO approval, Fleet will issue a new contractor agreement with the updated fee.
 
 ### Advisor
 
