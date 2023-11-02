@@ -6940,6 +6940,8 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ### List software titles
 
+Get a list of all software grouped by software title.
+
 `GET /api/v1/fleet/software_titles`
 
 #### Parameters
@@ -6988,6 +6990,8 @@ Deletes the session specified by ID. When the user associated with the session n
 ```
 
 ### List software versions
+
+Get a list of all software versions.
 
 `GET /api/v1/fleet/software`
 
@@ -7069,6 +7073,8 @@ Deletes the session specified by ID. When the user associated with the session n
 ```
 
 ### Get software title
+
+Returns the information of the specified software title. By default `versions` are sorted in descending order by the `version` field.
 
 `GET /api/v1/fleet/software_titles/{id}`
 
