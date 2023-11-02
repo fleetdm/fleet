@@ -25,7 +25,6 @@ interface IQueryEditorProps {
   isTeamAdmin: boolean;
   isTeamMaintainer: boolean;
   isTeamObserver: boolean;
-  isObserverPlus: boolean;
   createPolicy: (formData: IPolicyFormData) => Promise<any>;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -44,7 +43,6 @@ const QueryEditor = ({
   isTeamAdmin,
   isTeamMaintainer,
   isTeamObserver,
-  isObserverPlus,
   createPolicy,
   onOsqueryTableSelect,
   goToSelectTargets,

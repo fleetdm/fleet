@@ -467,8 +467,8 @@ const PolicyForm = ({
     );
   };
 
-  // Observers and observer+ of existing policy, team role viewing inherited policy
-  // Observer+ can run existing policy
+  // Non-editable form used for Team Observers and Observer+ of their team policy and inherited policies
+  // And Global Observers and Observer+ of all policies
   const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
