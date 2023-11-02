@@ -385,7 +385,7 @@ When it comes to performance feedback, [speak freely](https://fleetdm.com/handbo
 
 1. Deliver negative feedback privately whenever possible, and be constructive not punitive. Celebrate positive feedback publicly.
 2. Performance mangement is a part of every 1:1 document. Start each 1:1 by delivering performance feedback.
-4. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing.
+3. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing at the top of your own "Performance management" section in your 1:1 agenda doc.  
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🛠️ Leadership">
