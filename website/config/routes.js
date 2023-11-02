@@ -180,21 +180,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /try-fleet/sandbox': {
-    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist',
-    locals: {
-      layout: 'layouts/layout-sandbox',
-    },
-  },
-
-  'GET /try-fleet/waitlist': {
-    action: 'try-fleet/view-waitlist',
-    locals: {
-      layout: 'layouts/layout-sandbox',
-      pageTitleForMeta: 'Fleet Sandbox waitlist | Fleet for osquery',
-    }
-  },
-
   'GET /admin/email-preview': {
     action: 'admin/view-email-templates',
     locals: {
@@ -381,7 +366,6 @@ module.exports.routes = {
   'GET /use-cases/using-elasticsearch-and-kibana-to-visualize-osquery-performance': '/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance',
   'GET /use-cases/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think': '/securing/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think',
   'GET /docs/contributing/testing':  '/docs/contributing/testing-and-local-development',
-  'GET /handbook/sales': '/handbook/customers#sales',
   'GET /handbook/people': '/handbook/business-operations',
   'GET /handbook/people/ceo-handbook': '/handbook/ceo',
   'GET /handbook/company/ceo-handbook': '/handbook/ceo',
@@ -503,6 +487,8 @@ module.exports.routes = {
   'GET /blackhat2023':   'https://github.com/fleetdm/fleet/tree/main/tools/blackhat-mdm', // Assets from @marcosd4h & @zwass Black Hat 2023 talk
   'GET /fleetctl-preview':   '/try-fleet/fleetctl-preview',
   'GET /try-fleet/sandbox-expired':   '/try-fleet/fleetctl-preview',
+  'GET /try-fleet/sandbox':   '/try-fleet/fleetctl-preview',
+  'GET /try-fleet/waitlist':   '/try-fleet/fleetctl-preview',
 
   // Fleet UI
   // =============================================================================================================

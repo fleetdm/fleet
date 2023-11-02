@@ -1471,6 +1471,9 @@ func TestApplyMacosSetup(t *testing.T) {
 			SMTPSettings:   &fleet.SMTPSettings{},
 			SSOSettings:    &fleet.SSOSettings{},
 		}
+		if premium {
+			mockStore.appConfig.ServerSettings.EnableAnalytics = true
+		}
 		mockStore.Unlock()
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			mockStore.Lock()
@@ -2967,7 +2970,7 @@ spec:
       macos_setup:
         macos_setup_assistant: %s
 `, macSetupFile),
-			wantErr: `MDM features aren't turned on.`,
+			wantErr: `macOS MDM isn't turned on.`,
 		},
 		{
 			desc: "app config macos setup assistant",
@@ -2979,7 +2982,7 @@ spec:
     macos_setup:
       macos_setup_assistant: %s
 `, macSetupFile),
-			wantErr: `MDM features aren't turned on.`,
+			wantErr: `macOS MDM isn't turned on.`,
 		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because

@@ -7,6 +7,7 @@ import scriptAPI, { IScript } from "services/entities/scripts";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import Graphic from "components/Graphic";
 
 const baseClass = "script-list-item";
 
@@ -20,13 +21,11 @@ const getFileIconName = (fileName: string) => {
 
   switch (fileExtension) {
     case "py":
-      return "file-python";
-    case "zsh":
-      return "file-zsh";
+      return "file-py";
     case "sh":
-      return "file-bash";
+      return "file-sh";
     default:
-      return "file-generic";
+      return "file-script";
   }
 };
 
@@ -48,7 +47,7 @@ const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__value-group ${baseClass}__script-data`}>
-        <Icon name={getFileIconName(script.name)} />
+        <Graphic name={getFileIconName(script.name)} />
         <div className={`${baseClass}__script-info`}>
           <span className={`${baseClass}__script-name`}>{script.name}</span>
           <span className={`${baseClass}__script-uploaded`}>

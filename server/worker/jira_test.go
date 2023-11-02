@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -71,7 +70,7 @@ func TestJiraRun(t *testing.T) {
 		}
 
 		// the request body is the JSON payload sent to Jira, i.e. the rendered templates
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		require.NoError(t, err)
 		if expectedSummary != "" {
 			require.Contains(t, string(body), expectedSummary)

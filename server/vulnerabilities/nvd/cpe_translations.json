@@ -119,5 +119,15 @@
       "product": ["flock"],
       "vendor": ["flock"]
     }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.intellij/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["intellij_idea"],
+      "vendor": ["jetbrains"]
+    }
   }
 ]
