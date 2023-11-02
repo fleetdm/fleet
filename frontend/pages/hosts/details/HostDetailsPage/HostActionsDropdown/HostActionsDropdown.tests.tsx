@@ -228,9 +228,8 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             isMdmEnabledAndConfigured: true,
-            currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "maintainer" })],
-            }),
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
           },
         },
       });
@@ -260,7 +259,8 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             isMdmEnabledAndConfigured: true,
-            isTeamMaintainer: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
           },
         },
       });
