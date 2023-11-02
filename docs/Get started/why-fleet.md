@@ -2,7 +2,9 @@
 
 In an industry that views security and IT as a product rather than a process, it’s little wonder that most IT and security teams are suffocating in the cognitive overload of bolt-on solutions, misconfigured tools, and disparate workflows. 
 
-Fleet is committed to challenging the "easy way" by guiding IT and security teams in completely reimagining how they manage computers, CVEs, and infrastructure with open standards and data, while maintaining scope transparency through open-source software.
+Fleet helps organizations like Fastly and Gusto reimagine the "easy button." 
+
+By simplifying how they do device health, FIM, HIDS, posture assessment, malware detection, vulnerability management, MDM, and the rest, Fleet's API enables teams with thousands of computers to build an IT and security program that works.
 
 ## What does it do?
 Organizations like Fastly and Gusto use Fleet for endpoint operations, vulnerability management, device trust, HIDS, FIM, posture assessment, device management, and more. Fleet's powerful API enables teams with thousands of computers to build the IT and security platform they actually want. 
