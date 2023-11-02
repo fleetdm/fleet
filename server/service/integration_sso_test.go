@@ -83,6 +83,31 @@ func (s *integrationSSOTestSuite) TestGetSSOSettings() {
 	assert.True(t, strings.HasPrefix(authReq.ID, "id"), authReq.ID)
 }
 
+func (s *integrationSSOTestSuite) TestSSOInvalidMetadataURL() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	// metadata_url below is BAD
+	s.DoJSON(
+		"PATCH", "/api/latest/fleet/config", json.RawMessage(
+			`{
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "https://localhost:8080",
+			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "https://localhost:8080",
+			"enable_jit_provisioning": false
+		}
+	}`,
+		), http.StatusOK, &acResp,
+	)
+	require.NotNil(t, acResp)
+
+	var resGet ssoSettingsResponse
+	s.DoJSON("GET", "/api/v1/fleet/sso", nil, http.StatusBadRequest, &resGet)
+}
+
 func (s *integrationSSOTestSuite) TestSSOValidation() {
 	acResp := appConfigResponse{}
 	// Test we are validating metadata_url
