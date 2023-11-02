@@ -346,6 +346,73 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 	}
 }
 
+// TestLiveQueriesInvalidInput without query/host IDs
+func (s *liveQueriesTestSuite) TestLiveQueriesInvalidInputs() {
+	t := s.T()
+
+	host := s.hosts[0]
+
+	q1, err := s.ds.NewQuery(
+		context.Background(), &fleet.Query{
+			Query:       "select 1 from osquery;",
+			Description: "desc1",
+			Name:        t.Name() + "query1",
+			Logging:     fleet.LoggingSnapshot,
+		},
+	)
+	require.NoError(t, err)
+
+	liveQueryRequest := runLiveQueryRequest{
+		QueryIDs: []uint{},
+		HostIDs:  []uint{host.ID},
+	}
+	liveQueryResp := runLiveQueryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusBadRequest, &liveQueryResp)
+
+	liveQueryRequest = runLiveQueryRequest{
+		QueryIDs: []uint{q1.ID},
+		HostIDs:  []uint{},
+	}
+	s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusBadRequest, &liveQueryResp)
+
+	liveQueryRequest = runLiveQueryRequest{
+		QueryIDs: []uint{},
+		HostIDs:  []uint{},
+	}
+	s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusBadRequest, &liveQueryResp)
+}
+
+// TestLiveQueriesFailsToAuthorize when an observer tries to run a live query
+func (s *liveQueriesTestSuite) TestLiveQueriesFailsToAuthorize() {
+	t := s.T()
+
+	host := s.hosts[0]
+
+	q1, err := s.ds.NewQuery(
+		context.Background(), &fleet.Query{
+			Query:       "select 1 from osquery;",
+			Description: "desc1",
+			Name:        t.Name() + "query1",
+			Logging:     fleet.LoggingSnapshot,
+		},
+	)
+	require.NoError(t, err)
+
+	liveQueryRequest := runLiveQueryRequest{
+		QueryIDs: []uint{q1.ID},
+		HostIDs:  []uint{host.ID},
+	}
+	liveQueryResp := runLiveQueryResponse{}
+
+	// Switch to observer user.
+	originalToken := s.token
+	s.token = getTestUserToken(t, s.server, "user2")
+	defer func() {
+		s.token = originalToken
+	}()
+	s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusForbidden, &liveQueryResp)
+}
+
 func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsToCreateCampaign() {
 	t := s.T()
 

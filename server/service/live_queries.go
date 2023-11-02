@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -55,14 +56,35 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		},
 	}
 
-	queryResults, respondedHostCount := svc.RunLiveQueryDeadline(ctx, req.QueryIDs, req.HostIDs, duration)
+	queryResults, respondedHostCount, err := svc.RunLiveQueryDeadline(ctx, req.QueryIDs, req.HostIDs, duration)
+	if err != nil {
+		return nil, err
+	}
+	// fmt.Fprintf(os.Stderr, "VICTOR queryResults:%+v, hostCount:%+v\n", queryResults, respondedHostCount)
+	// Check if all query results were forbidden due to lack of authorization
+	allResultsForbidden := len(queryResults) > 0
+	for _, r := range queryResults {
+		if r.Error == nil || *r.Error != authz.ForbiddenErrorMessage {
+			allResultsForbidden = false
+			break
+		}
+	}
+	if allResultsForbidden {
+		return nil, authz.ForbiddenWithInternal("All Live Query results were forbidden.", authz.UserFromContext(ctx), nil, nil)
+	}
 	res.Results = queryResults
 	res.Summary.RespondedHostCount = respondedHostCount
 
 	return res, nil
 }
 
-func (svc *Service) RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration) ([]fleet.QueryCampaignResult, int) {
+func (svc *Service) RunLiveQueryDeadline(
+	ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration,
+) ([]fleet.QueryCampaignResult, int, error) {
+	if len(queryIDs) == 0 || len(hostIDs) == 0 {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, 0, ctxerr.Wrap(ctx, badRequest("query_ids and host_ids are required"))
+	}
 	wg := sync.WaitGroup{}
 
 	resultsCh := make(chan fleet.QueryCampaignResult)
@@ -132,7 +154,7 @@ func (svc *Service) RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, h
 		results = append(results, result)
 	}
 
-	return results, len(respondedHostIDs)
+	return results, len(respondedHostIDs), nil
 }
 
 func (svc *Service) GetCampaignReader(ctx context.Context, campaign *fleet.DistributedQueryCampaign) (<-chan interface{}, context.CancelFunc, error) {
