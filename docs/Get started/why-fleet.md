@@ -31,7 +31,7 @@ Here are the platforms Fleet currently supports:
 - Linux-based IoT devices
 
 ## Lighter than air
-Fleet is lightweight and modular.  You can use it for security without MDM and vice versa.  You can turn off features you are not using.
+Fleet is lightweight and modular.  You can use it for security without using it for MDM, and vice versa.  You can turn off features you are not using.
 
 ### Openness
 Fleet is dedicated to flexibility, accessibility, and clarity.  We think [everyone can contribute](https://fleetdm.com/handbook/company#openness) and that tools should be as easy as possible for everyone to understand.
