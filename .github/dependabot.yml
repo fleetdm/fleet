@@ -8,7 +8,7 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-    # Disable version updates for npm dependencies
+    # Disable version updates for github-actions dependencies
     open-pull-requests-limit: 0
     pull-request-branch-name:
       # Default is "/" which makes "docker tag" fail with
