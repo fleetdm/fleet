@@ -27,7 +27,7 @@ Here are the platforms Fleet currently supports:
 - Google Cloud (GCP)
 - Azure (Microsoft cloud)
 - Data centers
-- Containers (Kube, etc)
+- Containers (kube, etc)
 - Linux-based IoT devices
 
 ## Lighter than air
