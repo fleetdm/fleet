@@ -381,7 +381,7 @@ From time to time, someone's job title changes.  To do this, Business Operations
 3. If applicable, schedule the change in the appropriate payroll system.  (Don't worry about updating job titles in the payroll system.)
 
 ## Performance feedback
-Fleet errors on the side of over communicating performance mangement and believes in open and honest two way discussions.
+When it comes to performance feedback, [speak freely](https://fleetdm.com/handbook/company#openness), sooner, and provide an explicit example of the behavior you observed and the impact it had.
 
 1. Deliver negative feedback privately whenever possible, and be constructive not punitive. Celebrate positive feedback publicly.
 2. Performance mangement is a part of every 1:1 document. Start each 1:1 by delivering performance feedback.
