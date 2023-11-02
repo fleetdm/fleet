@@ -51,6 +51,7 @@ func (m *Middleware) AuthzCheck() endpoint.Middleware {
 			// If authorization was not checked, return a response that will
 			// marshal to a generic error and log that the check was missed.
 			if !authzctx.Checked() {
+				// Getting to here means there is an authorization-related bug in our code.
 				return nil, authz.CheckMissingWithResponse(response)
 			}
 
