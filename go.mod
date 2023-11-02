@@ -55,7 +55,7 @@ require (
 	github.com/hillu/go-ntdll v0.0.0-20220801201350-0d23f057ef1f
 	github.com/igm/sockjs-go/v3 v3.0.2
 	github.com/jinzhu/copier v0.3.5
-	github.com/jmoiron/sqlx v1.2.1-0.20190826204134-d7d95172beb5
+	github.com/jmoiron/sqlx v1.3.5
 	github.com/josephspurrier/goversioninfo v1.4.0
 	github.com/kevinburke/go-bindata v3.24.0+incompatible
 	github.com/kolide/kit v0.0.0-20221107170827-fb85e3d59eab
