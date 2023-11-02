@@ -7074,7 +7074,7 @@ Get a list of all software versions.
 
 ### Get software title
 
-Returns the information of the specified software title. By default `versions` are sorted in descending order by the `version` field.
+Returns the information of the specified software title. By default `versions` are sorted in descending order by the `hosts_count` field.
 
 `GET /api/v1/fleet/software_titles/{id}`
 
