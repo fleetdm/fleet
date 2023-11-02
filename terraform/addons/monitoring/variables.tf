@@ -19,12 +19,12 @@ variable "alb_name" {
 }
 
 variable "alb_target_group_name" {
-  type = string
+  type    = string
   default = null
 }
 
 variable "alb_target_group_arn_suffix" {
-  type = string
+  type    = string
   default = null
 }
 
@@ -58,4 +58,17 @@ variable "acm_certificate_arn" {
   default = null
 }
 
-
+variable "cron_monitoring" {
+  type = object({
+    mysql_host                 = string
+    mysql_database             = string
+    mysql_user                 = string
+    mysql_password_secret_name = string
+    vpc_id                     = string
+    subnet_ids                 = list(string)
+    rds_security_group_id      = string
+    delay_tolerance            = string
+    run_interval               = string    
+  })
+  default = null
+}

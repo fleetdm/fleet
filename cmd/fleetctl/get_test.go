@@ -2077,22 +2077,16 @@ func TestGetMDMCommandResults(t *testing.T) {
 			{ID: 2, UUID: uuids[1], Hostname: "host2"},
 		}, nil
 	}
-	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
-		if commandUUID == "no-such-cmd" {
-			return "", &notFoundError{}
-		}
-		return "test", nil
-	}
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+	getCommandResults := func(commandUUID string) ([]*fleet.MDMCommandResult, error) {
 		switch commandUUID {
 		case "empty-cmd":
 			return nil, nil
 		case "fail-cmd":
 			return nil, io.EOF
 		default:
-			return []*fleet.MDMAppleCommandResult{
+			return []*fleet.MDMCommandResult{
 				{
-					DeviceID:    "device1",
+					HostUUID:    "device1",
 					CommandUUID: commandUUID,
 					Status:      "Acknowledged",
 					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
@@ -2100,7 +2094,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 					Result:      []byte(rawXml),
 				},
 				{
-					DeviceID:    "device2",
+					HostUUID:    "device2",
 					CommandUUID: commandUUID,
 					Status:      "Error",
 					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
@@ -2110,30 +2104,98 @@ func TestGetMDMCommandResults(t *testing.T) {
 			}, nil
 		}
 	}
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+		return getCommandResults(commandUUID)
+	}
+	ds.GetMDMWindowsCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+		return getCommandResults(commandUUID)
+	}
+	var platform string
+	ds.GetMDMCommandPlatformFunc = func(ctx context.Context, commandUUID string) (string, error) {
+		if commandUUID == "no-such-cmd" {
+			return "", &notFoundError{}
+		}
+		return platform, nil
+	}
 
-	_, err := runAppNoChecks([]string{"get", "mdm-command-results"})
-	require.Error(t, err)
-	require.ErrorContains(t, err, `Required flag "id" not set`)
+	t.Run("command flag required", func(t *testing.T) {
+		_, err := runAppNoChecks([]string{"get", "mdm-command-results"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `Required flag "id" not set`)
+	})
 
-	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
-	require.Error(t, err)
-	require.ErrorContains(t, err, `The command doesn't exist.`)
+	t.Run("command not found", func(t *testing.T) {
+		platform = "darwin"
+		_, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `The command doesn't exist.`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
 
-	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
-	require.Error(t, err)
-	require.ErrorContains(t, err, `EOF`)
+		platform = "windows"
+		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `The command doesn't exist.`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
 
-	buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
-	require.NoError(t, err)
-	require.Contains(t, buf.String(), strings.TrimSpace(`
+	t.Run("command results error", func(t *testing.T) {
+		platform = "darwin"
+		_, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `EOF`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		ds.GetMDMAppleCommandResultsFuncInvoked = false
+
+		platform = "windows"
+		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `EOF`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		ds.GetMDMWindowsCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
+
+	t.Run("command results empty", func(t *testing.T) {
+		expectedOutput := strings.TrimSpace(`
 +----+------+------+--------+----------+---------+
 | ID | TIME | TYPE | STATUS | HOSTNAME | RESULTS |
 +----+------+------+--------+----------+---------+
-`))
+`)
 
-	buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
-	require.NoError(t, err)
-	require.Contains(t, buf.String(), strings.TrimSpace(`
+		platform = "darwin"
+		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		ds.GetMDMAppleCommandResultsFuncInvoked = false
+
+		platform = "windows"
+		buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		ds.GetMDMWindowsCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
+
+	t.Run("command results", func(t *testing.T) {
+		expectedOutput := strings.TrimSpace(`
 +-----------+----------------------+------+--------------+----------+---------------------------------------------------+
 |    ID     |         TIME         | TYPE |    STATUS    | HOSTNAME |                      RESULTS                      |
 +-----------+----------------------+------+--------------+----------+---------------------------------------------------+
@@ -2161,7 +2223,28 @@ func TestGetMDMCommandResults(t *testing.T) {
 |           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
 |           |                      |      |              |          | </plist>                                          |
 +-----------+----------------------+------+--------------+----------+---------------------------------------------------+
-`))
+`)
+
+		platform = "darwin"
+		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		ds.GetMDMAppleCommandResultsFuncInvoked = false
+
+		platform = "windows"
+		buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		ds.GetMDMWindowsCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
 }
 
 func TestGetMDMCommands(t *testing.T) {
@@ -2172,13 +2255,13 @@ func TestGetMDMCommands(t *testing.T) {
 	}
 	var empty bool
 	var listErr error
-	ds.ListMDMAppleCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
+	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
 		if empty || listErr != nil {
 			return nil, listErr
 		}
-		return []*fleet.MDMAppleCommand{
+		return []*fleet.MDMCommand{
 			{
-				DeviceID:    "h1",
+				HostUUID:    "h1",
 				CommandUUID: "u1",
 				UpdatedAt:   time.Date(2023, 4, 12, 9, 5, 0, 0, time.UTC),
 				RequestType: "ProfileList",
@@ -2186,11 +2269,11 @@ func TestGetMDMCommands(t *testing.T) {
 				Hostname:    "host1",
 			},
 			{
-				DeviceID:    "h2",
+				HostUUID:    "h2",
 				CommandUUID: "u2",
 				UpdatedAt:   time.Date(2023, 4, 11, 9, 5, 0, 0, time.UTC),
-				RequestType: "ListApps",
-				Status:      "Acknowledged",
+				RequestType: "./Device/Vendor/MSFT/Reboot/RebootNow",
+				Status:      "200",
 				Hostname:    "host2",
 			},
 		}, nil
@@ -2211,13 +2294,13 @@ func TestGetMDMCommands(t *testing.T) {
 	buf, err = runAppNoChecks([]string{"get", "mdm-commands"})
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), strings.TrimSpace(`
-+----+----------------------+-------------+--------------+----------+
-| ID |         TIME         |    TYPE     |    STATUS    | HOSTNAME |
-+----+----------------------+-------------+--------------+----------+
-| u1 | 2023-04-12T09:05:00Z | ProfileList | Acknowledged | host1    |
-+----+----------------------+-------------+--------------+----------+
-| u2 | 2023-04-11T09:05:00Z | ListApps    | Acknowledged | host2    |
-+----+----------------------+-------------+--------------+----------+
++----+----------------------+---------------------------------------+--------------+----------+
+| ID |         TIME         |                 TYPE                  |    STATUS    | HOSTNAME |
++----+----------------------+---------------------------------------+--------------+----------+
+| u1 | 2023-04-12T09:05:00Z | ProfileList                           | Acknowledged | host1    |
++----+----------------------+---------------------------------------+--------------+----------+
+| u2 | 2023-04-11T09:05:00Z | ./Device/Vendor/MSFT/Reboot/RebootNow |          200 | host2    |
++----+----------------------+---------------------------------------+--------------+----------+
 `))
 }
 

@@ -96,7 +96,7 @@ Anyone is free to contribute to the free or paid features of the project. We are
 
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
-### Can you host Fleet for me?
+## Can you host Fleet for me?
 
 Fleet offers managed cloud hosting for large deployments.
 
