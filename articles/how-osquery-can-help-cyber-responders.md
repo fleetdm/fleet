@@ -1,16 +1,16 @@
 # How osquery can help cyber responders
 
-![A friendly eye of Sauron watching someone work](../website/assets/images/articles/how-osquery-can-help-cyber-responders-1600x900@2x.jpg)
+![A friendly eye of Sauron watching someone work](../website/assets/images/articles/osquery-for-cyber-responders-1600x900@2x.png)
 
 At 3 a.m. on Sunday morning, Avery's phone starts vibrating. It's their SOC lead telling them about an in-progress ransomware attack. The entire next quarter is a blur of whiteboarding and crisis meetings. 
 
 After three months of endless shifts, much of which is spent trying to tie together information from thousands of endpoints, Avery's team manages to save 90% of their data. A good result. But who cares? Management even pins some blame on Avery's team despite the C-suite ignoring warnings and delaying pen tests. 
 
-An above-inflation pay rise? Forget about it. Anxious, disappointed, and still not sleeping, Avery, burned out, quits their job. Avery is a fictional character, but [a study from IBM](https://newsroom.ibm.com/2022-10-03-New-IBM-Study-Finds-Cybersecurity-Incident-Responders-Have-Strong-Sense-of-Service-as-Threats-Cross-Over-to-Physical-World) puts data behind the reality that thousands of men and women on the front line of cyber incident response know well. 
+An above-inflation pay raise? Forget about it. Anxious, disappointed, and still not sleeping, Avery, burned out, quits their job. Avery is a fictional character, but [a study from IBM](https://newsroom.ibm.com/2022-10-03-New-IBM-Study-Finds-Cybersecurity-Incident-Responders-Have-Strong-Sense-of-Service-as-Threats-Cross-Over-to-Physical-World) puts data behind the reality that thousands of men and women on the front line of cyber incident response know well. 
 
 The vast majority (67%) of incident responders surveyed by IBM report feeling stress/anxiety due to their jobs. 30% get insomnia, the same number feel burned out, while 18% feel physical effects, and 17% get panic attacks. 
 
-Working in cyber incident response is not suitable for your health. But cyber incident responders’ jobs can be made better. One actionable way to do this is by using Osquery and decreasing the time it takes to respond and remediate cyber incidents - helping analysts get their lives back sooner. 
+Working in cyber incident response is not suitable for your health. But cyber incident responders’ jobs can be made better. One actionable way to do this is by using osquery and decreasing the time it takes to respond and remediate cyber incidents - helping analysts get their lives back sooner. 
 
 
 ## Low visibility hurts incident responders 
@@ -54,7 +54,7 @@ The same is true for mobile devices. Very few organizations are confident in the
 
 ## Simplifying endpoint visibility with osquery and Fleet
 
-Incident responders’ jobs are much more manageable,@laur and their companies are safer when they can query every device connected to their network. 
+Incident responders’ jobs are much more manageable, and their companies are safer when they can query every device connected to their network. 
 
 Open-source and deployable on macOS, Windows, Linux, and Chromebook devices and servers, osquery agents can meet their challenges.
 
@@ -64,6 +64,6 @@ Using Fleet as a centralized management interface to deploy, update, and manage 
 <meta name="category" value="security">
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
-<meta name="publishedOn" value="2023-10-12">
+<meta name="publishedOn" value="2023-11-02">
 <meta name="articleTitle" value="How osquery can help cyber responders.">
-<meta name="articleImageUrl" value="../website/assets/images/articles/how-osquery-can-help-cyber-responders-1600x900@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/osquery-for-cyber-responders-1600x900@2x.png">
