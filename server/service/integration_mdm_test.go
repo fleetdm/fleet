@@ -7272,7 +7272,7 @@ func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
 
 	// Target Endpoint url with no login_hit query param
 	targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=ms-app%3A%2F%2Fwindows.immersivecontrolpanel"
-	resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusForbidden)
+	resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusInternalServerError)
 
 	resBytes, err := io.ReadAll(resp.Body)
 	resContent := string(resBytes)

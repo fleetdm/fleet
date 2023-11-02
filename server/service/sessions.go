@@ -42,7 +42,7 @@ func getInfoAboutSessionEndpoint(ctx context.Context, request interface{}, svc f
 	req := request.(*getInfoAboutSessionRequest)
 	session, err := svc.GetInfoAboutSession(ctx, req.ID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, badRequest(err.Error()))
+		return getInfoAboutSessionResponse{Err: err}, nil
 	}
 
 	return getInfoAboutSessionResponse{
@@ -55,6 +55,7 @@ func getInfoAboutSessionEndpoint(ctx context.Context, request interface{}, svc f
 func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*fleet.Session, error) {
 	session, err := svc.ds.SessionByID(ctx, id)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return nil, err
 	}
 
@@ -88,7 +89,7 @@ func deleteSessionEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	req := request.(*deleteSessionRequest)
 	err := svc.DeleteSession(ctx, req.ID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, badRequest(err.Error()))
+		return deleteSessionResponse{Err: err}, nil
 	}
 	return deleteSessionResponse{}, nil
 }
@@ -96,6 +97,7 @@ func deleteSessionEndpoint(ctx context.Context, request interface{}, svc fleet.S
 func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 	session, err := svc.ds.SessionByID(ctx, id)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return err
 	}
 

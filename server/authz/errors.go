@@ -78,11 +78,6 @@ func (e *CheckMissing) Error() string {
 	return ForbiddenErrorMessage
 }
 
-// StatusCode implements the go-kit http StatusCoder interface.
-func (e *CheckMissing) StatusCode() int {
-	return http.StatusForbidden
-}
-
 func (e *CheckMissing) Internal() string {
 	return "Missing authorization check"
 }
