@@ -60,7 +60,6 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return nil, err
 	}
-	// fmt.Fprintf(os.Stderr, "VICTOR queryResults:%+v, hostCount:%+v\n", queryResults, respondedHostCount)
 	// Check if all query results were forbidden due to lack of authorization
 	allResultsForbidden := len(queryResults) > 0
 	for _, r := range queryResults {
