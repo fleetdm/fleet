@@ -1,6 +1,6 @@
 # How osquery can help cyber responders
 
-![A friendly eye of Sauron watching someone work](../website/assets/images/articles/osquery-for-cyber-responders-1600x900@2x.png)
+![How osquery can help cyber responders](../website/assets/images/articles/osquery-for-cyber-responders-1600x900@2x.png)
 
 At 3 a.m. on Sunday morning, Avery's phone starts vibrating. It's their SOC lead telling them about an in-progress ransomware attack. The entire next quarter is a blur of whiteboarding and crisis meetings. 
 
