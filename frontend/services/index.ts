@@ -13,7 +13,7 @@ const sendRequest = async (
   data?: unknown,
   responseType: AxiosResponseType = "json",
   timeout?: number
-): Promise<any> => {
+) => {
   const { origin } = global.window.location;
 
   const url = `${origin}${URL_PREFIX}/api${path}`;

@@ -24,8 +24,6 @@ import Fleet404 from "pages/errors/Fleet404";
 import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
 import { QueryParams } from "utilities/url";
-import { randomUUID } from "crypto";
-import { uniqueId } from "lodash";
 
 interface IAppProps {
   children: JSX.Element;
@@ -55,27 +53,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     setNoSandboxHosts,
   } = useContext(AppContext);
 
-  const curUUID = crypto.randomUUID();
-
   const [isLoading, setIsLoading] = useState(false);
-
-  // // approach 1 - keep track of, then delete the promise
-  // const promises = [];
-  // const handleBeforeUnload = (event) => {
-  //   // delete all promise objects
-  //   promises.forEach(promise => { delete promise; });
-  // };
-
-  // useEffect(() => {
-  //   window.addEventListener("beforeunload", handleBeforeUnload);
-  //   return () => {
-  //     window.removeEventListener("beforeUnload", handleBeforeUnload);
-  //   };
-  // });
-
-  // const foo = async () => {
-  //   return Promise.reject("baz");
-  // };
 
   const fetchConfig = async () => {
     try {
@@ -98,46 +76,33 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   };
 
   const fetchCurrentUser = async () => {
-    console.log(curUUID, "entered fetchCurrentUser");
     try {
-      // throw undefined;
-      console.log(curUUID, "fetch me");
-      // const bar = await foo();
-      // console.log("bar: ", bar);
-      // const { user, available_teams } = await usersAPI
-      //   .me()
-      //   .then((r) => r)
-      //   .catch((e) => {
-      //     console.log(curUUID, "usersAPI.me error: ", e);
-      //     throw e;
-      //   });
       const { user, available_teams } = await usersAPI.me();
-      console.log(curUUID, "set user");
       setCurrentUser(user);
-      console.log(curUUID, "set user available teams");
       setAvailableTeams(user, available_teams);
-      console.log(curUUID, "fetch config");
       fetchConfig();
     } catch (error) {
-      // if (!location?.pathname.includes("/login/reset") error !== undefined) {
-      if (!location?.pathname.includes("/login/reset")) {
-        console.log(curUUID, "fetchCurrentUser error:", error);
-        clearToken();
-
-        // if this is not the device user page,
-        // redirect to login
-        if (!location?.pathname.includes("/device/")) {
-          window.location.href = "/login";
-        }
+      if (
+        // reseting a user's password requires the current token
+        location?.pathname.includes("/login/reset") ||
+        // this can occur when the user refreshes their page at certain intervals,
+        // in which case we don't want to log them out
+        (typeof error === "string" && error.match(/request aborted/i))
+      ) {
+        return true;
+      }
+      clearToken();
+      // if this is not the device user page,
+      // redirect to login
+      if (!location?.pathname.includes("/device/")) {
+        window.location.href = "/login";
       }
     }
     return true;
   };
 
   useEffect(() => {
-    console.log(curUUID, "inside useEffect to refetch current user");
     if (authToken() && !location?.pathname.includes("/device/")) {
-      console.log("inside 'if' of useEffect to refetch current user");
       fetchCurrentUser();
     }
   }, [location?.pathname]);
