@@ -1,6 +1,6 @@
 # Why Fleet
 
-In an industry that views security and IT as a product rather than a process, it’s little wonder that most IT and security teams are suffocating in the cognitive overload of bolt-on solutions, misconfigured tools, and disparate workflows. 
+In an industry that views security and IT as a shopping spree rather than a process, it’s little wonder that IT and security teams get stuck with bolt-on solutions, misconfigured tools, and disparate workflows. 
 
 Fleet helps organizations like Fastly and Gusto reimagine the "easy button." 
 
