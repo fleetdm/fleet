@@ -1,7 +1,12 @@
 # Why Fleet
 
+In an industry that views security and IT as a shopping spree rather than a process, it’s little wonder that IT and security teams get stuck with bolt-on solutions, misconfigured tools, and disparate workflows. 
+
 ## What's it for?
-Organizations like Fastly and Gusto use Fleet for vulnerability reporting, detection engineering, device management (MDM), device health monitoring, posture-based access control, managing unused software licenses, and more.
+Fleet helps organizations like Fastly and Gusto reimagine the "easy button." 
+
+By simplifying how they do device health, FIM, HIDS, posture assessment, malware detection, vulnerability management, MDM, and the rest, Fleet's API enables teams with thousands of computers to build an IT and security program that works.
+
 
 #### Explore data
 To see what kind of data you can use Fleet to gather, check out the [table reference documentation](https://fleetdm.com/tables).
@@ -32,7 +37,7 @@ Fleet is lightweight and modular.  You can use it for security without using it 
 Fleet is dedicated to flexibility, accessibility, and clarity.  We think [everyone can contribute](https://fleetdm.com/handbook/company#openness) and that tools should be as easy as possible for everyone to understand.
 
 #### Good neighbors
-Fleet has no ambition to replace all of your other tools.  (Though it might replace some, if you want it to.)  Ready-to-use, enterprise-friendly integrations exist for Snowflake, Splunk, GitHub Actions, Vanta, Elastic Jira, Zendesk, and more.
+Fleet has no ambition to replace all of your other tools.  (Though it might replace some, if you want it to.)  Ready-to-use, enterprise-friendly [integrations](https://fleetdm.com/integrations) exist for Snowflake, Splunk, GitHub Actions, Vanta, Elastic Jira, Zendesk, and more.
 
 Fleet plays well with Munki, Chef, Puppet, and Ansible, as well as with security tools like Crowdstrike and SentinelOne.  For example, you can use the free version of Fleet to quickly report on what hosts are _actually_ running your EDR agent.
 
@@ -70,9 +75,9 @@ Contributions are welcome, whether you answer questions on [Slack](#chat) / [Git
 - Small, iterative, simple (boring) changes are the easiest to merge. -->
 
 ## What's next?
-Try out Fleet for yourself to see what it can do, grab time with one of the maintainers to discuss, or explore the rest of the docs and roll it out to your organization.
+[Try out Fleet](https://fleetdm.com/try-fleet) for yourself to see what it can do, grab time with one of the maintainers to discuss, or explore the rest of the docs and roll it out to your organization.
 
 #### Production deployment
-Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet).  Or you can have us [host it for you](https://fleetdm.com/pricing).  Premium features are [available](https://fleetdm.com/pricing) either way.
+Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform).  Or you can have us [host it for you](https://fleetdm.com/pricing).  Premium features are [available](https://fleetdm.com/pricing) either way.
 
 <meta name="pageOrderInSection" value="100">

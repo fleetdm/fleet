@@ -68,6 +68,7 @@ const EditQueryPage = ({
     isAnyTeamMaintainerOrTeamAdmin,
     isObserverPlus,
     isAnyTeamObserverPlus,
+    config,
   } = useContext(AppContext);
   const {
     selectedOsqueryTable,
@@ -293,7 +294,7 @@ const EditQueryPage = ({
   };
 
   const renderLiveQueryWarning = (): JSX.Element | null => {
-    if (isLiveQueryRunnable) {
+    if (isLiveQueryRunnable || config?.server_settings.live_query_disabled) {
       return null;
     }
 

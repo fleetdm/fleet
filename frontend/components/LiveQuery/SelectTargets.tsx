@@ -395,7 +395,7 @@ const SelectTargets = ({
 
     return (
       <>
-        <span>{total}</span>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
+        <b>{total}</b>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
         {onlinePercentage()}
         %&nbsp;
         <TooltipWrapper
