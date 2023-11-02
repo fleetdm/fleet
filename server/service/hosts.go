@@ -204,6 +204,10 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	ctx = context.WithoutCancel(ctx) // to make sure DB operations don't get killed after we return a 202
 	go func() {
 		err = svc.DeleteHosts(ctx, req.IDs, listOpt, req.Filters.LabelID)
+		if err != nil {
+			// logging the error for future debug in case we already sent http.StatusAccepted
+			logging.WithErr(ctx, err)
+		}
 		deleteDone <- true
 	}()
 	select {
