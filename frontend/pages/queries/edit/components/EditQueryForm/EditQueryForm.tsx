@@ -161,10 +161,12 @@ const EditQueryForm = ({
     isGlobalMaintainer,
     isObserverPlus,
     isAnyTeamObserverPlus,
+    config,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const savedQueryMode = !!queryIdForEdit;
+  const disabledLiveQuery = config?.server_settings.live_query_disabled;
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   // NOTE: SaveQueryModal is only being used to create a new query in this component.
   // It's easy to confuse with other names like promptSaveQuery, promptSaveAsNewQuery, etc.,
@@ -589,18 +591,36 @@ const EditQueryForm = ({
         <div
           className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
         >
-          <Button
-            className={`${baseClass}__run`}
-            variant="blue-green"
-            onClick={() => {
-              router.push(
-                PATHS.LIVE_QUERY(queryIdForEdit) +
-                  TAGGED_TEMPLATES.queryByHostRoute(hostId)
-              );
-            }}
+          <div
+            data-tip
+            data-for="live-query-button"
+            // Tooltip shows when live queries are globally disabled
+            data-tip-disable={!disabledLiveQuery}
           >
-            Live query
-          </Button>
+            <Button
+              className={`${baseClass}__run`}
+              variant="blue-green"
+              onClick={() => {
+                router.push(
+                  PATHS.LIVE_QUERY(queryIdForEdit) +
+                    TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                );
+              }}
+              disabled={disabledLiveQuery}
+            >
+              Live query
+            </Button>
+          </div>
+          <ReactTooltip
+            className={`live-query-button-tooltip`}
+            place="top"
+            effect="solid"
+            backgroundColor={COLORS["tooltip-bg"]}
+            id="live-query-button"
+            data-html
+          >
+            Live queries are disabled in organization settings
+          </ReactTooltip>
         </div>
       )}
     </form>
@@ -808,18 +828,36 @@ const EditQueryForm = ({
                 </div>
               </>
             )}
-            <Button
-              className={`${baseClass}__run`}
-              variant="blue-green"
-              onClick={() => {
-                router.push(
-                  PATHS.LIVE_QUERY(queryIdForEdit) +
-                    TAGGED_TEMPLATES.queryByHostRoute(hostId)
-                );
-              }}
+            <div
+              data-tip
+              data-for="live-query-button"
+              // Tooltip shows when live queries are globally disabled
+              data-tip-disable={!disabledLiveQuery}
             >
-              Live query
-            </Button>
+              <Button
+                className={`${baseClass}__run`}
+                variant="blue-green"
+                onClick={() => {
+                  router.push(
+                    PATHS.LIVE_QUERY(queryIdForEdit) +
+                      TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                  );
+                }}
+                disabled={disabledLiveQuery}
+              >
+                Live query
+              </Button>
+            </div>
+            <ReactTooltip
+              className={`live-query-button-tooltip`}
+              place="top"
+              effect="solid"
+              backgroundColor={COLORS["tooltip-bg"]}
+              id="live-query-button"
+              data-html
+            >
+              Live queries are disabled in organization settings
+            </ReactTooltip>
           </div>
         </form>
         {showSaveQueryModal && (

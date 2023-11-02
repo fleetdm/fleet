@@ -1,4 +1,3 @@
-// Package mdmtest contains types and methods useful for testing MDM servers.
 package mdmtest
 
 import (
@@ -36,8 +35,8 @@ import (
 	"go.mozilla.org/pkcs7"
 )
 
-// TestMDMClient simulates an MDM client.
-type TestMDMClient struct {
+// TestAppleMDMClient simulates a macOS MDM client.
+type TestAppleMDMClient struct {
 	// UUID is a random fake unique ID of the simulated device.
 	UUID string
 	// SerialNumber is a random fake serial number of the simulated device.
@@ -46,7 +45,7 @@ type TestMDMClient struct {
 	Model string
 
 	// EnrollInfo holds the information necessary to enroll to an MDM server.
-	EnrollInfo EnrollInfo
+	EnrollInfo AppleEnrollInfo
 
 	// fleetServerURL is the URL of the Fleet server, used to fetch the enrollment profile.
 	fleetServerURL string
@@ -77,18 +76,18 @@ type TestMDMClient struct {
 	scepKey *rsa.PrivateKey
 }
 
-// TestMDMClientOption allows configuring a TestMDMClient.
-type TestMDMClientOption func(*TestMDMClient)
+// TestMDMAppleClientOption allows configuring a TestMDMClient.
+type TestMDMAppleClientOption func(*TestAppleMDMClient)
 
-// TestMDMClientDebug configures the TestMDMClient to run in debug mode.
-func TestMDMClientDebug() TestMDMClientOption {
-	return func(c *TestMDMClient) {
+// TestMDMAppleClientDebug configures the TestMDMClient to run in debug mode.
+func TestMDMAppleClientDebug() TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
 		c.debug = true
 	}
 }
 
-// EnrollInfo contains the necessary information to enroll to an MDM server.
-type EnrollInfo struct {
+// AppleEnrollInfo contains the necessary information to enroll to an MDM server.
+type AppleEnrollInfo struct {
 	// SCEPChallenge is the SCEP challenge to present to the SCEP server when enrolling.
 	SCEPChallenge string
 	// SCEPURL is the URL of the SCEP server.
@@ -97,10 +96,10 @@ type EnrollInfo struct {
 	MDMURL string
 }
 
-// NewTestMDMClientDesktopManual will create a simulated device that will fetch
+// NewTestMDMClientAppleDesktopManual will create a simulated device that will fetch
 // enrollment profile from Fleet as if it were a device running Fleet Desktop.
-func NewTestMDMClientDesktopManual(serverURL string, desktopURLToken string, opts ...TestMDMClientOption) *TestMDMClient {
-	c := TestMDMClient{
+func NewTestMDMClientAppleDesktopManual(serverURL string, desktopURLToken string, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
+	c := TestAppleMDMClient{
 		UUID:         strings.ToUpper(uuid.New().String()),
 		SerialNumber: RandSerialNumber(),
 		Model:        "MacBookPro16,1",
@@ -116,10 +115,10 @@ func NewTestMDMClientDesktopManual(serverURL string, desktopURLToken string, opt
 	return &c
 }
 
-// NewTestMDMClientDEP will create a simulated device that will fetch
+// NewTestMDMClientAppleDEP will create a simulated device that will fetch
 // enrollment profile from Fleet as if it were a device running the DEP flow.
-func NewTestMDMClientDEP(serverURL string, depURLToken string, opts ...TestMDMClientOption) *TestMDMClient {
-	c := TestMDMClient{
+func NewTestMDMClientAppleDEP(serverURL string, depURLToken string, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
+	c := TestAppleMDMClient{
 		UUID:         strings.ToUpper(uuid.New().String()),
 		SerialNumber: RandSerialNumber(),
 		Model:        "MacBookPro16,1",
@@ -137,8 +136,8 @@ func NewTestMDMClientDEP(serverURL string, depURLToken string, opts ...TestMDMCl
 
 // NewTestMDMClientDEP will create a simulated device that will not fetch the enrollment
 // profile from Fleet. The enrollment information is to be provided in the enrollInfo.
-func NewTestMDMClientDirect(enrollInfo EnrollInfo, opts ...TestMDMClientOption) *TestMDMClient {
-	c := TestMDMClient{
+func NewTestMDMClientAppleDirect(enrollInfo AppleEnrollInfo, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
+	c := TestAppleMDMClient{
 		UUID:         strings.ToUpper(uuid.New().String()),
 		SerialNumber: RandSerialNumber(),
 		Model:        "MacBookPro16,1",
@@ -152,7 +151,7 @@ func NewTestMDMClientDirect(enrollInfo EnrollInfo, opts ...TestMDMClientOption) 
 }
 
 // Enroll runs the MDM enroll protocol on the simulated device.
-func (c *TestMDMClient) Enroll() error {
+func (c *TestAppleMDMClient) Enroll() error {
 	switch {
 	case c.fetchEnrollmentProfileFromDesktop:
 		if err := c.fetchEnrollmentProfileFromDesktopURL(); err != nil {
@@ -179,19 +178,19 @@ func (c *TestMDMClient) Enroll() error {
 	return nil
 }
 
-func (c *TestMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
+func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
 	return c.fetchEnrollmentProfile(
 		"/api/latest/fleet/device/" + c.desktopURLToken + "/mdm/apple/manual_enrollment_profile",
 	)
 }
 
-func (c *TestMDMClient) fetchEnrollmentProfileFromDEPURL() error {
+func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 	return c.fetchEnrollmentProfile(
 		apple_mdm.EnrollPath + "?token=" + c.depURLToken,
 	)
 }
 
-func (c *TestMDMClient) fetchEnrollmentProfile(path string) error {
+func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string) error {
 	request, err := http.NewRequest("GET", c.fleetServerURL+path, nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
@@ -224,7 +223,7 @@ func (c *TestMDMClient) fetchEnrollmentProfile(path string) error {
 }
 
 // SCEPEnroll runs the SCEP enroll protocol for the simulated device.
-func (c *TestMDMClient) SCEPEnroll() error {
+func (c *TestAppleMDMClient) SCEPEnroll() error {
 	ctx := context.Background()
 
 	var logger log.Logger
@@ -358,7 +357,7 @@ func (c *TestMDMClient) SCEPEnroll() error {
 }
 
 // Authenticate sends the Authenticate message to the MDM server (Check In protocol).
-func (c *TestMDMClient) Authenticate() error {
+func (c *TestAppleMDMClient) Authenticate() error {
 	payload := map[string]any{
 		"MessageType":  "Authenticate",
 		"UDID":         c.UUID,
@@ -373,7 +372,7 @@ func (c *TestMDMClient) Authenticate() error {
 }
 
 // TokenUpdate sends the TokenUpdate message to the MDM server (Check In protocol).
-func (c *TestMDMClient) TokenUpdate() error {
+func (c *TestAppleMDMClient) TokenUpdate() error {
 	payload := map[string]any{
 		"MessageType":  "TokenUpdate",
 		"UDID":         c.UUID,
@@ -388,7 +387,7 @@ func (c *TestMDMClient) TokenUpdate() error {
 }
 
 // Checkout sends the CheckOut message to the MDM server.
-func (c *TestMDMClient) Checkout() error {
+func (c *TestAppleMDMClient) Checkout() error {
 	payload := map[string]any{
 		"MessageType":  "CheckOut",
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
@@ -405,7 +404,7 @@ func (c *TestMDMClient) Checkout() error {
 // receive commands. The server can signal back with either a command to run
 // or an empty (nil, nil) response body to end the communication
 // (i.e. no commands to run).
-func (c *TestMDMClient) Idle() (*micromdm.CommandPayload, error) {
+func (c *TestAppleMDMClient) Idle() (*micromdm.CommandPayload, error) {
 	payload := map[string]any{
 		"Status":       "Idle",
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
@@ -421,7 +420,7 @@ func (c *TestMDMClient) Idle() (*micromdm.CommandPayload, error) {
 // The server can signal back with either a command to run
 // or an empty (nil, nil) response body to end the communication
 // (i.e. no commands to run).
-func (c *TestMDMClient) Acknowledge(cmdUUID string) (*micromdm.CommandPayload, error) {
+func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*micromdm.CommandPayload, error) {
 	payload := map[string]any{
 		"Status":       "Acknowledged",
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
@@ -432,7 +431,7 @@ func (c *TestMDMClient) Acknowledge(cmdUUID string) (*micromdm.CommandPayload, e
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
-func (c *TestMDMClient) GetBootstrapToken() ([]byte, error) {
+func (c *TestAppleMDMClient) GetBootstrapToken() ([]byte, error) {
 	payload := map[string]any{
 		"MessageType":  "GetBootstrapToken",
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
@@ -474,7 +473,7 @@ func (c *TestMDMClient) GetBootstrapToken() ([]byte, error) {
 // The server can signal back with either a command to run
 // or an empty (nil, nil) response body to end the communication
 // (i.e. no commands to run).
-func (c *TestMDMClient) Err(cmdUUID string, errChain []mdm.ErrorChain) (*micromdm.CommandPayload, error) {
+func (c *TestAppleMDMClient) Err(cmdUUID string, errChain []mdm.ErrorChain) (*micromdm.CommandPayload, error) {
 	payload := map[string]any{
 		"Status":       "Error",
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
@@ -486,7 +485,7 @@ func (c *TestMDMClient) Err(cmdUUID string, errChain []mdm.ErrorChain) (*micromd
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
-func (c *TestMDMClient) sendAndDecodeCommandResponse(payload map[string]any) (*micromdm.CommandPayload, error) {
+func (c *TestAppleMDMClient) sendAndDecodeCommandResponse(payload map[string]any) (*micromdm.CommandPayload, error) {
 	res, err := c.request("", payload)
 	if err != nil {
 		return nil, fmt.Errorf("request error: %w", err)
@@ -519,7 +518,7 @@ func (c *TestMDMClient) sendAndDecodeCommandResponse(payload map[string]any) (*m
 	return &p, nil
 }
 
-func (c *TestMDMClient) request(contentType string, payload map[string]any) (*http.Response, error) {
+func (c *TestAppleMDMClient) request(contentType string, payload map[string]any) (*http.Response, error) {
 	body, err := plist.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal payload: %w", err)
@@ -562,7 +561,7 @@ func (c *TestMDMClient) request(contentType string, payload map[string]any) (*ht
 }
 
 // ParseEnrollmentProfile parses the enrollment profile and returns the parsed information as EnrollInfo.
-func ParseEnrollmentProfile(mobileConfig []byte) (*EnrollInfo, error) {
+func ParseEnrollmentProfile(mobileConfig []byte) (*AppleEnrollInfo, error) {
 	var enrollmentProfile struct {
 		PayloadContent []map[string]interface{} `plist:"PayloadContent"`
 	}
@@ -587,7 +586,7 @@ func ParseEnrollmentProfile(mobileConfig []byte) (*EnrollInfo, error) {
 	if apnsTopic, ok := enrollmentProfile.PayloadContent[1]["Topic"].(string); !ok || apnsTopic == "" {
 		return nil, errors.New("MDM Topic field not found")
 	}
-	return &EnrollInfo{
+	return &AppleEnrollInfo{
 		SCEPChallenge: scepChallenge,
 		SCEPURL:       scepURL,
 		MDMURL:        mdmURL,

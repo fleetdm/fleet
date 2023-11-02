@@ -114,6 +114,9 @@ func DownloadCPEDBFromGithub(vulnPath string, cpeDBURL string) error {
 	return nil
 }
 
+// cpeGeneralSearchQuery puts together several search statements to find the correct row in the CPE datastore.
+// Each statement has a custom weight column, where 1 is the highest priority (most likely to be correct).
+// The SQL statements are combined into a master statements with UNION.
 func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, error) {
 	dialect := goqu.Dialect("sqlite")
 
@@ -146,6 +149,17 @@ func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, err
 		Where(goqu.L("cs.title MATCH ?", sanitizeMatch(software.Name)))
 
 	datasets := []*goqu.SelectDataset{search1, search2, search3}
+
+	// 4 - Try vendor/product from bundle identifier, like tld.vendor.product
+	bundleParts := strings.Split(software.BundleIdentifier, ".")
+	if len(bundleParts) >= 3 {
+		search4 := dialect.From(goqu.I("cpe_2").As("c")).
+			Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("4 as weight")).
+			Where(
+				goqu.Or(goqu.L("c.vendor = ?", strings.ToLower(bundleParts[1]))), goqu.L("c.product = ?", strings.ToLower(bundleParts[2])),
+			)
+		datasets = append(datasets, search4)
+	}
 
 	var sqlParts []string
 	var args []interface{}

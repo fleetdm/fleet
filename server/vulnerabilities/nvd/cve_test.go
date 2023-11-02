@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -110,95 +108,6 @@ var firefox93WindowsVulnerabilities = []string{
 	"CVE-2022-29915",
 }
 
-var cvetests = []struct {
-	cpe          string
-	excludedCVEs []string
-	includedCVEs []string
-	// continuesToUpdate indicates if the product/software
-	// continues to register new CVE vulnerabilities.
-	continuestoUpdate bool
-}{
-	{
-		cpe:               "cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:macos:*:*",
-		includedCVEs:      []string{"CVE-2012-6369"},
-		continuestoUpdate: false,
-	},
-	{
-		cpe:               "cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:*:*:*",
-		includedCVEs:      []string{"CVE-2012-6369"},
-		continuestoUpdate: false,
-	},
-	{
-		cpe: "cpe:2.3:a:pypa:pip:9.0.3:*:*:*:*:python:*:*",
-		includedCVEs: []string{
-			"CVE-2019-20916",
-			"CVE-2021-3572",
-		},
-		continuestoUpdate: false,
-	},
-	{
-		cpe:               "cpe:2.3:a:mozilla:firefox:93.0:*:*:*:*:windows:*:*",
-		includedCVEs:      firefox93WindowsVulnerabilities,
-		continuestoUpdate: true,
-	},
-	{
-		cpe:               "cpe:2.3:a:mozilla:firefox:93.0.100:*:*:*:*:windows:*:*",
-		includedCVEs:      firefox93WindowsVulnerabilities,
-		continuestoUpdate: true,
-	},
-	{
-		cpe: "cpe:2.3:a:apple:icloud:1.0:*:*:*:*:macos:*:*",
-		excludedCVEs: []string{
-			"CVE-2017-13797",
-			"CVE-2017-2383",
-			"CVE-2017-2366",
-			"CVE-2016-4613",
-			"CVE-2016-4692",
-			"CVE-2016-4743",
-			"CVE-2016-7578",
-			"CVE-2016-7583",
-			"CVE-2016-7586",
-			"CVE-2016-7587",
-			"CVE-2016-7589",
-			"CVE-2016-7592",
-			"CVE-2016-7598",
-			"CVE-2016-7599",
-			"CVE-2016-7610",
-			"CVE-2016-7611",
-			"CVE-2016-7614",
-			"CVE-2016-7632",
-			"CVE-2016-7635",
-			"CVE-2016-7639",
-			"CVE-2016-7640",
-			"CVE-2016-7641",
-			"CVE-2016-7642",
-			"CVE-2016-7645",
-			"CVE-2016-7646",
-			"CVE-2016-7648",
-			"CVE-2016-7649",
-			"CVE-2016-7652",
-			"CVE-2016-7654",
-			"CVE-2016-7656",
-			"CVE-2017-2383",
-		},
-		continuestoUpdate: true,
-	},
-}
-
-func printMemUsage() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
-	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
-	fmt.Printf("\tNumGC = %v\n", m.NumGC)
-}
-
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
-}
-
 type threadSafeDSMock struct {
 	mu sync.Mutex
 	*mock.Store
@@ -221,7 +130,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 	tempDir := t.TempDir()
 
-	ds := new(mock.Store)
 	ctx := context.Background()
 
 	// download the CVEs once for all sub-tests, and then disable syncing
@@ -230,52 +138,153 @@ func TestTranslateCPEToCVE(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	for _, tt := range cvetests {
-		t.Run(tt.cpe, func(t *testing.T) {
-			ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
-				return []fleet.SoftwareCPE{
-					{CPE: tt.cpe},
-				}, nil
+	cveTests := map[string]struct {
+		cpe          string
+		excludedCVEs []string
+		includedCVEs []string
+		// continuesToUpdate indicates if the product/software
+		// continues to register new CVE vulnerabilities.
+		continuesToUpdate bool
+	}{
+		"cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:macos:*:*": {
+			includedCVEs:      []string{"CVE-2012-6369"},
+			continuesToUpdate: false,
+		},
+		"cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:*:*:*": {
+			includedCVEs:      []string{"CVE-2012-6369"},
+			continuesToUpdate: false,
+		},
+		"cpe:2.3:a:pypa:pip:9.0.3:*:*:*:*:python:*:*": {
+			includedCVEs: []string{
+				"CVE-2019-20916",
+				"CVE-2021-3572",
+			},
+			continuesToUpdate: false,
+		},
+		"cpe:2.3:a:mozilla:firefox:93.0:*:*:*:*:windows:*:*": {
+			includedCVEs:      firefox93WindowsVulnerabilities,
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:mozilla:firefox:93.0.100:*:*:*:*:windows:*:*": {
+			includedCVEs:      firefox93WindowsVulnerabilities,
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:icloud:1.0:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2017-13797",
+				"CVE-2017-2383",
+				"CVE-2017-2366",
+				"CVE-2016-4613",
+				"CVE-2016-4692",
+				"CVE-2016-4743",
+				"CVE-2016-7578",
+				"CVE-2016-7583",
+				"CVE-2016-7586",
+				"CVE-2016-7587",
+				"CVE-2016-7589",
+				"CVE-2016-7592",
+				"CVE-2016-7598",
+				"CVE-2016-7599",
+				"CVE-2016-7610",
+				"CVE-2016-7611",
+				"CVE-2016-7614",
+				"CVE-2016-7632",
+				"CVE-2016-7635",
+				"CVE-2016-7639",
+				"CVE-2016-7640",
+				"CVE-2016-7641",
+				"CVE-2016-7642",
+				"CVE-2016-7645",
+				"CVE-2016-7646",
+				"CVE-2016-7648",
+				"CVE-2016-7649",
+				"CVE-2016-7652",
+				"CVE-2016-7654",
+				"CVE-2016-7656",
+				"CVE-2017-2383",
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:clickstudios:passwordstate:9.5.8.4:*:*:*:*:chrome:*:*": {
+			includedCVEs:      []string{"CVE-2022-4610", "CVE-2022-4611", "CVE-2022-4613", "CVE-2022-4612"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:avira:password_manager:2.18.4.38471:*:*:*:*:firefox:*:*": {
+			includedCVEs:      []string{"CVE-2022-28795"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:zoom:zoom:5.0.4301.0407:*:*:*:*:chrome:*:*": {
+			excludedCVEs:      []string{"CVE-2021-28133"}, // CVE-2021-28133 is a vulnerability in the Zoom application, not the extension.
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:bitwarden:bitwarden:1.55.0:*:*:*:*:firefox:*:*": {
+			excludedCVEs:      []string{"CVE-2023-38840"}, // CVE-2023-38840 is a vulnerability in the Bitwarden application, not the extension.
+			continuesToUpdate: true,
+		},
+	}
+
+	t.Run("find_vulns_on_cpes", func(t *testing.T) {
+		t.Parallel()
+
+		ds := new(mock.Store)
+
+		softwareIDToCPEs := make(map[uint]string)
+		ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
+			var softwareCPEs []fleet.SoftwareCPE
+			i := uint(0)
+			for cpe := range cveTests {
+				softwareCPEs = append(softwareCPEs, fleet.SoftwareCPE{CPE: cpe, SoftwareID: i})
+				softwareIDToCPEs[i] = cpe
+				i++
 			}
+			return softwareCPEs, nil
+		}
 
-			cveLock := &sync.Mutex{}
-			var cvesFound []string
-			ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
-				cveLock.Lock()
-				defer cveLock.Unlock()
-				cvesFound = append(cvesFound, vuln.CVE)
-				return false, nil
+		cveLock := &sync.Mutex{}
+		cvesFound := make(map[string][]string)
+		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
+			cveLock.Lock()
+			defer cveLock.Unlock()
+
+			cpe, ok := softwareIDToCPEs[vuln.SoftwareID]
+			if !ok {
+				return false, fmt.Errorf("software id -> cpe not found: %d", vuln.SoftwareID)
 			}
-			ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
-				return nil
-			}
+			cvesFound[cpe] = append(cvesFound[cpe], vuln.CVE)
+			return false, nil
+		}
+		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+			return nil
+		}
 
-			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), false, 1*time.Hour)
-			require.NoError(t, err)
+		_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), false, 1*time.Hour)
+		require.NoError(t, err)
 
-			printMemUsage()
+		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 
-			if tt.continuestoUpdate {
+		for cpe, tc := range cveTests {
+			if tc.continuesToUpdate {
 				// Given that new vulnerabilities can be found on these
 				// packages/products, we check that at least the
 				// known ones are found.
-				for _, cve := range tt.includedCVEs {
-					require.Contains(t, cvesFound, cve, tt.cpe)
+				for _, cve := range tc.includedCVEs {
+					require.Contains(t, cvesFound[cpe], cve, cpe)
 				}
 			} else {
 				// Check for exact match of CVEs found.
-				require.ElementsMatch(t, cvesFound, tt.includedCVEs, tt.cpe)
+				require.ElementsMatch(t, cvesFound[cpe], tc.includedCVEs, cpe)
 			}
 
-			for _, cve := range tt.excludedCVEs {
-				require.NotContains(t, cvesFound, cve, tt.cpe)
+			for _, cve := range tc.excludedCVEs {
+				require.NotContains(t, cvesFound[cpe], cve, tc.cpe)
 			}
-
-			require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
-		})
-	}
+		}
+	})
 
 	t.Run("recent_vulns", func(t *testing.T) {
+		t.Parallel()
+
+		ds := new(mock.Store)
 		safeDS := &threadSafeDSMock{Store: ds}
 
 		softwareCPEs := []fleet.SoftwareCPE{
