@@ -3415,7 +3415,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	var perfPwdResetResp performRequiredPasswordResetResponse
 	newRawPwd := test.GoodPassword2
-	// Try a required password change without authorization
+	// Try a required password change without authentication
 	s.DoJSON(
 		"POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 			Password: newRawPwd,
