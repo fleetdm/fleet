@@ -6,7 +6,6 @@ Fleet helps organizations like Fastly and Gusto reimagine the "easy button."
 
 By simplifying how they do device health, FIM, HIDS, posture assessment, malware detection, vulnerability management, MDM, and the rest, Fleet's API enables teams with thousands of computers to build an IT and security program that works.
 
-## What does it do?
 Organizations like Fastly and Gusto use Fleet for endpoint operations, vulnerability management, device trust, HIDS, FIM, posture assessment, device management, and more. Fleet's powerful API enables teams with thousands of computers to build the IT and security platform they actually want. 
 
 #### Explore data
