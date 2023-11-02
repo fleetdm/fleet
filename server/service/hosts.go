@@ -162,8 +162,10 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 /////////////////////////////////////////////////////////////////////////////////
 
 // These values are modified during testing.
-var deleteHostsTimeout time.Duration = 30 * time.Second
-var deleteHostsSkipAuthorization = false
+var (
+	deleteHostsTimeout           = 30 * time.Second
+	deleteHostsSkipAuthorization = false
+)
 
 type deleteHostsRequest struct {
 	IDs     []uint `json:"ids"`
