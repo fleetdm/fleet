@@ -253,7 +253,7 @@ const DataTable = ({
 
   useEffect(() => {
     if (isClientSideFilter && searchQueryColumn) {
-      toggleAllRowsSelected(false); // Resets row selection on filter change (client-side)
+      toggleAllRowsSelected(false); // Resets row selection on query change (client-side)
       setDebouncedClientFilter(searchQueryColumn, searchQuery || "");
     }
   }, [searchQuery, searchQueryColumn]);
