@@ -413,14 +413,36 @@ spec:
         darwin:
           auto_table_construction:
             tcc_system_entries:
-              query: "SELECT service, client, allowed, prompt_count, last_modified FROM access"
+              # This query and columns are restricted for compatability.  Open TCC.db with sqlite on
+              # your endpoints to expand this out.
+              query: "SELECT service, client, last_modified FROM access"
+              # Note that TCC.db requires Orbit to have full-disk access, ensure that endpoints have 
+              # this enabled.
               path: "/Library/Application Support/com.apple.TCC/TCC.db"
               columns:
                 - "service"
                 - "client"
-                - "allowed"
-                - "prompt_count"
                 - "last_modified"
+```
+
+If you're editing this directly from the UI consider copying and pasting the following at the end of your agent configuration block:
+
+```
+overrides:
+  platforms:
+    darwin:
+      auto_table_construction:
+        tcc_system_entries:
+          # This query and columns are restricted for compatability.  Open TCC.db with sqlite on
+          # your endpoints to expand this out.
+          query: "SELECT service, client, last_modified FROM access"
+          # Note that TCC.db requires Orbit to have full-disk access, ensure that endpoints have
+          # this enabled.
+          path: "/Library/Application Support/com.apple.TCC/TCC.db"
+          columns:
+            - "service"
+            - "client"
+            - "last_modified"
 ```
 
 ## Command line flags
