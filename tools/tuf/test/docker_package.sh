@@ -1,3 +1,6 @@
+#!/bin/bash
+
+# This script is to build the tuf repo and package it and the file-server into a docker container to deploy.
 
 if [ $# -lt 2 ]; then
   echo 1>&2 "$0: not enough arguments"
