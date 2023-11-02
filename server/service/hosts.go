@@ -161,6 +161,8 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 // Delete Hosts
 /////////////////////////////////////////////////////////////////////////////////
 
+const DeleteHostsTimeout time.Duration = 30 * time.Second
+
 type deleteHostsRequest struct {
 	IDs     []uint `json:"ids"`
 	Filters struct {
@@ -172,10 +174,14 @@ type deleteHostsRequest struct {
 }
 
 type deleteHostsResponse struct {
-	Err error `json:"error,omitempty"`
+	Err        error `json:"error,omitempty"`
+	StatusCode int   `json:"-"`
 }
 
 func (r deleteHostsResponse) error() error { return r.Err }
+
+// Status implements statuser interface to send out custom HTTP success codes.
+func (r deleteHostsResponse) Status() int { return r.StatusCode }
 
 func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteHostsRequest)
@@ -186,16 +192,34 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		StatusFilter: req.Filters.Status,
 		TeamFilter:   req.Filters.TeamID,
 	}
-	err := svc.DeleteHosts(ctx, req.IDs, listOpt, req.Filters.LabelID)
-	if err != nil {
-		return deleteHostsResponse{Err: err}, nil
+
+	// Since bulk deletes can take a long time, after DeleteHostsTimeout, we will return a 202 (Accepted) status code
+	// and allow the delete operation to proceed.
+	var err error
+	deleteDone := make(chan bool, 1)
+	ctx = context.WithoutCancel(ctx) // to make sure DB operations don't get killed after we return a 202
+	go func() {
+		err = svc.DeleteHosts(ctx, req.IDs, listOpt, req.Filters.LabelID)
+		deleteDone <- true
+	}()
+	select {
+	case <-deleteDone:
+		if err != nil {
+			return deleteHostsResponse{Err: err}, nil
+		}
+		return deleteHostsResponse{StatusCode: http.StatusOK}, nil
+	case <-time.After(DeleteHostsTimeout):
+		return deleteHostsResponse{StatusCode: http.StatusAccepted}, nil
 	}
-	return deleteHostsResponse{}, nil
 }
 
 func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.HostListOptions, lid *uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
+	}
+
+	if len(ids) == 0 && lid == nil && opts.Empty() {
+		return &fleet.BadRequestError{Message: "list of ids or filters must be specified"}
 	}
 
 	if len(ids) > 0 && (lid != nil || !opts.Empty()) {
