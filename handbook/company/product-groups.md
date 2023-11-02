@@ -237,7 +237,7 @@ At Fleet, we prioritize [iteration](https://fleetdm.com/handbook/company#results
 + Will this hurt the first-time user experience if we ship as-is?
 + Is this change a "one-way door"?
 
-After these considerations, if you still think you've found a blocker, alert the [appropriate PM](https://fleetdm.com/handbook/company/product-groups#current-product-groups) so that the user story can be brought back for [expedited drafting](https://fleetdm.com/handbook/product#expedited-drafting). Otherwise, this concern may be better suited to a [feature request](https://fleetdm.com/handbook/product#intake).
+After these considerations, if you still think you've found a blocker, alert the [appropriate PM](https://fleetdm.com/handbook/company/product-groups#current-product-groups) so that the user story can be brought back for [expedited drafting](https://fleetdm.com/handbook/product#expedited-drafting). Otherwise, make a [feature request](https://fleetdm.com/handbook/product#intake).
 
 
 
