@@ -161,7 +161,9 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 // Delete Hosts
 /////////////////////////////////////////////////////////////////////////////////
 
-const DeleteHostsTimeout time.Duration = 30 * time.Second
+// These values are modified during testing.
+var deleteHostsTimeout time.Duration = 30 * time.Second
+var deleteHostsSkipAuthorization = false
 
 type deleteHostsRequest struct {
 	IDs     []uint `json:"ids"`
@@ -208,7 +210,11 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 			return deleteHostsResponse{Err: err}, nil
 		}
 		return deleteHostsResponse{StatusCode: http.StatusOK}, nil
-	case <-time.After(DeleteHostsTimeout):
+	case <-time.After(deleteHostsTimeout):
+		if deleteHostsSkipAuthorization {
+			// Only called during testing.
+			svc.(validationMiddleware).Service.(*Service).authz.SkipAuthorization(ctx)
+		}
 		return deleteHostsResponse{StatusCode: http.StatusAccepted}, nil
 	}
 }

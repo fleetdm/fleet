@@ -963,6 +963,44 @@ func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 	require.NoError(t, err)
 }
 
+func (s *integrationTestSuite) TestBulkDeleteHostByIDsWithTimeout() {
+	t := s.T()
+
+	hosts := s.createHosts(t, "debian")
+
+	req := deleteHostsRequest{
+		IDs: []uint{hosts[0].ID},
+	}
+	resp := deleteHostsResponse{}
+	originalTimeout := deleteHostsTimeout
+	deleteHostsTimeout = 0
+	deleteHostsSkipAuthorization = true
+	defer func() {
+		deleteHostsTimeout = originalTimeout
+		deleteHostsSkipAuthorization = false
+	}()
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusAccepted, &resp)
+
+	// Make sure the host was actually deleted.
+	deleteDone := make(chan bool)
+	go func() {
+		for {
+			_, err := s.ds.Host(context.Background(), hosts[0].ID)
+			if err != nil {
+				deleteDone <- true
+				break
+			}
+		}
+	}()
+	select {
+	case <-deleteDone:
+		return
+	case <-time.After(2 * time.Second):
+		t.Log("http.StatusAccepted (202) means that delete should continue in the background, but we did not see the host deleted after 2 seconds.")
+		t.Error("Timeout: delete did not occur.")
+	}
+}
+
 func (s *integrationTestSuite) createHosts(t *testing.T, platforms ...string) []*fleet.Host {
 	var hosts []*fleet.Host
 	if len(platforms) == 0 {
