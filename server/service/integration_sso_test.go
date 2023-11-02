@@ -96,7 +96,7 @@ func (s *integrationSSOTestSuite) TestSSOInvalidMetadataURL() {
 			"entity_id": "https://localhost:8080",
 			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
-			"metadata_url": "https://localhost:8080",
+			"metadata_url": "https://www.fleetdm.com",
 			"enable_jit_provisioning": false
 		}
 	}`,
