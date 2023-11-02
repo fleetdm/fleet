@@ -1,0 +1,3 @@
+Mode: none
+Option roms allowed
+

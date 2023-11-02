@@ -89,7 +89,7 @@ const FlashMessage = ({
             onClick={onRemoveFlash}
           >
             <Icon
-              name="ex"
+              name="close"
               color={
                 alertType === "warning-filled"
                   ? "core-fleet-black"

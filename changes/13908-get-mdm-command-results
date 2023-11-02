@@ -1,0 +1,3 @@
+- Added `GET mdm/commandresults` endpoint to retrieve the results of MDM commands
+  run on Windows or macOS devices.
+- Updated `fleetctl get mdm-command-results` to use the new endpoint.

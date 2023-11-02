@@ -18,7 +18,6 @@ import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
-import { PolicyContext } from "context/policy";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 import {
@@ -52,7 +51,6 @@ import {
   TAGGED_TEMPLATES,
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
-import { DEFAULT_QUERY } from "utilities/constants";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 
 import HostSummaryCard from "../cards/HostSummary";
@@ -67,12 +65,9 @@ import PoliciesCard from "../cards/Policies";
 import ScheduleCard from "../cards/Schedule";
 import PacksCard from "../cards/Packs";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import OSPolicyModal from "./modals/OSPolicyModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
-
-import parseOsVersion from "./modals/OSPolicyModal/helpers";
 
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
@@ -137,14 +132,6 @@ const HostDetailsPage = ({
     availableTeams,
     setCurrentTeam,
   } = useContext(AppContext);
-  const {
-    setLastEditedQueryName,
-    setLastEditedQueryDescription,
-    setLastEditedQueryBody,
-    setLastEditedQueryResolution,
-    setLastEditedQueryCritical,
-    setPolicyTeamId,
-  } = useContext(PolicyContext);
   const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -154,7 +141,6 @@ const HostDetailsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
-  const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
   const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
@@ -384,16 +370,6 @@ const HostDetailsPage = ({
     setPathname(location.pathname + location.search);
   }, [location]);
 
-  // Used to set host's team in AppContext for RBAC action dropdown
-  useEffect(() => {
-    if (host?.team_id) {
-      const hostsTeam = availableTeams?.find(
-        (team) => team.id === host.team_id
-      );
-      setCurrentTeam(hostsTeam);
-    }
-  }, [host]);
-
   const titleData = normalizeEmptyValues(
     pick(host, [
       "id",
@@ -412,8 +388,6 @@ const HostDetailsPage = ({
       "display_name",
     ])
   );
-
-  const [osPolicyLabel, osPolicyQuery] = parseOsVersion(host?.os_version);
 
   const aboutData = normalizeEmptyValues(
     pick(host, [
@@ -446,10 +420,6 @@ const HostDetailsPage = ({
     [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
   );
 
-  const toggleOSPolicyModal = useCallback(() => {
-    setShowOSPolicyModal(!showOSPolicyModal);
-  }, [showOSPolicyModal, setShowOSPolicyModal]);
-
   const toggleMacSettingsModal = useCallback(() => {
     setShowMacSettingsModal(!showMacSettingsModal);
   }, [showMacSettingsModal, setShowMacSettingsModal]);
@@ -466,23 +436,6 @@ const HostDetailsPage = ({
   const toggleUnenrollMdmModal = useCallback(() => {
     setShowUnenrollMdmModal(!showUnenrollMdmModal);
   }, [showUnenrollMdmModal, setShowUnenrollMdmModal]);
-
-  const onCreateNewPolicy = () => {
-    const { NEW_POLICY } = PATHS;
-    host?.team_name
-      ? setLastEditedQueryName(`${osPolicyLabel} (${host.team_name})`)
-      : setLastEditedQueryName(osPolicyLabel);
-    setPolicyTeamId(host?.team_id ? host?.team_id : 0);
-    setLastEditedQueryDescription(
-      "Checks to see if the required minimum operating system version is installed."
-    );
-    setLastEditedQueryBody(osPolicyQuery);
-    setLastEditedQueryResolution("");
-    setLastEditedQueryCritical(false);
-    router.replace(
-      `${NEW_POLICY}${host?.team_id ? `?team_id=${host?.team_id}` : ""}`
-    );
-  };
 
   const onDestroyHost = async () => {
     if (host) {
@@ -536,7 +489,6 @@ const HostDetailsPage = ({
   };
 
   const onQueryHostCustom = () => {
-    setLastEditedQueryBody(DEFAULT_QUERY.query);
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
       PATHS.NEW_QUERY() + TAGGED_TEMPLATES.queryByHostRoute(host?.id)
@@ -621,6 +573,7 @@ const HostDetailsPage = ({
 
     return (
       <HostActionDropdown
+        hostTeamId={host.team_id}
         onSelect={onSelectHostAction}
         hostStatus={host.status}
         hostMdmEnrollemntStatus={host.mdm.enrollment_status}
@@ -738,7 +691,6 @@ const HostDetailsPage = ({
           isPremiumTier={isPremiumTier}
           isSandboxMode={isSandboxMode}
           isOnlyObserver={isOnlyObserver}
-          toggleOSPolicyModal={toggleOSPolicyModal}
           toggleMacSettingsModal={toggleMacSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
           hostMdmProfiles={host?.mdm.profiles ?? []}
@@ -869,16 +821,6 @@ const HostDetailsPage = ({
           <PolicyDetailsModal
             onCancel={onCancelPolicyDetailsModal}
             policy={selectedPolicy}
-          />
-        )}
-        {showOSPolicyModal && (
-          <OSPolicyModal
-            onCancel={() => setShowOSPolicyModal(false)}
-            onCreateNewPolicy={onCreateNewPolicy}
-            osVersion={host?.os_version}
-            detailsUpdatedAt={host?.detail_updated_at}
-            osPolicy={osPolicyQuery}
-            osPolicyLabel={osPolicyLabel}
           />
         )}
         {showMacSettingsModal && (

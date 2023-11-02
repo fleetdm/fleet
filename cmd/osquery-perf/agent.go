@@ -305,7 +305,7 @@ type agent struct {
 	orbitNodeKey    *string
 
 	// mdmClient simulates a device running the MDM protocol (client side).
-	mdmClient *mdmtest.TestMDMClient
+	mdmClient *mdmtest.TestAppleMDMClient
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
 	// isEnrolledToMDMMu protects isEnrolledToMDM.
@@ -380,9 +380,9 @@ func newAgent(
 		serialNumber = ""
 	}
 	uuid := strings.ToUpper(uuid.New().String())
-	var mdmClient *mdmtest.TestMDMClient
+	var mdmClient *mdmtest.TestAppleMDMClient
 	if rand.Float64() <= mdmProb {
-		mdmClient = mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+		mdmClient = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 			SCEPChallenge: mdmSCEPChallenge,
 			SCEPURL:       serverAddress + apple_mdm.SCEPPath,
 			MDMURL:        serverAddress + apple_mdm.MDMPath,
