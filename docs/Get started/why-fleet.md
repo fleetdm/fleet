@@ -1,7 +1,7 @@
 # Why Fleet
 
 In an industry that views security and IT as a shopping spree rather than a process, it’s little wonder that IT and security teams get stuck with bolt-on solutions, misconfigured tools, and disparate workflows. 
-
+## What's it for?
 Fleet helps organizations like Fastly and Gusto reimagine the "easy button." 
 
 By simplifying how they do device health, FIM, HIDS, posture assessment, malware detection, vulnerability management, MDM, and the rest, Fleet's API enables teams with thousands of computers to build an IT and security program that works.
