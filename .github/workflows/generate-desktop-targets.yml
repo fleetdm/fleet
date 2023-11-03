@@ -1,4 +1,5 @@
 name: Generate Fleet Desktop targets for Orbit
+
 on:
   push:
     branches:
