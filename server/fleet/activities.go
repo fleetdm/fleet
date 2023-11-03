@@ -491,7 +491,7 @@ type Activity struct {
 	ActorFullName *string          `json:"actor_full_name,omitempty" db:"name"`
 	ActorID       *uint            `json:"actor_id,omitempty" db:"user_id"`
 	ActorGravatar *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
-	ActorEmail    *string          `json:"actor_email,omitempty" db:"email"`
+	ActorEmail    *string          `json:"actor_email,omitempty" db:"user_email"`
 	Type          string           `json:"type" db:"activity_type"`
 	Details       *json.RawMessage `json:"details" db:"details"`
 	Streamed      *bool            `json:"-" db:"streamed"`

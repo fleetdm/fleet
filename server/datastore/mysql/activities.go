@@ -19,17 +19,20 @@ func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity
 
 	var userID *uint
 	var userName *string
+	var userEmail *string
 	if user != nil {
 		userID = &user.ID
 		userName = &user.Name
+		userEmail = &user.Email
 	}
 
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO activities (user_id, user_name, activity_type, details) VALUES(?,?,?,?)`,
+		`INSERT INTO activities (user_id, user_name, activity_type, details, user_email) VALUES(?,?,?,?,?)`,
 		userID,
 		userName,
 		activity.ActivityName(),
 		detailsBytes,
+		userEmail,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "new activity")
@@ -50,7 +53,8 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			a.activity_type,
 			a.details,
 			a.user_name as name,
-			a.streamed
+			a.streamed,
+			a.user_email
 		FROM activities a
 		WHERE true`
 
