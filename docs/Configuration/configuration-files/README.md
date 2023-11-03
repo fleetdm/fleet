@@ -35,6 +35,7 @@ spec:
   interval: 3600 # 1 hour
   observer_can_run: true
   automations_enabled: true
+  discard_data: false
 ---
 apiVersion: v1 
 kind: query 
@@ -45,6 +46,7 @@ spec:
   team: Workstations
   interval: 0
   observer_can_run: true
+  discard_data: false
 --- 
 apiVersion: v1 
 kind: query 
@@ -64,6 +66,7 @@ spec:
   platform: darwin,windows
   automations_enabled: true
   logging: differential
+  discard_data: true
 ```
 
 Continued edits and applications to this file will update the queries.
@@ -395,6 +398,7 @@ spec:
     deferred_save_host: false
     enable_analytics: true
     live_query_disabled: false
+    query_reports_disabled: false
     server_url: ""
   smtp_settings:
     authentication_method: authmethod_plain
