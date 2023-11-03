@@ -49,7 +49,7 @@ You can automatically send these logs to your log destination. Learn how to conf
 
 To view activities in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
 	
-## Activity types
+# Activity types
 
 `)
 
@@ -60,7 +60,7 @@ To view activities in the UI, click the Fleet icon in the top navigation bar and
 		}
 		activityMap[activity.ActivityName()] = struct{}{}
 
-		fmt.Fprintf(&b, "### Type `%s`\n\n", activity.ActivityName())
+		fmt.Fprintf(&b, "## %s\n\n", activity.ActivityName())
 		activityTypeDoc, detailsDoc, detailsExampleDoc := activity.Documentation()
 		fmt.Fprintf(&b, activityTypeDoc+"\n\n"+detailsDoc+"\n\n")
 		if detailsExampleDoc != "" {
