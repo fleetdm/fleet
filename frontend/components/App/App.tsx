@@ -85,9 +85,12 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       if (
         // reseting a user's password requires the current token
         location?.pathname.includes("/login/reset") ||
-        // this can occur when the user refreshes their page at certain intervals,
+        // these errors can occur when user refreshes their page at certain intervals,
         // in which case we don't want to log them out
-        (typeof error === "string" && error.match(/request aborted/i))
+        (typeof error === "string" &&
+          // in Firefox and Chrome, this error is "Request aborted"
+          // in Safari, it's "Network Error"
+          error.match(/request aborted|network error/i))
       ) {
         return true;
       }
