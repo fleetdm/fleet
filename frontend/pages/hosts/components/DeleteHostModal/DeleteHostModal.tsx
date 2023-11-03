@@ -13,6 +13,8 @@ interface IDeleteHostModalProps {
   isAllMatchingHostsSelected?: boolean;
   /** Manage host page only */
   selectedHostIds?: number[];
+  /** Manage host page only */
+  hostsCount?: number;
   /** Host details page only */
   hostName?: string;
   isUpdating: boolean;
@@ -23,6 +25,7 @@ const DeleteHostModal = ({
   onCancel,
   isAllMatchingHostsSelected,
   selectedHostIds,
+  hostsCount,
   hostName,
   isUpdating,
 }: IDeleteHostModalProps): JSX.Element => {
@@ -34,6 +37,12 @@ const DeleteHostModal = ({
     }
     return hostName;
   };
+  const largeVolumeText = (): string => {
+    if (selectedHostIds && isAllMatchingHostsSelected && hostsCount && hostsCount >= 500) {
+      return " When deleting a large volume of hosts, it may take some time for this change to be reflected in the UI."
+    }
+    return ""
+  }
 
   return (
     <Modal
@@ -44,7 +53,7 @@ const DeleteHostModal = ({
     >
       <form className={`${baseClass}__form`}>
         <p>
-          This action will delete <b>{hostText()}</b> from your Fleet instance.
+          This action will delete <b>{hostText()}</b> from your Fleet instance.{largeVolumeText()}
         </p>
         <p>If the hosts come back online, they will automatically re-enroll.</p>
         <p>
