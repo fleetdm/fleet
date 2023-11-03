@@ -189,6 +189,9 @@ func (r deleteHostsResponse) Status() int { return r.StatusCode }
 
 func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteHostsRequest)
+	// TODO(getvictor): We need to validate that either ids or filter is present, but currently the frontend is deleting
+	// all hosts by using {"filters":{"query":"","team_id":null}}, which maps to default Go states, and hence, an empty filter.
+	// Previous fix attempted but failed in this PR: https://github.com/fleetdm/fleet/pull/14896
 	listOpt := fleet.HostListOptions{
 		ListOptions: fleet.ListOptions{
 			MatchQuery: req.Filters.MatchQuery,
@@ -228,10 +231,6 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.HostListOptions, lid *uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
-	}
-
-	if len(ids) == 0 && lid == nil && opts.Empty() {
-		return &fleet.BadRequestError{Message: "list of ids or filters must be specified"}
 	}
 
 	if len(ids) > 0 && (lid != nil || !opts.Empty()) {
