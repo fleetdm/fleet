@@ -89,7 +89,7 @@ jobs:
 
     - name: Run Go Tests
       run: |
-        GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
+        GO_TEST_EXTRA_FLAGS="-race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           NETWORK_TEST=1 \
           REDIS_TEST=1 \

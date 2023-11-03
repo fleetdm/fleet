@@ -70,7 +70,7 @@ func (s *slowReader) Read(p []byte) (n int, err error) {
 	return 0, nil
 }
 
-func (s *integrationTestSuite) TestSlowOsqueryHost() {
+func (s *integrationTestSuite) TestSlowOSqueryHost() {
 	t := s.T()
 	_, server := RunServerForTestsWithDS(
 		t,
