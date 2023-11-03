@@ -318,7 +318,7 @@ type Host struct {
 	DEPAssignedToFleet *bool `json:"dep_assigned_to_fleet,omitempty" db:"dep_assigned_to_fleet" csv:"-"`
 
 	// LastRestarted is a UNIX timestamp that indicates when the Host was last restarted.
-	LastRestarted *int64 `json:"last_restarted" db:"last_restarted"`
+	LastRestarted time.Time `json:"last_restarted" db:"last_restarted"`
 }
 
 type MDMHostData struct {
