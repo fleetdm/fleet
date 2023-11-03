@@ -2,16 +2,18 @@ import React from "react";
 
 import CustomLink from "components/CustomLink";
 
+import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
+
 import MacOSUpdateScreenshot from "../../../../../../assets/images/nudge-screenshot.png";
 import WindowsUpdateScreenshot from "../../../../../../assets/images/windows-nudge-screenshot.png";
 
 const baseClass = "nudge-preview";
 
 interface INudgeDescriptionProps {
-  platform: "mac" | "windows";
+  platform: OSUpdatesSupportedPlatform;
 }
-const NudeDescription = ({ platform }: INudgeDescriptionProps) => {
-  return platform === "mac" ? (
+const NudgeDescription = ({ platform }: INudgeDescriptionProps) => {
+  return platform === "darwin" ? (
     <>
       <p>
         When a minimum version is saved, the end user sees the below window
@@ -48,21 +50,23 @@ const NudgeImage = ({ platform }: INudgeImageProps) => {
   return (
     <img
       className={`${baseClass}__preview-img`}
-      src={platform === "mac" ? MacOSUpdateScreenshot : WindowsUpdateScreenshot}
+      src={
+        platform === "darwin" ? MacOSUpdateScreenshot : WindowsUpdateScreenshot
+      }
       alt="OS update preview screenshot"
     />
   );
 };
 
 interface INudgePreviewProps {
-  platform: "mac" | "windows";
+  platform: OSUpdatesSupportedPlatform;
 }
 
 const NudgePreview = ({ platform }: INudgePreviewProps) => {
   return (
     <div className={baseClass}>
       <h2>End user experience</h2>
-      <NudeDescription platform={platform} />
+      <NudgeDescription platform={platform} />
       <NudgeImage platform={platform} />
     </div>
   );

@@ -11,17 +11,21 @@ import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
 
+export type OSUpdatesSupportedPlatform = "darwin" | "windows";
+
 const baseClass = "os-updates";
 
-const getSelectedPlatform = (appConfig: IConfig | null): "mac" | "windows" => {
+const getSelectedPlatform = (
+  appConfig: IConfig | null
+): OSUpdatesSupportedPlatform => {
   // We dont have the data ready yet so we default to mac.
   // This is usually when the users first comes to this page.
-  if (appConfig === null) return "mac";
+  if (appConfig === null) return "darwin";
 
   // if the mac mdm is enable and configured we check the app config to see if
   // the mdm for mac is enabled. If it is, it does not matter if windows is
   // enabled and configured and we will always return "mac".
-  return appConfig.mdm.enabled_and_configured ? "mac" : "windows";
+  return appConfig.mdm.enabled_and_configured ? "darwin" : "windows";
 };
 
 interface IOSUpdates {
@@ -34,9 +38,10 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
 
   // the default platform is mac and we later update this value when we have
   // done more checks.
-  const [selectedPlatform, setSelectedPlatform] = useState<"mac" | "windows">(
-    "mac"
-  );
+  const [
+    selectedPlatform,
+    setSelectedPlatform,
+  ] = useState<OSUpdatesSupportedPlatform>("darwin");
 
   // we have to use useEffect here as we need to update our selected platform
   // state when the app config is updated. This is usually when we get the app
@@ -64,7 +69,7 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
     );
   }
 
-  const handleSelectPlatform = (platform: "mac" | "windows") => {
+  const handleSelectPlatform = (platform: OSUpdatesSupportedPlatform) => {
     setSelectedPlatform(platform);
   };
 

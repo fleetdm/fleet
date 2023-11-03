@@ -16,6 +16,7 @@ import SectionHeader from "components/SectionHeader";
 import MacOSTargetForm from "../MacOSTargetForm";
 import WindowsTargetForm from "../WindowsTargetForm";
 import PlatformsAccordion from "../PlatformsAccordion";
+import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 
 const baseClass = "os-updates-target-section";
 
@@ -61,7 +62,7 @@ const getDefaultWindowsGracePeriodDays = (
 
 interface ITargetSectionProps {
   currentTeamId: number;
-  onSelectAccordionItem: (platform: "mac" | "windows") => void;
+  onSelectAccordionItem: (platform: OSUpdatesSupportedPlatform) => void;
 }
 
 const TargetSection = ({

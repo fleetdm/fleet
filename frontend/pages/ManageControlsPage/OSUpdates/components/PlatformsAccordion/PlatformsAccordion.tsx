@@ -13,6 +13,7 @@ import Icon from "components/Icon";
 
 import MacOSTargetForm from "../MacOSTargetForm";
 import WindowsTargetForm from "../WindowsTargetForm";
+import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 
 const baseClass = "platforms-accordion";
 
@@ -28,7 +29,7 @@ interface IPlatformsAccordionProps {
   defaultMacOSDeadline: string;
   defaultWindowsDeadlineDays: string;
   defaultWindowsGracePeriodDays: string;
-  onSelectAccordionItem: (platform: "mac" | "windows") => void;
+  onSelectAccordionItem: (platform: OSUpdatesSupportedPlatform) => void;
 }
 
 const PlatformsAccordion = ({
@@ -44,7 +45,7 @@ const PlatformsAccordion = ({
       className={`${baseClass}__accordion`}
       preExpanded={["mac"]}
       onChange={(selected) =>
-        onSelectAccordionItem(selected[0] as "mac" | "windows")
+        onSelectAccordionItem(selected[0] as OSUpdatesSupportedPlatform)
       }
     >
       <AccordionItem uuid="mac">
