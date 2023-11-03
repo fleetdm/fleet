@@ -13,24 +13,24 @@ The Sales department is directly responsible for attaining the revenue goals of 
 | Director of Solutions Consulting      | [Dave Herder](https://www.linkedin.com/in/daveherder/) _([@dherder](https://github.com/dherder))_
 | Solutions Consultant (SC)             | [Will Mayhone](https://www.linkedin.com/in/william-mayhone-671977b6/) _([@willmayhone88](https://github.com/willmayhone88))_
 | Head of Public Sector                 | [Keith Barnes](https://www.linkedin.com/in/keith-barnes-8b666/) _([@KAB703](https://github.com/KAB703))_
-| Account Executive (AE)                | [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@TomOstertag](https://github.com/TomOstertag))_, [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_,[Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@AnthonySnyder8](https://github.com/AnthonySnyder8))_, [Pual Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))
+| Account Executive (AE)                | [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@TomOstertag](https://github.com/TomOstertag))_, [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_,[Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@AnthonySnyder8](https://github.com/AnthonySnyder8))_, [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))
 | Sales Development Rep (SDR)           | [Ringo Ringhofer](https://www.linkedin.com/in/tom-ringhofer/) _([@ringoshere](https://github.com/ringoshere))_, [Brad Macdowall](https://www.linkedin.com/in/bradmacdowall/) _([@bradmacd](https://github.com/bradmacd))_
 
 ## Contact us
 - To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board?sprints=none) for this department, including pending tasks and the status of new requests.
   - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
-- If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel.
+- If urgent, or if you need help submitting your request, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel.
 
 
 ## Customer codenames
-Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
+Occasionally, we will need to track public issues for customers who wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
 
 
 
 <!---
 
-Rituals (out dated 2023-10-19)
+Rituals (out-dated 2023-10-19)
 
 The following table lists the Customer's group's rituals, frequency, and Directly Responsible Individual (DRI).
 
