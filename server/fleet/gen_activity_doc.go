@@ -48,8 +48,8 @@ Example:
 You can automatically send these logs to your log destination. Learn how to configure this [here](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
 
 To view activities in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
-	
-# Activity types
+
+Following is a summary of the types of administrative activities logged by Fleet:
 
 `)
 
