@@ -5,10 +5,10 @@ import { AxiosResponse } from "axios";
 import { IApiError } from "interfaces/errors";
 import { IMdmProfile, IMdmProfilesResponse } from "interfaces/mdm";
 import mdmAPI from "services/entities/mdm";
-import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
 import CustomLink from "components/CustomLink";
+import SectionHeader from "components/SectionHeader";
 
 import FileUploader from "../../../components/FileUploader";
 import UploadList from "../../../components/UploadList";
@@ -106,7 +106,7 @@ const CustomSettings = ({
 
   return (
     <div className={baseClass}>
-      <h2>Custom settings</h2>
+      <SectionHeader title="Custom settings" />
       <p className={`${baseClass}__description`}>
         Create and upload configuration profiles to apply custom settings.{" "}
         <CustomLink
