@@ -1,1 +1,1 @@
-/fleet/sso endpoint now returns 400 status code (as opposed to 500) when SSO Metadata URL returns invalid data
+/fleet/sso endpoint now returns 400 status code (as opposed to 500) when SSO Metadata URL returns invalid data or when SSO Metadata provided by user is invalid.
