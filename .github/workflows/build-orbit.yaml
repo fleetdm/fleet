@@ -1,7 +1,5 @@
 name: Build, Sign and Notarize Orbit for macOS
 
-# REVERTME: comment to trigger a build
-
 on:
   workflow_dispatch: # allow manual action
   push:
