@@ -1,0 +1,2 @@
+- Fixed UI bug where the "Turn off MDM" action on the host details page was displayed for hosts on
+  platforms where that action is not yet supported by Fleet.

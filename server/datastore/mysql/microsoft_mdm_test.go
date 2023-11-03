@@ -635,7 +635,8 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	_, err = insertDB(t, `INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri) VALUES (?, ?, ?)`, cmdUUID, rawCmd, cmdTarget)
 	require.NoError(t, err)
 
-	responseID, err := insertDB(t, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, "some-response")
+	rawResponse := []byte("some-response")
+	responseID, err := insertDB(t, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, rawResponse)
 	require.NoError(t, err)
 
 	rawResult := []byte("some-result")
@@ -652,7 +653,7 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.Len(t, results, 1)
 	require.Equal(t, dev.HostUUID, results[0].HostUUID)
 	require.Equal(t, cmdUUID, results[0].CommandUUID)
-	require.Equal(t, rawResult, results[0].Result)
+	require.Equal(t, rawResponse, results[0].Result)
 	require.Equal(t, cmdTarget, results[0].RequestType)
 	require.Equal(t, statusCode, results[0].Status)
 	require.Empty(t, results[0].Hostname) // populated only at the service layer
