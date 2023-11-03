@@ -30,7 +30,7 @@ func Notarize(path, bundleIdentifier string) error {
 	teamID, _ := os.LookupEnv("AC_TEAM_ID")
 
 	// FIXME Ignoring new log output for now.
-	info, notary_log, err := notarize.Notarize(
+	_, notary_log, err := notarize.Notarize(
 		context.Background(),
 		&notarize.Options{
 			File:        path,
@@ -46,7 +46,7 @@ func Notarize(path, bundleIdentifier string) error {
 		return fmt.Errorf("notarize: %w", err)
 	}
 
-	log.Info().Str("logs", notary_log.su).Msg("notarization completed")
+	log.Info().Str("logs", notary_log.JobId).Msg("notarization completed")
 
 	return nil
 }
