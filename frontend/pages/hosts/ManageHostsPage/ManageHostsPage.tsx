@@ -504,8 +504,8 @@ const ManageHostsPage = ({
     tableQueryData &&
     !!hostsCount &&
     DEFAULT_PAGE_SIZE * tableQueryData.pageIndex +
-      (hostsData?.hosts?.length || 0) >=
-      hostsCount;
+    (hostsData?.hosts?.length || 0) >=
+    hostsCount;
 
   const handleLabelChange = ({ slug, id: newLabelId }: ILabel): boolean => {
     const { MANAGE_HOSTS } = PATHS;
@@ -539,10 +539,10 @@ const ManageHostsPage = ({
   const handleResetPageIndex = () => {
     setTableQueryData(
       (prevState) =>
-        ({
-          ...prevState,
-          pageIndex: 0,
-        } as ITableQueryData)
+      ({
+        ...prevState,
+        pageIndex: 0,
+      } as ITableQueryData)
     );
     setResetPageIndex(true);
   };
@@ -729,10 +729,18 @@ const ManageHostsPage = ({
 
       let sort = sortBy;
       if (sortHeader) {
+        let direction = sortDirection
+        if (sortHeader === 'last_restarted') {
+          if (sortDirection === 'asc') {
+            direction = 'desc'
+          } else {
+            direction = 'asc'
+          }
+        }
         sort = [
           {
             key: sortHeader,
-            direction: sortDirection || DEFAULT_SORT_DIRECTION,
+            direction: direction || DEFAULT_SORT_DIRECTION,
           },
         ];
       } else if (!sortBy.length) {
@@ -897,8 +905,7 @@ const ManageHostsPage = ({
       console.error(error);
       renderFlash(
         "error",
-        `Could not ${
-          selectedSecret ? "edit" : "add"
+        `Could not ${selectedSecret ? "edit" : "add"
         } enroll secret. Please try again.`
       );
     } finally {
@@ -1037,16 +1044,15 @@ const ManageHostsPage = ({
     try {
       await (isAllMatchingHostsSelected
         ? hostsAPI.destroyByFilter({
-            teamId,
-            query: searchQuery,
-            status,
-            labelId,
-          })
+          teamId,
+          query: searchQuery,
+          status,
+          labelId,
+        })
         : hostsAPI.destroyBulk(selectedHostIds));
 
-      const successMessage = `${
-        selectedHostIds.length === 1 ? "Host" : "Hosts"
-      } successfully deleted.`;
+      const successMessage = `${selectedHostIds.length === 1 ? "Host" : "Hosts"
+        } successfully deleted.`;
 
       renderFlash("success", successMessage);
       setResetSelectedRows(true);
@@ -1058,8 +1064,7 @@ const ManageHostsPage = ({
     } catch (error) {
       renderFlash(
         "error",
-        `Could not delete ${
-          selectedHostIds.length === 1 ? "host" : "hosts"
+        `Could not delete ${selectedHostIds.length === 1 ? "host" : "hosts"
         }. Please try again.`
       );
     } finally {
@@ -1277,9 +1282,8 @@ const ManageHostsPage = ({
 
     return (
       <div
-        className={`${baseClass}__count ${
-          isLoadingHostsCount ? "count-loading" : ""
-        }`}
+        className={`${baseClass}__count ${isLoadingHostsCount ? "count-loading" : ""
+          }`}
       >
         {count !== undefined && (
           <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
