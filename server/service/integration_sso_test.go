@@ -124,7 +124,7 @@ func (s *integrationSSOTestSuite) TestSSOInvalidMetadata() {
 			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
 			"metadata": "`+badMetadata+`",
-            "metadata_url": "",
+			"metadata_url": "",
 			"enable_jit_provisioning": false
 		}
 	}`,
