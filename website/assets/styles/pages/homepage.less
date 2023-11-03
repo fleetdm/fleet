@@ -171,6 +171,28 @@
     &.show {
       transition: opacity 0.3s ease-in;
       opacity: 1;
+      [purpose='category-image'] {
+        [purpose='device-management-image'] {
+          [purpose='device-management-image-1'] {
+            transform: none;
+          }
+          [purpose='device-management-image-2'] {
+            transform: none;
+
+          }
+          [purpose='device-management-image-3'] {
+            transform: none;
+          }
+        }
+        [purpose='vulnerability-management-image'] {
+          [purpose='vulnerability-management-image-1'] {
+            transform: none;
+          }
+          [purpose='vulnerability-management-image-2'] {
+            transform: none;
+          }
+        }
+      }
     }
     margin-bottom: 100px;
     h3 {
@@ -207,6 +229,88 @@
     img {
       width: 100%;
       height: auto;
+    }
+    transition: transform 0.3s, right 0.3s, left 0.3s, bottom 0.3s;
+    [purpose='device-management-image'] {
+      position: relative;
+      width: 100%;
+      height: 440px;
+      [purpose='device-management-image-1'] {
+        background: url('/images/homepage-device-management-github-617x440@2x.png');
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.3s;
+        transform: translate(10px, 10px);
+      }
+      [purpose='device-management-image-2'] {
+        background: url('/images/homepage-device-management-fleet-ui-617x440@2x.png');
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.3s;
+        transform: translate(-10px, 10px);
+      }
+      [purpose='device-management-image-3'] {
+        background: url('/images/homepage-device-management-terminal-617x440@2x.png');
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 3;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.3s;
+        transform: translate(10px, -10px);
+      }
+    }
+
+    [purpose='vulnerability-management-image'] {
+      position: relative;
+      width: 100%;
+      height: 440px;
+      [purpose='vulnerability-management-image-1'] {
+        background: url('/images/homepage-vulnerability-management-table-617x440@2x.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 3;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.3s;
+        transform: translate(10px, 10px);
+      }
+      [purpose='vulnerability-management-image-2'] {
+        background: url('/images/homepage-vulnerability-management-chart-617x440@2x.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 3;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.3s;
+        transform: translate(-10px, -10px);
+      }
     }
   }
   [purpose='platform-image'] {
@@ -708,6 +812,7 @@
         margin-left: -12px;
       }
     }
+
 
     [purpose='platform-left-text-block'] {
       max-width: 357px;

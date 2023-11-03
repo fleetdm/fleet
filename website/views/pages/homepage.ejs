@@ -100,7 +100,9 @@
         <a purpose="animated-arrow-button-red" href="/osquery-management">More about endpoint ops</a>
       </div>
       <div purpose="category-image">
-        <img alt="Endpoint ops" purpose="endpoint-ops-image" src="/images/homepage-endpoint-ops-617x440@2x.png">
+        <img purpose="endpoint-ops-image" alt="Endpoint ops" src="/images/homepage-endpoint-ops-617x440@2x.png">
+        <div >
+        </div>
       </div>
     </div>
 
@@ -112,7 +114,12 @@
         <a purpose="animated-arrow-button-red" class="text-nowrap" href="/device-management">More about device management</a>
       </div>
       <div purpose="category-image">
-        <img alt="GitOps-driven MDM" purpose="device-management-image" src="/images/homepage-device-management-617x440@2x.png">
+        <div purpose="device-management-image">
+          <div purpose="device-management-image-1"></div>
+          <div purpose="device-management-image-2"></div>
+          <div purpose="device-management-image-3"></div>
+          <img alt="A blank image" src="/images/homepage-image-container-617x440@2x.png">
+        </div>
       </div>
     </div>
 
@@ -124,7 +131,11 @@
         <a purpose="lg-animated-arrow-button-red" href="/vulnerability-management">More about vulnerability<br> management</a>
       </div>
       <div purpose="category-image">
-        <img alt="Vulnerability management" purpose="vulnerability-management-image" src="/images/homepage-vulnerability-management-617x440@2x.png">
+        <div purpose="vulnerability-management-image">
+          <div purpose="vulnerability-management-image-1"></div>
+          <div purpose="vulnerability-management-image-2"></div>
+          <img alt="A blank image" src="/images/homepage-image-container-617x440@2x.png">
+        </div>
       </div>
     </div>
 
@@ -313,11 +324,5 @@
     <img alt="A glass city floating on top of fluffy white clouds" class="d-flex d-md-none" src="/images/homepage-cloud-city-banner-sm-375x168@2x.png">
   </div>
 
-  <modal purpose="video-modal" v-if="modal === 'austin-anderson'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/G5Ry_vQPaYc?si=vv0AfRe30yssWWRM&amp;controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-  </modal>
-  <modal purpose="video-modal" v-if="modal === 'nick-fohs'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/fs5ULAR4e4A?si=pChZBt_sSNj13goP&amp;controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-  </modal>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>
