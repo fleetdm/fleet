@@ -416,7 +416,7 @@ spec:
               # This query and columns are restricted for compatability.  Open TCC.db with sqlite on
               # your endpoints to expand this out.
               query: "SELECT service, client, last_modified FROM access"
-              # Note that TCC.db requires Orbit to have full-disk access, ensure that endpoints have 
+              # Note that TCC.db requires fleetd to have full-disk access, ensure that endpoints have 
               # this enabled.
               path: "/Library/Application Support/com.apple.TCC/TCC.db"
               columns:
