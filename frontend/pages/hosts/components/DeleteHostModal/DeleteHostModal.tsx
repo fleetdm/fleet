@@ -38,11 +38,16 @@ const DeleteHostModal = ({
     return hostName;
   };
   const largeVolumeText = (): string => {
-    if (selectedHostIds && isAllMatchingHostsSelected && hostsCount && hostsCount >= 500) {
-      return " When deleting a large volume of hosts, it may take some time for this change to be reflected in the UI."
+    if (
+      selectedHostIds &&
+      isAllMatchingHostsSelected &&
+      hostsCount &&
+      hostsCount >= 500
+    ) {
+      return " When deleting a large volume of hosts, it may take some time for this change to be reflected in the UI.";
     }
-    return ""
-  }
+    return "";
+  };
 
   return (
     <Modal
@@ -53,7 +58,8 @@ const DeleteHostModal = ({
     >
       <form className={`${baseClass}__form`}>
         <p>
-          This action will delete <b>{hostText()}</b> from your Fleet instance.{largeVolumeText()}
+          This action will delete <b>{hostText()}</b> from your Fleet instance.
+          {largeVolumeText()}
         </p>
         <p>If the hosts come back online, they will automatically re-enroll.</p>
         <p>
