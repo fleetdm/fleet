@@ -27,57 +27,6 @@ The Sales department is directly responsible for attaining the revenue goals of 
 Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
 
 
-## Contacting Fleet: customer support service level agreements (SLA's)
-
-### Fleet Free
-| Impact Level | Definition | Preferred Contact | Response Time |
-|:---|:---|:---|:---|
-| All Inquiries | Any request regardless of impact level or severity | Osquery #fleet Slack channel | No guaranteed resolution |
-
-Note: If you're using Fleet Free, you can also access community support by opening an issue in the [Fleet GitHub](https://github.com/fleetdm/fleet/) repository.
-
-### Fleet Premium
-| Impact Level | Definition | Preferred Contact | Response Time |
-|:-----|:----|:----|:-----|
-| Emergency (P0) | Your production instance of Fleet is unavailable or completely unusable. For example, if Fleet is showing 502 errors for all users. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 hours** |
-| High (P1) | Fleet is highly degraded with significant business impact. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 business hours** |
-| Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
-| Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | 1-2 business days | 
-
-Note: Fleet business hours for support are Monday-Friday, 7AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues. Fleeties can find Fleet general contact information [here](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit).
-
-
-#### Flow of communication in the event of an emergency (P0) request
-![Screen Shot 2022-12-05 at 10 22 43 AM](https://user-images.githubusercontent.com/114112018/205676145-38491aa2-288d-4a6c-a611-a96b5a87a0f0.png)
-
-
-## Customer support workflow for Slack + Zendesk
-This section outlines both the automated workflows and manual triggers associated with Fleet's Slack integration to Zendesk. The purpose of this integration is to:
-- Provide Fleet with better service level agreement (SLA) tracking on requests (especially those submitted outside of business hours)
-- Better track threads for issues that require advanced troubleshooting
-- Consolidate support requests into a single-source, searchable system for faster issue resolution in the future 
-
-There are three different situations when a customer support request could result in a ticket being created in Zendesk. They are as follows: 
-1. When a request has been submitted outside of business hours via Slack automation
-2. When a Fleet staff member has flagged an issue that requires advanced troubleshooting and determines that they want to move it into Zendesk for management 
-3. When any Fleet user submits a support request via email
-
-### Workflow when a request is submitted outside of business hours:
-1. A new message is posted in any Slack channel
-2. (Zapier filter) The automation will continue if the message is:
-    - Not from a Fleet team member
-    - Posted outside of Fleet’s business hours
-    - In a specific customer channel (manually designated by Customer Success)   
-3. (Zendesk) Search for an existing Zendesk ticket by the Slack thread ID or create one if it does not exist.
-4. (Slack) If a new Zendesk ticket was created, reply to the Slack message in a thread.
-    - Hi @username, it's currently outside Fleet's support hours. (6am - 4pm PT). We've created a support ticket based on your message, and a Fleet team member will respond as soon as possible. If you have more questions or comments, feel free to reply in this thread, and we'll add them to the ticket.
-5. (Zendesk) If an existing Zendesk ticket was found by the search, add the Slack message to the existing ticket as a new comment.
-
-![Screen Shot 2022-12-01 at 11 39 54 AM](https://user-images.githubusercontent.com/114112018/205109512-d35f4907-1169-41f5-acab-e23e3506e050.png)
- 
-- New customer channels that the automation will run in must be configured manually. Submit requests for additions during automation office hours.
-- New tickets created from thread replies will contain a link to the slack thread, but will only have the new message. 
-- This zap does not support file uploads and attachments. Tickets created for messages with images attached will not have the attachments, and the automation will not run if someone uploads a file without a message. 
 
 <!---
 
@@ -236,6 +185,9 @@ Please see [handbook/company/communications#customer-support-service-level-agree
 ##### Submit a customer contract
 Please see [handbook/sales#create-a-customer-agreement](https://fleetdm.com/handbook/sales#create-a-customer-agreement) for all sections above.
 
+##### Customer codenames
+Please see [Handbook/customer-success#create-customer-support-issue](https://www.fleetdm.com/handbook/create-customer-support-issue)
+
 ##### Document customer requests
 Please see [handbook/customer-success#document-customer-requests](https://fleetdm.com/handbook/customer-success#document-customer-requests)
 
@@ -246,4 +198,4 @@ Please see [handbook/customer-success#generate-a-trial-license-key](https://flee
 Please see [handbook/customer-success#create-customer-support-issue](https://fleetdm.com/handbook/customer-success#create-customer-support-issue)
 
 <meta name="maintainedBy" value="alexmitchelliii">
-<meta name="title" value="🐋 Customers">
+<meta name="title" value="🐋 Sales">
