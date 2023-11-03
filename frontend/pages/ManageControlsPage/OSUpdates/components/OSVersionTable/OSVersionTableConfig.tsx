@@ -7,10 +7,11 @@ import ViewAllHostsLink from "components/ViewAllHostsLink";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 
 import OSTypeCell from "../OSTypeCell";
+import { IFilteredOperatingSystemVersion } from "../CurrentVersionSection/CurrentVersionSection";
 
 interface IOSTypeCellProps {
   row: {
-    original: IOperatingSystemVersion;
+    original: IFilteredOperatingSystemVersion;
   };
 }
 
@@ -36,7 +37,10 @@ export const generateTableHeaders = (teamId: number) => {
       disableSortBy: true,
       accessor: "platform",
       Cell: ({ row }: IOSTypeCellProps) => (
-        <OSTypeCell osVersion={row.original} />
+        <OSTypeCell
+          platform={row.original.platform}
+          versionName={row.original.name_only}
+        />
       ),
     },
     {

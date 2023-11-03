@@ -2,6 +2,7 @@ import React from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 
+import { IOperatingSystemVersion } from "interfaces/operating_system";
 import {
   getOSVersions,
   IOSVersionsResponse,
@@ -12,6 +13,16 @@ import SectionHeader from "components/SectionHeader";
 import DataError from "components/DataError";
 
 import OSVersionTable from "../OSVersionTable";
+import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
+
+/** This overrides the `platform` attribute on IOperatingSystemVersion so that only our filtered platforms (currently
+ * "darwin" and "windows") values are included */
+export type IFilteredOperatingSystemVersion = Omit<
+  IOperatingSystemVersion,
+  "platform"
+> & {
+  platform: OSUpdatesSupportedPlatform;
+};
 
 const baseClass = "os-updates-current-version-section";
 
@@ -58,7 +69,7 @@ const CurrentVersionSection = ({
       return (
         osVersion.platform === "windows" || osVersion.platform === "darwin"
       );
-    });
+    }) as IFilteredOperatingSystemVersion[];
 
     return (
       <OSVersionTable
