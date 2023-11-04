@@ -299,8 +299,8 @@
     #  ╠╦╝║╣ ║║║║ ║ ║ ║╣   ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
     #  ╩╚═╚═╝╩ ╩╚═╝ ╩ ╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
     - industryName: Remote settings
-       waysToUse:
-        - description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.). Fleetd startup flags coming soon (2023-12-31) #customer-blanco #13825
+      waysToUse:
+       - description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.). Fleetd startup flags coming soon (2023-12-31) #customer-blanco #13825
       tier: Free
       usualDepartment: Security
       productCategories: [Endpoint operations]
