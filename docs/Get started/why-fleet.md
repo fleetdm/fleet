@@ -37,7 +37,7 @@ Fleet is lightweight and modular.  You can use it for security without using it 
 Fleet is dedicated to flexibility, accessibility, and clarity.  We think [everyone can contribute](https://fleetdm.com/handbook/company#openness) and that tools should be as easy as possible for everyone to understand.
 
 ### Good neighbors
-Fleet has no ambition to replace all of your other tools.  (Though it might replace some if you want it to.)  Ready-to-use, enterprise-friendly [integrations](https://fleetdm.com/integrations) exist for Snowflake, Splunk, GitHub Actions, Vanta, Elastic Jira, Zendesk, and more.
+Ready-to-use, enterprise-friendly [integrations](https://fleetdm.com/integrations) exist for Snowflake, Splunk, GitHub Actions, Vanta, Elastic Jira, Zendesk, and more.
 
 Fleet plays well with Munki, Chef, Puppet, and Ansible, as well as with security tools like Crowdstrike and SentinelOne.  For example, you can use the free version of Fleet to quickly report on what hosts are _actually_ running your EDR agent.
 
