@@ -64,7 +64,6 @@ The Fleet community is full of [kind and helpful people](https://fleetdm.com/han
 
 <!-- - Great contributions are motivated by real-world use cases or learning.
 - Some of the most valuable contributions might not touch any code at all.
-- Small, iterative, simple (boring) changes are the easiest to merge. -->
 
 ## What's next?
 
