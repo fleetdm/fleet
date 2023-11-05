@@ -4,10 +4,11 @@
 
 Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source systems management platform and security agent. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
 
-We are dedicated to clearing the thicket:
-- 🔌 making security and IT interoperable and easy to automate
-- 🚪 an inviting (outsider-friendly) way to manage computers, CVEs, and infrastructure
-- 🪟 clarity and trust through open-source software
+Fleet is dedicated to a comprehensive strategy against [whatever this is](https://chat.openai.com/share/e44ba6f3-b3ed-488a-a15e-a5a723f20c98): 
+
+- 🔌 making security and IT interoperable and easy to automate with open standards and data.
+- 🚪 creating an inviting (outsider-friendly) way to manage computers, CVEs, and infrastructure.
+- 🪟 building clarity and trust through open-source software.
 
 This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.com/handbook/company/communications#strategy), [operating principles](#why-this-way), and [brand](https://fleetdm.com/logos).
 
