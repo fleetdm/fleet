@@ -46,7 +46,7 @@ Fleet plays well with Munki, Chef, Puppet, and Ansible, as well as with security
 The free version of Fleet will [always be free](https://fleetdm.com/pricing).  Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).
 
 ### Longevity
-The [company behind Fleet](https://fleetdm.com/handbook/company) is founded (and majority-owned) by [true believers in open source](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The company's business model is influenced by GitLab (NYSE: GTLB), with great investors, happy customers, and the capacity to become profitable anytime.
+The [company behind Fleet](https://fleetdm.com/handbook/company) is founded (and majority-owned) by [true believers in open source](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The company's business model is influenced by GitLab (NYSE: GTLB), with great investors, happy customers, and the capacity to become profitable at any time.
 
 In keeping with Fleet's value of openness, [Fleet Device Management's company handbook](https://fleetdm.com/handbook/company) is public and open source.  You can read about the [history of Fleet and osquery](https://fleetdm.com/handbook/company#history) and our commitment to improving the product.
 
