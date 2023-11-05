@@ -33,7 +33,7 @@ Here are the platforms Fleet currently supports:
 ## Lighter than air
 Fleet is lightweight and modular.  You can use it for security without using it for MDM, and vice versa.  You can turn off features you are not using.
 
-### Openness
+### Open by design
 Fleet is dedicated to flexibility, accessibility, and clarity.  We think [everyone can contribute](https://fleetdm.com/handbook/company#openness) and that tools should be as easy as possible for everyone to understand.
 
 ### Good neighbors
