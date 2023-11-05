@@ -1,8 +1,16 @@
 # FAQ
 
+## Can you host Fleet for me?
+
+Fleet offers managed cloud hosting for [Fleet Premium](https://fleetdm.com/pricing) customers with large deployments.
+
+> While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, we are only currently able to provide cost-effective hosting for deployments larger than 1000 hosts.  (Instead, you can [buy a license](https://fleetdm.com/customers/register) and self-host Fleet Premium with support.)
+
+Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet).  Premium features are [available](https://fleetdm.com/pricing) either way.
+
 ## What is the easiest way to deploy Fleet?
 
-Fleet provides a standard [Terraform module](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform) that deploys Fleet with best practices, along with [cloud cost calculators](https://fleetdm.com/docs/deploy/reference-architectures#cloud-providers) used by some of Fleet’s largest customers with hundreds of thousands of hosts.  Fleet Premium customers can also opt for managed hosting provided by Fleet.  You can also deploy Fleet anywhere you want.
+Fleet provides a standard [Terraform module](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform) that deploys Fleet with best practices, along with [cloud cost calculators and reference architectures](https://fleetdm.com/docs/deploy/reference-architectures#cloud-providers) used by some of Fleet’s largest customers with tens and hundreds of thousands of hosts.  Fleet Premium customers can also opt for managed hosting provided by Fleet.  You can also deploy Fleet anywhere you want.
 
 You can enroll servers and laptops using a simple installer or automatically deliver the agent using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc.
 
@@ -96,11 +104,6 @@ Anyone is free to contribute to the free or paid features of the project. We are
 
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
-## Can you host Fleet for me?
-
-Fleet offers managed cloud hosting for large deployments.
-
-While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, the company does not currently provide hosting for deployments smaller than 1000 hosts.  (Fortunately, you can always [buy a license](https://fleetdm.com/customers/register) and host Fleet Premium yourself.)
 
 <!--
 ## Using Fleet
