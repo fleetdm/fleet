@@ -72,6 +72,6 @@ The Fleet community is full of [kind and helpful people](https://fleetdm.com/han
 [Try out Fleet](https://fleetdm.com/try-fleet) to see what it can do, grab time with one of the maintainers to discuss, or explore the rest of the docs and roll it out to your organization.
 
 ### Questions?
-Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform).  Or you can have us [host it for you](https://fleetdm.com/pricing).  Premium features are [available](https://fleetdm.com/pricing) either way.
+We have answers to the most [common questions](https://fleetdm.com/docs/get-started/faq).
 
 <meta name="pageOrderInSection" value="100">
