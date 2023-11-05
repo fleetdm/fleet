@@ -71,11 +71,13 @@ We have different licenses for portions of our software which are noted in the [
 
 ## How do I contact Fleet for support?
 
-Find out how to contact support in [our handbook](https://fleetdm.com/handbook/customers#contacting-fleet).
+For community support, visit https://fleetdm.com/support.
+
+If your organization has Fleet Premium, you can [access professional support](https://fleetdm.com/customers/login) with a guaranteed response time.
 
 ## What if we choose not to renew?
 
-If you opt not to renew Fleet Premium, you can continue using the free version of Fleet (same code base, just unconfigure the license key.)
+If you opt not to renew Fleet Premium, you can continue using only the free capabilities of Fleet (same code base, just unconfigure the license key.)
 
 ## Can we buy a licence to access premium features with reduced support for a reduced cost?
 
