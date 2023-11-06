@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -49,6 +50,8 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		logging.WithExtras(ctx, "live_query_rest_period_err", err)
 	}
 
+	// Only allow a host to be specified once in HostIDs
+	req.HostIDs = server.RemoveDuplicatesFromSlice(req.HostIDs)
 	res := runLiveQueryResponse{
 		Summary: summaryPayload{
 			TargetedHostCount:  len(req.HostIDs),
@@ -60,12 +63,14 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return nil, err
 	}
-	// Check if all query results were forbidden due to lack of authorization
-	allResultsForbidden := len(queryResults) > 0
-	for _, r := range queryResults {
-		if r.Error == nil || *r.Error != authz.ForbiddenErrorMessage {
-			allResultsForbidden = false
-			break
+	// Check if all query results were forbidden due to lack of authorization.
+	allResultsForbidden := len(queryResults) > 0 && respondedHostCount == 0
+	if allResultsForbidden {
+		for _, r := range queryResults {
+			if r.Error == nil || *r.Error != authz.ForbiddenErrorMessage {
+				allResultsForbidden = false
+				break
+			}
 		}
 	}
 	if allResultsForbidden {
