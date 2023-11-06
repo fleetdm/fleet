@@ -730,7 +730,7 @@ func (svc *Service) validateMDM(
 	}
 	if !svc.config.MDM.IsMicrosoftWSTEPSet() {
 		if mdm.WindowsEnabledAndConfigured {
-			invalid.Append("mdm.windows_enabled_and_configured", "Windows WSTEP configuration must be provided to enable Windows MDM")
+			invalid.Append("mdm.windows_enabled_and_configured", "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.")
 			return
 		}
 	}

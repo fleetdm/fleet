@@ -3018,7 +3018,7 @@ spec:
   mdm:
     windows_enabled_and_configured: true
 `,
-			wantErr: `422 Validation Failed: Windows WSTEP configuration must be provided to enable Windows MDM`,
+			wantErr: `422 Validation Failed: Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.`,
 		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because
