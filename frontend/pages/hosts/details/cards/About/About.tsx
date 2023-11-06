@@ -192,7 +192,6 @@ const About = ({
     );
   };
 
-  debugger;
   return (
     <div className="section about">
       <p className="section__header">About</p>
