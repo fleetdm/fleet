@@ -400,6 +400,7 @@ func TestCachedTeamFeatures(t *testing.T) {
 		EnableHostUsers:         false,
 		EnableSoftwareInventory: true,
 		AdditionalQueries:       &aq,
+		DetailQueryOverrides:    map[string]*string{"a": ptr.String("A"), "b": ptr.String("B")},
 	}
 
 	testTeam := fleet.Team{
@@ -427,9 +428,18 @@ func TestCachedTeamFeatures(t *testing.T) {
 		return nil
 	}
 
+	// get it the first time, it will populate the cache
 	features, err := ds.TeamFeatures(context.Background(), 1)
 	require.NoError(t, err)
 	require.Equal(t, testFeatures, *features)
+	require.True(t, mockedDS.TeamFeaturesFuncInvoked)
+	mockedDS.TeamFeaturesFuncInvoked = false
+
+	// get it again, will retrieve it from the cache
+	features, err = ds.TeamFeatures(context.Background(), 1)
+	require.NoError(t, err)
+	require.Equal(t, testFeatures, *features)
+	require.False(t, mockedDS.TeamFeaturesFuncInvoked)
 
 	// saving a team updates features in cache
 	aq = json.RawMessage(`{"bar": "baz"}`)
@@ -437,6 +447,7 @@ func TestCachedTeamFeatures(t *testing.T) {
 		EnableHostUsers:         true,
 		EnableSoftwareInventory: false,
 		AdditionalQueries:       &aq,
+		DetailQueryOverrides:    map[string]*string{"c": ptr.String("C")},
 	}
 	updateTeam := &fleet.Team{
 		ID:        testTeam.ID,
@@ -450,10 +461,12 @@ func TestCachedTeamFeatures(t *testing.T) {
 
 	_, err = ds.SaveTeam(context.Background(), updateTeam)
 	require.NoError(t, err)
+	require.True(t, mockedDS.SaveTeamFuncInvoked)
 
 	features, err = ds.TeamFeatures(context.Background(), testTeam.ID)
 	require.NoError(t, err)
 	require.Equal(t, updateFeatures, *features)
+	require.False(t, mockedDS.TeamFeaturesFuncInvoked)
 
 	// deleting a team removes the features from the cache
 	err = ds.DeleteTeam(context.Background(), testTeam.ID)
@@ -461,6 +474,7 @@ func TestCachedTeamFeatures(t *testing.T) {
 
 	_, err = ds.TeamFeatures(context.Background(), testTeam.ID)
 	require.Error(t, err)
+	require.True(t, mockedDS.TeamFeaturesFuncInvoked)
 }
 
 func TestCachedTeamMDMConfig(t *testing.T) {
