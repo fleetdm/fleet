@@ -878,12 +878,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
 
 	req := deleteHostsRequest{
-		Filters: struct {
-			MatchQuery string           `json:"query"`
-			Status     fleet.HostStatus `json:"status"`
-			LabelID    *uint            `json:"label_id"`
-			TeamID     *uint            `json:"team_id"`
-		}{TeamID: ptr.Uint(team1.ID)},
+		Filters: &deleteHostsFilters{TeamID: ptr.Uint(team1.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -920,12 +915,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	req := deleteHostsRequest{
-		Filters: struct {
-			MatchQuery string           `json:"query"`
-			Status     fleet.HostStatus `json:"status"`
-			LabelID    *uint            `json:"label_id"`
-			TeamID     *uint            `json:"team_id"`
-		}{LabelID: ptr.Uint(label.ID)},
+		Filters: &deleteHostsFilters{LabelID: ptr.Uint(label.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -963,6 +953,64 @@ func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 	require.NoError(t, err)
 }
 
+func (s *integrationTestSuite) TestBulkDeleteHostByIDsWithTimeout() {
+	t := s.T()
+
+	hosts := s.createHosts(t, "debian")
+
+	req := deleteHostsRequest{
+		IDs: []uint{hosts[0].ID},
+	}
+	resp := deleteHostsResponse{}
+	originalTimeout := deleteHostsTimeout
+	deleteHostsTimeout = 0
+	deleteHostsSkipAuthorization = true
+	defer func() {
+		deleteHostsTimeout = originalTimeout
+		deleteHostsSkipAuthorization = false
+	}()
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusAccepted, &resp)
+
+	// Make sure the host was actually deleted.
+	deleteDone := make(chan bool)
+	go func() {
+		for {
+			_, err := s.ds.Host(context.Background(), hosts[0].ID)
+			if err != nil {
+				deleteDone <- true
+				break
+			}
+		}
+	}()
+	select {
+	case <-deleteDone:
+		return
+	case <-time.After(2 * time.Second):
+		t.Log("http.StatusAccepted (202) means that delete should continue in the background, but we did not see the host deleted after 2 seconds.")
+		t.Error("Timeout: delete did not occur.")
+	}
+}
+
+func (s *integrationTestSuite) TestBulkDeleteHostsAll() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	// All hosts should be deleted when an empty filter is specified
+	req := deleteHostsRequest{
+		Filters: &deleteHostsFilters{},
+	}
+	resp := deleteHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
+
+	_, err := s.ds.Host(context.Background(), hosts[0].ID)
+	require.Error(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	require.Error(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	require.Error(t, err)
+}
+
 func (s *integrationTestSuite) createHosts(t *testing.T, platforms ...string) []*fleet.Host {
 	var hosts []*fleet.Host
 	if len(platforms) == 0 {
@@ -992,15 +1040,14 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 	hosts := s.createHosts(t)
 
 	req := deleteHostsRequest{
-		IDs: []uint{hosts[0].ID, hosts[1].ID},
-		Filters: struct {
-			MatchQuery string           `json:"query"`
-			Status     fleet.HostStatus `json:"status"`
-			LabelID    *uint            `json:"label_id"`
-			TeamID     *uint            `json:"team_id"`
-		}{LabelID: ptr.Uint(1)},
+		IDs:     []uint{hosts[0].ID, hosts[1].ID},
+		Filters: &deleteHostsFilters{LabelID: ptr.Uint(1)},
 	}
 	resp := deleteHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
+
+	req = deleteHostsRequest{}
+	// No ids or filter specified
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
 }
 

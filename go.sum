@@ -921,6 +921,8 @@ github.com/mitchellh/go-testing-interface v1.0.0/go.mod h1:kRemZodwjscx+RGhAo8eI
 github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7/go.mod h1:ZXFpozHsX6DPmq2I0TCekCxypsnAUbP2oI0UX1GXzOo=
 github.com/mitchellh/gon v0.2.3 h1:fObN7hD14VacGG++t27GzTW6opP0lwI7TsgTPL55wBo=
 github.com/mitchellh/gon v0.2.3/go.mod h1:Ua18ZhqjZHg8VyqZo8kNHAY331ntV6nNJ9mT3s2mIo8=
+github.com/mitchellh/gon v0.2.6-0.20231031204852-2d4f161ccecd h1:RQ7Xd+UzQW7IsC8z3oCg5qGRWiurC8rBsvnbhHUWvAk=
+github.com/mitchellh/gon v0.2.6-0.20231031204852-2d4f161ccecd/go.mod h1:Arkk7Mvih157PG/9pRKOArPhuRdNKZRXqx2Y0LGiEMI=
 github.com/mitchellh/gox v0.4.0/go.mod h1:Sd9lOJ0+aimLBi73mGofS1ycjY8lL3uZM3JPS42BGNg=
 github.com/mitchellh/iochan v1.0.0/go.mod h1:JwYml1nuB7xOzsp52dPpHFffvOCDupsG0QubkSMEySY=
 github.com/mitchellh/mapstructure v0.0.0-20160808181253-ca63d7c062ee/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
