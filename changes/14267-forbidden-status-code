@@ -1,0 +1,2 @@
+
+* Updates the POST /fleet/queries/run endpoint to return a 403 Forbidden response when Live Queries have been disabled by an administrator.

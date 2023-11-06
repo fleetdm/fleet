@@ -33,7 +33,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        go-version: ['^1.21.1']
+        go-version: ['${{ vars.GO_VERSION }}']
     runs-on: ${{ matrix.os }}
 
     steps:

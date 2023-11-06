@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -199,7 +198,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 	enrollLock.Lock()
 	defer enrollLock.Unlock()
 
-	orbitNodeKey, err := ioutil.ReadFile(oc.nodeKeyFilePath)
+	orbitNodeKey, err := os.ReadFile(oc.nodeKeyFilePath)
 	switch {
 	case err == nil:
 		return string(orbitNodeKey), nil

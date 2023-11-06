@@ -35,6 +35,7 @@ spec:
   interval: 3600 # 1 hour
   observer_can_run: true
   automations_enabled: true
+  discard_data: false
 ---
 apiVersion: v1 
 kind: query 
@@ -45,6 +46,7 @@ spec:
   team: Workstations
   interval: 0
   observer_can_run: true
+  discard_data: false
 --- 
 apiVersion: v1 
 kind: query 
@@ -64,6 +66,7 @@ spec:
   platform: darwin,windows
   automations_enabled: true
   logging: differential
+  discard_data: true
 ```
 
 Continued edits and applications to this file will update the queries.
@@ -395,6 +398,7 @@ spec:
     deferred_save_host: false
     enable_analytics: true
     live_query_disabled: false
+    query_reports_disabled: false
     server_url: ""
   smtp_settings:
     authentication_method: authmethod_plain
@@ -741,6 +745,22 @@ If the live query feature is disabled or not.
   server_settings:
     live_query_disabled: true
   ```
+
+##### server_settings.query_reports_disabled
+
+Whether the query reports feature is disabled.
+If this setting is changed from `false` to `true`, then all stored query results will be deleted (this process can take up to one hour).
+
+Query reports are cached results of scheduled queries stored in Fleet (up to 1000).
+
+- Optional setting (boolean)
+- Default value: `false`
+- Config file format:
+  ```yaml
+  server_settings:
+    query_reports_disabled: true
+  ```
+
 
 ##### server_settings.server_url
 
@@ -1186,4 +1206,3 @@ List of saved scripts that can be run on all hosts.
 > **Note:** More settings are included in the [contributor documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Configuration-for-contributors.md). It's possible, although not recommended, to configure these settings in the YAML configuration file.
 
 <meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure Fleet.">
-<meta name="navSection" value="Fleet server">

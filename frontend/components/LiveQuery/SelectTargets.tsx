@@ -389,13 +389,13 @@ const SelectTargets = ({
       const roundPercentage =
         Math.round((online / total) * 100) === 0
           ? "<1"
-          : Math.round((online / total) * 100) === 0;
+          : Math.round((online / total) * 100);
       return roundPercentage;
     };
 
     return (
       <>
-        <span>{total}</span>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
+        <b>{total}</b>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
         {onlinePercentage()}
         %&nbsp;
         <TooltipWrapper

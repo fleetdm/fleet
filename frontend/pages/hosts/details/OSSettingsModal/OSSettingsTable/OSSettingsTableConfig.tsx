@@ -108,7 +108,10 @@ const makeWindowsRows = ({ os_settings }: IHostMdmData) => {
 
   const rows: ITableRowOsSettings[] = [];
   rows.push(
-    generateWinDiskEncryptionProfile(os_settings.disk_encryption.status)
+    generateWinDiskEncryptionProfile(
+      os_settings.disk_encryption.status,
+      os_settings.disk_encryption.detail
+    )
   );
 
   return rows;

@@ -181,7 +181,7 @@ func ScheduledQueryFromQuery(query *Query) *ScheduledQuery {
 }
 
 func ScheduledQueryToQueryPayloadForNewQuery(originalQuery *Query, scheduledQuery *ScheduledQuery) QueryPayload {
-	var logging *string
+	logging := ptr.String(LoggingSnapshot) // default is snapshot.
 	if scheduledQuery.Snapshot != nil && scheduledQuery.Removed != nil {
 		if *scheduledQuery.Snapshot {
 			logging = ptr.String(LoggingSnapshot)

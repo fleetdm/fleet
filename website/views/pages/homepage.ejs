@@ -85,53 +85,58 @@
       </div>
     </div>
 
-    <%/* Device management block */%>
-    <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
-      <div purpose="platform-left-text-block" class="d-flex flex-column">
-        <h3>GitOps-driven MDM</h3>
-        <p>Automate the management of your fleet of devices with increased visibility and control, improved stability, all while automating configuration deployments using GitOps.</p>
-        <a purpose="animated-arrow-button-red" href="/device-management">More about device management</a>
+    <div purpose="category-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
+      <div purpose="category-switch-option" class="all" :class="[selectedCategory === 'endpoint-ops' ? 'selected' : '']" @click="selectedCategory = 'endpoint-ops'">Endpoint ops</div>
+      <div purpose="category-switch-option" class="security" :class="[selectedCategory === 'device-management' ? 'selected' : '']" @click="selectedCategory = 'device-management'">Device management</div>
+      <div purpose="category-switch-option" class="it" :class="[selectedCategory === 'vulnerability-management' ? 'selected' : '']" @click="selectedCategory = 'vulnerability-management'">Vuln<span class="d-inline d-md-none d-lg-inline">erability</span> management</div>
+      <div purpose="category-tier-switch" :class="selectedCategory+'-selected'"></div>
+    </div>
+
+    <%/* Endpoint ops block */%>
+    <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" :class="[selectedCategory === 'endpoint-ops' ? ' show' : 'hidden']">
+      <div purpose="category-text-block" class="d-flex flex-column">
+        <h3>Focus on data, not vendors</h3>
+        <p>Use a consistent interface to deploy, update, and manage thousands of workstations and servers with open standards and data.</p>
+        <a purpose="animated-arrow-button-red" href="/osquery-management">More about endpoint ops</a>
       </div>
-      <div purpose="platform-image">
-        <img alt="GitOps-driven MDM" src="/images/homepage-fleet-ui-536x389@2x.png">
+      <div purpose="category-image">
+        <img purpose="endpoint-ops-image" alt="Endpoint ops" src="/images/homepage-endpoint-ops-617x440@2x.png">
+      </div>
+    </div>
+
+    <%/* Device management block */%>
+    <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" :class="[selectedCategory === 'device-management' ? 'show' : 'hidden']">
+      <div purpose="category-text-block" class="d-flex flex-column">
+        <h3>Manage devices like code</h3>
+        <p>Automate the management of your fleet of devices with increased visibility and control, improved stability, all while automating configuration deployments using GitOps.</p>
+        <a purpose="animated-arrow-button-red" class="text-nowrap" href="/device-management">More about device management</a>
+      </div>
+      <div purpose="category-image">
+        <div purpose="device-management-image">
+          <div purpose="device-management-image-1"></div>
+          <div purpose="device-management-image-2"></div>
+          <div purpose="device-management-image-3"></div>
+          <img alt="A blank image" src="/images/homepage-image-container-617x440@2x.png">
+        </div>
       </div>
     </div>
 
     <%/* Vulnerability management block */%>
-    <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
-      <div purpose="platform-image">
-        <img alt="Vulnerability management" src="/images/homepage-vulnerability-management-530x458@2x.png">
+    <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" :class="[selectedCategory === 'vulnerability-management' ? 'show' : 'hidden']">
+      <div purpose="category-text-block" class="d-flex flex-column">
+        <h3>Build the security platform your team actually wants</h3>
+        <p>Monitor vulnerabilities in operating systems, software packages, and browser plugins. Show how quickly CVEs are resolved, and which teams need extra help.</p>
+        <a purpose="lg-animated-arrow-button-red" href="/vulnerability-management">More about vulnerability<br> management</a>
       </div>
-      <div purpose="platform-right-text-block" class="d-flex flex-column">
-        <h3>Know what’s going on with your computers</h3>
-        <p>Monitor vulnerabilities in software packages, operating systems, and browser plugins. Show how quickly CVEs are resolved, and which teams need extra help.</p>
-        <a purpose="animated-arrow-button-red" href="/vulnerability-management">More about vulnerability management</a>
-      </div>
-    </div>
-
-    <%/* Security compliance block */%>
-    <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
-      <div purpose="platform-left-text-block" class="d-flex flex-column">
-        <h3>Simplify security compliance</h3>
-        <p>Policies make it easy to keep your devices compliant with your organization’s custom rules and common benchmarks like CIS. Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.</p>
-        <a purpose="animated-arrow-button-red" href="/compliance">More about security compliance</a>
-      </div>
-      <div purpose="platform-image">
-        <img alt="Security compliance" src="/images/homepage-security-compliance-520x337@2x.png">
+      <div purpose="category-image">
+        <div purpose="vulnerability-management-image">
+          <div purpose="vulnerability-management-image-1"></div>
+          <div purpose="vulnerability-management-image-2"></div>
+          <img alt="A blank image" src="/images/homepage-image-container-617x440@2x.png">
+        </div>
       </div>
     </div>
 
-    <%/* Osquery management block */%>
-    <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-center mx-auto align-items-center">
-      <div purpose="platform-image">
-        <img alt="Osquery management" src="/images/homepage-osquery-management-543x371@2x.png">
-      </div>
-      <div purpose="platform-right-text-block" class="d-flex flex-column">
-        <h3>Deploy osquery at scale</h3>
-        <p>Fleet provides a centralized management interface for osquery to deploy, update, and manage osquery agents across a thousand or one hundred thousand devices.</p>
-        <a purpose="animated-arrow-button-red" href="/osquery-management">More about osquery management</a>
-      </div>
-    </div>
 
     <%/* Supported platforms */%>
     <div purpose="supported-platforms" class="d-flex flex-column">

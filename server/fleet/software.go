@@ -103,7 +103,7 @@ type HostSoftwareEntry struct {
 	Software
 	// Where this software was installed on the host, value is derived from the
 	// host_software_installed_paths table.
-	InstalledPaths []string `json:"installed_paths,omitempty"`
+	InstalledPaths []string `json:"installed_paths"`
 }
 
 // HostSoftware is the set of software installed on a specific host
@@ -123,7 +123,8 @@ type SoftwareIterator interface {
 }
 
 type SoftwareListOptions struct {
-	ListOptions
+	// ListOptions cannot be embedded in order to unmarshall with validation.
+	ListOptions ListOptions `url:"list_options"`
 
 	// HostID filters software to the specified host if not nil.
 	HostID           *uint

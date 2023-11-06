@@ -1,9 +1,9 @@
 - categoryName: Endpoint ops
   features:
-      #
-      #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦ ╦╔═╗╔═╗╦ ╔╦╗╦ ╦
-      #   ║║║╣ ╚╗╔╝║║  ║╣   ╠═╣║╣ ╠═╣║  ║ ╠═╣
-      #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╚═╝╩ ╩╩═╝╩ ╩ ╩
+    #
+    #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦ ╦╔═╗╔═╗╦ ╔╦╗╦ ╦
+    #   ║║║╣ ╚╗╔╝║║  ║╣   ╠═╣║╣ ╠═╣║  ║ ╠═╣
+    #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╚═╝╩ ╩╩═╝╩ ╩ ╩
     - industryName: Device health
       friendlyName: Automate device health
       description: Automatically report system health issues using webhooks or integrations, to notify or quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
@@ -15,25 +15,27 @@
       demos:
         - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
           quote: 
-          moreInfoUrl: 
+          moreInfoUrl: https://play.goconsensus.com/s4e490bb9
       buzzwords: [Device trust,Zero trust,Beyondcorp,Device attestation,Conditional access]
       waysToUse:
-        - description: Automatically manage the behavior of sick endpoints that are at higher risk of vulnerabilities.
-        - description: Implement conditional access based on device health using the Fleet API.
-        - description: Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.
-        - description: Control and restore access to applications by restricting access when devices do not meet particular security requirements.
+        - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
+        - description: Block access to corporate apps for users whose devices with unexpected settings, like disabled screen lock, passwords that are too short, unencrypted hard disks, and more
+        - description: Quickly implement conditional access based on device health using osquery and a simple REST API.
+        - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
           moreInfoUrl: https://duo.com/docs/device-health
         - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems.
         - description: Implement multivariate device trust
           moreInfoUrl: https://youtu.be/5sFOdpMLXQg?feature=shared&t=1445
         - description: Implement your own version of Google's zero trust model (BeyondCorp)
           moreInfoUrl: https://cloud.google.com/beyondcorp
+        - description: Get endpoint data into ServiceNow and make your asset management teams happy
+          moreInfoUrl: https://www.youtube.com/watch?v=aVbU6_9JoM0
     #
     #  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗  ╔═╗═╗ ╦╔═╗╔═╗╦ ╦╔╦╗╦╔═╗╔╗╔
     #  ╚═╗║  ╠╦╝║╠═╝ ║   ║╣ ╔╩╦╝║╣ ║  ║ ║ ║ ║║ ║║║║
     #  ╚═╝╚═╝╩╚═╩╩   ╩   ╚═╝╩ ╚═╚═╝╚═╝╚═╝ ╩ ╩╚═╝╝╚╝
     - industryName: Script execution
-      fiendlyName: Safely execute custom scripts (macOS, Windows, and Linux)
+      friendlyName: Safely execute custom scripts (macOS, Windows, and Linux)
       description: Deploy and execute custom scripts using a REST API, and manage your library of scripts in the UI or a git repo.
       documentationUrl: https://fleetdm.com/docs/using-fleet/scripts
       tier: Premium
@@ -69,9 +71,10 @@
         - description: 
           quote: 
           moreInfoUrl: 
-      buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Threat hunting]
+      buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Anomaly detection,Configuration management]
       waysToUse:
         - description: Monitor devices that don't meet your organization's custom security policies
+        - description: Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.
         - description: Keep your devices compliant with customizable baselines, or use common benchmarks like CIS.
         - description: Discover security misconfigurations that increase attack surface.
         - description: Detect suspcious services listening on open ports that should not be connected to the internet, such as Remote Desktop Protocol (RDP).
@@ -124,12 +127,15 @@
     #  ╔═╗═╗ ╦╔═╗╔═╗╦═╗╔╦╗   ┬   ╔═╗╦ ╦╔╗╔╔═╗
     #  ║╣ ╔╩╦╝╠═╝║ ║╠╦╝ ║   ┌┼─  ╚═╗╚╦╝║║║║
     #  ╚═╝╩ ╚═╩  ╚═╝╩╚═ ╩   └┘   ╚═╝ ╩ ╝╚╝╚═╝
+    # TODO: Use a different, more specific industry name for this, to tie it explicitly to query automations.  Customer quotes like "feeder for the SIEM" (there are too many types of export for it to be this generic).  Also tie this into HIDS.  And with the idea of ingesting IoCs.  HIDS can be accomplished with query automations or with policies, so it may be worth combining them.  i.e. it becomes "Automated posture assessment" and then also "HIDS", where we talk about, in a single entry, how you can do HIDS with query logs and with policies.  See "open hids" in https://docs.google.com/document/d/1oeCmT077o_5nxzLhnxs7kcg_4Qn1Pn1F5zx10nQOAp8/edit
     - industryName: Automated export/sync
       friendlyName: Build custom query automations
       description: Ship logs with snapshots of any imaginable report, or monitor results for changes.
       tier: Free
       usualDepartment: Security
       productCategories: [Endpoint operations]
+      demos:
+        - description: A top media company wanted to share more security data with other departments without slowing down hosts.
       waysToUse:
         - description: Ship logs to Splunk, Snowflake, and more
         - description: Synchronize live state of endpoints to a data lake or SIEM in a consistent shape.
@@ -161,26 +167,31 @@
         - description: Monitor critical files on production Debian servers
         - description: Detect anomalous filesystem activity
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
-        - description: Pinpoint unintended changes
+        - description: Detect unintended changes
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
         - description: Verify update status and monitor system health
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
         - description: Meet compliance mandates
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
-    #  ╦ ╦╔═╗╦═╗╔═╗
-    #  ╚╦╝╠═╣╠╦╝╠═╣
-    #   ╩ ╩ ╩╩╚═╩ ╩
-    - industryName: Malware detection (YARA)
-      fiendlyName: Scan files for malware signatures
-      description: Trigger automations when a file matches a YARA signature.
+    #  ╔╦╗╔═╗╦  ╦ ╦╔═╗╦═╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ┌─╦ ╦╔═╗╦═╗╔═╗─┐
+    #  ║║║╠═╣║  ║║║╠═╣╠╦╝║╣    ║║║╣  ║ ║╣ ║   ║ ║║ ║║║║  │ ╚╦╝╠═╣╠╦╝╠═╣ │
+    #  ╩ ╩╩ ╩╩═╝╚╩╝╩ ╩╩╚═╚═╝  ═╩╝╚═╝ ╩ ╚═╝╚═╝ ╩ ╩╚═╝╝╚╝  └─ ╩ ╩ ╩╩╚═╩ ╩─┘
+    - industryName: Malware detection (YARA)  # TODO: consider: technically more than YARA, consider generalizing this and including the concept of comparing known binary hashes (either via live query or in the data lake to compare threat intel feed)
+      friendlyName: Scan files for malware signatures
+      description: Report and trigger automations when malware or other unexpected files are detected on a host using YARA signatures.
       documentationUrl: https://fleetdm.com/tables/yara
       tier: Free
       dri: mikermcneil
       usualDepartment: Security
       productCategories: [Endpoint operations,Vulnerability management]
-      buzzwords: [YARA scanning,Antivirus (AV),Endpoint protection platform (EPP),Signature-based malware detection,Malware scanning,Malware analysis,Anomaly detection]
+      buzzwords: [YARA scanning,Cyber Threat Intelligence (CTI),Indicators of compromise (IOCs),Antivirus (AV),Endpoint protection platform (EPP),Endpoint detection and response (EDR),Malware detection,Signature-based malware detection,Malware scanning,Malware analysis,Anomaly detection]
+      demos:
+        - description: A top media company used Fleet policies with YARA rules to continuously scan host filesystems for malware signatures provided by internal and external threat intelligence teams.
+          moreInfoUrl: # short demo video
       waysToUse:
-        - description: Write YARA rules to continuously scan host filesystems for malware signatures using policies.
+        - description: Detect suspicious bytecode in JAR files
+        - description: Identify suspicious patterns in binaries using YARA signatures  # (≈regular expressions for binary)
+        - description: Continuously scan host filesystems for malware signatures.
           moreInfoUrl: https://yara.readthedocs.io/en/stable/writingrules.html
         - description: Monitor for relevent filesystem changes (YARA events) and on-demand YARA signature scans.
           moreInfoUrl: https://osquery.readthedocs.io/en/stable/deployment/yara/
@@ -194,6 +205,68 @@
           moreInfoUrl: https://osquery.readthedocs.io/en/stable/deployment/anomaly-detection/
         - description: Run a targeted YARA scan with osquery as a lightweight approach to scan anything on a host filesystem, with minimal performance impact.  Unlike full system YARA scans which consume considerable CPU resources, an equivalent YARA scan targeted in Fleet can be 8x cheaper (CPU %).
           moreInfoUrl: https://www.tripwire.com/state-of-security/signature-socket-based-malware-detection-osquery-yara
+    - industryName: Detection engineering
+      friendlyName: # Ship logs to your data lake and comopare with known bad binary hashes or capture behavioral data and build custom detections (e.g. using a framework like MITRE)
+      description: 
+      documentationUrl:
+      tier: Free
+      dri: mikermcneil
+      usualDepartment: Security
+      productCategories: [Endpoint operations]
+      buzzwords: [Security analytics,Behavioral analytics,MITRE ATT&CK,Tactics techniques and procedures (TTPs),Security information and event management (SIEM)]
+      demos:
+        - description: 
+          moreInfoUrl: 
+      waysToUse:
+        - description: 
+    - industryName: Threat hunting
+      friendlyName: # TODO: live query
+      description: 
+      documentationUrl:
+      tier: Free
+      dri: mikermcneil
+      usualDepartment: Security
+      productCategories: [Endpoint operations]
+      buzzwords: []
+      demos:
+        - description: 
+          moreInfoUrl: 
+      waysToUse:
+        - description: 
+    - industryName: Incident response
+      friendlyName: # TODO: live query, triage, figuring out scope of impact, remediate using scripts, MDM commands (e.g. remote wipe), and quarantine or reimage using other systems and APIs (e.g. remove from network, decommission container)
+      description: 
+      documentationUrl:
+      tier: Free
+      dri: mikermcneil
+      usualDepartment: Security
+      productCategories: [Endpoint operations]
+      buzzwords: []
+      demos:
+        - description: 
+          moreInfoUrl: 
+      waysToUse:
+        - description: 
+    - industryName: Binary authorization
+      friendlyName: Restrict what programs can run, and what files running programs can access.
+      description: 
+      documentationUrl:
+      tier: Free
+      dri: mikermcneil
+      usualDepartment: Security
+      productCategories: [Endpoint operations]
+      comingSoonOn: YYYY-MM-DD
+      buzzwords: [Mandatory Access Control (MAC),Privilege confinement,Binary authorization,Santa,Binary allowlisting,Binary whitelisting]
+      demos:
+        - description: 
+          moreInfoUrl: 
+      waysToUse:
+        - description: Confine programs to a limited set of resources.
+        - description: Report on AppArmor events
+          moreInfoUrl: https://fleetdm.com/tables/apparmor_events
+        - description: Confine programs according to a set of rules that specify which files a program can access.
+          moreInfoUrl: https://wiki.debian.org/AppArmor
+        - description: Proactively protect the system against both known and unknown vulnerabilities.
     #  ╔═╗╔═╗╔═╗╔╗╔╔╦╗  ╔═╗╦ ╦╔╦╗╔═╗   ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗
     #  ╠═╣║ ╦║╣ ║║║ ║   ╠═╣║ ║ ║ ║ ║───║ ║╠═╝ ║║╠═╣ ║ ║╣
     #  ╩ ╩╚═╝╚═╝╝╚╝ ╩   ╩ ╩╚═╝ ╩ ╚═╝   ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝
@@ -208,6 +281,13 @@
     - industryName: Installers (self-service)
       tier: Free
       productCategories: [Endpoint operations]
+      waysToUse:
+        - description: Build scripts for Ansible deployments
+          moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
+        - description: Deploy osquery to macOS via Jamf
+          moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
+        - description: Package osquery for Linux servers via Workspace One and Windows servers via group policies
+          moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
     #  ╔╗ ╔═╗╔╦╗╔═╗╦ ╦  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗╦╔═╗╔╗╔
     #  ╠╩╗╠═╣ ║ ║  ╠═╣  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║
     #  ╚═╝╩ ╩ ╩ ╚═╝╩ ╩  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝
@@ -332,7 +412,7 @@
       waysToUse:
         - description: (Vanta) Trigger a workflow based on a failing policy.
         - description: (Puppet) Easily issue MDM commands, standardize data across operating systems, and map macOS+Windows settings to computers with the Puppet module.
-        - description: (Jira) Automatically create Jira tickets in various situations.
+        - description: (Jira) Automatically create Jira tickets in various situations, including exporting vulnerabilities to Jira and syncing tickets.
         - description: (Torq) Build custom workflows that trigger in various situations.
         - description: (Zendesk) Automatically create Zendesk tickets in various situations.
         - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
@@ -360,12 +440,15 @@
 - categoryName: Device management
   features:
     - industryName: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
-      tier: Free
+      tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Remotely enforce macOS settings
+    - industryName: Remotely enforce OS settings
       tier: Free
       usualDepartment: IT
+      waysToUse:
+        - description: Deploy custom configuration profiles on macOS and Windows (coming soon) and verify that they're installed.
+        - description: Automatically re-deploy configuration profiles on macOS they're not installed.
       productCategories: [Device management]
     - industryName: Self service
       description: Provide resolution instructions for end users through Fleet Desktop that suggest how an end user can fix a posture issue themselves.
@@ -388,10 +471,18 @@
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: End-user macOS update reminders (via Nudge)
+      waysToUse:
+        - description: Ship a macOS workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup.
+        - description: Ship a Windows workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup. Coming soon (2023-12-31) #Customer-preston
+        - description: Customize the out-of-the-box setup experience for your end users.
+        - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
+    - industryName: Enforce OS updates
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management,Vulnerability management]
+      waysToUse:
+        - description: Enforce macOS updates via Nudge.
+        - description: Automatically update Windows after the end user reaches a deadline. Coming soon (2023-12-31) #Customer-preston
     - industryName: Encrypt macOS hard disks with FileVault
       tier: Premium
       usualDepartment: IT
@@ -405,9 +496,9 @@
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Update apps on macOS computers
+    - industryName: Install and update apps on macOS and Windows computers.
       tier: Premium
-      comingSoonOn: 2024-03-31
+      comingSoonOn: 2023-12-31 #Customer-reedtimmer and customer-preston
       usualDepartment: IT
       productCategories: [Device management]
     - industryName: Puppet module
@@ -417,6 +508,16 @@
       productCategories: [Device management]
 - categoryName: Inventory management
   features:
+    - industryName: Software inventory
+      tier: Free
+      waysToUse:
+        - description: Implement software inventory recommendations from the SANS 20 / CIS 18.
+          moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
+    - industryName: Hardware inventory
+      tier: Free
+      waysToUse:
+        - description: Implement hardware and infrastructure inventory recommendations from the SANS 20 / CIS 18.
+          moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
     - industryName: Device inventory dashboard
       tier: Free
     - industryName: Browse installed software packages
@@ -457,7 +558,7 @@
         - description: Report on disk encryption status
         - description: Encrypt hard disks on macOS with FileVault
         - description: Escrow FileVault keys on macOS
-        - description: Encrypt hard disks on Windows with BitLocker
+        - description: Encrypt hard disks on Windows with BitLocker. Coming soon (2023-12-31) #Customer-preston
     - industryName: Audit queries and user activities
       tier: Free
       usualDepartment: Security
@@ -482,7 +583,7 @@
       tier: Premium
 - categoryName: Vulnerability management
   features:
-    - industryName: Detect vulnerable software
+    - industryName: Detect vulnerable software #TODO: find a better industryName and make this the friendly name. Maybe separate out export.
       tier: Free
       usualDepartment: Security
       productCategories: [Vulnerability management]
@@ -490,6 +591,9 @@
         - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
           quote: So we have some stuff today through Qualys, but it's just not very good. A lot of it is...it's just really noisy.  I'm trying to find out specifically, actually what packages are installed where, and then the ability to live query them.
           moreInfoUrl: https://docs.google.com/document/d/1JWtRsW1FUTCkZEESJj9-CvXjLXK4219by-C6vvVVyBY/edit
+      waysToUse:
+        - description: Email relevant, actually-installed vulnerabilities to responsible teams so they can fix them.
+          moreInfoUrl: https://docs.google.com/document/d/1oeCmT077o_5nxzLhnxs7kcg_4Qn1Pn1F5zx10nQOAp8/edit
     - industryName: Query performance monitoring
       tier: Free
       demos:
@@ -497,12 +601,19 @@
           moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
         - description: A top software company wanted to detect regressions when adding/changing queries and fail builds if queries were too expensive.
           moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
+      waysToUse:
+        - description: Monitor performance for automated queries.
+        - description: Monitor performance for live queries. Coming soon (2024-01-26) #Customer-blanco
     - industryName: Detect and surface issues with devices (policies)
       tier: Free
+    - industryName: Vulnerability dashboard
+      tier: Premium
+      comingSoonOn: 2024-03-31
+      waysToUse:
+        - description: Only show vulnerabilities that you care about. Coming soon (2024-03-31) #Customer-faltona and customer-rialto
     - industryName: Policy scoring
       friendlyName: Mark policies as critical
       tier: Premium
-      comingSoonOn: 2023-12-31
     - industryName: Vulnerability scores (EPSS and CVSS)
       tier: Premium
       usualDepartment: Security
@@ -517,6 +628,8 @@
       tier: Free
       usualDepartment: Security
       productCategories: [Endpoint operations]
+      waysToUse:
+        - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-01-26) #Customer-blanco
     - industryName: File carving (AWS S3)
       tier: Free
       usualDepartment: Security

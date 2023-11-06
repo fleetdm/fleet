@@ -608,7 +608,7 @@ export const humanHostLastRestart = (
       restartDate.getMilliseconds() - millisecondsLastRestart
     );
 
-    return restartDate.toString();
+    return restartDate.toISOString();
   } catch {
     return "Unavailable";
   }

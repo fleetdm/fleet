@@ -18,7 +18,7 @@ type MdmProfileStatusForDisplay =
 interface IStatusDisplayOption {
   iconName: Extract<
     IconNames,
-    "success" | "success-partial" | "pending" | "pending-partial" | "error"
+    "success" | "success-outline" | "pending" | "pending-outline" | "error"
   >;
   tooltipText: string;
 }
@@ -34,13 +34,13 @@ const STATUS_DISPLAY_OPTIONS: StatusDisplayOptions = {
       "The host applied all OS settings. Fleet verified with osquery.",
   },
   Verifying: {
-    iconName: "success-partial",
+    iconName: "success-outline",
     tooltipText:
       "The host acknowledged all MDM commands to apply OS settings. " +
       "Fleet is verifying the OS settings are applied with osquery.",
   },
   Pending: {
-    iconName: "pending-partial",
+    iconName: "pending-outline",
     tooltipText:
       "The host will receive MDM command to apply OS settings when the host comes online.",
   },

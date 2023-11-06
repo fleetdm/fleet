@@ -21,7 +21,7 @@ const PolicyFailingCount = ({
   return failCount ? (
     <InfoBanner className={baseClass} color="grey" borderRadius="xlarge">
       <div className={`${baseClass}__count`}>
-        <Icon name="issue" />
+        <Icon name="error-outline" color="ui-fleet-black-50" />
         This device is failing
         {failCount === 1 ? " 1 policy" : ` ${failCount} policies`}
       </div>

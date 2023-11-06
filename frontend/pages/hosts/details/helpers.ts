@@ -21,13 +21,14 @@ const convertWinDiskEncryptionStatusToProfileStatus = (
  */
 // eslint-disable-next-line import/prefer-default-export
 export const generateWinDiskEncryptionProfile = (
-  diskEncryptionStatus: IWindowsDiskEncryptionStatus
+  diskEncryptionStatus: IWindowsDiskEncryptionStatus,
+  detail: string
 ): IHostMdmProfile => {
   return {
     profile_id: 0, // This s the only type of profile that can have this number
     name: "Disk Encryption",
     status: convertWinDiskEncryptionStatusToProfileStatus(diskEncryptionStatus),
-    detail: "",
+    detail,
     operation_type: null,
   };
 };
