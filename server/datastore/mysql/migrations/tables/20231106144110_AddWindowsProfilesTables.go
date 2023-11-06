@@ -27,12 +27,12 @@ ALTER TABLE mdm_apple_operation_types RENAME TO mdm_operation_types;
 -- track the team/no-team profiles - those represent the desired state of
 -- profiles per teams.
 CREATE TABLE mdm_windows_configuration_profiles (
-	-- this is typically called just id but this is consistent with the apple
-	-- profiles table.
+  -- this is typically called just id but this is consistent with the apple
+  -- profiles table.
   profile_id   INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 
-	-- this is 0 for no-team, or > 0 for a given team id, same as the apple
-	-- profiles table.
+  -- this is 0 for no-team, or > 0 for a given team id, same as the apple
+  -- profiles table.
   team_id      INT(10) UNSIGNED NOT NULL DEFAULT '0',
 
   name         VARCHAR(255) NOT NULL,
@@ -51,17 +51,17 @@ CREATE TABLE mdm_windows_configuration_profiles (
 	_, err = tx.Exec(`
 -- track the current status of each profile for each host.
 CREATE TABLE host_mdm_windows_profiles (
-	-- this is consistent with the apple profiles table, there is no FK on the
-	-- profiles because hosts may have profiles that don't exist anymore in that
-	-- table.
+  -- this is consistent with the apple profiles table, there is no FK on the
+  -- profiles because hosts may have profiles that don't exist anymore in that
+  -- table.
   profile_id     INT(10) UNSIGNED NOT NULL,
   host_uuid      VARCHAR(255) NOT NULL,
 
-	-- indicates that profile's status regarding the operation type on that host
-	-- (pending, failed, etc.).
+  -- indicates that profile's status regarding the operation type on that host
+  -- (pending, failed, etc.).
   status         VARCHAR(20) NULL,
 
-	-- indicates whether the profile is being installed or removed.
+  -- indicates whether the profile is being installed or removed.
   operation_type VARCHAR(20) NULL,
 
   detail         TEXT NULL,
