@@ -1836,6 +1836,7 @@ the `software` table.
 - `policy_updated_at`: the last time we updated the policy results for the host based on the queries ran.
 - `seen_time`: the last time the host contacted the fleet server, regardless of what operation it was for.
 - `software_updated_at`: the last time software changed for the host in any way.
+- `last_restarted`: the last time that the host was restarted
 
 ### List hosts
 
@@ -1912,6 +1913,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "updated_at": "2020-11-05T06:03:39Z",
       "id": 1,
       "detail_updated_at": "2020-11-05T05:09:45Z",
+      "last_restarted": "2020-11-01T03:01:45Z",
       "software_updated_at": "2020-11-05T05:09:44Z",
       "label_updated_at": "2020-11-05T05:14:51Z",
       "policy_updated_at": "2023-06-26T18:33:15Z",
@@ -2221,6 +2223,7 @@ Returns the information of the specified host.
     ],
     "id": 1,
     "detail_updated_at": "2021-08-19T21:07:53Z",
+    "last_restarted": "2020-11-01T03:01:45Z",
     "software_updated_at": "2020-11-05T05:09:44Z",
     "label_updated_at": "2021-08-19T21:07:53Z",
     "policy_updated_at": "2023-06-26T18:33:15Z",
