@@ -248,7 +248,6 @@ The simplest way to manage work is to use a single user story issue, then pass i
 A user story is estimated to fit within 1 sprint and drives business value when released, independent of other stories.  Sub-tasks are not.
 
 Sub-tasks:
-- are NOT estimated
 - can be created by anyone
 - add extra management overhead and should be used sparingly
 - do NOT have nested sub-tasks
