@@ -48,11 +48,11 @@ The query may take several seconds to complete because Fleet has to wait for the
 
 Fleet allows you to schedule queries to run at a set frequency. Scheduled queries will send data to Fleet and/or your [log destination](https://fleetdm.com/docs/using-fleet/log-destinations) automatically. 
 
-By default, queries that run on a schedule will only target platforms compatible with that query. This behavior can be overridden by setting the platforms in "advanced options" when saving a query.
+By default, queries that run on a schedule will only target platforms compatible with that query. This behavior can be overridden by setting the platforms in **Advanced options** when saving a query.
 
 **How to send data to your log destination:**
 
-> Only users with the [admin role](https://fleetdm.com/docs/using-fleet/manage-access#admin) can manage query automations.
+*Only users with the [admin role](https://fleetdm.com/docs/using-fleet/manage-access#admin) can manage query automations.*
 
 1. In the top navigation, select **Queries**.
 
