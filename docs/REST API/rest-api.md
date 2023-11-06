@@ -1844,7 +1844,7 @@ the `software` table.
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include 'asc' and 'desc'. Default is 'asc'.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's additional information object. See [Fleet Configuration Options](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleet-configuration-options) for an example configuration with hosts' additional information. Use '*' to get all stored fields.                                                  |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's `additional` object. See [Configuration files](https://fleetdm.com/docs/configuration/configuration-files#features-additional-queries) for how to configure Fleet to collect additional information for each host. Use '*' to get all fields.                                                  |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
@@ -4196,22 +4196,24 @@ Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to 
 
 ### Run custom MDM command
 
-This endpoint tells Fleet to run a custom MDM command, on the targeted macOS hosts, the next time they come online.
+> `POST /api/v1/fleet/mdm/apple/enqueue` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#run-custom-mdm-command).
 
-`POST /api/v1/fleet/mdm/apple/enqueue`
+This endpoint tells Fleet to run a custom MDM command, on the targeted macOS or Windows hosts, the next time they come online.
+
+`POST /api/v1/fleet/mdm/commands/run`
 
 #### Parameters
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries). Supported formats are standard ([RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)) and raw (unpadded) encoding ([RFC 4648 section 3.2](https://www.rfc-editor.org/rfc/rfc4648.html#section-3.2)) |
-| device_ids                | array  | json  | An array of macOS host UUIDs enrolled in Fleet's MDM on which the command should run.                   |
+| command                   | string | json  | A Base64 encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) or [Windows's documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/0353f3d6-dbe2-42b6-b8d5-50db9333bba4). Supported formats are standard and raw (unpadded). You can paste your Base64 code to the [online decoder](https://devpal.co/base64-decode/) to check if you're using the valid format. |
+| host_uuids                | array  | json  | An array of host UUIDs enrolled in Fleet on which the command should run. |
 
 Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
 
 #### Example
 
-`POST /api/v1/fleet/mdm/apple/enqueue`
+`POST /api/v1/fleet/mdm/commands/run`
 
 ##### Default response
 
@@ -4226,9 +4228,11 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 
 ### Get custom MDM command results
 
+> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#get-custom-mdm-command-results).
+
 This endpoint returns the results for a specific custom MDM command.
 
-`GET /api/v1/fleet/mdm/apple/commandresults`
+`GET /api/v1/fleet/mdm/commandresults`
 
 #### Parameters
 
@@ -4238,7 +4242,7 @@ This endpoint returns the results for a specific custom MDM command.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/commandresults?command_uuid=a2064cef-0000-1234-afb9-283e3c1d487e`
+`GET /api/v1/fleet/mdm/commandresults?command_uuid=a2064cef-0000-1234-afb9-283e3c1d487e`
 
 ##### Default response
 
@@ -4248,7 +4252,7 @@ This endpoint returns the results for a specific custom MDM command.
 {
   "results": [
     {
-      "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
       "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
       "status": "Acknowledged",
       "updated_at": "2023-04-04:00:00Z",
@@ -4262,9 +4266,11 @@ This endpoint returns the results for a specific custom MDM command.
 
 ### List custom MDM commands
 
+> `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#list-custom-mdm-commands).
+
 This endpoint returns the list of custom MDM commands that have been executed.
 
-`GET /api/v1/fleet/mdm/apple/commands`
+`GET /api/v1/fleet/mdm/commands`
 
 #### Parameters
 
@@ -4277,7 +4283,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/commands?per_page=5`
+`GET /api/v1/fleet/mdm/commands?per_page=5`
 
 ##### Default response
 
@@ -4287,12 +4293,20 @@ This endpoint returns the list of custom MDM commands that have been executed.
 {
   "results": [
     {
-      "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
       "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
       "status": "Acknowledged",
       "updated_at": "2023-04-04:00:00Z",
       "request_type": "ProfileList",
       "hostname": "mycomputer"
+    },
+    {
+      "host_uuid": "322vghee-12c7-8976-83a1-e2118a927342",
+      "command_uuid": "d76d69b7-d806-45a9-8e49-9d6dc533485c",
+      "status": "200",
+      "updated_at": "2023-05-04:00:00Z",
+      "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow",
+      "hostname": "myhost"
     }
   ]
 }
@@ -5488,15 +5502,122 @@ Either `query` or `query_id` must be provided.
 
 ## Queries
 
+- [List queries](#list-queries)
 - [Get query](#get-query)
 - [Get query report](#get-query-report)
-- [List queries](#list-queries)
 - [Create query](#create-query)
 - [Modify query](#modify-query)
 - [Delete query by name](#delete-query-by-name)
 - [Delete query by ID](#delete-query-by-id)
 - [Delete queries](#delete-queries)
 - [Run live query](#run-live-query)
+
+
+
+### List queries
+
+Returns a list of global queries or team queries.
+
+`GET /api/v1/fleet/queries`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                                                                                   |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| team_id         | integer | query | The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
+
+
+#### Example
+
+`GET /api/v1/fleet/queries`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+"queries": [
+  {
+    "created_at": "2021-01-04T21:19:57Z",
+    "updated_at": "2021-01-04T21:19:57Z",
+    "id": 1,
+    "name": "query1",
+    "description": "query",
+    "query": "SELECT * FROM osquery_info",
+    "team_id": null,
+    "interval": 3600,
+    "platform": "darwin,windows,linux",
+    "min_osquery_version": "",
+    "automations_enabled": true,
+    "logging": "snapshot",
+    "saved": true,
+    "observer_can_run": true,
+    "discard_data": false,
+    "author_id": 1,
+    "author_name": "noah",
+    "author_email": "noah@example.com",
+    "packs": [
+      {
+        "created_at": "2021-01-05T21:13:04Z",
+        "updated_at": "2021-01-07T19:12:54Z",
+        "id": 1,
+        "name": "Pack",
+        "description": "Pack",
+        "platform": "",
+        "disabled": true
+      }
+    ],
+    "stats": {
+      "system_time_p50": 1.32,
+      "system_time_p95": 4.02,
+      "user_time_p50": 3.55,
+      "user_time_p95": 3.00,
+      "total_executions": 3920
+    }
+  },
+  {
+    "created_at": "2021-01-19T17:08:24Z",
+    "updated_at": "2021-01-19T17:08:24Z",
+    "id": 3,
+    "name": "osquery_schedule",
+    "description": "Report performance stats for each file in the query schedule.",
+    "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
+    "team_id": null,
+    "interval": 3600,
+    "platform": "",
+    "version": "",
+    "automations_enabled": true,
+    "logging": "differential",
+    "saved": true,
+    "observer_can_run": true,
+    "discard_data": true,
+    "author_id": 1,
+    "author_name": "noah",
+    "author_email": "noah@example.com",
+    "packs": [
+      {
+        "created_at": "2021-01-19T17:08:31Z",
+        "updated_at": "2021-01-19T17:08:31Z",
+        "id": 14,
+        "name": "test_pack",
+        "description": "",
+        "platform": "",
+        "disabled": false
+      }
+    ],
+    "stats": {
+      "system_time_p50": null,
+      "system_time_p95": null,
+      "user_time_p50": null,
+      "user_time_p95": null,
+      "total_executions": null
+    }
+  }
+]}
+```
 
 ### Get query
 
@@ -5644,112 +5765,6 @@ If a query has no results stored, then `results` will be an empty array:
 ```
 
 > Note: osquery scheduled queries do not return errors, so only non-error results are included in the report. If you suspect a query may be running into errors, you can use the [live query](#run-live-query) endpoint to get diagnostics.
-
-
-### List queries
-
-Returns a list of global queries or team queries.
-
-`GET /api/v1/fleet/queries`
-
-#### Parameters
-
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
-| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-| team_id         | integer | query | The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
-
-
-#### Example
-
-`GET /api/v1/fleet/queries`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-"queries": [
-  {
-    "created_at": "2021-01-04T21:19:57Z",
-    "updated_at": "2021-01-04T21:19:57Z",
-    "id": 1,
-    "name": "query1",
-    "description": "query",
-    "query": "SELECT * FROM osquery_info",
-    "team_id": null,
-    "interval": 3600,
-    "platform": "darwin,windows,linux",
-    "min_osquery_version": "",
-    "automations_enabled": true,
-    "logging": "snapshot",
-    "saved": true,
-    "observer_can_run": true,
-    "discard_data": false,
-    "author_id": 1,
-    "author_name": "noah",
-    "author_email": "noah@example.com",
-    "packs": [
-      {
-        "created_at": "2021-01-05T21:13:04Z",
-        "updated_at": "2021-01-07T19:12:54Z",
-        "id": 1,
-        "name": "Pack",
-        "description": "Pack",
-        "platform": "",
-        "disabled": true
-      }
-    ],
-    "stats": {
-      "system_time_p50": 1.32,
-      "system_time_p95": 4.02,
-      "user_time_p50": 3.55,
-      "user_time_p95": 3.00,
-      "total_executions": 3920
-    }
-  },
-  {
-    "created_at": "2021-01-19T17:08:24Z",
-    "updated_at": "2021-01-19T17:08:24Z",
-    "id": 3,
-    "name": "osquery_schedule",
-    "description": "Report performance stats for each file in the query schedule.",
-    "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
-    "team_id": null,
-    "interval": 3600,
-    "platform": "",
-    "version": "",
-    "automations_enabled": true,
-    "logging": "differential",
-    "saved": true,
-    "observer_can_run": true,
-    "discard_data": true,
-    "author_id": 1,
-    "author_name": "noah",
-    "author_email": "noah@example.com",
-    "packs": [
-      {
-        "created_at": "2021-01-19T17:08:31Z",
-        "updated_at": "2021-01-19T17:08:31Z",
-        "id": 14,
-        "name": "test_pack",
-        "description": "",
-        "platform": "",
-        "disabled": false
-      }
-    ],
-    "stats": {
-      "system_time_p50": null,
-      "system_time_p95": null,
-      "user_time_p50": null,
-      "user_time_p95": null,
-      "total_executions": null
-    }
-  }
-]}
-```
 
 ### Create query
 

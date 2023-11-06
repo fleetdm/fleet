@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/beevik/etree"
 	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
@@ -830,7 +830,7 @@ func getHostsCommand() *cli.Command {
 
 				if c.Bool("mdm") || c.Bool("mdm-pending") {
 					// print an error if MDM is not configured
-					if err := client.CheckMDMEnabled(); err != nil {
+					if err := client.CheckAnyMDMEnabled(); err != nil {
 						return err
 					}
 
@@ -1122,6 +1122,15 @@ func printKeyValueTable(c *cli.Context, rows [][]string) {
 	table.Render()
 }
 
+func printTableWithXML(c *cli.Context, columns []string, data [][]string) {
+	table := defaultTable(c.App.Writer)
+	table.SetHeader(columns)
+	table.SetReflowDuringAutoWrap(false)
+	table.SetAutoWrapText(false)
+	table.AppendBulk(data)
+	table.Render()
+}
+
 func getTeamsJSONFlag() cli.Flag {
 	return &cli.BoolFlag{
 		Name:  jsonFlagName,
@@ -1401,11 +1410,11 @@ func getMDMCommandResultsCommand() *cli.Command {
 			}
 
 			// print an error if MDM is not configured
-			if err := client.CheckMDMEnabled(); err != nil {
+			if err := client.CheckAnyMDMEnabled(); err != nil {
 				return err
 			}
 
-			res, err := client.MDMAppleGetCommandResults(c.String("id"))
+			res, err := client.MDMGetCommandResults(c.String("id"))
 			if err != nil {
 				var nfe service.NotFoundErr
 				if errors.As(err, &nfe) {
@@ -1424,9 +1433,14 @@ func getMDMCommandResultsCommand() *cli.Command {
 			// print the results as a table
 			data := [][]string{}
 			for _, r := range res {
-				if bytes.Contains(r.Result, []byte("\t")) {
-					// tabs in the XML result tends to break the table formatting
-					r.Result = bytes.ReplaceAll(r.Result, []byte("\t"), []byte(" "))
+				formattedResult, err := formatXML(r.Result)
+				// if we get an error, just log it and use the
+				// unformatted command
+				if err != nil {
+					if getDebug(c) {
+						log(c, fmt.Sprintf("error formatting command: %s\n", err))
+					}
+					formattedResult = r.Result
 				}
 				data = append(data, []string{
 					r.CommandUUID,
@@ -1434,11 +1448,11 @@ func getMDMCommandResultsCommand() *cli.Command {
 					r.RequestType,
 					r.Status,
 					r.Hostname,
-					string(r.Result),
+					string(formattedResult),
 				})
 			}
 			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
-			printTable(c, columns, data)
+			printTableWithXML(c, columns, data)
 
 			return nil
 		},
@@ -1462,11 +1476,11 @@ func getMDMCommandsCommand() *cli.Command {
 			}
 
 			// print an error if MDM is not configured
-			if err := client.CheckMDMEnabled(); err != nil {
+			if err := client.CheckAnyMDMEnabled(); err != nil {
 				return err
 			}
 
-			results, err := client.MDMAppleListCommands()
+			results, err := client.MDMListCommands()
 			if err != nil {
 				return err
 			}
@@ -1492,4 +1506,13 @@ func getMDMCommandsCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+func formatXML(in []byte) ([]byte, error) {
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(in); err != nil {
+		return nil, err
+	}
+	doc.Indent(2)
+	return doc.WriteToBytes()
 }

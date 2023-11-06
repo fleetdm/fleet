@@ -382,7 +382,7 @@ type PolicyFunc func(ctx context.Context, id uint) (*fleet.Policy, error)
 
 type PolicyByNameFunc func(ctx context.Context, name string) (*fleet.Policy, error)
 
-type SavePolicyFunc func(ctx context.Context, p *fleet.Policy) error
+type SavePolicyFunc func(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error
 
 type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error)
 
@@ -568,9 +568,9 @@ type GetMDMAppleEnrollmentProfileByTypeFunc func(ctx context.Context, typ fleet.
 
 type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error)
 
-type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error)
+type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
 
-type ListMDMAppleCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error)
+type ListMDMAppleCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error)
 
 type NewMDMAppleInstallerFunc func(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error)
 
@@ -680,15 +680,27 @@ type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
 
 type WSTEPAssociateCertHashFunc func(ctx context.Context, deviceUUID string, hash string) error
 
-type MDMWindowsGetEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error)
-
 type MDMWindowsInsertEnrolledDeviceFunc func(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error
 
-type MDMWindowsDeleteEnrolledDeviceFunc func(ctx context.Context, mdmDeviceID string) error
+type MDMWindowsDeleteEnrolledDeviceFunc func(ctx context.Context, mdmDeviceHWID string) error
 
 type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
 type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) error
+
+type MDMWindowsInsertCommandForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error
+
+type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error)
+
+type MDMWindowsSaveResponseFunc func(ctx context.Context, deviceID string, fullResponse *fleet.SyncML) error
+
+type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
+
+type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) error
+
+type GetMDMCommandPlatformFunc func(ctx context.Context, commandUUID string) (string, error)
+
+type ListMDMCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error)
 
 type GetMDMWindowsBitLockerSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error)
 
@@ -1710,9 +1722,6 @@ type DataStore struct {
 	WSTEPAssociateCertHashFunc        WSTEPAssociateCertHashFunc
 	WSTEPAssociateCertHashFuncInvoked bool
 
-	MDMWindowsGetEnrolledDeviceFunc        MDMWindowsGetEnrolledDeviceFunc
-	MDMWindowsGetEnrolledDeviceFuncInvoked bool
-
 	MDMWindowsInsertEnrolledDeviceFunc        MDMWindowsInsertEnrolledDeviceFunc
 	MDMWindowsInsertEnrolledDeviceFuncInvoked bool
 
@@ -1724,6 +1733,27 @@ type DataStore struct {
 
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc        MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked bool
+
+	MDMWindowsInsertCommandForHostsFunc        MDMWindowsInsertCommandForHostsFunc
+	MDMWindowsInsertCommandForHostsFuncInvoked bool
+
+	MDMWindowsGetPendingCommandsFunc        MDMWindowsGetPendingCommandsFunc
+	MDMWindowsGetPendingCommandsFuncInvoked bool
+
+	MDMWindowsSaveResponseFunc        MDMWindowsSaveResponseFunc
+	MDMWindowsSaveResponseFuncInvoked bool
+
+	GetMDMWindowsCommandResultsFunc        GetMDMWindowsCommandResultsFunc
+	GetMDMWindowsCommandResultsFuncInvoked bool
+
+	UpdateMDMWindowsEnrollmentsHostUUIDFunc        UpdateMDMWindowsEnrollmentsHostUUIDFunc
+	UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked bool
+
+	GetMDMCommandPlatformFunc        GetMDMCommandPlatformFunc
+	GetMDMCommandPlatformFuncInvoked bool
+
+	ListMDMCommandsFunc        ListMDMCommandsFunc
+	ListMDMCommandsFuncInvoked bool
 
 	GetMDMWindowsBitLockerSummaryFunc        GetMDMWindowsBitLockerSummaryFunc
 	GetMDMWindowsBitLockerSummaryFuncInvoked bool
@@ -3041,11 +3071,11 @@ func (s *DataStore) PolicyByName(ctx context.Context, name string) (*fleet.Polic
 	return s.PolicyByNameFunc(ctx, name)
 }
 
-func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
+func (s *DataStore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error {
 	s.mu.Lock()
 	s.SavePolicyFuncInvoked = true
 	s.mu.Unlock()
-	return s.SavePolicyFunc(ctx, p)
+	return s.SavePolicyFunc(ctx, p, shouldRemoveAllPolicyMemberships)
 }
 
 func (s *DataStore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
@@ -3692,14 +3722,14 @@ func (s *DataStore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*flee
 	return s.ListMDMAppleEnrollmentProfilesFunc(ctx)
 }
 
-func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
 	s.mu.Lock()
 	s.GetMDMAppleCommandResultsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleCommandResultsFunc(ctx, commandUUID)
 }
 
-func (s *DataStore) ListMDMAppleCommands(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
+func (s *DataStore) ListMDMAppleCommands(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
 	s.mu.Lock()
 	s.ListMDMAppleCommandsFuncInvoked = true
 	s.mu.Unlock()
@@ -4084,13 +4114,6 @@ func (s *DataStore) WSTEPAssociateCertHash(ctx context.Context, deviceUUID strin
 	return s.WSTEPAssociateCertHashFunc(ctx, deviceUUID, hash)
 }
 
-func (s *DataStore) MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
-	s.mu.Lock()
-	s.MDMWindowsGetEnrolledDeviceFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMWindowsGetEnrolledDeviceFunc(ctx, mdmDeviceID)
-}
-
 func (s *DataStore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
 	s.mu.Lock()
 	s.MDMWindowsInsertEnrolledDeviceFuncInvoked = true
@@ -4098,11 +4121,11 @@ func (s *DataStore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *
 	return s.MDMWindowsInsertEnrolledDeviceFunc(ctx, device)
 }
 
-func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error {
+func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceHWID string) error {
 	s.mu.Lock()
 	s.MDMWindowsDeleteEnrolledDeviceFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceID)
+	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceHWID)
 }
 
 func (s *DataStore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
@@ -4117,6 +4140,55 @@ func (s *DataStore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Conte
 	s.MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc(ctx, mdmDeviceID)
+}
+
+func (s *DataStore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+	s.mu.Lock()
+	s.MDMWindowsInsertCommandForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsInsertCommandForHostsFunc(ctx, hostUUIDs, cmd)
+}
+
+func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
+	s.mu.Lock()
+	s.MDMWindowsGetPendingCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsGetPendingCommandsFunc(ctx, deviceID)
+}
+
+func (s *DataStore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, fullResponse *fleet.SyncML) error {
+	s.mu.Lock()
+	s.MDMWindowsSaveResponseFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsSaveResponseFunc(ctx, deviceID, fullResponse)
+}
+
+func (s *DataStore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	s.mu.Lock()
+	s.GetMDMWindowsCommandResultsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMWindowsCommandResultsFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) error {
+	s.mu.Lock()
+	s.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMWindowsEnrollmentsHostUUIDFunc(ctx, hostUUID, mdmDeviceID)
+}
+
+func (s *DataStore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
+	s.mu.Lock()
+	s.GetMDMCommandPlatformFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMCommandPlatformFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) ListMDMCommands(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
+	s.mu.Lock()
+	s.ListMDMCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMCommandsFunc(ctx, tmFilter, listOpts)
 }
 
 func (s *DataStore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {

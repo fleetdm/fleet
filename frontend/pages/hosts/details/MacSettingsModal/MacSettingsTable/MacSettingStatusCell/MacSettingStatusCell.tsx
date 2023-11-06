@@ -41,7 +41,7 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
   install: {
     pending: {
       statusText: "Enforcing (pending)",
-      iconName: "pending-partial",
+      iconName: "pending-outline",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
           ? "The hosts will receive the MDM command to turn on disk encryption " +
@@ -51,7 +51,7 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
     },
     action_required: {
       statusText: "Action required (pending)",
-      iconName: "pending-partial",
+      iconName: "pending-outline",
       tooltip: TooltipInnerContentActionRequired as TooltipInnerContentFunc,
     },
     verified: {
@@ -65,7 +65,7 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
     },
     verifying: {
       statusText: "Verifying",
-      iconName: "success-partial",
+      iconName: "success-outline",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
           ? "The host acknowledged the MDM command to turn on disk encryption. " +
@@ -83,7 +83,7 @@ const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
   remove: {
     pending: {
       statusText: "Removing enforcement (pending)",
-      iconName: "pending-partial",
+      iconName: "pending-outline",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
           ? "The host will receive the MDM command to remove the disk encryption profile when the " +
@@ -116,14 +116,14 @@ const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDisplayConfig
   },
   verifying: {
     statusText: "Verifying",
-    iconName: "success-partial",
+    iconName: "success-outline",
     tooltip: () =>
       "The host acknowledged the MDM command to turn on disk encryption. Fleet is verifying with osquery and retrieving " +
       "the disk encryption key. This may take up to one hour.",
   },
   pending: {
     statusText: "Enforcing (pending)",
-    iconName: "pending-partial",
+    iconName: "pending-outline",
     tooltip: () =>
       "The host will receive the MDM command to turn on disk encryption when the host comes online.",
   },

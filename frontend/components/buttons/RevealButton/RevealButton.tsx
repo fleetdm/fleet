@@ -46,16 +46,14 @@ const RevealButton = ({
       <>
         {caretPosition === "before" && (
           <Icon
-            name="chevron"
-            direction={isShowing ? "down" : "right"}
+            name={isShowing ? "chevron-down" : "chevron-right"}
             color="core-fleet-blue"
           />
         )}
         {buttonText}
         {caretPosition === "after" && (
           <Icon
-            name="chevron"
-            direction={isShowing ? "up" : "down"}
+            name={isShowing ? "chevron-up" : "chevron-down"}
             color="core-fleet-blue"
           />
         )}

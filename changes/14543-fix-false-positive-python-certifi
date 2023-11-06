@@ -1,0 +1,1 @@
+* Fixed false positive CVE-2023-37920 detected on `certifi` python package.

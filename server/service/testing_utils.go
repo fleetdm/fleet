@@ -290,6 +290,7 @@ type TestServerOpts struct {
 	APNSTopic           string
 	ProfileMatcher      fleet.ProfileMatcher
 	EnableCachedDS      bool
+	NoCacheDatastore    bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -630,6 +631,9 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
+		{"POST", "/api/latest/fleet/mdm/commands/run", false, false},
+		{"GET", "/api/latest/fleet/mdm/commandresults", false, false},
+		{"GET", "/api/latest/fleet/mdm/commands", false, false},
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
 		{"GET", "/api/latest/fleet/mdm/disk_encryption/summary", false, true},
 	}
