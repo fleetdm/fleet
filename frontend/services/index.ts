@@ -12,7 +12,8 @@ const sendRequest = async (
   path: string,
   data?: unknown,
   responseType: AxiosResponseType = "json",
-  timeout?: number
+  timeout?: number,
+  includeFullAxiosError?: boolean
 ) => {
   const { origin } = global.window.location;
 
@@ -33,6 +34,9 @@ const sendRequest = async (
 
     return response.data;
   } catch (error) {
+    if (includeFullAxiosError) {
+      return Promise.reject(error);
+    }
     const axiosError = error as AxiosError;
     return Promise.reject(
       axiosError.response ||

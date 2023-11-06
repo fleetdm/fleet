@@ -2,7 +2,7 @@
 
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { IConfig } from "interfaces/config";
+import { IConfig, IMdmConfig } from "interfaces/config";
 import axios, { AxiosError } from "axios";
 
 export default {
@@ -39,6 +39,18 @@ export default {
     const { CONFIG } = endpoints;
 
     return sendRequest("PATCH", CONFIG, formData);
+  },
+
+  /**
+   * updateMDMConfig is a special case of update that is used to update the MDM
+   * config. It differs in that it allows the caller to parse error responses.
+   * If the request fails, the full AxiosError object will be passed as the
+   * rejection value instead of a simple string.
+   */
+  updateMDMConfig: (mdm: Partial<IMdmConfig>) => {
+    const { CONFIG } = endpoints;
+
+    return sendRequest("PATCH", CONFIG, { mdm }, undefined, undefined, true);
   },
 
   // This API call is made to a specific endpoint that is different than our
