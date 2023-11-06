@@ -123,3 +123,30 @@ func TestBase64DecodePaddingAgnostic(t *testing.T) {
 		require.Equal(t, got, c.want)
 	}
 }
+
+func TestRemoveDuplicatesFromSlice(t *testing.T) {
+	tests := map[string]struct {
+		input  []interface{}
+		output []interface{}
+	}{
+		"no duplicates": {
+			input:  []interface{}{34, 56, 1},
+			output: []interface{}{34, 56, 1},
+		},
+		"1 duplicate": {
+			input:  []interface{}{"a", "d", "a"},
+			output: []interface{}{"a", "d"},
+		},
+		"all duplicates": {
+			input:  []interface{}{true, true, true},
+			output: []interface{}{true},
+		},
+	}
+	for name, test := range tests {
+		t.Run(
+			name, func(t *testing.T) {
+				require.Equal(t, test.output, RemoveDuplicatesFromSlice(test.input))
+			},
+		)
+	}
+}
