@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20231103135411(t *testing.T) {
+func TestUp_20231106165200(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	//
@@ -21,7 +21,7 @@ func TestUp_20231103135411(t *testing.T) {
 			(1,'2023-11-03 20:32:32','2023-11-03 20:32:32',_binary '$2a$12$n6hwsD7OU2bAXX94551DQOBcNNhfsEPS3Y6JEuLDjsLNvry3lgJjy','0fF81xRQIriYzm5fdXouk3V3tRwsZJhV','admin','admin@email.com',0,'','',0,'admin',0),
 			(2,'2023-11-03 20:33:13','2023-11-03 20:35:26',_binary '$2a$12$YxPPOd5TOmYhDlH5CfGIfuxBe4GJ78gbwvtxoBHTTw.symxpVcEZS','JPDLcBcv4j1QwIU+rHoRWBt3HVJC8hnf','User 1','user1@email.com',0,'','',0,NULL,0);
 		INSERT INTO activities VALUES
-			(1,'2023-11-03 20:32:32',1,'admin','user_logged_in','{"public_ip": "[::1]"}',0),
+			(1,'2023-11-04 20:32:32',1,'admin','user_logged_in','{"public_ip": "[::1]"}',0),
 			(2,'2023-11-03 20:32:32',2,'User 1','user_logged_in','{"public_ip": "[::1]"}',0);
 	`
 

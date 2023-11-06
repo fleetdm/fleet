@@ -271,10 +271,29 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
 	t := s.T()
 
-	u := s.users["user1@example.com"]
+	// u := s.users["user3@example.com"]
+	// var loginResp loginResponse
+	// pw := testUsers["user1"].PlaintextPassword
+	// s.DoJSON("POST", "/api/latest/fleet/login", fleet.UserPayload{Email: &u.Email, Password: &pw}, http.StatusOK, &loginResp)
+	// require.Equal(t, loginResp.User.ID, u.ID)
+
+	// create a new user
+	var createResp createUserResponse
+	userRawPwd := test.GoodPassword
+	params := fleet.UserPayload{
+		Name:       ptr.String("Gonna B Deleted"),
+		Email:      ptr.String("goingto@delete.com"),
+		Password:   ptr.String(userRawPwd),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	assert.NotZero(t, createResp.User.ID)
+	assert.True(t, createResp.User.AdminForcedPasswordReset)
+	u := *createResp.User
+
+	// login as that user and check that teams info is empty
 	var loginResp loginResponse
-	pw := testUsers["user1"].PlaintextPassword
-	s.DoJSON("POST", "/api/latest/fleet/login", fleet.UserPayload{Email: &u.Email, Password: &pw}, http.StatusOK, &loginResp)
+	s.DoJSON("POST", "/api/latest/fleet/login", params, http.StatusOK, &loginResp)
 	require.Equal(t, loginResp.User.ID, u.ID)
 
 	activities := listActivitiesResponse{}
