@@ -19,6 +19,7 @@ export default PropTypes.shape({
   updated_at: PropTypes.string,
   id: PropTypes.number,
   detail_updated_at: PropTypes.string,
+  last_restarted: PropTypes.string,
   label_updated_at: PropTypes.string,
   policy_updated_at: PropTypes.string,
   last_enrolled_at: PropTypes.string,
@@ -199,6 +200,7 @@ export interface IHost {
   updated_at: string;
   id: number;
   detail_updated_at: string;
+  last_restarted: string;
   label_updated_at: string;
   policy_updated_at: string;
   last_enrolled_at: string;
