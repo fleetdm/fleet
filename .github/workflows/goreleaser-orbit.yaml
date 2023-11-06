@@ -61,6 +61,7 @@ jobs:
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
+          CGO_ENABLED: 1
 
       - name: Upload
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
