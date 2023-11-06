@@ -1836,6 +1836,10 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	err = s.ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
+	ac, err = s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	fmt.Printf("------------- ac %+v\n", ac)
+
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          51,
 		Name:        "team1-policies",
@@ -1931,6 +1935,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NoError(t, getDeviceHostResp.Err)
 	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
+	fmt.Printf("---------------- getdevicehostresp: %+v\n", getDeviceHostResp)
 	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
 

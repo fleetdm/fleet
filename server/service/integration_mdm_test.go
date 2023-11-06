@@ -2185,8 +2185,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	}}, http.StatusNoContent)
 
 	// trigger a sync and verify that there are profiles assigned to the host
-	_, err = s.profileSchedule.Trigger()
-	require.NoError(t, err)
+	s.awaitTriggerProfileSchedule(t, 0)
 
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", h.ID), getHostRequest{}, http.StatusOK, &hostResp)
