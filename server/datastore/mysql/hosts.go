@@ -808,7 +808,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     h.osquery_host_id,
     h.created_at,
     h.updated_at,
-    h.detail_updated_at,
+    COALESCE(h.detail_updated_at, h.created_at) as detail_updated_at,
     h.node_key,
     h.hostname,
     h.uuid,
@@ -854,10 +854,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	sql += hostMDMSelect
 
 	if opt.ListOptions.OrderKey == "last_restarted" {
-		sql += /*`,
-			-FLOOR(UNIX_TIMESTAMP() * 1000 - (((UNIX_TIMESTAMP() - UNIX_TIMESTAMP(detail_updated_at)) * 1000) + (uptime / 1000000))) AS last_restarted
-				`*/`,
-		DATE_SUB(detail_updated_at, INTERVAL uptime/1000 MICROSECOND) as last_restarted
+		sql += `,
+		DATE_SUB(COALESCE(h.detail_updated_at, h.created_at), INTERVAL uptime/1000 MICROSECOND) as last_restarted
 		`
 	}
 
