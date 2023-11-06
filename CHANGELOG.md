@@ -23,7 +23,7 @@
   - Updated vulnerability processing to omit software without versions.
   - Resolved false positives in vulnerabilities for Chrome and Firefox extensions.
 
-* **UI Improvements**:
+* **UI improvements**:
   - Fleet tables in UI reset rows upon filter/search/page changes.
   - Improved handling when deleting a large number of hosts; operations now continue in the background after 30 seconds.
   - Added the ability for Observers and Observer+ to view policy resolutions.
