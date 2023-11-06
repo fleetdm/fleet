@@ -1,3 +1,63 @@
+## Fleet 4.40.0 (Nov 3, 2023)
+
+### Changes
+
+* **Endpoint operations**:
+  - New tables added to the fleetd extension: app_icons, falconctl_options, falcon_kernel_check, cryptoinfo, cryptsetup_status, filevault_status, firefox_preferences, firmwarepasswd, ioreg, and windows_updates.
+
+* **Device management (MDM)**:
+  - Introduced support for MS-MDM management protocol.
+  - Added a host detail query for Windows hosts to ingest MDM device id and updated the Windows MDM device enrollment flow.
+  - Implemented `--context` and `--debug` flags for `fleetctl mdm run-command`.
+  - Support added for `fleetctl mdm run-command` on Windows hosts.
+  - macOS hosts with MDM features via SSO can now run `sudo profiles renew --type enrollment`.
+  - Introduced `GET mdm/commandresults` endpoint to retrieve MDM command results for Windows and macOS.
+  - `fleetctl get mdm-command-results` now uses the new above endpoint.
+  - Added `POST /fleet/mdm/commands/run` platform-agnostic endpoint for MDM commands.
+  - Introduced API for recent Windows MDM commands via `fleetctl` and the API.
+
+* **Vulnerability management**:
+  - Added vulnerability data support for JetBrains apps with similar names (e.g., IntelliJ IDEA.app vs. IntelliJ IDEA Ultimate.app).
+  - Apple Rapid Security Response version added to macOS host details (requires osquery v5.9.1 on macOS devices).
+  - For ChromeOS hosts, software now includes chrome extensions.
+  - Updated vulnerability processing to omit software without versions.
+  - Resolved false positives in vulnerabilities for Chrome and Firefox extensions.
+
+* **UI Improvements**:
+  - Fleet tables in UI reset rows upon filter/search/page changes.
+  - Improved handling when deleting a large number of hosts; operations now continue in the background after 30 seconds.
+  - Added the ability for Observers and Observer+ to view policy resolutions.
+  - Improved app settings clarity for premium users regarding usage statistics.
+  - UI buttons for live queries or policies are now disabled with a tooltip if live queries are globally turned off.
+  - Observers and observer+ can now run existing policies in the UI.
+
+### Bug fixes and improvements
+
+* **REST API**:
+  - Overhauled REST API input validation for several endpoints (hosts, carves, users).
+  - Validation error status codes switched from 500 to 400 for clarity.
+  - Numerous new validations added for policy details, os_name/version, etc.
+  - Addressed issues in /fleet/sso and /mdm/apple/enqueue endpoints.
+  - Updated response codes for several other endpoints for clearer error handling.
+
+* **Logging and debugging**:
+  - Updated Apple Business Manager terms logging behavior.
+  - Refined the copy of the ABM terms banner for better clarity.
+  - Addressed a false positive CVE detection on the `certifi` python package.
+  - Fixed a logging issue with Fleet's Cloudflare WARP software version ingestion for Windows.
+
+* **UI fixes**:
+  - Addressed UI bugs for the "Turn off MDM" action display and issues with the host details page's banners.
+  - Fixed narrow viewport EULA display issue on the Windows TOS page.
+  - Rectified team dropdown value issues and ensured consistent help text across query and policy creation forms.
+  - Fixed issues when applying config changes without MDM features enabled.
+
+* **Others**:
+  - Removed the capability for Premium customers to disable usage statistics. Further information provided in the Fleet documentation.
+  - Retired creating OS policies from host OSes in the UI.
+  - Addressed issues in Live Queries with the POST /fleet/queries/run endpoint.
+  - Introduced database migrations for Windows MDM command tables.
+
 ## Fleet 4.39.0 (Oct 19, 2023)
 
 ### Changes
