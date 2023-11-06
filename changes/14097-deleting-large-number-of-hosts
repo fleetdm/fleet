@@ -1,4 +1,0 @@
-Web UI no longer gives an error when deleting a large number of hosts.
-
-After 30 seconds, the 'Delete host' modal closes and the delete operation continues in the background.
-The following text has been added to the modal when deleting 500 or more hosts: "When deleting a large volume of hosts, it may take some time for this change to be reflected in the UI."
