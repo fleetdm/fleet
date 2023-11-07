@@ -171,9 +171,17 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 		return nil
 	}
 
+	tlsConfig := &tls.Config{
+		ServerName:         e.SMTPSettings.SMTPServer,
+		InsecureSkipVerify: !e.SMTPSettings.SMTPVerifySSLCerts,
+	}
+
 	var client *smtp.Client
-	tlsConfig := createTLSConfig(e.SMTPSettings)
-	client, err = dialTimeout(smtpHost, tlsConfig)
+	if e.SMTPSettings.SMTPEnableTLS {
+		client, err = dialTimeout(smtpHost, tlsConfig)
+	} else {
+		client, err = dialTimeout(smtpHost, nil)
+	}
 	if err != nil {
 		return fmt.Errorf("could not dial smtp host: %w", err)
 	}
@@ -181,12 +189,7 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 
 	if e.SMTPSettings.SMTPEnableStartTLS {
 		if ok, _ := client.Extension("STARTTLS"); ok {
-			// can't reuse tlsConfig because it may be nil
-			config := &tls.Config{
-				ServerName:         e.SMTPSettings.SMTPServer,
-				InsecureSkipVerify: !e.SMTPSettings.SMTPVerifySSLCerts,
-			}
-			if err = client.StartTLS(config); err != nil {
+			if err = client.StartTLS(tlsConfig); err != nil {
 				return fmt.Errorf("startTLS error: %w", err)
 			}
 		}
@@ -286,14 +289,4 @@ func (m *SMTPTestMailer) Message() ([]byte, error) {
 	}
 
 	return msg.Bytes(), nil
-}
-
-func createTLSConfig(smtpSettings fleet.SMTPSettings) *tls.Config {
-	if smtpSettings.SMTPEnableTLS {
-		return &tls.Config{
-			ServerName:         smtpSettings.SMTPServer,
-			InsecureSkipVerify: !smtpSettings.SMTPVerifySSLCerts,
-		}
-	}
-	return nil
 }
