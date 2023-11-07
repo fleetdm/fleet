@@ -1,1 +1,0 @@
-- Fixed issue where applying config changes would cause validation errors when MDM features were not enabled.
