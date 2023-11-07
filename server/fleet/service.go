@@ -810,6 +810,9 @@ type Service interface {
 	// Set or update the disk encryption key for a host.
 	SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error
 
+	// DeleteMDMWindowsProfile deletes the specified windows profile.
+	DeleteMDMWindowsProfile(ctx context.Context, profileUUID string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
 
