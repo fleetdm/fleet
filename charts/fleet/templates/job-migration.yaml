@@ -10,9 +10,13 @@ metadata:
   name: fleet-migration
   namespace: {{ .Release.Namespace }}
   annotations:
+    {{- if .Values.mysql.enabled }}
+    {}
+    {{- else }}
     "helm.sh/hook": pre-install,pre-upgrade
     "helm.sh/hook-weight": "1"
     "helm.sh/hook-delete-policy": hook-succeeded
+    {{- end }}
 spec:
   template:
     metadata:
@@ -73,39 +77,39 @@ spec:
           ## END FLEET SECTION
           ## BEGIN MYSQL SECTION
           - name: FLEET_MYSQL_ADDRESS
-            value: "{{ .Values.mysql.address }}"
+            value: "{{ .Values.database.address }}"
           - name: FLEET_MYSQL_DATABASE
-            value: "{{ .Values.mysql.database }}"
+            value: "{{ .Values.database.database }}"
           - name: FLEET_MYSQL_USERNAME
-            value: "{{ .Values.mysql.username }}"
+            value: "{{ .Values.database.username }}"
           - name: FLEET_MYSQL_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: {{ .Values.mysql.secretName }}
-                key: {{ .Values.mysql.passwordKey }}
+                name: {{ .Values.database.secretName }}
+                key: {{ .Values.database.passwordKey }}
           - name: FLEET_MYSQL_MAX_OPEN_CONNS
-            value: "{{ .Values.mysql.maxOpenConns }}"
+            value: "{{ .Values.database.maxOpenConns }}"
           - name: FLEET_MYSQL_MAX_IDLE_CONNS
-            value: "{{ .Values.mysql.maxIdleConns }}"
+            value: "{{ .Values.database.maxIdleConns }}"
           - name: FLEET_MYSQL_CONN_MAX_LIFETIME
-            value: "{{ .Values.mysql.connMaxLifetime }}"
-          {{- if .Values.mysql.tls.enabled }}
-          {{- if .Values.mysql.tls.caCertKey }}
+            value: "{{ .Values.database.connMaxLifetime }}"
+          {{- if .Values.database.tls.enabled }}
+          {{- if .Values.database.tls.caCertKey }}
           - name: FLEET_MYSQL_TLS_CA
-            value: "/secrets/mysql/{{ .Values.mysql.tls.caCertKey }}"
+            value: "/secrets/mysql/{{ .Values.database.tls.caCertKey }}"
           {{- end }}
-          {{- if .Values.mysql.tls.certKey }}
+          {{- if .Values.database.tls.certKey }}
           - name: FLEET_MYSQL_TLS_CERT
-            value: "/secrets/mysql/{{ .Values.mysql.tls.certKey }}"
+            value: "/secrets/mysql/{{ .Values.database.tls.certKey }}"
           {{- end }}
-          {{- if .Values.mysql.tls.keyKey }}
+          {{- if .Values.database.tls.keyKey }}
           - name: FLEET_MYSQL_TLS_KEY
-            value: "/secrets/mysql/{{ .Values.mysql.tls.keyKey }}"
+            value: "/secrets/mysql/{{ .Values.database.tls.keyKey }}"
           {{- end }}
           - name: FLEET_MYSQL_TLS_CONFIG
-            value: "{{ .Values.mysql.tls.config }}"
+            value: "{{ .Values.database.tls.config }}"
           - name: FLEET_MYSQL_TLS_SERVER_NAME
-            value: "{{ .Values.mysql.tls.serverName }}"
+            value: "{{ .Values.database.tls.serverName }}"
           {{- end }}
           ## END MYSQL SECTION
         securityContext:
@@ -118,16 +122,16 @@ spec:
           runAsUser: 3333
           runAsNonRoot: true
         volumeMounts:
-          {{- if .Values.mysql.tls.enabled }}
+          {{- if .Values.database.tls.enabled }}
           - name: mysql-tls
             readOnly: true
             mountPath: /secrets/mysql
           {{- end }}
       volumes:
-        {{- if .Values.mysql.tls.enabled }}
+        {{- if .Values.database.tls.enabled }}
         - name: mysql-tls
           secret:
-            secretName: "{{ .Values.mysql.secretName }}"
+            secretName: "{{ .Values.database.secretName }}"
         {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
