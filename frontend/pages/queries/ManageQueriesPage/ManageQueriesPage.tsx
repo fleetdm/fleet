@@ -50,6 +50,9 @@ interface IManageQueriesPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       team_id?: string;
+      inherited_order_key?: string;
+      inherited_order_direction?: "asc" | "desc";
+      inherited_page?: string;
     };
     search: string;
   };
@@ -76,7 +79,6 @@ const ManageQueriesPage = ({
   location,
 }: IManageQueriesPageProps): JSX.Element => {
   const queryParams = location.query;
-
   const {
     isGlobalAdmin,
     isTeamAdmin,
@@ -93,7 +95,6 @@ const ManageQueriesPage = ({
   const { setLastEditedQueryBody, setSelectedQueryTargetsByType } = useContext(
     QueryContext
   );
-
   const { setResetSelectedRows } = useContext(TableContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -340,6 +341,7 @@ const ManageQueriesPage = ({
         router={router}
         queryParams={queryParams}
         isInherited
+        currentTeamId={currentTeamId}
       />
     );
   };

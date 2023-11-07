@@ -7,14 +7,13 @@ import {
   INSTALLER_TYPE_BY_PLATFORM,
 } from "interfaces/installer";
 import ENDPOINTS from "utilities/endpoints";
-import local from "utilities/local";
+import { authToken } from "utilities/local";
 import URL_PREFIX from "router/url_prefix";
 import installerAPI from "services/entities/installers";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import DataError from "components/DataError";
-import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 
@@ -126,7 +125,7 @@ const DownloadInstallers = ({
   const path = `${ENDPOINTS.DOWNLOAD_INSTALLER}/${selectedInstaller}`;
   const { origin } = global.window.location;
   const url = `${origin}${URL_PREFIX}/api${path}`;
-  const token = local.getItem("auth_token");
+  const token = authToken();
 
   const downloadInstaller = async (event: React.FormEvent<HTMLFormElement>) => {
     if (!selectedInstaller) {

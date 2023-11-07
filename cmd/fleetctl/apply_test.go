@@ -1202,10 +1202,10 @@ spec:
 
 	// Apply queries.
 	var appliedQueries []*fleet.Query
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		return nil, &notFoundError{}
 	}
-	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]bool) error {
+	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		appliedQueries = queries
 		return nil
 	}
@@ -1303,10 +1303,10 @@ func TestApplyQueries(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	var appliedQueries []*fleet.Query
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		return nil, &notFoundError{}
 	}
-	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]bool) error {
+	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		appliedQueries = queries
 		return nil
 	}
@@ -1470,6 +1470,9 @@ func TestApplyMacosSetup(t *testing.T) {
 			MDM:            fleet.MDM{EnabledAndConfigured: true},
 			SMTPSettings:   &fleet.SMTPSettings{},
 			SSOSettings:    &fleet.SSOSettings{},
+		}
+		if premium {
+			mockStore.appConfig.ServerSettings.EnableAnalytics = true
 		}
 		mockStore.Unlock()
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -2967,7 +2970,7 @@ spec:
       macos_setup:
         macos_setup_assistant: %s
 `, macSetupFile),
-			wantErr: `MDM features aren't turned on.`,
+			wantErr: `macOS MDM isn't turned on.`,
 		},
 		{
 			desc: "app config macos setup assistant",
@@ -2979,7 +2982,7 @@ spec:
     macos_setup:
       macos_setup_assistant: %s
 `, macSetupFile),
-			wantErr: `MDM features aren't turned on.`,
+			wantErr: `macOS MDM isn't turned on.`,
 		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because

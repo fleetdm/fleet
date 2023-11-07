@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -33,7 +32,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/micromdm/nanodep/godep"
@@ -45,8 +43,8 @@ type getMDMAppleCommandResultsRequest struct {
 }
 
 type getMDMAppleCommandResultsResponse struct {
-	Results []*fleet.MDMAppleCommandResult `json:"results,omitempty"`
-	Err     error                          `json:"error,omitempty"`
+	Results []*fleet.MDMCommandResult `json:"results,omitempty"`
+	Err     error                     `json:"error,omitempty"`
 }
 
 func (r getMDMAppleCommandResultsResponse) error() error { return r.Err }
@@ -65,7 +63,7 @@ func getMDMAppleCommandResultsEndpoint(ctx context.Context, request interface{},
 	}, nil
 }
 
-func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
 	// first, authorize that the user has the right to list hosts
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -95,7 +93,7 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 	hostUUIDs := make([]string, len(results))
 	for i, res := range results {
-		hostUUIDs[i] = res.DeviceID
+		hostUUIDs[i] = res.HostUUID
 	}
 	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, hostUUIDs)
 	if err != nil {
@@ -121,7 +119,7 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 		hostsByUUID[h.UUID] = h
 	}
 
-	var commandAuthz fleet.MDMAppleCommandAuthz
+	var commandAuthz fleet.MDMCommandAuthz
 	for tmID := range teamIDs {
 		commandAuthz.TeamID = &tmID
 		if tmID == 0 {
@@ -135,8 +133,8 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 
 	// add the hostnames to the results
 	for _, res := range results {
-		if h := hostsByUUID[res.DeviceID]; h != nil {
-			res.Hostname = hostsByUUID[res.DeviceID].Hostname
+		if h := hostsByUUID[res.HostUUID]; h != nil {
+			res.Hostname = hostsByUUID[res.HostUUID].Hostname
 		}
 	}
 	return results, nil
@@ -155,7 +153,7 @@ func (r listMDMAppleCommandsResponse) error() error { return r.Err }
 
 func listMDMAppleCommandsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listMDMAppleCommandsRequest)
-	results, err := svc.ListMDMAppleCommands(ctx, &fleet.MDMAppleCommandListOptions{
+	results, err := svc.ListMDMAppleCommands(ctx, &fleet.MDMCommandListOptions{
 		ListOptions: req.ListOptions,
 	})
 	if err != nil {
@@ -169,7 +167,7 @@ func listMDMAppleCommandsEndpoint(ctx context.Context, request interface{}, svc 
 	}, nil
 }
 
-func (svc *Service) ListMDMAppleCommands(ctx context.Context, opts *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
+func (svc *Service) ListMDMAppleCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
 	// first, authorize that the user has the right to list hosts
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -210,7 +208,7 @@ func (svc *Service) ListMDMAppleCommands(ctx context.Context, opts *fleet.MDMApp
 	// retrieving the list of commands, this may result in returning less results
 	// than requested, but it's ok - it's expected that the results retrieved
 	// from the datastore will all be authorized for the user.
-	var commandAuthz fleet.MDMAppleCommandAuthz
+	var commandAuthz fleet.MDMCommandAuthz
 	var authzErr error
 	for tmID := range teamIDs {
 		commandAuthz.TeamID = &tmID
@@ -901,21 +899,21 @@ type enqueueMDMAppleCommandRequest struct {
 
 type enqueueMDMAppleCommandResponse struct {
 	*fleet.CommandEnqueueResult
-	status int   `json:"-"`
-	Err    error `json:"error,omitempty"`
+	Err error `json:"error,omitempty"`
 }
 
 func (r enqueueMDMAppleCommandResponse) error() error { return r.Err }
-func (r enqueueMDMAppleCommandResponse) Status() int  { return r.status }
 
+// Deprecated: enqueueMDMAppleCommandEndpoint is now deprecated, replaced by
+// the platform-agnostic runMDMCommandEndpoint. It is still supported
+// indefinitely for backwards compatibility.
 func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*enqueueMDMAppleCommandRequest)
-	status, result, err := svc.EnqueueMDMAppleCommand(ctx, req.Command, req.DeviceIDs)
+	result, err := svc.EnqueueMDMAppleCommand(ctx, req.Command, req.DeviceIDs)
 	if err != nil {
 		return enqueueMDMAppleCommandResponse{Err: err}, nil
 	}
 	return enqueueMDMAppleCommandResponse{
-		status:               status,
 		CommandEnqueueResult: result,
 	}, nil
 }
@@ -924,54 +922,13 @@ func (svc *Service) EnqueueMDMAppleCommand(
 	ctx context.Context,
 	rawBase64Cmd string,
 	deviceIDs []string,
-) (status int, result *fleet.CommandEnqueueResult, err error) {
-	premiumCommands := map[string]bool{
-		"EraseDevice": true,
-		"DeviceLock":  true,
-	}
-
-	// load hosts (lite) by uuids, check that the user has the rights to run
-	// commands for every affected team.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return 0, nil, ctxerr.Wrap(ctx, err)
-	}
-
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return 0, nil, fleet.ErrNoContext
-	}
-	// for the team filter, we don't include observers as we require maintainer
-	// and up to run commands.
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: false}
-	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, deviceIDs)
+) (result *fleet.CommandEnqueueResult, err error) {
+	hosts, err := svc.authorizeAllHostsTeams(ctx, deviceIDs, fleet.ActionWrite, &fleet.MDMCommandAuthz{})
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
 	if len(hosts) == 0 {
-		return 0, nil, newNotFoundError()
-	}
-
-	// collect the team IDs and verify that the user has access to run commands
-	// on all affected teams.
-	teamIDs := make(map[uint]bool)
-	for _, h := range hosts {
-		var id uint
-		if h.TeamID != nil {
-			id = *h.TeamID
-		}
-		teamIDs[id] = true
-	}
-
-	var commandAuthz fleet.MDMAppleCommandAuthz
-	for tmID := range teamIDs {
-		commandAuthz.TeamID = &tmID
-		if tmID == 0 {
-			commandAuthz.TeamID = nil
-		}
-
-		if err := svc.authz.Authorize(ctx, commandAuthz, fleet.ActionWrite); err != nil {
-			return 0, nil, ctxerr.Wrap(ctx, err)
-		}
+		return nil, newNotFoundError()
 	}
 
 	// using a padding agnostic decoder because we released this using
@@ -982,62 +939,10 @@ func (svc *Service) EnqueueMDMAppleCommand(
 	if err != nil {
 		err = fleet.NewInvalidArgumentError("command", "unable to decode base64 command").WithStatus(http.StatusBadRequest)
 
-		return 0, nil, ctxerr.Wrap(ctx, err, "decode base64 command")
-	}
-	cmd, err := mdm.DecodeCommand(rawXMLCmd)
-	if err != nil {
-		err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
-		return 0, nil, ctxerr.Wrap(ctx, err, "decode plist command")
+		return nil, ctxerr.Wrap(ctx, err, "decode base64 command")
 	}
 
-	if premiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
-		lic, err := svc.License(ctx)
-		if err != nil {
-			return 0, nil, ctxerr.Wrap(ctx, err, "get license")
-		}
-		if !lic.IsPremium() {
-			return 0, nil, fleet.ErrMissingLicense
-		}
-	}
-
-	if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd)); err != nil {
-		// if at least one UUID enqueued properly, return success, otherwise return
-		// error
-		var apnsErr *apple_mdm.APNSDeliveryError
-		var mysqlErr *mysql.MySQLError
-		if errors.As(err, &apnsErr) {
-			if len(apnsErr.FailedUUIDs) < len(deviceIDs) {
-				// some hosts properly received the command, so return success, with the list
-				// of failed uuids.
-				return http.StatusOK, &fleet.CommandEnqueueResult{
-					CommandUUID: cmd.CommandUUID,
-					RequestType: cmd.Command.RequestType,
-					FailedUUIDs: apnsErr.FailedUUIDs,
-				}, nil
-			}
-			// push failed for all hosts
-			err := fleet.NewBadGatewayError("Apple push notificiation service", err)
-			return http.StatusBadGateway, nil, ctxerr.Wrap(ctx, err, "enqueue command")
-
-		} else if errors.As(err, &mysqlErr) {
-			// enqueue may fail with a foreign key constraint error 1452 when one of
-			// the hosts provided is not enrolled in nano_enrollments. Detect when
-			// that's the case and add information to the error.
-			if mysqlErr.Number == mysqlerr.ER_NO_REFERENCED_ROW_2 {
-				err := fleet.NewInvalidArgumentError(
-					"device_ids",
-					fmt.Sprintf("at least one of the hosts is not enrolled in MDM: %v", err),
-				).WithStatus(http.StatusConflict)
-				return http.StatusConflict, nil, ctxerr.Wrap(ctx, err, "enqueue command")
-			}
-		}
-
-		return http.StatusInternalServerError, nil, ctxerr.Wrap(ctx, err, "enqueue command")
-	}
-	return http.StatusOK, &fleet.CommandEnqueueResult{
-		CommandUUID: cmd.CommandUUID,
-		RequestType: cmd.Command.RequestType,
-	}, nil
+	return svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, deviceIDs)
 }
 
 type mdmAppleEnrollRequest struct {
@@ -1157,7 +1062,7 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	}
 
 	// Check authorization again based on host info for team-based permissions.
-	if err := svc.authz.Authorize(ctx, fleet.MDMAppleCommandAuthz{
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
 		TeamID: h.TeamID,
 	}, fleet.ActionWrite); err != nil {
 		return err

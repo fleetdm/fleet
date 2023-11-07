@@ -15,7 +15,8 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI={false} // tested
         title={"Windows hosts"}
-        iconName={"windows-circled"}
+        iconName={"windows"}
+        circledIcon
         tooltip={"Hosts on any Windows device"}
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -33,7 +34,8 @@ describe("SummaryTile - component", () => {
         isLoading // tested
         showUI
         title={"Windows hosts"}
-        iconName={"windows-circled"}
+        iconName={"windows"}
+        circledIcon
         tooltip={"Hosts on any Windows device"}
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -52,7 +54,8 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI
         title={"Windows hosts"} // tested
-        iconName={"windows-circled"} // tested
+        iconName={"windows"} // tested
+        circledIcon
         tooltip={"Hosts on any Windows device"}
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -60,7 +63,7 @@ describe("SummaryTile - component", () => {
 
     const title = screen.getByText("Windows hosts");
     const count = screen.getByText("200");
-    const icon = screen.queryByTestId("windows-circled-icon");
+    const icon = screen.queryByTestId("windows-icon");
 
     expect(title).toBeInTheDocument();
     expect(count).toBeInTheDocument();
@@ -74,7 +77,8 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI
         title={"Windows hosts"}
-        iconName={"windows-circled"}
+        iconName={"windows"}
+        circledIcon
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
     );
@@ -91,7 +95,8 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI
         title={"Windows hosts"}
-        iconName={"windows-circled"}
+        iconName={"windows"}
+        circledIcon
         tooltip={"Hosts on any Windows device"} // tested
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />

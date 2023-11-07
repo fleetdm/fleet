@@ -481,6 +481,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 			Query:          "select * from osquery;",
 			ObserverCanRun: true,
 			Saved:          true,
+			Logging:        fleet.LoggingSnapshot,
 		},
 	)
 	require.NoError(t, err)
@@ -568,7 +569,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 		require.NoError(t, err)
 	}()
 
-	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{Name: "TestQuery2", Description: "Some description", Query: "select * from osquery;", ObserverCanRun: true})
+	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+		Name:           "TestQuery2",
+		Description:    "Some description",
+		Query:          "select * from osquery;",
+		ObserverCanRun: true,
+		Logging:        fleet.LoggingSnapshot,
+	})
 	require.NoError(t, err)
 
 	tpParams := teamPolicyRequest{
@@ -1846,6 +1853,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 		Description:    "Some description",
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
+		Logging:        fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -2501,9 +2509,9 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "100")
 	require.Len(t, resp.Hosts, 2)
 
-	// returns an error when the criteria is invalid (outside 1-100)
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusInternalServerError, &resp, "low_disk_space", "101") // TODO: status code to be fixed with #4406
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusInternalServerError, &resp, "low_disk_space", "0")   // TODO: status code to be fixed with #4406
+	// returns an error when the low_disk_space value is invalid (outside 1-100)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &resp, "low_disk_space", "101")
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &resp, "low_disk_space", "0")
 
 	// counting hosts works with and without the filter too
 	var countResp countHostsResponse
@@ -3010,8 +3018,9 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acr)
 	require.False(t, acr.WebhookSettings.VulnerabilitiesWebhook.Enable)
 	q1, err := s.ds.NewQuery(ctx, &fleet.Query{
-		Name:  "Foo",
-		Query: "SELECT * from time;",
+		Name:    "Foo",
+		Query:   "SELECT * from time;",
+		Logging: fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	ggsr := getGlobalScheduleResponse{}
@@ -3177,12 +3186,11 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	require.Equal(t, "https://foobar.example.com", acr.AppConfig.WebhookSettings.VulnerabilitiesWebhook.DestinationURL)
 
 	// Attempt to run live queries synchronously, should fail.
-	// TODO(lucas): This is a bug, the synchronous live query API should return 403 but currently returns 200.
-	// It doesn't run the query but incorrectly returns a 200.
 	s.DoJSON("GET", "/api/latest/fleet/queries/run", runLiveQueryRequest{
 		HostIDs:  []uint{h1.ID},
 		QueryIDs: []uint{q1.ID},
-	}, http.StatusOK, &runLiveQueryResponse{})
+	}, http.StatusForbidden, &runLiveQueryResponse{},
+	)
 
 	// Attempt to run live queries asynchronously (new unsaved query), should fail.
 	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{

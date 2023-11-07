@@ -45,6 +45,9 @@ jobs:
         justlogin: true
     - run: heroku auth:whoami
 
+    # Install the heroku-repo plugin in the Heroku CLI
+    - run: heroku plugins:install heroku-repo
+
     # Set the Node.js version
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
@@ -88,6 +91,9 @@ jobs:
 
     # Build the go binary we use to sign APNS certificates in the website/.tools/ folder.
     - run: cd ee/tools/mdm/ && GOOS=linux GOARCH=amd64 go build -o ../../../website/.tools/mdm-gen-cert .
+
+    # Reset the Heroku app's git repo to prevent errors when pushing to the repo. (See https://github.com/fleetdm/fleet/issues/14162 for more details)
+    - run: heroku repo:reset -a production-fleetdm-website
 
     # Commit newly-generated collateral locally so we can push them to Heroku below.
     # (This commit will never be pushed to GitHub- only to Heroku.)

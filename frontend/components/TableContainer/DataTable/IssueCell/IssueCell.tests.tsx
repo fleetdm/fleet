@@ -18,7 +18,7 @@ describe("Issue cell", () => {
       />
     );
 
-    const icon = screen.queryByTestId("issue-icon");
+    const icon = screen.queryByTestId("error-outline-icon");
 
     await user.hover(screen.getByText("4"));
 

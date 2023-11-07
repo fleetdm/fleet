@@ -106,12 +106,16 @@ func init() {
 }
 
 type Stats struct {
+	startTime           time.Time
 	errors              int
 	osqueryEnrollments  int
 	orbitEnrollments    int
 	mdmEnrollments      int
 	distributedWrites   int
 	mdmCommandsReceived int
+	distributedReads    int
+	configRequests      int
+	resultLogRequests   int
 	orbitErrors         int
 	mdmErrors           int
 	desktopErrors       int
@@ -155,6 +159,24 @@ func (s *Stats) IncrementMDMCommandsReceived() {
 	s.mdmCommandsReceived++
 }
 
+func (s *Stats) IncrementDistributedReads() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.distributedReads++
+}
+
+func (s *Stats) IncrementConfigRequests() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.configRequests++
+}
+
+func (s *Stats) IncrementResultLogRequests() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.resultLogRequests++
+}
+
 func (s *Stats) IncrementOrbitErrors() {
 	s.l.Lock()
 	defer s.l.Unlock()
@@ -178,13 +200,17 @@ func (s *Stats) Log() {
 	defer s.l.Unlock()
 
 	fmt.Printf(
-		"%s :: error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/writes: %d, mdm commands received: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d\n",
+		"%s :: uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm commands received: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d\n",
 		time.Now().Format("2006-01-02T15:04:05Z"),
+		time.Since(s.startTime).Round(time.Second),
 		float64(s.errors)/float64(s.osqueryEnrollments),
 		s.osqueryEnrollments,
 		s.orbitEnrollments,
 		s.mdmEnrollments,
+		s.distributedReads,
 		s.distributedWrites,
+		s.configRequests,
+		s.resultLogRequests,
 		s.mdmCommandsReceived,
 		s.orbitErrors,
 		s.desktopErrors,
@@ -278,10 +304,8 @@ type agent struct {
 	deviceAuthToken *string
 	orbitNodeKey    *string
 
-	scheduledQueries []string
-
 	// mdmClient simulates a device running the MDM protocol (client side).
-	mdmClient *mdmtest.TestMDMClient
+	mdmClient *mdmtest.TestAppleMDMClient
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
 	// isEnrolledToMDMMu protects isEnrolledToMDM.
@@ -300,10 +324,14 @@ type agent struct {
 	UUID                  string
 	SerialNumber          string
 	ConfigInterval        time.Duration
+	LogInterval           time.Duration
 	QueryInterval         time.Duration
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
-	scheduledQueryData    []scheduledQuery
+
+	scheduledQueriesMu sync.Mutex
+	scheduledQueries   []string
+	scheduledQueryData []scheduledQuery
 }
 
 type entityCount struct {
@@ -326,7 +354,7 @@ func newAgent(
 	agentIndex int,
 	serverAddress, enrollSecret string,
 	templates *template.Template,
-	configInterval, queryInterval, mdmCheckInInterval time.Duration,
+	configInterval, logInterval, queryInterval, mdmCheckInInterval time.Duration,
 	softwareCount softwareEntityCount,
 	userCount entityCount,
 	policyPassProb float64,
@@ -352,9 +380,9 @@ func newAgent(
 		serialNumber = ""
 	}
 	uuid := strings.ToUpper(uuid.New().String())
-	var mdmClient *mdmtest.TestMDMClient
+	var mdmClient *mdmtest.TestAppleMDMClient
 	if rand.Float64() <= mdmProb {
-		mdmClient = mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+		mdmClient = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 			SCEPChallenge: mdmSCEPChallenge,
 			SCEPURL:       serverAddress + apple_mdm.SCEPPath,
 			MDMURL:        serverAddress + apple_mdm.MDMPath,
@@ -383,6 +411,7 @@ func newAgent(
 
 		EnrollSecret:       enrollSecret,
 		ConfigInterval:     configInterval,
+		LogInterval:        logInterval,
 		QueryInterval:      queryInterval,
 		MDMCheckInInterval: mdmCheckInInterval,
 		UUID:               uuid,
@@ -453,31 +482,56 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		go a.runMDMLoop()
 	}
 
-	configTicker := time.Tick(a.ConfigInterval)
-	liveQueryTicker := time.Tick(a.QueryInterval)
-	// Since this is an internal timer, we don't need to configure it.
-	logTicker := time.Tick(1 * time.Second)
-	for {
-		select {
-		case <-configTicker:
-			a.config()
-		case <-liveQueryTicker:
+	//
+	// osquery runs three separate independent threads,
+	//	- a thread for getting, running and submitting results for distributed queries (distributed).
+	// 	- a thread for getting configuration from a remote server (config).
+	//	- a thread for submitting log results (logger).
+	//
+	// Thus we try to simulate that as much as we can.
+
+	// (1) distributed thread:
+	go func() {
+		liveQueryTicker := time.NewTicker(a.QueryInterval)
+		defer liveQueryTicker.Stop()
+
+		for range liveQueryTicker.C {
 			resp, err := a.DistributedRead()
 			if err != nil {
 				log.Println(err)
 			} else if len(resp.Queries) > 0 {
 				a.DistributedWrite(resp.Queries)
 			}
-		case <-logTicker:
-			// check if we have any scheduled queries
-			for i, query := range a.scheduledQueryData {
-				time.Sleep(500 * time.Millisecond)
-				now := time.Now().Unix()
-				if query.NextRun == 0 || now >= int64(query.NextRun) {
-					a.SubmitLogs(query.Name, a.CachedString("id"), a.CachedString("hostname"), query.PackName, query.NumResults)
-					a.scheduledQueryData[i].NextRun = float64(now + int64(query.ScheduleInterval))
-				}
+		}
+	}()
+
+	// (2) config thread:
+	go func() {
+		configTicker := time.NewTicker(a.ConfigInterval)
+		defer configTicker.Stop()
+
+		for range configTicker.C {
+			a.config()
+		}
+	}()
+
+	// (3) logger thread:
+	logTicker := time.NewTicker(a.LogInterval)
+	defer logTicker.Stop()
+	for range logTicker.C {
+		// check if we have any scheduled queries that should be returning results
+		var results []json.RawMessage
+		now := time.Now().Unix()
+		a.scheduledQueriesMu.Lock()
+		for i, query := range a.scheduledQueryData {
+			if query.NextRun == 0 || now >= int64(query.NextRun) {
+				results = append(results, a.scheduledQueryResults(query.PackName, query.Name, int(query.NumResults)))
+				a.scheduledQueryData[i].NextRun = float64(now + int64(query.ScheduleInterval))
 			}
+		}
+		a.scheduledQueriesMu.Unlock()
+		if len(results) > 0 {
+			a.SubmitLogs(results)
 		}
 	}
 }
@@ -813,6 +867,8 @@ func (a *agent) config() {
 	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(res)
 
+	a.stats.IncrementConfigRequests()
+
 	if res.StatusCode() != http.StatusOK {
 		log.Println("config status:", res.StatusCode())
 		return
@@ -856,8 +912,11 @@ func (a *agent) config() {
 
 		}
 	}
+
+	a.scheduledQueriesMu.Lock()
 	a.scheduledQueries = scheduledQueries
 	a.scheduledQueryData = scheduledQueryData
+	a.scheduledQueriesMu.Unlock()
 }
 
 const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
@@ -992,6 +1051,8 @@ func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(res)
 
+	a.stats.IncrementDistributedReads()
+
 	var parsedResp distributedReadResponse
 	if err := json.Unmarshal(res.Body(), &parsedResp); err != nil {
 		log.Println("json parse:", err)
@@ -1027,6 +1088,9 @@ func (a *agent) runPolicy(query string) []map[string]string {
 }
 
 func (a *agent) randomQueryStats() []map[string]string {
+	a.scheduledQueriesMu.Lock()
+	defer a.scheduledQueriesMu.Unlock()
+
 	var stats []map[string]string
 	for _, scheduledQuery := range a.scheduledQueries {
 		stats = append(stats, map[string]string{
@@ -1419,17 +1483,9 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	// No need to read the distributed write body
 }
 
-func (a *agent) SubmitLogs(queryName, hostID, hostName, packName string, numResults uint) {
-	type submitLogsRequest struct {
-		NodeKey string          `json:"node_key"`
-		LogType string          `json:"log_type"`
-		Data    json.RawMessage `json:"data"`
-	}
-	r := submitLogsRequest{
-		NodeKey: a.nodeKey,
-		LogType: "result",
-		Data: json.RawMessage(`[{
-  "snapshot": [` + results(int(numResults), a.UUID) + `
+func (a *agent) scheduledQueryResults(packName, queryName string, numResults int) json.RawMessage {
+	return json.RawMessage(`{
+  "snapshot": [` + results(numResults, a.UUID) + `
   ],
   "action": "snapshot",
   "name": "pack/` + packName + `/` + queryName + `",
@@ -1443,7 +1499,23 @@ func (a *agent) SubmitLogs(queryName, hostID, hostName, packName string, numResu
     "host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
     "hostname": "` + a.CachedString("hostname") + `"
   }
-}]`),
+}`)
+}
+
+func (a *agent) SubmitLogs(results []json.RawMessage) {
+	jsonResults, err := json.Marshal(results)
+	if err != nil {
+		panic(err)
+	}
+	type submitLogsRequest struct {
+		NodeKey string          `json:"node_key"`
+		LogType string          `json:"log_type"`
+		Data    json.RawMessage `json:"data"`
+	}
+	r := submitLogsRequest{
+		NodeKey: a.nodeKey,
+		LogType: "result",
+		Data:    jsonResults,
 	}
 
 	body, err := json.Marshal(r)
@@ -1463,10 +1535,12 @@ func (a *agent) SubmitLogs(queryName, hostID, hostName, packName string, numResu
 
 	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(res)
+
+	a.stats.IncrementResultLogRequests()
 }
 
 // Creates a set of results for use in tests for Query Results.
-func results(num int, hostID string) string {
+func results(num int, hostUUID string) string {
 	b := strings.Builder{}
 	for i := 0; i < num; i++ {
 		b.WriteString(`    {
@@ -1479,7 +1553,7 @@ func results(num int, hostID string) string {
       "pid": "3574",
       "platform_mask": "9",
       "start_time": "1696502961",
-      "uuid": "` + hostID + `",
+      "uuid": "` + hostUUID + `",
       "version": "5.9.2",
       "watcher": "3570"
     }`)
@@ -1503,12 +1577,15 @@ func main() {
 	}
 
 	var (
-		serverURL           = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
-		enrollSecret        = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
-		hostCount           = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
-		randSeed            = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
-		startPeriod         = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
-		configInterval      = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		serverURL      = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
+		enrollSecret   = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
+		hostCount      = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
+		randSeed       = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
+		startPeriod    = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
+		configInterval = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		// Flag logger_tls_period defines how often to check for sending scheduled query results.
+		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
+		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
 		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 10*time.Second, "Interval for performing MDM check ins")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
@@ -1596,7 +1673,9 @@ func main() {
 	// Spread starts over the interval to prevent thundering herd
 	sleepTime := *startPeriod / time.Duration(*hostCount)
 
-	stats := &Stats{}
+	stats := &Stats{
+		startTime: time.Now(),
+	}
 	go stats.runLoop()
 
 	nodeKeyManager := &nodeKeyManager{}
@@ -1632,6 +1711,7 @@ func main() {
 			*enrollSecret,
 			tmpl,
 			*configInterval,
+			*logInterval,
 			*queryInterval,
 			*mdmCheckInInterval,
 			softwareEntityCount{

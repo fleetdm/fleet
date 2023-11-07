@@ -102,6 +102,7 @@ interface IDataColumn {
 interface IGenerateTableHeaders {
   currentUser: IUser;
   isInherited?: boolean;
+  currentTeamId?: number;
 }
 
 // NOTE: cellProps come from react-table
@@ -109,6 +110,7 @@ interface IGenerateTableHeaders {
 const generateTableHeaders = ({
   currentUser,
   isInherited = false,
+  currentTeamId,
 }: IGenerateTableHeaders): IDataColumn[] => {
   const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
 
@@ -154,7 +156,7 @@ const generateTableHeaders = ({
             }
             path={PATHS.QUERY(
               cellProps.row.original.id,
-              cellProps.row.original.team_id ?? undefined
+              cellProps.row.original.team_id ?? currentTeamId
             )}
           />
         );
@@ -197,10 +199,8 @@ const generateTableHeaders = ({
             <TooltipWrapper
               tipContent={
                 <>
-                  This is the average <br />
-                  performance impact <br />
-                  across all hosts where this <br />
-                  query was scheduled.
+                  This is the average performance impact across <br />
+                  all hosts where this query was scheduled.
                 </>
               }
             >

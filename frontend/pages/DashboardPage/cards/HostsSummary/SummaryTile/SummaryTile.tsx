@@ -15,6 +15,7 @@ interface ISummaryTileProps {
   showUI: boolean;
   title: string;
   iconName: IconNames;
+  circledIcon?: boolean;
   iconColor?: Colors;
   path: string;
   tooltip?: string;
@@ -31,6 +32,7 @@ const SummaryTile = ({
   showUI, // false on first load only
   title,
   iconName,
+  circledIcon,
   iconColor,
   path,
   tooltip,
@@ -52,11 +54,14 @@ const SummaryTile = ({
   });
   const tile = (
     <>
-      <Icon
-        name={iconName}
-        color={iconColor}
-        className={`${baseClass}__tile-icon`}
-      />
+      <div className={circledIcon ? `${baseClass}__circled-icon` : ""}>
+        <Icon
+          name={iconName}
+          size="large"
+          color={iconColor}
+          className={`${baseClass}__tile-icon`}
+        />
+      </div>
       <div>
         {notSupported ? (
           <div className={`${baseClass}__not-supported-text`}>

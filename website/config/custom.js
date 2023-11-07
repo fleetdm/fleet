@@ -113,7 +113,7 @@ module.exports.custom = {
     'ee/tools/puppet': 'georgekarrv',//« Puppet integration (especially useful with macOS MDM turned on) -- FYI: Originally developed by request from "customer-eponym"
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
-    // 'docs': '',                                      // « Covered in CODEOWNERS (2023-07-22)
+    'docs': 'mikermcneil',                              // « this is here because there's no way to have Rachael be codeowner of reference docs but mike codeowner of the other docs (to ensure we're deleting, not adding, surface area)
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
     // 'docs/Contributing/API-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
     // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
@@ -272,7 +272,7 @@ module.exports.custom = {
 
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.8.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.9.1',
 
   /***************************************************************************
   *                                                                          *

@@ -559,6 +559,7 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
 		Saved:          true,
+		Logging:        fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -764,6 +765,9 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
 	require.Len(t, lsResp.Software, 0)
 	require.Nil(t, lsResp.CountsUpdatedAt)
+
+	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusBadRequest, &lsResp, "per_page", "2", "page", "-10")
+	s.DoJSON("GET", "/api/latest/fleet/software/count", nil, http.StatusBadRequest, &lsResp, "per_page", "-2", "page", "2")
 }
 
 func (s *integrationTestSuite) TestGlobalPolicies() {
@@ -788,6 +792,7 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 		Description:    "Some description",
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
+		Logging:        fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -873,12 +878,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
 
 	req := deleteHostsRequest{
-		Filters: struct {
-			MatchQuery string           `json:"query"`
-			Status     fleet.HostStatus `json:"status"`
-			LabelID    *uint            `json:"label_id"`
-			TeamID     *uint            `json:"team_id"`
-		}{TeamID: ptr.Uint(team1.ID)},
+		Filters: &deleteHostsFilters{TeamID: ptr.Uint(team1.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -915,12 +915,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	req := deleteHostsRequest{
-		Filters: struct {
-			MatchQuery string           `json:"query"`
-			Status     fleet.HostStatus `json:"status"`
-			LabelID    *uint            `json:"label_id"`
-			TeamID     *uint            `json:"team_id"`
-		}{LabelID: ptr.Uint(label.ID)},
+		Filters: &deleteHostsFilters{LabelID: ptr.Uint(label.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -958,6 +953,64 @@ func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 	require.NoError(t, err)
 }
 
+func (s *integrationTestSuite) TestBulkDeleteHostByIDsWithTimeout() {
+	t := s.T()
+
+	hosts := s.createHosts(t, "debian")
+
+	req := deleteHostsRequest{
+		IDs: []uint{hosts[0].ID},
+	}
+	resp := deleteHostsResponse{}
+	originalTimeout := deleteHostsTimeout
+	deleteHostsTimeout = 0
+	deleteHostsSkipAuthorization = true
+	defer func() {
+		deleteHostsTimeout = originalTimeout
+		deleteHostsSkipAuthorization = false
+	}()
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusAccepted, &resp)
+
+	// Make sure the host was actually deleted.
+	deleteDone := make(chan bool)
+	go func() {
+		for {
+			_, err := s.ds.Host(context.Background(), hosts[0].ID)
+			if err != nil {
+				deleteDone <- true
+				break
+			}
+		}
+	}()
+	select {
+	case <-deleteDone:
+		return
+	case <-time.After(2 * time.Second):
+		t.Log("http.StatusAccepted (202) means that delete should continue in the background, but we did not see the host deleted after 2 seconds.")
+		t.Error("Timeout: delete did not occur.")
+	}
+}
+
+func (s *integrationTestSuite) TestBulkDeleteHostsAll() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	// All hosts should be deleted when an empty filter is specified
+	req := deleteHostsRequest{
+		Filters: &deleteHostsFilters{},
+	}
+	resp := deleteHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
+
+	_, err := s.ds.Host(context.Background(), hosts[0].ID)
+	require.Error(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	require.Error(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	require.Error(t, err)
+}
+
 func (s *integrationTestSuite) createHosts(t *testing.T, platforms ...string) []*fleet.Host {
 	var hosts []*fleet.Host
 	if len(platforms) == 0 {
@@ -987,15 +1040,14 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 	hosts := s.createHosts(t)
 
 	req := deleteHostsRequest{
-		IDs: []uint{hosts[0].ID, hosts[1].ID},
-		Filters: struct {
-			MatchQuery string           `json:"query"`
-			Status     fleet.HostStatus `json:"status"`
-			LabelID    *uint            `json:"label_id"`
-			TeamID     *uint            `json:"team_id"`
-		}{LabelID: ptr.Uint(1)},
+		IDs:     []uint{hosts[0].ID, hosts[1].ID},
+		Filters: &deleteHostsFilters{LabelID: ptr.Uint(1)},
 	}
 	resp := deleteHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
+
+	req = deleteHostsRequest{}
+	// No ids or filter specified
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
 }
 
@@ -1038,7 +1090,7 @@ func (s *integrationTestSuite) TestHostsCount() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "low_disk_space", "32")
 	require.Equal(t, len(hosts), resp.Count)
 	// but it is still validated for a correct value when provided (as that happens in a middleware before the handler)
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusInternalServerError, &resp, "low_disk_space", "123456") // TODO: status code to be fixed with #4406
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &resp, "low_disk_space", "123456")
 
 	// filter by MDM criteria without any host having such information
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(999))
@@ -1769,7 +1821,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Len(t, resp.Platforms, 0)
 
 	// invalid low_disk_space value is still validated and results in error
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusInternalServerError, &resp, "low_disk_space", "1234") // TODO: should be 400, see #4406
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusBadRequest, &resp, "low_disk_space", "1234")
 }
 
 func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
@@ -1795,6 +1847,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 		Description:    "Some description",
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
+		Logging:        fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 	// Cannot set both QueryID and Query.
@@ -1844,6 +1897,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	require.NotNil(t, mgpResp.Policy.Resolution)
 	assert.Equal(t, "some global resolution updated", *mgpResp.Policy.Resolution)
 	assert.Equal(t, "darwin", mgpResp.Policy.Platform)
+	assert.Equal(t, uint(0), mgpResp.Policy.FailingHostCount)
+	assert.Equal(t, uint(0), mgpResp.Policy.PassingHostCount)
 
 	ggpResp := getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), getPolicyByIDRequest{}, http.StatusOK, &ggpResp)
@@ -1854,6 +1909,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	require.NotNil(t, ggpResp.Policy.Resolution)
 	assert.Equal(t, "some global resolution updated", *ggpResp.Policy.Resolution)
 	assert.Equal(t, "darwin", mgpResp.Policy.Platform)
+	assert.Equal(t, uint(0), mgpResp.Policy.FailingHostCount)
+	assert.Equal(t, uint(0), mgpResp.Policy.PassingHostCount)
 
 	policiesResponse := listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
@@ -1864,6 +1921,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	require.NotNil(t, policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "some global resolution updated", *policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "darwin", policiesResponse.Policies[0].Platform)
+	assert.Equal(t, uint(0), policiesResponse.Policies[0].FailingHostCount)
+	assert.Equal(t, uint(0), policiesResponse.Policies[0].PassingHostCount)
 
 	listHostsURL := fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
@@ -1877,6 +1936,11 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
+	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=failing", policiesResponse.Policies[0].ID)
+	listHostsResp = listHostsResponse{}
+	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 0)
+
 	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: ptr.Bool(true)}, time.Now(), false))
 	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false))
 
@@ -1884,6 +1948,45 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	listHostsResp = listHostsResponse{}
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 1)
+
+	mgpParams = modifyGlobalPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			Query: ptr.String("select * from users;"),
+		},
+	}
+	mgpResp = modifyGlobalPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), mgpParams, http.StatusOK, &mgpResp)
+	require.NotNil(t, gpResp.Policy)
+	assert.Equal(t, "TestQuery4", mgpResp.Policy.Name)
+	assert.Equal(t, "select * from users;", mgpResp.Policy.Query)
+	assert.Equal(t, "Some description updated", mgpResp.Policy.Description)
+	require.NotNil(t, mgpResp.Policy.Resolution)
+	assert.Equal(t, "some global resolution updated", *mgpResp.Policy.Resolution)
+	assert.Equal(t, "darwin", mgpResp.Policy.Platform)
+	assert.Equal(t, uint(0), mgpResp.Policy.FailingHostCount)
+	assert.Equal(t, uint(0), mgpResp.Policy.PassingHostCount)
+
+	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
+	listHostsResp = listHostsResponse{}
+	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 0)
+
+	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=failing", policiesResponse.Policies[0].ID)
+	listHostsResp = listHostsResponse{}
+	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, 0)
+
+	policiesResponse = listGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
+	require.Len(t, policiesResponse.Policies, 1)
+	assert.Equal(t, "TestQuery4", policiesResponse.Policies[0].Name)
+	assert.Equal(t, "select * from users;", policiesResponse.Policies[0].Query)
+	assert.Equal(t, "Some description updated", policiesResponse.Policies[0].Description)
+	require.NotNil(t, policiesResponse.Policies[0].Resolution)
+	assert.Equal(t, "some global resolution updated", *policiesResponse.Policies[0].Resolution)
+	assert.Equal(t, "darwin", policiesResponse.Policies[0].Platform)
+	assert.Equal(t, uint(0), policiesResponse.Policies[0].FailingHostCount)
+	assert.Equal(t, uint(0), policiesResponse.Policies[0].PassingHostCount)
 
 	deletePolicyParams := deleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
 	deletePolicyResp := deleteGlobalPoliciesResponse{}
@@ -3357,10 +3460,18 @@ func (s *integrationTestSuite) TestUsers() {
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID+1), params, http.StatusNotFound, &modResp)
 
-	// perform a required password change as the user themselves
-	s.token = s.getTestToken(u.Email, userRawPwd)
 	var perfPwdResetResp performRequiredPasswordResetResponse
 	newRawPwd := test.GoodPassword2
+	// Try a required password change without authentication
+	s.DoJSON(
+		"POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
+			Password: newRawPwd,
+			ID:       u.ID,
+		}, http.StatusForbidden, &perfPwdResetResp,
+	)
+
+	// perform a required password change as the user themselves
+	s.token = s.getTestToken(u.Email, userRawPwd)
 	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 		Password: newRawPwd,
 		ID:       u.ID,
@@ -4478,6 +4589,7 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 		name     string
 		query    string
 		platform string
+		logging  string
 	}{
 		{
 			tname: "empty name",
@@ -4518,12 +4630,19 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 			query:    "select 1",
 			platform: "windows darwin",
 		},
+		{
+			tname:   "invalid logging value",
+			name:    "bad query",
+			query:   "select 1",
+			logging: "foobar",
+		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
 			reqQuery := &fleet.QueryPayload{
 				Name:     ptr.String(tc.name),
 				Query:    ptr.String(tc.query),
 				Platform: ptr.String(tc.platform),
+				Logging:  ptr.String(tc.logging),
 			}
 			createQueryResp := createQueryResponse{}
 			s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
@@ -4533,6 +4652,7 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 				Name:     ptr.String(tc.name),
 				Query:    ptr.String(tc.query),
 				Platform: ptr.String(tc.platform),
+				Logging:  ptr.String(tc.logging),
 			}
 			mResp := modifyQueryResponse{}
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", existingQueryID), &payload, http.StatusBadRequest, &mResp)
@@ -4771,17 +4891,15 @@ func (s *integrationTestSuite) TestSessionInfo() {
 	assert.Equal(t, ssn.ID, getResp.SessionID)
 	assert.Equal(t, uint(1), getResp.UserID)
 
-	// get info about session - non-existing: appears to deliberately return 500 due to forbidden,
-	// which takes precedence vs the not found returned by the datastore (it still shouldn't be a
-	// 500 though).
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID+1), nil, http.StatusInternalServerError, &getResp)
+	// get info about session
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID+1), nil, http.StatusNotFound, &getResp)
 
 	// delete session
 	var delResp deleteSessionResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusOK, &delResp)
 
-	// delete session - non-existing: again, 500 due to forbidden instead of 404.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusInternalServerError, &delResp)
+	// delete session - non-existing
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusNotFound, &delResp)
 }
 
 func (s *integrationTestSuite) TestAppConfig() {
@@ -6729,6 +6847,7 @@ func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 		Query:          "select * from osquery;",
 		ObserverCanRun: true,
 		Saved:          true,
+		Logging:        fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 
@@ -7069,7 +7188,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Interval:           10,
 		Platform:           "darwin",
 		AutomationsEnabled: true,
-		Logging:            "snapshot",
+		Logging:            fleet.LoggingSnapshot,
 		Description:        "foobar",
 		Query:              "SELECT * from time;",
 		Saved:              true,
@@ -7081,7 +7200,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Interval:           0,
 		Platform:           "darwin",
 		AutomationsEnabled: false,
-		Logging:            "snapshot",
+		Logging:            fleet.LoggingSnapshot,
 		Description:        "foobar",
 		Query:              "SELECT * from osquery_info;",
 		Saved:              true,
@@ -7093,7 +7212,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Interval:           20,
 		Platform:           "",
 		AutomationsEnabled: true,
-		Logging:            "snapshot",
+		Logging:            fleet.LoggingSnapshot,
 		Description:        "foobar",
 		Query:              "SELECT * from other;",
 		Saved:              true,
@@ -7105,7 +7224,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Interval:           90,
 		Platform:           "",
 		AutomationsEnabled: true,
-		Logging:            "snapshot",
+		Logging:            fleet.LoggingSnapshot,
 		Description:        "foobar",
 		Query:              "SELECT * from other;",
 		Saved:              true,
@@ -7133,7 +7252,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Interval:           40,
 		Platform:           "",
 		AutomationsEnabled: true,
-		Logging:            "snapshot",
+		Logging:            fleet.LoggingSnapshot,
 		Description:        "foobar",
 		Query:              "SELECT * from other;",
 		Saved:              true,
@@ -7889,7 +8008,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	}{
 		{
 			name: "get hosts that fail globalPolicy0",
-			args: []string{"policy_id", fmt.Sprint(globalPolicy0.ID), "policy_response", "failure"},
+			args: []string{"policy_id", fmt.Sprint(globalPolicy0.ID), "policy_response", "failing"},
 			checkRows: func(t *testing.T, rows [][]string) {
 				require.Len(t, rows, 1) // just header row, all hosts pass such policy.
 			},

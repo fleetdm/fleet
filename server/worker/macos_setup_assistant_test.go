@@ -38,7 +38,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 			HardwareSerial: fmt.Sprintf("serial-%d", i),
 		})
 		require.NoError(t, err)
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet)
+		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
 		require.NoError(t, err)
 		hosts[i] = h
 		t.Logf("host [%d]: %s - %s", i, h.UUID, h.HardwareSerial)

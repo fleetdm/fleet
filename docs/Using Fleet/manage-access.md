@@ -50,10 +50,11 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Run queries designated "**observer can run**" as live queries against all hosts                                                            | ✅       | ✅         | ✅         | ✅    |         |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete queries                                                                                                           |          |            | ✅         | ✅    | ✅      |
-| View all queries\**                                                                                                                        | ✅       | ✅         | ✅         | ✅    |         |
-| Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                                 |          |            |    ✅      | ✅    |   ✅    |
+| View all queries and their reports\**                                                                                                      | ✅       | ✅         | ✅         | ✅    |         |
+| Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                                 |          |            | ✅         | ✅    | ✅      |
 | Create, edit, view, and delete packs                                                                                                       |          |            | ✅         | ✅    | ✅      |
 | View all policies                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
+| Run all policies                                                                                                                           |          | ✅         | ✅         | ✅    |         |
 | Filter hosts using policies                                                                                                                | ✅       | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete policies for all hosts                                                                                            |          |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete policies for all hosts assigned to team\*                                                                         |          |            | ✅         | ✅    | ✅      |
@@ -75,7 +76,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View Apple mobile device management (MDM) certificate information                                                                          |          |            |            | ✅    |         |
 | View Apple business manager (BM) information                                                                                               |          |            |            | ✅    |         |
 | Generate Apple mobile device management (MDM) certificate signing request (CSR)                                                            |          |            |            | ✅    |         |
-| View disk encryption key for macOS and Windows hosts                                                                                              | ✅       | ✅         | ✅         | ✅    |         |
+| View disk encryption key for macOS and Windows hosts                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Create edit and delete configuration profiles for macOS hosts                                                                              |          |            | ✅         | ✅    | ✅      |
 | Execute MDM commands on macOS and Windows hosts***                                                                                         |          |            | ✅         | ✅    |         |
 | View results of MDM commands executed on macOS and Windows hosts***                                                                        | ✅       | ✅         | ✅         | ✅    |         |
@@ -127,11 +128,12 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Run queries designated "**observer can run**" as live queries against hosts                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅              | ✅         | ✅          |
-| View all queries\**                                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
-| Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                       |               |                 | ✅              | ✅         | ✅          |
-| View policies                                                                                                                    | ✅            | ✅             | ✅              | ✅         |             |
+| View all queries and their reports\**                                                                                            | ✅            | ✅             | ✅              | ✅         |             |
+| Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                       |               |                | ✅              | ✅         | ✅          |
+| View team policies                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
+| Run team policies as a live policy                                                                                               |               | ✅             | ✅              | ✅         |             |
 | View global (inherited) policies                                                                                                 | ✅            | ✅             | ✅              | ✅         |             |
-| Run global (inherited) policies as a live policy                                                                                 |               |                | ✅              | ✅         |             |
+| Run global (inherited) policies as a live policy                                                                                 |               | ✅             | ✅              | ✅         |             |
 | Filter hosts using policies                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete team policies                                                                                           |               |                | ✅              | ✅         | ✅          |
 | Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                 |               |                |                 | ✅         | ✅          |
