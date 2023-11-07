@@ -42,7 +42,6 @@ const DiscardDataOption = ({
                 .
               </>
             }
-            position="bottom"
           >
             {"globally disabled."}
           </TooltipWrapper>{" "}
