@@ -1412,12 +1412,6 @@ const ManageHostsPage = ({
         isOnlyObserver || (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
     });
 
-    // Update last column
-    tableColumns.forEach((dataColumn) => {
-      dataColumn.isLastColumn = false;
-    });
-    tableColumns[tableColumns.length - 1].isLastColumn = true;
-
     const emptyState = () => {
       const emptyHosts: IEmptyTableProps = {
         header: "No hosts match the current criteria",
