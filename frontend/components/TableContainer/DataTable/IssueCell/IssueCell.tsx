@@ -40,7 +40,7 @@ const IssueCell = ({ issues, rowId }: IIssueCellProps<any>): JSX.Element => {
           Failing policies ({issues.failing_policies_count})
         </span>
       </ReactTooltip>
-      <span className={`total-issues-count`}>{issues.total_issues_count}</span>
+      {issues.total_issues_count}
     </>
   );
 };
