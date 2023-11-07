@@ -2,7 +2,6 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import { isPlainObject } from "lodash";
 
 import {
   CellProps,
@@ -15,6 +14,7 @@ import {
 
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import { internallyTruncateText } from "utilities/helpers";
 
 type IHeaderProps = HeaderProps<TableInstance> & {
   column: ColumnInstance & IDataColumn;
@@ -27,9 +27,9 @@ interface IDataColumn extends ColumnInterface {
   accessor: string;
 }
 
-const _unshiftHostname = (headers: IDataColumn[]) => {
-  const newHeaders = [...headers];
-  const displayNameIndex = headers.findIndex(
+const _unshiftHostname = (columns: IDataColumn[]) => {
+  const newHeaders = [...columns];
+  const displayNameIndex = columns.findIndex(
     (h) => h.id === "host_display_name"
   );
   if (displayNameIndex >= 0) {
@@ -39,7 +39,7 @@ const _unshiftHostname = (headers: IDataColumn[]) => {
     newHeaders.unshift({ ...displayNameHeader, title: "Host" });
   }
   // TODO: Remove after v5 when host_hostname is removed rom API response.
-  const hostNameIndex = headers.findIndex((h) => h.id === "host_hostname");
+  const hostNameIndex = columns.findIndex((h) => h.id === "host_hostname");
   if (hostNameIndex >= 0) {
     newHeaders.splice(hostNameIndex, 1);
   }
@@ -47,35 +47,48 @@ const _unshiftHostname = (headers: IDataColumn[]) => {
   return newHeaders;
 };
 
-const generateResultsTableHeaders = (results: any[]): Column[] => {
+const generateColumnsFromRows = (
+  results: any[] // {col:val, ...} for each row
+): Column[] => {
   /* Results include an array of objects, each representing a table row
   Each key value pair in an object represents a column name and value
   To create headers, use JS set to create an array of all unique column names */
   const uniqueColumnNames = Array.from(
     results.reduce(
-      (s, o) => Object.keys(o).reduce((t, k) => t.add(k), s),
+      (accOuter, row) =>
+        Object.keys(row).reduce(
+          (accInner, colNameInRow) => accInner.add(colNameInRow),
+          accOuter
+        ),
       new Set() // Set prevents listing duplicate headers
     )
   );
 
-  const headers = uniqueColumnNames.map((key) => {
+  const columns = uniqueColumnNames.map((colName) => {
     return {
-      id: key as string,
-      title: key as string,
+      id: colName as string,
+      title: colName as string,
       Header: (headerProps: IHeaderProps) => (
         <HeaderCell
           value={headerProps.column.title || headerProps.column.id}
           isSortedDesc={headerProps.column.isSortedDesc}
         />
       ),
-      accessor: key as string,
-      Cell: (cellProps: ICellProps) => cellProps?.cell?.value || null,
+      accessor: colName as string,
+      Cell: (cellProps: ICellProps) => {
+        if (cellProps?.cell?.value) {
+          const val = cellProps.cell.value;
+          return val.length !== undefined && val.length > 300
+            ? internallyTruncateText(cellProps.cell.value)
+            : cellProps.cell.value;
+        }
+        return null;
+      },
       Filter: DefaultColumnFilter,
-      // filterType: "text",
       disableSortBy: false,
     };
   });
-  return _unshiftHostname(headers);
+  return _unshiftHostname(columns);
 };
 
-export default generateResultsTableHeaders;
+export default generateColumnsFromRows;

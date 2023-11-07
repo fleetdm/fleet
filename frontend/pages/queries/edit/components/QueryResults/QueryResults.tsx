@@ -21,7 +21,7 @@ import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
 
-import generateResultsTableHeaders from "./QueryResultsTableConfig";
+import generateColumnsFromRows from "./QueryResultsTableConfig";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
@@ -53,15 +53,31 @@ const QueryResults = ({
 }: IQueryResultsProps): JSX.Element => {
   const { lastEditedQueryBody } = useContext(QueryContext);
 
-  const { hosts_count: hostsCount, query_results: queryResults, errors } =
-    campaign || {};
+  // TODO - restore real date
+  // const { hosts_count: hostsCount, query_results: queryResults, errors } =
+  //   campaign || {};
+
+  const [hostsCount, queryResults, errors] = [
+    {
+      total: 1,
+      successful: 1,
+      failed: 0,
+    },
+    [
+      {
+        cmdline:
+          "/Applications/Docker.app/Contents/MacOS/Docker Desktop.app/Contents/Frameworks/Docker Desktop Helper (GPU).app/Contents/MacOS/Docker Desktop Helper (GPU) --type=gpu-process --user-data-dir=/Users/reed/Library/Application Support/Docker Desktop --gpu-preferences=UAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAABgAAAAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJgEAAAAAAAAmAQAAAAAAACIAQAAMAAAAIABAAAAAAAAiAEAAAAAAACQAQAAAAAAAJgBAAAAAAAAoAEAAAAAAACoAQAAAAAAALABAAAAAAAAuAEAAAAAAADAAQAAAAAAAMgBAAAAAAAA0AEAAAAAAADYAQAAAAAAAOABAAAAAAAA6AEAAAAAAADwAQAAAAAAAPgBAAAAAAAAAAIAAAAAAAAIAgAAAAAAABACAAAAAAAAGAIAAAAAAAAgAgAAAAAAACgCAAAAAAAAMAIAAAAAAAA4AgAAAAAAAEACAAAAAAAASAIAAAAAAABQAgAAAAAAAFgCAAAAAAAAYAIAAAAAAABoAgAAAAAAAHACAAAAAAAAeAIAAAAAAACAAgAAAAAAAIgCAAAAAAAAkAIAAAAAAACYAgAAAAAAAKACAAAAAAAAqAIAAAAAAACwAgAAAAAAALgCAAAAAAAAwAIAAAAAAADIAgAAAAAAANACAAAAAAAA2AIAAAAAAADgAgAAAAAAAOgCAAAAAAAA8AIAAAAAAAD4AgAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAHAAAAEAAAAAAAAAAAAAAACAAAABAAAAAAAAAAAAAAAAkAAAAQAAAAAAAAAAAAAAALAAAAEAAAAAAAAAAAAAAADAAAABAAAAAAAAAAAAAAAA4AAAAQAAAAAAAAAAAAAAAPAAAAEAAAAAAAAAABAAAAAAAAABAAAAAAAAAAAQAAAAcAAAAQAAAAAAAAAAEAAAAIAAAAEAAAAAAAAAABAAAACQAAABAAAAAAAAAAAQAAAAsAAAAQAAAAAAAAAAEAAAAMAAAAEAAAAAAAAAABAAAADgAAABAAAAAAAAAAAQAAAA8AAAAQAAAAAAAAAAQAAAAAAAAAEAAAAAAAAAAEAAAABwAAABAAAAAAAAAABAAAAAgAAAAQAAAAAAAAAAQAAAAJAAAAEAAAAAAAAAAEAAAACwAAABAAAAAAAAAABAAAAAwAAAAQAAAAAAAAAAQAAAAOAAAAEAAAAAAAAAAEAAAADwAAABAAAAAAAAAABwAAAAAAAAAQAAAAAAAAAAcAAAAHAAAAEAAAAAAAAAAHAAAACAAAABAAAAAAAAAABwAAAAkAAAAQAAAAAAAAAAcAAAALAAAAEAAAAAAAAAAHAAAADAAAABAAAAAAAAAABwAAAA4AAAAQAAAAAAAAAAcAAAAPAAAAEAAAAAAAAAAIAAAAAAAAABAAAAAAAAAACAAAAAcAAAAQAAAAAAAAAAgAAAAIAAAAEAAAAAAAAAAIAAAACQAAABAAAAAAAAAACAAAAAsAAAAQAAAAAAAAAAgAAAAMAAAAEAAAAAAAAAAIAAAADgAAABAAAAAAAAAACAAAAA8AAAAQAAAAAAAAAAoAAAAAAAAAEAAAAAAAAAAKAAAABwAAABAAAAAAAAAACgAAAAgAAAAQAAAAAAAAAAoAAAAJAAAAEAAAAAAAAAAKAAAACwAAABAAAAAAAAAACgAAAAwAAAAQAAAAAAAAAAoAAAAOAAAAEAAAAAAAAAAKAAAADwAAAAgAAAAAAAAACAAAAAAAAAA= --shared-files --field-trial-handle=1718379636,11537667402821735008,10648286844359859266,131072 --disable-features=PlzServiceWorker,SpareRendererForSitePerProcess --seatbelt-client=49",
+      },
+    ],
+    [],
+  ];
 
   const [navTabIndex, setNavTabIndex] = useState(0);
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
-  const [tableHeaders, setTableHeaders] = useState<Column[]>([]);
-  const [errorTableHeaders, setErrorTableHeaders] = useState<Column[]>([]);
+  const [columnsByRow, setColumnsByRow] = useState<Column[]>([]);
+  const [errorColumnsByRow, setErrorColumnsByRow] = useState<Column[]>([]);
   const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
     queryResults
   );
@@ -85,24 +101,25 @@ const QueryResults = ({
 
   useEffect(() => {
     if (queryResults && queryResults.length > 0) {
-      const generatedTableHeaders = generateResultsTableHeaders(queryResults);
+      const generatedColumnsByRow = generateColumnsFromRows(queryResults);
       // Update tableHeaders if new headers are found
-      if (generatedTableHeaders !== tableHeaders) {
-        setTableHeaders(generatedTableHeaders);
+      // TODO - optimize this check?
+      if (generatedColumnsByRow !== columnsByRow) {
+        setColumnsByRow(generatedColumnsByRow);
       }
     }
   }, [queryResults]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
 
   useEffect(() => {
-    if (errorTableHeaders?.length === 0 && !!errors?.length) {
-      setErrorTableHeaders(generateResultsTableHeaders(errors));
+    if (errorColumnsByRow?.length === 0 && !!errors?.length) {
+      setErrorColumnsByRow(generateColumnsFromRows(errors));
 
-      if (errorTableHeaders && errorTableHeaders.length > 0) {
-        const generatedErrorTableHeaders = generateResultsTableHeaders(errors);
+      if (errorColumnsByRow && errorColumnsByRow.length > 0) {
+        const generatedErrorTableHeaders = generateColumnsFromRows(errors);
 
         // Update errorTableHeaders if new headers are found
-        if (generatedErrorTableHeaders !== tableHeaders) {
-          setErrorTableHeaders(generatedErrorTableHeaders);
+        if (generatedErrorTableHeaders !== columnsByRow) {
+          setErrorColumnsByRow(generatedErrorTableHeaders);
         }
       }
     }
@@ -114,7 +131,7 @@ const QueryResults = ({
       generateCSVQueryResults(
         filteredResults,
         generateCSVFilename(`${queryName || CSV_TITLE} - Results`),
-        tableHeaders
+        columnsByRow
       )
     );
   };
@@ -126,7 +143,7 @@ const QueryResults = ({
       generateCSVQueryResults(
         filteredErrors,
         generateCSVFilename(`${queryName || CSV_TITLE} - Errors`),
-        errorTableHeaders
+        errorColumnsByRow
       )
     );
   };
@@ -190,7 +207,7 @@ const QueryResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
-          columns={tableType === "results" ? tableHeaders : errorTableHeaders}
+          columns={tableType === "results" ? columnsByRow : errorColumnsByRow}
           data={tableData || []}
           emptyComponent={renderNoResults}
           isLoading={false}
@@ -212,7 +229,7 @@ const QueryResults = ({
   const renderResultsTab = () => {
     // TODO - clean up these conditions
     const hasNoResultsYet =
-      !isQueryFinished && (!queryResults?.length || tableHeaders === null);
+      !isQueryFinished && (!queryResults?.length || columnsByRow === null);
     const finishedWithNoResults = isQueryFinished && !queryResults?.length;
 
     if (hasNoResultsYet) {
