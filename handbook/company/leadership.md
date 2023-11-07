@@ -1,5 +1,18 @@
 # Leadership
 
+## CEO flaws
+[Openness](https://fleetdm.com/handbook/company#values) is important to us fleeties 🧑‍🚀☁️, and so I want to live that by sharing the flaws I know I have. I’m fully responsible for improving the things below, listing them is no excuse. They are listed here for two reasons. The first one is so that people know it is _not just them_, but actually _my fault_. The second one is so I can improve, I hope that listing them here lets people know I appreciate when you speak up to me about them.
+
+- I often need to talk to think.  If you get lost, you can interrupt me or send a Zoom chat: "Hold up, could you go over that again?"
+- I can speak quickly.  It is ok to say “Mike, hold on a second.” (Noah is good at this.)
+- I can be quick to criticize before I appreciate, especially if something looks almost done.  I appreciate it when fleeties ask “What do you think of my work?” It reminds me I'm speaking in front of the sculptor, not just alone with the statue.
+- I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
+- I can be inconsistent about how certain I sound about the same topics at different times.  Even when I am probably still certain.  That's because I try to question blind certainty, even my own. The problem is, I don't always remember why I first became certain about every topic.  It is okay to stop and share what you observe: "You seem less sure about this.  What's up?"  If I am waffling, it can be helpful to say "Did we write down a decision on that?  I'll make a GitHub issue." (Luke is good at this.)
+- I get grumpy when I am tired and I worry that I'll forget to follow up about things.  You can say: "Would it help if I made a confidential issue about this for you and Sam to go over tonight?"
+- I sometimes will keep talking longer than I otherwise would (ESPECIALLY OVER ZOOM AND ESPECIALLY WHILE SCREENSHARING) when it is harder to see faces and pick up on subtle cues. This is exacerbated by me being afraid I’ll forget to come back to the topic, and feeling like I have to get to address it immediately or it will be lost. 
+- When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t in the agenda, its ok to interrupt by sharing your screen and show me the sprawl visually in the notes you’ve been taking, select the text of the tangent and say: “I’m taking notes, and I noticed that we’ve veered onto a tangent. Do you want me to tag you in a Google Doc comment to follow up later on this?
+
+
 ## Vision for dept handbook pages
 The idea here is to get this vision implemented on a single departmental handbook page first, starting with handbook/company/ceo.  It's hard to know what the philosophy should be until we can see it.  So we need to shorten the feedback loop so we can see it change live in one place.  That way we can iterate in one place instead of having things go a bunch of different directions, and adding in all the complexity of extra redirects to keep track of and all that stuff.  Then once we've got that looking good and have iterated a bit, we'll spread it out.
 
@@ -380,7 +393,12 @@ From time to time, someone's job title changes.  To do this, Business Operations
 2. If there is a compensation change, update "Equity plan".  Use the first day of a month as the date, and enter this in the corresponding column.
 3. If applicable, schedule the change in the appropriate payroll system.  (Don't worry about updating job titles in the payroll system.)
 
+## Performance feedback
+When it comes to performance feedback, [speak freely](https://fleetdm.com/handbook/company#openness), sooner, and provide an explicit example of the behavior you observed and the impact it had.
 
+1. Deliver negative feedback privately whenever possible, and be constructive not punitive. Celebrate positive feedback publicly.
+2. Performance mangement is a part of every 1:1 document. Start each 1:1 by delivering performance feedback.
+3. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing at the top of your own "Performance management" section in your 1:1 agenda doc.  
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🛠️ Leadership">

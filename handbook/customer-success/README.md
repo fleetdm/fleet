@@ -10,6 +10,7 @@ The customer success department is directly responsible for ensuring that custom
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | VP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | Customer Success Manager (CSM)        | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_
+| Customer Success Manager (CSM)        | [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989))_
 | Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_, [Grant Bilstad](https://www.linkedin.com/in/grantbilstad/) _([@Pacamaster](https://github.com/Pacamaster))_, Ben Edwards _([@edwardsb](https://github.com/edwardsb))_
 | Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_
 
@@ -89,26 +90,14 @@ Customer Support and 24/7 on-call Engineers are responsible for the first respon
 - The 24/7 on-call is responsible for alarms related to fleetdm.com and Fleet Managed Cloud, as well as delivering 24/7 support for Fleet Premium customers. Use [on-call runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme) to guide your response. Runbooks provided detailed, step-by-step instructions to quickly and effectively respond to and resolve most 24/7 on-call alerts.
 - We respond within 1-hour during business hours and 4 hours outside business hours. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information while researching/escalating to find answers internally.
 
-First responders:
-- Robert Fairburn
-- Kathy Satterlee
-
-Escalations (in order):
-- Eric Shaw (fleetdm.com)
-- Zay Hanlon
-- Luke Heath
-- Mike McNeil
-
-
-### Maintain first respo 
+### Maintain first responder SLA
 The first responder on-call for Managed Cloud will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous week's on-call will provide a summary in the #g-customer-success Slack channel with an update on alarms that came up the week before, open issues with or without direct end-user impact, and other issues to keep an eye out for.
+- **First responders:** Robert Fairburn, Kathy Satterlee
 
 Escalation of alarms will be done manually by the first responder according to the escalation contacts mentioned above. A [suspected outage issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23outage%2C%23g-cx%2C%3Arelease&projects=&template=outage.md&title=Suspected+outage%3A+YYYY-MM-DD) should be created to track the escalation and determine root cause. 
+- **Escalations (in order):** » Eric Shaw (fleetdm.com) » Zay Hanlon » Luke Heath » Mike McNeil
 
-All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1.
-
-When the current 24/7 on-call engineer is unable to meet the response time SLAs, it is their responsibility to arrange and designate a replacement who will assume the @oncall-infrastructure Slack alias.
-
+All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. When the current 24/7 on-call engineer is unable to meet the response time SLAs, it is their responsibility to arrange and designate a replacement who will assume the @oncall-infrastructure Slack alias.
 
 ## Rituals
 
@@ -116,9 +105,6 @@ When the current 24/7 on-call engineer is unable to meet the response time SLAs,
 
 #### Stubs
 The following stubs are included only to make links backward compatible.
-
-##### Customer codenames
-Please see [Handbook/customer-success#create-customer-support-issue](https://www.fleetdm.com/handbook/create-customer-support-issue)
 
 ##### Runbooks
 Please see [Handbook/customer-success#respond-to-messages-and-alerts](https://www.fleetdm.com/handbook/customer-success#respond-to-messages-and-alerts)

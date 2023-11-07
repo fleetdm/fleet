@@ -878,12 +878,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
 
 	req := deleteHostsRequest{
-		Filters: struct {
-			MatchQuery string           `json:"query"`
-			Status     fleet.HostStatus `json:"status"`
-			LabelID    *uint            `json:"label_id"`
-			TeamID     *uint            `json:"team_id"`
-		}{TeamID: ptr.Uint(team1.ID)},
+		Filters: &deleteHostsFilters{TeamID: ptr.Uint(team1.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -920,12 +915,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	req := deleteHostsRequest{
-		Filters: struct {
-			MatchQuery string           `json:"query"`
-			Status     fleet.HostStatus `json:"status"`
-			LabelID    *uint            `json:"label_id"`
-			TeamID     *uint            `json:"team_id"`
-		}{LabelID: ptr.Uint(label.ID)},
+		Filters: &deleteHostsFilters{LabelID: ptr.Uint(label.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -963,6 +953,64 @@ func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 	require.NoError(t, err)
 }
 
+func (s *integrationTestSuite) TestBulkDeleteHostByIDsWithTimeout() {
+	t := s.T()
+
+	hosts := s.createHosts(t, "debian")
+
+	req := deleteHostsRequest{
+		IDs: []uint{hosts[0].ID},
+	}
+	resp := deleteHostsResponse{}
+	originalTimeout := deleteHostsTimeout
+	deleteHostsTimeout = 0
+	deleteHostsSkipAuthorization = true
+	defer func() {
+		deleteHostsTimeout = originalTimeout
+		deleteHostsSkipAuthorization = false
+	}()
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusAccepted, &resp)
+
+	// Make sure the host was actually deleted.
+	deleteDone := make(chan bool)
+	go func() {
+		for {
+			_, err := s.ds.Host(context.Background(), hosts[0].ID)
+			if err != nil {
+				deleteDone <- true
+				break
+			}
+		}
+	}()
+	select {
+	case <-deleteDone:
+		return
+	case <-time.After(2 * time.Second):
+		t.Log("http.StatusAccepted (202) means that delete should continue in the background, but we did not see the host deleted after 2 seconds.")
+		t.Error("Timeout: delete did not occur.")
+	}
+}
+
+func (s *integrationTestSuite) TestBulkDeleteHostsAll() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	// All hosts should be deleted when an empty filter is specified
+	req := deleteHostsRequest{
+		Filters: &deleteHostsFilters{},
+	}
+	resp := deleteHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
+
+	_, err := s.ds.Host(context.Background(), hosts[0].ID)
+	require.Error(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
+	require.Error(t, err)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
+	require.Error(t, err)
+}
+
 func (s *integrationTestSuite) createHosts(t *testing.T, platforms ...string) []*fleet.Host {
 	var hosts []*fleet.Host
 	if len(platforms) == 0 {
@@ -992,15 +1040,14 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 	hosts := s.createHosts(t)
 
 	req := deleteHostsRequest{
-		IDs: []uint{hosts[0].ID, hosts[1].ID},
-		Filters: struct {
-			MatchQuery string           `json:"query"`
-			Status     fleet.HostStatus `json:"status"`
-			LabelID    *uint            `json:"label_id"`
-			TeamID     *uint            `json:"team_id"`
-		}{LabelID: ptr.Uint(1)},
+		IDs:     []uint{hosts[0].ID, hosts[1].ID},
+		Filters: &deleteHostsFilters{LabelID: ptr.Uint(1)},
 	}
 	resp := deleteHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
+
+	req = deleteHostsRequest{}
+	// No ids or filter specified
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
 }
 
@@ -1774,7 +1821,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Len(t, resp.Platforms, 0)
 
 	// invalid low_disk_space value is still validated and results in error
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusInternalServerError, &resp, "low_disk_space", "1234") // TODO: should be 400, see #4406
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusBadRequest, &resp, "low_disk_space", "1234")
 }
 
 func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
@@ -3413,10 +3460,18 @@ func (s *integrationTestSuite) TestUsers() {
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID+1), params, http.StatusNotFound, &modResp)
 
-	// perform a required password change as the user themselves
-	s.token = s.getTestToken(u.Email, userRawPwd)
 	var perfPwdResetResp performRequiredPasswordResetResponse
 	newRawPwd := test.GoodPassword2
+	// Try a required password change without authentication
+	s.DoJSON(
+		"POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
+			Password: newRawPwd,
+			ID:       u.ID,
+		}, http.StatusForbidden, &perfPwdResetResp,
+	)
+
+	// perform a required password change as the user themselves
+	s.token = s.getTestToken(u.Email, userRawPwd)
 	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 		Password: newRawPwd,
 		ID:       u.ID,
@@ -4836,17 +4891,15 @@ func (s *integrationTestSuite) TestSessionInfo() {
 	assert.Equal(t, ssn.ID, getResp.SessionID)
 	assert.Equal(t, uint(1), getResp.UserID)
 
-	// get info about session - non-existing: appears to deliberately return 500 due to forbidden,
-	// which takes precedence vs the not found returned by the datastore (it still shouldn't be a
-	// 500 though).
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID+1), nil, http.StatusInternalServerError, &getResp)
+	// get info about session
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID+1), nil, http.StatusNotFound, &getResp)
 
 	// delete session
 	var delResp deleteSessionResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusOK, &delResp)
 
-	// delete session - non-existing: again, 500 due to forbidden instead of 404.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusInternalServerError, &delResp)
+	// delete session - non-existing
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusNotFound, &delResp)
 }
 
 func (s *integrationTestSuite) TestAppConfig() {

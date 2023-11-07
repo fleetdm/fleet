@@ -4573,8 +4573,9 @@ func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 	})
 
 	var responseID int64
+	rawResponse := []byte("some-response")
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, "some-response")
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, rawResponse)
 		if err != nil {
 			return err
 		}
@@ -4594,7 +4595,7 @@ func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 	require.Len(t, resp.Results, 1)
 	require.Equal(t, dev.HostUUID, resp.Results[0].HostUUID)
 	require.Equal(t, cmdUUID, resp.Results[0].CommandUUID)
-	require.Equal(t, rawResult, resp.Results[0].Result)
+	require.Equal(t, rawResponse, resp.Results[0].Result)
 	require.Equal(t, cmdTarget, resp.Results[0].RequestType)
 	require.Equal(t, statusCode, resp.Results[0].Status)
 	require.Equal(t, h.Hostname, resp.Results[0].Hostname)
@@ -7455,17 +7456,32 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	require.Len(t, cmds, 1)
 
 	// check command results
+
+	getCommandFullResult := func(cmdUUID string) []byte {
+		var fullResult []byte
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &fullResult, `
+			SELECT raw_response
+			FROM windows_mdm_responses wmr
+			JOIN windows_mdm_command_results wmcr ON wmcr.response_id = wmr.id
+			WHERE command_uuid = ?
+			`, cmdUUID)
+		})
+		return fullResult
+	}
+
 	var getMDMCmdResp getMDMCommandResultsResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/commandresults", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", cmdOneUUID)
 	require.Len(t, getMDMCmdResp.Results, 1)
 	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
 	getMDMCmdResp.Results[0].UpdatedAt = time.Time{}
+	fmt.Println(string(getMDMCmdResp.Results[0].Result))
 	require.Equal(t, &fleet.MDMCommandResult{
 		HostUUID:    orbitHost.UUID,
 		CommandUUID: cmdOneUUID,
 		Status:      "200",
 		RequestType: "./Device/Vendor/MSFT/Reboot/RebootNow",
-		Result:      []byte{},
+		Result:      getCommandFullResult(cmdOneUUID),
 		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
 	}, getMDMCmdResp.Results[0])
 
@@ -7478,7 +7494,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		CommandUUID: cmdTwoUUID,
 		Status:      "200",
 		RequestType: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
-		Result:      []byte(fmt.Sprintf(`<Results xmlns="SYNCML:SYNCML1.2"><CmdID>%s</CmdID><MsgRef>1</MsgRef><CmdRef>%s</CmdRef><Cmd>Replace</Cmd><Data>200</Data><Item><Source><LocURI>./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID</LocURI></Source><Data>0</Data></Item></Results>`, cmdTwoRespUUID, cmdTwoUUID)),
+		Result:      getCommandFullResult(cmdTwoUUID),
 		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
 	}, getMDMCmdResp.Results[0])
 
@@ -7491,7 +7507,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		CommandUUID: cmdThreeUUID,
 		Status:      "200",
 		RequestType: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
-		Result:      []byte{},
+		Result:      getCommandFullResult(cmdThreeUUID),
 		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
 	}, getMDMCmdResp.Results[0])
 }

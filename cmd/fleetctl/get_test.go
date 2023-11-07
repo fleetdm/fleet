@@ -2182,33 +2182,43 @@ func TestGetMDMCommandResults(t *testing.T) {
 
 	t.Run("command results", func(t *testing.T) {
 		expectedOutput := strings.TrimSpace(`
-+-----------+----------------------+------+--------------+----------+---------------------------------------------------+
-|    ID     |         TIME         | TYPE |    STATUS    | HOSTNAME |                      RESULTS                      |
-+-----------+----------------------+------+--------------+----------+---------------------------------------------------+
-| valid-cmd | 2023-04-04T15:29:00Z | test | Acknowledged | host1    | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE  |
-|           |                      |      |              |          | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"        |
-|           |                      |      |              |          | "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
-|           |                      |      |              |          | <plist version="1.0"> <dict>                      |
-|           |                      |      |              |          | <key>Command</key>     <dict>                     |
-|           |                      |      |              |          | <key>ManagedOnly</key>         <false/>           |
-|           |                      |      |              |          |         <key>RequestType</key>                    |
-|           |                      |      |              |          |    <string>ProfileList</string>                   |
-|           |                      |      |              |          | </dict>     <key>CommandUUID</key>                |
-|           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
-|           |                      |      |              |          | </plist>                                          |
-+-----------+----------------------+------+--------------+----------+---------------------------------------------------+
-| valid-cmd | 2023-04-04T15:29:00Z | test | Error        | host2    | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE  |
-|           |                      |      |              |          | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"        |
-|           |                      |      |              |          | "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
-|           |                      |      |              |          | <plist version="1.0"> <dict>                      |
-|           |                      |      |              |          | <key>Command</key>     <dict>                     |
-|           |                      |      |              |          | <key>ManagedOnly</key>         <false/>           |
-|           |                      |      |              |          |         <key>RequestType</key>                    |
-|           |                      |      |              |          |    <string>ProfileList</string>                   |
-|           |                      |      |              |          | </dict>     <key>CommandUUID</key>                |
-|           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
-|           |                      |      |              |          | </plist>                                          |
-+-----------+----------------------+------+--------------+----------+---------------------------------------------------+
++-----------+----------------------+------+--------------+----------+--------------------------------------------------------------------------------------------------------+
+|    ID     |         TIME         | TYPE |    STATUS    | HOSTNAME |                                                RESULTS                                                 |
++-----------+----------------------+------+--------------+----------+--------------------------------------------------------------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | test | Acknowledged | host1    | <?xml version="1.0" encoding="UTF-8"?>                                                                 |
+|           |                      |      |              |          | <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
+|           |                      |      |              |          | <plist version="1.0">                                                                                  |
+|           |                      |      |              |          |   <dict>                                                                                               |
+|           |                      |      |              |          |     <key>Command</key>                                                                                 |
+|           |                      |      |              |          |     <dict>                                                                                             |
+|           |                      |      |              |          |       <key>ManagedOnly</key>                                                                           |
+|           |                      |      |              |          |       <false/>                                                                                         |
+|           |                      |      |              |          |       <key>RequestType</key>                                                                           |
+|           |                      |      |              |          |       <string>ProfileList</string>                                                                     |
+|           |                      |      |              |          |     </dict>                                                                                            |
+|           |                      |      |              |          |     <key>CommandUUID</key>                                                                             |
+|           |                      |      |              |          |     <string>0001_ProfileList</string>                                                                  |
+|           |                      |      |              |          |   </dict>                                                                                              |
+|           |                      |      |              |          | </plist>                                                                                               |
+|           |                      |      |              |          |                                                                                                        |
++-----------+----------------------+------+--------------+----------+--------------------------------------------------------------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | test | Error        | host2    | <?xml version="1.0" encoding="UTF-8"?>                                                                 |
+|           |                      |      |              |          | <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
+|           |                      |      |              |          | <plist version="1.0">                                                                                  |
+|           |                      |      |              |          |   <dict>                                                                                               |
+|           |                      |      |              |          |     <key>Command</key>                                                                                 |
+|           |                      |      |              |          |     <dict>                                                                                             |
+|           |                      |      |              |          |       <key>ManagedOnly</key>                                                                           |
+|           |                      |      |              |          |       <false/>                                                                                         |
+|           |                      |      |              |          |       <key>RequestType</key>                                                                           |
+|           |                      |      |              |          |       <string>ProfileList</string>                                                                     |
+|           |                      |      |              |          |     </dict>                                                                                            |
+|           |                      |      |              |          |     <key>CommandUUID</key>                                                                             |
+|           |                      |      |              |          |     <string>0001_ProfileList</string>                                                                  |
+|           |                      |      |              |          |   </dict>                                                                                              |
+|           |                      |      |              |          | </plist>                                                                                               |
+|           |                      |      |              |          |                                                                                                        |
++-----------+----------------------+------+--------------+----------+--------------------------------------------------------------------------------------------------------+
 `)
 
 		platform = "darwin"
@@ -2463,6 +2473,59 @@ func TestGetConfigAgentOptionsSSOAndSMTP(t *testing.T) {
 
 			ok := tc.checkOutput(runAppForTest(t, []string{"get", "config"}))
 			require.True(t, ok)
+		})
+	}
+}
+
+func TestFormatXML(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []byte
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name:    "Basic XML",
+			input:   []byte(`<root><element>content</element></root>`),
+			want:    []byte("<root>\n  <element>content</element>\n</root>\n"),
+			wantErr: false,
+		},
+		{
+			name:    "Empty XML",
+			input:   []byte(""),
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name:    "Invalid XML",
+			input:   []byte(`<root><element>content</root`),
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "XML With Attributes",
+			input:   []byte(`<root attr="value"><element key="val">content</element></root>`),
+			want:    []byte("<root attr=\"value\">\n  <element key=\"val\">content</element>\n</root>\n"),
+			wantErr: false,
+		},
+		{
+			name:    "Nested XML",
+			input:   []byte(`<root><parent><child>data</child></parent></root>`),
+			want:    []byte("<root>\n  <parent>\n    <child>data</child>\n  </parent>\n</root>\n"),
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := formatXML(tt.input)
+
+			if tt.wantErr {
+				require.Error(t, err, "Expected error but got none")
+			} else {
+				require.NoError(t, err, "Unexpected error")
+				require.Equal(t, tt.want, got, "Output XML does not match expected")
+			}
 		})
 	}
 }
