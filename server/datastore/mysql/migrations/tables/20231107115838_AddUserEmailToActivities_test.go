@@ -34,6 +34,7 @@ func TestUp_20231107115838(t *testing.T) {
 		SELECT user_id, user_email FROM activities;
 	`
 	rows, err := db.Query(stmt)
+	require.NoError(t, rows.Err())
 	require.NoError(t, err)
 	defer rows.Close()
 
