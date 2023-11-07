@@ -2939,6 +2939,13 @@ Request (`filters` is specified):
 }
 ```
 
+Request (`filters` is specified and empty, to delete all hosts):
+```json
+{
+  "filters": {}
+}
+```
+
 #### Example
 
 `POST /api/v1/fleet/hosts/delete`

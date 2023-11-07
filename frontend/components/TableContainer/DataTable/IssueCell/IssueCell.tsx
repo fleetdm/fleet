@@ -4,6 +4,8 @@ import { isEmpty } from "lodash";
 
 import Icon from "components/Icon";
 
+const baseClass = "issue-cell";
+
 interface IIssueCellProps<T> {
   issues: {
     total_issues_count: number;
@@ -20,7 +22,7 @@ const IssueCell = ({ issues, rowId }: IIssueCellProps<any>): JSX.Element => {
   return (
     <>
       <span
-        className={`host-issue tooltip tooltip__tooltip-icon`}
+        className={`${baseClass}__icon tooltip tooltip__tooltip-icon`}
         data-tip
         data-for={`host-issue__${rowId.toString()}`}
         data-tip-disable={false}

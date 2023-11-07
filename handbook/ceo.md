@@ -1,9 +1,6 @@
 # CEO 
 This page details processes specific to working with Mike McNeil, co-founder and Chief Executive Officer of Fleet, and the 🦿 CEO support team.
 
-## What we do
-The CEO is the [directly responsible individual](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [final review of UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting) and various other aspects of the company. 
-- **Note** When the CEO is out of office, these responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
 
 ## Team
 | Role                            | Contributor(s)
@@ -12,101 +9,15 @@ The CEO is the [directly responsible individual](https://fleetdm.com/handbook/co
 | Apprentice to the CEO           | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 
 
-
-
 ## Contact us
-- To **ask a question** or **make a request** of the CEO or Apprentice, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=custom-request.md&title=%7BNAME%7D%C2%BB______________________) and he or the Apprentice will get back to you within one business day.
+- To **get to know the CEO**, read about [the CEO's flaws](https://www.fleetdm.com/handbook/company/leadership#ceo-flaws).
+- To **ask a question** or **make a request** of the CEO or Apprentice, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=custom-request.md&title=%7BNAME%7D%C2%BB______________________) and a [team member](#team) will get back to you within one business day (if urgent, mention the Apprentice in Slack).
   - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board?sprints=none) (confidential) for this team, including pending tasks and requests.
-- **Do not add events to the CEO's calendar.** events added directly to the CEO's calendar will be declined and removed. Even if the CEO asks you to set up a meeting or add him to a call, please [get scheduling help from the Apprentice](#schedule-time-with-the-ceo).
-- **For personal or extremely urgent requests** that cannot wait one business day, send a Slack direct message (DM) to `@mikermcneil` right away 🎵
-  - If you mention the CEO or reply from within a Slack thread, he [will not read your message](#why-not-mention-the-ceo-in-slack-threads).
-- **If you're a hiring manager**, you can [schedule a CEO interview](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=&title=CEO%20interview%3a%20%7BCANDIDATE_NAME%7D&body=-%20[%20]%20I%20followed%20all%20the%20steps%20in%20https%3A%2F%2Ffleetdm.com%2Fhandbook%2Fcompany%2Fleadership%23hiring-a-new-team-member%20before%20submitting%20this%20issue.)
-- **If you're in Business Operations**, you can [request warehoused equipment be shipped from Fleet IT](#request-equipment-from-fleet-it).
-- If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-ceo](https://fleetdm.slack.com/archives/C05K87USYUV) Slack channel.
-
-### Schedule time with the CEO
-All invitations to meetings are welcomed, and quickly considering them is a top priority for the CEO.
-
-To request time with the CEO, [submit an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=custom-request.md&title=%7BNAME%7D%C2%BB______________________) with:
-- Proposed date and time
-- Reason for meeting _(e.g. include customer names or a related GitHub issue)_
-- Meeting agenda
-
-Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
-
-- **Why the extra step?** There are not enough hours in the day for the CEO to accept every request to meet, so [we have to prioritize](#process-the-ceos-calendar).
-- **Self-service scheduling:** Unlike other team members, who you can schedule with by simply dropping an event on their calendar, unless requested directly from Mike, please do not directly schedule a meeting onto the CEO's calendar without using this process to confirm with the Apprentice first.
-- **Rescheduling:** All items on Mike's calendar are subject to change by the CEO to better serve the company.  Send last-minute changes or cancellations to Mike [via direct message (DM)](#why-not-mention-the-ceo-in-slack-threads).
-
-### Request equipment from Fleet IT
-The Apprentice fulfills approved equipment requests once per week.  Follow the process for [buying new equipment](https://fleetdm.com/handbook/company/communications#buying-other-new-equipment) and submit an [equipment request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=equipment-request.md&title=%F0%9F%92%BB+Equipment+request+for+%7BGithub+%20username%7D). 
-
-The Apprentice will [ship the approved equipment](https://fleetdm.com/handbook/ceo#ship-approved-equipment) and at-mention the requestor with tracking information.
-
-## Why not mention the CEO in Slack threads?
-Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
-
-Now that the company has grown, the CEO gets mentioned in threads [too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) to keep up with thread replies, even for threads he participates in.
-
-From Mike:
-
-<blockquote purpose="large-quote">
-  Staying on top of your Slack mentions (including in threads!) is very important. Please use them. 
-But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.
-
-I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.
-
- What do I still read?
- 
- - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
- - If you send me a direct message, I'll see and read that ASAP.
-
-Keep in mind I am often in meetings all day, and may not be able to reply promptly.
-  
-When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Zach Wasserman.
-Thank you so much!" 🙇
-</blockquote> 
-
-
-
-## CEO flaws
-[Openness](https://fleetdm.com/handbook/company#values) is important to us fleeties 🧑‍🚀☁️, and so I want to live that by sharing the flaws I know I have. I’m fully responsible for improving the things below, listing them is no excuse. They are listed here for two reasons. The first one is so that people know it is _not just them_, but actually _my fault_. The second one is so I can improve, I hope that listing them here lets people know I appreciate when you speak up to me about them.
-
-- I often need to talk to think.  If you get lost, you can interrupt me or send a Zoom chat: "Hold up, could you go over that again?"
-- I can speak quickly.  It is ok to say “Mike, hold on a second.” (Noah is good at this.)
-- I can be quick to criticize before I appreciate, especially if something looks almost done.  I appreciate it when fleeties ask “What do you think of my work?” It reminds me I'm speaking in front of the sculptor, not just alone with the statue.
-- I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
-- I can be inconsistent about how certain I sound about the same topics at different times.  Even when I am probably still certain.  That's because I try to question blind certainty, even my own. The problem is, I don't always remember why I first became certain about every topic.  It is okay to stop and share what you observe: "You seem less sure about this.  What's up?"  If I am waffling, it can be helpful to say "Did we write down a decision on that?  I'll make a GitHub issue." (Luke is good at this.)
-- I get grumpy when I am tired and I worry that I'll forget to follow up about things.  You can say: "Would it help if I made a confidential issue about this for you and Sam to go over tonight?"
-- I sometimes will keep talking longer than I otherwise would (ESPECIALLY OVER ZOOM AND ESPECIALLY WHILE SCREENSHARING) when it is harder to see faces and pick up on subtle cues. This is exacerbated by me being afraid I’ll forget to come back to the topic, and feeling like I have to get to address it immediately or it will be lost. 
-- When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t in the agenda, its ok to interrupt by sharing your screen and show me the sprawl visually in the notes you’ve been taking, select the text of the tangent and say: “I’m taking notes, and I noticed that we’ve veered onto a tangent. Do you want me to tag you in a Google Doc comment to follow up later on this?
-
-
-## Automated filing of signed documents
-We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
-When the final signature is added to an envelope in DocuSign, it is marked as completed and sent to Zapier, where it goes through these steps:
-1. Zapier sends the following information about the DocuSign envelope to our Hydroplane webhook:
-   - **`emailSubject`** - The subject of the envelope sent by DocuSign. Our DocuSign templates are configured to format the email subject as `[type of document] for [signer's name]`.
-   - **`emailCsv`** - A comma-separated list of signers' email addresses.
-2. The Hydroplane webhook matches the document type to the correct Google Drive folder, orders the list of signers, creates a timestamp, and sends that data back to Zapier as
-   - **`destinationFolderID`** - The slug for the Google Drive folder where we store this type of document.
-   - **`emailCsv`** - A sorted list of signers' email addresses.
-   - **`date`** - The date the document was completed in DocuSign, formatted YYYY-MM-DD.
-3. Zapier uses this information to upload the file to the matched Google Drive folder, with the filename formatted as `[date] - [emailSubject] - [emailCvs].PDF`.
-4. Once the file is uploaded, Zapier uses the Slack integration to post in the #help-classified channel with the message:
-   ```
-   Now complete with all signatures:
-      [email subject]
-      link: drive.google.com/[destinationFolderID]
-   ```
-
 
 ## Responsibilities
-
-### Process new requests from the #g-ceo kanban board
-The Apprentice to the CEO is the DRI for the [#g-ceo kanban board](https://app.zenhub.com/workspaces/g-ceo-645b0eab68a4d40c0795ff61/board?sprints=none) and responsible for [managing all intake](https://fleetdm.com/handbook/company/communications#manage-intake) including issues and PRs.
-
+The CEO is the [directly responsible individual](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [final review of UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting) and various other aspects of the company. 
+- **Note** When the CEO is out of office, these responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
 
 ### Schedule CEO interview
 From time to time, you will need to schedule an interview between a candidate and the CEO:
@@ -183,6 +94,24 @@ We like to be open about milestones and announcements.
   - Paste the newly formatted message in the [#general](https://fleetdm.slack.com/archives/C019FNQPA23) Slack channel and delete any links that unfurl from links in the weekly update message.
 
   - 📬 **Send it!**
+
+### Troubleshoot signature automation
+We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
+When the final signature is added to an envelope in DocuSign, it is marked as completed and sent to Zapier, where it goes through these steps:
+1. Zapier sends the following information about the DocuSign envelope to our Hydroplane webhook:
+   - **`emailSubject`** - The subject of the envelope sent by DocuSign. Our DocuSign templates are configured to format the email subject as `[type of document] for [signer's name]`.
+   - **`emailCsv`** - A comma-separated list of signers' email addresses.
+2. The Hydroplane webhook matches the document type to the correct Google Drive folder, orders the list of signers, creates a timestamp, and sends that data back to Zapier as
+   - **`destinationFolderID`** - The slug for the Google Drive folder where we store this type of document.
+   - **`emailCsv`** - A sorted list of signers' email addresses.
+   - **`date`** - The date the document was completed in DocuSign, formatted YYYY-MM-DD.
+3. Zapier uses this information to upload the file to the matched Google Drive folder, with the filename formatted as `[date] - [emailSubject] - [emailCvs].PDF`.
+4. Once the file is uploaded, Zapier uses the Slack integration to post in the #help-classified channel with the message:
+   ```
+   Now complete with all signatures:
+      [email subject]
+      link: drive.google.com/[destinationFolderID]
+   ```
 
 
 ### Schedule travel for the CEO
@@ -297,21 +226,13 @@ Then process the backup E-group agenda by:
 If it's the day of an All hands:
   - Remove any spotlights that aren't a permanent staple (e.g. Mike: Every time: Pick a value, present on it.). 
 
-### Confirm Dripify unread messages against LinkedIn
-Once a month the Apprentice will confirm Dripify unread messages against LinkedIn, to do this: 
-- Log into the CEO's dashboard [Dripify](https://app.dripify.io/inbox?filter=unread).
-  - View unread messages.
+### Check LinkedIn for unread messages 
+Once a day the Apprentice will confirm check LinkedIn for unread messages. 
 - Log into the CEO's [LinkedIn](https://www.linkedin.com/search/results/all/?sid=s2%3A).
   - Bring up the messaging window and filter out all read messages. 
     - Click the "filter" icon in the messaging search bar.
     - Click "Unread".
-
-Compare the 2 lists side-by-side using LinkedIn as the source of truth. Record all names and profiles that show up in LinkedIn but ARE NOT visible in Dripify.
-- Add the list to the next episode of the ["🦄🗞️Puppet Show"](https://docs.google.com/document/d/1G-FPlTON3eOHFpaT28aqpG7BWQpBRwmqUdyE43mDd8A/edit?pli=1).
-  - Find the date of the next "🦄🗞️Puppet Show" meeting in the doc. (if you don't see the date listed in the doc yet you will need to create the heading)
-  - Add your bulleted list to the agenda titled "🥡The leftovers". 
-  - Link each name with the LinkedIn profile URL.
-
+    Bring all unreads to the CEO.
 
 ### Unroll a Slack thread
 From time to time the CEO will ask the Apprentice to the CEO to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
@@ -344,6 +265,13 @@ It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use
   - 6:30 PM /post-mortem days meetings
 
 <rituals :rituals="rituals['handbook/company/ceo.rituals.yml']"></rituals>
+
+
+#### Stubs
+The following stubs are included only to make links backward compatible.
+
+##### Why not mention the CEO in Slack threads?
+Please see [handbook/company/why-this-way/why-not-mention-the-ceo-in-slack-threads](https://www.fleetdm.com/handbook/company/why-this-way#why-not-mention-the-ceo-in-slack-threads)
 
 
 <meta name="maintainedBy" value="Sampfluger88">

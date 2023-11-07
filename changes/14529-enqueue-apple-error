@@ -1,3 +1,0 @@
-* Change the response status code of /mdm/apple/enqueue to `400` if the host is:
-  - A macOS host that hasn't turned on Fleet MDM features.
-  - A Windows or Linux host.

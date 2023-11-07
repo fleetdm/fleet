@@ -15,7 +15,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Product group             | Goal _(value for customers and/or community)_                       | Capacity\* |
 |:--------------------------|:--------------------------------------------------------------------|:-----------------|
-| [Endpoint ops](#endpoint-ops-group)                     | Increase and exceed maturity in the "Endpoint operations" category.             | 78       |
+| [Endpoint ops](#endpoint-ops-group)                     | Increase and exceed maturity in the "Endpoint operations" category.             | 74       |
 | [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.           | 52       |
 | [Website](#website-group)                               | Make the website wonderful.                             | 13       |
 
@@ -248,7 +248,6 @@ The simplest way to manage work is to use a single user story issue, then pass i
 A user story is estimated to fit within 1 sprint and drives business value when released, independent of other stories.  Sub-tasks are not.
 
 Sub-tasks:
-- are NOT estimated
 - can be created by anyone
 - add extra management overhead and should be used sparingly
 - do NOT have nested sub-tasks
