@@ -68,13 +68,22 @@ Smoke tests are limited to core functionality and serve as a sanity test. If smo
 4. Warning and informational modals show when expected and make sense
 </td><td>pass/fail</td></tr>
 
+<tr><td>MDM Smoke Tests</td><td>Verify MDM enrollments, run commands, and script execution</td><td>
+  
+1. Erase an ADE-eligible macOS host and verify able to complete auomated enrollment flow.
+2. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
+3. Verify able to run a script on all host types from CLI.
+4. Verify scripts library upload/download/delete, run from Host details.
+5. Verify able to run MDM commands on both macOS and Windows hosts from the CLI.
+</td><td>pass/fail</td></tr>
+
 <tr><td>Migration Test</td><td>Verify Fleet can migrate to the next version with no issues.</td><td>
 
 Using the migration scripts located in fleet/test/upgrade/
 1. Run the upgrade_test.go script using the most recent stable version of Fleet and `main`.
 2. Upgrade test returns an 'OK' response.
 </td><td>pass/fail</td></tr>
-
+  
 <tr><td>Release blockers</td><td>Verify there are no outstanding release blocking tickets.</td><td>
   
 1. Check [this](https://github.com/fleetdm/fleet/labels/~release%20blocker) filter to view all open `~release blocker` tickets.
