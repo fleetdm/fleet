@@ -21,5 +21,8 @@
     z-index: 99; // not more than the site nav
     line-height: 1.375;
     white-space: initial;
+    p {
+      margin: 0;
+    }
   }
 }
