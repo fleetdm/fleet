@@ -56,6 +56,8 @@ In an all-remote company, "face time" matters. Remember: even if someone's calen
 #### Schedule time with the CEO
 All invitations to meetings are welcomed, and quickly considering them is a top priority for the CEO.
 
+> **Note:** Please do not add events to the CEO's calendar. **Events added directly to the CEO's calendar will be declined and removed.** Even if the CEO asks you to set up a meeting or add him to a call, please get scheduling help from the [Apprentice](https://www.fleetdm.com/handbook/ceo#team)).
+
 To request time with the CEO, [submit an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=custom-request.md&title=%7BNAME%7D%C2%BB______________________). Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
 
 - **Why the extra step?** There are not enough hours in the day for the CEO to accept every request to meet, so [we have to prioritize](https://www.fleetdm.com/handbook/ceo#process-the-ceos-calendar).
