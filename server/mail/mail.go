@@ -171,7 +171,9 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 		return nil
 	}
 
-	client, err := dialTimeout(smtpHost)
+	var client *smtp.Client
+	tlsConfig := createTLSConfig(e.SMTPSettings)
+	client, err = dialTimeout(smtpHost, tlsConfig)
 	if err != nil {
 		return fmt.Errorf("could not dial smtp host: %w", err)
 	}
@@ -179,6 +181,7 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 
 	if e.SMTPSettings.SMTPEnableStartTLS {
 		if ok, _ := client.Extension("STARTTLS"); ok {
+			// can't reuse tlsConfig because it may be nil
 			config := &tls.Config{
 				ServerName:         e.SMTPSettings.SMTPServer,
 				InsecureSkipVerify: !e.SMTPSettings.SMTPVerifySSLCerts,
@@ -223,7 +226,7 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 
 // dialTimeout sets a timeout on net.Dial to prevent email from attempting to
 // send indefinitely.
-func dialTimeout(addr string) (client *smtp.Client, err error) {
+func dialTimeout(addr string, tlsConfig *tls.Config) (client *smtp.Client, err error) {
 	// Ensure that errors are always returned after at least 5s to
 	// eliminate (some) timing attacks (in which a malicious user tries to
 	// port scan using the email functionality in Fleet)
@@ -235,7 +238,13 @@ func dialTimeout(addr string) (client *smtp.Client, err error) {
 		}
 	}()
 
-	conn, err := net.DialTimeout("tcp", addr, 28*time.Second)
+	var conn net.Conn
+	if tlsConfig == nil {
+		conn, err = net.DialTimeout("tcp", addr, 28*time.Second)
+	} else {
+		conn, err = tls.DialWithDialer(&net.Dialer{Timeout: 28 * time.Second}, "tcp", addr, tlsConfig)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("dialing with timeout: %w", err)
 	}
@@ -277,4 +286,14 @@ func (m *SMTPTestMailer) Message() ([]byte, error) {
 	}
 
 	return msg.Bytes(), nil
+}
+
+func createTLSConfig(smtpSettings fleet.SMTPSettings) *tls.Config {
+	if smtpSettings.SMTPEnableTLS {
+		return &tls.Config{
+			ServerName:         smtpSettings.SMTPServer,
+			InsecureSkipVerify: !smtpSettings.SMTPVerifySSLCerts,
+		}
+	}
+	return nil
 }
