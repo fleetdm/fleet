@@ -1,0 +1,118 @@
+{
+  "resultsPerPage": 6,
+  "startIndex": 0,
+  "totalResults": 6,
+  "format": "NVD_CPE",
+  "version": "2.0",
+  "timestamp": "2023-11-07T20:02:39.860",
+  "products": [
+    {
+      "cpe": {
+        "deprecated": false,
+        "cpeName": "cpe:2.3:a:hp:radia_notify_daemon:-:*:*:*:*:*:*:*",
+        "cpeNameId": "9E1C1A60-AFDF-4F21-94D9-078EDA0DECEC",
+        "lastModified": "2007-09-14T17:36:49.090",
+        "created": "2007-08-23T21:05:57.937",
+        "titles": [
+          {
+            "title": "HP Radia Notify Daemon",
+            "lang": "en"
+          }
+        ]
+      }
+    },
+    {
+      "cpe": {
+        "deprecated": false,
+        "cpeName": "cpe:2.3:a:hp:sanworks:-:*:*:*:*:*:*:*",
+        "cpeNameId": "6C7DD0D6-4DB8-4AE7-BF44-11A40253543E",
+        "lastModified": "2008-04-15T22:37:41.817",
+        "created": "2007-08-23T21:05:57.937",
+        "titles": [
+          {
+            "title": "HP SANworks",
+            "lang": "en"
+          }
+        ]
+      }
+    },
+    {
+      "cpe": {
+        "deprecated": false,
+        "cpeName": "cpe:2.3:a:hp:scanjet_utilities:-:*:*:*:*:*:*:*",
+        "cpeNameId": "87E045F2-D88B-48C4-A26A-BB43AF4186BE",
+        "lastModified": "2008-04-15T22:37:41.910",
+        "created": "2007-08-23T21:05:57.937",
+        "titles": [
+          {
+            "title": "HP Scanjet Utilities",
+            "lang": "en"
+          }
+        ]
+      }
+    },
+    {
+      "cpe": {
+        "deprecated": false,
+        "cpeName": "cpe:2.3:a:hp:secure_web_console:-:*:*:*:*:*:*:*",
+        "cpeNameId": "01F51BEC-78C7-4910-8328-77B8D69ED767",
+        "lastModified": "2007-09-14T17:36:49.090",
+        "created": "2007-08-23T21:05:57.937",
+        "titles": [
+          {
+            "title": "HP Secure Web Console",
+            "lang": "en"
+          }
+        ]
+      }
+    },
+    {
+      "cpe": {
+        "deprecated": false,
+        "cpeName": "cpe:2.3:a:hp:sendmail:-:*:*:*:*:*:*:*",
+        "cpeNameId": "F2CAC9D2-0F87-433C-9D9E-9C99D347D56A",
+        "lastModified": "2007-09-14T17:36:49.090",
+        "created": "2007-08-23T21:05:57.937",
+        "titles": [
+          {
+            "title": "HP sendmail",
+            "lang": "en"
+          }
+        ]
+      }
+    },
+    {
+      "cpe": {
+        "deprecated": true,
+        "cpeName": "cpe:2.3:o:linux:linux_kernel:2.6.2:*:*:*:*:*:*:*",
+        "cpeNameId": "DF3171C4-00E8-4B0F-97EB-2F3EC3394A87",
+        "lastModified": "2021-06-01T14:14:47.707",
+        "created": "2007-08-23T21:16:59.567",
+        "titles": [
+          {
+            "title": "Linux Kernel 2.6.2",
+            "lang": "en"
+          }
+        ],
+        "refs": [
+          {
+            "ref": "https://github.com/torvalds/linux",
+            "type": "Version"
+          }
+        ],
+        "deprecatedBy": [
+          {
+            "cpeName": "cpe:2.3:o:linux:linux_kernel:2.6.2:-:*:*:*:*:*:*",
+            "cpeNameId": "1B4C49FC-8606-45D7-94D1-19C5626D69C7"
+          }
+        ],
+        "deprecates": [
+          {
+            "cpeName": "cpe:2.3:o:linux:kernel:2.6.2:*:*:*:*:*:*:*",
+            "cpeNameId": "B548E49E-BC95-4804-A2C2-D7ACC7F72095"
+          }
+        ]
+      }
+    }
+  ]
+}

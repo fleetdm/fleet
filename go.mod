@@ -78,6 +78,7 @@ require (
 	github.com/open-policy-agent/opa v0.44.0
 	github.com/oschwald/geoip2-golang v1.8.0
 	github.com/osquery/osquery-go v0.0.0-20231006172600-d6f325f636a9
+	github.com/pandatix/nvdapi v0.6.4
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.13.0
@@ -227,6 +228,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.12.0 // indirect
 	github.com/goreleaser/chglog v0.1.2 // indirect
 	github.com/goreleaser/fileglob v1.2.0 // indirect
+	github.com/gorilla/schema v1.2.0 // indirect
 	github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.18.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect

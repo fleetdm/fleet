@@ -2,80 +2,146 @@ package main
 
 import (
 	"compress/gzip"
-	"flag"
 	"fmt"
+	"github.com/facebookincubator/nvdtools/cpedict"
+	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
+	"github.com/pandatix/nvdapi/common"
+	"github.com/pandatix/nvdapi/v2"
 	"io"
-	"net/http"
+	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
-
-	"github.com/facebookincubator/nvdtools/cpedict"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
+	"time"
 )
 
-func panicif(err error) {
+const (
+	httpClientTimeout = 2 * time.Minute
+	waitTimeForRetry  = 30 * time.Second
+	maxRetryAttempts  = 10
+	apiKeyEnvVar      = "NVD_API_KEY"
+)
+
+func panicIf(err error) {
 	if err != nil {
 		panic(err)
 	}
 }
 
 func main() {
-	var verbose bool
-	flag.BoolVar(&verbose, "verbose", false, "Sets verbose mode")
-	flag.Parse()
+	apiKey := os.Getenv(apiKeyEnvVar)
 
-	dbPath := cpe()
+	logHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+	slog.SetDefault(slog.New(logHandler))
 
-	fmt.Printf("Sqlite file %s size: %.2f MB\n", dbPath, getSizeMB(dbPath))
+	if apiKey == "" {
+		log.Fatal(fmt.Sprintf("Must set %v environment variable", apiKeyEnvVar))
+	}
 
-	fmt.Println("Compressing DB...")
+	cwd, err := os.Getwd()
+	panicIf(err)
+	slog.Info(fmt.Sprintf("CWD: %v", cwd))
+
+	client := fleethttp.NewClient(fleethttp.WithTimeout(httpClientTimeout))
+	dbPath := getCPEs(client, apiKey, cwd)
+
+	slog.Info(fmt.Sprintf("Sqlite file %s size: %.2f MB\n", dbPath, getSizeMB(dbPath)))
+
+	slog.Info("Compressing DB...")
 	compressedPath, err := compress(dbPath)
-	panicif(err)
+	panicIf(err)
 
-	fmt.Printf("Final compressed file %s size: %.2f MB\n", compressedPath, getSizeMB(compressedPath))
-	fmt.Println("Done.")
+	slog.Info(fmt.Sprintf("Final compressed file %s size: %.2f MB\n", compressedPath, getSizeMB(compressedPath)))
+	slog.Info("Done.")
 }
 
 func getSizeMB(path string) float64 {
 	info, err := os.Stat(path)
-	panicif(err)
+	panicIf(err)
 	return float64(info.Size()) / 1024.0 / 1024.0
 }
 
-func cpe() string {
-	fmt.Println("Starting CPE sqlite generation...")
+func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string {
+	slog.Info("Fetching CPEs from NVD...")
 
-	cwd, err := os.Getwd()
-	panicif(err)
-	fmt.Println("CWD:", cwd)
+	nvdClient, err := nvdapi.NewNVDClient(client, apiKey)
+	panicIf(err)
 
-	resp, err := http.Get("https://nvd.nist.gov/feeds/xml/cpe/dictionary/official-cpe-dictionary_v2.3.xml.gz")
-	panicif(err)
-	defer resp.Body.Close()
+	var cpes []cpedict.CPEItem
+	retryAttempts := 0
 
-	remoteEtag := getSanitizedEtag(resp)
-	fmt.Println("Got ETag:", remoteEtag)
+	totalResults := 1
+	for startIndex := 0; startIndex < totalResults; {
+		cpeResponse, err := nvdapi.GetCPEs(nvdClient, nvdapi.GetCPEsParams{StartIndex: ptr.Int(startIndex)})
+		if err != nil {
+			if retryAttempts > maxRetryAttempts {
+				panicIf(err)
+			}
+			slog.Warn(fmt.Sprintf("NVD request returned error:'%v' Retrying in %v", err.Error(), waitTimeForRetry.String()))
+			retryAttempts++
+			time.Sleep(waitTimeForRetry)
+			continue
+		}
+		totalResults = cpeResponse.TotalResults
+		slog.Info(fmt.Sprintf("Got %v results", cpeResponse.ResultsPerPage))
+		startIndex += cpeResponse.ResultsPerPage
+		for _, product := range cpeResponse.Products {
+			cpes = append(cpes, convertToCPEItem(product.CPE))
+		}
+		slog.Info(fmt.Sprintf("Fetching index %v out of %v", startIndex, totalResults))
+	}
 
-	gr, err := gzip.NewReader(resp.Body)
-	panicif(err)
-	defer gr.Close()
+	// Sanity check
+	if totalResults <= 1 || len(cpes) != totalResults {
+		log.Fatal(fmt.Sprintf("Invalid number of expected results:%v or actual results:%v", totalResults, len(cpes)))
+	}
 
-	cpeDict, err := cpedict.Decode(gr)
-	panicif(err)
+	slog.Info("Generating CPE sqlite DB...")
 
-	fmt.Println("Generating DB...")
-	dbPath := filepath.Join(cwd, fmt.Sprintf("cpe-%s.sqlite", remoteEtag))
-	err = nvd.GenerateCPEDB(dbPath, cpeDict)
-	panicif(err)
-
-	file, err := os.Create(filepath.Join(cwd, "etagenv"))
-	panicif(err)
-	_, err = file.WriteString(fmt.Sprintf(`ETAG=%s`, remoteEtag))
-	panicif(err)
-	file.Close()
+	dbPath := filepath.Join(resultPath, fmt.Sprint("cpe.sqlite"))
+	err = nvd.GenerateCPEDB(dbPath, cpes)
+	panicIf(err)
 
 	return dbPath
+}
+
+func convertToCPEItem(in nvdapi.CPE) cpedict.CPEItem {
+	out := cpedict.CPEItem{}
+
+	// CPE name
+	wfName, err := wfn.Parse(in.CPEName)
+	panicIf(err)
+	out.CPE23 = cpedict.CPE23Item{
+		Name: cpedict.NamePattern(*wfName),
+	}
+
+	// Deprecations
+	out.Deprecated = in.Deprecated
+	if in.Deprecated {
+		out.CPE23.Deprecation = &cpedict.Deprecation{}
+		for _, item := range in.DeprecatedBy {
+			deprecatorName, err := wfn.Parse(*item.CPEName)
+			panicIf(err)
+			deprecatorInfo := cpedict.DeprecatedInfo{
+				Name: cpedict.NamePattern(*deprecatorName),
+			}
+			out.CPE23.Deprecation.DeprecatedBy = append(out.CPE23.Deprecation.DeprecatedBy, deprecatorInfo)
+		}
+	}
+
+	// Title
+	out.Title = cpedict.TextType{}
+	for _, title := range in.Titles {
+		// only using English language
+		if title.Lang == "en" {
+			out.Title["en-US"] = title.Title
+			break
+		}
+	}
+	return out
 }
 
 func compress(path string) (string, error) {
@@ -84,16 +150,21 @@ func compress(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer compressedDB.Close()
+	defer closeFile(compressedDB)
 
 	db, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
-	defer db.Close()
+	defer closeFile(db)
 
 	w := gzip.NewWriter(compressedDB)
-	defer w.Close()
+	defer func(w *gzip.Writer) {
+		err := w.Close()
+		if err != nil {
+			slog.Error(fmt.Sprintf("Could not close gzip.Writer: %v", err.Error()))
+		}
+	}(w)
 
 	_, err = io.Copy(w, db)
 	if err != nil {
@@ -102,9 +173,9 @@ func compress(path string) (string, error) {
 	return compressedPath, nil
 }
 
-func getSanitizedEtag(resp *http.Response) string {
-	etag := resp.Header.Get("Etag")
-	etag = strings.TrimPrefix(strings.TrimSuffix(etag, `"`), `"`)
-	etag = strings.Replace(etag, ":", "", -1)
-	return etag
+func closeFile(file *os.File) {
+	err := file.Close()
+	if err != nil {
+		slog.Error(fmt.Sprintf("Could not close file %v: %v", file.Name(), err.Error()))
+	}
 }
