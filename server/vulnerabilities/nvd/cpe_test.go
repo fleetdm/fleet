@@ -29,7 +29,7 @@ func TestCPEFromSoftware(t *testing.T) {
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -56,7 +56,7 @@ func TestCPETranslations(t *testing.T) {
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -348,7 +348,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	err = TranslateSoftwareToCPE(context.Background(), ds, tempDir, kitlog.NewNopLogger())
@@ -397,7 +397,7 @@ func TestTranslateSoftwareToCPEIgnoreEmptyVersion(t *testing.T) {
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	err = TranslateSoftwareToCPE(context.Background(), ds, tempDir, kitlog.NewNopLogger())
@@ -444,7 +444,7 @@ func TestLegacyCPEDB(t *testing.T) {
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)

@@ -60,6 +60,7 @@ func TestCPEDB(t *testing.T) {
 				defer db.Close()
 				rows, err := db.Query("SELECT * FROM cpe_2")
 				require.NoError(t, err)
+				require.NoError(t, rows.Err())
 				defer rows.Close()
 
 				// Convert rows to string for comparison
@@ -80,6 +81,7 @@ func TestCPEDB(t *testing.T) {
 				// Compare result to the <testName>.golden file
 				goldenFile := filepath.Join("testdata", testName+".golden")
 				golden, err := os.ReadFile(goldenFile)
+				require.NoError(t, err)
 				require.Equal(t, string(golden), fmt.Sprintf("%s", result))
 			},
 		)

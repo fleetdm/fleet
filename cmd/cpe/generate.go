@@ -22,7 +22,7 @@ const (
 	httpClientTimeout = 2 * time.Minute
 	waitTimeForRetry  = 30 * time.Second
 	maxRetryAttempts  = 10
-	apiKeyEnvVar      = "NVD_API_KEY"
+	apiKeyEnvVar      = "NVD_API_KEY" //nolint:gosec
 )
 
 func panicIf(err error) {
