@@ -1,15 +1,15 @@
 import React from "react";
 import TableContainer from "components/TableContainer";
 
-import tableHeaders, { ITableRowOsSettings } from "./MacSettingsTableConfig";
+import tableHeaders, { ITableRowOsSettings } from "./OSSettingsTableConfig";
 
-const baseClass = "macsettings-table";
+const baseClass = "os-settings-table";
 
-interface IMacSettingsTableProps {
+interface IOSSettingsTableProps {
   tableData?: ITableRowOsSettings[];
 }
 
-const MacSettingsTable = ({ tableData }: IMacSettingsTableProps) => {
+const OSSettingsTable = ({ tableData }: IOSSettingsTableProps) => {
   return (
     <div className={baseClass}>
       <TableContainer
@@ -27,4 +27,4 @@ const MacSettingsTable = ({ tableData }: IMacSettingsTableProps) => {
   );
 };
 
-export default MacSettingsTable;
+export default OSSettingsTable;

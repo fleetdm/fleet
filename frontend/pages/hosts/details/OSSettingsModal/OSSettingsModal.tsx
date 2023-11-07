@@ -3,22 +3,22 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { IHostMdmData } from "interfaces/host";
 
-import MacSettingsTable from "./MacSettingsTable";
-import { generateTableData } from "./MacSettingsTable/MacSettingsTableConfig";
+import OSSettingsTable from "./OSSettingsTable";
+import { generateTableData } from "./OSSettingsTable/OSSettingsTableConfig";
 
-interface IMacSettingsModalProps {
+interface IOSSettingsModalProps {
   platform?: string;
   hostMDMData?: IHostMdmData;
   onClose: () => void;
 }
 
-const baseClass = "mac-settings-modal";
+const baseClass = "os-settings-modal";
 
-const MacSettingsModal = ({
+const OSSettingsModal = ({
   platform,
   hostMDMData,
   onClose,
-}: IMacSettingsModalProps) => {
+}: IOSSettingsModalProps) => {
   // the caller should ensure that hostMDMData is not undefined and that platform is "windows" or
   // "darwin", otherwise we will allow an empty modal will be rendered.
   // https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks
@@ -36,7 +36,7 @@ const MacSettingsModal = ({
       width="large"
     >
       <>
-        <MacSettingsTable tableData={memoizedTableData || []} />
+        <OSSettingsTable tableData={memoizedTableData || []} />
         <div className="modal-cta-wrap">
           <Button variant="brand" onClick={onClose}>
             Done
@@ -47,4 +47,4 @@ const MacSettingsModal = ({
   );
 };
 
-export default MacSettingsModal;
+export default OSSettingsModal;
