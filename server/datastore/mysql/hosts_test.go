@@ -763,8 +763,8 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 			ProfileIdentifier: "identifier",
 			HostUUID:          hosts[0].UUID, // hosts[0] is assgined to team 1
 			CommandUUID:       "command-uuid-1",
-			OperationType:     fleet.MDMAppleOperationTypeInstall,
-			Status:            &fleet.MDMAppleDeliveryVerifying,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryVerifying,
 			Checksum:          []byte("csum"),
 		},
 	}))
@@ -781,8 +781,8 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 			ProfileIdentifier: "identifier",
 			HostUUID:          hosts[9].UUID, // hosts[9] is assgined to no team
 			CommandUUID:       "command-uuid-2",
-			OperationType:     fleet.MDMAppleOperationTypeInstall,
-			Status:            &fleet.MDMAppleDeliveryVerifying,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryVerifying,
 			Checksum:          []byte("csum"),
 		},
 	}))
@@ -808,8 +808,8 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 			ProfileIdentifier: mobileconfig.FleetFileVaultPayloadIdentifier,
 			HostUUID:          hosts[8].UUID, // hosts[8] is assgined to no team
 			CommandUUID:       "command-uuid-3",
-			OperationType:     fleet.MDMAppleOperationTypeInstall,
-			Status:            &fleet.MDMAppleDeliveryPending,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryPending,
 			Checksum:          []byte("disk-encryption-csum"),
 		},
 	}))
@@ -3015,7 +3015,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 
 	// verifying status
-	upsertHostCPs([]*fleet.Host{hosts[0], hosts[1]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerifying, ctx, ds, t)
+	upsertHostCPs([]*fleet.Host{hosts[0], hosts[1]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
 	oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
 	createDiskEncryptionRecord(ctx, ds, t, hosts[0].ID, "key-1", true, oneMinuteAfterThreshold)
 	createDiskEncryptionRecord(ctx, ds, t, hosts[1].ID, "key-1", true, oneMinuteAfterThreshold)
@@ -3031,8 +3031,8 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	upsertHostCPs(
 		[]*fleet.Host{hosts[2], hosts[3]},
 		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
-		fleet.MDMAppleOperationTypeInstall,
-		&fleet.MDMAppleDeliveryVerifying, ctx, ds, t,
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryVerifying, ctx, ds, t,
 	)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[2].ID}, false, oneMinuteAfterThreshold)
 	require.NoError(t, err)
@@ -3052,8 +3052,8 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	upsertHostCPs(
 		[]*fleet.Host{hosts[4]},
 		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
-		fleet.MDMAppleOperationTypeInstall,
-		&fleet.MDMAppleDeliveryPending, ctx, ds, t,
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryPending, ctx, ds, t,
 	)
 
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
@@ -3067,7 +3067,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	upsertHostCPs(
 		[]*fleet.Host{hosts[5]},
 		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
-		fleet.MDMAppleOperationTypeInstall,
+		fleet.MDMOperationTypeInstall,
 		nil, ctx, ds, t,
 	)
 
@@ -3082,8 +3082,8 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	upsertHostCPs(
 		[]*fleet.Host{hosts[6]},
 		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
-		fleet.MDMAppleOperationTypeInstall,
-		&fleet.MDMAppleDeliveryPending, ctx, ds, t,
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryPending, ctx, ds, t,
 	)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[6].ID}, false, oneMinuteAfterThreshold)
 	require.NoError(t, err)
@@ -3096,7 +3096,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 0)
 
 	// failed status
-	upsertHostCPs([]*fleet.Host{hosts[7], hosts[8]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryFailed, ctx, ds, t)
+	upsertHostCPs([]*fleet.Host{hosts[7], hosts[8]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryFailed, ctx, ds, t)
 
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
@@ -3106,7 +3106,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 0)
 
 	// removing enforcement status
-	upsertHostCPs([]*fleet.Host{hosts[9]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeRemove, &fleet.MDMAppleDeliveryPending, ctx, ds, t)
+	upsertHostCPs([]*fleet.Host{hosts[9]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeRemove, &fleet.MDMDeliveryPending, ctx, ds, t)
 
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
@@ -3116,7 +3116,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 1)
 
 	// verified status
-	upsertHostCPs([]*fleet.Host{hosts[0]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerified, ctx, ds, t)
+	upsertHostCPs([]*fleet.Host{hosts[0]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerified, ctx, ds, t)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 1)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 1)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 2)
@@ -5821,7 +5821,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	prof, err := ds.NewMDMAppleConfigProfile(context.Background(), *configProfileForTest(t, "N1", "I1", "U1"))
 	require.NoError(t, err)
 	err = ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
-		{ProfileID: prof.ProfileID, ProfileIdentifier: prof.Identifier, ProfileName: prof.Name, HostUUID: host.UUID, OperationType: fleet.MDMAppleOperationTypeInstall, Checksum: []byte("csum")},
+		{ProfileID: prof.ProfileID, ProfileIdentifier: prof.Identifier, ProfileName: prof.Name, HostUUID: host.UUID, OperationType: fleet.MDMOperationTypeInstall, Checksum: []byte("csum")},
 	})
 	require.NoError(t, err)
 
