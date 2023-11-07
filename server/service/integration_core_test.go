@@ -271,12 +271,6 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
 	t := s.T()
 
-	// u := s.users["user3@example.com"]
-	// var loginResp loginResponse
-	// pw := testUsers["user1"].PlaintextPassword
-	// s.DoJSON("POST", "/api/latest/fleet/login", fleet.UserPayload{Email: &u.Email, Password: &pw}, http.StatusOK, &loginResp)
-	// require.Equal(t, loginResp.User.ID, u.ID)
-
 	// create a new user
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
@@ -291,7 +285,6 @@ func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
 	assert.True(t, createResp.User.AdminForcedPasswordReset)
 	u := *createResp.User
 
-	// login as that user and check that teams info is empty
 	var loginResp loginResponse
 	s.DoJSON("POST", "/api/latest/fleet/login", params, http.StatusOK, &loginResp)
 	require.Equal(t, loginResp.User.ID, u.ID)

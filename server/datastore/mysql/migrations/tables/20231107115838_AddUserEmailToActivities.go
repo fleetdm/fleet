@@ -6,13 +6,13 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20231106165200, Down_20231106165200)
+	MigrationClient.AddMigration(Up_20231107115838, Down_20231107115838)
 }
 
-func Up_20231106165200(tx *sql.Tx) error {
+func Up_20231107115838(tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE activities
-		ADD COLUMN user_email varchar(255) NOT NULL DEFAULT ''
+		ADD COLUMN user_email varchar(255) NOT NULL DEFAULT '';
 	`
 	if _, err := tx.Exec(stmt); err != nil {
 		return fmt.Errorf("add user_email to activities: %w", err)
@@ -21,7 +21,7 @@ func Up_20231106165200(tx *sql.Tx) error {
 	stmt = `
 		UPDATE activities t1
 		INNER JOIN users t2 ON t1.user_id = t2.id 
-		SET t1.user_email = t2.email
+		SET t1.user_email = t2.email;
 	`
 
 	if _, err := tx.Exec(stmt); err != nil {
@@ -31,6 +31,6 @@ func Up_20231106165200(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20231106165200(tx *sql.Tx) error {
+func Down_20231107115838(tx *sql.Tx) error {
 	return nil
 }
