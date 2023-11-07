@@ -5856,6 +5856,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.NewHostScriptExecutionRequest(context.Background(), &fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "foo"})
 	require.NoError(t, err)
 
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, command_uuid)
+          VALUES (?, uuid(), uuid())
+	`, host.UUID)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
