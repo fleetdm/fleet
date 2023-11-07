@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 const (
@@ -152,6 +153,39 @@ type TeamMDM struct {
 	MacOSSettings        MacOSSettings `json:"macos_settings"`
 	MacOSSetup           MacOSSetup    `json:"macos_setup"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
+
+	/////////////////////////////////////////////////////////////////
+	// WARNING: If you add to this struct make sure it's taken into
+	// account in the TeamMDM Clone implementation!
+	/////////////////////////////////////////////////////////////////
+}
+
+// Clone implements cloner for TeamMDM.
+func (t *TeamMDM) Clone() (interface{}, error) {
+	return t.Copy(), nil
+}
+
+// Copy returns a deep copy of the TeamMDM.
+func (t *TeamMDM) Copy() *TeamMDM {
+	if t == nil {
+		return nil
+	}
+
+	var clone TeamMDM
+	clone = *t
+
+	// EnableDiskEncryption, MacOSUpdates and MacOSSetup don't have fields that
+	// require cloning (all fields are basic value types, no
+	// pointers/slices/maps).
+
+	if t.MacOSSettings.CustomSettings != nil {
+		clone.MacOSSettings.CustomSettings = make([]string, len(t.MacOSSettings.CustomSettings))
+		copy(clone.MacOSSettings.CustomSettings, t.MacOSSettings.CustomSettings)
+	}
+	if t.MacOSSettings.DeprecatedEnableDiskEncryption != nil {
+		clone.MacOSSettings.DeprecatedEnableDiskEncryption = ptr.Bool(*t.MacOSSettings.DeprecatedEnableDiskEncryption)
+	}
+	return &clone
 }
 
 type TeamSpecMDM struct {

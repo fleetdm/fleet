@@ -105,6 +105,7 @@ describe("Host Actions Dropdown", () => {
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
           mdmName="Fleet"
+          hostPlatform="darwin"
         />
       );
 
@@ -131,6 +132,7 @@ describe("Host Actions Dropdown", () => {
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
           mdmName="Fleet"
+          hostPlatform="darwin"
         />
       );
 
@@ -158,6 +160,7 @@ describe("Host Actions Dropdown", () => {
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
           mdmName="Fleet"
+          hostPlatform="darwin"
         />
       );
 
@@ -185,6 +188,7 @@ describe("Host Actions Dropdown", () => {
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
           mdmName="Fleet"
+          hostPlatform="darwin"
         />
       );
 
@@ -210,6 +214,7 @@ describe("Host Actions Dropdown", () => {
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
           mdmName="Non Fleet MDM"
+          hostPlatform="darwin"
         />
       );
 
@@ -223,20 +228,20 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             isMdmEnabledAndConfigured: true,
-            currentUser: createMockUser({
-              teams: [createMockTeam({ id: 1, role: "maintainer" })],
-            }),
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user, debug } = render(
         <HostActionsDropdown
-          hostTeamId={1}
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="offline"
           hostMdmEnrollemntStatus="On (automatic)"
           mdmName="Fleet"
+          hostPlatform="darwin"
         />
       );
 
@@ -247,6 +252,33 @@ describe("Host Actions Dropdown", () => {
       expect(screen.getByText("Turn off MDM").parentNode).toHaveClass(
         "is-disabled"
       );
+    });
+
+    it("does not render the action when the host platform is not darwin", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          onSelect={noop}
+          hostTeamId={1}
+          hostStatus="online"
+          hostMdmEnrollemntStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="windows"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
     });
   });
 

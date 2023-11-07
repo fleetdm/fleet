@@ -311,3 +311,50 @@ func TestAtLeastOnePlatformEnabledAndConfigured(t *testing.T) {
 		})
 	}
 }
+
+func TestFeaturesCopy(t *testing.T) {
+	t.Run("nil receiver", func(t *testing.T) {
+		var f *Features
+		require.Nil(t, f.Copy())
+	})
+
+	t.Run("copy value fields", func(t *testing.T) {
+		f := &Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: false,
+		}
+		clone := f.Copy()
+		require.NotNil(t, clone)
+		require.Equal(t, f.EnableHostUsers, clone.EnableHostUsers)
+		require.Equal(t, f.EnableSoftwareInventory, clone.EnableSoftwareInventory)
+		require.Nil(t, clone.AdditionalQueries)
+		require.Nil(t, clone.DetailQueryOverrides)
+	})
+
+	t.Run("copy AdditionalQueries", func(t *testing.T) {
+		rawMessage := json.RawMessage(`{"test": "data"}`)
+		f := &Features{
+			AdditionalQueries: &rawMessage,
+		}
+		clone := f.Copy()
+		require.NotNil(t, clone.AdditionalQueries)
+		require.NotSame(t, f.AdditionalQueries, clone.AdditionalQueries)
+		require.Equal(t, *f.AdditionalQueries, *clone.AdditionalQueries)
+	})
+
+	t.Run("copy DetailQueryOverrides", func(t *testing.T) {
+		f := &Features{
+			DetailQueryOverrides: map[string]*string{
+				"foo": ptr.String("bar"),
+				"baz": nil,
+			},
+		}
+		clone := f.Copy()
+		require.NotNil(t, clone.DetailQueryOverrides)
+		require.NotSame(t, f.DetailQueryOverrides, clone.DetailQueryOverrides)
+		// map values are pointers, check that they have been cloned
+		require.NotSame(t, f.DetailQueryOverrides["foo"], clone.DetailQueryOverrides["foo"])
+		// the map content itself is equal
+		require.Equal(t, f.DetailQueryOverrides, clone.DetailQueryOverrides)
+	})
+}

@@ -3,7 +3,8 @@ import axios, {
   AxiosResponse,
   ResponseType as AxiosResponseType,
 } from "axios";
-import local from "utilities/local";
+import { authToken } from "utilities/local";
+
 import URL_PREFIX from "router/url_prefix";
 
 const sendRequest = async (
@@ -12,11 +13,11 @@ const sendRequest = async (
   data?: unknown,
   responseType: AxiosResponseType = "json",
   timeout?: number
-): Promise<any> => {
+) => {
   const { origin } = global.window.location;
 
   const url = `${origin}${URL_PREFIX}/api${path}`;
-  const token = local.getItem("auth_token");
+  const token = authToken();
 
   try {
     const response = await axios({
@@ -30,10 +31,15 @@ const sendRequest = async (
       },
     });
 
-    return Promise.resolve(response.data);
+    return response.data;
   } catch (error) {
     const axiosError = error as AxiosError;
-    return Promise.reject(axiosError.response);
+    return Promise.reject(
+      axiosError.response ||
+        axiosError.message ||
+        axiosError.code ||
+        "unknown axios error"
+    );
   }
 };
 

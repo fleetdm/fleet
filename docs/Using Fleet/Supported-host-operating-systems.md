@@ -8,7 +8,7 @@ Fleet supports the following operating system versions on hosts.
 | :------ | :-------------------------------------  |
 | MacOS   | 12 (Monterey) and higher                |
 | Windows | 10 (Pro and Enterprise) and higher      |
-| Linux   | CentOS 7.1+,  Ubuntu 16.04+             |
+| Linux   | CentOS 7.1+,  Ubuntu 16.04+, Fedora 38+ |
 | ChromeOS | 112.0.5615.134+                        |
 
 While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them. 
@@ -26,6 +26,8 @@ The osquery installer generated for MacOS by `fleetctl package` does not include
 ### Linux
 The osquery installer will run on Linux distributions where `glibc` is >= 2.2 (there is ongoing work to make osquery work with `glibc` 2.12+).
 If you aren't sure what version of `glibc` your distribution is using, [DistroWatch](https://distrowatch.com/) is a great resource. 
+
+> Fedora, CentOS 8 and 9 has disabled systray icons by default and requires a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) to be installed to include the Fleet desktop icon.
 
 
 <meta name="pageOrderInSection" value="1200">

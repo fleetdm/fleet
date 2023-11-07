@@ -8,9 +8,9 @@
 
 Turning on Windows MDM features requires configuring Fleet with a certificate and key. This guide will walk you through how to upload these to Fleet and turn on Windows MDM.
 
-Automatic enrollment allows Windows workstations to automatically enroll to Fleet when they are first set up. Automatic enrollment requires Microsoft Entra (formally Microsoft Azure). This guide will walk you through how to connect Entra to Fleet. 
+Automatic enrollment allows Windows workstations to automatically enroll to Fleet when they are first set up. Automatic enrollment requires Microsoft Azure Active Directory (aka Microsoft Entra). This guide will walk you through how to connect Azure AD to Fleet. 
 
-With Fleet connected to Entra, the end user will see Microsoft's default setup experience. You can further customize the initial setup with Windows Autopilot, which is similar to Apple's Automated Device Enrollment (DEP). Autopilot requires a Microsoft Intune license. This guide will also walk you through how to customize the intitial setup with Autopilot.
+With Fleet connected to Azure AD, the end user will see Microsoft's default setup experience. You can further customize the initial setup with Windows Autopilot, which is similar to Apple's Automated Device Enrollment (DEP). Autopilot requires a Microsoft Intune license. This guide will also walk you through how to customize the intitial setup with Autopilot.
 
 ## Requirements
 To use Fleet's Windows MDM features you need to have:
@@ -78,33 +78,33 @@ spec:
 
 3. Confirm that Windows MDM is turned on by running `fleetctl get config`.
 
-## Microsoft Entra
+## Microsoft Azure Active Directory (AD)
 
 > Available in Fleet Premium or Ultimate
 
-By connecting Fleet to Microsoft Entra, Windows workstations can automatically enroll to Fleet when they’re first unboxed and set up by your end user.
+By connecting Fleet to Azure AD, Windows workstations can automatically enroll to Fleet when they’re first unboxed and set up by your end user.
 
 This section will guide you through how to:
 
-1. Connect Fleet to Microsoft Entra
+1. Connect Fleet to Azure AD
 
 2. Test automatic enrollment
 
-### Step 1: connect Fleet to Microsoft Entra
+### Step 1: connect Fleet to Azure AD
 
-For instructions on how to connect Fleet to Entra, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Automatic enrollment**. Then, next to **Windows automatic enrollment** select **Details**.
+For instructions on how to connect Fleet to Azure AD, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Automatic enrollment**. Then, next to **Windows automatic enrollment** select **Details**.
 
 ### Step 2: test automatic enrollment
 
-Testing automatic enrollment requires creating a test user in Entra and a freshly wiped or new Windows workstation.
+Testing automatic enrollment requires creating a test user in Azure AD and a freshly wiped or new Windows workstation.
 
-1. Sign in to [Entra admin center](https://entra.microsoft.com).
+1. Sign in to [Azure portal](https://portal.azure.com).
 
-2. In the left-side bar, select **Users > All users**.
+2. At the top of the page search "Users" and select **Users**.
 
-3. Select **+ New user > Create new user**, fill out the details for your test user, and select **Review + Create > Create**
+3. Select **+ New user > Create new user**, fill out the details for your test user, and select **Review + Create > Create**.
 
-4. In the left-side bar, select **Users > all users** again to refresh the page and confirm that your test user was created.
+4. Go back to **Users** and refresh the page to confirm that your test user was created.
 
 5. Open your Windows workstation and follow the setup steps. When you reach the **How would you like to set up?** screen, select **Set up for an organization**. If your workstations has Windows 11, select **Set up for work or school**.
 
@@ -118,7 +118,7 @@ Testing automatic enrollment requires creating a test user in Entra and a freshl
 
 > Available in Fleet Premium or Ultimate
 
-After you connect Fleet to Microsoft Entra, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
+After you connect Fleet to Azure AD, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
 
 This section will guide you through how to:
 
@@ -146,11 +146,11 @@ Autopilot requires at least one Intune license to edit the Autopilot profile.
 
 5. On the **Microsoft Intune Plan 1 Device** page, select **Buy** and follow instructions to purchase the license. 
 
-6. Sign in to [Entra admin center](https://entra.microsoft.com).
+6. Sign in to [Azure portal](https://portal.azure.com).
 
-7. In the left-side bar, select **Users > All users**.
+7. At the top of the page search "Users" and select **Users**.
 
-8. Select or create your Intune admin user and then select **Licenses**
+8. Select or create your Intune admin user and select **Licenses**.
 
 9. Select **+ Assignments** and assign the **Microsoft Intune Plan 1 Device** to this user.
 
@@ -174,13 +174,13 @@ Autopilot requires at least one Intune license to edit the Autopilot profile.
 
 ### Step 4: upload your organization's logo
 
-1. Navigate to [Entra admin center](https://entra.microsoft.com).
+1. Navigate to [Azure portal](https://portal.azure.com).
 
-2. In the left-side bar select **Show more > User experiences > Company branding**.
+2. At the top of the page, search for "Microsoft Entra ID", select **Microsoft Entra ID**, and then select **Company branding**.
 
-3. On the **Company Branding** page, select **Configure**.
+3. On the **Company Branding** page, select **Configure** or **Edit** under **Default sign-in experience**.
 
-4. Under **Edit default sign-in experience** select the **Sign-in form** tab and upload your logo to the **Square logo (light theme)** and **Square logo (dark theme)** fields.
+4. Select the **Sign-in form** tab and upload your logo to the **Square logo (light theme)** and **Square logo (dark theme)** fields.
 
 5. In the bottom bar, select **Review + Save** and then **Save**.
 

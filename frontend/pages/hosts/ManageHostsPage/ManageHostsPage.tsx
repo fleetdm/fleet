@@ -1179,6 +1179,7 @@ const ManageHostsPage = ({
       onSubmit={onDeleteHostSubmit}
       onCancel={toggleDeleteHostModal}
       isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+      hostsCount={hostsCount}
       isUpdating={isUpdatingHosts}
     />
   );
