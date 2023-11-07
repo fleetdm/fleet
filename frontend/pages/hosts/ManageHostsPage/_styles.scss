@@ -223,6 +223,7 @@
                 &__cell {
                   display: flex;
                   align-items: center;
+                  gap: $pad-small;
                   .issue-cell__icon {
                     display: flex;
                     align-items: center;
@@ -289,10 +290,6 @@
   &__info-banners {
     padding-top: $pad-xxlarge;
     padding-bottom: $pad-large;
-  }
-
-  .total-issues-count {
-    margin-left: $pad-small;
   }
 
   &__export-btn {

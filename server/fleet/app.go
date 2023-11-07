@@ -443,7 +443,17 @@ func (c *AppConfig) Copy() *AppConfig {
 	if c.Features.AdditionalQueries != nil {
 		aq := make(json.RawMessage, len(*c.Features.AdditionalQueries))
 		copy(aq, *c.Features.AdditionalQueries)
-		c.Features.AdditionalQueries = &aq
+		clone.Features.AdditionalQueries = &aq
+	}
+	if c.Features.DetailQueryOverrides != nil {
+		clone.Features.DetailQueryOverrides = make(map[string]*string, len(c.Features.DetailQueryOverrides))
+		for k, v := range c.Features.DetailQueryOverrides {
+			var s *string
+			if v != nil {
+				s = ptr.String(*v)
+			}
+			clone.Features.DetailQueryOverrides[k] = s
+		}
 	}
 	if c.AgentOptions != nil {
 		ao := make(json.RawMessage, len(*c.AgentOptions))
@@ -774,6 +784,11 @@ type Features struct {
 	EnableSoftwareInventory bool               `json:"enable_software_inventory"`
 	AdditionalQueries       *json.RawMessage   `json:"additional_queries,omitempty"`
 	DetailQueryOverrides    map[string]*string `json:"detail_query_overrides,omitempty"`
+
+	/////////////////////////////////////////////////////////////////
+	// WARNING: If you add to this struct make sure it's taken into
+	// account in the Features Clone implementation!
+	/////////////////////////////////////////////////////////////////
 }
 
 func (f *Features) ApplyDefaultsForNewInstalls() {
@@ -786,6 +801,42 @@ func (f *Features) ApplyDefaultsForNewInstalls() {
 
 func (f *Features) ApplyDefaults() {
 	f.EnableHostUsers = true
+}
+
+// Clone implements cloner for Features.
+func (f *Features) Clone() (interface{}, error) {
+	return f.Copy(), nil
+}
+
+// Copy returns a deep copy of the Features.
+func (f *Features) Copy() *Features {
+	if f == nil {
+		return nil
+	}
+
+	// EnableHostUsers and EnableSoftwareInventory don't have fields that require
+	// cloning (all fields are basic value types, no pointers/slices/maps).
+
+	var clone Features
+	clone = *f
+
+	if f.AdditionalQueries != nil {
+		aq := make(json.RawMessage, len(*f.AdditionalQueries))
+		copy(aq, *f.AdditionalQueries)
+		clone.AdditionalQueries = &aq
+	}
+	if f.DetailQueryOverrides != nil {
+		clone.DetailQueryOverrides = make(map[string]*string, len(f.DetailQueryOverrides))
+		for k, v := range f.DetailQueryOverrides {
+			var s *string
+			if v != nil {
+				s = ptr.String(*v)
+			}
+			clone.DetailQueryOverrides[k] = s
+		}
+	}
+
+	return &clone
 }
 
 // FleetDesktopSettings contains settings used to configure Fleet Desktop.
