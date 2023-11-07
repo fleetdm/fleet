@@ -29,7 +29,6 @@
 
 Fleet gathers information from an [osquery](https://github.com/osquery/osquery) agent installed on each of your hosts. The recommended way to install osquery is using fleetd.
 
-You can also [install plain osquery](https://fleetdm.com/docs/using-fleet/enroll-hosts#enroll-hosts-with-plain-osquery) on your hosts and connect to Fleet using osquery's `TLS API` plugins.
 
 ### Supported osquery versions
 
