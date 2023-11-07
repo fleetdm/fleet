@@ -29,7 +29,7 @@ SWIFT_DIALOG_MACOS_APP_VERSION=2.2.1
 SWIFT_DIALOG_MACOS_APP_BUILD_VERSION=4591
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.9.1
+    OSQUERY_VERSION=5.10.1
 fi
 
 mkdir -p $TUF_PATH/tmp
@@ -70,7 +70,7 @@ for system in $SYSTEMS; do
     fi
 
     # Compile the latest version of orbit from source.
-    GOOS=$goose_value GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
+    GOOS=$goose_value GOARCH=amd64 go build -race -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
 
     # If macOS and CODESIGN_IDENTITY is defined, sign the executable.
     if [[ $system == "macos" && -n "$CODESIGN_IDENTITY" ]]; then
