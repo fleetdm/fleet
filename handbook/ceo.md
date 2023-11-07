@@ -5,11 +5,12 @@ This page details processes specific to working with Mike McNeil, co-founder and
 ## Team
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
-| CEO                             | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_ you can read about [CEO flaws](https://www.fleetdm.com/handbook/company/leadership#ceo-flaws)
+| CEO                             | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 | Apprentice to the CEO           | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 
 
 ## Contact us
+- To **get to know the CEO**, read about [the CEO's flaws](https://www.fleetdm.com/handbook/company/leadership#ceo-flaws).
 - To **ask a question** or **make a request** of the CEO or Apprentice, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=custom-request.md&title=%7BNAME%7D%C2%BB______________________) and a [team member](#team) will get back to you within one business day (if urgent, mention the Apprentice in Slack).
   - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board?sprints=none) (confidential) for this team, including pending tasks and requests.
