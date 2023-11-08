@@ -935,3 +935,99 @@ func (svc *Service) authorizeAllHostsTeams(ctx context.Context, hostUUIDs []stri
 	}
 	return hosts, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// DELETE /mdm/profiles/{id_or_uuid}
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteMDMProfileRequest struct {
+	ProfileIDOrUUID string `url:"profile_id_or_uuid"`
+}
+
+type deleteMDMProfileResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteMDMProfileResponse) error() error { return r.Err }
+
+var _ = deleteMDMProfileEndpoint // Temporary, to ensure it is used.
+
+func deleteMDMProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*deleteMDMProfileRequest)
+
+	appleID, isApple := isAppleProfileID(req.ProfileIDOrUUID)
+	var err error
+	if isApple {
+		err = svc.DeleteMDMAppleConfigProfile(ctx, appleID)
+	} else {
+		err = svc.DeleteMDMWindowsProfile(ctx, req.ProfileIDOrUUID)
+	}
+	return &deleteMDMProfileResponse{Err: err}, nil
+}
+
+func (svc *Service) DeleteMDMWindowsProfile(ctx context.Context, profileUUID string) error {
+	// first we perform a perform basic authz check
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	prof, err := svc.ds.GetMDMWindowsProfile(ctx, profileUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	var teamName string
+	teamID := *prof.TeamID
+	if teamID >= 1 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+
+	// now we can do a specific authz check based on team id of profile before we delete the profile
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: prof.TeamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// TODO: prevent deleting profiles that are managed by Fleet
+	//if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
+	//	return &fleet.BadRequestError{
+	//		Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
+	//		InternalErr: fmt.Errorf("deleting profile %s for team %s not allowed because it's managed by Fleet", cp.Identifier, teamName),
+	//	}
+	//}
+
+	if err := svc.ds.DeleteMDMWindowsProfile(ctx, profileUUID); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	//// cannot use the profile ID as it is now deleted
+	//if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
+	//	return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	//}
+
+	_ = teamName
+	//if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
+	//	TeamID:            &teamID,
+	//	TeamName:          &teamName,
+	//	ProfileName:       cp.Name,
+	//	ProfileIdentifier: cp.Identifier,
+	//}); err != nil {
+	//	return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple config profile")
+	//}
+
+	return nil
+}
+
+// returns the numeric Apple profile ID and true if it is an Apple identifier,
+// or 0 and false otherwise.
+func isAppleProfileID(profileIDOrUUID string) (uint, bool) {
+	// parsing as 32 bits as that's the maximum value of the DB column (and can
+	// be safely converted to uint).
+	id, err := strconv.ParseUint(profileIDOrUUID, 10, 32)
+	if err != nil {
+		return 0, false
+	}
+	return uint(id), true
+}

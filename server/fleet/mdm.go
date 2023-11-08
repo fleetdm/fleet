@@ -294,3 +294,14 @@ const (
 	MDMOperationTypeInstall MDMOperationType = "install"
 	MDMOperationTypeRemove  MDMOperationType = "remove"
 )
+
+// MDMConfigProfileAuthz is used to check user authorization to read/write an
+// MDM configuration profile.
+type MDMConfigProfileAuthz struct {
+	TeamID *uint `json:"team_id"` // required for authorization by team
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (m MDMConfigProfileAuthz) AuthzType() string {
+	return "mdm_config_profile"
+}
