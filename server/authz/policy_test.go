@@ -1287,11 +1287,11 @@ func TestAuthorizeTeamPolicy(t *testing.T) {
 	})
 }
 
-func TestAuthorizeMDMAppleConfigProfile(t *testing.T) {
+func TestAuthorizeMDMConfigProfile(t *testing.T) {
 	t.Parallel()
 
-	globalProfile := &fleet.MDMAppleConfigProfile{}
-	team1Profile := &fleet.MDMAppleConfigProfile{
+	globalProfile := &fleet.MDMConfigProfileAuthz{}
+	team1Profile := &fleet.MDMConfigProfileAuthz{
 		TeamID: ptr.Uint(1),
 	}
 	runTestCases(t, []authTestCase{
@@ -2086,94 +2086,4 @@ func TestJSONToInterfaceUser(t *testing.T) {
 		assert.Equal(t, fleet.RoleMaintainer, subject["teams"].([]interface{})[1].(map[string]interface{})["role"])
 		assert.Equal(t, json.Number("42"), subject["teams"].([]interface{})[1].(map[string]interface{})["id"])
 	}
-}
-
-func TestAuthorizeMDMWindowsConfigProfile(t *testing.T) {
-	t.Parallel()
-
-	globalProfile := &fleet.MDMWindowsConfigProfile{}
-	team1Profile := &fleet.MDMWindowsConfigProfile{
-		TeamID: ptr.Uint(1),
-	}
-	runTestCases(t, []authTestCase{
-		{user: test.UserNoRoles, object: globalProfile, action: write, allow: false},
-		{user: test.UserNoRoles, object: globalProfile, action: read, allow: false},
-		{user: test.UserNoRoles, object: team1Profile, action: write, allow: false},
-		{user: test.UserNoRoles, object: team1Profile, action: read, allow: false},
-
-		{user: test.UserAdmin, object: globalProfile, action: write, allow: true},
-		{user: test.UserAdmin, object: globalProfile, action: read, allow: true},
-		{user: test.UserAdmin, object: team1Profile, action: write, allow: true},
-		{user: test.UserAdmin, object: team1Profile, action: read, allow: true},
-
-		{user: test.UserMaintainer, object: globalProfile, action: write, allow: true},
-		{user: test.UserMaintainer, object: globalProfile, action: read, allow: true},
-		{user: test.UserMaintainer, object: team1Profile, action: write, allow: true},
-		{user: test.UserMaintainer, object: team1Profile, action: read, allow: true},
-
-		{user: test.UserObserver, object: globalProfile, action: write, allow: false},
-		{user: test.UserObserver, object: globalProfile, action: read, allow: false},
-		{user: test.UserObserver, object: team1Profile, action: write, allow: false},
-		{user: test.UserObserver, object: team1Profile, action: read, allow: false},
-
-		{user: test.UserObserverPlus, object: globalProfile, action: write, allow: false},
-		{user: test.UserObserverPlus, object: globalProfile, action: read, allow: false},
-		{user: test.UserObserverPlus, object: team1Profile, action: write, allow: false},
-		{user: test.UserObserverPlus, object: team1Profile, action: read, allow: false},
-
-		{user: test.UserGitOps, object: globalProfile, action: write, allow: true},
-		{user: test.UserGitOps, object: globalProfile, action: read, allow: false},
-		{user: test.UserGitOps, object: team1Profile, action: write, allow: true},
-		{user: test.UserGitOps, object: team1Profile, action: read, allow: false},
-
-		{user: test.UserTeamAdminTeam1, object: globalProfile, action: write, allow: false},
-		{user: test.UserTeamAdminTeam1, object: globalProfile, action: read, allow: false},
-		{user: test.UserTeamAdminTeam1, object: team1Profile, action: write, allow: true},
-		{user: test.UserTeamAdminTeam1, object: team1Profile, action: read, allow: true},
-
-		{user: test.UserTeamAdminTeam2, object: globalProfile, action: write, allow: false},
-		{user: test.UserTeamAdminTeam2, object: globalProfile, action: read, allow: false},
-		{user: test.UserTeamAdminTeam2, object: team1Profile, action: write, allow: false},
-		{user: test.UserTeamAdminTeam2, object: team1Profile, action: read, allow: false},
-
-		{user: test.UserTeamMaintainerTeam1, object: globalProfile, action: write, allow: false},
-		{user: test.UserTeamMaintainerTeam1, object: globalProfile, action: read, allow: false},
-		{user: test.UserTeamMaintainerTeam1, object: team1Profile, action: write, allow: true},
-		{user: test.UserTeamMaintainerTeam1, object: team1Profile, action: read, allow: true},
-
-		{user: test.UserTeamMaintainerTeam2, object: globalProfile, action: write, allow: false},
-		{user: test.UserTeamMaintainerTeam2, object: globalProfile, action: read, allow: false},
-		{user: test.UserTeamMaintainerTeam2, object: team1Profile, action: write, allow: false},
-		{user: test.UserTeamMaintainerTeam2, object: team1Profile, action: read, allow: false},
-
-		{user: test.UserTeamObserverTeam1, object: globalProfile, action: write, allow: false},
-		{user: test.UserTeamObserverTeam1, object: globalProfile, action: read, allow: false},
-		{user: test.UserTeamObserverTeam1, object: team1Profile, action: write, allow: false},
-		{user: test.UserTeamObserverTeam1, object: team1Profile, action: read, allow: false},
-
-		{user: test.UserTeamObserverTeam2, object: globalProfile, action: write, allow: false},
-		{user: test.UserTeamObserverTeam2, object: globalProfile, action: read, allow: false},
-		{user: test.UserTeamObserverTeam2, object: team1Profile, action: write, allow: false},
-		{user: test.UserTeamObserverTeam2, object: team1Profile, action: read, allow: false},
-
-		{user: test.UserTeamObserverPlusTeam1, object: globalProfile, action: write, allow: false},
-		{user: test.UserTeamObserverPlusTeam1, object: globalProfile, action: read, allow: false},
-		{user: test.UserTeamObserverPlusTeam1, object: team1Profile, action: write, allow: false},
-		{user: test.UserTeamObserverPlusTeam1, object: team1Profile, action: read, allow: false},
-
-		{user: test.UserTeamObserverPlusTeam2, object: globalProfile, action: write, allow: false},
-		{user: test.UserTeamObserverPlusTeam2, object: globalProfile, action: read, allow: false},
-		{user: test.UserTeamObserverPlusTeam2, object: team1Profile, action: write, allow: false},
-		{user: test.UserTeamObserverPlusTeam2, object: team1Profile, action: read, allow: false},
-
-		{user: test.UserTeamGitOpsTeam1, object: globalProfile, action: write, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: globalProfile, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: team1Profile, action: write, allow: true},
-		{user: test.UserTeamGitOpsTeam1, object: team1Profile, action: read, allow: false},
-
-		{user: test.UserTeamGitOpsTeam2, object: globalProfile, action: write, allow: false},
-		{user: test.UserTeamGitOpsTeam2, object: globalProfile, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam2, object: team1Profile, action: write, allow: false},
-		{user: test.UserTeamGitOpsTeam2, object: team1Profile, action: read, allow: false},
-	})
 }

@@ -208,11 +208,6 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 	}, nil
 }
 
-// AuthzType implements authz.AuthzTyper.
-func (cp MDMAppleConfigProfile) AuthzType() string {
-	return "mdm_apple_config_profile"
-}
-
 func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
 		return fmt.Errorf("payload identifier %s is not allowed", cp.Identifier)

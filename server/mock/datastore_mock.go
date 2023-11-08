@@ -698,7 +698,7 @@ type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID strin
 
 type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) error
 
-type GetMDMWindowsProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsProfile, error)
+type GetMDMWindowsProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
 type DeleteMDMWindowsProfileFunc func(ctx context.Context, profileUUID string) error
 
@@ -4187,7 +4187,7 @@ func (s *DataStore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hos
 	return s.UpdateMDMWindowsEnrollmentsHostUUIDFunc(ctx, hostUUID, mdmDeviceID)
 }
 
-func (s *DataStore) GetMDMWindowsProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsProfile, error) {
+func (s *DataStore) GetMDMWindowsProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
 	s.mu.Lock()
 	s.GetMDMWindowsProfileFuncInvoked = true
 	s.mu.Unlock()

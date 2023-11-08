@@ -28,8 +28,3 @@ type MDMWindowsConfigProfile struct {
 	CreatedAt   time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
 }
-
-// AuthzType implements authz.AuthzTyper.
-func (p MDMWindowsConfigProfile) AuthzType() string {
-	return "mdm_windows_config_profile"
-}
