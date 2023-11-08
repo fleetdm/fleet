@@ -307,7 +307,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 }
 
 func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*fleet.MDMAppleConfigProfile, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	var teamName string
@@ -386,7 +386,7 @@ func listMDMAppleConfigProfilesEndpoint(ctx context.Context, request interface{}
 }
 
 func (svc *Service) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*fleet.MDMAppleConfigProfile, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: &teamID}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
@@ -462,7 +462,7 @@ func (svc *Service) GetMDMAppleConfigProfile(ctx context.Context, profileID uint
 	}
 
 	// now we can do a specific authz check based on team id of profile before we return the profile
-	if err := svc.authz.Authorize(ctx, cp, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: cp.TeamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -511,7 +511,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 	}
 
 	// now we can do a specific authz check based on team id of profile before we delete the profile
-	if err := svc.authz.Authorize(ctx, cp, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: cp.TeamID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 
@@ -572,7 +572,7 @@ func getMDMAppleProfilesSummaryEndpoint(ctx context.Context, request interface{}
 }
 
 func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
-	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
@@ -609,7 +609,7 @@ func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{
 }
 
 func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
-	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
@@ -1417,7 +1417,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		}
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: tmID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: tmID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 

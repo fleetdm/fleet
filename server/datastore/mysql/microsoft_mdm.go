@@ -576,3 +576,42 @@ WHERE
 		Detail: dest.Detail,
 	}, nil
 }
+
+func (ds *Datastore) GetMDMWindowsProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
+	stmt := `
+SELECT
+	profile_uuid,
+	team_id,
+	name,
+	syncml,
+	created_at,
+	updated_at
+FROM
+	mdm_windows_configuration_profiles
+WHERE
+	profile_uuid=?`
+
+	var res fleet.MDMWindowsConfigProfile
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, profileUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(profileUUID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get mdm windows config profile")
+	}
+
+	return &res, nil
+}
+
+func (ds *Datastore) DeleteMDMWindowsProfile(ctx context.Context, profileUUID string) error {
+	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profileUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	deleted, _ := res.RowsAffected() // cannot fail for mysql
+	if deleted != 1 {
+		return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(profileUUID))
+	}
+	return nil
+}
