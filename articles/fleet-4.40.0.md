@@ -1,4 +1,4 @@
-# Fleet 4.40.0 | Sonoma support, script library, query reports.
+# Fleet 4.40.0 | More Data, Rapid Security Response, CIS Benchmark updates.
 
 ![Fleet 4.40.0](../website/assets/images/articles/fleet-4.40.0-1600x900@2x.png)
 
@@ -109,5 +109,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="publishedOn" value="2023-10-26">
-<meta name="articleTitle" value="Fleet 4.40.0 | Sonoma support, script library, query reports.">
+<meta name="articleTitle" value="Fleet 4.40.0 | More Data, Rapid Security Response, CIS Benchmark updates.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.40.0-1600x900@2x.png">
