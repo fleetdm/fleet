@@ -43,6 +43,8 @@
       dri: mikermcneil
       usualDepartment: IT
       productCategories: [Endpoint operations,Device management]
+      demos:
+        - description: A large tech company used scripts to fix issues with their security and compliance agents on workstations.
       buzzwords: [Remote script execution,PowerShell scripts,Bash scripts]
       waysToUse:
         - description: Execute custom macOS scripts (client platform engineering)
@@ -71,7 +73,7 @@
       productCategories: [Endpoint operations]
       dri: mikermcneil
       demos:
-        - description: 
+        - description: A large tech company used Fleet's CIS Benchmark policies to automatically assess posuture of 80,000 endpoints. 
           quote: 
           moreInfoUrl: 
       buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Anomaly detection,Configuration management]
