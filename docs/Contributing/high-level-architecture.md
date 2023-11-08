@@ -156,7 +156,7 @@ graph LR;
 
 ## Agent  config options
 1 - Config TLS refresh 
-(Typical period10 secs) OSQuery pulls down a config file that includes instructions for Scheduled Queries. 
+(Typical period 10 secs) OSQuery pulls down a config file that includes instructions for Scheduled Queries. 
 If both GLOBAL and TEAM is configured, there will be a config merge done on the Server side. 
 
 2 - Logger TLS
