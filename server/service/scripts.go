@@ -326,16 +326,20 @@ type getScriptResponse struct {
 func (r getScriptResponse) error() error { return r.Err }
 
 type downloadScriptResponse struct {
-	Err      error `json:"error,omitempty"`
-	filename string
-	content  []byte
+	Err         error `json:"error,omitempty"`
+	filename    string
+	content     []byte
+	contentType string // optional, defaults to application/octet-stream
 }
 
 func (r downloadScriptResponse) error() error { return r.Err }
 
 func (r downloadScriptResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.content)))
-	w.Header().Set("Content-Type", "application/octet-stream")
+	if r.contentType == "" {
+		r.contentType = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", r.contentType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.filename))
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 

@@ -938,6 +938,85 @@ func (svc *Service) authorizeAllHostsTeams(ctx context.Context, hostUUIDs []stri
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/profiles/{id_or_uuid}
+////////////////////////////////////////////////////////////////////////////////
+
+type getMDMConfigProfileRequest struct {
+	ProfileIDOrUUID string `url:"profile_id_or_uuid"`
+	Alt             string `query:"alt,optional"`
+}
+
+type getMDMConfigProfileResponse struct {
+	*fleet.MDMConfigProfilePayload
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMConfigProfileResponse) error() error { return r.Err }
+
+func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMConfigProfileRequest)
+
+	downloadRequested := req.Alt == "media"
+	appleID, isApple := isAppleProfileID(req.ProfileIDOrUUID)
+	var err error
+	if isApple {
+		// Apple config profile
+		cp, err := svc.GetMDMAppleConfigProfile(ctx, appleID)
+		if err != nil {
+			return &getMDMConfigProfileResponse{Err: err}, nil
+		}
+
+		if downloadRequested {
+			return downloadScriptResponse{
+				content:     cp.Mobileconfig,
+				contentType: "application/x-apple-aspen-config",
+				filename:    fmt.Sprintf("%s_%s.mobileconfig", time.Now().Format("2006-01-02"), strings.ReplaceAll(cp.Name, " ", "_")),
+			}, nil
+		}
+		return &getMDMConfigProfileResponse{
+			MDMConfigProfilePayload: fleet.NewMDMConfigProfilePayloadFromApple(cp),
+		}, nil
+	}
+
+	// Windows config profile
+	cp, err := svc.GetMDMWindowsConfigProfile(ctx, req.ProfileIDOrUUID)
+	if err != nil {
+		return &getMDMConfigProfileResponse{Err: err}, nil
+	}
+
+	if downloadRequested {
+		return downloadScriptResponse{
+			content:     cp.SyncML,
+			contentType: "application/octet-stream", // not using the XML MIME type as a profile is not valid XML (a list of <Replace> elements)
+			filename:    fmt.Sprintf("%s_%s.xml", time.Now().Format("2006-01-02"), strings.ReplaceAll(cp.Name, " ", "_")),
+		}, nil
+	}
+	return &getMDMConfigProfileResponse{
+		MDMConfigProfilePayload: fleet.NewMDMConfigProfilePayloadFromWindows(cp),
+	}, nil
+}
+
+func (svc *Service) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
+	// first we perform a perform basic authz check
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	cp, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// now we can do a specific authz check based on team id of profile before we
+	// return the profile.
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: cp.TeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return cp, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // DELETE /mdm/profiles/{id_or_uuid}
 ////////////////////////////////////////////////////////////////////////////////
 
