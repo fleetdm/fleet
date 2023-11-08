@@ -38,7 +38,7 @@ graph LR;
     end
 
     subgraph Customer Admin
-        frontend[frontend code]
+        frontend[API user (UI/Fleetctl/other)]
     end
 
 
