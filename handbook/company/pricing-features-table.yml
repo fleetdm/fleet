@@ -7,10 +7,11 @@
     - industryName: Device health
       friendlyName: Automate device health
       description: Automatically report system health issues using webhooks or integrations, to notify or quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
-      documentationUrl:
+      documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-host
       screenshotSrc:
       tier: Free
       productCategories: [Endpoint operations]
+      usualDepartment: Security
       dri: mikermcneil
       demos:
         - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
@@ -40,7 +41,9 @@
       documentationUrl: https://fleetdm.com/docs/using-fleet/scripts
       tier: Premium
       dri: mikermcneil
+      usualDepartment: IT
       productCategories: [Endpoint operations,Device management]
+      buzzwords: [Remote script execution,PowerShell scripts,Bash scripts]
       waysToUse:
         - description: Execute custom macOS scripts (client platform engineering)
           moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-mac-scripts-via-mdm/
@@ -61,7 +64,7 @@
     - industryName: Automatic posture assessment
       friendlyName: Verify any security or compliance goal
       description: Simplify security audits, build definitive reports, and discover + verify ongoing compliance for every endpoint, from workstations to data centers.
-      documentationUrl:
+      documentationUrl: https://fleetdm.com/docs/using-fleet/cis-benchmarks#cis-benchmarks
       screenshotSrc:
       usualDepartment: Security
       tier: Free
@@ -103,10 +106,12 @@
     - industryName: Human-endpoint mapping
       friendlyName: See who logs in on every computer
       description: Identify who logs in to any system, including login history and current sessions.  Look up any host by the email address of the person using it.
-      documentationUrl:
+      documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-hosts-google-chrome-profiles
       screenshotSrc:
       tier: Free
       productCategories: [Endpoint operations]
+      usualDepartment: IT
+      buzzwords: [Device users,human-to-device mapping]
       dri: mikermcneil
       demos:
         - description: Security engineers at a top gaming company wanted to get demographics off their macOS, Windows, and Linux machines about who the user is and who's logged in.
@@ -124,20 +129,19 @@
           moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
         - description: See what servers someone is logged-in on
           moreInfoUrl: https://community.spiceworks.com/topic/138171-is-there-a-way-to-see-what-servers-someone-is-logged-in-on
-    #  ╔═╗═╗ ╦╔═╗╔═╗╦═╗╔╦╗   ┬   ╔═╗╦ ╦╔╗╔╔═╗
-    #  ║╣ ╔╩╦╝╠═╝║ ║╠╦╝ ║   ┌┼─  ╚═╗╚╦╝║║║║
-    #  ╚═╝╩ ╚═╩  ╚═╝╩╚═ ╩   └┘   ╚═╝ ╩ ╝╚╝╚═╝
-    # TODO: Use a different, more specific industry name for this, to tie it explicitly to query automations.  Customer quotes like "feeder for the SIEM" (there are too many types of export for it to be this generic).  Also tie this into HIDS.  And with the idea of ingesting IoCs.  HIDS can be accomplished with query automations or with policies, so it may be worth combining them.  i.e. it becomes "Automated posture assessment" and then also "HIDS", where we talk about, in a single entry, how you can do HIDS with query logs and with policies.  See "open hids" in https://docs.google.com/document/d/1oeCmT077o_5nxzLhnxs7kcg_4Qn1Pn1F5zx10nQOAp8/edit
-    - industryName: Automated export/sync
-      friendlyName: Build custom query automations
-      description: Ship logs with snapshots of any imaginable report, or monitor results for changes.
+    - industryName: Intrusion detection
+      friendlyName: Build custom query and policy automations to detect indicators of compromise (IOCs).
+      description: Send webhooks and ship logs to detect intrusions and issues with devices.
+      documentationUrl: https://fleetdm.com/docs/using-fleet/log-destinations
       tier: Free
       usualDepartment: Security
       productCategories: [Endpoint operations]
+      buzzwords: [Host-based intrusion detection system (HIDS,Indicators of Compromise (IOCs),Feeder for SIEM]
       demos:
         - description: A top media company wanted to share more security data with other departments without slowing down hosts.
       waysToUse:
-        - description: Ship logs to Splunk, Snowflake, and more
+        - description: Send webhooks to generate alerts when an IOC is detected on one or more devices.
+        - description: Ship logs to Splunk, Snowflake, and other SIEMs to build a host-based intrusion detection system (HIDS).
         - description: Synchronize live state of endpoints to a data lake or SIEM in a consistent shape.
         - description: Export the data to other systems
           moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
