@@ -989,21 +989,14 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO: prevent deleting profiles that are managed by Fleet
-	//if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
-	//	return &fleet.BadRequestError{
-	//		Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
-	//		InternalErr: fmt.Errorf("deleting profile %s for team %s not allowed because it's managed by Fleet", cp.Identifier, teamName),
-	//	}
-	//}
+	// TODO: do we have Fleet-specific profiles for Windows that we'd want to prevent the user from deleting?
 
 	if err := svc.ds.DeleteMDMWindowsConfigProfile(ctx, profileUUID); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
-	//// cannot use the profile ID as it is now deleted
-	//if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
-	//	return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-	//}
+
+	// TODO: integrate the call to bulk-update host profiles affected by this deletion (see Apple's implementation)
+	// (part of https://github.com/fleetdm/fleet/issues/14364)
 
 	_ = teamName
 	//if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
