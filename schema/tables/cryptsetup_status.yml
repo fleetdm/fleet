@@ -1,0 +1,14 @@
+name: cryptsetup_status
+description: TODO
+notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
+platforms:
+  - linux
+columns:
+  - name: passphrase
+    # description: TODO
+    type: text
+    required: false
+  - name: path
+    # description: TODO
+    type: text
+    required: false
