@@ -11,7 +11,7 @@ Run the following command to generate an extension.
 ```
 
 ## Adding Chrome to Fleet
-To learn how to package and add hosts to Fleet, visit: https://fleetdm.com/docs/using-fleet/adding-hosts#add-chromebooks-with-the-fleetd-chrome-extension.
+To learn how to package and add hosts to Fleet, visit: https://fleetdm.com/docs/using-fleet/enroll-hosts#enroll-chromebooks-with-fleetd-chrome-extension.
 
 ## Debugging
 

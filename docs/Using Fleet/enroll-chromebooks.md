@@ -3,7 +3,7 @@ For visibility on ChromeOS hosts, Fleet provides the fleetd Chrome extension whi
 
 ## Adding ChromeOS hosts to Fleet
 
-To learn how to add ChromeOS hosts to Fleet, visit [here](https://fleetdm.com/docs/using-fleet/adding-hosts#add-chromebooks-with-the-fleetd-chrome-extension).
+To learn how to add ChromeOS hosts to Fleet, visit [here](https://fleetdm.com/docs/using-fleet/adding-hosts#enroll-chromebooks-with-fleetd-chrome-extension).
 
 > The fleetd Chrome browser extension is supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). It is not intended for non-ChromeOS hosts with the Chrome browser installed.
 
