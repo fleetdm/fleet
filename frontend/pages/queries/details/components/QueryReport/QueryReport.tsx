@@ -114,10 +114,16 @@ const QueryReport = ({
       return (
         <div className={`${baseClass}__count `}>
           <TooltipWrapper
-            tipContent={`Fleet has retained a sample of early results for
-            reference. Reporting is paused until existing data is deleted. <br/><br/>
-            You can reset this report by updating the query's SQL, or by
-            temporarily enabling the <b>discard data</b> setting and disabling it again.`}
+            tipContent={
+              <>
+                Fleet has retained a sample of early results for reference.
+                Reporting is paused until existing data is deleted. <br />
+                <br />
+                You can reset this report by updating the query&apos;s SQL, or
+                by temporarily enabling the <b>discard data</b> setting and
+                disabling it again.
+              </>
+            }
           >
             {`${count} result${count === 1 ? "" : "s"}`}
           </TooltipWrapper>

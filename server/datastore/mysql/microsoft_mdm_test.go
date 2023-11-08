@@ -440,8 +440,8 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 					ProfileName:       "Disk encryption",
 					ProfileID:         1,
 					CommandUUID:       uuid.New().String(),
-					OperationType:     fleet.MDMAppleOperationTypeInstall,
-					Status:            &fleet.MDMAppleDeliveryFailed,
+					OperationType:     fleet.MDMOperationTypeInstall,
+					Status:            &fleet.MDMDeliveryFailed,
 					Checksum:          []byte("checksum"),
 				},
 			}))

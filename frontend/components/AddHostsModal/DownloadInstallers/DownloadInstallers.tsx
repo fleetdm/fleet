@@ -239,7 +239,7 @@ const DownloadInstallers = ({
           Include&nbsp;
           <TooltipWrapper
             tipContent={
-              "<p>Include Fleet Desktop if your’re adding workstations.</p>"
+              <p>Include Fleet Desktop if you&apos;re adding workstations.</p>
             }
           >
             Fleet Desktop

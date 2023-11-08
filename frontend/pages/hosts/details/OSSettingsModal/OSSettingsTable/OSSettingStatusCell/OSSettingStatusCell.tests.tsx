@@ -2,15 +2,15 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import { MacMdmProfileOperationType } from "interfaces/mdm";
-import MacSettingStatusCell from "./MacSettingStatusCell";
+import OSSettingStatusCell from "./OSSettingStatusCell";
 
-describe("Mac setting status cell", () => {
+describe("OS setting status cell", () => {
   it("Correctly displays the status text of a profile", () => {
     const status = "verifying";
     const operationType: MacMdmProfileOperationType = "install";
 
     render(
-      <MacSettingStatusCell
+      <OSSettingStatusCell
         profileName="Test Profile"
         status={status}
         operationType={operationType}
@@ -27,7 +27,7 @@ describe("Mac setting status cell", () => {
     const customRender = createCustomRenderer();
 
     const { user } = customRender(
-      <MacSettingStatusCell
+      <OSSettingStatusCell
         profileName="Test Profile"
         status={status}
         operationType={operationType}

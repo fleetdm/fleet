@@ -4,6 +4,7 @@
 
 * **Endpoint operations**:
   - New tables added to the fleetd extension: app_icons, falconctl_options, falcon_kernel_check, cryptoinfo, cryptsetup_status, filevault_status, firefox_preferences, firmwarepasswd, ioreg, and windows_updates.
+  - CIS support for Windows 10 is updated to the lates CIS document CIS_Microsoft_Windows_10_Enterprise_Benchmark_v2.0.0.
 
 * **Device management (MDM)**:
   - Introduced support for MS-MDM management protocol.
