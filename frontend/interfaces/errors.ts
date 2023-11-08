@@ -32,12 +32,7 @@ export interface IApiError {
   uuid?: string;
 }
 
-/**
- * isFleetApiError returns true if the value satisfies the `IFleetApiError` interface
- * (i.e. it is an object with `name` and `reason` properties. It is a type guard used
- * when parsing errors from Fleet server responses.
- */
-export const isFleetApiError = (err: unknown): err is IFleetApiError => {
+const isFleetApiError = (err: unknown): err is IFleetApiError => {
   if (!err || typeof err !== "object" || !("name" in err && "reason" in err)) {
     return false;
   }
@@ -116,11 +111,9 @@ interface IFilterFleetErrorReason extends IFilterFleetErrorBase {
   reasonIncludes: string;
 }
 
-/**
- * FilterFleetError is the shape of a filter that can be applied to to filter Fleet
- * server errors. It is the union of FilterFleetErrorName and FilterFleetErrorReason,
- * which ensures that only one of `nameEquals` or `reasonIncludes` can be specified.
- */
+// FilterFleetError is the shape of a filter that can be applied to to filter Fleet
+// server errors. It is the union of FilterFleetErrorName and FilterFleetErrorReason,
+// which ensures that only one of `nameEquals` or `reasonIncludes` can be specified.
 type IFilterFleetError = IFilterFleetErrorName | IFilterFleetErrorReason;
 
 const filterFleetErrorNameEquals = (errs: unknown[], value: string) => {
