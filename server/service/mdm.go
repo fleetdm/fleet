@@ -15,6 +15,7 @@ import (
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -969,6 +970,13 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	// check that Windows MDM is enabled - the middleware of that endpoint checks
+	// only that any MDM is enabled, maybe it's just macOS
+	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+		err := fleet.NewInvalidArgumentError("profile_id", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		return ctxerr.Wrap(ctx, err, "check windows MDM enabled")
+	}
+
 	prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -998,15 +1006,21 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 	// TODO: integrate the call to bulk-update host profiles affected by this deletion (see Apple's implementation)
 	// (part of https://github.com/fleetdm/fleet/issues/14364)
 
-	_ = teamName
-	//if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
-	//	TeamID:            &teamID,
-	//	TeamName:          &teamName,
-	//	ProfileName:       cp.Name,
-	//	ProfileIdentifier: cp.Identifier,
-	//}); err != nil {
-	//	return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple config profile")
-	//}
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID > 0 {
+		actTeamID = &teamID
+		actTeamName = &teamName
+	}
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedWindowsProfile{
+		TeamID:      actTeamID,
+		TeamName:    actTeamName,
+		ProfileName: prof.Name,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm windows config profile")
+	}
 
 	return nil
 }

@@ -854,6 +854,14 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 		},
 	}
 
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+			},
+		}, nil
+	}
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
 		return nil
 	}
