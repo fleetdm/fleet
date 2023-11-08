@@ -38,7 +38,7 @@ graph LR;
     end
 
     subgraph Customer Admin
-        frontend[API user (UI or other)]
+        frontend[API user UI or other]
     end
 
 
