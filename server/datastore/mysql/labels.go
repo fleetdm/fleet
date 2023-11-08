@@ -289,10 +289,10 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		`, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	query = appendListOptionsToSQL(query, &opt)
+	query, params := appendListOptionsToSQL(query, &opt)
 	labels := []*fleet.Label{}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, params...); err != nil {
 		// it's ok if no labels exist
 		if err == sql.ErrNoRows {
 			return labels, nil
