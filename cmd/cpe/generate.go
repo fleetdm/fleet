@@ -2,6 +2,7 @@ package main
 
 import (
 	"compress/gzip"
+	"crypto/sha256"
 	"fmt"
 	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/facebookincubator/nvdtools/wfn"
@@ -15,6 +16,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -52,6 +54,10 @@ func main() {
 
 	slog.Info("Compressing DB...")
 	compressedPath, err := compress(dbPath)
+	panicIf(err)
+
+	slog.Info("Calculating SHA256...")
+	compressedPath, err = addSHA256(compressedPath)
 	panicIf(err)
 
 	slog.Info(fmt.Sprintf("Final compressed file %s size: %.2f MB\n", compressedPath, getSizeMB(compressedPath)))
@@ -171,6 +177,37 @@ func compress(path string) (string, error) {
 		return "", err
 	}
 	return compressedPath, nil
+}
+
+// addSHA256 adds the file's SHA256 checksum to its name
+func addSHA256(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer closeFile(file)
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	newPath, err := replaceLast(path, "cpe.sqlite.gz", fmt.Sprintf("cpe-%x.sqlite.gz", hash.Sum(nil)))
+	if err != nil {
+		return "", err
+	}
+
+	err = os.Rename(path, newPath)
+	return newPath, err
+}
+
+// replaceLast replaces the last occurrence of string
+func replaceLast(s, old, new string) (string, error) {
+	i := strings.LastIndex(s, old)
+	if i == -1 {
+		return "", fmt.Errorf("substring:%v not found in string:%v", old, s)
+	}
+	return s[:i] + new + s[i+len(old):], nil
 }
 
 func closeFile(file *os.File) {
