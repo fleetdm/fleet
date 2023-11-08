@@ -1,30 +1,5 @@
 # Enroll hosts
 
-## Overview
-
-- [Introduction](#introduction)
-  - [Supported osquery versions](#supported-osquery-versions)
-- [How to enroll hosts?](#how-to-enroll-hosts)
-  - [CLI](#cli)
-  - [UI](#ui)
-    - [Generate installer to enroll host to a specific team](#generate-installer-to-enroll-host-to-a-specific-team)
-  - [Enroll multiple hosts](#enroll-multiple-hosts)
-  - [Including Fleet Desktop](#including-fleet-desktop)
-- [Enroll Chromebooks with the fleetd Chrome extension](#add-chromebooks-with-the-fleetd-chrome-extension)
-  - [Overview](#overview-2)
-  - [Step 1: OU for Chromebook users](step-1-ou-for-chromebook-users)
-  - [Step 2: OU to block non-Chromebook devices](step-2-ou-to-block-non-chromebook-devices)
-- [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos)
-  - [Creating the configuration profile](#creating-the-configuration-profile)
-    - [Obtaining identifiers](#obtaining-identifiers)
-    - [Creating the profile](#creating-the-profile)
-    - [Test the profile](#test-the-profile)
-- [Advanced](#advanced)
-  - [Signing installers](#signing-installers)
-  - [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
-  - [fleetd configuration options](#configuration-options)
-  - [Enroll hosts with plain osquery](#enroll-hosts-with-plain-osquery)
-
 ## Introduction
 
 Fleet gathers information from an [osquery](https://github.com/osquery/osquery) agent installed on each of your hosts. The recommended way to install osquery is using fleetd.
@@ -36,7 +11,15 @@ Fleet supports the [latest version of osquery](https://github.com/osquery/osquer
 
 ## How to enroll hosts?
 
-This section explains how to enroll macOS, Windows or Linux hosts. To learn how to enroll Chromebooks visit [Enroll Chromebooks with fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/enroll-hosts#enroll-chromebooks-with-fleetd-chrome-extension).
+This section explains how to enroll macOS, Windows or Linux hosts. To learn how to enroll
+Chromebooks visit [Enroll Chromebooks with fleetd Chrome
+extension](#enroll-chromebooks-with-fleetd-chrome-extension).
+
+- [CLI](#cli)
+- [UI](#ui)
+  - [Generate installer to enroll host to a specific team](#generate-installer-to-enroll-host-to-a-specific-team)
+- [Enroll multiple hosts](#enroll-multiple-hosts)
+- [Including Fleet Desktop](#including-fleet-desktop)
 
 ### CLI
 
@@ -104,7 +87,7 @@ How to generate an installer that includes Fleet Desktop in the Fleet UI:
 
 Alternatively, you can generate an installer that includes Fleet Desktop in `fleetctl package` by appending the `--fleet-desktop` flag.
 
-## Enroll Chromebooks with the fleetd Chrome extension
+## Enroll Chromebooks with fleetd Chrome extension
 
 > The fleetd Chrome browser extension is supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). It is not intended for non-ChromeOS hosts with the Chrome browser installed.
 
@@ -219,12 +202,12 @@ You can then look for `orbit` or `osquery` to narrow down results.
 
 ## Advanced
 
-- [Signing fleetd installer](https://fleetdm.com/docs/using-fleet/enroll-hosts#signing-fleetd-installer)
-- [Generating Windows installers using local WiX toolset](https://fleetdm.com/docs/using-fleet/enroll-hosts#generating-windows-installers-using-local-wix-toolset)
-- [fleetd configuration options](https://fleetdm.com/docs/using-fleet/enroll-hosts#fleetd-configuration-options)
-- [Enroll hosts with plain osquery](https://fleetdm.com/docs/using-fleet/enroll-hosts#enroll-hosts-with-plain-osquery)
+- [Signing fleetd installer](#signing-fleetd-installer)
+- [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
+- [fleetd configuration options](#fleetd-configuration-options)
+- [Enroll hosts with plain osquery](#enroll-hosts-with-plain-osquery)
 
-### Signing installers
+### Signing fleetd installers
 
   >**Note:** Currently, the `fleetctl package` does not provide support for signing Windows fleetd installers. Windows installers can be signed after building.
 
@@ -259,7 +242,7 @@ so:
      ```
      If the provided path doesn't contain all 3 binaries, the command will fail.
 
-### fleetd configuration options
+### Fleetd configuration options
 
 The following command-line flags to `fleetctl package` allow you to configure an osquery installer further to communicate with a specific Fleet instance.
 
@@ -290,7 +273,15 @@ The following command-line flags to `fleetctl package` allow you to configure an
 `light.exe`) instead of installations in a pre-configered Docker Hub (only available on Windows w/ WiX v3)                                                    |
 | --help, -h                 | show help (default: `false`)                                                                                                            |
 
-Fleet supports other methods for adding your hosts to Fleet, such as the [plain osquery binaries](#add-hosts-with-plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
+Fleet supports other methods for adding your hosts to Fleet, such as the plain osquery
+binaries or [Kolide Osquery
+Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
+
+### Enroll hosts with plain osquery
+
+Osquery's [TLS API](http://osquery.readthedocs.io/en/stable/deployment/remote/) plugin lets you use
+the native osqueryd binaries to connect to Fleet. Learn more [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Enroll-hosts-with-plain-osquery.md).
+
 
 <meta name="pageOrderInSection" value="500">
 <meta name="description" value="Learn how to generate installers and enroll hosts in your Fleet instance using fleetd or osquery.">
