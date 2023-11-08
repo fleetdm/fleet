@@ -1023,7 +1023,9 @@ func (svc *Service) DeleteMDMWindowsProfile(ctx context.Context, profileUUID str
 // returns the numeric Apple profile ID and true if it is an Apple identifier,
 // or 0 and false otherwise.
 func isAppleProfileID(profileIDOrUUID string) (uint, bool) {
-	id, err := strconv.ParseUint(profileIDOrUUID, 10, 64)
+	// parsing as 32 bits as that's the maximum value of the DB column (and can
+	// be safely converted to uint).
+	id, err := strconv.ParseUint(profileIDOrUUID, 10, 32)
 	if err != nil {
 		return 0, false
 	}
