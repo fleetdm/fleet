@@ -1881,7 +1881,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&include_software=true`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true`
 
 ##### Request query parameters
 
