@@ -76,9 +76,15 @@ func applyUpToPrev(t *testing.T) *sqlx.DB {
 	}
 }
 
-func execNoErr(t *testing.T, db *sqlx.DB, query string, args ...any) {
-	_, err := db.Exec(query, args...)
+func execNoErrLastID(t *testing.T, db *sqlx.DB, query string, args ...any) int64 {
+	res, err := db.Exec(query, args...)
 	require.NoError(t, err)
+	id, _ := res.LastInsertId()
+	return id
+}
+
+func execNoErr(t *testing.T, db *sqlx.DB, query string, args ...any) {
+	execNoErrLastID(t, db, query, args...)
 }
 
 // applyNext performs the next migration in the chain.
@@ -119,7 +125,7 @@ func insertHost(t *testing.T, db *sqlx.DB) uint {
 	insertHostStmt := `
 		INSERT INTO hosts (
 			hostname, uuid, platform, osquery_version, os_version, build, platform_like, code_name,
-			cpu_type, cpu_subtype, cpu_brand, hardware_vendor, hardware_model, hardware_version, 
+			cpu_type, cpu_subtype, cpu_brand, hardware_vendor, hardware_model, hardware_version,
 			hardware_serial, computer_name
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`

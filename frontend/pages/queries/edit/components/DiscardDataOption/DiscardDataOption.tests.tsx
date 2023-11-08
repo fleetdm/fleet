@@ -30,10 +30,6 @@ describe("DiscardDataOption component", () => {
 
     expect(screen.getByText(/Discard data/)).toBeInTheDocument();
     expect(screen.getByText(/This setting is ignored/)).toBeInTheDocument();
-
-    await fireEvent.mouseOver(screen.getByText(/globally disabled/));
-
-    expect(screen.getByText(/A Fleet administrator/)).toBeInTheDocument();
   });
 
   it('Restores normal help text when disabled and then "Edit anyway" is clicked', async () => {

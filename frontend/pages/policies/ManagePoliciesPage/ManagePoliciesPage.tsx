@@ -767,9 +767,9 @@ const ManagePolicyPage = ({
               globalPoliciesCount
             )}
             caretPosition={"before"}
-            tooltipHtml={
-              '"All teams" policies are checked <br/> for this team’s hosts.'
-            }
+            tooltipHtml={`"All teams" policies are checked ${(
+              <br />
+            )} for this team's hosts.`}
             onClick={toggleShowInheritedPolicies}
           />
         )}

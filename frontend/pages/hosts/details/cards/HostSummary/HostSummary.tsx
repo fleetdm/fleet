@@ -176,7 +176,7 @@ const HostSummary = ({
     return (
       <div className="info-flex__item info-flex__item--title">
         <span className="info-flex__header">Disk encryption</span>
-        <TooltipWrapper tipContent={tooltipMessage} position="bottom">
+        <TooltipWrapper tipContent={tooltipMessage}>
           {statusText}
         </TooltipWrapper>
       </div>
