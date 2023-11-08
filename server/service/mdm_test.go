@@ -745,14 +745,18 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
 	testCases := []struct {
-		name             string
-		user             *fleet.User
-		shouldFailGlobal bool
-		shouldFailTeam   bool
+		name                  string
+		user                  *fleet.User
+		shouldFailGlobalRead  bool
+		shouldFailTeamRead    bool
+		shouldFailGlobalWrite bool
+		shouldFailTeamWrite   bool
 	}{
 		{
 			"global admin",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
 			false,
 			false,
 		},
@@ -761,16 +765,22 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
 			false,
 			false,
+			false,
+			false,
 		},
 		{
 			"global observer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
 			true,
 			true,
+			true,
+			true,
 		},
 		{
 			"global observer+",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			true,
+			true,
 			true,
 			true,
 		},
@@ -780,6 +790,8 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			// profiles.
 			"global gitops",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			true,
+			true,
 			false,
 			false,
 		},
@@ -788,10 +800,14 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
 			true,
 			false,
+			true,
+			false,
 		},
 		{
 			"team admin, DOES NOT belong to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
 			true,
 			true,
 		},
@@ -800,10 +816,14 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
 			true,
 			false,
+			true,
+			false,
 		},
 		{
 			"team maintainer, DOES NOT belong to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
 			true,
 			true,
 		},
@@ -812,10 +832,14 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
 			true,
 			true,
+			true,
+			true,
 		},
 		{
 			"team observer, DOES NOT belong to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			true,
 			true,
 			true,
 		},
@@ -824,10 +848,14 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
 			true,
 			true,
+			true,
+			true,
 		},
 		{
 			"team observer+, DOES NOT belong to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserverPlus}}},
+			true,
+			true,
 			true,
 			true,
 		},
@@ -838,6 +866,8 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			"team gitops, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
 			true,
+			true,
+			true,
 			false,
 		},
 		{
@@ -845,10 +875,14 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleGitOps}}},
 			true,
 			true,
+			true,
+			true,
 		},
 		{
 			"user no roles",
 			&fleet.User{ID: 1337},
+			true,
+			true,
 			true,
 			true,
 		},
@@ -895,13 +929,21 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
+			// test authz get config profile (no team)
+			_, err := svc.GetMDMWindowsConfigProfile(ctx, "global")
+			checkShouldFail(t, err, tt.shouldFailGlobalRead)
+
+			// test authz get config profile (team 1)
+			_, err = svc.GetMDMWindowsConfigProfile(ctx, "team-1")
+			checkShouldFail(t, err, tt.shouldFailTeamRead)
+
 			// test authz delete config profile (no team)
-			err := svc.DeleteMDMWindowsConfigProfile(ctx, "global")
-			checkShouldFail(t, err, tt.shouldFailGlobal)
+			err = svc.DeleteMDMWindowsConfigProfile(ctx, "global")
+			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
 
 			// test authz delete config profile (team 1)
 			err = svc.DeleteMDMWindowsConfigProfile(ctx, "team-1")
-			checkShouldFail(t, err, tt.shouldFailTeam)
+			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 		})
 	}
 }
