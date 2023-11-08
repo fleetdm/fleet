@@ -1864,7 +1864,7 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| include_software     | boolean | query | If `true`, the response will include a list of installed software for each host. |
+| populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. |
 
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
@@ -1963,32 +1963,24 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       },
       "software": [
         {
-          "id": 408,
-          "name": "osquery",
-          "version": "4.5.1",
-          "source": "rpm_packages",
-          "generated_cpe": "",
-          "vulnerabilities": null,
+          "id": 1,
+          "name": "glibc",
+	        "version": "2.12",
+	        "source": "rpm_packages",
+          "generated_cpe": "cpe:2.3:a:gnu:glibc:2.12:*:*:*:*:*:*:*",
+          "vulnerabilities": [
+        	  {
+        	    "cve": "CVE-2009-5155",
+        	    "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2009-5155",
+        	    "cvss_score": 7.5, // Fleet Premium only
+        	    "epss_probability": 0.01537, // Fleet Premium only
+        	    "cisa_known_exploit": false, // Fleet Premium only
+        	    "cve_published": "2022-01-01 12:32:00", // Fleet Premium only
+        	    "cve_description": "In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match.", // Fleet Premium only
+        	    "resolved_in_version": "2.28" // Fleet Premium only
+        	  }
+        	],
           "installed_paths": ["/usr/lib/some-path-1"]
-        },
-        {
-          "id": 1146,
-          "name": "tar",
-          "version": "1.30",
-          "source": "rpm_packages",
-          "generated_cpe": "",
-          "vulnerabilities": null
-        },
-        {
-          "id": 321,
-          "name": "SomeApp.app",
-          "version": "1.0",
-          "source": "apps",
-          "bundle_identifier": "com.some.app",
-          "last_opened_at": "2021-08-18T21:14:00Z",
-          "generated_cpe": "",
-          "vulnerabilities": null,
-          "installed_paths": ["/usr/lib/some-path-2"]
         }
       ]
     }
