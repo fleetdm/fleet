@@ -9,7 +9,7 @@ import { IQuery } from "interfaces/query";
 import { ITargetsAPIResponse } from "interfaces/target";
 import { IEditPackFormData } from "interfaces/pack";
 
-import { getFleetErrorReasonFromAxiosError } from "services/errors";
+import { getErrorReason } from "interfaces/errors";
 import packsAPI from "services/entities/packs";
 
 import PackForm from "components/forms/packs/PackForm";
@@ -56,7 +56,7 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
       );
     } catch (e) {
       if (
-        getFleetErrorReasonFromAxiosError(e, {
+        getErrorReason(e, {
           reasonIncludes: "Duplicate entry",
         })
       ) {

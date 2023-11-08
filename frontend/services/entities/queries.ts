@@ -1,13 +1,13 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+import { getErrorReason } from "interfaces/errors";
 import { ISelectedTargetsForApi } from "interfaces/target";
 import {
   ICreateQueryRequestBody,
   IModifyQueryRequestBody,
 } from "interfaces/schedulable_query";
 import { buildQueryStringFromParams } from "utilities/url";
-import { parseFleetError, parseDataErrorsFromResponse } from "services/errors";
 
 // Mock API requests to be used in developing FE for #7765 in parallel with BE development
 // import { sendRequest } from "services/mock_service/service/service";
@@ -70,13 +70,10 @@ export default {
           total: 0,
         },
       });
-    } catch (rawException) {
-      let msg: string | undefined;
-      const errors = parseDataErrorsFromResponse(rawException);
-      if (errors?.length) {
-        msg = parseFleetError(errors[0])?.reason;
-      }
-      throw new Error(msg || `run query: parse server error ${rawException}`);
+    } catch (e) {
+      throw new Error(
+        getErrorReason(e) || `run query: parse server error ${e}`
+      );
     }
   },
   update: (id: number, updateParams: IModifyQueryRequestBody) => {

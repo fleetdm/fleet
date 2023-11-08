@@ -13,7 +13,7 @@ import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
-import { getFleetErrorReasonFromAxiosError } from "services/errors";
+import { getErrorReason } from "interfaces/errors";
 import packsAPI from "services/entities/packs";
 import queriesAPI from "services/entities/queries";
 import scheduledQueriesAPI from "services/entities/scheduled_queries";
@@ -152,7 +152,7 @@ const EditPacksPage = ({
       })
       .catch((e) => {
         if (
-          getFleetErrorReasonFromAxiosError(e, {
+          getErrorReason(e, {
             reasonIncludes: "Duplicate entry",
           })
         ) {

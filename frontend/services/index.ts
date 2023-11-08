@@ -1,7 +1,6 @@
-import axios, { ResponseType as AxiosResponseType } from "axios";
+import axios, { isAxiosError, ResponseType as AxiosResponseType } from "axios";
 import URL_PREFIX from "router/url_prefix";
 import { authToken } from "utilities/local";
-import { parseAxiosError } from "./errors";
 
 export const sendRequest = async (
   method: "GET" | "POST" | "PATCH" | "DELETE" | "HEAD",
@@ -33,12 +32,12 @@ export const sendRequest = async (
     if (skipParseError) {
       return Promise.reject(error);
     }
-    const axiosError = parseAxiosError(error);
+    let reason: unknown | undefined;
+    if (isAxiosError(error)) {
+      reason = error.response || error.message || error.code;
+    }
     return Promise.reject(
-      axiosError?.response ||
-        axiosError?.message ||
-        axiosError?.code ||
-        `send request: parse server error: ${error}`
+      reason || `send request: parse server error: ${error}`
     );
   }
 };
