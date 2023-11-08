@@ -693,7 +693,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.NotNil(t, prof.TeamID)
 	require.Zero(t, *prof.TeamID)
 	require.Equal(t, "abc", prof.Name)
-	require.Equal(t, "<SyncML></SyncML>", prof.SyncML)
+	require.Equal(t, "<SyncML></SyncML>", string(prof.SyncML))
 	require.NotZero(t, prof.CreatedAt)
 	require.NotZero(t, prof.UpdatedAt)
 
