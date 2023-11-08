@@ -3038,9 +3038,7 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
         "name": "Google Chrome is up to date",
         "team_id": null,
         "resolution_deadline": 14,
-        "response": "overdue", // Either "pass", "fail", or "overdue"
-        "failed_at": "2023-09-02T12:52:19Z",
-        "response_updated_at": "2023-09-16T18:52:19Z",
+        "response": "pass",
       }
     ],
     "vulnerable_software": [
