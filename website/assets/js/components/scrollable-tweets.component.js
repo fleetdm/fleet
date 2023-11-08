@@ -196,7 +196,6 @@ parasails.registerComponent('scrollableTweets', {
     },
 
     scrollTweetsDivToPage: function(page) {
-        console.log('scrolling to page ',page);
       // Get the tweets div.
       let tweetsDiv = document.querySelector('div[purpose="tweets"]');
       // Find out the width of a page of tweet cards
