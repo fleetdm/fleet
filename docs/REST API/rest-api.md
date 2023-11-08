@@ -1965,21 +1965,21 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         {
           "id": 1,
           "name": "glibc",
-	        "version": "2.12",
-	        "source": "rpm_packages",
+          "version": "2.12",
+          "source": "rpm_packages",
           "generated_cpe": "cpe:2.3:a:gnu:glibc:2.12:*:*:*:*:*:*:*",
           "vulnerabilities": [
-        	  {
-        	    "cve": "CVE-2009-5155",
-        	    "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2009-5155",
-        	    "cvss_score": 7.5, // Fleet Premium only
-        	    "epss_probability": 0.01537, // Fleet Premium only
-        	    "cisa_known_exploit": false, // Fleet Premium only
-        	    "cve_published": "2022-01-01 12:32:00", // Fleet Premium only
-        	    "cve_description": "In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match.", // Fleet Premium only
-        	    "resolved_in_version": "2.28" // Fleet Premium only
-        	  }
-        	],
+            {
+              "cve": "CVE-2009-5155",
+              "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2009-5155",
+              "cvss_score": 7.5, // Fleet Premium only
+              "epss_probability": 0.01537, // Fleet Premium only
+              "cisa_known_exploit": false, // Fleet Premium only
+              "cve_published": "2022-01-01 12:32:00", // Fleet Premium only
+              "cve_description": "In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match.", // Fleet Premium only
+              "resolved_in_version": "2.28" // Fleet Premium only
+            }
+          ],
           "installed_paths": ["/usr/lib/some-path-1"]
         }
       ]
