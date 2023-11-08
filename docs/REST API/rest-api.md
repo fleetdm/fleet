@@ -1859,11 +1859,12 @@ the `software` table.
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
-| disable_failing_policies| boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
+| disable_failing_policies| boolean | query | If `true`, hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 | macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
 | bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
+| include_software     | boolean | query | If `true`, the response will include a list of installed software for each host. |
 
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
@@ -1880,7 +1881,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&include_software=true`
 
 ##### Request query parameters
 
@@ -1959,7 +1960,37 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         "enrollment_status": null,
         "name": "",
         "server_url": null
-      }
+      },
+      "software": [
+        {
+          "id": 408,
+          "name": "osquery",
+          "version": "4.5.1",
+          "source": "rpm_packages",
+          "generated_cpe": "",
+          "vulnerabilities": null,
+          "installed_paths": ["/usr/lib/some-path-1"]
+        },
+        {
+          "id": 1146,
+          "name": "tar",
+          "version": "1.30",
+          "source": "rpm_packages",
+          "generated_cpe": "",
+          "vulnerabilities": null
+        },
+        {
+          "id": 321,
+          "name": "SomeApp.app",
+          "version": "1.0",
+          "source": "apps",
+          "bundle_identifier": "com.some.app",
+          "last_opened_at": "2021-08-18T21:14:00Z",
+          "generated_cpe": "",
+          "vulnerabilities": null,
+          "installed_paths": ["/usr/lib/some-path-2"]
+        }
+      ]
     }
   ]
 }
