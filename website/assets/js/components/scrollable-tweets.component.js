@@ -185,9 +185,9 @@ parasails.registerComponent('scrollableTweets', {
       // Find out the width of a page of tweet cards
       let tweetPageWidth;
       if(this.numberOfTweetPages === 2 && this.numberOfTweetsPerPage > 3){
-        tweetPageWidth = (this.tweetCardWidth - 32);
+        tweetPageWidth = (this.tweetCardWidth - 16);
       } else {
-        tweetPageWidth = (this.tweetCardWidth - 32) * this.numberOfTweetsPerPage;
+        tweetPageWidth = (this.tweetCardWidth - 16) * this.numberOfTweetsPerPage;
       }
       // Set the maximum number of pages as the maximum value
       let currentPage = Math.min(Math.round(tweetsDiv.scrollLeft / tweetPageWidth), (this.numberOfTweetPages - 1));
@@ -196,6 +196,7 @@ parasails.registerComponent('scrollableTweets', {
     },
 
     scrollTweetsDivToPage: function(page) {
+        console.log('scrolling to page ',page);
       // Get the tweets div.
       let tweetsDiv = document.querySelector('div[purpose="tweets"]');
       // Find out the width of a page of tweet cards
