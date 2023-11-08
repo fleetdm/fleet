@@ -1,19 +1,15 @@
-import axios, {
-  AxiosError,
-  AxiosResponse,
-  ResponseType as AxiosResponseType,
-} from "axios";
-import { authToken } from "utilities/local";
-
+import axios, { ResponseType as AxiosResponseType } from "axios";
 import URL_PREFIX from "router/url_prefix";
+import { authToken } from "utilities/local";
+import { parseAxiosError } from "./errors";
 
-const sendRequest = async (
+export const sendRequest = async (
   method: "GET" | "POST" | "PATCH" | "DELETE" | "HEAD",
   path: string,
   data?: unknown,
   responseType: AxiosResponseType = "json",
   timeout?: number,
-  includeFullAxiosError?: boolean
+  skipParseError?: boolean
 ) => {
   const { origin } = global.window.location;
 
@@ -34,23 +30,17 @@ const sendRequest = async (
 
     return response.data;
   } catch (error) {
-    if (includeFullAxiosError) {
+    if (skipParseError) {
       return Promise.reject(error);
     }
-    const axiosError = error as AxiosError;
+    const axiosError = parseAxiosError(error);
     return Promise.reject(
-      axiosError.response ||
-        axiosError.message ||
-        axiosError.code ||
-        "unknown axios error"
+      axiosError?.response ||
+        axiosError?.message ||
+        axiosError?.code ||
+        `send request: parse server error: ${error}`
     );
   }
-};
-
-// return the first error
-export const getError = (response: unknown): string => {
-  const r = response as AxiosResponse;
-  return r.data?.errors?.[0]?.reason || ""; // TODO: check if any callers rely on empty return value
 };
 
 export default sendRequest;

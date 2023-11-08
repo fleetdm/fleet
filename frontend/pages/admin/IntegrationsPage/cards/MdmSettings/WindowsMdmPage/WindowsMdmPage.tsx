@@ -1,8 +1,11 @@
 import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
-import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
+import {
+  getFleetErrorReasonFromAxiosError,
+  parseAxiosError,
+} from "services/errors";
 import configAPI from "services/entities/config";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -37,19 +40,14 @@ const useSetWindowsMdm = ({
       setConfig(updatedConfig);
       renderFlash("success", successMessage);
     } catch (e) {
-      const axiosError = e as AxiosError;
-      switch (axiosError.response?.status) {
-        case 422:
-          renderFlash(
-            "error",
-            enable
-              ? "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first."
-              : errorMessage
-          );
-          break;
-        default:
-          renderFlash("error", errorMessage);
+      let msg = errorMessage;
+      if (enable && parseAxiosError(e)?.response?.status === 422) {
+        msg =
+          getFleetErrorReasonFromAxiosError(e, {
+            nameEquals: "mdm.windows_enabled_and_configured",
+          }) || msg;
       }
+      renderFlash("error", msg);
     } finally {
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
     }

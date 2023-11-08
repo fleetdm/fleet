@@ -35,22 +35,47 @@ export default {
 
     return sendRequest("GET", GLOBAL_ENROLL_SECRETS);
   },
-  update: (formData: any) => {
+
+  /**
+   * update is used to update the app config.
+   *
+   * If the request fails and `skipParseError` is `true`, the caller is
+   * responsible for verifying that the value of the rejected promise is an AxiosError
+   * and futher parsing of the the error mesage.
+   */
+
+  update: (formData: any, skipParseError?: boolean) => {
     const { CONFIG } = endpoints;
 
-    return sendRequest("PATCH", CONFIG, formData);
+    return sendRequest(
+      "PATCH",
+      CONFIG,
+      formData,
+      undefined,
+      undefined,
+      skipParseError
+    );
   },
 
   /**
    * updateMDMConfig is a special case of update that is used to update the MDM
-   * config. It differs in that it allows the caller to parse error responses.
-   * If the request fails, the full AxiosError object will be passed as the
-   * rejection value instead of a simple string.
+   * config.
+   *
+   * If the request fails and `skipParseError` is `true`, the caller is
+   * responsible for verifying that the value of the rejected promise is an AxiosError
+   * and futher parsing of the the error mesage.
    */
-  updateMDMConfig: (mdm: Partial<IMdmConfig>) => {
+  updateMDMConfig: (mdm: Partial<IMdmConfig>, skipParseError?: boolean) => {
     const { CONFIG } = endpoints;
 
-    return sendRequest("PATCH", CONFIG, { mdm }, undefined, undefined, true);
+    return sendRequest(
+      "PATCH",
+      CONFIG,
+      { mdm },
+      undefined,
+      undefined,
+      skipParseError
+    );
   },
 
   // This API call is made to a specific endpoint that is different than our
