@@ -3027,18 +3027,12 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
   "host_id": 1,
   "health": {
     "updated_at": "2023-09-16T18:52:19Z",
-    "osquery_version": "4.5.1",
     "os_version": "CentOS Linux 8.3.2011",
-    "uptime": 210671000000000,
     "disk_encryption_enabled": true,
-    "seen_time": "2021-08-19T21:14:58Z",
-    "policies": [
+    "failing_policies": [
       {
         "id": 123,
         "name": "Google Chrome is up to date",
-        "team_id": null,
-        "resolution_deadline": 14,
-        "response": "pass",
       }
     ],
     "vulnerable_software": [
@@ -3046,14 +3040,6 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
         "id": 321,
         "name": "Firefox.app",
         "version": "116.0.3",
-        "bundle_identifier": "org.mozilla.firefox",
-        "generated_cpe": "cpe:2.3:a:mozilla:firefox:116.0.3:*:*:*:*:macos:*:*",
-        "vulnerabilities": [
-          {
-            "cve": "CVE-2023-4573",
-            "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-4573",
-          },
-        ]
       }
     ]
   }
