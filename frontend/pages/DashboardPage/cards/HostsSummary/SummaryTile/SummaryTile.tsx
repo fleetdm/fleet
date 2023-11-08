@@ -2,12 +2,12 @@ import React from "react";
 import { Link } from "react-router";
 import { kebabCase } from "lodash";
 
-import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import classnames from "classnames";
 import { Colors } from "styles/var/colors";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface ISummaryTileProps {
   count: number;
@@ -52,7 +52,6 @@ const SummaryTile = ({
   const classes = classnames(`${baseClass}__tile`, `${kebabCase(title)}-tile`, {
     [`${baseClass}__not-supported`]: notSupported,
   });
-
   const tile = (
     <>
       <div className={circledIcon ? `${baseClass}__circled-icon` : ""}>

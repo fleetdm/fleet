@@ -32,12 +32,16 @@ const DiscardDataOption = ({
         <>
           This setting is ignored because query reports in Fleet have been{" "}
           <TooltipWrapper
-            // TODO - use JSX once new tooltipwrapper is merged
             tipContent={
-              "A Fleet administrator can enable query reports under <br />\
-                  <b>Organization settings > Advanced options > Disable  query reports</b>."
+              <>
+                A Fleet administrator can enable query reports under <br />
+                <b>
+                  Organization settings &gt; Advanced options &gt; Disable query
+                  reports
+                </b>
+                .
+              </>
             }
-            position="bottom"
           >
             {"globally disabled."}
           </TooltipWrapper>{" "}
