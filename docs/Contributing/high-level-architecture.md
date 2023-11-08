@@ -68,10 +68,10 @@ graph LR;
 
 ## The path of Live Query
 
-### 1 - IT person initiates the query
+### 1 - Fleet User initiates the query
 ```mermaid
 graph LR;
-    it_person[IT person<br>Starts a live query];
+    it_person[Fleet User<br>Starts a live query];
     api[API Client Frontend or Fleetctl];
 
     subgraph Cloud
@@ -109,10 +109,10 @@ graph LR;
 
 ## The path of a scheduled Query
 
-### 1 - IT person initiates the query
+### 1 - Fleet User initiates the query
 ```mermaid
 graph LR;
-    it_person[IT person<br>Creates a scheduled<br>for a team / global];
+    it_person[Fleet User<br>Creates a scheduled<br>for a team / global];
     api[API Client Frontend or Fleetctl];
 
     subgraph Cloud
