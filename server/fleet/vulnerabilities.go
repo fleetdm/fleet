@@ -12,11 +12,12 @@ type CVE struct {
 	// 1. omitted when using the free tier
 	// 2. null when using the premium tier, but there is no value available. This may be due to an issue with syncing cve scores.
 	// 3. non-null when using the premium tier, and value is available.
-	CVSSScore        **float64   `json:"cvss_score,omitempty" db:"cvss_score"`
-	EPSSProbability  **float64   `json:"epss_probability,omitempty" db:"epss_probability"`
-	CISAKnownExploit **bool      `json:"cisa_known_exploit,omitempty" db:"cisa_known_exploit"`
-	CVEPublished     **time.Time `json:"cve_published,omitempty" db:"cve_published"`
-	Description      **string    `json:"cve_description,omitempty" db:"description"`
+	CVSSScore         **float64   `json:"cvss_score,omitempty" db:"cvss_score"`
+	EPSSProbability   **float64   `json:"epss_probability,omitempty" db:"epss_probability"`
+	CISAKnownExploit  **bool      `json:"cisa_known_exploit,omitempty" db:"cisa_known_exploit"`
+	CVEPublished      **time.Time `json:"cve_published,omitempty" db:"cve_published"`
+	Description       **string    `json:"cve_description,omitempty" db:"description"`
+	ResolvedInVersion **string    `json:"resolved_in_version,omitempty" db:"resolved_in_version"`
 }
 
 type CVEMeta struct {
@@ -48,8 +49,9 @@ type SoftwareCPE struct {
 // SoftwareVulnerability is a vulnerability on a software.
 // Represents an entry in the `software_cve` table.
 type SoftwareVulnerability struct {
-	SoftwareID uint   `db:"software_id"`
-	CVE        string `db:"cve"`
+	SoftwareID        uint   `db:"software_id"`
+	CVE               string `db:"cve"`
+	ResolvedInVersion string `db:"resolved_in_version"`
 }
 
 // String implements fmt.Stringer.

@@ -8,7 +8,6 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -234,7 +233,7 @@ the way that the Fleet server works.
 					"#\n"+
 					"#   To run the server without performing migrations:\n"+
 					"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
-					"#     - Set config updates.allow_mising_migrations to true, or,\n"+
+					"#     - Set config updates.allow_missing_migrations to true, or,\n"+
 					"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
 					"################################################################################\n",
 					migrationStatus.MissingTable, migrationStatus.MissingData, os.Args[0])
@@ -882,12 +881,12 @@ the way that the Fleet server works.
 
 			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
 				// test that we can load this
-				_, err := ioutil.ReadFile(path)
+				_, err := os.ReadFile(path)
 				if err != nil {
 					initFatal(err, "loading FLEET_TEST_PAGE_PATH")
 				}
 				rootMux.HandleFunc("/test", func(rw http.ResponseWriter, req *http.Request) {
-					testPage, err := ioutil.ReadFile(path)
+					testPage, err := os.ReadFile(path)
 					if err != nil {
 						rw.WriteHeader(http.StatusNotFound)
 						return

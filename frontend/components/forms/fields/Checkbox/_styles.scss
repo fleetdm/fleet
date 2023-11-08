@@ -1,7 +1,8 @@
 .fleet-checkbox {
   @include clearfix;
   position: relative;
-  display: inline-block;
+  display: flex;
+  align-items: center;
 
   &__input {
     opacity: 0;
@@ -96,6 +97,8 @@
 }
 
 .inverse {
+  flex-direction: row-reverse; // Switches the text to the left side of checkbox as all checkboxes are now display flex
+
   .fleet-checkbox {
     &__input {
       float: right;

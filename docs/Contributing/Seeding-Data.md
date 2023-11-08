@@ -14,7 +14,7 @@ For a text-based walkthrough, follow these steps:
 
 First, create an `env` file with the following contents:
 
-```
+```sh
 export SERVER_URL=https://localhost:8080 # your Fleet server URL and port
 export CURL_FLAGS='-k -s' # set insecure flag
 export TOKEN=eyJhbGciOi... # your api token
@@ -26,7 +26,7 @@ export TOKEN=eyJhbGciOi... # your api token
 
 Next, set the `FLEET_ENV_PATH` to point to the `env` file using the command line.
 
-```
+```sh
 export FLEET_ENV_PATH=./path/to/env/file/fleet_env
 ```
 
@@ -40,7 +40,7 @@ Finally, run one of the bash scripts located in the [/tools/api](https://github.
 
 The `fleet/create_free` script will generate an environment to roughly reflect an installation of Fleet Free. The script creates 3 users with different roles. From the fleet directory, run:
 
-```
+```sh
 ./tools/api/fleet/teams/create_free
 ```
 
@@ -50,7 +50,7 @@ The `fleet/create_free` script will generate an environment to roughly reflect a
 
 The `fleet/create_premium` script will generate an environment to roughly reflect an installation of Fleet Premium. The script will create 2 teams of 7 users with different roles. From the fleet directory, run:
 
-```
+```sh
 ./tools/api/fleet/teams/create_premium
 ```
 
@@ -60,7 +60,7 @@ The `fleet/create_premium` script will generate an environment to roughly reflec
 
 The `fleet/create_figma` script will generate an environment to reflect the mockups in the Fleet EE (current) Figma file. The script creates 3 teams and 12 users with different roles. From the fleet directory, run:
 
-```
+```sh
 ./tools/api/fleet/teams/create_figma
 ```
 

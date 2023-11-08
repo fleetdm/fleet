@@ -9,6 +9,7 @@ on:
     branches:
       - main
       - patch-*
+      - prepare-*
     paths:
       - 'orbit/**.go'
       - '.github/workflows/fleet-and-orbit.yml'
@@ -56,7 +57,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.21.1']
+        go-version: ['${{ vars.GO_VERSION }}']
         mysql: ['mysql:5.7']
     runs-on: ubuntu-latest
     needs: gen
@@ -160,7 +161,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.21.1']
+        go-version: ['${{ vars.GO_VERSION }}']
     runs-on: ubuntu-latest
     needs: gen
     steps:
@@ -200,7 +201,7 @@ jobs:
   build-macos-targets:
     strategy:
       matrix:
-        go-version: ['^1.21.1']
+        go-version: ['${{ vars.GO_VERSION }}']
     runs-on: macos-latest
     steps:
 
@@ -242,7 +243,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.21.1']
+        go-version: ['${{ vars.GO_VERSION }}']
     runs-on: ubuntu-latest
     needs: [gen, build-macos-targets]
     steps:

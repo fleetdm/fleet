@@ -231,10 +231,19 @@ func (c *Client) authenticatedRequest(params interface{}, verb string, path stri
 	return c.authenticatedRequestWithQuery(params, verb, path, responseDest, "")
 }
 
-func (c *Client) CheckMDMEnabled() error {
+func (c *Client) CheckAnyMDMEnabled() error {
+	return c.runAppConfigChecks(func(ac *fleet.EnrichedAppConfig) error {
+		if !ac.MDM.EnabledAndConfigured && !ac.MDM.WindowsEnabledAndConfigured {
+			return errors.New(fleet.MDMNotConfiguredMessage)
+		}
+		return nil
+	})
+}
+
+func (c *Client) CheckAppleMDMEnabled() error {
 	return c.runAppConfigChecks(func(ac *fleet.EnrichedAppConfig) error {
 		if !ac.MDM.EnabledAndConfigured {
-			return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+			return errors.New(fleet.AppleMDMNotConfiguredMessage)
 		}
 		return nil
 	})
@@ -246,7 +255,7 @@ func (c *Client) CheckPremiumMDMEnabled() error {
 			return errors.New("missing or invalid license")
 		}
 		if !ac.MDM.EnabledAndConfigured {
-			return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+			return errors.New(fleet.AppleMDMNotConfiguredMessage)
 		}
 		return nil
 	})
@@ -379,6 +388,23 @@ func (c *Client) ApplyGroup(
 				}
 			}
 		}
+		if scripts := extractAppCfgScripts(specs.AppConfig); scripts != nil {
+			files := resolveApplyRelativePaths(baseDir, scripts)
+			scriptPayloads := make([]fleet.ScriptPayload, len(files))
+			for i, f := range files {
+				b, err := os.ReadFile(f)
+				if err != nil {
+					return fmt.Errorf("applying fleet config: %w", err)
+				}
+				scriptPayloads[i] = fleet.ScriptPayload{
+					ScriptContents: b,
+					Name:           filepath.Base(f),
+				}
+			}
+			if err := c.ApplyNoTeamScripts(scriptPayloads, opts); err != nil {
+				return fmt.Errorf("applying custom settings: %w", err)
+			}
+		}
 		if err := c.ApplyAppConfig(specs.AppConfig, opts); err != nil {
 			return fmt.Errorf("applying fleet config: %w", err)
 		}
@@ -439,6 +465,24 @@ func (c *Client) ApplyGroup(
 			}
 		}
 
+		tmScripts := extractTmSpecsScripts(specs.Teams)
+		tmScriptsPayloads := make(map[string][]fleet.ScriptPayload, len(tmScripts))
+		for k, paths := range tmScripts {
+			files := resolveApplyRelativePaths(baseDir, paths)
+			scriptPayloads := make([]fleet.ScriptPayload, len(files))
+			for i, f := range files {
+				b, err := os.ReadFile(f)
+				if err != nil {
+					return fmt.Errorf("applying fleet config: %w", err)
+				}
+				scriptPayloads[i] = fleet.ScriptPayload{
+					ScriptContents: b,
+					Name:           filepath.Base(f),
+				}
+			}
+			tmScriptsPayloads[k] = scriptPayloads
+		}
+
 		// Next, apply the teams specs before saving the profiles, so that any
 		// non-existing team gets created.
 		teamIDsByName, err := c.ApplyTeams(specs.Teams, opts)
@@ -464,6 +508,13 @@ func (c *Client) ApplyGroup(
 					if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
 						return fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
 					}
+				}
+			}
+		}
+		if len(tmScriptsPayloads) > 0 {
+			for tmName, scripts := range tmScriptsPayloads {
+				if err := c.ApplyTeamScripts(tmName, scripts, opts); err != nil {
+					return fmt.Errorf("applying scripts for team %q: %w", tmName, err)
 				}
 			}
 		}
@@ -567,6 +618,35 @@ func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
 	return csStrings
 }
 
+func extractAppCfgScripts(appCfg interface{}) []string {
+	asMap, ok := appCfg.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	scripts, ok := asMap["scripts"]
+	if !ok {
+		// scripts is not present
+		return nil
+	}
+
+	scriptsAny, ok := scripts.([]interface{})
+	if !ok || scriptsAny == nil {
+		// return a non-nil, empty slice instead, so the caller knows that the
+		// scripts key was actually provided.
+		return []string{}
+	}
+
+	scriptsStrings := make([]string, 0, len(scriptsAny))
+	for _, v := range scriptsAny {
+		s, _ := v.(string)
+		if s != "" {
+			scriptsStrings = append(scriptsStrings, s)
+		}
+	}
+	return scriptsStrings
+}
+
 // returns the custom settings keyed by team name.
 func extractTmSpecsMacOSCustomSettings(tmSpecs []json.RawMessage) map[string][]string {
 	var m map[string][]string
@@ -598,6 +678,37 @@ func extractTmSpecsMacOSCustomSettings(tmSpecs []json.RawMessage) map[string][]s
 				cs = []string{}
 			}
 			m[spec.Name] = cs
+		}
+	}
+	return m
+}
+
+func extractTmSpecsScripts(tmSpecs []json.RawMessage) map[string][]string {
+	var m map[string][]string
+	for _, tm := range tmSpecs {
+		var spec struct {
+			Name    string          `json:"name"`
+			Scripts json.RawMessage `json:"scripts"`
+		}
+		if err := json.Unmarshal(tm, &spec); err != nil {
+			// ignore, this will fail in the call to apply team specs
+			continue
+		}
+		if spec.Name != "" && len(spec.Scripts) > 0 {
+			if m == nil {
+				m = make(map[string][]string)
+			}
+			var scripts []string
+			if err := json.Unmarshal(spec.Scripts, &scripts); err != nil {
+				// ignore, will fail in apply team specs call
+				continue
+			}
+			if scripts == nil {
+				// to be consistent with the AppConfig custom settings, set it to an
+				// empty slice if the provided custom settings are present but empty.
+				scripts = []string{}
+			}
+			m[spec.Name] = scripts
 		}
 	}
 	return m

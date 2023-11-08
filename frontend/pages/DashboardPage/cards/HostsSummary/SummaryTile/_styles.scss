@@ -27,6 +27,23 @@
     white-space: nowrap;
   }
 
+  &__circled-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: $core-vibrant-blue;
+    width: px-to-rem(48);
+    height: px-to-rem(48);
+    border-radius: 100%;
+    background: $ui-vibrant-blue-10;
+    margin-right: px-to-rem(12);
+
+    .icon {
+      margin-left: 0 !important;
+      margin-right: 0;
+    }
+  }
+
   &__count {
     font-size: $large;
     white-space: nowrap;

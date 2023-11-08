@@ -72,7 +72,7 @@
         .component__auto-size-input-field {
           letter-spacing: -0.5px;
           line-height: 2.3rem;
-          padding-top: 2px;
+          margin-top: 2px;
         }
       }
       .policy-description-wrapper {
@@ -136,6 +136,7 @@
     resize: none;
     white-space: normal;
     background-color: transparent;
+    overflow: hidden;
     &:hover:not(.focus-visible):not(.no-hover) {
       color: $core-vibrant-blue;
       cursor: pointer;

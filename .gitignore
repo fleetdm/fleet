@@ -37,6 +37,7 @@ mysqldata/
 
 # test helm charts
 helm-temp
+charts/fleet/charts
 
 #editors
 .idea
@@ -95,3 +96,11 @@ osquery_worker_*.jpg
 
 # Residual files when building fleetd_tables extension.
 fleetd_tables_*
+
+# Location of test extensions executables
+tools/test_extensions/hello_world/macos
+tools/test_extensions/hello_world/windows
+tools/test_extensions/hello_world/linux
+
+# Residual files when building fleet_tables extension.
+fleet_tables_*.ext

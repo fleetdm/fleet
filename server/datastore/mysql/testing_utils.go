@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -181,7 +180,7 @@ func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *Datast
 func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
 	_, filename, _, _ := runtime.Caller(0)
 	base := path.Dir(filename)
-	schema, err := ioutil.ReadFile(path.Join(base, "schema.sql"))
+	schema, err := os.ReadFile(path.Join(base, "schema.sql"))
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -299,11 +298,11 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 	// be truncated - a more precise approach must be used for those, e.g.
 	// delete where id > max before test, or something like that.
 	nonEmptyTables := map[string]bool{
-		"app_config_json":           true,
-		"migration_status_tables":   true,
-		"osquery_options":           true,
-		"mdm_apple_delivery_status": true,
-		"mdm_apple_operation_types": true,
+		"app_config_json":         true,
+		"migration_status_tables": true,
+		"osquery_options":         true,
+		"mdm_delivery_status":     true,
+		"mdm_operation_types":     true,
 	}
 	ctx := context.Background()
 

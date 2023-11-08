@@ -50,15 +50,15 @@ const WindowsAutomaticEnrollmentPage = () => {
             <CustomLink
               newTab
               text="Sign in to Azure portal"
-              url="https://azure.microsoft.com/en-gb/get-started/azure-portal"
+              url="portal.azure.com"
             />
           </li>
           <li>
             <span>2.</span>
             <p>
-              Select <b>Azure Active Directory &gt; Custom domain names</b>,
-              then select <b>+ Add custom domain</b>, type your
-              organization&apos;s domain name (e.g. acme.com), and select{" "}
+              At the top of the page, search “Domain names“ and select{" "}
+              <b>Domain names</b>. Then select <b>+ Add custom domain</b>, type
+              your organization&apos;s domain name (e.g. acme.com), and select{" "}
               <b>Add domain</b>.
             </p>
           </li>
@@ -72,8 +72,8 @@ const WindowsAutomaticEnrollmentPage = () => {
           <li>
             <span>4.</span>
             <p>
-              Select <b>Azure Active Directory &gt; Mobility (MDM and MAM)</b>{" "}
-              (or search for “Mobility” at the top of the page).
+              At the top of the page, search for “Mobility (MDM and MAM)“ and
+              select <b>Mobility (MDM and MAM)</b>.
             </p>
           </li>
           <li>
@@ -139,15 +139,14 @@ const WindowsAutomaticEnrollmentPage = () => {
           <li>
             <span>10.</span>
             <p>
-              Use your organization&apos;s domain you added in the first step,
-              and select <b>Save</b>.
+              Use your Fleet URL (e.g. fleet.acme.com) and select <b>Save</b>.
             </p>
           </li>
           <li>
             <span>11.</span>
             <p>
               Select <b>API permissions</b> from the sidebar, then select{" "}
-              <b>+ Add permissions</b>.
+              <b>+ Add a permission</b>.
             </p>
           </li>
           <li>
@@ -164,7 +163,7 @@ const WindowsAutomaticEnrollmentPage = () => {
             <div>
               Select <b>Application permissions</b>, then select following:
               <ul className={`${baseClass}__permissions-list`}>
-                <li>Device.Read.All</li>
+                <li>Device &gt; Device.Read.All</li>
                 <li>Device &gt; Device.ReadWrite.All</li>
                 <li>Directory &gt; Directory.Read.All</li>
                 <li>Group &gt; Group.Read.All</li>

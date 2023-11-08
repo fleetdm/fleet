@@ -57,7 +57,7 @@ type InitialStateType = {
   lastEditedQueryCritical: boolean;
   lastEditedQueryPlatform: SelectedPlatformString | null;
   defaultPolicy: boolean;
-  setLastEditedQueryId: (value: number) => void;
+  setLastEditedQueryId: (value: number | null) => void;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
@@ -165,12 +165,15 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
     dispatch({ type: ACTIONS.SET_POLICY_TEAM_ID, id });
   }, []);
 
-  const setLastEditedQueryId = useCallback((lastEditedQueryId: number) => {
-    dispatch({
-      type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
-      lastEditedQueryId,
-    });
-  }, []);
+  const setLastEditedQueryId = useCallback(
+    (lastEditedQueryId: number | null) => {
+      dispatch({
+        type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryId,
+      });
+    },
+    []
+  );
 
   const setLastEditedQueryName = useCallback((lastEditedQueryName: string) => {
     dispatch({

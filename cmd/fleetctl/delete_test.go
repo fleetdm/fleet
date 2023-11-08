@@ -82,7 +82,7 @@ func TestDeleteQuery(t *testing.T) {
 		deletedQuery = name
 		return nil
 	}
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		if name != "query1" {
 			return nil, nil
 		}

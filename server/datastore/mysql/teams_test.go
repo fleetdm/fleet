@@ -86,6 +86,13 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			cp, err := ds.NewMDMAppleConfigProfile(context.Background(), dummyCP)
 			require.NoError(t, err)
 
+			// TODO: once the datastore methods are implemented, use them in tests.
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				_, err := tx.ExecContext(context.Background(),
+					`INSERT INTO mdm_windows_configuration_profiles (profile_uuid, name, syncml) VALUES (uuid(), ?, ?)`, team.ID, "<SyncML></SyncML>")
+				return err
+			})
+
 			err = ds.DeleteTeam(context.Background(), team.ID)
 			require.NoError(t, err)
 
@@ -99,6 +106,14 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			_, err = ds.GetMDMAppleConfigProfile(context.Background(), cp.ProfileID)
 			var nfe fleet.NotFoundError
 			require.ErrorAs(t, err, &nfe)
+
+			// TODO: once the datastore methods are implemented, use them in tests.
+			var count int
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				return sqlx.GetContext(context.Background(), tx, &count,
+					`SELECT count(*) FROM mdm_windows_configuration_profiles WHERE team_id = ?`, team.ID)
+			})
+			require.Zero(t, count)
 
 			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
 		})

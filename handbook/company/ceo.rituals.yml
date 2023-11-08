@@ -19,6 +19,13 @@
   moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#process-the-ceos-email"
   dri: "sampfluger88"
 -
+  task: "Process all \"New requests\" on the #g-ceo kanban board"
+  startedOn: "2023-07-29"
+  frequency: "Daily ⏰"
+  description: "Process and prioritize all new issues and PRs"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#process-new-requests-from-the-g-ceo-kanban-board"
+  dri: "sampfluger88"
+-
   task: "Process the CEO's calendar"
   startedOn: "2023-07-29"
   frequency: "Daily ⏰"
@@ -61,7 +68,7 @@
   startedOn: "2023-07-xx"
   frequency: "After each monthly all hands meeting"
   description: "Sharing the all hands recording"
-  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#after-the-all-hands"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#share-recording-of-all-hands-meeting"
   dri: "sampfluger88"
 -
   task: "Prepare all hands deck"
@@ -83,10 +90,10 @@
   description: "Filter all action items from CEO's GitHub notifications"
   dri: "sampfluger88"
 -
-  task: "Confirm Dripify unread messages against LinkedIn"
+  task: "Check LinkedIn for unread messages"
   startedOn: "2023-09-25"
-  frequency: "Triweekly"
+  frequency: "Daily"
   description: "Prevent connections from slipping through the cracks"
-  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#confirm-dripify-unread-messages-against-linkedin"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#check-linkedin-for-unread-messages"
   dri: "sampfluger88"
   autoIssue:

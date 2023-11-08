@@ -239,7 +239,7 @@ resource "aws_cloudwatch_metric_alarm" "redis-replication-lag" {
       namespace   = "AWS/ElastiCache"
       period      = "300"
       stat        = "p90"
-      
+
       dimensions = {
         CacheClusterId = each.key
       }
@@ -266,4 +266,205 @@ resource "aws_cloudwatch_metric_alarm" "acm_certificate_expired" {
   dimensions = {
     CertificateArn = var.acm_certificate_arn
   }
+}
+
+// Cron Monitoring
+locals {
+  cron_lambda_binary = "${path.module}/lambda/bootstrap"
+}
+
+resource "null_resource" "cron_monitoring_build" {
+  count = var.cron_monitoring == null ? 0 : 1
+  triggers = {
+    main_go_changes = filesha256("${path.module}/lambda/main.go"),
+    go_mod_changes  = filesha256("${path.module}/lambda/go.mod")
+    go_sum_changes  = filesha256("${path.module}/lambda/go.sum")
+    # Make sure to always have a unique trigger if the file doesn't exist
+    binary_exists   = fileexists(local.cron_lambda_binary) ? true : timestamp()
+  }
+  provisioner "local-exec" {
+    working_dir = "${path.module}/lambda"
+    command     = <<-EOT
+      go get
+      GOOS=linux GOARCH=amd64 go build -tags lambda.norpc -o bootstrap main.go
+    EOT
+  }
+}
+
+data "archive_file" "cron_monitoring_lambda" {
+  count       = var.cron_monitoring == null ? 0 : 1
+  depends_on  = [null_resource.cron_monitoring_build[0]]
+  type        = "zip"
+  output_path = "${path.module}/lambda/.lambda.zip"
+  source_file = local.cron_lambda_binary
+}
+
+data "aws_secretsmanager_secret" "mysql_database_password" {
+  count = var.cron_monitoring == null ? 0 : 1
+  name  = var.cron_monitoring.mysql_password_secret_name
+}
+
+resource "aws_security_group" "cron_monitoring" {
+  count       = var.cron_monitoring == null ? 0 : 1
+  name        = "${var.customer_prefix}_cron_monitoring"
+  description = "Security group for cron monitoring lambda (used by RDS to allow access in)"
+  vpc_id      = var.cron_monitoring.vpc_id
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}
+
+resource "aws_security_group_rule" "cron_monitoring_to_rds" {
+  count                    = var.cron_monitoring == null ? 0 : 1
+  type                     = "ingress"
+  from_port                = 3306
+  to_port                  = 3306
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.cron_monitoring[0].id
+  security_group_id        = var.cron_monitoring.rds_security_group_id
+}
+
+resource "aws_lambda_function" "cron_monitoring" {
+  count = var.cron_monitoring == null ? 0 : 1
+
+  depends_on = [
+    null_resource.cron_monitoring_build[0],
+    data.archive_file.cron_monitoring_lambda[0]
+  ]
+
+  function_name                  = "${var.customer_prefix}_cron_monitoring"
+  runtime                        = "provided.al2"
+  memory_size                    = 256
+  timeout                        = 300
+  package_type                   = "Zip"
+  filename                       = data.archive_file.cron_monitoring_lambda[0].output_path
+  source_code_hash               = data.archive_file.cron_monitoring_lambda[0].output_base64sha256
+  handler                        = "bootstrap"
+  reserved_concurrent_executions = 1
+  description                    = "This function has the ability to log into a production database and validate that the Fleet crons are running properly"
+  tracing_config {
+    mode = "Active"
+  }
+
+  vpc_config {
+    subnet_ids         = var.cron_monitoring.subnet_ids
+    security_group_ids = [aws_security_group.cron_monitoring[0].id]
+  }
+
+  role = aws_iam_role.cron_monitoring_lambda[0].arn
+
+  environment {
+    variables = {
+      MYSQL_HOST                  = var.cron_monitoring.mysql_host
+      MYSQL_DATABASE              = var.cron_monitoring.mysql_database
+      MYSQL_USER                  = var.cron_monitoring.mysql_user
+      MYSQL_SECRETSMANAGER_SECRET = data.aws_secretsmanager_secret.mysql_database_password[0].name
+      SNS_TOPIC_ARNS              = join(",", lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns))
+      FLEET_ENV                   = var.customer_prefix
+      CRON_DELAY_TOLERANCE        = var.cron_monitoring.delay_tolerance
+    }
+  }
+
+}
+
+// Lambda IAM
+data "aws_iam_policy_document" "cron_monitoring_lambda_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "cron_monitoring_lambda" {
+  count      = var.cron_monitoring == null ? 0 : 1
+  role       = aws_iam_role.cron_monitoring_lambda[0].id
+  policy_arn = aws_iam_policy.cron_monitoring_lambda[0].arn
+}
+
+resource "aws_iam_role_policy_attachment" "cron_monitoring_lambda_managed" {
+  count      = var.cron_monitoring == null ? 0 : 1
+  role       = aws_iam_role.cron_monitoring_lambda[0].id
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
+resource "aws_iam_policy" "cron_monitoring_lambda" {
+  count  = var.cron_monitoring == null ? 0 : 1
+  name   = "${var.customer_prefix}-cron-monitoring"
+  policy = data.aws_iam_policy_document.cron_monitoring_lambda.json
+}
+
+resource "aws_iam_role" "cron_monitoring_lambda" {
+  count              = var.cron_monitoring == null ? 0 : 1
+  name               = "${var.customer_prefix}-cron-monitoring-lambda"
+  assume_role_policy = data.aws_iam_policy_document.cron_monitoring_lambda_assume_role.json
+}
+
+data "aws_region" "current" {}
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_policy_document" "cron_monitoring_lambda" {
+  statement {
+
+    sid = "SSMGetParameterPolicy"
+
+    actions = [
+      "secretsmanager:GetResourcePolicy",
+      "secretsmanager:DescribeSecret",
+      "secretsmanager:GetSecretValue"
+    ]
+
+    resources = [data.aws_secretsmanager_secret.mysql_database_password[0].arn]
+
+    effect = "Allow"
+
+  }
+
+  statement {
+    sid = "SNSPublish"
+
+    actions = [
+      "sns:Publish"
+    ]
+
+    resources = lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns)
+
+    effect = "Allow"
+  }
+
+}
+
+resource "aws_cloudwatch_log_group" "cron_monitoring_lambda" {
+  count             = var.cron_monitoring == null ? 0 : 1
+  name              = "/aws/lambda/${var.customer_prefix}-cron-monitoring"
+  retention_in_days = 7
+
+}
+
+resource "aws_cloudwatch_event_rule" "cron_monitoring_lambda" {
+  count               = var.cron_monitoring == null ? 0 : 1
+  name                = "${var.customer_prefix}-cron-monitoring"
+  schedule_expression = "rate(${var.cron_monitoring.run_interval})"
+  is_enabled          = true
+}
+
+resource "aws_cloudwatch_event_target" "cron_monitoring_lambda" {
+  count = var.cron_monitoring == null ? 0 : 1
+  rule  = aws_cloudwatch_event_rule.cron_monitoring_lambda[0].name
+  arn   = aws_lambda_function.cron_monitoring[0].arn
+}
+
+resource "aws_lambda_permission" "cron_monitoring_cloudwatch" {
+  count         = var.cron_monitoring == null ? 0 : 1
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.cron_monitoring[0].id
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.cron_monitoring_lambda[0].arn
 }
