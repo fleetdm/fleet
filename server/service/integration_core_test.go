@@ -1777,6 +1777,9 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	}
 	assert.Equal(t, len(listResp.Labels), builtinsCount)
 
+	// 'after' param is not supported for labels
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusBadRequest, &listResp, "order_key", "id", "after", "1")
+
 	// team filter, no host
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
