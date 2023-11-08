@@ -41,10 +41,11 @@ parasails.registerComponent('scrollableTweets', {
         <div class="row px-3 pt-2">
           <div>
             <p class="font-weight-bold m-0">Daniel Grzelak</p>
-            <p class="m-0">CISO of Linktree</p>
+            <p class="m-0">CISO of <a herf="https://twitter.com/Linktree_">Linktree</a></p>
           </div>
         </div>
       </div>
+
       <div purpose="tweet-card" class="card">
         <div class="mb-4">
           <a href="https://twitter.com/Uber"><img width="87" height="38" alt="Uber logo" src="/images/social-proof-logo-uber-87x38@2x.png"/></a>
@@ -57,6 +58,30 @@ parasails.registerComponent('scrollableTweets', {
           </div>
         </div>
       </div>
+
+      <div purpose="tweet-card" class="card">
+        <div class="mb-4">
+          <a href="https://twitter.com/lyft"><img width="87" height="38" alt="Lyft logo" src="/images/social-proof-logo-lyft-145x103.png"/></a>
+        </div>
+        <p class="pb-2 mb-1">Keeping up with the latest issues in endpoint security is a never-ending task, because engineers have to regularly ensure every laptop and server is still sufficiently patched and securely configured. The problem is, software vendors release new versions all the time, and no matter how much you lock it down, end users find ways to change things,</p>
+        <div class="row px-3 pt-2">
+          <div>
+            <p class="font-weight-bold m-0">Nico Waisman</p>
+            <p class="m-0">CISO of <a href="https://twitter.com/lyft">Lyft</a></p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="tweet-card" class="card">
+        <p class="pb-2 mb-1">Fleet has been highly effective for our needs. We appreciate your team for always being so open to hearing our feedback.</p>
+        <div class="row px-3 pt-2">
+          <div>
+            <p class="font-weight-bold m-0">Kenny Botelho</p>
+            <p class="m-0"><a href="https://github.com/kennyb-222">@kennyb-222</a></p>
+          </div>
+        </div>
+      </div>
+
       <div purpose="tweet-card" class="card">
         <div class="mb-4">
           <a href="https://twitter.com/Square"><img width="131" height="38" alt="Square logo" src="/images/social-proof-logo-square-131x38@2x.png"/></a>
