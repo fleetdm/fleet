@@ -950,6 +950,8 @@ type deleteMDMProfileResponse struct {
 
 func (r deleteMDMProfileResponse) error() error { return r.Err }
 
+var _ = deleteMDMProfileEndpoint // Temporary, to ensure it is used.
+
 func deleteMDMProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteMDMProfileRequest)
 
@@ -960,7 +962,7 @@ func deleteMDMProfileEndpoint(ctx context.Context, request interface{}, svc flee
 	} else {
 		err = svc.DeleteMDMWindowsProfile(ctx, req.ProfileIDOrUUID)
 	}
-	return &deleteMDMAppleConfigProfileResponse{Err: err}, nil
+	return &deleteMDMProfileResponse{Err: err}, nil
 }
 
 func (svc *Service) DeleteMDMWindowsProfile(ctx context.Context, profileUUID string) error {
