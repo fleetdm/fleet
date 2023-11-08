@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-# Goal: easy-to-follow test steps for sanity checking a release manually
+# Goal: easy-to-follow test steps for checking a release manually
 
 **Fleet version** (Head to the "My account" page in the Fleet UI or run `fleetctl version`):
 
@@ -22,7 +22,7 @@ assignees: ''
 
 
 # Smoke Tests
-Smoke tests are limited to core functionality and serve as a sanity test. If smoke tests are failing, a release cannot proceed.
+Smoke tests are limited to core functionality and serve as a pre-release final review. If smoke tests are failing, a release cannot proceed.
 
 ## Prerequisites
 
