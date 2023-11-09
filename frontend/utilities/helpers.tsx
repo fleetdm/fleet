@@ -888,7 +888,7 @@ export const internallyTruncateText = (
 ) =>
   `${original.slice(0, prefixLength)}...${original.slice(
     original.length - suffixLength
-  )} (truncated)"`;
+  )} (truncated)`;
 
 export default {
   addGravatarUrlToResource,

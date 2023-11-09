@@ -15,7 +15,7 @@ import {
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
-import { humanHostLastSeen } from "utilities/helpers";
+import { humanHostLastSeen, internallyTruncateText } from "utilities/helpers";
 
 type IHeaderProps = HeaderProps<TableInstance> & {
   column: ColumnInstance & IDataColumn;
@@ -80,7 +80,11 @@ const generateResultsTableHeaders = (results: any[]): Column[] => {
         if (cellProps.column.id === "last_fetched") {
           return humanHostLastSeen(cellProps?.cell?.value);
         }
-        return cellProps?.cell?.value || null;
+        // truncate columns longer than 300 characters
+        const val = cellProps?.cell?.value;
+        return !!val?.length && val.length > 300
+          ? internallyTruncateText(val)
+          : val ?? null;
       },
       Filter: DefaultColumnFilter, // Component hides filter for last_fetched
       filterType: "text",

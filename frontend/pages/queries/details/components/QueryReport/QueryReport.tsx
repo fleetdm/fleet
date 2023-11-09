@@ -42,22 +42,6 @@ const flattenResults = (results: IQueryReportResultRow[]) => {
   });
 };
 
-const processFilteredFlattenedResultsForRender = (
-  filteredFlattenedResults: Record<string, any>[] // {col: val}[]
-) =>
-  filteredFlattenedResults.map((row) => {
-    // truncate long cell values
-    return Object.keys(row).reduce((acc, col) => {
-      const val = row[col];
-      if (val.length !== undefined && val.length > 300) {
-        acc[col] = internallyTruncateText(val);
-      } else {
-        acc[col] = val;
-      }
-      return acc;
-    }, {} as Record<string, any>);
-  });
-
 const QueryReport = ({
   queryReport,
   isClipped,
@@ -160,9 +144,7 @@ const QueryReport = ({
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
           columns={tableHeaders}
-          data={processFilteredFlattenedResultsForRender(
-            flattenResults(queryReport?.results || [])
-          )}
+          data={flattenResults(queryReport?.results || [])}
           // All empty states are handled in QueryDetailsPage.tsx and returned in lieu of QueryReport.tsx
           emptyComponent={() => {
             return (
