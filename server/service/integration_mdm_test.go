@@ -7992,6 +7992,84 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.Equal(t, "", hostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
 }
 
+func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
+	t := s.T()
+	ctx := context.Background()
+
+	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
+	require.NoError(t, err)
+
+	createAppleProfile := func(name, ident string, teamID uint) int64 {
+		var id int64
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mc := mcBytesForTest(name, ident, uuid.New().String())
+			res, err := q.ExecContext(ctx,
+				"INSERT INTO mdm_apple_configuration_profiles (identifier, name, mobileconfig, checksum, team_id) VALUES (?, ?, ?, ?, ?)",
+				ident, name, mc, "1234", teamID)
+			if err != nil {
+				return err
+			}
+			id, _ = res.LastInsertId()
+			return nil
+		})
+		return id
+	}
+	createWindowsProfile := func(name string, teamID uint) string {
+		id := uuid.New().String()
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				"INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml) VALUES (?, ?, ?, ?)",
+				id, teamID, name, `<Replace></Replace>`)
+			return err
+		})
+		return id
+	}
+
+	// create a couple Apple profiles for no-team and team
+	noTeamAppleProfID := createAppleProfile("apple-global-profile", "test-global-ident", 0)
+	teamAppleProfID := createAppleProfile("apple-team-profile", "test-team-ident", testTeam.ID)
+	// create a couple Windows profiles for no-team and team
+	noTeamWinProfID := createWindowsProfile("win-global-profile", 0)
+	teamWinProfID := createWindowsProfile("win-team-profile", testTeam.ID)
+
+	var deleteResp deleteMDMConfigProfileResponse
+	// delete existing Apple profiles
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", noTeamAppleProfID), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", teamAppleProfID), nil, http.StatusOK, &deleteResp)
+	// delete non-existing Apple profile
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", noTeamAppleProfID+1000), nil, http.StatusNotFound, &deleteResp)
+	// delete existing Windows profiles
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", noTeamWinProfID), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", teamWinProfID), nil, http.StatusOK, &deleteResp)
+	// delete non-existing Windows profile
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", "no-such-profile"), nil, http.StatusNotFound, &deleteResp)
+
+	// trying to delete profiles managed by Fleet fails
+	for p := range mobileconfig.FleetPayloadIdentifiers() {
+		profileID := createAppleProfile(p, p, 0)
+		var deleteResp deleteMDMConfigProfileResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", profileID), nil, http.StatusBadRequest, &deleteResp)
+
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				"DELETE FROM mdm_apple_configuration_profiles WHERE profile_id = ?",
+				profileID)
+			return err
+		})
+	}
+
+	// make fleet add a FileVault profile
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	profile := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// try to delete the profile
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", profile.ProfileID), nil, http.StatusBadRequest, &deleteResp)
+}
+
 // ///////////////////////////////////////////////////////////////////////////
 // Common MDM config test
 
