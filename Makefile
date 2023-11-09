@@ -243,12 +243,12 @@ fleetd-tables-linux:
 fleetd-tables-darwin:
 	GOOS=darwin GOARCH=amd64 go build -o fleetd_tables_darwin.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin_arm:
-	GOOS=darwin GOARCH=arm64 go build -o fleetd_tables_darwin_arm.ext ./orbit/cmd/fleetd_tables
-fleetd-tables-darwin-universal:
-	$(MAKE) fleetd-tables-darwin fleetd-tables-darwin_arm
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -o fleetd_tables_darwin_arm.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-darwin-universal: fleetd-tables-darwin fleetd-tables-darwin_arm
 	lipo -create fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext -output fleetd_tables_darwin_universal.ext
-fleetd-tables-all:
-	$(MAKE) fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal
+fleetd-tables-all: fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal
+fleetd-tables-clean:
+	rm -f fleetd_tables_windows.exe fleetd_tables_linux.ext fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext fleetd_tables_darwin_universal.ext
 
 .pre-binary-arch:
 ifndef GOOS
@@ -370,17 +370,28 @@ endif
 # Generate swiftDialog.app.tar.gz bundle from the swiftDialog repo.
 #
 # Usage:
-# make swift-dialog-app-tar-gz version=2.1.0 build=4148 out-path=.
+# make swift-dialog-app-tar-gz version=2.2.1 build=4591 out-path=.
 swift-dialog-app-tar-gz:
 ifneq ($(shell uname), Darwin)
 	@echo "Makefile target swift-dialog-app-tar-gz is only supported on macOS"
 	@exit 1
 endif
+	# locking the version of swiftDialog to 2.2.1-4591 as newer versions
+	# migth have layout issues.
+ifneq ($(version), 2.2.1)
+	@echo "Version is locked at 2.1.0, see comments in Makefile target for details"
+	@exit 1
+endif
+
+ifneq ($(build), 4591)
+	@echo "Build version is locked at 4591, see comments in Makefile target for details"
+	@exit 1
+endif
 	$(eval TMP_DIR := $(shell mktemp -d))
-	curl -L https://github.com/bartreardon/swiftDialog/releases/download/v$(version)/dialog-$(version)-$(build).pkg --output $(TMP_DIR)/swiftDialog-$(version).pkg
+	curl -L https://github.com/swiftDialog/swiftDialog/releases/download/v$(version)/dialog-$(version)-$(build).pkg --output $(TMP_DIR)/swiftDialog-$(version).pkg
 	pkgutil --expand $(TMP_DIR)/swiftDialog-$(version).pkg $(TMP_DIR)/swiftDialog_pkg_expanded
 	mkdir -p $(TMP_DIR)/swiftDialog_pkg_payload_expanded
-	tar xvf $(TMP_DIR)/swiftDialog_pkg_expanded/Payload --directory $(TMP_DIR)/swiftDialog_pkg_payload_expanded
+	tar xvf $(TMP_DIR)/swiftDialog_pkg_expanded/tmp-package.pkg/Payload --directory $(TMP_DIR)/swiftDialog_pkg_payload_expanded
 	$(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/Contents/MacOS/Dialog --version
 	tar czf $(out-path)/swiftDialog.app.tar.gz -C $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/ Dialog.app
 	rm -rf $(TMP_DIR)
@@ -424,13 +435,7 @@ desktop-linux:
 	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
 		mkdir /output/fleet-desktop && \
 		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
-		cp /usr/lib/x86_64-linux-gnu/libayatana-appindicator3.so.1 \
-		/usr/lib/x86_64-linux-gnu/libayatana-ido3-0.4.so.0 \
-		/usr/lib/x86_64-linux-gnu/libayatana-indicator3.so.7 \
-		/lib/x86_64-linux-gnu/libm.so.6 \
-		/usr/lib/x86_64-linux-gnu/libdbusmenu-gtk3.so.4 \
-		/usr/lib/x86_64-linux-gnu/libdbusmenu-glib.so.4 \
-		/output/fleet-desktop && cd /output && \
+		cd /output && \
 		tar czf desktop.tar.gz fleet-desktop && \
 		rm -r fleet-desktop"
 

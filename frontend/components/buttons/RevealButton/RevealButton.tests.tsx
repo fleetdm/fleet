@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
 import RevealButton from "./RevealButton";
@@ -40,7 +40,7 @@ describe("Reveal button", () => {
       />
     );
 
-    const icon = screen.queryByTestId("chevron-icon");
+    const icon = screen.queryByTestId("chevron-down-icon");
 
     expect(icon).toBeNull();
   });
@@ -55,7 +55,7 @@ describe("Reveal button", () => {
       />
     );
 
-    const icon = screen.queryByTestId("chevron-icon");
+    const icon = screen.queryByTestId("chevron-right-icon");
     expect(icon?.nextSibling).toHaveTextContent(SHOW_TEXT);
   });
 
@@ -69,7 +69,7 @@ describe("Reveal button", () => {
       />
     );
 
-    const icon = screen.queryByTestId("chevron-icon");
+    const icon = screen.queryByTestId("chevron-down-icon");
 
     expect(icon?.previousSibling).toHaveTextContent(SHOW_TEXT);
   });
@@ -85,7 +85,7 @@ describe("Reveal button", () => {
       />
     );
 
-    await user.hover(screen.getByText(SHOW_TEXT));
+    await fireEvent.mouseEnter(screen.getByText(SHOW_TEXT));
 
     expect(screen.getByText(TOOLTIP_HTML)).toBeInTheDocument();
   });

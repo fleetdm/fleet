@@ -44,7 +44,6 @@ module.exports = {
     //  ╩ ╩╩ ╩╝╚╝═╩╝   ╚═╝╚═╝═╩╝╚═╝═╩╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
     let HAND_CODED_HTML_PAGES = [
       '/',
-      '/fleetctl-preview',
       '/company/contact',
       '/queries',
       '/pricing',
@@ -52,7 +51,6 @@ module.exports = {
       '/docs',
       '/logos',
       '/reports/state-of-device-management',
-      '/overview',
       '/releases',
       '/success-stories',
       '/securing',
@@ -63,6 +61,7 @@ module.exports = {
       '/deploy',
       '/podcasts',
       '/device-management',
+      '/support',
       // FUTURE: Do something smarter to get hand-coded HTML pages from routes.js, like how rebuild-cloud-sdk works, to avoid this manual duplication.
       // See also https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js#L27
     ];

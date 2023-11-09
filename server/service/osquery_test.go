@@ -65,7 +65,7 @@ func TestGetClientConfig(t *testing.T) {
 			return []*fleet.ScheduledQuery{}, nil
 		}
 	}
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		if teamID == nil {
 			return nil, nil
 		}
@@ -535,32 +535,288 @@ func TestSubmitResultLogs(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		switch {
+		case teamID == nil && (name == "time" || name == "system_info" || name == "encrypted" || name == "hosts"):
+			return &fleet.Query{
+				Name:               name,
+				AutomationsEnabled: true,
+			}, nil
+		case teamID != nil && *teamID == 1 && name == "hosts":
+			return &fleet.Query{
+				Name:               name,
+				AutomationsEnabled: true,
+				TeamID:             teamID,
+			}, nil
+		case teamID == nil && name == "query_not_automated":
+			return &fleet.Query{
+				Name:               name,
+				AutomationsEnabled: false,
+			}, nil
+		case teamID == nil && name == "query_should_be_saved_and_submitted":
+			return &fleet.Query{
+				ID:                 123,
+				Name:               name,
+				AutomationsEnabled: true,
+				Logging:            fleet.LoggingSnapshot,
+			}, nil
+		case teamID == nil && name == "query_should_be_saved_but_not_submitted":
+			return &fleet.Query{
+				ID:                 444,
+				Name:               name,
+				AutomationsEnabled: false,
+				Logging:            fleet.LoggingSnapshot,
+			}, nil
+		case teamID == nil && name == "query_no_rows":
+			return &fleet.Query{
+				ID:                 555,
+				Name:               name,
+				AutomationsEnabled: true,
+				Logging:            fleet.LoggingSnapshot,
+			}, nil
+		default:
+			return nil, newNotFoundError()
+		}
+	}
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+		if len(rows) == 0 {
+			return nil
+		}
+		switch {
+		case rows[0].QueryID == 123:
+			require.Len(t, rows, 1)
+			require.Equal(t, uint(999), rows[0].HostID)
+			require.NotZero(t, rows[0].LastFetched)
+			require.JSONEq(t, `{"hour":"20","minutes":"8"}`, string(rows[0].Data))
+		case rows[0].QueryID == 444:
+			require.Len(t, rows, 2)
+			require.Equal(t, uint(999), rows[0].HostID)
+			require.NotZero(t, rows[0].LastFetched)
+			require.JSONEq(t, `{"hour":"20","minutes":"8"}`, string(rows[0].Data))
+			require.Equal(t, uint(999), rows[1].HostID)
+			require.Equal(t, uint(444), rows[1].QueryID)
+			require.NotZero(t, rows[1].LastFetched)
+			require.JSONEq(t, `{"hour":"21","minutes":"9"}`, string(rows[1].Data))
+		}
+		return nil
+	}
+
 	// Hack to get at the service internals and modify the writer
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
 
 	testLogger := &testJSONLogger{}
 	serv.osqueryLogWriter = &OsqueryLogger{Result: testLogger}
 
-	logs := []string{
-		`{"name":"system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":"1475258115","decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
-		`{"name":"encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:15 2016 UTC","unixTime":"1475270355","decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
-		`{"diffResults":{"removed":[{"address":"127.0.0.1","hostnames":"kl.groob.io"}],"added":""},"name":"pack\/test\/hosts","hostIdentifier":"FA01680E-98CA-5557-8F59-7716ECFEE964","calendarTime":"Sun Nov 19 00:02:08 2017 UTC","unixTime":"1511049728","epoch":"0","counter":"10","decorations":{"host_uuid":"FA01680E-98CA-5557-8F59-7716ECFEE964","hostname":"kl.groob.io"}}`,
-		// fleet will accept anything in the "data" field of a log request.
-		`{"unknown":{"foo": [] }}`,
+	validLogResults := []string{
+		`{"name":"pack/Global/system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":"1475258115","decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
+
+		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:15 2016 UTC","unixTime":"1475270355","decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
+		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:14 2016 UTC","unixTime":"1475270354","decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
+
+		// These results belong to the same query but have 1 second difference.
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:50 2017 UTC","unixTime":1484078930,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:52 2017 UTC","unixTime":1484078932,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+
+		`{"diffResults":{"removed":[{"address":"127.0.0.1","hostnames":"kl.groob.io"}],"added":""},"name":"pack\/team-1/hosts","hostIdentifier":"FA01680E-98CA-5557-8F59-7716ECFEE964","calendarTime":"Sun Nov 19 00:02:08 2017 UTC","unixTime":"1511049728","epoch":"0","counter":"10","decorations":{"host_uuid":"FA01680E-98CA-5557-8F59-7716ECFEE964","hostname":"kl.groob.io"}}`,
+
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/query_should_be_saved_and_submitted","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+
+		//`{"snapshot":[],"action":"snapshot","name":"pack/Global/query_no_rows","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 	}
-	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
+	logJSON := fmt.Sprintf("[%s]", strings.Join(validLogResults, ","))
+
+	resultWithInvalidJSON := []byte("foobar:\n\t123")
+	// The "name" field will be empty, so this result will be ignored.
+	resultWithoutName := []byte(`{"unknown":{"foo": [] }}`)
+	// The "name" field has invalid format, so this result will be ignored.
+	resultWithInvalidNameFmt1 := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-foo/bar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
+	resultWithInvalidNameFmt2 := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
+	resultWithInvalidNameFmt3 := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/PackName","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
+	// The query doesn't exist, so this result will be ignored.
+	resultWithQueryDoesNotExist := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/doesntexist","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
+	// The query was configured with automations disabled, so this result will be ignored.
+	resultWithQueryNotAutomated := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/query_not_automated","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
+	// The query is supposed to be saved but with automations disabled (and has two columns).
+	resultWithQuerySavedNotAutomated := []byte(`{"snapshot":[{"hour":"20","minutes":"8"},{"hour":"21","minutes":"9"}],"action":"snapshot","name":"pack/Global/query_should_be_saved_but_not_submitted","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
 
 	var results []json.RawMessage
 	err := json.Unmarshal([]byte(logJSON), &results)
 	require.NoError(t, err)
 
-	host := fleet.Host{}
+	host := fleet.Host{
+		ID: 999,
+	}
 	ctx = hostctx.NewContext(ctx, &host)
-	err = serv.SubmitResultLogs(ctx, results)
+	// Submit valid and invalid log results mixed.
+	err = serv.SubmitResultLogs(ctx, append(append(results[:3],
+		resultWithInvalidJSON,
+		resultWithoutName,
+		resultWithInvalidNameFmt1,
+		resultWithInvalidNameFmt2,
+		resultWithInvalidNameFmt3,
+		resultWithQueryDoesNotExist,
+		resultWithQueryNotAutomated,
+		resultWithQuerySavedNotAutomated,
+	), results[3:]...))
 	require.NoError(t, err)
 
 	assert.Equal(t, results, testLogger.logs)
+}
+
+func TestSaveResultLogsToQueryReports(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Hack to get at the private methods
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
+
+	host := fleet.Host{}
+	ctx = hostctx.NewContext(ctx, &host)
+
+	results := []*fleet.ScheduledQueryResult{
+		{
+			QueryName:     "pack/Global/Uptime",
+			OsqueryHostID: "1379f59d98f4",
+			Snapshot: []json.RawMessage{
+				json.RawMessage(`{"hour":"20","minutes":"8"}`),
+			},
+			UnixTime: 1484078931,
+		},
+	}
+
+	queriesDBData := map[string]*fleet.Query{
+		"pack/Global/Uptime": {
+			ID:          1,
+			DiscardData: false,
+			Logging:     fleet.LoggingSnapshot,
+		},
+	}
+
+	// Result not saved if result is not a snapshot
+	notSnapshotResult := []*fleet.ScheduledQueryResult{
+		{
+			QueryName:     "pack/Global/Uptime",
+			OsqueryHostID: "1379f59d98f4",
+			Snapshot:      []json.RawMessage{},
+			UnixTime:      1484078931,
+		},
+	}
+	serv.saveResultLogsToQueryReports(ctx, notSnapshotResult, queriesDBData)
+	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
+
+	// Results not saved if DiscardData is true in Query
+	discardDataFalse := map[string]*fleet.Query{
+		"pack/Global/Uptime": {
+			ID:          1,
+			DiscardData: true,
+			Logging:     fleet.LoggingSnapshot,
+		},
+	}
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse)
+	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
+
+	// Happy Path: Results saved
+	discardDataTrue := map[string]*fleet.Query{
+		"pack/Global/Uptime": {
+			ID:          1,
+			DiscardData: false,
+			Logging:     fleet.LoggingSnapshot,
+		},
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+		return nil
+	}
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
+	}
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue)
+	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
+	tests := []struct {
+		input        string
+		expectedID   *uint
+		expectedName string
+		hasErr       bool
+	}{
+		{"pack/Global/Query Name", nil, "Query Name", false},
+		{"pack/team-1/Query Name", ptr.Uint(1), "Query Name", false},
+		{"pack/team-12345/Another Query", ptr.Uint(12345), "Another Query", false},
+		{"pack/PackName/Query", nil, "Query", false}, // Legacy Pack support
+		{"pack/team-foo/Query", nil, "", true},
+		{"pack/Global/QueryWith/Slash", nil, "QueryWith/Slash", false},
+		{"pack/team-1/QueryWith/Slash", ptr.Uint(1), "QueryWith/Slash", false},
+		{"pack/PackName/QueryWith/Slash", nil, "QueryWith/Slash", false}, // Legacy Pack support
+		{"InvalidString", nil, "", true},
+		{"Invalid/Query", nil, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			id, str, err := getQueryNameAndTeamIDFromResult(tt.input)
+			assert.Equal(t, tt.expectedID, id)
+			assert.Equal(t, tt.expectedName, str)
+			if tt.hasErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGetMostRecentResults(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []*fleet.ScheduledQueryResult
+		expected []*fleet.ScheduledQueryResult
+	}{
+		{
+			name: "basic test",
+			input: []*fleet.ScheduledQueryResult{
+				{QueryName: "test1", UnixTime: 1},
+				{QueryName: "test1", UnixTime: 2},
+				{QueryName: "test1", UnixTime: 3},
+				{QueryName: "test2", UnixTime: 1},
+				{QueryName: "test2", UnixTime: 2},
+				{QueryName: "test2", UnixTime: 3},
+			},
+			expected: []*fleet.ScheduledQueryResult{
+				{QueryName: "test1", UnixTime: 3},
+				{QueryName: "test2", UnixTime: 3},
+			},
+		},
+		{
+			name: "out of order test",
+			input: []*fleet.ScheduledQueryResult{
+				{QueryName: "test1", UnixTime: 2},
+				{QueryName: "test1", UnixTime: 3},
+				{QueryName: "test1", UnixTime: 1},
+				{QueryName: "test2", UnixTime: 3},
+				{QueryName: "test2", UnixTime: 2},
+				{QueryName: "test2", UnixTime: 1},
+			},
+			expected: []*fleet.ScheduledQueryResult{
+				{QueryName: "test1", UnixTime: 3},
+				{QueryName: "test2", UnixTime: 3},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			results := getMostRecentResults(tt.input)
+			assert.ElementsMatch(t, tt.expected, results)
+		})
+	}
 }
 
 func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
@@ -1762,7 +2018,7 @@ func TestIngestDistributedQueryParseIdError(t *testing.T) {
 	}
 
 	host := fleet.Host{ID: 1}
-	err := svc.ingestDistributedQuery(context.Background(), host, "bad_name", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "bad_name", []map[string]string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unable to parse campaign")
 }
@@ -1788,7 +2044,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "loading orphaned campaign")
 }
@@ -1821,7 +2077,7 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaignID=42 waiting for listener")
 }
@@ -1857,7 +2113,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "closing orphaned campaign")
 }
@@ -1894,7 +2150,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stopping orphaned campaign")
 }
@@ -1931,7 +2187,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaignID=42 stopped")
 	lq.AssertExpectations(t)
@@ -1962,7 +2218,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "record query completion")
 	lq.AssertExpectations(t)
@@ -1993,7 +2249,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, false, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
 	require.NoError(t, err)
 	lq.AssertExpectations(t)
 }
@@ -2003,7 +2259,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.Query, error) {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		return nil, nil
 	}
 

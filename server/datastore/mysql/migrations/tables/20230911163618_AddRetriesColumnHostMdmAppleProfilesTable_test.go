@@ -28,8 +28,8 @@ VALUES
 		1,
 		"test-identifier",
 		"test-host-uuid",
-		fleet.MDMAppleDeliveryVerified,
-		fleet.MDMAppleOperationTypeInstall,
+		fleet.MDMDeliveryVerified,
+		fleet.MDMOperationTypeInstall,
 		"test-detail",
 		"test-command-uuid",
 		"test-profile-name",
@@ -41,16 +41,16 @@ VALUES
 
 	// retrieve the stored value
 	var hmap struct {
-		ProfileID         uint                          `db:"profile_id"`
-		ProfileIdentifier string                        `db:"profile_identifier"`
-		HostUUID          string                        `db:"host_uuid"`
-		Status            *fleet.MDMAppleDeliveryStatus `db:"status"`
-		OperationType     fleet.MDMAppleOperationType   `db:"operation_type"`
-		Detail            string                        `db:"detail"`
-		CommandUUID       string                        `db:"command_uuid"`
-		ProfileName       string                        `db:"profile_name"`
-		Checksum          []byte                        `db:"checksum"`
-		Retries           uint                          `db:"retries"`
+		ProfileID         uint                     `db:"profile_id"`
+		ProfileIdentifier string                   `db:"profile_identifier"`
+		HostUUID          string                   `db:"host_uuid"`
+		Status            *fleet.MDMDeliveryStatus `db:"status"`
+		OperationType     fleet.MDMOperationType   `db:"operation_type"`
+		Detail            string                   `db:"detail"`
+		CommandUUID       string                   `db:"command_uuid"`
+		ProfileName       string                   `db:"profile_name"`
+		Checksum          []byte                   `db:"checksum"`
+		Retries           uint                     `db:"retries"`
 	}
 
 	selectStmt := "SELECT * FROM host_mdm_apple_profiles WHERE host_uuid = ?"
@@ -58,8 +58,8 @@ VALUES
 	require.Equal(t, uint(1), hmap.ProfileID)
 	require.Equal(t, "test-identifier", hmap.ProfileIdentifier)
 	require.Equal(t, "test-host-uuid", hmap.HostUUID)
-	require.Equal(t, fleet.MDMAppleDeliveryVerified, *hmap.Status)
-	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hmap.OperationType)
+	require.Equal(t, fleet.MDMDeliveryVerified, *hmap.Status)
+	require.Equal(t, fleet.MDMOperationTypeInstall, hmap.OperationType)
 	require.Equal(t, "test-detail", hmap.Detail)
 	require.Equal(t, "test-command-uuid", hmap.CommandUUID)
 	require.Equal(t, "test-profile-name", hmap.ProfileName)
@@ -85,8 +85,8 @@ VALUES
 		1,
 		"test-identifier",
 		"test-host-uuid-2",
-		fleet.MDMAppleDeliveryVerified,
-		fleet.MDMAppleOperationTypeInstall,
+		fleet.MDMDeliveryVerified,
+		fleet.MDMOperationTypeInstall,
 		"test-detail",
 		"test-command-uuid-2",
 		"test-profile-name",
@@ -99,8 +99,8 @@ VALUES
 	require.Equal(t, uint(1), hmap.ProfileID)
 	require.Equal(t, "test-identifier", hmap.ProfileIdentifier)
 	require.Equal(t, "test-host-uuid-2", hmap.HostUUID)
-	require.Equal(t, fleet.MDMAppleDeliveryVerified, *hmap.Status)
-	require.Equal(t, fleet.MDMAppleOperationTypeInstall, hmap.OperationType)
+	require.Equal(t, fleet.MDMDeliveryVerified, *hmap.Status)
+	require.Equal(t, fleet.MDMOperationTypeInstall, hmap.OperationType)
 	require.Equal(t, "test-detail", hmap.Detail)
 	require.Equal(t, "test-command-uuid-2", hmap.CommandUUID)
 	require.Equal(t, "test-profile-name", hmap.ProfileName)

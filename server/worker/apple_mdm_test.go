@@ -304,12 +304,15 @@ func TestAppleMDM(t *testing.T) {
 		defer mysql.TruncateTables(t, ds)
 
 		err := ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
-			UUID:     "abcd",
 			Username: "test",
 			Fullname: "test",
 			Email:    "test@example.com",
 		})
 		require.NoError(t, err)
+
+		idpAcc, err := ds.GetMDMIdPAccountByEmail(ctx, "test@example.com")
+		require.NoError(t, err)
+
 		h := createEnrolledHost(t, 1, nil, true)
 
 		mdmWorker := &AppleMDM{
@@ -320,7 +323,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, nil, "abcd")
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, nil, idpAcc.UUID)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -342,11 +345,13 @@ func TestAppleMDM(t *testing.T) {
 		defer mysql.TruncateTables(t, ds)
 
 		err := ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
-			UUID:     "abcd",
 			Username: "test",
 			Fullname: "test",
 			Email:    "test@example.com",
 		})
+		require.NoError(t, err)
+
+		idpAcc, err := ds.GetMDMIdPAccountByEmail(ctx, "test@example.com")
 		require.NoError(t, err)
 
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
@@ -367,7 +372,7 @@ func TestAppleMDM(t *testing.T) {
 		w := NewWorker(ds, nopLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, &tm.ID, "abcd")
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, &tm.ID, idpAcc.UUID)
 		require.NoError(t, err)
 
 		// run the worker, should succeed

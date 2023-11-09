@@ -13,18 +13,22 @@ import (
 )
 
 const (
-	appConfigKey                      = "AppConfig:%s"
-	defaultAppConfigExpiration        = 1 * time.Second
-	packsHostKey                      = "Packs:host:%d"
-	defaultPacksExpiration            = 1 * time.Minute
-	scheduledQueriesKey               = "ScheduledQueries:pack:%d"
-	defaultScheduledQueriesExpiration = 1 * time.Minute
-	teamAgentOptionsKey               = "TeamAgentOptions:team:%d"
-	defaultTeamAgentOptionsExpiration = 1 * time.Minute
-	teamFeaturesKey                   = "TeamFeatures:team:%d"
-	defaultTeamFeaturesExpiration     = 1 * time.Minute
-	teamMDMConfigKey                  = "TeamMDMConfig:team:%d"
-	defaultTeamMDMConfigExpiration    = 1 * time.Minute
+	appConfigKey                       = "AppConfig:%s"
+	defaultAppConfigExpiration         = 1 * time.Second
+	packsHostKey                       = "Packs:host:%d"
+	defaultPacksExpiration             = 1 * time.Minute
+	scheduledQueriesKey                = "ScheduledQueries:pack:%d"
+	defaultScheduledQueriesExpiration  = 1 * time.Minute
+	teamAgentOptionsKey                = "TeamAgentOptions:team:%d"
+	defaultTeamAgentOptionsExpiration  = 1 * time.Minute
+	teamFeaturesKey                    = "TeamFeatures:team:%d"
+	defaultTeamFeaturesExpiration      = 1 * time.Minute
+	teamMDMConfigKey                   = "TeamMDMConfig:team:%d"
+	defaultTeamMDMConfigExpiration     = 1 * time.Minute
+	queryByNameKey                     = "QueryByName:team:%d:%s"
+	defaultQueryByNameExpiration       = 1 * time.Second
+	queryResultsCountKey               = "QueryResultsCount:%d"
+	defaultQueryResultsCountExpiration = 1 * time.Second
 )
 
 // cloner represents any type that can clone itself. Used by types to provide a more efficient clone method.
@@ -36,6 +40,11 @@ func clone(v interface{}) (interface{}, error) {
 	if cloner, ok := v.(cloner); ok {
 		return cloner.Clone()
 	}
+
+	// TODO(mna): consider making implementation of the cloner interface
+	// mandatory, and panic/fail loudly if not implemented. Reflection-based deep
+	// cloning has significant performance issues at scale (better yet - make the
+	// cache accept/return cloner types instead of interface{}).
 
 	if v == nil {
 		return nil, nil
@@ -104,11 +113,13 @@ type cachedMysql struct {
 
 	c *cloneCache
 
-	packsExp            time.Duration
-	scheduledQueriesExp time.Duration
-	teamAgentOptionsExp time.Duration
-	teamFeaturesExp     time.Duration
-	teamMDMConfigExp    time.Duration
+	packsExp             time.Duration
+	scheduledQueriesExp  time.Duration
+	teamAgentOptionsExp  time.Duration
+	teamFeaturesExp      time.Duration
+	teamMDMConfigExp     time.Duration
+	queryByNameExp       time.Duration
+	queryResultsCountExp time.Duration
 }
 
 type Option func(*cachedMysql)
@@ -145,12 +156,15 @@ func WithTeamMDMConfigExpiration(d time.Duration) Option {
 
 func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 	c := &cachedMysql{
-		Datastore:           ds,
-		c:                   &cloneCache{cache.New(5*time.Minute, 10*time.Minute)},
-		packsExp:            defaultPacksExpiration,
-		scheduledQueriesExp: defaultScheduledQueriesExpiration,
-		teamAgentOptionsExp: defaultTeamAgentOptionsExpiration,
-		teamFeaturesExp:     defaultTeamFeaturesExpiration,
+		Datastore:            ds,
+		c:                    &cloneCache{cache.New(5*time.Minute, 10*time.Minute)},
+		packsExp:             defaultPacksExpiration,
+		scheduledQueriesExp:  defaultScheduledQueriesExpiration,
+		teamAgentOptionsExp:  defaultTeamAgentOptionsExpiration,
+		teamFeaturesExp:      defaultTeamFeaturesExpiration,
+		teamMDMConfigExp:     defaultTeamMDMConfigExpiration,
+		queryByNameExp:       defaultQueryByNameExpiration,
+		queryResultsCountExp: defaultQueryResultsCountExpiration,
 	}
 	for _, fn := range opts {
 		fn(c)
@@ -284,6 +298,9 @@ func (ds *cachedMysql) TeamMDMConfig(ctx context.Context, teamID uint) (*fleet.T
 	if err != nil {
 		return nil, err
 	}
+
+	ds.c.Set(key, cfg, ds.teamMDMConfigExp)
+
 	return cfg, nil
 }
 
@@ -319,4 +336,46 @@ func (ds *cachedMysql) DeleteTeam(ctx context.Context, teamID uint) error {
 	ds.c.Delete(mdmConfigKey)
 
 	return nil
+}
+
+func (ds *cachedMysql) QueryByName(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+	teamID_ := uint(0) // global team is 0
+	if teamID != nil {
+		teamID_ = *teamID
+	}
+	key := fmt.Sprintf(queryByNameKey, teamID_, name)
+
+	if x, found := ds.c.Get(key); found {
+		if query, ok := x.(*fleet.Query); ok {
+			return query, nil
+		}
+	}
+
+	query, err := ds.Datastore.QueryByName(ctx, teamID, name)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(key, query, ds.queryByNameExp)
+
+	return query, nil
+}
+
+func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
+	key := fmt.Sprintf(queryResultsCountKey, queryID)
+
+	if x, found := ds.c.Get(key); found {
+		if count, ok := x.(int); ok {
+			return count, nil
+		}
+	}
+
+	count, err := ds.Datastore.ResultCountForQuery(ctx, queryID)
+	if err != nil {
+		return 0, err
+	}
+
+	ds.c.Set(key, count, ds.queryResultsCountExp)
+
+	return count, nil
 }

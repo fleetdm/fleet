@@ -73,7 +73,7 @@ Fleet UI:
 
 Example output:
 
-```
+```sh
 $ fleetctl get mdm-command-results -id 333af7f8-b9a4-4f62-bfb2-f7488fbade21
 +--------------------------------------+----------------------+----------------+--------------+---------------------+---------------------------------------------------------+
 |                  ID                  |         TIME         |      TYPE      |    STATUS    |      HOSTNAME       |                         RESULTS                         |
@@ -99,7 +99,7 @@ You can view the list of the 1,000 latest commands using "fleetctl":
 
 Example output:
 
-```
+```sh
 $ fleetctl get mdm-commands
 +--------------------------------------+----------------------+--------------------------+--------------+------------------------+
 |                  ID                  |         TIME         |           TYPE           |    STATUS    |        HOSTNAME        |
@@ -117,7 +117,7 @@ The command ID can be used to view command results as documented in [step 4 of t
 * Error: the host responded with "Error" status via the MDM protocol: an error occurred. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
 * CommandFormatError: the host responded with "CommandFormatError" status via the MDM protocol: a protocol error occurred, which can result from a malformed command. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
 
-<meta name="pageOrderInSection" value="1506">
-<meta name="title" value="MDM commands">
+<meta name="pageOrderInSection" value="1507">
+<meta name="title" value="Commands">
 <meta name="description" value="Learn how to run custom MDM commands on macOS hosts using Fleet.">
 <meta name="navSection" value="Device management">

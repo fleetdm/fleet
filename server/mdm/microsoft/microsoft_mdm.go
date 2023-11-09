@@ -1,7 +1,11 @@
 package microsoft_mdm
 
 import (
+	"crypto/x509"
+	"encoding/base64"
+
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
+	"go.mozilla.org/pkcs7"
 )
 
 const (
@@ -154,8 +158,14 @@ const (
 	// Certificate Renewal Period in seconds (180 days)
 	PolicyCertRenewalPeriodInSecs = "15552000"
 
-	// Supported Enroll Type
-	ReqSecTokenEnrollType = "Full"
+	// Supported Enroll types gathered from MS-MDE2 Spec Section 2.2.9.3
+	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/f7553554-b6e1-4a0d-abd6-6a2534503af7
+
+	// Supported Enroll Type Device
+	ReqSecTokenEnrollTypeDevice = "Device"
+
+	// Supported Enroll Type Full
+	ReqSecTokenEnrollTypeFull = "Full"
 
 	// Provisioning Doc Certificate Renewal Period (365 days)
 	WstepCertRenewalPeriodInDays = "365"
@@ -168,7 +178,7 @@ const (
 	WstepRenewRetryInterval = "4"
 
 	// The PROVIDER-ID paramer specifies the server identifier for a management server used in the current management session
-	DocProvisioningAppProviderID = "FleetDM"
+	DocProvisioningAppProviderID = "Fleet"
 
 	// The NAME parameter is used in the APPLICATION characteristic to specify a user readable application identity
 	DocProvisioningAppName = DocProvisioningAppProviderID
@@ -245,9 +255,144 @@ const (
 	// client-request-id query param expected by TOS endpoint
 	TOCReqID = "client-request-id"
 
-	// Alert Command IDs
-	DeviceUnenrollmentID = "1226"
-	HostInitMessageID    = "1201"
+	// Alert payload user-driven unenrollment request
+	AlertUserUnenrollmentRequest = "com.microsoft:mdm.unenrollment.userrequest"
+
+	// FleetdWindowsInstallerGUID is the GUID used for fleetd on Windows
+	FleetdWindowsInstallerGUID = "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall"
+)
+
+// MS-MDM Message constants
+const (
+	// SyncML Message Content Type
+	SyncMLMsgContentType = "application/vnd.syncml.dm+xml"
+
+	// SyncML Message Meta Namespace
+	SyncMLMetaNamespace = "syncml:metinf"
+
+	// SyncML Cmd Namespace
+	SyncCmdNamespace = "SYNCML:SYNCML1.2"
+
+	// SyncML Message Header Name
+	SyncMLHdrName = "SyncHdr"
+
+	// Supported SyncML version
+	SyncMLSupportedVersion = "1.2"
+
+	// SyncML ver protocol version
+	SyncMLVerProto = "DM/" + SyncMLSupportedVersion
+)
+
+// MS-MDM Status Code constants
+// Details here: https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support
+
+const (
+	// The SyncML command completed successfully
+	CmdStatusOK = "200"
+
+	// 	Accepted for processing
+	// This code denotes an asynchronous operation, such as a request to run a remote execution of an application
+	CmdStatusAcceptedForProcessing = "202"
+
+	// Authentication accepted
+	// Normally you'll only see this code in response to the SyncHdr element (used for authentication in the OMA-DM standard)
+	// You may see this code if you look at OMA DM logs, but CSPs don't typically generate this code.
+	CmdStatusAuthenticationAccepted = "212"
+
+	// Operation canceled
+	// The SyncML command completed successfully, but no more commands will be processed within the session.
+	CmdStatusOperationCancelled = "214"
+
+	// Not executed
+	// A command wasn't executed as a result of user interaction to cancel the command.
+	CmdStatusNotExecuted = "215"
+
+	// Atomic roll back OK
+	// A command was inside an Atomic element and Atomic failed, thhis command was rolled back successfully
+	CmdStatusAtomicRollbackAccepted = "216"
+
+	// Bad request. The requested command couldn't be performed because of malformed syntax.
+	// CSPs don't usually generate this error, however you might see it if your SyncML is malformed.
+	CmdStatusBadRequest = "400"
+
+	// 	Invalid credentials
+	// The requested command failed because the requestor must provide proper authentication. CSPs don't usually generate this error
+	CmdStatusInvalidCredentials = "401"
+
+	// Forbidden
+	// The requested command failed, but the recipient understood the requested command
+	CmdStatusForbidden = "403"
+
+	// Not found
+	// The requested target wasn't found. This code will be generated if you query a node that doesn't exist
+	CmdStatusNotFound = "404"
+
+	// Command not allowed
+	// This respond code will be generated if you try to write to a read-only node
+	CmdStatusNotAllowed = "405"
+
+	// Optional feature not supported
+	// This response code will be generated if you try to access a property that the CSP doesn't support
+	CmdStatusOptionalFeature = "406"
+
+	// Unsupported type or format
+	// This response code can result from XML parsing or formatting errors
+	CmdStatusUnsupportedType = "415"
+
+	// Already exists
+	// This response code occurs if you attempt to add a node that already exists
+	CmdStatusAlreadyExists = "418"
+
+	// Permission Denied
+	// The requested command failed because the sender doesn't have adequate access control permissions (ACL) on the recipient.
+	// An "Access denied" errors usually get translated to this response code.
+	CmdStatusPermissionDenied = "425"
+
+	// Command failed. Generic failure.
+	// The recipient encountered an unexpected condition, which prevented it from fulfilling the request
+	// This response code will occur when the SyncML DPU can't map the originating error code
+	CmdStatusCommandFailed = "500"
+
+	// Atomic failed
+	// One of the operations in an Atomic block failed
+	CmdStatusAtomicFailed = "507"
+
+	// Atomic roll back failed
+	// An Atomic operation failed and the command wasn't rolled back successfully.
+	CmdStatusAtomicRollbackFailed = "516"
+)
+
+// MS-MDM Supported Alerts
+// Details on MS-MDM 2.2.7.2: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/72c6ea01-121c-48f9-85da-a26bb12aad51
+
+const (
+	// SERVER-INITIATED MGMT
+	// Server-initiated device management session
+	CmdAlertServerInitiatedManagement = "1200"
+
+	// CLIENT-INITIATED MGMT
+	// Client-initiated device management session
+	CmdAlertClientInitiatedManagement = "1201"
+
+	// NEXT MESSAGE
+	// Request for the next message of a large object package
+	CmdAlertNextMessage = "1222"
+
+	// SESSION ABORT
+	// Informs recipient that the sender wishes to abort the DM session
+	CmdAlertSessionAbort = "1223"
+
+	// CLIENT EVENT
+	// Informs server that an event has occurred on the client
+	CmdAlertClientEvent = "1224"
+
+	// NO END OF DATA
+	// End of Data for chunked object not received.
+	CmdAlertNoEndOfData = "1225"
+
+	// GENERIC ALERT
+	// Generic client generated alert with or without a reference to a Management
+	CmdAlertGeneric = "1226"
 )
 
 func ResolveWindowsMDMDiscovery(serverURL string) (string, error) {
@@ -268,4 +413,15 @@ func ResolveWindowsMDMAuth(serverURL string) (string, error) {
 
 func ResolveWindowsMDMManagement(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2ManagementPath, false)
+}
+
+// Encrypt uses pkcs7 to encrypt a raw value using the provided certificate.
+// The returned encrypted value is base64-encoded.
+func Encrypt(rawValue string, cert *x509.Certificate) (string, error) {
+	encrypted, err := pkcs7.Encrypt([]byte(rawValue), []*x509.Certificate{cert})
+	if err != nil {
+		return "", err
+	}
+	b64Enc := base64.StdEncoding.EncodeToString(encrypted)
+	return b64Enc, nil
 }

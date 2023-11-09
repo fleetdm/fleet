@@ -548,9 +548,9 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	vulns := []fleet.SoftwareVulnerability{
-		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0001"},
-		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0002"},
-		{SoftwareID: host3.Software[0].ID, CVE: "CVE-2022-0003"},
+		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0001", ResolvedInVersion: "2.0.0"},
+		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0002", ResolvedInVersion: "2.0.0"},
+		{SoftwareID: host3.Software[0].ID, CVE: "CVE-2022-0003", ResolvedInVersion: "2.0.0"},
 	}
 
 	for _, v := range vulns {
@@ -566,6 +566,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			EPSSProbability:  ptr.Float64(0.01),
 			CISAKnownExploit: ptr.Bool(false),
 			Published:        ptr.Time(now.Add(-2 * time.Hour)),
+			Description:      "this is a description for CVE-2022-0001",
 		},
 		{
 			CVE:              "CVE-2022-0002",
@@ -573,6 +574,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			EPSSProbability:  ptr.Float64(0.99),
 			CISAKnownExploit: ptr.Bool(false),
 			Published:        ptr.Time(now),
+			Description:      "this is a description for CVE-2022-0002",
 		},
 		{
 			CVE:              "CVE-2022-0003",
@@ -580,6 +582,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			EPSSProbability:  ptr.Float64(0.98),
 			CISAKnownExploit: ptr.Bool(true),
 			Published:        ptr.Time(now.Add(-1 * time.Hour)),
+			Description:      "this is a description for CVE-2022-0003",
 		},
 	}
 	err = ds.InsertCVEMeta(context.Background(), cveMeta)
@@ -592,20 +595,24 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		GenerateCPE: "somecpe",
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
-				CVE:              "CVE-2022-0001",
-				DetailsLink:      "https://nvd.nist.gov/vuln/detail/CVE-2022-0001",
-				CVSSScore:        ptr.Float64Ptr(2.0),
-				EPSSProbability:  ptr.Float64Ptr(0.01),
-				CISAKnownExploit: ptr.BoolPtr(false),
-				CVEPublished:     ptr.TimePtr(now.Add(-2 * time.Hour)),
+				CVE:               "CVE-2022-0001",
+				DetailsLink:       "https://nvd.nist.gov/vuln/detail/CVE-2022-0001",
+				CVSSScore:         ptr.Float64Ptr(2.0),
+				EPSSProbability:   ptr.Float64Ptr(0.01),
+				CISAKnownExploit:  ptr.BoolPtr(false),
+				CVEPublished:      ptr.TimePtr(now.Add(-2 * time.Hour)),
+				Description:       ptr.StringPtr("this is a description for CVE-2022-0001"),
+				ResolvedInVersion: ptr.StringPtr("2.0.0"),
 			},
 			{
-				CVE:              "CVE-2022-0002",
-				DetailsLink:      "https://nvd.nist.gov/vuln/detail/CVE-2022-0002",
-				CVSSScore:        ptr.Float64Ptr(1.0),
-				EPSSProbability:  ptr.Float64Ptr(0.99),
-				CISAKnownExploit: ptr.BoolPtr(false),
-				CVEPublished:     ptr.TimePtr(now),
+				CVE:               "CVE-2022-0002",
+				DetailsLink:       "https://nvd.nist.gov/vuln/detail/CVE-2022-0002",
+				CVSSScore:         ptr.Float64Ptr(1.0),
+				EPSSProbability:   ptr.Float64Ptr(0.99),
+				CISAKnownExploit:  ptr.BoolPtr(false),
+				CVEPublished:      ptr.TimePtr(now),
+				Description:       ptr.StringPtr("this is a description for CVE-2022-0002"),
+				ResolvedInVersion: ptr.StringPtr("2.0.0"),
 			},
 		},
 	}
@@ -619,12 +626,14 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		GenerateCPE: "somecpe2",
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
-				CVE:              "CVE-2022-0003",
-				DetailsLink:      "https://nvd.nist.gov/vuln/detail/CVE-2022-0003",
-				CVSSScore:        ptr.Float64Ptr(3.0),
-				EPSSProbability:  ptr.Float64Ptr(0.98),
-				CISAKnownExploit: ptr.BoolPtr(true),
-				CVEPublished:     ptr.TimePtr(now.Add(-1 * time.Hour)),
+				CVE:               "CVE-2022-0003",
+				DetailsLink:       "https://nvd.nist.gov/vuln/detail/CVE-2022-0003",
+				CVSSScore:         ptr.Float64Ptr(3.0),
+				EPSSProbability:   ptr.Float64Ptr(0.98),
+				CISAKnownExploit:  ptr.BoolPtr(true),
+				CVEPublished:      ptr.TimePtr(now.Add(-1 * time.Hour)),
+				Description:       ptr.StringPtr("this is a description for CVE-2022-0003"),
+				ResolvedInVersion: ptr.StringPtr("2.0.0"),
 			},
 		},
 	}
@@ -728,19 +737,19 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		expected := []fleet.Software{foo001}
 		test.ElementsMatchSkipID(t, software, expected)
 
-		opts.MatchQuery = "CVE-2022-0002"
+		opts.ListOptions.MatchQuery = "CVE-2022-0002"
 		software = listSoftwareCheckCount(t, ds, 1, 1, opts, true)
 		expected = []fleet.Software{foo001}
 		test.ElementsMatchSkipID(t, software, expected)
 
 		// partial CVE
-		opts.MatchQuery = "0002"
+		opts.ListOptions.MatchQuery = "0002"
 		software = listSoftwareCheckCount(t, ds, 1, 1, opts, true)
 		expected = []fleet.Software{foo001}
 		test.ElementsMatchSkipID(t, software, expected)
 
 		// unknown CVE
-		opts.MatchQuery = "CVE-2022-0000"
+		opts.ListOptions.MatchQuery = "CVE-2022-0000"
 		listSoftwareCheckCount(t, ds, 0, 0, opts, true)
 	})
 
@@ -756,13 +765,13 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		test.ElementsMatchSkipID(t, software, expected)
 
 		// query by version
-		opts.MatchQuery = "0.0.3"
+		opts.ListOptions.MatchQuery = "0.0.3"
 		software = listSoftwareCheckCount(t, ds, 2, 2, opts, true)
 		expected = []fleet.Software{foo003, bar003}
 		test.ElementsMatchSkipID(t, software, expected)
 
 		// query by version (case insensitive)
-		opts.MatchQuery = "V0.0.2"
+		opts.ListOptions.MatchQuery = "V0.0.2"
 		software = listSoftwareCheckCount(t, ds, 1, 1, opts, true)
 		expected = []fleet.Software{foo002}
 		test.ElementsMatchSkipID(t, software, expected)
@@ -1804,6 +1813,46 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 		require.Equal(t, 1, occurrence["cve-1"])
 		require.Equal(t, 1, occurrence["cve-2"])
 	})
+
+	t.Run("vulnerability includes version range", func(t *testing.T) {
+		// new host
+		host := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
+
+		// new software
+		software := fleet.Software{
+			Name: "host3software", Version: "0.0.1", Source: "chrome_extensions",
+		}
+
+		_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software})
+		require.NoError(t, err)
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+		// new software cpe
+		cpes := []fleet.SoftwareCPE{
+			{SoftwareID: host.Software[0].ID, CPE: "cpe:2.3:a:foo:foo:0.0.1:*:*:*:*:*:*:*"},
+		}
+
+		_, err = ds.UpsertSoftwareCPEs(ctx, cpes)
+		require.NoError(t, err)
+
+		// new vulnerability
+		vuln := fleet.SoftwareVulnerability{
+			SoftwareID:        host.Software[0].ID,
+			CVE:               "cve-3",
+			ResolvedInVersion: "1.2.3",
+		}
+
+		inserted, err := ds.InsertSoftwareVulnerability(ctx, vuln, fleet.UbuntuOVALSource)
+		require.NoError(t, err)
+		require.True(t, inserted)
+
+		storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
+		require.NoError(t, err)
+
+		require.Len(t, storedVulns[host.ID], 1)
+		require.Equal(t, "cve-3", storedVulns[host.ID][0].CVE)
+		require.Equal(t, "1.2.3", storedVulns[host.ID][0].ResolvedInVersion)
+	})
 }
 
 func testListCVEs(t *testing.T, ds *Datastore) {
@@ -1815,10 +1864,10 @@ func testListCVEs(t *testing.T, ds *Datastore) {
 	twoMonthsAgo := now.Add(-60 * 24 * time.Hour)
 
 	testCases := []fleet.CVEMeta{
-		{CVE: "cve-1", Published: &threeDaysAgo},
-		{CVE: "cve-2", Published: &twoWeeksAgo},
-		{CVE: "cve-3", Published: &twoMonthsAgo},
-		{CVE: "cve-4"},
+		{CVE: "cve-1", Published: &threeDaysAgo, Description: "cve-1 description"},
+		{CVE: "cve-2", Published: &twoWeeksAgo, Description: "cve-2 description"},
+		{CVE: "cve-3", Published: &twoMonthsAgo}, // past maxAge
+		{CVE: "cve-4"},                           // no published date
 	}
 
 	err := ds.InsertCVEMeta(ctx, testCases)
@@ -1827,12 +1876,12 @@ func testListCVEs(t *testing.T, ds *Datastore) {
 	result, err := ds.ListCVEs(ctx, 30*24*time.Hour)
 	require.NoError(t, err)
 
-	expected := []string{"cve-1", "cve-2"}
+	expected := []string{"cve-1", "cve-1 description", "cve-2", "cve-2 description"}
 	var actual []string
 	for _, r := range result {
 		actual = append(actual, r.CVE)
+		actual = append(actual, r.Description)
 	}
-
 	require.ElementsMatch(t, expected, actual)
 }
 

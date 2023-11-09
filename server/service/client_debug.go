@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -20,7 +19,7 @@ func (c *Client) getRawBody(endpoint string) ([]byte, error) {
 		return nil, fmt.Errorf("get %s received status %d", endpoint, response.StatusCode)
 	}
 
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read %s response body: %w", endpoint, err)
 	}

@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -221,7 +220,7 @@ func writePackageInfo(opt Options, rootPath string) error {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
+	if err := os.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -240,7 +239,7 @@ func writeScripts(opt Options, rootPath string) error {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, contents.Bytes(), 0o744); err != nil {
+	if err := os.WriteFile(path, contents.Bytes(), 0o744); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -259,7 +258,7 @@ func writeLaunchd(opt Options, rootPath string) error {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, contents.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(path, contents.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -278,7 +277,7 @@ func writeDistribution(opt Options, rootPath string) error {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
+	if err := os.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -368,7 +367,7 @@ func xarBom(opt Options, rootPath string) error {
 			return fmt.Errorf("lsbom inBom: %w", err)
 		}
 		bomContents = bomReplace(bomContents)
-		if err := ioutil.WriteFile(inBomPath, bomContents, 0); err != nil {
+		if err := os.WriteFile(inBomPath, bomContents, 0); err != nil {
 			return fmt.Errorf("write inBom: %w", err)
 		}
 

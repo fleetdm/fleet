@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -219,4 +220,141 @@ func TestProvisioningDocGeneration(t *testing.T) {
 	require.Contains(t, string(outXML), deviceIdentityFingerprint)
 	require.Contains(t, string(outXML), serverIdentityFingerprint)
 	require.Contains(t, string(outXML), microsoft_mdm.MDE2EnrollPath)
+}
+
+func TestValidSyncMLCmdStatus(t *testing.T) {
+	testMsgRef := "testmsgref"
+	testCmdRef := "testcmdref"
+	testCmdOrig := "testcmdorig"
+	testStatusCode := "teststatuscode"
+	cmdMsg := NewSyncMLCmdStatus(testMsgRef, testCmdRef, testCmdOrig, testStatusCode)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdStatus, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<MsgRef>%s</MsgRef>", testMsgRef))
+	require.Contains(t, payload, fmt.Sprintf("<CmdRef>%s</CmdRef>", testCmdRef))
+	require.Contains(t, payload, fmt.Sprintf("<Cmd>%s</Cmd>", testCmdOrig))
+	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testStatusCode))
+}
+
+func TestValidNewSyncMLCmdGet(t *testing.T) {
+	testOmaURI := "testuri"
+	cmdMsg := newSyncMLNoFormat(fleet.CmdGet, testOmaURI)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdGet, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
+}
+
+func TestValidNewSyncMLCmdBool(t *testing.T) {
+	testOmaURI := "testuri"
+	testData := "testdata"
+	cmdMsg := newSyncMLCmdBool(mdm_types.CmdReplace, testOmaURI, testData)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
+	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
+	require.Contains(t, payload, "<Type xmlns=\"syncml:metinf\">text/plain</Type>")
+	require.Contains(t, payload, "<Format xmlns=\"syncml:metinf\">bool</Format>")
+}
+
+func TestValidNewSyncMLCmdInt(t *testing.T) {
+	testOmaURI := "testuri"
+	testData := "testdata"
+	cmdMsg := newSyncMLCmdInt(mdm_types.CmdReplace, testOmaURI, testData)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
+	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
+	require.Contains(t, payload, "<Type xmlns=\"syncml:metinf\">text/plain</Type>")
+	require.Contains(t, payload, "<Format xmlns=\"syncml:metinf\">int</Format>")
+}
+
+func TestValidSyncMLCmdText(t *testing.T) {
+	testOmaURI := "testuri"
+	testData := "testdata"
+	cmdMsg := newSyncMLCmdText(mdm_types.CmdReplace, testOmaURI, testData)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
+	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
+	require.Contains(t, payload, "<Type xmlns=\"syncml:metinf\">text/plain</Type>")
+	require.Contains(t, payload, "<Format xmlns=\"syncml:metinf\">chr</Format>")
+}
+
+func TestValidSyncMLCmdXml(t *testing.T) {
+	testOmaURI := "testuri"
+	testData := "testdata"
+	cmdMsg := newSyncMLCmdXml(mdm_types.CmdReplace, testOmaURI, testData)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
+	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
+	require.Contains(t, payload, "<Type xmlns=\"syncml:metinf\">text/plain</Type>")
+	require.Contains(t, payload, "<Format xmlns=\"syncml:metinf\">xml</Format>")
+}
+
+func TestValidSyncMLCmdAlert(t *testing.T) {
+	testData := "1234"
+	cmdMsg := newSyncMLNoItem(fleet.CmdAlert, testData)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdAlert, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
+}
+
+func TestValidSyncMLCmd(t *testing.T) {
+	testCmdSource := "testcmdsource"
+	testCmdTarget := "testcmdtarget"
+	testCmdDataType := "testcmddatatype"
+	testCmdDataFormat := "testchr"
+	testCmdDataValue := "testdata"
+	cmdMsg := NewSyncMLCmd(mdm_types.CmdReplace, testCmdSource, testCmdTarget, testCmdDataType, testCmdDataFormat, testCmdDataValue)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testCmdSource))
+	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testCmdTarget))
+	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testCmdDataValue))
+	require.Contains(t, payload, fmt.Sprintf("<Type xmlns=\"syncml:metinf\">%s</Type>", testCmdDataType))
+	require.Contains(t, payload, fmt.Sprintf("<Format xmlns=\"syncml:metinf\">%s</Format>", testCmdDataFormat))
+}
+
+// checkWrappedSyncMLCmd checks that the payload is wrapped in the given tag.
+func checkWrappedSyncMLCmd(tag string, data string) error {
+	trimmedData := strings.TrimSpace(data)
+	openTag := fmt.Sprintf("<%s>", tag)
+	closeTag := fmt.Sprintf("</%s>", tag)
+	if !strings.HasPrefix(trimmedData, openTag) || !strings.HasSuffix(trimmedData, closeTag) {
+		return fmt.Errorf("payload is not wrapped in %s%s", openTag, closeTag)
+	}
+	return nil
 }

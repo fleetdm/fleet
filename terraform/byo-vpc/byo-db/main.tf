@@ -37,7 +37,7 @@ module "alb" {
   security_groups = concat(var.alb_config.security_groups, [aws_security_group.alb.id])
   access_logs     = var.alb_config.access_logs
 
-  target_groups = [
+  target_groups = concat([
     {
       name             = var.alb_config.name
       backend_protocol = "HTTP"
@@ -52,10 +52,10 @@ module "alb" {
         unhealthy_threshold = 5
       }
     }
-  ]
+  ], var.alb_config.extra_target_groups)
 
   # Require TLS 1.2 as earlier versions are insecure
-  listener_ssl_policy_default = "ELBSecurityPolicy-TLS-1-2-2017-01"
+  listener_ssl_policy_default = var.alb_config.tls_policy
 
   https_listeners = [
     {
@@ -92,7 +92,7 @@ resource "aws_security_group" "alb" {
     to_port          = 443
     protocol         = "tcp"
     cidr_blocks      = var.alb_config.allowed_cidrs
-    ipv6_cidr_blocks = ["::/0"]
+    ipv6_cidr_blocks = var.alb_config.allowed_ipv6_cidrs
   }
 
   ingress {
@@ -101,7 +101,7 @@ resource "aws_security_group" "alb" {
     to_port          = 80
     protocol         = "tcp"
     cidr_blocks      = var.alb_config.allowed_cidrs
-    ipv6_cidr_blocks = ["::/0"]
+    ipv6_cidr_blocks = var.alb_config.allowed_ipv6_cidrs
   }
 
   egress {
@@ -109,7 +109,7 @@ resource "aws_security_group" "alb" {
     from_port        = 0
     to_port          = 0
     protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
+    cidr_blocks      = var.alb_config.egress_cidrs
+    ipv6_cidr_blocks = var.alb_config.egress_ipv6_cidrs
   }
 }

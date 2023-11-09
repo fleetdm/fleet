@@ -9,7 +9,7 @@ import versionAPI from "services/entities/version";
 
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
-import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
   generateRole,

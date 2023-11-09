@@ -6,11 +6,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -319,7 +319,7 @@ func TestCertificateChain(t *testing.T) {
 	have, want := len(conn.ConnectionState().PeerCertificates), len(cert.Certificate)
 	require.Equal(t, have, want)
 
-	original, _ := ioutil.ReadFile(certFile)
+	original, _ := os.ReadFile(certFile)
 	returned, err := chain(context.Background(), conn.ConnectionState(), "")
 	require.Nil(t, err)
 	require.Equal(t, returned, original)
@@ -810,8 +810,9 @@ func TestMDMAppleConfig(t *testing.T) {
 			name:        "nochange",
 			licenseTier: "free",
 			expectedMDM: fleet.MDM{
-				MacOSSetup:   fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
-				MacOSUpdates: fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				EnableDiskEncryption: optjson.Bool{Set: true, Valid: false},
 			},
 		}, {
 			name:          "newDefaultTeamNoLicense",
@@ -835,9 +836,10 @@ func TestMDMAppleConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
-				AppleBMDefaultTeam: "foobar",
-				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
-				MacOSUpdates:       fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				AppleBMDefaultTeam:   "foobar",
+				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				EnableDiskEncryption: optjson.Bool{Set: true, Valid: false},
 			},
 		}, {
 			name:        "foundEdit",
@@ -846,9 +848,10 @@ func TestMDMAppleConfig(t *testing.T) {
 			oldMDM:      fleet.MDM{AppleBMDefaultTeam: "bar"},
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
-				AppleBMDefaultTeam: "foobar",
-				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
-				MacOSUpdates:       fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				AppleBMDefaultTeam:   "foobar",
+				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				EnableDiskEncryption: optjson.Bool{Set: true, Valid: false},
 			},
 		}, {
 			name:          "ssoFree",
@@ -866,6 +869,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
 				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
 				MacOSUpdates:          fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				EnableDiskEncryption:  optjson.Bool{Set: true, Valid: false},
 			},
 		}, {
 			name:        "ssoAllFields",
@@ -884,8 +888,9 @@ func TestMDMAppleConfig(t *testing.T) {
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
 				}},
-				MacOSSetup:   fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
-				MacOSUpdates: fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				EnableDiskEncryption: optjson.Bool{Set: true, Valid: false},
 			},
 		}, {
 			name:        "ssoShortEntityID",
@@ -1122,4 +1127,82 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.False(t, dsAppConfig.SSOSettings.EnableSSO)
 	require.Equal(t, newAgentOptions, *dsAppConfig.AgentOptions)
 	require.Equal(t, newAgentOptions, *dsAppConfig.AgentOptions)
+}
+
+// TestModifyEnableAnalytics tests that a premium customer cannot set ServerSettings.EnableAnalytics to be false.
+// Free customers should be able to set the value to false, however.
+func TestModifyEnableAnalytics(t *testing.T) {
+	ds := new(mock.Store)
+
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name             string
+		expectedEnabled  bool
+		newEnabled       bool
+		initialEnabled   bool
+		licenseTier      string
+		initialURL       string
+		newURL           string
+		expectedURL      string
+		shouldFailModify bool
+	}{
+		{
+			name:            "fleet free",
+			expectedEnabled: false,
+			initialEnabled:  true,
+			newEnabled:      false,
+			licenseTier:     fleet.TierFree,
+		},
+		{
+			name:            "fleet premium",
+			expectedEnabled: true,
+			initialEnabled:  true,
+			newEnabled:      false,
+			licenseTier:     fleet.TierPremium,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo: fleet.OrgInfo{
+					OrgName: "Test",
+				},
+				ServerSettings: fleet.ServerSettings{
+					EnableAnalytics: true,
+					ServerURL:       "https://localhost:8080",
+				},
+			}
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return dsAppConfig, nil
+			}
+
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+
+			ac, err := svc.AppConfigObfuscated(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tt.initialEnabled, ac.ServerSettings.EnableAnalytics)
+
+			raw, err := json.Marshal(fleet.ServerSettings{EnableAnalytics: tt.newEnabled, ServerURL: "https://localhost:8080"})
+			require.NoError(t, err)
+			raw = []byte(`{"server_settings":` + string(raw) + `}`)
+			modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+			require.NoError(t, err)
+
+			if modified != nil {
+				require.Equal(t, tt.expectedEnabled, modified.ServerSettings.EnableAnalytics)
+				ac, err = svc.AppConfigObfuscated(ctx)
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedEnabled, ac.ServerSettings.EnableAnalytics)
+			}
+		})
+	}
 }

@@ -2,6 +2,7 @@
 
 - [Integrations](#integrations)
 - [SMTP-settings](#smtp-settings)
+- [Environment variables](#environment-variables)
 
 This document includes configuration files and settings that are helpful when developing or contributing to Fleet.
 
@@ -23,7 +24,7 @@ This is the URL of the Jira server to use, including the scheme (e.g. "https://"
 - Required setting (string)
 - Default value: none
 - Config file format:
-  ```
+  ```yaml
   integrations:
     jira:
       - url: "https://example.atlassian.net"
@@ -39,7 +40,7 @@ Use this username to authenticate API requests with the Jira server.
 - Required setting (string)
 - Default value: none
 - Config file format:
-  ```
+  ```yaml
   integrations:
     jira:
       - url: "https://example.atlassian.net"
@@ -55,7 +56,7 @@ Use this API token to authenticate API requests with the Jira server.
 - Required setting (string)
 - Default value: none
 - Config file format:
-  ```
+  ```yaml
   integrations:
     jira:
       - url: "https://example.atlassian.net"
@@ -71,7 +72,7 @@ Use this Jira project key to create tickets.
 - Required setting (string)
 - Default value: none
 - Config file format:
-  ```
+  ```yaml
   integrations:
     jira:
       - url: "https://example.atlassian.net"
@@ -87,7 +88,7 @@ Whether the integration is configured to create Jira tickets for failing policie
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   integrations:
     jira:
       - url: "https://example.atlassian.net"
@@ -104,7 +105,7 @@ Whether the integration is configured to create Jira tickets for recent software
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   integrations:
     jira:
       - url: "https://example.atlassian.net"
@@ -125,7 +126,7 @@ This is the URL of the Zendesk server to use, including the scheme (e.g. "https:
 - Required setting (string)
 - Default value: none
 - Config file format:
-  ```
+  ```yaml
   integrations:
     zendesk:
       - url: "https://example.zendesk.com"
@@ -141,7 +142,7 @@ Use this email address to authenticate API requests with the Zendesk server.
 - Required setting (string)
 - Default value: none
 - Config file format:
-  ```
+  ```yaml
   integrations:
     zendesk:
       - url: "https://example.zendesk.com"
@@ -157,7 +158,7 @@ Use this API token to authenticate API requests with the Zendesk server.
 - Required setting (string)
 - Default value: none
 - Config file format:
-  ```
+  ```yaml
   integrations:
     zendesk:
       - url: "https://example.zendesk.com"
@@ -173,7 +174,7 @@ Use this group ID to create tickets.
 - Required setting (integer)
 - Default value: none
 - Config file format:
-  ```
+  ```yaml
   integrations:
     zendesk:
       - url: "https://example.zendesk.com"
@@ -189,7 +190,7 @@ Whether the integration is configured to create Zendesk tickets for failing poli
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   integrations:
     zendesk:
       - url: "https://example.zendesk.com"
@@ -206,7 +207,7 @@ Whether the integration is configured to create Zendesk tickets for recent softw
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   integrations:
     zendesk:
       - url: "https://example.zendesk.com"
@@ -233,7 +234,7 @@ Use this authentication method when the authentication type is `authtype_usernam
   - `authmethod_login`
   - `authmethod_plain`
 - Config file format:
-  ```
+  ```yaml
   smtp_settings:
     authentication_method: authmethod_cram_md5
   ```
@@ -248,7 +249,7 @@ This is the type of authentication for the configured SMTP server.
   - `authtype_none` - use this if your SMTP server is open
   - `authtype_username_password` - use this if your SMTP server requires authentication with a username and password
 - Config file format:
-  ```
+  ```yaml
   smtp_settings:
     authentication_type: authtype_none
   ```
@@ -260,7 +261,7 @@ Whether SMTP support is enabled or not to send emails from Fleet.
 - Optional setting (boolean)
 - Default value: `false`
 - Config file format:
-  ```
+  ```yaml
   smtp_settings:
     enable_smtp: true
   ```
@@ -272,7 +273,7 @@ Whether to enable SSL/TLS for the SMTP connection.
 - Optional setting (boolean)
 - Default value: `true`
 - Config file format:
-  ```
+  ```yaml
   smtp_settings:
     enable_ssl_tls: false
   ```
@@ -284,7 +285,7 @@ Whether to detect if TLS is used by the SMTP server and start using it if so.
 - Optional setting (boolean)
 - Default value: `true`
 - Config file format:
-  ```
+  ```yaml
   smtp_settings:
     enable_start_tls: false
   ```
@@ -296,7 +297,7 @@ Use this password for SMTP authentication when the `authentication_type` is set 
 - Optional setting (string)
 - Default value: ""
 - Config file format:
-  ```
+  ```yaml
   smtp_settings:
     password: supersekretsmtppass
   ```
@@ -308,7 +309,7 @@ Use this port to connect to the SMTP server.
 - Optional setting (integer)
 - Default value: `587` (the standard SMTP port)
 - Config file format:
-  ```
+  ```yaml
   smtp_settings:
     port: 5870
   ```
@@ -320,7 +321,7 @@ Use this email address as the sender for emails sent by Fleet.
 - Optional setting (string)
 - Default value: ""
 - Config file format:
-  ```
+  ```yaml
   smtp_settings:
     sender_address: fleet@example.org
   ```
@@ -332,7 +333,7 @@ This is the server hostname for SMTP.
 - Optional setting, required to properly configue SMTP (string)
 - Default value: ""
 - Config file format:
-  ```
+  ```yaml
   smtp_settings:
     server: mail.example.org
   ```
@@ -344,7 +345,7 @@ Use this username for SMTP authentication when the `authentication_type` is set 
 - Optional setting (string)
 - Default value: ""
 - Config file format:
-  ```
+  ```yaml
   smtp_settings:
     user_name: test_user
   ```
@@ -356,10 +357,16 @@ Whether the SMTP server's SSL certificates should be verified. This can be turne
 - Optional setting (boolean)
 - Default value: `true`
 - Config file format:
-  ```
+  ```yaml
   smtp_settings:
     verify_ssl_certs: false
   ```
+
+## Environment variables
+
+### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
+
+Use this environment variable to allow `fleetd` to report errors to the server using the [endpoint to report an agent error](./API-for-contributors#report-an-agent-error).
 
 <meta name="pageOrderInSection" value="1100">
 <meta name="description" value="Learn about the configuration files and settings that are helpful when developing or contributing to Fleet.">

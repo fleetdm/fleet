@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery } from "react-query";
 
-import scriptsAPI, { IScriptResult } from "services/entities/scripts";
+import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -31,7 +31,7 @@ const ScriptContent = ({ content }: IScriptContentProps) => {
 const StatusMessageRunning = () => (
   <div className={`${baseClass}__status-message`}>
     <p>
-      <Icon name="pending-partial" />
+      <Icon name="pending-outline" />
       Script is running. To see if the script finished, close this modal and
       open it again.
     </p>
@@ -41,7 +41,7 @@ const StatusMessageRunning = () => (
 const StatusMessageSuccess = () => (
   <div className={`${baseClass}__status-message`}>
     <p>
-      <Icon name="success-partial" />
+      <Icon name="success-outline" />
       Exit code: 0 (Script ran successfully.)
     </p>
   </div>
@@ -166,8 +166,8 @@ const ScriptDetailsModal = ({
   scriptExecutionId,
   onCancel,
 }: IScriptDetailsModalProps) => {
-  const { data, isLoading, isError } = useQuery<IScriptResult>(
-    ["scriptDetailsModal"],
+  const { data, isLoading, isError } = useQuery<IScriptResultResponse>(
+    ["scriptDetailsModal", scriptExecutionId],
     () => {
       return scriptsAPI.getScriptResult(scriptExecutionId);
     },
@@ -210,7 +210,7 @@ const ScriptDetailsModal = ({
 
   return (
     <Modal
-      title={"Script Details"}
+      title={"Script details"}
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}
