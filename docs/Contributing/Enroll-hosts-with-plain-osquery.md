@@ -10,7 +10,7 @@ You can find various ways to install osquery on your hosts at https://osquery.io
 
 ## Set up your Fleet enroll secret
 
-The enroll secret is a value that osquery provides to authenticate with Fleet. There are a few ways you can set the enroll secret on the hosts which you control. You can either set the value as
+The enroll secret is a value that osquery provides to authenticate with Fleet. There are a few ways you can set the enroll secret on the hosts that you control. You can either set the value as
 
 - a value of an environment variable (a common name is `OSQUERY_ENROLL_SECRET`)
 - the content of a local file (a common path is `/etc/osquery/enroll_secret`)
@@ -22,11 +22,11 @@ If you use an environment variable for this, you can specify it with the `--enro
 To retrieve the enroll secret, use the "Add New Host" dialog in the Fleet UI or
 `fleetctl get enroll_secret`).
 
-If your organization has a robust internal public key infrastructure (PKI) and you already deploy TLS client certificates to each host to uniquely identify them, then osquery supports an advanced authentication mechanism that takes advantage of this. Fleet can be fronted with a proxy that will perform the TLS client authentication.
+If your organization has a robust internal public key infrastructure (PKI) and you already deploy TLS client certificates to each host to uniquely identify them, then osquery supports an advanced authentication mechanism that takes advantage of this. Fleet can be fronted with a proxy to perform the TLS client authentication.
 
 ## Provide the TLS certificate that osquery will use to communicate with Fleet
 
-When Fleet uses a self-signed certificate, osquery agents will need a copy of that certificate in order to authenticate the Fleet server. If clients connect directly to the Fleet server, you can download the certificate through the Fleet UI. From the main dashboard (`/hosts/manage`), click **Add New Host** and **Fetch Certificate**. If Fleet is running behind a load-balancer that terminates TLS, you will have to talk to your system administrator about where to find this certificate.
+When Fleet uses a self-signed certificate, osquery agents will need a copy of that certificate in order to authenticate the Fleet server. If clients connect directly to the Fleet server, you can download the certificate through the Fleet UI. From the main dashboard (`/hosts/manage`), click **Add New Host** and **Fetch Certificate**. If Fleet is running behind a load balancer that terminates TLS, you will have to talk to your system administrator about where to find this certificate.
 
 It is important that the CN of this certificate matches the hostname or IP that osqueryd clients will use to connect.
 
@@ -34,7 +34,7 @@ Specify the path to this certificate with the `--tls_server_certs` flag when you
 
 ## Configure and launch osquery
 
-In order for osquery to connect to the fleet server, there are some flags that need to be set:
+For osquery to connect to the fleet server, some flags need to be set:
 
 ```sh
  --enroll_secret_path=/etc/osquery/enroll_secret 
