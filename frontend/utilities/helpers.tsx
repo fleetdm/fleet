@@ -885,10 +885,12 @@ export const internallyTruncateText = (
   original: string,
   prefixLength = 280,
   suffixLength = 10
-) =>
-  `${original.slice(0, prefixLength)}...${original.slice(
-    original.length - suffixLength
-  )} (truncated)`;
+) => (
+  <>
+    {original.slice(0, prefixLength)}...
+    {original.slice(original.length - suffixLength)} <em>(truncated)</em>
+  </>
+);
 
 export default {
   addGravatarUrlToResource,
