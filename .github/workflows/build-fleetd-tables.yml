@@ -1,0 +1,76 @@
+name: Build fleetd_tables
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Set up Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version: ${{ vars.GO_VERSION }}
+      - name: Build Linux and Windows binaries
+        run: |
+          GOOS=linux go build -o fleetd_tables_linux.ext ./orbit/cmd/fleetd_tables
+          GOOS=windows go build -o fleetd_tables_windows.exe ./orbit/cmd/fleetd_tables 
+
+      - name: Upload binaries to workspace
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        with:
+          name: binaries
+          path: |
+            fleetd_tables_linux.ext
+            fleetd_tables_windows.exe
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Set up Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version: ${{ vars.GO_VERSION }}
+      - name: Build macOS binaries
+        run: |
+          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -o fleetd_tables_amd64 ./orbit/cmd/fleetd_tables
+          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -o fleetd_tables_arm64 ./orbit/cmd/fleetd_tables
+      - name: Create universal binary for macOS
+        run: |
+          lipo -create fleetd_tables_amd64 fleetd_tables_arm64 -output fleetd_tables_darwin_universal.ext
+      - name: CodeSign
+        env:
+          CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
+        run: codesign -s ${CODESIGN_IDENTITY} -i com.fleetdm.fleetd_tables -f -v --timestamp --options runtime fleetd_tables_darwin_universal.ext
+      - name: Upload macOS universal binary to workspace
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        with:
+          name: macos-universal
+          path: fleetd_tables_darwin_universal.ext
+
+  artifact-upload:
+    runs-on: ubuntu-latest
+    needs: [ build, build-macos ]
+
+    steps:
+      - name: Download Windows and Linux binaries
+        uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+        with:
+          name: binaries
+      - name: Download macOS universal binary
+        uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+        with:
+          name: macos-universal
+      - name: Upload artifacts to release using GitHub CLI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} \
+          fleetd_tables_linux.ext \
+          fleetd_tables_windows.exe \
+          fleetd_tables_darwin_universal.ext \
+          --repo ${{ github.repository }}
