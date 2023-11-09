@@ -29,7 +29,6 @@ func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity
 	}
 
 	cols := []string{"user_id", "user_name", "activity_type", "details"}
-	insertStmt := `INSERT INTO activities (%s) VALUES (%s)`
 	args := []any{
 		userID,
 		userName,
@@ -40,6 +39,8 @@ func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity
 		args = append(args, userEmail)
 		cols = append(cols, "user_email")
 	}
+
+	insertStmt := `INSERT INTO activities (%s) VALUES (%s)`
 	sql := fmt.Sprintf(insertStmt, strings.Join(cols, ","), strings.Repeat("?,", len(cols)-1)+"?")
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		sql,
