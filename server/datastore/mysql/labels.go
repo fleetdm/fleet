@@ -283,7 +283,7 @@ func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label
 // ListLabels returns all labels limited or sorted by fleet.ListOptions.
 func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
 	if opt.After != "" {
-		return nil, &fleet.BadRequestError{Message: "'after' parameter is not supported"}
+		return nil, &fleet.BadRequestError{Message: "after parameter is not supported"}
 	}
 	query := fmt.Sprintf(`
 			SELECT *,
