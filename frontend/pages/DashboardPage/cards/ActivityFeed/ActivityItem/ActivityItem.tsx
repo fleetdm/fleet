@@ -518,6 +518,72 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  addedScript: (activity: IActivity) => {
+    const scriptName = activity.details?.script_name;
+    return (
+      <>
+        {" "}
+        added{" "}
+        {scriptName ? (
+          <>
+            script <b>{scriptName}</b>{" "}
+          </>
+        ) : (
+          "a script "
+        )}
+        to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  deletedScript: (activity: IActivity) => {
+    const scriptName = activity.details?.script_name;
+    return (
+      <>
+        {" "}
+        deleted{" "}
+        {scriptName ? (
+          <>
+            script <b>{scriptName}</b>{" "}
+          </>
+        ) : (
+          "a script "
+        )}
+        from{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  editedScript: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        edited scripts for{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
 };
 
 const getDetail = (
@@ -634,6 +700,15 @@ const getDetail = (
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity, onDetailsClick);
     }
+    case ActivityType.AddedScript: {
+      return TAGGED_TEMPLATES.addedScript(activity);
+    }
+    case ActivityType.DeletedScript: {
+      return TAGGED_TEMPLATES.deletedScript(activity);
+    }
+    case ActivityType.EditedScript: {
+      return TAGGED_TEMPLATES.editedScript(activity);
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -678,8 +753,8 @@ const ActivityItem = ({
         size="small"
         hasWhiteBackground
       />
-      <div className={`${baseClass}__details`}>
-        <p>
+      <div className={`${baseClass}__details-wrapper`}>
+        <div className={"activity-details"}>
           {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
           <span className={`${baseClass}__details-topline`}>
             {activity.type === ActivityType.UserLoggedIn ? (
@@ -709,7 +784,7 @@ const ActivityItem = ({
           >
             {internationalTimeFormat(activityCreatedAt)}
           </ReactTooltip>
-        </p>
+        </div>
       </div>
       <div className={`${baseClass}__dash`} />
     </div>

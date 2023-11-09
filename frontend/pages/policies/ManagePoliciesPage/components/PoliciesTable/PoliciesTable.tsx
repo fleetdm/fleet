@@ -75,7 +75,7 @@ const PoliciesTable = ({
 
   const emptyState = () => {
     const emptyPolicies: IEmptyTableProps = {
-      iconName: "empty-policies",
+      graphicName: "empty-policies",
       header: (
         <>
           Ask yes or no questions about{" "}
@@ -119,7 +119,7 @@ const PoliciesTable = ({
       );
     }
     if (searchQuery) {
-      delete emptyPolicies.iconName;
+      delete emptyPolicies.graphicName;
       delete emptyPolicies.primaryButton;
       emptyPolicies.header = "No policies match the current search criteria.";
       emptyPolicies.info =
@@ -169,7 +169,7 @@ const PoliciesTable = ({
         }}
         emptyComponent={() =>
           EmptyTable({
-            iconName: emptyState().iconName,
+            graphicName: emptyState().graphicName,
             header: emptyState().header,
             info: emptyState().info,
             additionalInfo: emptyState().additionalInfo,

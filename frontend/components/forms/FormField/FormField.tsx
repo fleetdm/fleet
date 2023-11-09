@@ -14,7 +14,7 @@ export interface IFormFieldProps {
   label: Array<any> | JSX.Element | string;
   name: string;
   type: string;
-  tooltip?: string;
+  tooltip?: React.ReactNode;
 }
 
 const FormField = ({

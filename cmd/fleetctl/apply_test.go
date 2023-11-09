@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,17 +14,21 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanomdm_mock "github.com/fleetdm/fleet/v4/server/mock/nanomdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
+	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -821,10 +824,20 @@ func TestApplyAsGitOps(t *testing.T) {
 
 	enqueuer := new(nanomdm_mock.Storage)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+
+	// mdm test configuration must be set so that activating windows MDM works.
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, nil, "../../server/service/testdata")
+
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
-		License:    license,
-		MDMStorage: enqueuer,
-		MDMPusher:  mockPusher{},
+		License:     license,
+		MDMStorage:  enqueuer,
+		MDMPusher:   mockPusher{},
+		FleetConfig: &fleetCfg,
 	})
 
 	gitOps := &fleet.User{
@@ -833,7 +846,7 @@ func TestApplyAsGitOps(t *testing.T) {
 		Email:      "gitops1@example.com",
 		GlobalRole: ptr.String(fleet.RoleGitOps),
 	}
-	gitOps, err := ds.NewUser(context.Background(), gitOps)
+	gitOps, err = ds.NewUser(context.Background(), gitOps)
 	require.NoError(t, err)
 	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return &fleet.Session{
@@ -1044,13 +1057,13 @@ spec:
           foo: qux
     name: Team1
     mdm:
+      enable_disk_encryption: false
       macos_updates:
         minimum_version: 10.10.10
         deadline: 1992-03-01
       macos_settings:
         custom_settings:
           - %s
-        enable_disk_encryption: false
     secrets:
       - secret: BBB
 `, mobileConfigPath))
@@ -1062,9 +1075,9 @@ spec:
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	assert.JSONEq(t, string(json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)), string(*savedTeam.Config.AgentOptions))
 	assert.Equal(t, fleet.TeamMDM{
+		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:       []string{mobileConfigPath},
-			EnableDiskEncryption: false,
+			CustomSettings: []string{mobileConfigPath},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1097,9 +1110,9 @@ spec:
 	require.True(t, ds.NewJobFuncInvoked)
 	// all left untouched, only setup assistant added
 	assert.Equal(t, fleet.TeamMDM{
+		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:       []string{mobileConfigPath},
-			EnableDiskEncryption: false,
+			CustomSettings: []string{mobileConfigPath},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1129,9 +1142,9 @@ spec:
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// all left untouched, only bootstrap package added
 	assert.Equal(t, fleet.TeamMDM{
+		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:       []string{mobileConfigPath},
-			EnableDiskEncryption: false,
+			CustomSettings: []string{mobileConfigPath},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1203,10 +1216,10 @@ spec:
 
 	// Apply queries.
 	var appliedQueries []*fleet.Query
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		return nil, sql.ErrNoRows
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return nil, &notFoundError{}
 	}
-	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query) error {
+	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		appliedQueries = queries
 		return nil
 	}
@@ -1304,10 +1317,10 @@ func TestApplyQueries(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	var appliedQueries []*fleet.Query
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
-		return nil, sql.ErrNoRows
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return nil, &notFoundError{}
 	}
-	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query) error {
+	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		appliedQueries = queries
 		return nil
 	}
@@ -1471,6 +1484,9 @@ func TestApplyMacosSetup(t *testing.T) {
 			MDM:            fleet.MDM{EnabledAndConfigured: true},
 			SMTPSettings:   &fleet.SMTPSettings{},
 			SSOSettings:    &fleet.SSOSettings{},
+		}
+		if premium {
+			mockStore.appConfig.ServerSettings.EnableAnalytics = true
 		}
 		mockStore.Unlock()
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1887,7 +1903,7 @@ spec:
 			expectedErr error
 		}{
 			{"signed.pkg", nil},
-			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/docs/using-fleet/mdm-macos-setup#step-2-sign-the-package")},
+			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#step-2-sign-the-package")},
 			{"invalid.tar.gz", errors.New("applying fleet config: Couldn’t edit bootstrap_package. The file must be a package (.pkg).")},
 			{"wrong-toc.pkg", errors.New("applying fleet config: checking package signature: decompressing TOC: unexpected EOF")},
 		}
@@ -2886,7 +2902,7 @@ spec:
     macos_settings:
       enable_disk_encryption: true
 `,
-			wantErr: `Couldn't update macos_settings because MDM features aren't turned on in Fleet.`,
+			wantErr: `Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on`,
 		},
 		{
 			desc: "app config macos_settings.enable_disk_encryption false",
@@ -2968,7 +2984,7 @@ spec:
       macos_setup:
         macos_setup_assistant: %s
 `, macSetupFile),
-			wantErr: `MDM features aren't turned on.`,
+			wantErr: `macOS MDM isn't turned on.`,
 		},
 		{
 			desc: "app config macos setup assistant",
@@ -2980,7 +2996,29 @@ spec:
     macos_setup:
       macos_setup_assistant: %s
 `, macSetupFile),
-			wantErr: `MDM features aren't turned on.`,
+			wantErr: `macOS MDM isn't turned on.`,
+		},
+		{
+			desc: "app config enable windows mdm without feature flag",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_enabled_and_configured: true
+`,
+			wantErr: `422 Validation Failed: cannot enable Windows MDM without the feature flag explicitly enabled`,
+		},
+		{
+			desc: "app config enable windows mdm without WSTEP",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_enabled_and_configured: true
+`,
+			wantErr: `422 Validation Failed: Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.`,
 		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because
@@ -2992,6 +3030,12 @@ spec:
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
+			// bit hacky, but since the env var is temporary while Windows MDM is in beta,
+			// didn't want to add a field to the test cases just for this.
+			if strings.Contains(c.desc, "WSTEP") {
+				t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
+			}
+
 			_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
 			setupDS(ds)
 			filename := writeTmpYml(t, c.spec)

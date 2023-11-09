@@ -1,4 +1,5 @@
 import React from "react";
+import { buildQueryStringFromParams } from "utilities/url";
 
 const baseClass = "upload-list";
 
@@ -20,7 +21,6 @@ const UploadList = ({
       </li>
     );
   });
-
   return (
     <div className={baseClass}>
       {HeadingComponent && (

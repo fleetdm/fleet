@@ -17,7 +17,7 @@ const LearnFleet = (): JSX.Element => {
         target="_blank"
         rel="noopener noreferrer"
       >
-        Learn how to use Fleet&nbsp;
+        Learn how to use Fleet
         <Icon name="arrow-internal-link" color="core-fleet-blue" />
       </a>
     </div>

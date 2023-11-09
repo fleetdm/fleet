@@ -239,7 +239,7 @@ func TestQueryPayloadValidationModify(t *testing.T) {
 			ObserverCanRun: false,
 		}, nil
 	}
-	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query) error {
+	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool) error {
 		assert.NotEmpty(t, query)
 		return nil
 	}
@@ -250,6 +250,7 @@ func TestQueryPayloadValidationModify(t *testing.T) {
 		assert.NotEmpty(t, act.Name)
 		return nil
 	}
+
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	testCases := []struct {
@@ -427,7 +428,7 @@ func TestQueryAuth(t *testing.T) {
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return query, nil
 	}
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		if teamID == nil && name == "global query" {
 			return &globalQuery, nil
 		} else if teamID != nil && *teamID == team.ID && name == "team query" {
@@ -446,7 +447,7 @@ func TestQueryAuth(t *testing.T) {
 		}
 		return nil, newNotFoundError()
 	}
-	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query) error {
+	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool) error {
 		return nil
 	}
 	ds.DeleteQueryFunc = func(ctx context.Context, teamID *uint, name string) error {
@@ -458,7 +459,7 @@ func TestQueryAuth(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) {
 		return nil, nil
 	}
-	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query) error {
+	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		return nil
 	}
 

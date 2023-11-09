@@ -35,6 +35,7 @@ spec:
   interval: 3600 # 1 hour
   observer_can_run: true
   automations_enabled: true
+  discard_data: false
 ---
 apiVersion: v1 
 kind: query 
@@ -45,6 +46,7 @@ spec:
   team: Workstations
   interval: 0
   observer_can_run: true
+  discard_data: false
 --- 
 apiVersion: v1 
 kind: query 
@@ -64,6 +66,7 @@ spec:
   platform: darwin,windows
   automations_enabled: true
   logging: differential
+  discard_data: true
 ```
 
 Continued edits and applications to this file will update the queries.
@@ -246,6 +249,9 @@ spec:
           - path/to/profile1.mobileconfig
           - path/to/profile2.mobileconfig
         enable_disk_encryption: true
+    scripts:
+        - path/to/script1.sh
+        - path/to/script2.sh
 ```
 
 ### Team agent options
@@ -329,6 +335,23 @@ spec:
       # the team-specific mdm options go here
 ```
 
+### Team scripts
+
+List of saved scripts that can be run on hosts that are part of the team.
+
+- Default value: none
+- Config file format:
+  ```yaml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Client Platform Engineering
+    scripts:
+      - path/to/script1.sh
+      - path/to/script2.sh
+  ```
+
 ## Organization settings
 
 The `config` YAML file controls Fleet's organization settings and MDM features for hosts assigned to "No team."
@@ -375,6 +398,7 @@ spec:
     deferred_save_host: false
     enable_analytics: true
     live_query_disabled: false
+    query_reports_disabled: false
     server_url: ""
   smtp_settings:
     authentication_method: authmethod_plain
@@ -529,8 +553,10 @@ Use with caution as this may break Fleet ingestion of hosts data.
   ```yaml
   features:
     detail_query_overrides:
-      # null allows to disable the "users" query from running on hosts.
+      # null disables the "users" query from running on hosts.
       users: null
+      # "" disables the "disk_encryption_linux" query from running on hosts.
+      disk_encryption_linux: ""
       # this replaces the hardcoded "mdm" detail query.
       mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
   ```
@@ -719,6 +745,22 @@ If the live query feature is disabled or not.
   server_settings:
     live_query_disabled: true
   ```
+
+##### server_settings.query_reports_disabled
+
+Whether the query reports feature is disabled.
+If this setting is changed from `false` to `true`, then all stored query results will be deleted (this process can take up to one hour).
+
+Query reports are cached results of scheduled queries stored in Fleet (up to 1000).
+
+- Optional setting (boolean)
+- Default value: `false`
+- Config file format:
+  ```yaml
+  server_settings:
+    query_reports_disabled: true
+  ```
+
 
 ##### server_settings.server_url
 
@@ -1145,9 +1187,22 @@ If you're using Fleet Premium, this enforces disk encryption on all hosts assign
       enable_disk_encryption: true
   ```
 
+#### Scripts 
+
+List of saved scripts that can be run on all hosts.
+
+> If you want to add scripts to hosts on a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](#teams).
+
+- Default value: none
+- Config file format:
+  ```yaml
+  scripts:
+    - path/to/script1.sh
+    - path/to/script2.sh
+  ```
+
 #### Advanced configuration
 
 > **Note:** More settings are included in the [contributor documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Configuration-for-contributors.md). It's possible, although not recommended, to configure these settings in the YAML configuration file.
 
 <meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure Fleet.">
-<meta name="navSection" value="Fleet server">

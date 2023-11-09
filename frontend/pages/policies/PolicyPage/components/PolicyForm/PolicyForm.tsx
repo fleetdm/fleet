@@ -6,6 +6,7 @@ import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce";
 import { size } from "lodash";
 import classnames from "classnames";
+import { COLORS } from "styles/var/colors";
 
 import { addGravatarUrlToResource } from "utilities/helpers";
 import { AppContext } from "context/app";
@@ -114,9 +115,11 @@ const PolicyForm = ({
     isGlobalObserver,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isObserverPlus,
     isOnGlobalTeam,
     isPremiumTier,
     isSandboxMode,
+    config,
   } = useContext(AppContext);
 
   const debounceSQL = useDebouncedCallback((sql: string) => {
@@ -152,6 +155,8 @@ const PolicyForm = ({
     !policyIdForEdit &&
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
 
+  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+
   useEffect(() => {
     if (isNewTemplatePolicy) {
       setCompatiblePlatforms(lastEditedQueryBody);
@@ -179,6 +184,7 @@ const PolicyForm = ({
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
+      enableMultiselect: false, // Disables command + click creating multiple cursors
     });
 
     // @ts-expect-error
@@ -454,9 +460,11 @@ const PolicyForm = ({
         >
           <TooltipWrapper
             tipContent={
-              "<p>If automations are turned on, this<br/> information is included.</p>"
+              <p>
+                If automations are turned on, this
+                <br /> information is included.
+              </p>
             }
-            isDelayed
           >
             Critical:
           </TooltipWrapper>
@@ -465,7 +473,8 @@ const PolicyForm = ({
     );
   };
 
-  // Observers and observer+ of existing query, team role viewing inherited policy
+  // Non-editable form used for Team Observers and Observer+ of their team policy and inherited policies
+  // And Global Observers and Observer+ of all policies
   const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
@@ -475,6 +484,12 @@ const PolicyForm = ({
           </h1>
           <p className={`${baseClass}__policy-description no-hover`}>
             {lastEditedQueryDescription}
+          </p>
+          <p className="resolve-title">
+            <strong>Resolve:</strong>
+          </p>
+          <p className={`${baseClass}__policy-resolution no-hover`}>
+            {lastEditedQueryResolution}
           </p>
         </div>
         <div className="author">{renderAuthor()}</div>
@@ -496,6 +511,18 @@ const PolicyForm = ({
         />
       )}
       {renderLiveQueryWarning()}
+      {isObserverPlus && ( // Observer+ can run existing policies
+        <div className={`${baseClass}__button-wrap`}>
+          <Button
+            className={`${baseClass}__run`}
+            variant="blue-green"
+            onClick={goToSelectTargets}
+            disabled={isEditMode && !isAnyPlatformSelected}
+          >
+            Run
+          </Button>
+        </div>
+      )}
     </form>
   );
 
@@ -543,7 +570,7 @@ const PolicyForm = ({
                 <span
                   className={`${baseClass}__button-wrap--tooltip`}
                   data-tip
-                  data-for={`${baseClass}__button-wrap--tooltip`}
+                  data-for="save-policy-button"
                   data-tip-disable={!isEditMode || isAnyPlatformSelected}
                 >
                   <Button
@@ -560,8 +587,8 @@ const PolicyForm = ({
                   className={`${baseClass}__button-wrap--tooltip`}
                   place="bottom"
                   effect="solid"
-                  id={`${baseClass}__button-wrap--tooltip`}
-                  backgroundColor="#3e4771"
+                  id="save-policy-button"
+                  backgroundColor={COLORS["tooltip-bg"]}
                 >
                   Select the platform(s) this
                   <br />
@@ -574,14 +601,18 @@ const PolicyForm = ({
             <span
               className={`${baseClass}__button-wrap--tooltip`}
               data-tip
-              data-for={`${baseClass}__button-wrap--tooltip`}
-              data-tip-disable={!isEditMode || isAnyPlatformSelected}
+              data-for="run-policy-button"
+              data-tip-disable={
+                (!isEditMode || isAnyPlatformSelected) && !disabledLiveQuery
+              }
             >
               <Button
                 className={`${baseClass}__run`}
                 variant="blue-green"
                 onClick={goToSelectTargets}
-                disabled={isEditMode && !isAnyPlatformSelected}
+                disabled={
+                  (isEditMode && !isAnyPlatformSelected) || disabledLiveQuery
+                }
               >
                 Run
               </Button>
@@ -590,14 +621,19 @@ const PolicyForm = ({
               className={`${baseClass}__button-wrap--tooltip`}
               place="bottom"
               effect="solid"
-              id={`${baseClass}__button-wrap--tooltip`}
-              backgroundColor="#3e4771"
+              id="run-policy-button"
+              backgroundColor={COLORS["tooltip-bg"]}
+              data-html
             >
-              Select the platform(s) this
-              <br />
-              policy will be checked on
-              <br />
-              to save or run the policy.
+              {disabledLiveQuery ? (
+                <>Live queries are disabled in organization settings</>
+              ) : (
+                <>
+                  Select the platform(s) this <br />
+                  policy will be checked on <br />
+                  to save or run the policy.
+                </>
+              )}
             </ReactTooltip>
           </div>
         </form>

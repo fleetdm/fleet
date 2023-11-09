@@ -7,8 +7,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -487,7 +487,7 @@ func checkConfig(conf *config.MysqlConfig) error {
 	// Check if file exists on disk
 	// If file exists read contents
 	if conf.PasswordPath != "" {
-		fileContents, err := ioutil.ReadFile(conf.PasswordPath)
+		fileContents, err := os.ReadFile(conf.PasswordPath)
 		if err != nil {
 			return err
 		}
@@ -796,9 +796,8 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 //
 // NOTE: this method will mutate the options argument if no explicit PerPage
 // option is set (a default value will be provided) or if the cursor approach is used.
-func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) string {
-	sql, _ = appendListOptionsWithCursorToSQL(sql, nil, opts)
-	return sql
+func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []interface{}) {
+	return appendListOptionsWithCursorToSQL(sql, nil, opts)
 }
 
 // Appends the list options SQL to the passed in SQL string. This appended

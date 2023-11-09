@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -716,7 +715,7 @@ func (t *TLS) ToTLSConfig() (*tls.Config, error) {
 	var rootCertPool *x509.CertPool
 	if t.TLSCA != "" {
 		rootCertPool = x509.NewCertPool()
-		pem, err := ioutil.ReadFile(t.TLSCA)
+		pem, err := os.ReadFile(t.TLSCA)
 		if err != nil {
 			return nil, fmt.Errorf("read server-ca pem: %w", err)
 		}
@@ -1700,7 +1699,7 @@ func TestConfig() FleetConfig {
 // all required pairs and the Apple BM token is used as-is, instead of
 // decrypting the encrypted value that is usually provided via the fleet
 // server's flags.
-func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMToken *nanodep_client.OAuth1Tokens) {
+func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMToken *nanodep_client.OAuth1Tokens, wstepCertAndKeyDir string) {
 	tlsCert, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		t.Fatal(err)
@@ -1730,11 +1729,17 @@ func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMT
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 	cfg.MDM.AppleSCEPChallenge = "testchallenge"
 
-	certPath := "../service/testdata/server.pem"
-	keyPath := "../service/testdata/server.key"
+	if wstepCertAndKeyDir == "" {
+		wstepCertAndKeyDir = "testdata"
+	}
+	certPath := filepath.Join(wstepCertAndKeyDir, "server.pem")
+	keyPath := filepath.Join(wstepCertAndKeyDir, "server.key")
 
 	cfg.MDM.WindowsWSTEPIdentityCert = certPath
 	cfg.MDM.WindowsWSTEPIdentityKey = keyPath
+	if _, _, _, err := cfg.MDM.MicrosoftWSTEP(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // Undocumented feature flag for Windows MDM, used to determine if the Windows

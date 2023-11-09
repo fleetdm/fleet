@@ -21,6 +21,7 @@ import (
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -201,16 +202,29 @@ func TranslateCPEToCVE(
 	return newVulns, nil
 }
 
+func matchesExactTargetSW(softwareCPETargetSW string, targetSWs []string, configs []*wfn.Attributes) bool {
+	for _, targetSW := range targetSWs {
+		if softwareCPETargetSW == targetSW {
+			for _, attr := range configs {
+				if attr.TargetSW == targetSW {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func checkCVEs(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	softwareCPEs []softwareCPEWithNVDMeta,
-	file string,
+	jsonFile string,
 	collectVulns bool,
 	knownNVDBugRules CPEMatchingRules,
 ) ([]fleet.SoftwareVulnerability, error) {
-	dict, err := cvefeed.LoadJSONDictionary(file)
+	dict, err := cvefeed.LoadJSONDictionary(jsonFile)
 	if err != nil {
 		return nil, err
 	}
@@ -225,20 +239,22 @@ func checkCVEs(
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
+	logger = log.With(logger, "json_file", jsonFile)
+
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
 		goRoutineKey := i
 		go func() {
 			defer wg.Done()
 
-			logKey := fmt.Sprintf("cpe-processing-%d", goRoutineKey)
-			level.Debug(logger).Log(logKey, "start")
+			logger := log.With(logger, "routine", goRoutineKey)
+			level.Debug(logger).Log("msg", "start")
 
 			for {
 				select {
 				case softwareCPE, more := <-softwareCPECh:
 					if !more {
-						level.Debug(logger).Log(logKey, "done")
+						level.Debug(logger).Log("msg", "done")
 						return
 					}
 
@@ -256,9 +272,26 @@ func checkCVEs(
 							}
 						}
 
+						// For chrome/firefox extensions we only want to match vulnerabilities
+						// that are reported explicitly for target_sw == "chrome" or target_sw = "firefox".
+						//
+						// Why? In many ocassions the NVD dataset reports vulnerabilities in client applications
+						// with target_sw == "*", meaning the client application is vulnerable on all operating systems.
+						// Such rules we want to ignore here to prevent many false positives that do not apply to the
+						// Chrome or Firefox environment.
+						if softwareCPE.meta.TargetSW == "chrome" || softwareCPE.meta.TargetSW == "firefox" {
+							if !matchesExactTargetSW(
+								softwareCPE.meta.TargetSW,
+								[]string{"chrome", "firefox"},
+								matches.CVE.Config(),
+							) {
+								continue
+							}
+						}
+
 						resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), softwareCPE.meta, dict, logger)
 						if err != nil {
-							level.Debug(logger).Log(logKey, "error", "err", err)
+							level.Debug(logger).Log("err", err)
 						}
 
 						vuln := fleet.SoftwareVulnerability{
@@ -273,20 +306,20 @@ func checkCVEs(
 
 					}
 				case <-ctx.Done():
-					level.Debug(logger).Log(logKey, "quitting")
+					level.Debug(logger).Log("msg", "quitting")
 					return
 				}
 			}
 		}()
 	}
 
-	level.Debug(logger).Log("pushing cpes", "start")
+	level.Debug(logger).Log("msg", "pushing cpes")
 
 	for _, cpe := range softwareCPEs {
 		softwareCPECh <- cpe
 	}
 	close(softwareCPECh)
-	level.Debug(logger).Log("pushing cpes", "done")
+	level.Debug(logger).Log("msg", "cpes pushed")
 	wg.Wait()
 
 	return foundVulns, nil

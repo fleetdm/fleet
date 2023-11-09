@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"time"
 
+	"fyne.io/systray"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
@@ -19,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/getlantern/systray"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -158,12 +158,13 @@ func main() {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
 		client.WithInvalidTokenRetry(func() string {
+			log.Debug().Msg("refetching token from disk for API retry")
 			newToken, err := tokenReader.Read()
 			if err != nil {
-				log.Error().Err(err).Msg("refetch token")
+				log.Error().Err(err).Msg("refetch token from disk for API retry")
 				return ""
 			}
-			log.Debug().Msg("successfully refetched the token from disk")
+			log.Debug().Msg("successfully refetched the token from disk for API retry")
 			return newToken
 		})
 

@@ -161,6 +161,10 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 		return fleet.ListOptions{}, ctxerr.Wrap(r.Context(), badRequest("order_key must be specified with order_direction"))
 	}
 
+	if orderKey == "" && afterString != "" {
+		return fleet.ListOptions{}, ctxerr.Wrap(r.Context(), badRequest("order_key must be specified with after"))
+	}
+
 	var orderDirection fleet.OrderDirection
 	switch orderDirectionString {
 	case "desc":
@@ -202,7 +206,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	case "":
 		// No error when unset
 	default:
-		return hopt, ctxerr.Errorf(r.Context(), "invalid status %s", status)
+		return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid status: %s", status)))
 
 	}
 
@@ -215,7 +219,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	if teamID != "" {
 		id, err := strconv.Atoi(teamID)
 		if err != nil {
-			return hopt, err
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", teamID)))
 		}
 		tid := uint(id)
 		hopt.TeamFilter = &tid
@@ -225,7 +229,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	if policyID != "" {
 		id, err := strconv.Atoi(policyID)
 		if err != nil {
-			return hopt, err
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid policy_id: %s", policyID)))
 		}
 		pid := uint(id)
 		hopt.PolicyIDFilter = &pid
@@ -233,12 +237,29 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	policyResponse := r.URL.Query().Get("policy_response")
 	if policyResponse != "" {
+		if hopt.PolicyIDFilter == nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Missing policy_id (it must be present when policy_response is specified)",
+				),
+			)
+		}
 		var v *bool
 		switch policyResponse {
 		case "passing":
 			v = ptr.Bool(true)
 		case "failing":
 			v = ptr.Bool(false)
+		default:
+			return hopt, ctxerr.Wrap(
+				r.Context(),
+				badRequest(
+					fmt.Sprintf(
+						"Invalid policy_response: %v (Valid options are 'passing' or 'failing')",
+						policyResponse,
+					),
+				),
+			)
 		}
 		hopt.PolicyResponseFilter = v
 	}
@@ -247,7 +268,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	if softwareID != "" {
 		id, err := strconv.Atoi(softwareID)
 		if err != nil {
-			return hopt, err
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid software_id: %s", softwareID)))
 		}
 		sid := uint(id)
 		hopt.SoftwareIDFilter = &sid
@@ -257,7 +278,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	if osID != "" {
 		id, err := strconv.Atoi(osID)
 		if err != nil {
-			return hopt, err
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid os_id: %s", osID)))
 		}
 		sid := uint(id)
 		hopt.OSIDFilter = &sid
@@ -273,11 +294,33 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.OSVersionFilter = &osVersion
 	}
 
+	if hopt.OSNameFilter != nil && hopt.OSVersionFilter == nil {
+		return hopt, ctxerr.Wrap(
+			r.Context(), badRequest(
+				"Invalid os_version (os_version must be specified with os_name)",
+			),
+		)
+	}
+	if hopt.OSNameFilter == nil && hopt.OSVersionFilter != nil {
+		return hopt, ctxerr.Wrap(
+			r.Context(), badRequest(
+				"Invalid os_name (os_name must be specified with os_version)",
+			),
+		)
+	}
+
 	disableFailingPolicies := r.URL.Query().Get("disable_failing_policies")
 	if disableFailingPolicies != "" {
 		boolVal, err := strconv.ParseBool(disableFailingPolicies)
 		if err != nil {
-			return hopt, err
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					fmt.Sprintf(
+						"Invalid disable_failing_policies: %s",
+						disableFailingPolicies,
+					),
+				),
+			)
 		}
 		hopt.DisableFailingPolicies = boolVal
 	}
@@ -286,7 +329,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	if deviceMapping != "" {
 		boolVal, err := strconv.ParseBool(deviceMapping)
 		if err != nil {
-			return hopt, err
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid device_mapping: %s", deviceMapping)))
 		}
 		hopt.DeviceMapping = boolVal
 	}
@@ -295,7 +338,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	if mdmID != "" {
 		id, err := strconv.Atoi(mdmID)
 		if err != nil {
-			return hopt, err
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid mdm_id: %s", mdmID)))
 		}
 		mid := uint(id)
 		hopt.MDMIDFilter = &mid
@@ -313,17 +356,21 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	case "":
 		// No error when unset
 	default:
-		return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("invalid mdm enrollment status %s", enrollmentStatus)))
+		return hopt, ctxerr.Wrap(
+			r.Context(), badRequest(fmt.Sprintf("Invalid mdm_enrollment_status: %s", enrollmentStatus)),
+		)
 	}
 
 	macOSSettingsStatus := r.URL.Query().Get("macos_settings")
-	switch fleet.MacOSSettingsStatus(macOSSettingsStatus) {
-	case fleet.MacOSSettingsFailed, fleet.MacOSSettingsPending, fleet.MacOSSettingsVerifying, fleet.MacOSSettingsVerified:
-		hopt.MacOSSettingsFilter = fleet.MacOSSettingsStatus(macOSSettingsStatus)
+	switch fleet.OSSettingsStatus(macOSSettingsStatus) {
+	case fleet.OSSettingsFailed, fleet.OSSettingsPending, fleet.OSSettingsVerifying, fleet.OSSettingsVerified:
+		hopt.MacOSSettingsFilter = fleet.OSSettingsStatus(macOSSettingsStatus)
 	case "":
 		// No error when unset
 	default:
-		return hopt, ctxerr.Errorf(r.Context(), "invalid macos_settings status %s", macOSSettingsStatus)
+		return hopt, ctxerr.Wrap(
+			r.Context(), badRequest(fmt.Sprintf("Invalid macos_settings: %s", macOSSettingsStatus)),
+		)
 	}
 
 	macOSSettingsDiskEncryptionStatus := r.URL.Query().Get("macos_settings_disk_encryption")
@@ -339,7 +386,41 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	case "":
 		// No error when unset
 	default:
-		return hopt, ctxerr.Errorf(r.Context(), "invalid macos_settings_disk_encryption status %s", macOSSettingsDiskEncryptionStatus)
+		return hopt, ctxerr.Wrap(
+			r.Context(),
+			badRequest(fmt.Sprintf("Invalid macos_settings_disk_encryption: %s", macOSSettingsDiskEncryptionStatus)),
+		)
+	}
+
+	osSettingsStatus := r.URL.Query().Get("os_settings")
+	switch fleet.OSSettingsStatus(osSettingsStatus) {
+	case fleet.OSSettingsFailed, fleet.OSSettingsPending, fleet.OSSettingsVerifying, fleet.OSSettingsVerified:
+		hopt.OSSettingsFilter = fleet.OSSettingsStatus(osSettingsStatus)
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Wrap(
+			r.Context(), badRequest(fmt.Sprintf("Invalid os_settings: %s", osSettingsStatus)),
+		)
+	}
+
+	osSettingsDiskEncryptionStatus := r.URL.Query().Get("os_settings_disk_encryption")
+	switch fleet.DiskEncryptionStatus(osSettingsDiskEncryptionStatus) {
+	case
+		fleet.DiskEncryptionVerifying,
+		fleet.DiskEncryptionVerified,
+		fleet.DiskEncryptionActionRequired,
+		fleet.DiskEncryptionEnforcing,
+		fleet.DiskEncryptionFailed,
+		fleet.DiskEncryptionRemovingEnforcement:
+		hopt.OSSettingsDiskEncryptionFilter = fleet.DiskEncryptionStatus(osSettingsDiskEncryptionStatus)
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Wrap(
+			r.Context(),
+			badRequest(fmt.Sprintf("Invalid os_settings_disk_encryption: %s", macOSSettingsDiskEncryptionStatus)),
+		)
 	}
 
 	mdmBootstrapPackageStatus := r.URL.Query().Get("bootstrap_package")
@@ -350,14 +431,16 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	case "":
 		// No error when unset
 	default:
-		return hopt, ctxerr.Errorf(r.Context(), "invalid bootstrap_package status %s", mdmBootstrapPackageStatus)
+		return hopt, ctxerr.Wrap(
+			r.Context(), badRequest(fmt.Sprintf("Invalid bootstrap_package: %s", mdmBootstrapPackageStatus)),
+		)
 	}
 
 	munkiIssueID := r.URL.Query().Get("munki_issue_id")
 	if munkiIssueID != "" {
 		id, err := strconv.Atoi(munkiIssueID)
 		if err != nil {
-			return hopt, err
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid munki_issue_id: %s", munkiIssueID)))
 		}
 		mid := uint(id)
 		hopt.MunkiIssueIDFilter = &mid
@@ -367,10 +450,16 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	if lowDiskSpace != "" {
 		v, err := strconv.Atoi(lowDiskSpace)
 		if err != nil {
-			return hopt, err
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid low_disk_space: %s", lowDiskSpace)))
 		}
 		if v < 1 || v > 100 {
-			return hopt, ctxerr.Errorf(r.Context(), "invalid low_disk_space threshold, must be between 1 and 100: %s", lowDiskSpace)
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					fmt.Sprintf(
+						"Invalid low_disk_space, must be between 1 and 100: %s", lowDiskSpace,
+					),
+				),
+			)
 		}
 		hopt.LowDiskSpaceFilter = &v
 	}
@@ -384,19 +473,23 @@ func carveListOptionsFromRequest(r *http.Request) (fleet.CarveListOptions, error
 		return fleet.CarveListOptions{}, err
 	}
 
-	copt := fleet.CarveListOptions{ListOptions: opt}
+	carveOpts := fleet.CarveListOptions{ListOptions: opt}
 
 	expired := r.URL.Query().Get("expired")
-	// TODO(mna): allow the same bool encodings as strconv.ParseBool and use it?
-	switch expired {
-	case "1", "true":
-		copt.Expired = true
-	case "0", "":
-		copt.Expired = false
-	default:
-		return copt, ctxerr.Errorf(r.Context(), "invalid expired value %s", expired)
+	if expired == "" {
+		carveOpts.Expired = false
+	} else {
+		boolVal, err := strconv.ParseBool(expired)
+		if err != nil {
+			return carveOpts, ctxerr.Wrap(
+				r.Context(), badRequest(
+					fmt.Sprintf("Invalid expired: %s", expired),
+				),
+			)
+		}
+		carveOpts.Expired = boolVal
 	}
-	return copt, nil
+	return carveOpts, nil
 }
 
 func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) {
@@ -405,17 +498,18 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 		return fleet.UserListOptions{}, err
 	}
 
-	uopt := fleet.UserListOptions{ListOptions: opt}
+	userOpts := fleet.UserListOptions{ListOptions: opt}
 
 	if tid := r.URL.Query().Get("team_id"); tid != "" {
 		teamID, err := strconv.ParseUint(tid, 10, 64)
 		if err != nil {
-			return uopt, ctxerr.Wrap(r.Context(), err, "parse team_id as int")
+			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", tid)))
 		}
-		uopt.TeamID = uint(teamID)
+		// GitHub CodeQL flags this as: Incorrect conversion between integer types. Previously waived: https://github.com/fleetdm/fleet/security/code-scanning/516
+		userOpts.TeamID = uint(teamID)
 	}
 
-	return uopt, nil
+	return userOpts, nil
 }
 
 type getGenericSpecRequest struct {

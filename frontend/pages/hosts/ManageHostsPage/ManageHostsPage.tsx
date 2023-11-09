@@ -18,6 +18,7 @@ import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
 import hostsAPI, {
+  HOSTS_QUERY_PARAMS as PARAMS,
   ILoadHostsQueryKey,
   ILoadHostsResponse,
   ISortOption,
@@ -49,7 +50,11 @@ import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
-import { FileVaultProfileStatus, BootstrapPackageStatus } from "interfaces/mdm";
+import {
+  DiskEncryptionStatus,
+  BootstrapPackageStatus,
+  MdmProfileStatus,
+} from "interfaces/mdm";
 
 import sortUtils from "utilities/sort";
 import {
@@ -232,8 +237,9 @@ const ManageHostsPage = ({
       ? parseInt(queryParams.low_disk_space, 10)
       : undefined;
   const missingHosts = queryParams?.status === "missing";
-  const diskEncryptionStatus: FileVaultProfileStatus | undefined =
-    queryParams?.macos_settings_disk_encryption;
+  const osSettingsStatus = queryParams?.[PARAMS.OS_SETTINGS];
+  const diskEncryptionStatus: DiskEncryptionStatus | undefined =
+    queryParams?.[PARAMS.DISK_ENCRYPTION];
   const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
     queryParams?.bootstrap_package;
 
@@ -365,6 +371,7 @@ const ManageHostsPage = ({
         page: tableQueryData ? tableQueryData.pageIndex : 0,
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
         device_mapping: true,
+        osSettings: osSettingsStatus,
         diskEncryptionStatus,
         bootstrapPackageStatus,
         macSettingsStatus,
@@ -401,6 +408,7 @@ const ManageHostsPage = ({
         osId,
         osName,
         osVersion,
+        osSettings: osSettingsStatus,
         diskEncryptionStatus,
         bootstrapPackageStatus,
         macSettingsStatus,
@@ -558,7 +566,7 @@ const ManageHostsPage = ({
   };
 
   const handleChangeDiskEncryptionStatusFilter = (
-    newStatus: FileVaultProfileStatus
+    newStatus: DiskEncryptionStatus
   ) => {
     handleResetPageIndex();
 
@@ -569,7 +577,24 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          macos_settings_disk_encryption: newStatus,
+          [PARAMS.DISK_ENCRYPTION]: newStatus,
+          page: 0, // resets page index
+        },
+      })
+    );
+  };
+
+  const handleChangeOsSettingsFilter = (newStatus: MdmProfileStatus) => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: {
+          ...queryParams,
+          [PARAMS.OS_SETTINGS]: newStatus,
           page: 0, // resets page index
         },
       })
@@ -766,9 +791,11 @@ const ManageHostsPage = ({
         newQueryParams.os_id = osId;
         newQueryParams.os_name = osName;
         newQueryParams.os_version = osVersion;
+      } else if (osSettingsStatus) {
+        newQueryParams[PARAMS.OS_SETTINGS] = osSettingsStatus;
       } else if (diskEncryptionStatus && isPremiumTier) {
         // Premium feature only
-        newQueryParams.macos_settings_disk_encryption = diskEncryptionStatus;
+        newQueryParams[PARAMS.DISK_ENCRYPTION] = diskEncryptionStatus;
       } else if (bootstrapPackageStatus && isPremiumTier) {
         newQueryParams.bootstrap_package = bootstrapPackageStatus;
       }
@@ -806,6 +833,7 @@ const ManageHostsPage = ({
       router,
       routeTemplate,
       routeParams,
+      osSettingsStatus,
       diskEncryptionStatus,
       bootstrapPackageStatus,
     ]
@@ -1151,6 +1179,7 @@ const ManageHostsPage = ({
       onSubmit={onDeleteHostSubmit}
       onCancel={toggleDeleteHostModal}
       isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+      hostsCount={hostsCount}
       isUpdating={isUpdatingHosts}
     />
   );
@@ -1329,13 +1358,13 @@ const ManageHostsPage = ({
     if (maybeEmptyHosts) {
       const emptyState = () => {
         const emptyHosts: IEmptyTableProps = {
-          iconName: "empty-hosts",
+          graphicName: "empty-hosts",
           header: "Devices will show up here once they’re added to Fleet.",
           info:
             "Expecting to see devices? Try again in a few seconds as the system catches up.",
         };
         if (includesFilterQueryParam) {
-          delete emptyHosts.iconName;
+          delete emptyHosts.graphicName;
           emptyHosts.header = "No hosts match the current criteria";
           emptyHosts.info =
             "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
@@ -1354,7 +1383,7 @@ const ManageHostsPage = ({
       return (
         <>
           {EmptyTable({
-            iconName: emptyState().iconName,
+            graphicName: emptyState().graphicName,
             header: emptyState().header,
             info: emptyState().info,
             additionalInfo: emptyState().additionalInfo,
@@ -1382,12 +1411,6 @@ const ManageHostsPage = ({
       isOnlyObserver:
         isOnlyObserver || (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
     });
-
-    // Update last column
-    tableColumns.forEach((dataColumn) => {
-      dataColumn.isLastColumn = false;
-    });
-    tableColumns[tableColumns.length - 1].isLastColumn = true;
 
     const emptyState = () => {
       const emptyHosts: IEmptyTableProps = {
@@ -1538,6 +1561,7 @@ const ManageHostsPage = ({
               softwareDetails: hostsData?.software || null,
               mdmSolutionDetails:
                 hostsData?.mobile_device_management_solution || null,
+              osSettingsStatus,
               diskEncryptionStatus,
               bootstrapPackageStatus,
             }}
@@ -1546,6 +1570,7 @@ const ManageHostsPage = ({
             handleClearRouteParam={handleClearRouteParam}
             handleClearFilter={handleClearFilter}
             onChangePoliciesFilter={handleChangePoliciesFilter}
+            onChangeOsSettingsFilter={handleChangeOsSettingsFilter}
             onChangeDiskEncryptionStatusFilter={
               handleChangeDiskEncryptionStatusFilter
             }

@@ -1,0 +1,43 @@
+{
+    "metadata": {
+        "testing": true,
+        "version": "1.0.1"
+    }
+}
+{
+    "system": "users demo"
+}
+{
+    "users": [
+        {
+            "favorites": [
+                "ants"
+            ],
+            "uuid": "abc123",
+            "name": "Alex Aardvark",
+            "id": 1
+        },
+        {
+            "favorites": [
+                "mice",
+                "birds"
+            ],
+            "uuid": "def456",
+            "name": "Bailey Bobcat",
+            "id": 2
+        },
+        {
+            "favorites": [
+                "seeds"
+            ],
+            "uuid": "ghi789",
+            "name": "Cam Chipmunk",
+            "id": 3
+        }
+    ]
+}
+[
+    "array-item-A",
+    "array-item-B",
+    "array-item-C"
+]
