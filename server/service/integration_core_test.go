@@ -268,6 +268,60 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	require.True(t, found)
 }
 
+func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
+	t := s.T()
+
+	// create a new user
+	var createResp createUserResponse
+	userRawPwd := test.GoodPassword
+	params := fleet.UserPayload{
+		Name:       ptr.String("Gonna B Deleted"),
+		Email:      ptr.String("goingto@delete.com"),
+		Password:   ptr.String(userRawPwd),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	assert.NotZero(t, createResp.User.ID)
+	assert.True(t, createResp.User.AdminForcedPasswordReset)
+	u := *createResp.User
+
+	var loginResp loginResponse
+	s.DoJSON("POST", "/api/latest/fleet/login", params, http.StatusOK, &loginResp)
+	require.Equal(t, loginResp.User.ID, u.ID)
+
+	activities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
+
+	assert.GreaterOrEqual(t, len(activities.Activities), 1)
+	found := false
+	for _, activity := range activities.Activities {
+		if activity.Type == "user_logged_in" && *activity.ActorFullName == u.Name {
+			found = true
+			assert.Equal(t, u.Email, *activity.ActorEmail)
+		}
+	}
+	require.True(t, found)
+
+	err := s.ds.DeleteUser(context.Background(), u.ID)
+	require.NoError(t, err)
+
+	activities = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
+
+	assert.GreaterOrEqual(t, len(activities.Activities), 1)
+	found = false
+	for _, activity := range activities.Activities {
+		if activity.Type == "user_logged_in" && *activity.ActorFullName == u.Name {
+			found = true
+			assert.Equal(t, u.Email, *activity.ActorEmail)
+		}
+	}
+	require.True(t, found)
+
+	// ensure that on exit, the admin token is used
+	s.token = s.getTestAdminToken()
+}
+
 func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 	t := s.T()
 
