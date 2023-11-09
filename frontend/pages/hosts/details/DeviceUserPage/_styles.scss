@@ -130,7 +130,8 @@
     }
 
     p,
-    .last-fetched {
+    .last-fetched,
+    .status-indicator {
       color: $ui-dark-grey;
     }
 
@@ -190,7 +191,8 @@
     }
 
     .data-table__wrapper {
-      background-color: $ui-dark-fleet-25;
+      background-color: $ui-dark-fleet-50;
+      background-image: none;
       border-color: $ui-dark-fleet-25;
     }
 
@@ -200,7 +202,6 @@
 
     .data-table-block,
     .data-table__table {
-      background-color: transparent;
       border-color: $ui-dark-fleet-25;
       color: $ui-dark-grey;
       tr {
@@ -213,7 +214,6 @@
       border-color: $ui-dark-fleet-25;
       color: $ui-dark-white;
     }
-    tbody,
     .section,
     .policy-failing-count,
     .software-vuln-count {
@@ -283,9 +283,13 @@
   .button--brand:hover:not(.button--disabled) {
     background-color: $ui-dark-button;
   }
-
-  .modal__modal_container,
   .__react_component_tooltip {
+    background-color: $ui-dark-fleet-25;
+    &::after {
+      border-right-color: $ui-dark-fleet-25;
+    }
+  } 
+  .modal__modal_container {
     background-color: $ui-dark-modal-background;
     backdrop-filter: blur(25px);
     border: 1px solid rgba(255, 255, 255, 0.25);
