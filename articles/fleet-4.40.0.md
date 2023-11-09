@@ -1,4 +1,4 @@
-# Fleet 4.40.0 | <!-- More Data, --> Rapid Security Response, CIS Benchmark updates.
+# Fleet 4.40.0 | More Data, Rapid Security Response, CIS Benchmark updates.
 
 ![Fleet 4.40.0](../website/assets/images/articles/fleet-4.40.0-1600x900@2x.png)
 
@@ -7,12 +7,12 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ## Highlights
 
-<!-- * More osquery tables -->
+* More osquery tables
 * RSR version in host details
 * CIS Benchmarks for Windows 10 updates
 
 
-<!-- ### More osquery tables
+### More osquery tables
 
 Fleet has introduced an enhancement by adding new osquery [tables](https://fleetdm.com/tables) into
 the `fleetd` daemon, expanding the range of queryable data points for Fleet users. This development
@@ -21,7 +21,6 @@ osquery community and thinking long-term. Users can now utilize an enriched data
 community-driven extensions, enabling them to query and gather detailed data on various aspects of
 their devices, such as FileVault status for macOS, Firefox preferences, the status of Windows
 updates, and more.
-// -->
 
 ### RSR version in host details
 
