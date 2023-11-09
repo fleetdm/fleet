@@ -615,3 +615,240 @@ func (ds *Datastore) DeleteMDMWindowsProfile(ctx context.Context, profileUUID st
 	}
 	return nil
 }
+
+func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+	// The query below is a set difference between:
+	//
+	// - Set A (ds), the desired state, can be obtained from a JOIN between
+	//   mdm_windows_configuration_profiles and hosts.
+	// - Set B, the current state given by host_mdm_windows_profiles.
+	//
+	// A - B gives us the profiles that need to be installed:
+	//
+	//   - profiles that are in A but not in B
+	//
+	//   - profiles that are in A and in B, with an operation type of "install"
+	//   and a NULL status. Other statuses mean that the operation is already in
+	//   flight (pending), the operation has been completed but is still subject
+	//   to independent verification by Fleet (verifying), or has reached a terminal
+	//   state (failed or verified). If the profile's content is edited, all relevant hosts will
+	//   be marked as status NULL so that it gets re-installed.
+	query := `
+        SELECT
+            ds.profile_uuid,
+            ds.host_uuid
+        FROM (
+            SELECT mwcp.profile_uuid, h.uuid as host_uuid
+            FROM mdm_windows_configuration_profiles mwcp
+            JOIN hosts h ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
+            JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
+            WHERE h.platform = 'windows'
+        ) as ds
+        LEFT JOIN host_mdm_windows_profiles hmwp
+            ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid
+        WHERE
+        -- profiles in A but not in B
+        ( hmwp.profile_uuid IS NULL AND hmwp.host_uuid IS NULL ) OR
+        -- profiles in A and B with operation type "install" and NULL status
+        ( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = ? AND hmwp.status IS NULL )
+`
+
+	var profiles []*fleet.MDMWindowsProfilePayload
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeInstall)
+	return profiles, err
+}
+
+func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+	// The query below is a set difference between:
+	//
+	// - Set A (ds), the desired state, can be obtained from a JOIN between
+	// mdm_windows_configuration_profiles and hosts.
+	// - Set B, the current state given by host_mdm_windows_profiles.
+	//
+	// B - A gives us the profiles that need to be removed
+	//
+	// Any other case are profiles that are in both B and A, and as such are
+	// processed by the ListMDMWindowsProfilesToInstall method (since they are in
+	// both, their desired state is necessarily to be installed).
+	query := `
+        SELECT
+	    hmwp.profile_uuid,
+	    hmwp.host_uuid,
+	    hmwp.operation_type,
+	    COALESCE(hmwp.detail, '') as detail,
+	    hmwp.status,
+	    hmwp.command_uuid
+          FROM (
+            SELECT h.uuid, mwcp.profile_uuid
+            FROM mdm_windows_configuration_profiles mwcp
+            JOIN hosts h ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
+	    JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
+            WHERE h.platform = 'windows'
+          ) as ds
+          RIGHT JOIN host_mdm_windows_profiles hmwp
+            ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.uuid
+          -- profiles that are in B but not in A
+          WHERE ds.profile_uuid IS NULL AND ds.uuid IS NULL
+`
+
+	var profiles []*fleet.MDMWindowsProfilePayload
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query)
+	return profiles, err
+}
+
+func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+	if len(payload) == 0 {
+		return nil
+	}
+
+	executeUpsertBatch := func(valuePart string, args []any) error {
+		stmt := fmt.Sprintf(`
+	    INSERT INTO host_mdm_windows_profiles (
+              profile_uuid,
+	      host_uuid,
+	      status,
+	      operation_type,
+	      detail,
+	      command_uuid,
+	      profile_name
+            )
+            VALUES %s
+	    ON DUPLICATE KEY UPDATE
+              status = VALUES(status),
+              operation_type = VALUES(operation_type),
+              detail = VALUES(detail),
+              profile_name = VALUES(profile_name),
+              command_uuid = VALUES(command_uuid)`,
+			strings.TrimSuffix(valuePart, ","),
+		)
+
+		_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		return err
+	}
+
+	var (
+		args       []any
+		sb         strings.Builder
+		batchCount int
+	)
+
+	const defaultBatchSize = 1000 // results in this times 9 placeholders
+	batchSize := defaultBatchSize
+	if testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = testUpsertMDMDesiredProfilesBatchSize
+	}
+
+	resetBatch := func() {
+		batchCount = 0
+		args = args[:0]
+		sb.Reset()
+	}
+
+	for _, p := range payload {
+		args = append(args, p.ProfileUUID, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID, p.ProfileName)
+		sb.WriteString("(?, ?, ?, ?, ?, ?, ?),")
+		batchCount++
+
+		if batchCount >= batchSize {
+			if err := executeUpsertBatch(sb.String(), args); err != nil {
+				return err
+			}
+			resetBatch()
+		}
+	}
+
+	if batchCount > 0 {
+		if err := executeUpsertBatch(sb.String(), args); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []string) (map[string][]byte, error) {
+	if len(uuids) == 0 {
+		return nil, nil
+	}
+
+	stmt := `
+          SELECT profile_uuid, syncml
+          FROM mdm_windows_configuration_profiles WHERE profile_uuid IN (?)
+	`
+	query, args, err := sqlx.In(stmt, uuids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building in statement")
+	}
+
+	var profs []struct {
+		ProfileUUID string `db:"profile_uuid"`
+		SyncML      []byte `db:"syncml"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profs, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "running query")
+	}
+
+	results := make(map[string][]byte)
+	for _, p := range profs {
+		results[p.ProfileUUID] = p.SyncML
+	}
+
+	return results, nil
+}
+
+func (ds *Datastore) BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, profs []*fleet.MDMWindowsProfilePayload) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		return bulkDeleteMDMWindowsHostsConfigProfilesDB(ctx, tx, profs)
+	})
+}
+
+func bulkDeleteMDMWindowsHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, profs []*fleet.MDMWindowsProfilePayload) error {
+	if len(profs) == 0 {
+		return nil
+	}
+
+	executeDeleteBatch := func(valuePart string, args []any) error {
+		stmt := fmt.Sprintf(`DELETE FROM host_mdm_windows_profiles WHERE (profile_uuid, host_uuid) IN (%s)`, strings.TrimSuffix(valuePart, ","))
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "error deleting host_mdm_windows_profiles")
+		}
+		return nil
+	}
+
+	var (
+		args       []any
+		sb         strings.Builder
+		batchCount int
+	)
+
+	const defaultBatchSize = 1000 // results in this times 2 placeholders
+	batchSize := defaultBatchSize
+	if testDeleteMDMProfilesBatchSize > 0 {
+		batchSize = testDeleteMDMProfilesBatchSize
+	}
+
+	resetBatch := func() {
+		batchCount = 0
+		args = args[:0]
+		sb.Reset()
+	}
+
+	for _, p := range profs {
+		args = append(args, p.ProfileUUID, p.HostUUID)
+		sb.WriteString("(?, ?),")
+		batchCount++
+
+		if batchCount >= batchSize {
+			if err := executeDeleteBatch(sb.String(), args); err != nil {
+				return err
+			}
+			resetBatch()
+		}
+	}
+
+	if batchCount > 0 {
+		if err := executeDeleteBatch(sb.String(), args); err != nil {
+			return err
+		}
+	}
+	return nil
+}

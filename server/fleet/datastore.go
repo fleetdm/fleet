@@ -1097,6 +1097,31 @@ type Datastore interface {
 	GetMDMWindowsBitLockerStatus(ctx context.Context, host *Host) (*HostMDMDiskEncryption, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Windows MDM Profiles
+
+	// ListMDMWindowsProfilesToInstall returns all the profiles that should
+	// be installed based on diffing the ideal state vs the state we have
+	// registered in `host_mdm_windows_profiles`
+	ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
+
+	// ListMDMWindowsProfilesToRemove returns all the profiles that should
+	// be removed based on diffing the ideal state vs the state we have
+	// registered in `host_mdm_apple_profiles`
+	ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
+
+	// BulkUpsertMDMWindowsHostProfiles bulk-adds/updates records to track the
+	// status of a profile in a host.
+	BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payload []*MDMWindowsBulkUpsertHostProfilePayload) error
+
+	// GetMDMWindowsProfilesContents retrieves the XML contents of the
+	// profiles requested.
+	GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string][]byte, error)
+
+	// BulkDeleteMDMWindowsHostsConfigProfiles deletes entries from
+	// host_mdm_windows_profiles that match the given payload.
+	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error
+
+	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
 
 	// NewHostScriptExecutionRequest creates a new host script result entry with
