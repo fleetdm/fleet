@@ -1777,6 +1777,9 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	}
 	assert.Equal(t, len(listResp.Labels), builtinsCount)
 
+	// 'after' param is not supported for labels
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusBadRequest, &listResp, "order_key", "id", "after", "1")
+
 	// team filter, no host
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
@@ -2388,6 +2391,14 @@ func (s *integrationTestSuite) TestListGetCarves() {
 	require.Len(t, listResp.Carves, 2)
 	assert.Equal(t, c1.ID, listResp.Carves[0].ID)
 	assert.Equal(t, c3.ID, listResp.Carves[1].ID)
+
+	// with 'after' param
+	s.DoJSON(
+		"GET", "/api/latest/fleet/carves", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id", "after",
+		strconv.FormatInt(c1.ID, 10),
+	)
+	require.Len(t, listResp.Carves, 1)
+	assert.Equal(t, c3.ID, listResp.Carves[0].ID)
 
 	// include expired
 	s.DoJSON("GET", "/api/latest/fleet/carves", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id", "expired", "1")
