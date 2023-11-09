@@ -161,7 +161,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 					profileSchedule = schedule.New(
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
-						schedule.WithJob("manage_profiles", func(ctx context.Context) error {
+						schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
 							if s.onProfileScheduleDone != nil {
 								s.onProfileScheduleDone()
 							}
@@ -291,7 +291,7 @@ func (s *integrationMDMTestSuite) mockDEPResponse(handler http.Handler) {
 }
 
 func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T) {
-	// two schedules concurrently running: macOS and Windows
+	// two jobs running sequentially (macOS then Windows) on the same schedule
 	var wg sync.WaitGroup
 	wg.Add(2)
 	s.onProfileScheduleDone = wg.Done

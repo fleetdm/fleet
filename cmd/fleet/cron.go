@@ -967,7 +967,7 @@ func newMDMProfileManager(
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
-		schedule.WithJob("manage_profiles", func(ctx context.Context) error {
+		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
 			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
 		}),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
