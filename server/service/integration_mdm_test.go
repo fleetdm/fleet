@@ -72,16 +72,16 @@ func TestIntegrationsMDM(t *testing.T) {
 type integrationMDMTestSuite struct {
 	suite.Suite
 	withServer
-	fleetCfg              config.FleetConfig
-	fleetDMNextCSRStatus  atomic.Value
-	pushProvider          *mock.APNSPushProvider
-	depStorage            nanodep_storage.AllStorage
-	depSchedule           *schedule.Schedule
-	profileSchedule       *schedule.Schedule
-	onProfileScheduleDone func() // function called when profileSchedule.Trigger() job completed
-	onDEPScheduleDone     func() // function called when depSchedule.Trigger() job completed
-	mdmStorage            *mysql.NanoMDMStorage
-	worker                *worker.Worker
+	fleetCfg             config.FleetConfig
+	fleetDMNextCSRStatus atomic.Value
+	pushProvider         *mock.APNSPushProvider
+	depStorage           nanodep_storage.AllStorage
+	depSchedule          *schedule.Schedule
+	profileSchedule      *schedule.Schedule
+	onProfileJobDone     func() // function called when profileSchedule.Trigger() job completed
+	onDEPScheduleDone    func() // function called when depSchedule.Trigger() job completed
+	mdmStorage           *mysql.NanoMDMStorage
+	worker               *worker.Worker
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -162,16 +162,16 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-							if s.onProfileScheduleDone != nil {
-								s.onProfileScheduleDone()
+							if s.onProfileJobDone != nil {
+								s.onProfileJobDone()
 							}
 							err := ReconcileAppleProfiles(ctx, ds, mdmCommander, logger)
 							require.NoError(s.T(), err)
 							return err
 						}),
 						schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
-							if s.onProfileScheduleDone != nil {
-								defer s.onProfileScheduleDone()
+							if s.onProfileJobDone != nil {
+								defer s.onProfileJobDone()
 							}
 							err := ReconcileWindowsProfiles(ctx, ds, logger)
 							require.NoError(s.T(), err)
@@ -294,7 +294,7 @@ func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T) {
 	// two jobs running sequentially (macOS then Windows) on the same schedule
 	var wg sync.WaitGroup
 	wg.Add(2)
-	s.onProfileScheduleDone = wg.Done
+	s.onProfileJobDone = wg.Done
 	_, err := s.profileSchedule.Trigger()
 	require.NoError(t, err)
 	wg.Wait()
