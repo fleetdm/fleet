@@ -75,13 +75,10 @@ const generateColumnsFromRows = (
       ),
       accessor: colName as string,
       Cell: (cellProps: ICellProps) => {
-        if (cellProps?.cell?.value) {
-          const val = cellProps.cell.value;
-          return val.length !== undefined && val.length > 300
-            ? internallyTruncateText(cellProps.cell.value)
-            : cellProps.cell.value;
-        }
-        return null;
+        const val = cellProps?.cell?.value;
+        return !!val?.length && val.length > 300
+          ? internallyTruncateText(val)
+          : val ?? null;
       },
       Filter: DefaultColumnFilter,
       disableSortBy: false,
