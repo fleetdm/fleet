@@ -10,6 +10,8 @@ import {
 } from "utilities/generate_csv";
 import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
 
+import { internallyTruncateText } from "utilities/helpers";
+
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
@@ -27,7 +29,7 @@ interface IQueryReportProps {
 const baseClass = "query-report";
 const CSV_TITLE = "Query";
 
-const tableResults = (results: IQueryReportResultRow[]) => {
+const flattenResults = (results: IQueryReportResultRow[]) => {
   return results.map((result: IQueryReportResultRow) => {
     const hostInfoColumns = {
       host_display_name: result.host_name,
@@ -40,6 +42,22 @@ const tableResults = (results: IQueryReportResultRow[]) => {
   });
 };
 
+const processFilteredFlattenedResultsForRender = (
+  filteredFlattenedResults: Record<string, any>[] // {col: val}[]
+) =>
+  filteredFlattenedResults.map((row) => {
+    // truncate long cell values
+    return Object.keys(row).reduce((acc, col) => {
+      const val = row[col];
+      if (val.length !== undefined && val.length > 300) {
+        acc[col] = internallyTruncateText(val);
+      } else {
+        acc[col] = val;
+      }
+      return acc;
+    }, {} as Record<string, any>);
+  });
+
 const QueryReport = ({
   queryReport,
   isClipped,
@@ -48,14 +66,14 @@ const QueryReport = ({
 
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>(
-    tableResults(queryReport?.results || [])
+    flattenResults(queryReport?.results || [])
   );
   const [tableHeaders, setTableHeaders] = useState<Column[]>([]);
 
   useEffect(() => {
     if (queryReport && queryReport.results && queryReport.results.length > 0) {
       const generatedTableHeaders = generateResultsTableHeaders(
-        tableResults(queryReport.results)
+        flattenResults(queryReport.results)
       );
       // Update tableHeaders if new headers are found
       if (generatedTableHeaders !== tableHeaders) {
@@ -142,7 +160,9 @@ const QueryReport = ({
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
           columns={tableHeaders}
-          data={tableResults(queryReport?.results || [])}
+          data={processFilteredFlattenedResultsForRender(
+            flattenResults(queryReport?.results || [])
+          )}
           // All empty states are handled in QueryDetailsPage.tsx and returned in lieu of QueryReport.tsx
           emptyComponent={() => {
             return (

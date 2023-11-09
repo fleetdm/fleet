@@ -203,7 +203,9 @@ const RunQuery = ({
       campaign={campaign}
       onRunQuery={onRunQuery}
       onStopQuery={onStopQuery}
-      isQueryFinished={isQueryFinished}
+      // TODO - restore real data
+      // isQueryFinished={isQueryFinished}
+      isQueryFinished
       setSelectedTargets={setSelectedTargets}
       goToQueryEditor={goToQueryEditor}
       queryName={storedQuery?.name}

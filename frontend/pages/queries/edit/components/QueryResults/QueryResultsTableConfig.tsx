@@ -48,11 +48,10 @@ const _unshiftHostname = (columns: IDataColumn[]) => {
 };
 
 const generateColumnsFromRows = (
-  results: any[] // {col:val, ...} for each row
+  // TODO - narrow typing down this entire chain of logic
+  // typed as any[] to accomodate loose typing of websocket API
+  results: any[] // {col:val, ...} for each row of query results
 ): Column[] => {
-  /* Results include an array of objects, each representing a table row
-  Each key value pair in an object represents a column name and value
-  To create headers, use JS set to create an array of all unique column names */
   const uniqueColumnNames = Array.from(
     results.reduce(
       (accOuter, row) =>
