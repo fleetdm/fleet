@@ -47,7 +47,7 @@ const _unshiftHostname = (columns: IDataColumn[]) => {
   return newHeaders;
 };
 
-const generateColumnsFromRows = (
+const generateColumnConfigsFromRows = (
   // TODO - narrow typing down this entire chain of logic
   // typed as any[] to accomodate loose typing of websocket API
   results: any[] // {col:val, ...} for each row of query results
@@ -63,7 +63,7 @@ const generateColumnsFromRows = (
     )
   );
 
-  const columns = uniqueColumnNames.map((colName) => {
+  const columnsConfigs = uniqueColumnNames.map((colName) => {
     return {
       id: colName as string,
       title: colName as string,
@@ -84,7 +84,7 @@ const generateColumnsFromRows = (
       disableSortBy: false,
     };
   });
-  return _unshiftHostname(columns);
+  return _unshiftHostname(columnsConfigs);
 };
 
-export default generateColumnsFromRows;
+export default generateColumnConfigsFromRows;

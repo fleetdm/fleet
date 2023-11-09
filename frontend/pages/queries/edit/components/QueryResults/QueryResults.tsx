@@ -21,7 +21,7 @@ import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
 
-import generateColumnsFromRows from "./QueryResultsTableConfig";
+import generateColumnConfigsFromRows from "./QueryResultsTableConfig";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
@@ -60,8 +60,10 @@ const QueryResults = ({
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
-  const [columnsByRow, setColumnsByRow] = useState<Column[]>([]);
-  const [errorColumnsByRow, setErrorColumnsByRow] = useState<Column[]>([]);
+  const [resultsColumnConfigs, setResultsColumnConfigs] = useState<Column[]>(
+    []
+  );
+  const [errorColumnConfigs, setErrorColumnConfigs] = useState<Column[]>([]);
   const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
     queryResults
   );
@@ -85,25 +87,26 @@ const QueryResults = ({
 
   useEffect(() => {
     if (queryResults && queryResults.length > 0) {
-      const generatedColumnsByRow = generateColumnsFromRows(queryResults);
+      const newResultsColumnConfigs = generateColumnConfigsFromRows(
+        queryResults
+      );
       // Update tableHeaders if new headers are found
-      // TODO - optimize this check?
-      if (generatedColumnsByRow !== columnsByRow) {
-        setColumnsByRow(generatedColumnsByRow);
+      if (newResultsColumnConfigs !== resultsColumnConfigs) {
+        setResultsColumnConfigs(newResultsColumnConfigs);
       }
     }
   }, [queryResults]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
 
   useEffect(() => {
-    if (errorColumnsByRow?.length === 0 && !!errors?.length) {
-      setErrorColumnsByRow(generateColumnsFromRows(errors));
+    if (errorColumnConfigs?.length === 0 && !!errors?.length) {
+      setErrorColumnConfigs(generateColumnConfigsFromRows(errors));
 
-      if (errorColumnsByRow && errorColumnsByRow.length > 0) {
-        const generatedErrorTableHeaders = generateColumnsFromRows(errors);
+      if (errorColumnConfigs && errorColumnConfigs.length > 0) {
+        const newErrorColumnConfigs = generateColumnConfigsFromRows(errors);
 
         // Update errorTableHeaders if new headers are found
-        if (generatedErrorTableHeaders !== columnsByRow) {
-          setErrorColumnsByRow(generatedErrorTableHeaders);
+        if (newErrorColumnConfigs !== resultsColumnConfigs) {
+          setErrorColumnConfigs(newErrorColumnConfigs);
         }
       }
     }
@@ -115,7 +118,7 @@ const QueryResults = ({
       generateCSVQueryResults(
         filteredResults,
         generateCSVFilename(`${queryName || CSV_TITLE} - Results`),
-        columnsByRow
+        resultsColumnConfigs
       )
     );
   };
@@ -127,7 +130,7 @@ const QueryResults = ({
       generateCSVQueryResults(
         filteredErrors,
         generateCSVFilename(`${queryName || CSV_TITLE} - Errors`),
-        errorColumnsByRow
+        errorColumnConfigs
       )
     );
   };
@@ -191,7 +194,9 @@ const QueryResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
-          columns={tableType === "results" ? columnsByRow : errorColumnsByRow}
+          columns={
+            tableType === "results" ? resultsColumnConfigs : errorColumnConfigs
+          }
           data={tableData || []}
           emptyComponent={renderNoResults}
           isLoading={false}
@@ -213,7 +218,8 @@ const QueryResults = ({
   const renderResultsTab = () => {
     // TODO - clean up these conditions
     const hasNoResultsYet =
-      !isQueryFinished && (!queryResults?.length || columnsByRow === null);
+      !isQueryFinished &&
+      (!queryResults?.length || resultsColumnConfigs === null);
     const finishedWithNoResults = isQueryFinished && !queryResults?.length;
 
     if (hasNoResultsYet) {

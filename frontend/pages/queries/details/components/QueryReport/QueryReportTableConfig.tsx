@@ -48,7 +48,7 @@ const _unshiftHostname = (headers: IDataColumn[]) => {
   return newHeaders;
 };
 
-const generateResultsTableHeaders = (results: any[]): Column[] => {
+const generateReportColumnConfigsFromResults = (results: any[]): Column[] => {
   /* Results include an array of objects, each representing a table row
   Each key value pair in an object represents a column name and value
   To create headers, use JS set to create an array of all unique column names */
@@ -59,7 +59,7 @@ const generateResultsTableHeaders = (results: any[]): Column[] => {
     )
   );
 
-  const headers = uniqueColumnNames.map((key) => {
+  const columnConfigs = uniqueColumnNames.map((key) => {
     return {
       id: key as string,
       title: key as string,
@@ -91,7 +91,7 @@ const generateResultsTableHeaders = (results: any[]): Column[] => {
       disableSortBy: false,
     };
   });
-  return _unshiftHostname(headers);
+  return _unshiftHostname(columnConfigs);
 };
 
-export default generateResultsTableHeaders;
+export default generateReportColumnConfigsFromResults;

@@ -17,7 +17,7 @@ import ShowQueryModal from "components/modals/ShowQueryModal";
 import TooltipWrapper from "components/TooltipWrapper";
 import EmptyTable from "components/EmptyTable";
 
-import generateResultsTableHeaders from "./QueryReportTableConfig";
+import generateReportColumnConfigsFromResults from "./QueryReportTableConfig";
 
 interface IQueryReportProps {
   queryReport?: IQueryReport;
@@ -50,16 +50,16 @@ const QueryReport = ({
   const [filteredResults, setFilteredResults] = useState<Row[]>(
     flattenResults(queryReport?.results || [])
   );
-  const [tableHeaders, setTableHeaders] = useState<Column[]>([]);
+  const [columnConfigs, setColumnConfigs] = useState<Column[]>([]);
 
   useEffect(() => {
     if (queryReport && queryReport.results && queryReport.results.length > 0) {
-      const generatedTableHeaders = generateResultsTableHeaders(
+      const newColumnConfigs = generateReportColumnConfigsFromResults(
         flattenResults(queryReport.results)
       );
       // Update tableHeaders if new headers are found
-      if (generatedTableHeaders !== tableHeaders) {
-        setTableHeaders(generatedTableHeaders);
+      if (newColumnConfigs !== columnConfigs) {
+        setColumnConfigs(newColumnConfigs);
       }
     }
   }, [queryReport]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
@@ -72,7 +72,7 @@ const QueryReport = ({
         generateCSVFilename(
           `${lastEditedQueryName || CSV_TITLE} - Query Report`
         ),
-        tableHeaders
+        columnConfigs
       )
     );
   };
@@ -141,7 +141,7 @@ const QueryReport = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
-          columns={tableHeaders}
+          columns={columnConfigs}
           data={flattenResults(queryReport?.results || [])}
           // All empty states are handled in QueryDetailsPage.tsx and returned in lieu of QueryReport.tsx
           emptyComponent={() => {
