@@ -609,7 +609,7 @@ type Service interface {
 	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
 	// each host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
-	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleConfigProfilesSummary, error)
+	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
@@ -812,6 +812,10 @@ type Service interface {
 
 	// DeleteMDMWindowsProfile deletes the specified windows profile.
 	DeleteMDMWindowsProfile(ctx context.Context, profileUUID string) error
+
+	// GetMDMWindowsProfileSummary summarizes the current state of MDM configuration profiles on each host
+	// in the specified team (or, if no team is specified, each host that is not assigned to any team).
+	GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM

@@ -96,7 +96,8 @@ func (c *Client) AddProfile(teamID uint, configurationProfile []byte) (uint, err
 	return addProfileResponse.ProfileID, nil
 }
 
-func (c *Client) GetConfigProfilesSummary(teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
+func (c *Client) GetConfigProfilesSummary(teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	// TODO: Update this to use the new endpoint?
 	verb, path := "GET", "/api/latest/fleet/mdm/apple/profiles/summary"
 	query := make(url.Values)
 	if teamID != nil {
@@ -106,5 +107,5 @@ func (c *Client) GetConfigProfilesSummary(teamID *uint) (*fleet.MDMAppleConfigPr
 	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode()); err != nil {
 		return nil, err
 	}
-	return &responseBody.MDMAppleConfigProfilesSummary, nil
+	return &responseBody.MDMProfilesSummary, nil
 }

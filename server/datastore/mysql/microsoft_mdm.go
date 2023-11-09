@@ -615,3 +615,141 @@ func (ds *Datastore) DeleteMDMWindowsProfile(ctx context.Context, profileUUID st
 	}
 	return nil
 }
+
+func subqueryHostsMDMWindowsProfilesStatusFailing() (string, []interface{}) {
+	sql := `
+            SELECT
+				1 FROM host_mdm_windows_profiles hmwp
+			WHERE
+				h.uuid = hmwp.host_uuid
+				AND hmwp.status = 'failed'`
+	args := []interface{}{
+		// fleet.MDMDeliveryFailed,
+	}
+
+	return sql, args
+}
+
+func subqueryHostsMDMWindowsProfilesStatusPending() (string, []interface{}) {
+	sql := `
+            SELECT
+				1 FROM host_mdm_windows_profiles hmwp
+			WHERE
+				h.uuid = hmwp.host_uuid
+				AND (hmwp.status IS NULL OR hmwp.status = 'pending') 
+				AND NOT EXISTS (
+					SELECT
+						1 FROM host_mdm_windows_profiles hmwp2
+					WHERE (h.uuid = hmwp2.host_uuid
+						AND hmwp2.status = 'failed'))`
+	args := []interface{}{
+		// fleet.MDMDeliveryPending,
+		// fleet.MDMDeliveryFailed,
+	}
+	return sql, args
+}
+
+func subqueryHostsMDMWindowsProfilesStatusVerifying() (string, []interface{}) {
+	sql := `
+            SELECT
+				1 FROM host_mdm_windows_profiles hmwp
+			WHERE
+				h.uuid = hmwp.host_uuid
+				AND hmwp.operation_type = 'install'
+				AND hmwp.status = 'verifying'
+				AND NOT EXISTS (
+					SELECT
+						1 FROM host_mdm_windows_profiles hmwp2
+					WHERE (h.uuid = hmwp2.host_uuid
+						AND hmwp2.operation_type = 'install'
+						AND(hmwp2.status IS NULL
+							OR hmwp2.status NOT IN('verifying', 'verified'))))`
+
+	args := []interface{}{
+		// fleet.MDMOperationTypeInstall,
+		// fleet.MDMDeliveryVerifying,
+		// fleet.MDMOperationTypeInstall,
+		// fleet.MDMDeliveryVerifying,
+		// fleet.MDMDeliveryVerified,
+	}
+	return sql, args
+}
+
+func subqueryHostsMDMWindowsProfilesStatusVerified() (string, []interface{}) {
+	sql := `
+            SELECT
+				1 FROM host_mdm_windows_profiles hmwp
+			WHERE
+				h.uuid = hmwp.host_uuid
+				AND hmwp.operation_type = 'install'
+				AND hmwp.status = 'verified'
+				AND NOT EXISTS (
+					SELECT
+						1 FROM host_mdm_windows_profiles hmwp2
+					WHERE (h.uuid = hmwp2.host_uuid
+						AND hmwp2.operation_type = 'install'
+						AND(hmwp2.status IS NULL
+							OR hmwp2.status != 'verified')))`
+	args := []interface{}{
+		// fleet.MDMOperationTypeInstall,
+		// fleet.MDMDeliveryVerified,
+		// fleet.MDMOperationTypeInstall,
+		// fleet.MDMDeliveryVerified,
+	}
+	return sql, args
+}
+
+func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	var args []interface{}
+	subqueryFailed, subqueryFailedArgs := subqueryHostsMacOSSettingsStatusFailing()
+	args = append(args, subqueryFailedArgs...)
+	subqueryPending, subqueryPendingArgs := subqueryHostsMacOSSettingsStatusPending()
+	args = append(args, subqueryPendingArgs...)
+	subqueryVerifying, subqueryVeryingingArgs := subqueryHostsMacOSSetttingsStatusVerifying()
+	args = append(args, subqueryVeryingingArgs...)
+	subqueryVerified, subqueryVerifiedArgs := subqueryHostsMacOSSetttingsStatusVerified()
+	args = append(args, subqueryVerifiedArgs...)
+
+	// TODO: Do we need to factor in bitlocker status too?
+
+	// TODO: Try adding `h.platform = 'windows`` to query
+
+	sqlFmt := `
+SELECT
+    COUNT(
+        CASE WHEN EXISTS (%s)
+            THEN 1
+        END) AS failed,
+    COUNT(
+        CASE WHEN EXISTS (%s)
+            THEN 1
+        END) AS pending,
+    COUNT(
+        CASE WHEN EXISTS (%s)
+            THEN 1
+        END) AS verifying,
+	COUNT(
+        CASE WHEN EXISTS (%s)
+            THEN 1
+        END) AS verified
+FROM
+    hosts h
+WHERE
+    %s`
+
+	teamFilter := "h.team_id IS NULL"
+	if teamID != nil && *teamID > 0 {
+		teamFilter = "h.team_id = ?"
+		args = append(args, *teamID)
+	}
+
+	stmt := fmt.Sprintf(sqlFmt, subqueryFailed, subqueryPending, subqueryVerifying, subqueryVerified, teamFilter)
+
+	var res fleet.MDMProfilesSummary
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &res, nil
+}
