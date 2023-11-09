@@ -3,9 +3,6 @@ package nvd
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -15,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -134,7 +132,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 	// download the CVEs once for all sub-tests, and then disable syncing
 	err := nettest.RunWithNetRetry(t, func() error {
-		return DownloadNVDCVEFeed(tempDir, "")
+		return DownloadNVDCVEFeed(tempDir, log.NewNopLogger())
 	})
 	require.NoError(t, err)
 
@@ -329,28 +327,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		// no recent vulnerability should be reported
 		assert.Len(t, recent, 0)
 	})
-}
-
-func TestSyncsCVEFromURL(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.RequestURI, ".meta") {
-			fmt.Fprint(w, "lastModifiedDate:2021-08-04T11:10:30-04:00\r\n")
-			fmt.Fprint(w, "size:20967174\r\n")
-			fmt.Fprint(w, "zipSize:1453429\r\n")
-			fmt.Fprint(w, "gzSize:1453293\r\n")
-			fmt.Fprint(w, "sha256:10D7338A1E2D8DB344C381793110B67FCA7D729ADA21624EF089EBA78CCE7B53\r\n")
-		}
-	}))
-	defer ts.Close()
-
-	tempDir := t.TempDir()
-	cveFeedPrefixURL := ts.URL + "/feeds/json/cve/1.1/"
-	err := DownloadNVDCVEFeed(tempDir, cveFeedPrefixURL)
-	require.Error(t, err)
-	require.Contains(t,
-		err.Error(),
-		fmt.Sprintf("1 synchronisation error:\n\tunexpected size for \"%s/feeds/json/cve/1.1/nvdcve-1.1-2002.json.gz\" (200 OK): want 1453293, have 0", ts.URL),
-	)
 }
 
 // This test is using real data from the 2022 NVD feed

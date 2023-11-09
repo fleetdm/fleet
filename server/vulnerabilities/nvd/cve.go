@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"net/url"
-	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -17,10 +15,10 @@ import (
 	"github.com/facebookincubator/nvdtools/cvefeed"
 	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
 	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
-	"github.com/facebookincubator/nvdtools/providers/nvd"
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	nvdsync "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/sync"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -32,38 +30,27 @@ var semverPattern = regexp.MustCompile(`^v?(\d+\.\d+\.\d+)`)
 // Define a regex pattern for splitting version strings into subparts
 var nonNumericPartRegex = regexp.MustCompile(`(\d+)(\D.*)`)
 
-// DownloadNVDCVEFeed downloads the NVD CVE feed. Skips downloading if the cve feed has not changed since the last time.
-func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string) error {
-	cve := nvd.SupportedCVE["cve-1.1.json.gz"]
-
-	source := nvd.NewSourceConfig()
-	if cveFeedPrefixURL != "" {
-		parsed, err := url.Parse(cveFeedPrefixURL)
-		if err != nil {
-			return fmt.Errorf("parsing cve feed url prefix override: %w", err)
-		}
-		source.Host = parsed.Host
-		source.CVEFeedPath = parsed.Path
-		source.Scheme = parsed.Scheme
-	}
-
-	dfs := nvd.Sync{
-		Feeds:    []nvd.Syncer{cve},
-		Source:   source,
-		LocalDir: vulnPath,
-	}
-
-	syncTimeout := 5 * time.Minute
-	if os.Getenv("NETWORK_TEST") != "" {
-		syncTimeout = 10 * time.Minute
-	}
+// DownloadNVDCVEFeed downloads CVEs information using the NVD API 2.0 to the provided path.
+func DownloadNVDCVEFeed(vulnPath string, logger log.Logger) error {
+	// With the current NVD API 2.0 that returns 2000 CVEs per request, and using the recommended
+	// 6 second delay between requests, the following timeout should support
+	// the initial full download of up to ~500000 CVEs.
+	syncTimeout := 40 * time.Minute
 
 	ctx, cancelFunc := context.WithTimeout(context.Background(), syncTimeout)
 	defer cancelFunc()
 
-	if err := dfs.Do(ctx); err != nil {
+	cveSyncer, err := nvdsync.NewCVE(vulnPath, nvdsync.WithLogger(logger))
+	if err != nil {
+		return err
+	}
+
+	level.Debug(logger).Log("msg", "syncing CVEs")
+	start := time.Now()
+	if err := cveSyncer.Do(ctx); err != nil {
 		return fmt.Errorf("download nvd cve feed: %w", err)
 	}
+	level.Debug(logger).Log("msg", "CVEs synced", "duration", time.Since(start))
 
 	return nil
 }

@@ -29,7 +29,6 @@ type SyncOptions struct {
 	VulnPath           string
 	CPEDBURL           string
 	CPETranslationsURL string
-	CVEFeedPrefixURL   string
 }
 
 // Sync downloads all the vulnerability data sources.
@@ -43,7 +42,7 @@ func Sync(opts SyncOptions, logger log.Logger) error {
 		return fmt.Errorf("sync CPE translations: %w", err)
 	}
 
-	if err := DownloadNVDCVEFeed(opts.VulnPath, opts.CVEFeedPrefixURL); err != nil {
+	if err := DownloadNVDCVEFeed(opts.VulnPath, logger); err != nil {
 		return fmt.Errorf("sync NVD CVE feed: %w", err)
 	}
 

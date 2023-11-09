@@ -2363,6 +2363,9 @@ If this value is not defined, Fleet checks for the latest release in Github and 
 
 ##### cve_feed_prefix_url
 
+> DEPRECATED: This field has been deprecated in 4.41.0.
+> NVD has retired their legacy CVE feeds: https://nvd.nist.gov/General/News/change-timeline.
+
 Like the CPE dictionary, we allow users to define where to get the CVE feeds.
 In this case, the URL should be a host that serves the files in the path /feeds/json/cve/1.1/.
 Fleet expects to find all the JSON Feeds that can be found in https://nvd.nist.gov/vuln/data-feeds.

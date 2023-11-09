@@ -1032,7 +1032,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("vulnerabilities.cpe_translations_url", "",
 		"URL from which to get the latest CPE translations. If empty, it will be downloaded from the latest release available at https://github.com/fleetdm/nvd/releases.")
 	man.addConfigString("vulnerabilities.cve_feed_prefix_url", "",
-		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
+		"(DEPRECATED due to NVD retiring of legacy feeds): Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
 		"Allows to manually select an instance to do the vulnerability processing.")
 	man.addConfigBool("vulnerabilities.disable_schedule", false,
