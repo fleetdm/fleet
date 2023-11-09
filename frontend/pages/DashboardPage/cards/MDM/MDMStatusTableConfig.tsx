@@ -54,7 +54,7 @@ export const generateStatusTableHeaders = (teamId?: number): IDataColumn[] => [
     accessor: "status",
     Cell: (cellProps: IStringCellProps) => (
       <TooltipWrapper
-        position="top"
+        position="top-start"
         tipContent={MDM_STATUS_TOOLTIP[cellProps.cell.value]}
       >
         {cellProps.cell.value}

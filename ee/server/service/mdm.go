@@ -789,7 +789,7 @@ func (svc *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.
 	// for the preassign and match features, we don't know yet what team(s) will
 	// be affected, so we authorize only users with write-access to the no-team
 	// config profiles and with team-write access.
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
@@ -805,7 +805,7 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 	// for the preassign and match features, we don't know yet what team(s) will
 	// be affected, so we authorize only users with write-access to the no-team
 	// config profiles and with team-write access.
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
@@ -976,9 +976,7 @@ func teamNameFromPreassignGroups(groups []string) string {
 }
 
 func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*fleet.MDMDiskEncryptionSummary, error) {
-	// TODO: Consider adding a new generic OSSetting type or Windows-specific type for authz checks
-	// like this.
-	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	var macOS fleet.MDMAppleFileVaultSummary

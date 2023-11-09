@@ -614,11 +614,11 @@
     - industryName: Policy scoring
       friendlyName: Mark policies as critical
       tier: Premium
-    - industryName: Vulnerability scores (EPSS and CVSS)
+    - industryName: Vulnerability scores (EPSS and CVSS) #TODO: Incorporate this perspective: https://github.com/fleetdm/confidential/issues/4120#issuecomment-1802350614
       tier: Premium
       usualDepartment: Security
       productCategories: [Vulnerability management]
-    - industryName: CISA KEVs (known exploited vulnerabilities)
+    - industryName: CISA KEVs (known exploited vulnerabilities) #TODO: Incorporate this perspective: https://github.com/fleetdm/confidential/issues/4120#issuecomment-1802350614
       tier: Premium
       usualDepartment: Security
       productCategories: [Vulnerability management]
