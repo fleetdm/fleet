@@ -616,7 +616,7 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 	return nil
 }
 
-func subqueryHostsMDMWindowsProfilesStatusFailing() (string, []interface{}) {
+func subqueryHostsMDMWindowsOSSettingsStatusFailed() (string, []interface{}) {
 	sql := `
             SELECT
 				1 FROM host_mdm_windows_profiles hmwp
@@ -630,7 +630,7 @@ func subqueryHostsMDMWindowsProfilesStatusFailing() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryHostsMDMWindowsProfilesStatusPending() (string, []interface{}) {
+func subqueryHostsMDMWindowsOSSettingsStatusPending() (string, []interface{}) {
 	sql := `
             SELECT
 				1 FROM host_mdm_windows_profiles hmwp
@@ -649,7 +649,7 @@ func subqueryHostsMDMWindowsProfilesStatusPending() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryHostsMDMWindowsProfilesStatusVerifying() (string, []interface{}) {
+func subqueryHostsMDMWindowsOSSettingsStatusVerifying() (string, []interface{}) {
 	sql := `
             SELECT
 				1 FROM host_mdm_windows_profiles hmwp
@@ -675,7 +675,7 @@ func subqueryHostsMDMWindowsProfilesStatusVerifying() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryHostsMDMWindowsProfilesStatusVerified() (string, []interface{}) {
+func subqueryHostsMDMWindowsOSSettingsStatusVerified() (string, []interface{}) {
 	sql := `
             SELECT
 				1 FROM host_mdm_windows_profiles hmwp
@@ -701,13 +701,13 @@ func subqueryHostsMDMWindowsProfilesStatusVerified() (string, []interface{}) {
 
 func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
 	var args []interface{}
-	subqueryFailed, subqueryFailedArgs := subqueryHostsMacOSSettingsStatusFailing()
+	subqueryFailed, subqueryFailedArgs := subqueryHostsMDMWindowsOSSettingsStatusFailed()
 	args = append(args, subqueryFailedArgs...)
-	subqueryPending, subqueryPendingArgs := subqueryHostsMacOSSettingsStatusPending()
+	subqueryPending, subqueryPendingArgs := subqueryHostsMDMWindowsOSSettingsStatusPending()
 	args = append(args, subqueryPendingArgs...)
-	subqueryVerifying, subqueryVeryingingArgs := subqueryHostsMacOSSetttingsStatusVerifying()
+	subqueryVerifying, subqueryVeryingingArgs := subqueryHostsMDMWindowsOSSettingsStatusVerifying()
 	args = append(args, subqueryVeryingingArgs...)
-	subqueryVerified, subqueryVerifiedArgs := subqueryHostsMacOSSetttingsStatusVerified()
+	subqueryVerified, subqueryVerifiedArgs := subqueryHostsMDMWindowsOSSettingsStatusVerified()
 	args = append(args, subqueryVerifiedArgs...)
 
 	// TODO: Do we need to factor in bitlocker status too?

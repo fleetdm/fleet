@@ -1993,7 +1993,7 @@ WHERE
 	return dest, nil
 }
 
-func subqueryHostsMacOSSettingsStatusFailing() (string, []interface{}) {
+func subqueryHostsMacOSSettingsStatusFailed() (string, []interface{}) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -2142,7 +2142,7 @@ func subqueryHostsMacOSSetttingsStatusVerified() (string, []interface{}) {
 
 func (ds *Datastore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
 	var args []interface{}
-	subqueryFailed, subqueryFailedArgs := subqueryHostsMacOSSettingsStatusFailing()
+	subqueryFailed, subqueryFailedArgs := subqueryHostsMacOSSettingsStatusFailed()
 	args = append(args, subqueryFailedArgs...)
 	subqueryPending, subqueryPendingArgs := subqueryHostsMacOSSettingsStatusPending()
 	args = append(args, subqueryPendingArgs...)
