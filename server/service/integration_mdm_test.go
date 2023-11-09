@@ -1644,11 +1644,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		// run the worker to process the DEP enroll request
 		s.runWorker()
 		// run the worker to assign configuration profiles
-		ch := make(chan bool)
-		s.onProfileScheduleDone = func() { close(ch) }
-		_, err := s.profileSchedule.Trigger()
-		require.NoError(t, err)
-		<-ch
+		s.awaitTriggerProfileSchedule(t)
 
 		var fleetdCmd, installProfileCmd *micromdm.CommandPayload
 		cmd, err := mdmDevice.Idle()
@@ -3892,11 +3888,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	}
 
 	triggerReconcileProfiles := func() {
-		ch := make(chan bool)
-		s.onProfileScheduleDone = func() { close(ch) }
-		_, err := s.profileSchedule.Trigger()
-		require.NoError(t, err)
-		<-ch
+		s.awaitTriggerProfileSchedule(t)
 		// this will only mark them as "pending", as the response to confirm
 		// profile deployment is asynchronous, so we simulate it here by
 		// updating any "pending" (not NULL) profiles to "verifying"
@@ -4321,14 +4313,6 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 	t := s.T()
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, false)
 
-	triggerSchedule := func() {
-		ch := make(chan bool)
-		s.onProfileScheduleDone = func() { close(ch) }
-		_, err := s.profileSchedule.Trigger()
-		require.NoError(t, err)
-		<-ch
-	}
-
 	var applyResp applyEnrollSecretSpecResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
 		Spec: &fleet.EnrollSecretSpec{
@@ -4337,7 +4321,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 	}, http.StatusOK, &applyResp)
 
 	// a new fleetd configuration profile for "no team" is created
-	triggerSchedule()
+	s.awaitTriggerProfileSchedule(t)
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, true)
 
 	// create a new team
@@ -4357,7 +4341,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 	}`, tm.Name)), http.StatusOK, &acResp)
 
 	// the team doesn't have any enroll secrets yet, a profile is created using the global enroll secret
-	triggerSchedule()
+	s.awaitTriggerProfileSchedule(t)
 	p := s.assertConfigProfilesByIdentifier(&tm.ID, mobileconfig.FleetdConfigPayloadIdentifier, true)
 	require.Contains(t, string(p.Mobileconfig), t.Name())
 
@@ -4369,7 +4353,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
 	// a new fleetd configuration profile for that team is created
-	triggerSchedule()
+	s.awaitTriggerProfileSchedule(t)
 	p = s.assertConfigProfilesByIdentifier(&tm.ID, mobileconfig.FleetdConfigPayloadIdentifier, true)
 	require.Contains(t, string(p.Mobileconfig), t.Name()+"team-secret")
 
