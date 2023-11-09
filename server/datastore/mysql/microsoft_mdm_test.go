@@ -31,6 +31,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestBulkOperationsMDMWindowsHostProfilesBatch2", testBulkOperationsMDMWindowsHostProfilesBatch2},
 		{"TestBulkOperationsMDMWindowsHostProfilesBatch3", testBulkOperationsMDMWindowsHostProfilesBatch3},
 		{"TestGetMDMWindowsProfilesContents", testGetMDMWindowsProfilesContents},
+		{"TestMDMWindowsConfigProfiles", testMDMWindowsConfigProfiles},
 	}
 
 	for _, c := range cases {
@@ -1132,4 +1133,41 @@ func testGetMDMWindowsProfilesContents(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, c.want, out)
 	}
+}
+
+func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO mdm_windows_configuration_profiles (profile_uuid, name, team_id, syncml) VALUES (uuid(), 'abc', ?, ?)`, 0, "<SyncML></SyncML>")
+		return err
+	})
+
+	var profUUID string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &profUUID,
+			`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'abc'`)
+	})
+
+	_, err := ds.GetMDMWindowsConfigProfile(ctx, "not-valid")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	prof, err := ds.GetMDMWindowsConfigProfile(ctx, profUUID)
+	require.NoError(t, err)
+	require.Equal(t, profUUID, prof.ProfileUUID)
+	require.NotNil(t, prof.TeamID)
+	require.Zero(t, *prof.TeamID)
+	require.Equal(t, "abc", prof.Name)
+	require.Equal(t, "<SyncML></SyncML>", string(prof.SyncML))
+	require.NotZero(t, prof.CreatedAt)
+	require.NotZero(t, prof.UpdatedAt)
+
+	err = ds.DeleteMDMWindowsConfigProfile(ctx, "not-valid")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	err = ds.DeleteMDMWindowsConfigProfile(ctx, profUUID)
+	require.NoError(t, err)
 }

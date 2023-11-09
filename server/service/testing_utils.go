@@ -636,6 +636,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/mdm/commands", false, false},
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
 		{"GET", "/api/latest/fleet/mdm/disk_encryption/summary", false, true},
+		{"DELETE", "/api/latest/fleet/mdm/profiles/1", false, false},
 	}
 }
 

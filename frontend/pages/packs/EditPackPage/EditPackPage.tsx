@@ -13,7 +13,7 @@ import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
-import { getError } from "services";
+import { getErrorReason } from "interfaces/errors";
 import packsAPI from "services/entities/packs";
 import queriesAPI from "services/entities/queries";
 import scheduledQueriesAPI from "services/entities/scheduled_queries";
@@ -150,9 +150,12 @@ const EditPacksPage = ({
         router.push(PATHS.MANAGE_PACKS);
         renderFlash("success", `Successfully updated this pack.`);
       })
-      .catch((response) => {
-        const error = getError(response);
-        if (error.includes("Duplicate entry")) {
+      .catch((e) => {
+        if (
+          getErrorReason(e, {
+            reasonIncludes: "Duplicate entry",
+          })
+        ) {
           renderFlash(
             "error",
             "Unable to update pack. Pack names must be unique."

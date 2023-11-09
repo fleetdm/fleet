@@ -698,9 +698,9 @@ type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID strin
 
 type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) error
 
-type GetMDMWindowsProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
+type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
-type DeleteMDMWindowsProfileFunc func(ctx context.Context, profileUUID string) error
+type DeleteMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
 type GetMDMCommandPlatformFunc func(ctx context.Context, commandUUID string) (string, error)
 
@@ -1763,11 +1763,11 @@ type DataStore struct {
 	UpdateMDMWindowsEnrollmentsHostUUIDFunc        UpdateMDMWindowsEnrollmentsHostUUIDFunc
 	UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked bool
 
-	GetMDMWindowsProfileFunc        GetMDMWindowsProfileFunc
-	GetMDMWindowsProfileFuncInvoked bool
+	GetMDMWindowsConfigProfileFunc        GetMDMWindowsConfigProfileFunc
+	GetMDMWindowsConfigProfileFuncInvoked bool
 
-	DeleteMDMWindowsProfileFunc        DeleteMDMWindowsProfileFunc
-	DeleteMDMWindowsProfileFuncInvoked bool
+	DeleteMDMWindowsConfigProfileFunc        DeleteMDMWindowsConfigProfileFunc
+	DeleteMDMWindowsConfigProfileFuncInvoked bool
 
 	GetMDMCommandPlatformFunc        GetMDMCommandPlatformFunc
 	GetMDMCommandPlatformFuncInvoked bool
@@ -4212,18 +4212,18 @@ func (s *DataStore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hos
 	return s.UpdateMDMWindowsEnrollmentsHostUUIDFunc(ctx, hostUUID, mdmDeviceID)
 }
 
-func (s *DataStore) GetMDMWindowsProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
+func (s *DataStore) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
 	s.mu.Lock()
-	s.GetMDMWindowsProfileFuncInvoked = true
+	s.GetMDMWindowsConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMWindowsProfileFunc(ctx, profileUUID)
+	return s.GetMDMWindowsConfigProfileFunc(ctx, profileUUID)
 }
 
-func (s *DataStore) DeleteMDMWindowsProfile(ctx context.Context, profileUUID string) error {
+func (s *DataStore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
 	s.mu.Lock()
-	s.DeleteMDMWindowsProfileFuncInvoked = true
+	s.DeleteMDMWindowsConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteMDMWindowsProfileFunc(ctx, profileUUID)
+	return s.DeleteMDMWindowsConfigProfileFunc(ctx, profileUUID)
 }
 
 func (s *DataStore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
