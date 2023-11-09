@@ -15,6 +15,7 @@ import (
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -980,38 +981,43 @@ func (svc *Service) authorizeAllHostsTeams(ctx context.Context, hostUUIDs []stri
 // DELETE /mdm/profiles/{id_or_uuid}
 ////////////////////////////////////////////////////////////////////////////////
 
-type deleteMDMProfileRequest struct {
+type deleteMDMConfigProfileRequest struct {
 	ProfileIDOrUUID string `url:"profile_id_or_uuid"`
 }
 
-type deleteMDMProfileResponse struct {
+type deleteMDMConfigProfileResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteMDMProfileResponse) error() error { return r.Err }
+func (r deleteMDMConfigProfileResponse) error() error { return r.Err }
 
-var _ = deleteMDMProfileEndpoint // Temporary, to ensure it is used.
-
-func deleteMDMProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*deleteMDMProfileRequest)
+func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*deleteMDMConfigProfileRequest)
 
 	appleID, isApple := isAppleProfileID(req.ProfileIDOrUUID)
 	var err error
 	if isApple {
 		err = svc.DeleteMDMAppleConfigProfile(ctx, appleID)
 	} else {
-		err = svc.DeleteMDMWindowsProfile(ctx, req.ProfileIDOrUUID)
+		err = svc.DeleteMDMWindowsConfigProfile(ctx, req.ProfileIDOrUUID)
 	}
-	return &deleteMDMProfileResponse{Err: err}, nil
+	return &deleteMDMConfigProfileResponse{Err: err}, nil
 }
 
-func (svc *Service) DeleteMDMWindowsProfile(ctx context.Context, profileUUID string) error {
+func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
 	// first we perform a perform basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	prof, err := svc.ds.GetMDMWindowsProfile(ctx, profileUUID)
+	// check that Windows MDM is enabled - the middleware of that endpoint checks
+	// only that any MDM is enabled, maybe it's just macOS
+	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+		err := fleet.NewInvalidArgumentError("profile_id", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		return ctxerr.Wrap(ctx, err, "check windows MDM enabled")
+	}
+
+	prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -1031,31 +1037,30 @@ func (svc *Service) DeleteMDMWindowsProfile(ctx context.Context, profileUUID str
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO: prevent deleting profiles that are managed by Fleet
-	//if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
-	//	return &fleet.BadRequestError{
-	//		Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
-	//		InternalErr: fmt.Errorf("deleting profile %s for team %s not allowed because it's managed by Fleet", cp.Identifier, teamName),
-	//	}
-	//}
+	// TODO: do we have Fleet-specific profiles for Windows that we'd want to prevent the user from deleting?
 
-	if err := svc.ds.DeleteMDMWindowsProfile(ctx, profileUUID); err != nil {
+	if err := svc.ds.DeleteMDMWindowsConfigProfile(ctx, profileUUID); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
-	//// cannot use the profile ID as it is now deleted
-	//if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
-	//	return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-	//}
 
-	_ = teamName
-	//if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
-	//	TeamID:            &teamID,
-	//	TeamName:          &teamName,
-	//	ProfileName:       cp.Name,
-	//	ProfileIdentifier: cp.Identifier,
-	//}); err != nil {
-	//	return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple config profile")
-	//}
+	// TODO: integrate the call to bulk-update host profiles affected by this deletion (see Apple's implementation)
+	// (part of https://github.com/fleetdm/fleet/issues/14364)
+
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID > 0 {
+		actTeamID = &teamID
+		actTeamName = &teamName
+	}
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedWindowsProfile{
+		TeamID:      actTeamID,
+		TeamName:    actTeamName,
+		ProfileName: prof.Name,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm windows config profile")
+	}
 
 	return nil
 }

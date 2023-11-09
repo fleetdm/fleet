@@ -810,8 +810,8 @@ type Service interface {
 	// Set or update the disk encryption key for a host.
 	SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error
 
-	// DeleteMDMWindowsProfile deletes the specified windows profile.
-	DeleteMDMWindowsProfile(ctx context.Context, profileUUID string) error
+	// DeleteMDMWindowsConfigProfile deletes the specified windows profile.
+	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
 
 	// GetMDMWindowsProfileSummary summarizes the current state of MDM configuration profiles on each host
 	// in the specified team (or, if no team is specified, each host that is not assigned to any team).

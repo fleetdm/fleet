@@ -642,13 +642,14 @@ Retrieves a list of the non expired carves. Carve contents remain available for 
 
 #### Parameters
 
-| Name            | Type    | In    | Description                                                                                                                   |
-|-----------------|---------|-------|-------------------------------------------------------------------------------------------------------------------------------|
-| page            | integer | query | Page number of the results to fetch.                                                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
-| order_key       | string  | query | What to order results by. Can be any field listed in the `results` array example below.                                       |
+| Name            | Type    | In    | Description                                                                                                                    |
+|-----------------|---------|-------|--------------------------------------------------------------------------------------------------------------------------------|
+| page            | integer | query | Page number of the results to fetch.                                                                                           |
+| per_page        | integer | query | Results per page.                                                                                                              |
+| order_key       | string  | query | What to order results by. Can be any field listed in the `results` array example below.                                        |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Valid options are 'asc' or 'desc'. Default is 'asc'. |
-| expired         | boolean | query | Include expired carves (default: false)                                                                                       |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                       |
+| expired         | boolean | query | Include expired carves (default: false)                                                                                        |
 
 #### Example
 
