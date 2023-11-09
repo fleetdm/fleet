@@ -86,6 +86,8 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.HostsStatusWebHookEnabled = appConfig.WebhookSettings.HostStatusWebhook.Enable
 		stats.MDMEnabledAndConfigured = appConfig.MDM.EnabledAndConfigured
 		stats.HostExpiryEnabled = appConfig.HostExpirySettings.HostExpiryEnabled
+		// stats.JiraIntegrationEnabled = //How do we get those?
+		// stats.ZendeskIntegrationEnabled =  //How do we get those?
 		stats.MDMWindowsEnabledAndConfigured = appConfig.MDM.WindowsEnabledAndConfigured
 		stats.LiveQueryDisabled = appConfig.ServerSettings.LiveQueryDisabled
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers
