@@ -282,6 +282,9 @@ func labelDB(ctx context.Context, lid uint, q sqlx.QueryerContext) (*fleet.Label
 
 // ListLabels returns all labels limited or sorted by fleet.ListOptions.
 func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
+	if opt.After != "" {
+		return nil, &fleet.BadRequestError{Message: "after parameter is not supported"}
+	}
 	query := fmt.Sprintf(`
 			SELECT *,
 				(SELECT COUNT(1) FROM label_membership lm JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s) AS host_count
@@ -289,10 +292,10 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		`, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	query = appendListOptionsToSQL(query, &opt)
+	query, params := appendListOptionsToSQL(query, &opt)
 	labels := []*fleet.Label{}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, params...); err != nil {
 		// it's ok if no labels exist
 		if err == sql.ErrNoRows {
 			return labels, nil

@@ -89,7 +89,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			// TODO: once the datastore methods are implemented, use them in tests.
 			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 				_, err := tx.ExecContext(context.Background(),
-					`INSERT INTO mdm_windows_configuration_profiles (profile_uuid, name, syncml) VALUES (uuid(), ?, ?)`, team.ID, "<SyncML></SyncML>")
+					`INSERT INTO mdm_windows_configuration_profiles (profile_uuid, name, team_id, syncml) VALUES (uuid(), 'abc', ?, ?)`, team.ID, "<SyncML></SyncML>")
 				return err
 			})
 

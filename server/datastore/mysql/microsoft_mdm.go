@@ -577,7 +577,7 @@ WHERE
 	}, nil
 }
 
-func (ds *Datastore) GetMDMWindowsProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
+func (ds *Datastore) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
 	stmt := `
 SELECT
 	profile_uuid,
@@ -603,7 +603,7 @@ WHERE
 	return &res, nil
 }
 
-func (ds *Datastore) DeleteMDMWindowsProfile(ctx context.Context, profileUUID string) error {
+func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
 	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
