@@ -10,8 +10,6 @@ import {
 } from "utilities/generate_csv";
 import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
 
-import { internallyTruncateText } from "utilities/helpers";
-
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
