@@ -9,7 +9,7 @@ columns:
     type: text
     required: false
   - name: supported
-    description: Whether or not the host's kernel supports the Crowdstrike Flacon sensor version.
+    description: Whether or not the host's kernel supports the Crowdstrike Falcon sensor version.
     type: text
     required: false
   - name: sensor_version
