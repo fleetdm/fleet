@@ -4097,7 +4097,7 @@ solely on the response status code returned by this endpoint.
 
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
-| id                | integer or string | url   | **Required** The ID of the profile to download. macOS profiles are identified by an integer ID, whereas Windows profiles use a string format(UUID) |
+| id                | integer or string | url   | **Required** The ID of the profile to delete. macOS profiles are identified by an integer ID, whereas Windows profiles use a string format(UUID) |
 
 #### Example
 
