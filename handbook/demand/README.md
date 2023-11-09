@@ -7,10 +7,10 @@ The Demand department is directly responsible for growing awareness of Fleet and
 ## Team
 | Role                            | Contributor(s)
 |:--------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| _🎐 Head of Brand &amp; Product Marketing (CEO)_ | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 | 🫧 Head of Demand Generation       | [Dustin Gerdes](https://www.linkedin.com/in/dustingerdes/) _([@3kindsoffish](https://github.com/3kindsoffish))_
 | 🫧 Field Marketer                  | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
 | 🫧 Community Advocate              | [JD Strong](https://www.linkedin.com/in/jackdaniyelstrong/) _([@spokanemac](https://github.com/spokanemac/spokanemac))_
+| _🎐 Head of Brand &amp; Product Marketing (CEO)_ | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 
 
 ## Contact us
