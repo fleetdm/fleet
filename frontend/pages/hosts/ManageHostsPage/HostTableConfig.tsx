@@ -567,9 +567,9 @@ const allHostTableHeaders: IDataColumn[] = [
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    accessor: "last_restarted",
+    accessor: "last_restarted_at",
     Cell: (cellProps: ICellProps) => {
-      const { platform, last_restarted } = cellProps.row.original;
+      const { platform, last_restarted_at } = cellProps.row.original;
 
       if (platform === "chrome") {
         return NotSupported;
@@ -577,7 +577,7 @@ const allHostTableHeaders: IDataColumn[] = [
       return (
         <TextCell
           value={{
-            timeString: last_restarted,
+            timeString: last_restarted_at,
           }}
           formatter={HumanTimeDiffWithFleetLaunchCutoff}
         />

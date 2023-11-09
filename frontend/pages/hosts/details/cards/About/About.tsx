@@ -208,7 +208,7 @@ const About = ({
           <span className="info-grid__header">Last restarted</span>
           <span className="info-grid__data">
             <HumanTimeDiffWithFleetLaunchCutoff
-              timeString={aboutData.last_restarted}
+              timeString={aboutData.last_restarted_at}
             />
           </span>
         </div>

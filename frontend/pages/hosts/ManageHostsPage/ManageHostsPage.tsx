@@ -730,7 +730,7 @@ const ManageHostsPage = ({
       let sort = sortBy;
       if (sortHeader) {
         let direction = sortDirection;
-        if (sortHeader === "last_restarted") {
+        if (sortHeader === "last_restarted_at") {
           if (sortDirection === "asc") {
             direction = "desc";
           } else {
