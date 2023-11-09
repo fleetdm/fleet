@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20231107115838, Down_20231107115838)
+	MigrationClient.AddMigration(Up_20231109115838, Down_20231109115838)
 }
 
-func Up_20231107115838(tx *sql.Tx) error {
+func Up_20231109115838(tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE activities
 		ADD COLUMN user_email varchar(255) NOT NULL DEFAULT '';
@@ -31,6 +31,6 @@ func Up_20231107115838(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20231107115838(tx *sql.Tx) error {
+func Down_20231109115838(tx *sql.Tx) error {
 	return nil
 }
