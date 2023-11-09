@@ -1068,13 +1068,13 @@ type Datastore interface {
 	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID.
 	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) error
 
-	// GetMDMWindowsProfile returns the Windows MDM profile corresponding to the
-	// specified profile uuid.
-	GetMDMWindowsProfile(ctx context.Context, profileUUID string) (*MDMWindowsConfigProfile, error)
+	// GetMDMWindowsConfigProfile returns the Windows MDM profile corresponding
+	// to the specified profile uuid.
+	GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*MDMWindowsConfigProfile, error)
 
-	// DeleteMDMWindowsProfile deletes the Windows MDM profile corresponding to
+	// DeleteMDMWindowsConfigProfile deletes the Windows MDM profile corresponding to
 	// the specified profile uuid.
-	DeleteMDMWindowsProfile(ctx context.Context, profileUUID string) error
+	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// MDM Commands

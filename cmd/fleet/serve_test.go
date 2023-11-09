@@ -1040,7 +1040,7 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
 
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken, "../../server/service/testdata")
 
 	now := time.Now()
 

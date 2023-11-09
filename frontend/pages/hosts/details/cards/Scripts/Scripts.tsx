@@ -8,7 +8,7 @@ import scriptsAPI, {
   IHostScript,
   IHostScriptsResponse,
 } from "services/entities/scripts";
-import { IApiError, IError } from "interfaces/errors";
+import { IApiError } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 
 import Card from "components/Card";
@@ -43,7 +43,7 @@ const Scripts = ({
     isLoading: isLoadingScriptData,
     isError: isErrorScriptData,
     refetch: refetchScriptsData,
-  } = useQuery<IHostScriptsResponse, IError>(
+  } = useQuery<IHostScriptsResponse, IApiError>(
     ["scripts", hostId, page],
     () => scriptsAPI.getHostScripts(hostId as number, page),
     {
