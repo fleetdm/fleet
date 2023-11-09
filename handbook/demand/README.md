@@ -175,5 +175,5 @@ When a community member has a question about getting started with Fleet, they ca
 <!-- TODO: Explore the stubs from this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
 <!-- TODO: Slightly later, in another PR, finish processing this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
 
-<meta name="maintainedBy" value="mikermcneil">
+<meta name="maintainedBy" value="3kindsoffish">
 <meta name="title" value="🫧 Demand">
