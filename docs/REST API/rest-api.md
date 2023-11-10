@@ -7013,7 +7013,7 @@ Deletes the session specified by ID. When the user associated with the session n
         "name": "1Password – Password Manager",
         "version": "2.3.7",
         "source": "chrome_extensions",
-        "extension_id": "abc123",
+        "extension_id": "aeblfdkhhhdcdjpifhhbdiojplfjncoa",
         "generated_cpe": "cpe:2.3:a:1password:1password:2.3.7:*:*:*:*:chrome:*:*",
         "vulnerabilities": null,
         "hosts_count": 2
