@@ -7555,7 +7555,7 @@ func testLastRestarted(t *testing.T, ds *Datastore) {
 		} else {
 			newHost.Uptime = uptimeVal
 			// Rounding to nearest second because the SQL query does integer division.
-			expectedLastRestartedAt = newHost.DetailUpdatedAt.Add(time.Duration(-newHost.Uptime)).Round(time.Second).UTC()
+			expectedLastRestartedAt = newHost.DetailUpdatedAt.Add(-newHost.Uptime).Round(time.Second).UTC()
 		}
 
 		host, err := ds.NewHost(ctx, newHost)
@@ -7580,7 +7580,7 @@ func testLastRestarted(t *testing.T, ds *Datastore) {
 	returnedHosts := listHostsCheckCount(t, ds, userFilter, opts, len(hosts))
 
 	for i, h := range returnedHosts {
-		require.Equal(t, time.Duration(hosts[i].Uptime), h.Uptime)
+		require.Equal(t, hosts[i].Uptime, h.Uptime)
 		require.Equal(t, hostsToVals[h.ID], h.LastRestartedAt)
 	}
 
