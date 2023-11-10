@@ -21,7 +21,7 @@ This handbook page details processes specific to working [with](#what-we-do) and
 ## Responsibilities
 The Business Operations department is directly responsible for the functions of all Finance, People, Legal, IT, and Revenue Operations (RevOps). 
 
-### Manualy check payroll
+### Run payroll
 Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
  - Salaried fleeties are automated in Gusto and Plane.
  - Hourly fleeties and consultants are a manual process each month in Gusto and Plane.
