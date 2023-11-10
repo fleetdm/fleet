@@ -991,17 +991,17 @@ func teamConfigProfileForTest(t *testing.T, name, identifier, uuid string, teamI
 }
 
 func testMDMAppleProfileManagementBatch2(t *testing.T, ds *Datastore) {
-	testUpsertMDMAppleDesiredProfilesBatchSize = 2
+	testUpsertMDMDesiredProfilesBatchSize = 2
 	t.Cleanup(func() {
-		testUpsertMDMAppleDesiredProfilesBatchSize = 0
+		testUpsertMDMDesiredProfilesBatchSize = 0
 	})
 	testMDMAppleProfileManagement(t, ds)
 }
 
 func testMDMAppleProfileManagementBatch3(t *testing.T, ds *Datastore) {
-	testUpsertMDMAppleDesiredProfilesBatchSize = 3
+	testUpsertMDMDesiredProfilesBatchSize = 3
 	t.Cleanup(func() {
-		testUpsertMDMAppleDesiredProfilesBatchSize = 0
+		testUpsertMDMDesiredProfilesBatchSize = 0
 	})
 	testMDMAppleProfileManagement(t, ds)
 }
@@ -2472,21 +2472,21 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 }
 
 func testBulkSetPendingMDMAppleHostProfilesBatch2(t *testing.T, ds *Datastore) {
-	testUpsertMDMAppleDesiredProfilesBatchSize = 2
-	testDeleteMDMAppleProfilesBatchSize = 2
+	testUpsertMDMDesiredProfilesBatchSize = 2
+	testDeleteMDMProfilesBatchSize = 2
 	t.Cleanup(func() {
-		testUpsertMDMAppleDesiredProfilesBatchSize = 0
-		testDeleteMDMAppleProfilesBatchSize = 0
+		testUpsertMDMDesiredProfilesBatchSize = 0
+		testDeleteMDMProfilesBatchSize = 0
 	})
 	testBulkSetPendingMDMAppleHostProfiles(t, ds)
 }
 
 func testBulkSetPendingMDMAppleHostProfilesBatch3(t *testing.T, ds *Datastore) {
-	testUpsertMDMAppleDesiredProfilesBatchSize = 3
-	testDeleteMDMAppleProfilesBatchSize = 3
+	testUpsertMDMDesiredProfilesBatchSize = 3
+	testDeleteMDMProfilesBatchSize = 3
 	t.Cleanup(func() {
-		testUpsertMDMAppleDesiredProfilesBatchSize = 0
-		testDeleteMDMAppleProfilesBatchSize = 0
+		testUpsertMDMDesiredProfilesBatchSize = 0
+		testDeleteMDMProfilesBatchSize = 0
 	})
 	testBulkSetPendingMDMAppleHostProfiles(t, ds)
 }
