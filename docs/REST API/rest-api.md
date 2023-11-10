@@ -6950,7 +6950,7 @@ Get a list of all software grouped by software title.
 | ----------------------- | ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page.                                                                                                                                                          |
-| order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `epss_probability`. Default is `hosts_count` (descending).      |
+| order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `vulnerabilities_count`. Default is `hosts_count` (descending).      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
@@ -6973,7 +6973,8 @@ Get a list of all software grouped by software title.
       "versions_count": 3,
       "source": "apps",
       "hosts_count": "48",
-      "epss_probability": 0.01537,
+      "vulnerabilities_count": 3
+      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
       "versions": [123, 124, 127]  
     },
     {
@@ -6982,7 +6983,8 @@ Get a list of all software grouped by software title.
       "versions_count": 5,
       "source": "apps",
       "hosts_count": "345",
-      "epss_probability": 0.01537,
+      "vulnerabilities_count": 3
+      "vulnerabilities": ["CVE-2023-9876","CVE-2023-3456","CVE-2023-5678"],
       "versions": [331, 332, 334, 348, 351]
     }
   ]
@@ -7076,11 +7078,11 @@ Get a list of all software versions.
 
 Returns the information of the specified software title. By default `versions` are sorted in descending order by the `hosts_count` field.
 
-`GET /api/v1/fleet/software_titles/{id}`
+`GET /api/v1/fleet/software/titles/{id}`
 
 #### Example
 
-`GET /api/v1/fleet/software_titles/12`
+`GET /api/v1/fleet/software/titles/12`
 
 ##### Default response
 
@@ -7094,24 +7096,24 @@ Returns the information of the specified software title. By default `versions` a
     "versions_count": 3,
     "source": "apps",
     "hosts_count": "48",
-    "epss_probability": 0.01537,
+    "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
     "versions": [ 
       {
         "id": 123,
         "version": "117.0",
-        "epss_probability": 0.01537,
+        "vulnerabilities": ["CVE-2023-1234"],
         "hosts_count": "37"
       },
       {
         "id": 124,
         "version": "116.0",
-        "epss_probability": 0.01547,
+        "vulnerabilities": ["CVE-2023-4321"],
         "hosts_count": "7"
       },
       {
         "id": 127,
         "version": "115.5",
-        "epss_probability": 0.02132,
+        "vulnerabilities": ["CVE-2023-7654"],
         "hosts_count": "4"
       }
     ]  
