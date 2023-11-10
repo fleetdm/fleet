@@ -642,13 +642,14 @@ Retrieves a list of the non expired carves. Carve contents remain available for 
 
 #### Parameters
 
-| Name            | Type    | In    | Description                                                                                                                   |
-|-----------------|---------|-------|-------------------------------------------------------------------------------------------------------------------------------|
-| page            | integer | query | Page number of the results to fetch.                                                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
-| order_key       | string  | query | What to order results by. Can be any field listed in the `results` array example below.                                       |
+| Name            | Type    | In    | Description                                                                                                                    |
+|-----------------|---------|-------|--------------------------------------------------------------------------------------------------------------------------------|
+| page            | integer | query | Page number of the results to fetch.                                                                                           |
+| per_page        | integer | query | Results per page.                                                                                                              |
+| order_key       | string  | query | What to order results by. Can be any field listed in the `results` array example below.                                        |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Valid options are 'asc' or 'desc'. Default is 'asc'. |
-| expired         | boolean | query | Include expired carves (default: false)                                                                                       |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                       |
+| expired         | boolean | query | Include expired carves (default: false)                                                                                        |
 
 #### Example
 
@@ -1859,7 +1860,7 @@ the `software` table.
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
-| disable_failing_policies| boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
+| disable_failing_policies| boolean | query | If `true`, hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 | macos_settings_disk_encryption | string | query | Filters the hosts by the status of the macOS disk encryption MDM profile on the host. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
 | bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
@@ -2936,6 +2937,13 @@ Request (`filters` is specified):
     "team_id": 1,
     "query": "abc"
   }
+}
+```
+
+Request (`filters` is specified and empty, to delete all hosts):
+```json
+{
+  "filters": {}
 }
 ```
 
@@ -4196,22 +4204,24 @@ Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to 
 
 ### Run custom MDM command
 
-This endpoint tells Fleet to run a custom MDM command, on the targeted macOS hosts, the next time they come online.
+> `POST /api/v1/fleet/mdm/apple/enqueue` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#run-custom-mdm-command).
 
-`POST /api/v1/fleet/mdm/apple/enqueue`
+This endpoint tells Fleet to run a custom MDM command, on the targeted macOS or Windows hosts, the next time they come online.
+
+`POST /api/v1/fleet/mdm/commands/run`
 
 #### Parameters
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries). Supported formats are standard ([RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)) and raw (unpadded) encoding ([RFC 4648 section 3.2](https://www.rfc-editor.org/rfc/rfc4648.html#section-3.2)) |
-| device_ids                | array  | json  | An array of macOS host UUIDs enrolled in Fleet's MDM on which the command should run.                   |
+| command                   | string | json  | A Base64 encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) or [Windows's documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/0353f3d6-dbe2-42b6-b8d5-50db9333bba4). Supported formats are standard and raw (unpadded). You can paste your Base64 code to the [online decoder](https://devpal.co/base64-decode/) to check if you're using the valid format. |
+| host_uuids                | array  | json  | An array of host UUIDs enrolled in Fleet on which the command should run. |
 
 Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
 
 #### Example
 
-`POST /api/v1/fleet/mdm/apple/enqueue`
+`POST /api/v1/fleet/mdm/commands/run`
 
 ##### Default response
 
@@ -4226,9 +4236,11 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 
 ### Get custom MDM command results
 
+> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#get-custom-mdm-command-results).
+
 This endpoint returns the results for a specific custom MDM command.
 
-`GET /api/v1/fleet/mdm/apple/commandresults`
+`GET /api/v1/fleet/mdm/commandresults`
 
 #### Parameters
 
@@ -4238,7 +4250,7 @@ This endpoint returns the results for a specific custom MDM command.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/commandresults?command_uuid=a2064cef-0000-1234-afb9-283e3c1d487e`
+`GET /api/v1/fleet/mdm/commandresults?command_uuid=a2064cef-0000-1234-afb9-283e3c1d487e`
 
 ##### Default response
 
@@ -4248,7 +4260,7 @@ This endpoint returns the results for a specific custom MDM command.
 {
   "results": [
     {
-      "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
       "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
       "status": "Acknowledged",
       "updated_at": "2023-04-04:00:00Z",
@@ -4262,9 +4274,11 @@ This endpoint returns the results for a specific custom MDM command.
 
 ### List custom MDM commands
 
+> `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#list-custom-mdm-commands).
+
 This endpoint returns the list of custom MDM commands that have been executed.
 
-`GET /api/v1/fleet/mdm/apple/commands`
+`GET /api/v1/fleet/mdm/commands`
 
 #### Parameters
 
@@ -4277,7 +4291,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/commands?per_page=5`
+`GET /api/v1/fleet/mdm/commands?per_page=5`
 
 ##### Default response
 
@@ -4287,12 +4301,20 @@ This endpoint returns the list of custom MDM commands that have been executed.
 {
   "results": [
     {
-      "device_id": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
       "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
       "status": "Acknowledged",
       "updated_at": "2023-04-04:00:00Z",
       "request_type": "ProfileList",
       "hostname": "mycomputer"
+    },
+    {
+      "host_uuid": "322vghee-12c7-8976-83a1-e2118a927342",
+      "command_uuid": "d76d69b7-d806-45a9-8e49-9d6dc533485c",
+      "status": "200",
+      "updated_at": "2023-05-04:00:00Z",
+      "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow",
+      "hostname": "myhost"
     }
   ]
 }
@@ -5771,7 +5793,7 @@ Creates a global query or team query.
 | platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
-| logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential", or "differential_ignore_removals"`.                        |
+| logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
 | discard_data        | bool    | body | Whether to skip saving the latest query results for each host. Default: `false`. |
 
 
@@ -5997,11 +6019,10 @@ load balancer timeout.
 
 #### Parameters
 
-
-| Name      | Type   | In   | Description                                   |
-| --------- | ------ | ---- | --------------------------------------------- |
-| query_ids | array  | body | **Required**. The IDs of the saved queries to run. |
-| host_ids  | array  | body | **Required**. The IDs of the hosts to target. |
+| Name      | Type  | In   | Description                                                                                                                                                        |
+|-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| query_ids | array | body | **Required**. The IDs of the saved queries to run. If a mix of authorized and unauthorized IDs is provided, only results from authorized queries will be returned. |
+| host_ids  | array | body | **Required**. The IDs of the hosts to target. User must be authorized to target all of these hosts.                                                                |
 
 #### Example
 

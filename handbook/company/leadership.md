@@ -1,21 +1,31 @@
 # Leadership
 
-## Vision for dept handbook pages
-The idea here is to get this vision implemented on a single departmental handbook page first, starting with handbook/company/ceo.  It's hard to know what the philosophy should be until we can see it.  So we need to shorten the feedback loop so we can see it change live in one place.  That way we can iterate in one place instead of having things go a bunch of different directions, and adding in all the complexity of extra redirects to keep track of and all that stuff.  Then once we've got that looking good and have iterated a bit, we'll spread it out.
+## CEO flaws
+[Openness](https://fleetdm.com/handbook/company#values) is important, and so I want to live that by sharing the flaws I know I have. I’m fully responsible for improving the things below, listing them is no excuse. They are listed here for two reasons. The first one is so that people know it is _not just them_, but actually _my fault_. The second one is so I can improve, I hope that listing them here lets people know I appreciate when you speak up to me about them.
 
-Another thing is that we need to get a better intuitive understanding of who these pages are designed to serve.  So in order to put ourselves in their shoes (get behind their eyeballs), we need something to look at.  So doing a particular page first provides us with that canvas.
+- I often need to talk to think.  If you get lost, you can interrupt me or send a Zoom chat: "Hold up, could you go over that again?"
+- I can speak quickly.  It is ok to say “Mike, hold on a second.” (Noah is good at this.)
+- I can be quick to criticize before I appreciate, especially if something looks almost done.  I appreciate it when fleeties ask “What do you think of my work?” It reminds me I'm speaking in front of the sculptor, not just alone with the statue.
+- I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
+- I can be inconsistent about how certain I sound about the same topics at different times.  Even when I am probably still certain.  That's because I try to question blind certainty, even my own. The problem is, I don't always remember why I first became certain about every topic.  It is okay to stop and share what you observe: "You seem less sure about this.  What's up?"  If I am waffling, it can be helpful to say "Did we write down a decision on that?  I'll make a GitHub issue." (Luke is good at this.)
+- I get grumpy when I am tired and I worry that I'll forget to follow up about things.  You can say: "Would it help if I made a confidential issue about this for you and Sam to go over tonight?"
+- I sometimes will keep talking longer than I otherwise would (ESPECIALLY OVER ZOOM AND ESPECIALLY WHILE SCREENSHARING) when it is harder to see faces and pick up on subtle cues. This is exacerbated by me being afraid I’ll forget to come back to the topic, and feeling like I have to get to address it immediately or it will be lost. When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t in the agenda, its ok to interrupt by sharing your screen and show me the sprawl visually in the notes you’ve been taking, select the text of the tangent and say: “I’m taking notes, and I noticed that we’ve veered onto a tangent. Do you want me to tag you in a Google Doc comment to follow up later on this?"
 
-From Mike - 2023-08-21
+## Outline of departmental page structure
+
+Departmental pages are for reference, not philosophy.  For philosophy, use "Communications" (for all fleeties), "Leadership" (for managers), "Product groups" (for core product and website contributors), and "Why this way?" (for key decisions).
+
+Departmental pages exist to outline people, responsibilities, recurring rituals, and intake.  they always follow the structure below.
+
+Changes to departmental pages can be merged when the change results in a page consistent with this structure.
+
+> Please see https://fleetdm.com/handbook/ceo for an example of what this structure should look like in practice.
 
 <blockquote purpose="large-quote">
 Biggest learning is that we federated carte blanche edit permissions a bit too early back in 2021, and it’s resulted in the need for a lot of cleanup as different people have had their hands in the content prior to introducing a framework for organizing that content.  
 
-  For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and are dealing with the consequences.
-It meant that until recently, about 1/3 of the Fleet handbook was completely wrong, duplicated, or out of date.  (We’re probably down to only 25% now, and falling!)
-Joanne and team did some planning during the bizops offsite, and Sam and I took that and applied it to the ceo and bizops handbook pages yesterday.
-
-We’re going to do the same thing gradually for marketing, then sales, then engineering, then product.
-Content related to onboarding and policies like vacation is now in: https://fleetdm.com/handbook/company#every-day
+For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and are dealing with the consequences.
+It meant that until late 2023, about 1/3 of the Fleet handbook was completely wrong, duplicated, or out of date.  (We’re now close to 100% accurate.)
 
 The audience for the “Communications” page is every fleetie.
 
@@ -24,12 +34,12 @@ The audience for the “Leadership” page is every manager.
 The audience for individual department pages are the people working with and within that department (in that order, with “Contact us” and other generally useful information and intake channels listed first)
 This pass through the handbook has also eliminated several pages in favor of getting more onto single pages.  This is because there is still a lot of duplication, and it’s easier to deal with when everything is on a single page.
 
-Dear onboardees: could you update broken links in the onboarding issue template as you find them? Everything should still redirect correctly, or provide a path to get to the right place through “Stubs”, but it’s helpful to have the links point directly to the right place.
-If you have any questions or feedback, please contact us: https://fleetdm.com/handbook/ceo#contact-us
+
+If you have any questions or feedback, please make a pull request.
 </blockquote>
 
-### Outline of departmental page structure
 
+Departmental page structure:
 - `# Name of department`
   - "This handbook page details processes specific to working `[with](#contact-us)` and `[within](#responsibilities)` this department." 
 
@@ -41,17 +51,14 @@ If you have any questions or feedback, please contact us: https://fleetdm.com/ha
       - "Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request."
       - "Any Fleet team member can `[view the kanban board](https://app.zenhub.com/workspaces/{DEPARTMENTAL-KANBAN-BOARD-LINK}/board?sprints=none)` for this department, including pending tasks and the status of new requests."
 
-- `## What we do`
-    - Outline the direct responsibilities of the department. What value do you provide to Fleet's contributors.  
-
 - `## Responsibilities`
-  - The "Responsibilities" section consists of sub-headings written in the imperative mood (e.g. "Process CEO inbox") and designed to be the internal "How-to" of each department.  
+  - The "Responsibilities" section consists of a flat list of H3 sub-headings written in the imperative mood (e.g. "Process CEO inbox") and designed to be the internal "How-to" of each department.  
 
 
 - `## Rituals`
 
 
-### Key reviews
+## Key reviews
 Every release cycle, each department leader discusses their [key performance indicators (KPIs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) (confidential) with the CEO.  KPIs are numbers measuring results and everyday excellence, usually accompanied by time-bound goals.
 
 In this meeting, the department leader discusses actual week-over-week progress toward the goals for a particular quarter with the CEO.
@@ -373,7 +380,12 @@ From time to time, someone's job title changes.  To do this, Business Operations
 2. If there is a compensation change, update "Equity plan".  Use the first day of a month as the date, and enter this in the corresponding column.
 3. If applicable, schedule the change in the appropriate payroll system.  (Don't worry about updating job titles in the payroll system.)
 
+## Performance feedback
+When it comes to performance feedback, [speak freely](https://fleetdm.com/handbook/company#openness), sooner, and provide an explicit example of the behavior you observed and the impact it had.
 
+1. Deliver negative feedback privately whenever possible, and be constructive not punitive. Celebrate positive feedback publicly.
+2. Performance mangement is a part of every 1:1 document. Start each 1:1 by delivering performance feedback.
+3. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing at the top of your own "Performance management" section in your 1:1 agenda doc.  
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🛠️ Leadership">

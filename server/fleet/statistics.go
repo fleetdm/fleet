@@ -54,5 +54,5 @@ type HostsCountByOSVersion struct {
 }
 
 const (
-	StatisticsFrequency = time.Hour * 24 * 3
+	StatisticsFrequency = time.Hour * 24
 )

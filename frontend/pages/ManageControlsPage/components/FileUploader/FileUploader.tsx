@@ -2,14 +2,14 @@ import React from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import { IconNames } from "components/icons";
 import Card from "components/Card";
+import { GraphicNames } from "components/graphics";
+import Graphic from "components/Graphic";
 
 const baseClass = "file-uploader";
 
 interface IFileUploaderProps {
-  icon: IconNames;
+  graphicName: GraphicNames;
   message: string;
   additionalInfo?: string;
   isLoading?: boolean;
@@ -23,7 +23,7 @@ interface IFileUploaderProps {
 }
 
 const FileUploader = ({
-  icon,
+  graphicName,
   message,
   additionalInfo,
   isLoading = false,
@@ -35,7 +35,7 @@ const FileUploader = ({
 
   return (
     <Card color="gray" className={classes}>
-      <Icon name={icon} />
+      <Graphic name={graphicName} />
       <p className={`${baseClass}__message`}>{message}</p>
       <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
       <Button

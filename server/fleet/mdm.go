@@ -136,10 +136,99 @@ type HostMDMProfileRetryCount struct {
 	Retries           uint   `db:"retries"`
 }
 
+// TeamIDSetter defines the method to set a TeamID value on a struct,
+// which helps define authorization helpers based on teams.
+type TeamIDSetter interface {
+	SetTeamID(tid *uint)
+}
+
+// CommandEnqueueResult is the result of a command execution on enrolled Apple devices.
+type CommandEnqueueResult struct {
+	// CommandUUID is the unique identifier for the command.
+	CommandUUID string `json:"command_uuid,omitempty"`
+	// RequestType is the name of the command.
+	RequestType string `json:"request_type,omitempty"`
+	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
+	FailedUUIDs []string `json:"failed_uuids,omitempty"`
+	// Platform is the platform of the hosts targeted by the command.
+	Platform string `json:"platform"`
+}
+
+// MDMCommandAuthz is used to check user authorization to read/write an
+// MDM command.
+type MDMCommandAuthz struct {
+	TeamID *uint `json:"team_id"` // required for authorization by team
+}
+
+// SetTeamID implements the TeamIDSetter interface.
+func (m *MDMCommandAuthz) SetTeamID(tid *uint) {
+	m.TeamID = tid
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (m MDMCommandAuthz) AuthzType() string {
+	return "mdm_command"
+}
+
+// MDMCommandResult holds the result of a command execution provided by
+// the target device.
+type MDMCommandResult struct {
+	// HostUUID is the MDM enrollment ID. Note: For Windows devices, host uuid is distinct from
+	// device id.
+	HostUUID string `json:"host_uuid" db:"host_uuid"`
+	// CommandUUID is the unique identifier of the command.
+	CommandUUID string `json:"command_uuid" db:"command_uuid"`
+	// Status is the command status. One of Acknowledged, Error, or NotNow.
+	Status string `json:"status" db:"status"`
+	// UpdatedAt is the last update timestamp of the command result.
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// RequestType is the command's request type, which is basically the
+	// command name.
+	RequestType string `json:"request_type" db:"request_type"`
+	// Result is the original command result XML plist. If the status is Error, it will include the
+	// ErrorChain key with more information.
+	Result []byte `json:"result" db:"result"`
+	// Hostname is not filled by the query, it is filled in the service layer
+	// afterwards. To make that explicit, the db field tag is explicitly ignored.
+	Hostname string `json:"hostname" db:"-"`
+}
+
+// MDMCommand represents an MDM command that has been enqueued for
+// execution.
+type MDMCommand struct {
+	// HostUUID is the UUID of the host targeted by the command.
+	HostUUID string `json:"host_uuid" db:"host_uuid"`
+	// CommandUUID is the unique identifier of the command.
+	CommandUUID string `json:"command_uuid" db:"command_uuid"`
+	// UpdatedAt is the last update timestamp of the command result.
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// RequestType is the command's request type, which is basically the
+	// command name.
+	RequestType string `json:"request_type" db:"request_type"`
+	// Status is the command status. One of Pending, Acknowledged, Error, or NotNow.
+	Status string `json:"status" db:"status"`
+	// Hostname is the hostname of the host that executed the command.
+	Hostname string `json:"hostname" db:"hostname"`
+	// TeamID is the host's team, null if the host is in no team. This is used
+	// to authorize the user to see the command, it is not returned as part of
+	// the response payload.
+	TeamID *uint `json:"-" db:"team_id"`
+}
+
+// MDMCommandListOptions defines the options to control the list of MDM
+// Commands to return. Although it only supports the standard list
+// options for now, in the future we expect to add filtering options.
+//
+// https://github.com/fleetdm/fleet/issues/11008#issuecomment-1503466119
+type MDMCommandListOptions struct {
+	ListOptions
+}
+
 type MDMPlatformsCounts struct {
 	MacOS   uint `db:"macos" json:"macos"`
 	Windows uint `db:"windows" json:"windows"`
 }
+
 type MDMDiskEncryptionSummary struct {
 	Verified            MDMPlatformsCounts `db:"verified" json:"verified"`
 	Verifying           MDMPlatformsCounts `db:"verifying" json:"verifying"`
@@ -147,4 +236,72 @@ type MDMDiskEncryptionSummary struct {
 	Enforcing           MDMPlatformsCounts `db:"enforcing" json:"enforcing"`
 	Failed              MDMPlatformsCounts `db:"failed" json:"failed"`
 	RemovingEnforcement MDMPlatformsCounts `db:"removing_enforcement" json:"removing_enforcement"`
+}
+
+// MDMDeliveryStatus is the status of an MDM command to apply a profile
+// to a device (whether it is installing or removing).
+type MDMDeliveryStatus string
+
+// List of possible MDMDeliveryStatus values. For a given host, the status
+// of a profile can be either of those, or NULL. The meaning of the status is
+// as follows:
+//
+//   - failed: the MDM command failed to apply, and it won't retry. This is
+//     currently a terminal state. TODO(mna): for macOS currently we only retry if the
+//     command failed to enqueue in ReconcileProfile (it resets the status to
+//     NULL). A failure in the asynchronous actual response of the MDM command
+//     (via MDMAppleCheckinAndCommandService.CommandAndReportResults) results in
+//     the failed state being applied and no retry. We should probably support
+//     some retries for such failures, and determine a maximum number of retries
+//     before giving up (either as a count of attempts - which would require
+//     storing somewhere - or as a time period, which we could determine based on
+//     the timestamps, e.g. time since created_at, if we added them to
+//     host_mdm_apple_profiles).
+//
+//   - verified: the MDM command was successfully applied, and Fleet has
+//     independently verified the status. This is a terminal state.
+//
+//   - verifying: the MDM command was successfully applied, but Fleet has not
+//     independently verified the status. This is an intermediate state,
+//     it may transition to failed, pending, or NULL.
+//
+//   - pending: the cron job that executes the MDM commands to apply profiles
+//     is processing this host, and the MDM command may even be enqueued. This
+//     is a temporary state, it may transition to failed, verifying, or NULL.
+//
+//   - NULL: the status set for profiles that need to be applied to a host
+//     (installed or removed), e.g. because the profile just got added to the
+//     host's team, or because the host moved to a new team, etc. This is a
+//     temporary state, it may transition to pending when the cron job runs to
+//     apply the profile. It may also be simply deleted from the host's profiles
+//     without the need to run an MDM command if the profile becomes unneeded and
+//     that status is for an Install operation (e.g. the profile got deleted from
+//     the team, or the host was moved to a team that doesn't apply that profile)
+//     or vice-versa if that status is for a Remove but the profile becomes
+//     required again. For the sake of statistics, as reported by
+//     the summary endpoints/functions or for the list hosts filter, a NULL
+//     status is equivalent to a Pending status.
+var (
+	MDMDeliveryFailed    MDMDeliveryStatus = "failed"
+	MDMDeliveryVerified  MDMDeliveryStatus = "verified"
+	MDMDeliveryVerifying MDMDeliveryStatus = "verifying"
+	MDMDeliveryPending   MDMDeliveryStatus = "pending"
+)
+
+type MDMOperationType string
+
+const (
+	MDMOperationTypeInstall MDMOperationType = "install"
+	MDMOperationTypeRemove  MDMOperationType = "remove"
+)
+
+// MDMConfigProfileAuthz is used to check user authorization to read/write an
+// MDM configuration profile.
+type MDMConfigProfileAuthz struct {
+	TeamID *uint `json:"team_id"` // required for authorization by team
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (m MDMConfigProfileAuthz) AuthzType() string {
+	return "mdm_config_profile"
 }

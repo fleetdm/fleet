@@ -199,10 +199,12 @@ type Datastore interface {
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
 
 	// ListHostsLiteByUUIDs returns the "lite" version of hosts corresponding to
-	// the provided uuids and filtered according to the provided team filters.
-	// The "lite" version is a subset of the fields related to the host. See
-	// documentation of Datastore.HostLite for more information, or the
-	// implementation for the exact list.
+	// the provided uuids and filtered according to the provided team filters. It
+	// does include the MDMInfo information (unlike HostLite and
+	// ListHostsLiteByIDs) because listing hosts by UUIDs is commonly used to
+	// support MDM-related operations, where the UUID is often the only available
+	// identifier. The "lite" version is a subset of the fields related to the
+	// host. See the implementation for the exact list.
 	ListHostsLiteByUUIDs(ctx context.Context, filter TeamFilter, uuids []string) ([]*Host, error)
 
 	// ListHostsLiteByIDs returns the "lite" version of hosts corresponding to
@@ -521,7 +523,7 @@ type Datastore interface {
 	// SavePolicy updates some fields of the given policy on the datastore.
 	//
 	// It is also used to update team policies.
-	SavePolicy(ctx context.Context, p *Policy) error
+	SavePolicy(ctx context.Context, p *Policy, shouldRemoveAllPolicyMemberships bool) error
 
 	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
@@ -837,11 +839,11 @@ type Datastore interface {
 	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMAppleCommandResult, error)
+	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
 
 	// ListMDMAppleCommands returns a list of MDM Apple commands that have been
 	// executed, based on the provided options.
-	ListMDMAppleCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMAppleCommandListOptions) ([]*MDMAppleCommand, error)
+	ListMDMAppleCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMAppleCommand, error)
 
 	// NewMDMAppleInstaller creates and stores an Apple installer to Fleet.
 	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
@@ -1037,16 +1039,52 @@ type Datastore interface {
 	// WSTEPAssociateCertHash associates a certificate hash with a device.
 	WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error
 
-	// MDMWindowsGetEnrolledDevice receives a Windows MDM HW device id and returns the device information.
-	MDMWindowsGetEnrolledDevice(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
 	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
+
 	// MDMWindowsDeleteEnrolledDevice deletes a give MDMWindowsEnrolledDevice entry from the database using the HW device id.
-	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceID string) error
+	MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceHWID string) error
+
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
+
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
+
+	// MDMWindowsInsertCommandForHosts inserts a single command that may
+	// target multiple hosts identified by their UUID, enqueuing one command
+	// for each device.
+	MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
+
+	// MDMWindowsGetPendingCommands returns all the pending commands for a device
+	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsCommand, error)
+
+	// MDMWindowsSaveResponse saves a full response
+	MDMWindowsSaveResponse(ctx context.Context, deviceID string, fullResponse *SyncML) error
+
+	// GetMDMWindowsCommands returns the results of command
+	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
+
+	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID.
+	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) error
+
+	// GetMDMWindowsConfigProfile returns the Windows MDM profile corresponding
+	// to the specified profile uuid.
+	GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*MDMWindowsConfigProfile, error)
+
+	// DeleteMDMWindowsConfigProfile deletes the Windows MDM profile corresponding to
+	// the specified profile uuid.
+	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// MDM Commands
+
+	// GetMDMCommandPlatform returns the platform (i.e. "darwin" or "windows") for the given command.
+	GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error)
+
+	// ListMDMAppleCommands returns a list of MDM Apple commands that have been
+	// executed, based on the provided options.
+	ListMDMCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMCommand, error)
 
 	// GetMDMWindowsBitLockerSummary summarizes the current state of Windows disk encryption on
 	// each Windows host in the specified team (or, if no team is specified, each host that is not assigned
@@ -1057,6 +1095,31 @@ type Datastore interface {
 	// Note that the returned status will be nil if the host is reported to be a Windows
 	// server or if disk encryption is disabled for the host's team (or no team, as applicable).
 	GetMDMWindowsBitLockerStatus(ctx context.Context, host *Host) (*HostMDMDiskEncryption, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Windows MDM Profiles
+
+	// ListMDMWindowsProfilesToInstall returns all the profiles that should
+	// be installed based on diffing the ideal state vs the state we have
+	// registered in `host_mdm_windows_profiles`
+	ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
+
+	// ListMDMWindowsProfilesToRemove returns all the profiles that should
+	// be removed based on diffing the ideal state vs the state we have
+	// registered in `host_mdm_apple_profiles`
+	ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
+
+	// BulkUpsertMDMWindowsHostProfiles bulk-adds/updates records to track the
+	// status of a profile in a host.
+	BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payload []*MDMWindowsBulkUpsertHostProfilePayload) error
+
+	// GetMDMWindowsProfilesContents retrieves the XML contents of the
+	// profiles requested.
+	GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string][]byte, error)
+
+	// BulkDeleteMDMWindowsHostsConfigProfiles deletes entries from
+	// host_mdm_windows_profiles that match the given payload.
+	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results

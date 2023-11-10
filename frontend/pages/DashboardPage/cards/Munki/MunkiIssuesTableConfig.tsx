@@ -41,9 +41,9 @@ const generateMunkiIssuesTableHeaders = (teamId?: number): IDataColumn[] => [
     Header: (): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={`
-            Issues reported the last time Munki ran on each host.
-          `}
+          tipContent={
+            <>Issues reported the last time Munki ran on each host.</>
+          }
         >
           Issue
         </TooltipWrapper>

@@ -56,7 +56,7 @@ const NoResults = ({
 
     return (
       <EmptyTable
-        iconName="collecting-results"
+        graphicName="collecting-results"
         header={"Collecting results..."}
         info={collectingResultsInfo()}
       />
@@ -67,18 +67,50 @@ const NoResults = ({
     // In order of empty page priority
     if (disabledCaching) {
       const tipContent = () => {
-        // TODO - change to JSX with refactor tooltipwrapper merge
         if (disabledCachingGlobally) {
-          return `<div>The following setting prevents saving this query's results in Fleet:</div>\
-             <div>&nbsp; • Query reports are globally disabled in organization settings.</div>`;
+          return (
+            <>
+              {" "}
+              <div>
+                The following setting prevents saving this query&apos;s results
+                in Fleet:
+              </div>
+              \
+              <div>
+                &nbsp; • Query reports are globally disabled in organization
+                settings.
+              </div>
+            </>
+          );
         }
         if (discardDataEnabled) {
-          return `<div>The following setting prevents saving this query's results in Fleet:</div>\
-         <div>&nbsp; • This query has <b>Discard data</b> enabled.</div>`;
+          return (
+            <>
+              <div>
+                The following setting prevents saving this query&apos;s results
+                in Fleet:
+              </div>
+              \
+              <div>
+                &nbsp; • This query has <b>Discard data</b> enabled.
+              </div>
+            </>
+          );
         }
         if (!loggingSnapshot) {
-          return `<div>The following setting prevents saving this query's results in Fleet:</div>\
-          <div>&nbsp; • The logging setting for this query is not <b>Snapshot</b>.</div>`;
+          return (
+            <>
+              <div>
+                The following setting prevents saving this query&apos;s results
+                in Fleet:
+              </div>
+              \
+              <div>
+                &nbsp; • The logging setting for this query is not{" "}
+                <b>Snapshot</b>.
+              </div>
+            </>
+          );
         }
         return "Unknown";
       };
@@ -126,7 +158,7 @@ const NoResults = ({
   return (
     <EmptyTable
       className={baseClass}
-      iconName="empty-software"
+      graphicName="empty-software"
       header={emptyHeader}
       info={emptyDetails}
     />

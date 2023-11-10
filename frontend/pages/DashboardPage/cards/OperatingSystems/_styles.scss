@@ -2,10 +2,6 @@
   margin-top: $pad-large;
   position: relative;
 
-  .data-table__wrapper {
-    overflow-x: auto;
-  }
-
   .hosts-cell__wrapper {
     display: flex;
     align-items: center;
@@ -33,6 +29,6 @@
 
   &__os-empty-table.empty-table__container {
     // overriding base component styles so this look correct for this card
-    margin-top: $pad-large
+    margin-top: $pad-large;
   }
 }
