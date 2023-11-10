@@ -85,10 +85,10 @@
   moreInfoUrl:
   dri: "xpkoala"
 - 
-  task: "Check osquery slack invitation"
+  task: "Check osquery Slack invitation"
   startedOn: "2023-11-10" 
   frequency: "Monthly"
-  description: "Check the osquery slack invitation that is linked to from Fleet and the [Fleet website](https://fleetdm.com/slack) to make sure it is valid."
+  description: "Check the osquery Slack invitation that is linked to from Fleet and the Fleet website to make sure it is valid."
   moreInfoUrl: "https://fleetdm.com/slack"
   dri: "eashaw"
 
