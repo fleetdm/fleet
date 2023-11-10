@@ -31,7 +31,7 @@ const TooltipTruncatedTextCell = ({
   return (
     <div className={classNames}>
       <div
-        className={"data-table__truncated-text"}
+        className={"data-table__tooltip-truncated-text"}
         data-tip
         data-for={tooltipId}
       >
