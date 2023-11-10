@@ -1,0 +1,2 @@
+- Fixes bug where a deleted user's email would no longer show in the Activity feed for actions
+  they'd taken.

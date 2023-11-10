@@ -1,0 +1,14 @@
+Enabled support and validation of 'after' parameter for the following endpoints:
+- GET /api/v1/fleet/carves
+
+Setting 'after' parameter no longer returns SQL syntax error for the following endpoints:
+- GET /api/v1/fleet/carves
+- GET /api/v1/fleet/invites
+- GET /api/v1/fleet/labels
+- GET /api/v1/fleet/packs
+- GET /api/v1/fleet/global/policies
+- GET /api/v1/fleet/teams/{id}/policies
+- GET /api/v1/fleet/queries
+- GET /api/v1/fleet/packs/{id}/scheduled
+- GET /api/v1/fleet/teams
+- GET /api/v1/fleet/users

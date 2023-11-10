@@ -5,6 +5,8 @@ import Modal from "components/Modal";
 import Checkbox from "../../../../../components/forms/fields/Checkbox";
 import Button from "../../../../../components/buttons/Button";
 
+const baseClass = "edit-columns-modal";
+
 const useCheckboxListStateManagement = (allColumns, hiddenColumns) => {
   const [columnItems, setColumnItems] = useState(() => {
     return allColumns.map((column) => {
@@ -58,14 +60,10 @@ const EditColumnsModal = ({
   );
 
   return (
-    <Modal
-      title="Edit columns"
-      onExit={onCancelColumns}
-      className={"edit-columns-modal"}
-    >
+    <Modal title="Edit columns" onExit={onCancelColumns} className={baseClass}>
       <>
         <p>Choose which columns you see:</p>
-        <div className={"modal-items"}>
+        <div className={`${baseClass}__column-headers`}>
           {columnItems.map((column) => {
             if (column.disableHidden) return null;
             return (
