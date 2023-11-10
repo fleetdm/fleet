@@ -8,10 +8,23 @@ import Graphic from "components/Graphic";
 
 const baseClass = "file-uploader";
 
+type ISupportedGraphicNames = Extract<
+  GraphicNames,
+  | "file-configuration-profile"
+  | "file-sh"
+  | "file-py"
+  | "file-script"
+  | "file-pdf"
+  | "file-pkg"
+  | "file-p7m"
+  | "file-pem"
+>;
+
 interface IFileUploaderProps {
-  graphicName: GraphicNames;
+  graphicName: ISupportedGraphicNames;
   message: string;
   additionalInfo?: string;
+  /** Controls the loading spinner on the upload button */
   isLoading?: boolean;
   /** A comma seperated string of one or more file types accepted to upload.
    * This is the same as the html accept attribute.

@@ -5,12 +5,11 @@ import { AxiosResponse } from "axios";
 import { IApiError } from "interfaces/errors";
 import { IMdmProfile, IMdmProfilesResponse } from "interfaces/mdm";
 import mdmAPI from "services/entities/mdm";
-import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
 import CustomLink from "components/CustomLink";
+import FileUploader from "components/FileUploader";
 
-import FileUploader from "../../../components/FileUploader";
 import UploadList from "../../../components/UploadList";
 
 import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
