@@ -48,6 +48,7 @@ const ProfileListItem = ({ profile, onDelete }: IProfileListItemProps) => {
 
   return (
     <ListItem
+      className={baseClass}
       graphic="file-configuration-profile"
       title={profile.name}
       details={

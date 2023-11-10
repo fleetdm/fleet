@@ -1,4 +1,5 @@
 import React from "react";
+import classnames from "classnames";
 
 import Graphic from "components/Graphic";
 import { GraphicNames } from "components/graphics";
@@ -10,11 +11,19 @@ interface IListItemProps {
   title: string;
   details: React.ReactNode;
   actions: React.ReactNode;
+  className?: string;
 }
 
-const ListItem = ({ graphic, title, details, actions }: IListItemProps) => {
+const ListItem = ({
+  graphic,
+  title,
+  details,
+  actions,
+  className,
+}: IListItemProps) => {
+  const classNames = classnames(baseClass, className);
   return (
-    <div className={baseClass}>
+    <div className={classNames}>
       <div className={`${baseClass}__main-content`}>
         <Graphic name={graphic} />
         <div className={`${baseClass}__info`}>
