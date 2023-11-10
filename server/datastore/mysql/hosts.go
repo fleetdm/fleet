@@ -579,7 +579,7 @@ SELECT
   COALESCE(hst.seen_time, h.created_at) AS seen_time,
   t.name AS team_name,
   COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
-  DATE_SUB(COALESCE(h.detail_updated_at, h.created_at), INTERVAL uptime/1000 MICROSECOND) as last_restarted_at,
+  (CASE WHEN uptime = 0 THEN DATE('0001-01-01') ELSE DATE_SUB(h.detail_updated_at, INTERVAL uptime/1000 MICROSECOND) END) as last_restarted_at,
   (
     SELECT
       additional
@@ -809,7 +809,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     h.osquery_host_id,
     h.created_at,
     h.updated_at,
-    COALESCE(h.detail_updated_at, h.created_at) as detail_updated_at,
+    h.detail_updated_at,
     h.node_key,
     h.hostname,
     h.uuid,
@@ -850,7 +850,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
     t.name AS team_name,
     COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
-	(CASE WHEN uptime = 0 THEN DATE('0001-01-01') ELSE DATE_SUB(COALESCE(h.detail_updated_at, h.created_at), INTERVAL uptime/1000 MICROSECOND) END) as last_restarted_at
+	(CASE WHEN uptime = 0 THEN DATE('0001-01-01') ELSE DATE_SUB(h.detail_updated_at, INTERVAL uptime/1000 MICROSECOND) END) as last_restarted_at
 	`
 
 	sql += hostMDMSelect
