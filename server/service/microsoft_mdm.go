@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/log/level"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
@@ -2048,4 +2049,109 @@ func NewSyncMLCmdStatus(msgRef string, cmdRef string, cmdOrig string, statusCode
 		Items:   nil,
 		CmdID:   uuid.NewString(),
 	}
+}
+
+func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
+	// retrieve the profiles to install/remove.
+	toInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting profiles to install")
+	}
+	toRemove, err := ds.ListMDMWindowsProfilesToRemove(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting profiles to remove")
+	}
+
+	// toGetContents contains the IDs of all the profiles from which we
+	// need to retrieve contents. Since the previous query returns one row
+	// per host, it would be too expensive to retrieve the profile contents
+	// there, so we make another request. Using a map to deduplicate.
+	toGetContents := make(map[string]bool)
+
+	// hostProfiles tracks each host_mdm_windows_profile we need to upsert
+	// with the new status, operation_type, etc.
+	hostProfiles := make([]*fleet.MDMWindowsBulkUpsertHostProfilePayload, 0, len(toInstall))
+
+	// install are maps from profileID -> command uuid and host
+	// UUIDs as the underlying MDM services are optimized to send one command to
+	// multiple hosts at the same time. Note that the same command uuid is used
+	// for all hosts in a given install/remove target operation.
+	type cmdTarget struct {
+		cmdUUID   string
+		profID    string
+		hostUUIDs []string
+	}
+	installTargets := make(map[string]*cmdTarget)
+
+	for _, p := range toInstall {
+		toGetContents[p.ProfileUUID] = true
+		target := installTargets[p.ProfileUUID]
+		if target == nil {
+			target = &cmdTarget{
+				cmdUUID: uuid.New().String(),
+				profID:  p.ProfileUUID,
+			}
+			installTargets[p.ProfileUUID] = target
+		}
+		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+
+		hostProfiles = append(hostProfiles, &fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			ProfileUUID:   p.ProfileUUID,
+			HostUUID:      p.HostUUID,
+			ProfileName:   p.ProfileName,
+			CommandUUID:   target.cmdUUID,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Status:        &fleet.MDMDeliveryPending,
+		})
+	}
+
+	// Grab the contents of all the profiles we need to install
+	profileUUIDs := make([]string, 0, len(toGetContents))
+	for pid := range toGetContents {
+		profileUUIDs = append(profileUUIDs, pid)
+	}
+	profileContents, err := ds.GetMDMWindowsProfilesContents(ctx, profileUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get profile contents")
+	}
+
+	for profID, target := range installTargets {
+		p, ok := profileContents[profID]
+		if !ok {
+			// this should never happen
+			level.Info(logger).Log("warn", "missing profile contents", "profile_id", profID)
+			continue
+		}
+
+		// TODO(roberto): I think this should live separately in the
+		// Windows equivalent of Apple's Commander struct, but I'd like
+		// to keep it simpler for now until we understand more.
+		command := &fleet.MDMWindowsCommand{
+			CommandUUID: target.cmdUUID,
+			RawCommand: []byte(fmt.Sprintf(`
+				<Atomic>
+					<CmdID>%s</CmdID>
+					%s
+				</Atomic>
+			`, target.cmdUUID, p)),
+			// Atomic commands don't have a Target element.
+			TargetLocURI: "",
+		}
+		if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
+		}
+	}
+
+	// Windows profiles are just deleted from the DB, the notion of sending
+	// a command to remove a profile doesn't exist.
+	if err := ds.BulkDeleteMDMWindowsHostsConfigProfiles(ctx, toRemove); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
+	}
+
+	// Upsert the status of the host profiles we need to track.
+	if err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, hostProfiles); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host profiles")
+	}
+
+	return nil
 }
