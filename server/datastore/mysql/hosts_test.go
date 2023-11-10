@@ -154,6 +154,7 @@ func TestHosts(t *testing.T) {
 		{"GetMatchingHostSerials", testGetMatchingHostSerials},
 		{"ListHostsLiteByIDs", testHostsListHostsLiteByIDs},
 		{"ListHostsWithPagination", testListHostsWithPagination},
+		{"LastRestarted", testLastRestarted},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
