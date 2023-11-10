@@ -168,6 +168,10 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	config.Features.EnableHostUsers = false
 	config.VulnerabilitySettings.DatabasesPath = ""
 	config.WebhookSettings.HostStatusWebhook.Enable = true
+	config.MDM.EnabledAndConfigured = true
+	config.HostExpirySettings.HostExpiryEnabled = true
+	config.MDM.WindowsEnabledAndConfigured = true
+	config.ServerSettings.LiveQueryDisabled = true
 
 	err = ds.SaveAppConfig(ctx, config)
 	require.NoError(t, err)
