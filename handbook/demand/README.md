@@ -149,10 +149,12 @@ Here are some links that filter relevant conversations on each platform:
 ### Book an event
 For an event to be considered, booked, and scheduled, we follow the event issue template.
 
-1. Create a [new GitHub issue for the #g-demand board](https://fleetdm.com/handbook/demand#contact-us) and select the "Event-preparation" template..
-2. Drag the issue into the "🗓 Ideas for future events" column.  
+1. Create a [new GitHub issue for the #g-demand board using the "Book event" issue template](https://github.com/fleetdm/confidential/issues/new/choose).
+2. Drag the issue into the "🗓 Ideas for future events" column.
 
 Once approval has been received, move the event into the "🗓 Planned events" column.
+
+Eventbrite pages for planned events are brought to design review or CEO office minutes before being published. Pages are checked for alignment with branding standards and accurate information.
 
 ### Review ongoing events
 Check the "🗓 Planned events" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
