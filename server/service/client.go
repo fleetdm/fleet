@@ -514,7 +514,7 @@ func (c *Client) ApplyGroup(
 		if len(tmScriptsPayloads) > 0 {
 			for tmName, scripts := range tmScriptsPayloads {
 				if err := c.ApplyTeamScripts(tmName, scripts, opts); err != nil {
-					return fmt.Errorf("applying scripts for team %q: %w", tmName, err)
+					return fmt.Errorf("Couldn’t edit scripts. %w", err)
 				}
 			}
 		}
