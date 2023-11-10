@@ -6,6 +6,8 @@ import mdmAPI from "services/entities/mdm";
 import { NotificationContext } from "context/notification";
 
 import CustomLink from "components/CustomLink";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 import UploadList from "../../../components/UploadList";
 
@@ -38,14 +40,19 @@ const CustomSettings = ({
     setShowDeleteProfileModal(true);
   };
 
-  const { data: profiles, refetch: refetchProfiles } = useQuery<
-    IMdmProfilesResponse,
-    unknown,
-    IMdmProfile[] | null
-  >(["profiles", currentTeamId], () => mdmAPI.getProfiles(currentTeamId), {
-    select: (data) => data.profiles,
-    refetchOnWindowFocus: false,
-  });
+  const {
+    data: profiles,
+    isLoading: isLoadingProfiles,
+    isError: isErrorProfiles,
+    refetch: refetchProfiles,
+  } = useQuery<IMdmProfilesResponse, unknown, IMdmProfile[] | null>(
+    ["profiles", currentTeamId],
+    () => mdmAPI.getProfiles(currentTeamId),
+    {
+      select: (data) => data.profiles,
+      refetchOnWindowFocus: false,
+    }
+  );
 
   const onUploadProfile = () => {
     refetchProfiles();
@@ -71,6 +78,30 @@ const CustomSettings = ({
     }
   };
 
+  const renderProfileList = () => {
+    if (isLoadingProfiles) {
+      return <Spinner />;
+    }
+
+    if (isErrorProfiles) {
+      return <DataError />;
+    }
+
+    if (!profiles || profiles.length === 0) {
+      return null;
+    }
+
+    return (
+      <UploadList
+        listItems={profiles}
+        HeadingComponent={ProfileListHeading}
+        ListItemComponent={({ listItem }) => (
+          <ProfileListItem profile={listItem} onDelete={onClickDelete} />
+        )}
+      />
+    );
+  };
+
   return (
     <div className={baseClass}>
       <h2>Custom settings</h2>
@@ -82,17 +113,7 @@ const CustomSettings = ({
           url="https://fleetdm.com/docs/using-fleet/mdm-custom-macos-settings"
         />
       </p>
-
-      {profiles && (
-        <UploadList
-          listItems={profiles}
-          HeadingComponent={ProfileListHeading}
-          ListItemComponent={({ listItem }) => (
-            <ProfileListItem profile={listItem} onDelete={onClickDelete} />
-          )}
-        />
-      )}
-
+      {renderProfileList()}
       <ProfileUploader
         currentTeamId={currentTeamId}
         onUpload={onUploadProfile}
