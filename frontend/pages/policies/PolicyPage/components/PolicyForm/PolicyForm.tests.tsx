@@ -130,7 +130,7 @@ describe("PolicyForm - component", () => {
     );
   });
 
-  it("disables run button with tooltip for globally disabled queries", async () => {
+  it("disables run button with tooltip when live queries are globally disabled", async () => {
     const render = createCustomRenderer({
       context: {
         policy: {

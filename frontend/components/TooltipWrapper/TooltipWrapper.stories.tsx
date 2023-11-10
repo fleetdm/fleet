@@ -6,8 +6,8 @@ import TooltipWrapper from ".";
 import "../../index.scss";
 
 interface ITooltipWrapperProps {
-  children: string;
-  tipContent: string;
+  children: React.ReactNode;
+  tipContent: React.ReactNode;
 }
 
 export default {
@@ -18,7 +18,20 @@ export default {
   },
   argTypes: {
     position: {
-      options: ["top", "bottom"],
+      options: [
+        "top",
+        "top-start",
+        "top-end",
+        "right",
+        "right-start",
+        "right-end",
+        "bottom",
+        "bottom-start",
+        "bottom-end",
+        "left",
+        "left-start",
+        "left-end",
+      ],
       control: "radio",
     },
   },
@@ -32,6 +45,10 @@ const Template: Story<ITooltipWrapperProps> = (props) => (
     <br />
     <br />
     <TooltipWrapper {...props}>Example text</TooltipWrapper>
+    <br />
+    <br />
+    <br />
+    <br />
   </>
 );
 

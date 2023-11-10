@@ -115,6 +115,7 @@ const PolicyForm = ({
     isGlobalObserver,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isObserverPlus,
     isOnGlobalTeam,
     isPremiumTier,
     isSandboxMode,
@@ -459,9 +460,11 @@ const PolicyForm = ({
         >
           <TooltipWrapper
             tipContent={
-              "<p>If automations are turned on, this<br/> information is included.</p>"
+              <p>
+                If automations are turned on, this
+                <br /> information is included.
+              </p>
             }
-            isDelayed
           >
             Critical:
           </TooltipWrapper>
@@ -470,7 +473,8 @@ const PolicyForm = ({
     );
   };
 
-  // Observers and observer+ of existing query, team role viewing inherited policy
+  // Non-editable form used for Team Observers and Observer+ of their team policy and inherited policies
+  // And Global Observers and Observer+ of all policies
   const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
@@ -507,6 +511,18 @@ const PolicyForm = ({
         />
       )}
       {renderLiveQueryWarning()}
+      {isObserverPlus && ( // Observer+ can run existing policies
+        <div className={`${baseClass}__button-wrap`}>
+          <Button
+            className={`${baseClass}__run`}
+            variant="blue-green"
+            onClick={goToSelectTargets}
+            disabled={isEditMode && !isAnyPlatformSelected}
+          >
+            Run
+          </Button>
+        </div>
+      )}
     </form>
   );
 

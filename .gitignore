@@ -37,6 +37,7 @@ mysqldata/
 
 # test helm charts
 helm-temp
+charts/fleet/charts
 
 #editors
 .idea
@@ -100,3 +101,6 @@ fleetd_tables_*
 tools/test_extensions/hello_world/macos
 tools/test_extensions/hello_world/windows
 tools/test_extensions/hello_world/linux
+
+# Residual files when building fleet_tables extension.
+fleet_tables_*.ext
