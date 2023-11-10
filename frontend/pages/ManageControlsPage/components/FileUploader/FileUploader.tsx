@@ -22,6 +22,9 @@ interface IFileUploaderProps {
   onFileUpload: (files: FileList | null) => void;
 }
 
+/**
+ * A component that encapsulates the UI for uploading a file.
+ */
 const FileUploader = ({
   graphicName,
   message,
@@ -37,7 +40,9 @@ const FileUploader = ({
     <Card color="gray" className={classes}>
       <Graphic name={graphicName} />
       <p className={`${baseClass}__message`}>{message}</p>
-      <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
+      {additionalInfo && (
+        <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
+      )}
       <Button
         className={`${baseClass}__upload-button`}
         variant="brand"
