@@ -3923,7 +3923,7 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 
 ### Add custom macOS setting (configuration profile)
 
-Add a configuration profile to enforce custom settings on macOS hosts.
+Add a configuration profile to enforce custom settings on macOS hosts. s
 
 `POST /api/v1/fleet/mdm/apple/profiles`
 
