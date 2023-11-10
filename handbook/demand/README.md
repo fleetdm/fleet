@@ -151,9 +151,7 @@ For an event to be considered, booked, and scheduled, we follow the event issue 
 
 Once approval has been received, move the event into the "🗓 Planned events" column.
 
-> TODO: include short note (like 1-3 sentences) here, replacing this note, about design review being part of launching a new eventbrite page, so that this can be linked to without sending people into the event issue template source.  In that short note here in the handbook, be sure to include [what's being reviewed and why](https://github.com/fleetdm/confidential/issues/3775#issuecomment-1786403244).
->
-> TODO: Also update issue template to include bringing eventbrite page through review design review.
+Eventbrite pages for planned events are brought to design review or CEO office minutes before being published. Pages are checked for alignment with branding standards and accurate information.
 
 ### Review ongoing events
 Check the "🗓 Planned events" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
