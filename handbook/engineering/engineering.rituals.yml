@@ -84,6 +84,13 @@
   description: "Every release cycle, by end of day Friday of release week, all issues move to Ready for release on the #g-mdm and #g-cx sprint boards."
   moreInfoUrl:
   dri: "xpkoala"
+- 
+  task: "Check osquery slack invitation"
+  startedOn: "2023-11-10" 
+  frequency: "Monthly"
+  description: "Check the osquery slack invitation that is linked to from Fleet and the [Fleet website](https://fleetdm.com/slack) to make sure it is valid."
+  moreInfoUrl: "https://fleetdm.com/slack"
+  dri: "eashaw"
 
 
 
