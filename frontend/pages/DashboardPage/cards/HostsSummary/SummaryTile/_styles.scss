@@ -85,6 +85,9 @@
       text-align: center;
       flex-direction: column;
       gap: 0.75rem;
+      .component__tooltip-wrapper__tip-text {
+        text-align: initial;
+      }
     }
 
     &__tile-icon {
