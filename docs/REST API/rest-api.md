@@ -4007,7 +4007,11 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "updated_at": "2023-04-31T00:00:00Z",
       "checksum": "aCLemVr)"
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
