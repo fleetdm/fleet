@@ -882,4 +882,17 @@ describe("Activity Feed", () => {
       screen.getByText("for no team via fleetctl.", { exact: false })
     ).toBeInTheDocument();
   });
+  it("renders a pluralized 'deleted_multiple_saved_query' type activity when deleting multiple queries.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedMultipleSavedQuery,
+      details: {
+        query_ids: [1, 2, 3],
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted multiple queries", { exact: false })
+    ).toBeInTheDocument();
+  });
 });
