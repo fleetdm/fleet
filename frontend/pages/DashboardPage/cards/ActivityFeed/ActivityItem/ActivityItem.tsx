@@ -584,6 +584,9 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  deletedMultipleSavedQuery: (activity: IActivity) => {
+    return <> deleted multiple queries.</>;
+  },
 };
 
 const getDetail = (
@@ -708,6 +711,9 @@ const getDetail = (
     }
     case ActivityType.EditedScript: {
       return TAGGED_TEMPLATES.editedScript(activity);
+    }
+    case ActivityType.DeletedMultipleSavedQuery: {
+      return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
