@@ -129,8 +129,6 @@ const HostDetailsPage = ({
     isSandboxMode,
     isOnlyObserver,
     filteredHostsPath,
-    availableTeams,
-    setCurrentTeam,
   } = useContext(AppContext);
   const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -744,10 +742,7 @@ const HostDetailsPage = ({
             {showScripts && (
               <TabPanel>
                 <ScriptsCard
-                  hostId={host?.id}
-                  page={page}
-                  router={router}
-                  isHostOnline={host?.status === "online"}
+                  {...{ currentUser, host, page, router }}
                   onShowDetails={onShowScriptDetails}
                 />
               </TabPanel>

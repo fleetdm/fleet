@@ -1,5 +1,4 @@
-import React, { useContext, useRef, useState } from "react";
-import { useQuery } from "react-query";
+import React, { useContext } from "react";
 import { AxiosResponse } from "axios";
 import { InjectedRouter } from "react-router";
 
@@ -16,47 +15,69 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import DataError from "components/DataError";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import { IHost } from "interfaces/host";
+import { IUser } from "interfaces/user";
 
-import { generateDataSet, generateTableHeaders } from "./ScriptsTableConfig";
+import {
+  generateDataSet,
+  generateTableColumnConfigs,
+} from "./ScriptsTableConfig";
 
 const baseClass = "host-scripts-section";
 
 interface IScriptsProps {
-  isHostOnline: boolean;
+  currentUser: IUser | null;
+  host?: IHost;
   router: InjectedRouter;
-  hostId?: number;
   page?: number;
   onShowDetails: (scriptExecutionId: string) => void;
 }
 
 const Scripts = ({
-  hostId,
+  currentUser,
+  host,
   page = 0,
-  isHostOnline,
   router,
   onShowDetails,
 }: IScriptsProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const {
-    data: hostScriptResponse,
-    isLoading: isLoadingScriptData,
-    isError: isErrorScriptData,
-    refetch: refetchScriptsData,
-  } = useQuery<IHostScriptsResponse, IApiError>(
-    ["scripts", hostId, page],
-    () => scriptsAPI.getHostScripts(hostId as number, page),
-    {
-      refetchOnWindowFocus: false,
-      retry: false,
-      enabled: Boolean(hostId),
-    }
-  );
+  // TODO - restore real data
 
-  if (!hostId) return null;
+  // const {
+  //   data: hostScriptResponse,
+  //   isLoading: isLoadingScriptData,
+  //   isError: isErrorScriptData,
+  //   refetch: refetchScriptsData,
+  // } = useQuery<IHostScriptsResponse, IApiError>(
+  //   ["scripts", hostId, page],
+  //   () => scriptsAPI.getHostScripts(hostId as number, page),
+  //   {
+  //     refetchOnWindowFocus: false,
+  //     retry: false,
+  //     enabled: Boolean(hostId),
+  //   }
+  // );
+
+  const hostScriptResponse: IHostScriptsResponse = {
+    scripts: [
+      {
+        script_id: 1,
+        name: "test windows script",
+        last_execution: {
+          execution_id: "1",
+          executed_at: "2021-08-10T15:00:00.000Z",
+          status: "pending",
+        },
+      },
+    ],
+    meta: { has_next_results: false, has_previous_results: false },
+  };
+
+  if (!host) return null;
 
   const onQueryChange = (data: ITableQueryData) => {
-    router.push(`${PATHS.HOST_SCRIPTS(hostId)}?page=${data.pageIndex}`);
+    router.push(`${PATHS.HOST_SCRIPTS(host.id)}?page=${data.pageIndex}`);
   };
 
   const onActionSelection = async (action: string, script: IHostScript) => {
@@ -68,10 +89,11 @@ const Scripts = ({
       case "run":
         try {
           await scriptsAPI.runScript({
-            host_id: hostId,
+            host_id: host.id,
             script_id: script.script_id,
           });
-          refetchScriptsData();
+          // TODO - restore refetch call below
+          // refetchScriptsData();
         } catch (e) {
           const error = e as AxiosResponse<IApiError>;
           renderFlash("error", error.data.errors[0].reason);
@@ -82,12 +104,17 @@ const Scripts = ({
     }
   };
 
-  if (isErrorScriptData) {
-    return <DataError card />;
-  }
+  // TODO - restore
+  // if (isErrorScriptData) {
+  //   return <DataError card />;
+  // }
 
-  const scriptHeaders = generateTableHeaders(onActionSelection);
-  const data = generateDataSet(hostScriptResponse?.scripts || [], isHostOnline);
+  const scriptColumnConfigs = generateTableColumnConfigs(onActionSelection);
+  const data = generateDataSet(
+    currentUser,
+    host,
+    hostScriptResponse?.scripts || []
+  );
 
   return (
     <Card className={baseClass} borderRadiusSize="large" includeShadow>
@@ -103,9 +130,11 @@ const Scripts = ({
           emptyComponent={() => <></>}
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          columns={scriptHeaders}
+          columns={scriptColumnConfigs}
           data={data}
-          isLoading={isLoadingScriptData}
+          // TODO - restore
+          // isLoading={isLoadingScriptData}
+          isLoading={false}
           onQueryChange={onQueryChange}
           disableNextPage={hostScriptResponse?.meta.has_next_results}
           defaultPageIndex={page}
