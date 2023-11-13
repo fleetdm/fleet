@@ -6,10 +6,31 @@ import { GraphicNames } from "components/graphics";
 
 const baseClass = "list-item";
 
+type ISupportedGraphicNames = Extract<
+  GraphicNames,
+  | "file-configuration-profile"
+  | "file-sh"
+  | "file-py"
+  | "file-script"
+  | "file-pdf"
+  | "file-pkg"
+  | "file-p7m"
+  | "file-pem"
+>;
+
+/**
+ * A generic ListItem component that can be used to display a list of items. It
+ * encapsulates the UI logic and styling for displaying a graphic, title,
+ * details, and actions.
+ */
 interface IListItemProps {
-  graphic: GraphicNames;
+  /** The grahpic you want to display for this list item. */
+  graphic: ISupportedGraphicNames;
   title: string;
   details: React.ReactNode;
+  /** A collection of React Nodes that will render as list item actions. Can be
+   * used to render buttons, links, etc.
+   */
   actions: React.ReactNode;
   className?: string;
 }
