@@ -9,6 +9,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// for tests, set to override the default batch size.
+var testDeleteMDMProfilesBatchSize int
+
+// for tests, set to override the default batch size.
+var testUpsertMDMDesiredProfilesBatchSize int
+
 func (ds *Datastore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
 	stmt := `
 SELECT CASE
