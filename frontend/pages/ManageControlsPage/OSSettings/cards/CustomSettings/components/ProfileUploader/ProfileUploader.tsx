@@ -61,8 +61,8 @@ const ProfileUploader = ({
   return (
     <FileUploader
       graphicName="file-configuration-profile"
-      message="Configuration profile (.mobileconfig for macOS or .xml for Windows)"
-      accept=".mobileconfig,application/x-apple-aspen-config,.xml"
+      message="Configuration profile (.mobileconfig)"
+      accept=".mobileconfig,application/x-apple-aspen-config"
       isLoading={showLoading}
       onFileUpload={onFileUpload}
       className={`${baseClass}__file-uploader`}
