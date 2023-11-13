@@ -21,10 +21,11 @@ import (
 )
 
 const (
-	httpClientTimeout = 2 * time.Minute
-	waitTimeForRetry  = 30 * time.Second
-	maxRetryAttempts  = 10
-	apiKeyEnvVar      = "NVD_API_KEY" //nolint:gosec
+	httpClientTimeout       = 2 * time.Minute
+	waitTimeBetweenRequests = 6 * time.Second
+	waitTimeForRetry        = 30 * time.Second
+	maxRetryAttempts        = 10
+	apiKeyEnvVar            = "NVD_API_KEY" //nolint:gosec
 )
 
 func panicIf(err error) {
@@ -91,13 +92,18 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 			time.Sleep(waitTimeForRetry)
 			continue
 		}
+		retryAttempts = 0
 		totalResults = cpeResponse.TotalResults
 		slog.Info(fmt.Sprintf("Got %v results", cpeResponse.ResultsPerPage))
 		startIndex += cpeResponse.ResultsPerPage
 		for _, product := range cpeResponse.Products {
 			cpes = append(cpes, convertToCPEItem(product.CPE))
 		}
-		slog.Info(fmt.Sprintf("Fetching index %v out of %v", startIndex, totalResults))
+		if startIndex < totalResults {
+			// NVD API recommendation to sleep between requests: https://nvd.nist.gov/developers/api-workflows
+			time.Sleep(waitTimeBetweenRequests)
+			slog.Info(fmt.Sprintf("Fetching index %v out of %v", startIndex, totalResults))
+		}
 	}
 
 	// Sanity check
@@ -114,8 +120,8 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 	return dbPath
 }
 
-func convertToCPEItem(in nvdapi.CPE) cpedict.CPEItem {
-	out := cpedict.CPEItem{}
+func convertToCPEItem(in nvdapi.CPE) (out cpedict.CPEItem) {
+	out = cpedict.CPEItem{}
 
 	// CPE name
 	wfName, err := wfn.Parse(in.CPEName)
@@ -147,6 +153,12 @@ func convertToCPEItem(in nvdapi.CPE) cpedict.CPEItem {
 			break
 		}
 	}
+
+	// The following fields are not needed by subsequent code:
+	// out.DeprecatedBy
+	// out.DeprecationDate
+	// out.Notes
+	// out.References
 	return out
 }
 
