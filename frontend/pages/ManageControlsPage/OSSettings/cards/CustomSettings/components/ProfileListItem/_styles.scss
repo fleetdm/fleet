@@ -1,3 +1,19 @@
 .profile-list-item {
-  @include list-item;
+  &__profile-details {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-xsmall;
+  }
+
+  &__list-item-details {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-xsmall;
+    font-size: $xx-small;
+  }
+
+  &__action-button {
+    width: 40px;
+    height: 40px;
+  }
 }

@@ -1,68 +1,6 @@
 .script-list-item {
-  display: flex;
-  align-items: center;
-
-  &__value-group {
-    flex: 1;
-  }
-
-  &__script-data {
-    display: flex;
-    align-items: center;
-  }
-
-  &__script-info {
-    margin-left: $pad-medium;
-    display: flex;
-    flex-direction: column;
-  }
-
-  &__script-name {
-    font-size: $x-small;
-  }
-
-  &__script-uploaded {
-    font-size: $xx-small;
-  }
-
-  &__script-statuses {
-    display: flex;
-    justify-content: center;
-
-    span {
-      width: 100px;
-      text-align: center;
-    }
-  }
-
-  &__has-value {
-    color: $core-vibrant-blue;
-  }
-
-  &__script-actions {
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  &__refresh-button,
-  &__download-button,
-  &__delete-button {
+  &__action-button {
     width: 40px;
     height: 40px;
-  }
-
-  &__refresh-button,
-  &__download-button {
-    margin-right: $pad-medium;
-  }
-
-  @media (max-width: $break-md) {
-    &__script-statuses {
-      justify-content: flex-end;
-    }
-
-    &__script-actions {
-      display: none;
-    }
   }
 }
