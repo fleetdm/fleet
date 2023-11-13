@@ -395,6 +395,11 @@ const (
 	CmdAlertGeneric = "1226"
 )
 
+const (
+	FleetBitLockerTargetLocURI = "./Device/Vendor/MSFT/BitLocker"
+	FleetOSUpdateTargetLocURI  = "./Device/Vendor/MSFT/Policy/Config/Update/"
+)
+
 func ResolveWindowsMDMDiscovery(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2DiscoveryPath, false)
 }
