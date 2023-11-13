@@ -857,7 +857,7 @@ func TestHostScriptDetailsSupportedPlatform(t *testing.T) {
 		{"centos", false},
 		{"rhel", false},
 		{"debian", false},
-		{"windows", false},
+		{"windows", true},
 	} {
 		t.Run(tt.platform, func(t *testing.T) {
 			ds.GetHostScriptDetailsFuncInvoked = false
