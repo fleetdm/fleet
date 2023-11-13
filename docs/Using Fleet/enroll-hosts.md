@@ -18,14 +18,14 @@ Fleet supports the [latest version of osquery](https://github.com/osquery/osquer
 
 > You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/fleetctl-preview).
 
-`fleetctl package` command is used to generate fleetd installer.
+The `fleetctl package` command is used to generate a fleetd installer.
 
-`--type` flag is used to specify installer type:
+The `--type` flag is used to specify installer type:
 - macOS: .pkg
 - Windows: .msi
 - Linux: .deb or .rpm
   
-`--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enrollment secret) must be specified in order to communicate with Fleet instance.
+A `--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enrollment secret) must be specified in order to communicate with Fleet instance.
 
 #### Example
 
@@ -93,7 +93,7 @@ In the Google Admin console:
 1. In the navigation menu, visit **Devices > Chrome > Apps & Extensions > Users & browsers**.
 2. Select the relevant OU where you want the fleetd Chrome extension to be installed.
 3. In the bottom right, select the **+** button and select **Add Chrome app or extension by ID**.
-4. Go to your Fleet instance select **Hosts > Add Hosts** and select **ChromeOS** in the popup modal.
+4. Go to your Fleet instance and select **Hosts > Add Hosts** and select **ChromeOS** in the popup modal.
 5. Enter the **Extension ID**, **Installation URL**, and **Policy for extensions** using the data provided in the modal.
 6. Under **Installation Policy**, select **Force install**, and under **Update URL**, select **Installation URL** (see above).
 
@@ -106,7 +106,7 @@ In the Google Admin console:
 1. In the navigation menu, select **Devices > Chrome > Managed Browsers**.
 2. Select the relevant OU where you want the fleetd Chrome extension to be blocked.
 3. In the bottom right, select the **+** button and select **Add Chrome app or extension by ID**.
-4. Go to your Fleet instance select **Hosts > Add Hosts** and select **ChromeOS** in the popup modal.
+4. Go to your Fleet instance and select **Hosts > Add Hosts** and select **ChromeOS** in the popup modal.
 5. Enter the **Extension ID** and **Installation URL** using the data provided in the modal.
 6. Under **Installation Policy**, select **Block**.
 
@@ -187,9 +187,9 @@ You can then look for `orbit` or `osquery` to narrow down results.
 
 ### Signing fleetd installers
 
-  >**Note:** Currently, the `fleetctl package` does not provide support for signing Windows fleetd installers. Windows installers can be signed after building.
+  >**Note:** Currently, the `fleetctl package` command does not support signing Windows fleetd installers. Windows installers can be signed after building.
 
-The `fleetctl package` provides support for signing and notarizing macOS osquery installers via the
+The `fleetctl package` command supports signing and notarizing macOS osquery installers via the
 `--sign-identity` and `--notarize` flags.
 
 Check out the example below:
@@ -198,7 +198,7 @@ Check out the example below:
   AC_USERNAME=appleid@example.com AC_PASSWORD=app-specific-password fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
 ```
 
-The above command should be run on a macOS device, as the notarizing and signing of macOS fleetd installers can only be done on macOS devices.
+The above command must be run on a macOS device, as the notarizing and signing of macOS fleetd installers can only be done on macOS devices.
 
 Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password, respectively. Some organizations (notably those with Apple Enterprise Developer Accounts) may also need to specify `AC_TEAM_ID`. This value can be found on the [Apple Developer "Membership" page](https://developer.apple.com/account/#!/membership) under "Team ID."
 
