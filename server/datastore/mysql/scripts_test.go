@@ -421,7 +421,7 @@ VALUES
 	insertResults(t, 42, &fleet.Script{Name: "script-6", ScriptContents: "echo script-6"}, now.Add(-1*time.Minute), "execution-6-1", ptr.Int64(0))
 
 	t.Run("results match expected formatting and filtering", func(t *testing.T) {
-		res, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{})
+		res, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{}, "")
 		require.NoError(t, err)
 		require.Len(t, res, 5)
 		for _, r := range res {

@@ -305,9 +305,15 @@ FROM
 WHERE
 	(hsr.host_id IS NULL OR hsr.host_id = ?)
 	AND s.global_or_team_id = ?
-	AND s.name LIKE ?`
+	`
 
 	args := []any{hostID, hostID, hostID, globalOrTeamID, extension}
+	if len(extension) > 0 {
+		args = append(args, extension)
+		sql += `,
+		AND s.name LIKE ?
+		`
+	}
 	stmt, args := appendListOptionsWithCursorToSQL(sql, args, &opt)
 
 	var rows []*row
