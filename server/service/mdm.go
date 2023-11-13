@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -1112,4 +1113,140 @@ func isAppleProfileID(profileIDOrUUID string) (uint, bool) {
 		return 0, false
 	}
 	return uint(id), true
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /mdm/profiles (Create Apple or Windows MDM Config Profile)
+////////////////////////////////////////////////////////////////////////////////
+
+type newMDMConfigProfileRequest struct {
+	TeamID  uint
+	Profile *multipart.FileHeader
+}
+
+func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := newMDMConfigProfileRequest{}
+
+	err := r.ParseMultipartForm(512 * units.MiB)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	val, ok := r.MultipartForm.Value["team_id"]
+	if !ok || len(val) < 1 {
+		// default is no team
+		decoded.TeamID = 0
+	} else {
+		teamID, err := strconv.Atoi(val[0])
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+		}
+		decoded.TeamID = uint(teamID)
+	}
+
+	fhs, ok := r.MultipartForm.File["profile"]
+	if !ok || len(fhs) < 1 {
+		return nil, &fleet.BadRequestError{Message: "no file headers for profile"}
+	}
+	decoded.Profile = fhs[0]
+
+	return &decoded, nil
+}
+
+type newMDMConfigProfileResponse struct {
+	ProfileID string `json:"profile_id"`
+	Err       error  `json:"error,omitempty"`
+}
+
+func (r newMDMConfigProfileResponse) error() error { return r.Err }
+
+func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*newMDMConfigProfileRequest)
+
+	ff, err := req.Profile.Open()
+	if err != nil {
+		return &newMDMConfigProfileResponse{Err: err}, nil
+	}
+	defer ff.Close()
+
+	if isApple := strings.EqualFold(filepath.Ext(req.Profile.Filename), ".mobileconfig"); isApple {
+		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff)
+		if err != nil {
+			return &newMDMConfigProfileResponse{Err: err}, nil
+		}
+		return &newMDMConfigProfileResponse{
+			ProfileID: fmt.Sprint(cp.ProfileID),
+		}, nil
+	}
+
+	profileName := strings.TrimSuffix(filepath.Base(req.Profile.Filename), filepath.Ext(req.Profile.Filename))
+	cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, ff)
+	if err != nil {
+		return &newMDMConfigProfileResponse{Err: err}, nil
+	}
+	return &newMDMConfigProfileResponse{
+		ProfileID: cp.ProfileUUID,
+	}, nil
+}
+
+func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader) (*fleet.MDMWindowsConfigProfile, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	var teamName string
+	if teamID > 0 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to read Windows config profile",
+			InternalErr: err,
+		})
+	}
+
+	// TODO(mna): reuse Windows config profile creation/validation from Roberto's PR.
+	cp := &fleet.MDMWindowsConfigProfile{
+		TeamID: &teamID,
+		Name:   profileName,
+		SyncML: b,
+	}
+
+	//newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
+	//if err != nil {
+	//	return nil, ctxerr.Wrap(ctx, err)
+	//}
+	newCP := cp
+
+	// TODO: Windows equivalent of this call:
+	//if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, []uint{newCP.ProfileID}, nil); err != nil {
+	//	return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	//}
+
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID > 0 {
+		actTeamID = &teamID
+		actTeamName = &teamName
+	}
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedWindowsProfile{
+		TeamID:      actTeamID,
+		TeamName:    actTeamName,
+		ProfileName: newCP.Name,
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm windows config profile")
+	}
+
+	return newCP, nil
 }
