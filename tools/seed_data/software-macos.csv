@@ -1,0 +1,3 @@
+name,version,source,bundle_identifier,release,vendor_old,arch,vendor
+Example macos Software,1.0,apps,com.example.software,Stable,ExampleVendorOld,x86_64,ExampleVendor
+Another macos Software,2.0,apps,com.another.software,Beta,AnotherVendorOld,arm64,AnotherVendor
