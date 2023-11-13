@@ -44,7 +44,7 @@ type MDMWindowsConfigProfile struct {
 // Returns an error if these conditions are not met.
 func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	if mdm.GetRawProfilePlatform(m.SyncML) != "windows" {
-		return errors.New("TODO")
+		return errors.New("Only <Replace> supported as a top level element. Make sure you don’t have other top level elements.")
 	}
 
 	doc := etree.NewDocument()
