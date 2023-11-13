@@ -12,15 +12,10 @@ import ListItem from "components/ListItem";
 const baseClass = "profile-list-item";
 
 interface IProfileDetailsProps {
-  platform: "darwin" | "windows";
   createdAt: string;
 }
 
-const ProfileDetails = ({ platform, createdAt }: IProfileDetailsProps) => {
-  const getPlatformName = () => {
-    return platform === "darwin" ? "macOS" : "Windows";
-  };
-
+const ProfileDetails = ({ createdAt }: IProfileDetailsProps) => {
   return (
     <div className={`${baseClass}__profile-details`}>
       <span className={`${baseClass}__platform`}>{getPlatformName()}</span>
@@ -51,12 +46,7 @@ const ProfileListItem = ({ profile, onDelete }: IProfileListItemProps) => {
       className={baseClass}
       graphic="file-configuration-profile"
       title={profile.name}
-      details={
-        <ProfileDetails
-          platform={profile.platform}
-          createdAt={profile.created_at}
-        />
-      }
+      details={<ProfileDetails createdAt={profile.created_at} />}
       actions={
         <>
           <Button
