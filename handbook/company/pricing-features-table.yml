@@ -75,7 +75,7 @@
       demos:
         - description: A large tech company used Fleet's CIS Benchmark policies to automatically assess posuture of 80,000 endpoints. 
           quote: 
-          moreInfoUrl: 
+          moreInfoUrl:  https://fleetdm.com/docs/using-fleet/cis-benchmarks#cis-benchmarks
       buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Anomaly detection,Configuration management]
       waysToUse:
         - description: Monitor devices that don't meet your organization's custom security policies
