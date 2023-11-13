@@ -4545,14 +4545,14 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 
 	// create 5 scripts for no team and team 1
 	for i := 0; i < 5; i++ {
-		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d", i), ScriptContents: "echo"})
+		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d.sh", i), ScriptContents: "echo"})
 		require.NoError(t, err)
-		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d", i), TeamID: &tm1.ID, ScriptContents: "echo"})
+		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d.sh", i), TeamID: &tm1.ID, ScriptContents: "echo"})
 		require.NoError(t, err)
 	}
 
 	// create a single script for team 2
-	_, err = s.ds.NewScript(ctx, &fleet.Script{Name: "test-script-details-team-2", TeamID: &tm2.ID, ScriptContents: "echo"})
+	_, err = s.ds.NewScript(ctx, &fleet.Script{Name: "test-script-details-team-2.sh", TeamID: &tm2.ID, ScriptContents: "echo"})
 	require.NoError(t, err)
 
 	// create a host without a team
@@ -4599,7 +4599,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	})
 	require.NoError(t, err)
 
-	// create a Windows host (unsupported)
+	// create a Windows host
 	host3, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
