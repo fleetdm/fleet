@@ -84,7 +84,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.VulnDetectionEnabled = appConfig.VulnerabilitySettings.DatabasesPath != ""
 		stats.SystemUsersEnabled = appConfig.Features.EnableHostUsers
 		stats.HostsStatusWebHookEnabled = appConfig.WebhookSettings.HostStatusWebhook.Enable
-		stats.MDMEnabled = appConfig.MDM.EnabledAndConfigured
+		stats.MDMMacOsEnabled = appConfig.MDM.EnabledAndConfigured
 		stats.HostExpiryEnabled = appConfig.HostExpirySettings.HostExpiryEnabled
 		stats.JiraIntegrationEnabled = len(appConfig.Integrations.Jira) > 0
 		stats.ZendeskIntegrationEnabled = len(appConfig.Integrations.Zendesk) > 0

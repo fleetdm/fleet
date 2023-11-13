@@ -19,7 +19,7 @@ type StatisticsPayload struct {
 	VulnDetectionEnabled      bool   `json:"vulnDetectionEnabled"`
 	SystemUsersEnabled        bool   `json:"systemUsersEnabled"`
 	HostsStatusWebHookEnabled bool   `json:"hostsStatusWebHookEnabled"`
-	MDMEnabled                bool   `json:"MDMEnabled"`
+	MDMMacOsEnabled           bool   `json:"MDMMacOsEnabled"`
 	HostExpiryEnabled         bool   `json:"hostExpiryEnabled"`
 	JiraIntegrationEnabled    bool   `json:"jiraIntegrationEnabled"`
 	ZendeskIntegrationEnabled bool   `json:"zendeskIntegrationEnabled"`
