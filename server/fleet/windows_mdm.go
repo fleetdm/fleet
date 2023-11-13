@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/beevik/etree"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
 
