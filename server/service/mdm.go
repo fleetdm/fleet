@@ -1076,8 +1076,6 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO: do we have Fleet-specific profiles for Windows that we'd want to prevent the user from deleting?
-
 	if err := svc.ds.DeleteMDMWindowsConfigProfile(ctx, profileUUID); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
