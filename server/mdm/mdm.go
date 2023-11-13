@@ -26,7 +26,6 @@ func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.Privat
 }
 
 func GetRawProfilePlatform(profile []byte) string {
-	// trim leading whitespaces
 	trimmedProfile := bytes.TrimSpace(profile)
 
 	if len(trimmedProfile) == 0 {
@@ -34,12 +33,12 @@ func GetRawProfilePlatform(profile []byte) string {
 	}
 
 	darwinPrefix := []byte("<?xml")
-	if bytes.EqualFold(darwinPrefix, trimmedProfile[:len(darwinPrefix)]) {
+	if len(trimmedProfile) >= len(darwinPrefix) && bytes.EqualFold(darwinPrefix, trimmedProfile[:len(darwinPrefix)]) {
 		return "darwin"
 	}
 
 	windowsPrefix := []byte("<replace")
-	if bytes.EqualFold(windowsPrefix, trimmedProfile[:len(windowsPrefix)]) {
+	if len(trimmedProfile) >= len(windowsPrefix) && bytes.EqualFold(windowsPrefix, trimmedProfile[:len(windowsPrefix)]) {
 		return "windows"
 	}
 
