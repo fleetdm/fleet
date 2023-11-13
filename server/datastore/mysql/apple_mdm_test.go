@@ -814,39 +814,47 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	require.Nil(t, key)
 }
 
-func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+func expectAppleProfiles(
+	t *testing.T,
+	ds *Datastore,
+	newSet []*fleet.MDMAppleConfigProfile,
+	tmID *uint,
+	want []*fleet.MDMAppleConfigProfile,
+) map[string]uint {
+	if tmID == nil {
+		tmID = ptr.Uint(0)
+	}
+	// don't use ds.ListMDMAppleConfigProfiles as it leaves out
+	// fleet-managed profiles.
+	var got []*fleet.MDMAppleConfigProfile
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		ctx := context.Background()
+		return sqlx.SelectContext(ctx, q, &got, `SELECT * FROM mdm_apple_configuration_profiles WHERE team_id = ?`, tmID)
+	})
 
+	// compare only the fields we care about, and build the resulting map of
+	// profile identifier as key to profile ID as value
+	m := make(map[string]uint)
+	for _, gotp := range got {
+		m[gotp.Identifier] = gotp.ProfileID
+		if gotp.TeamID != nil && *gotp.TeamID == 0 {
+			gotp.TeamID = nil
+		}
+		gotp.ProfileID = 0
+		gotp.CreatedAt = time.Time{}
+		gotp.UpdatedAt = time.Time{}
+	}
+	// order is not guaranteed
+	require.ElementsMatch(t, want, got)
+	return m
+}
+
+func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
 	applyAndExpect := func(newSet []*fleet.MDMAppleConfigProfile, tmID *uint, want []*fleet.MDMAppleConfigProfile) map[string]uint {
+		ctx := context.Background()
 		err := ds.BatchSetMDMAppleProfiles(ctx, tmID, newSet)
 		require.NoError(t, err)
-
-		if tmID == nil {
-			tmID = ptr.Uint(0)
-		}
-		// don't use ds.ListMDMAppleConfigProfiles as it leaves out
-		// fleet-managed profiles.
-		var got []*fleet.MDMAppleConfigProfile
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &got, `SELECT * FROM mdm_apple_configuration_profiles WHERE team_id = ?`, tmID)
-		})
-
-		// compare only the fields we care about, and build the resulting map of
-		// profile identifier as key to profile ID as value
-		m := make(map[string]uint)
-		for _, gotp := range got {
-			m[gotp.Identifier] = gotp.ProfileID
-			if gotp.TeamID != nil && *gotp.TeamID == 0 {
-				gotp.TeamID = nil
-			}
-			gotp.ProfileID = 0
-			gotp.CreatedAt = time.Time{}
-			gotp.UpdatedAt = time.Time{}
-		}
-		// order is not guaranteed
-		require.ElementsMatch(t, want, got)
-
-		return m
+		return expectAppleProfiles(t, ds, newSet, tmID, want)
 	}
 
 	withTeamID := func(p *fleet.MDMAppleConfigProfile, tmID uint) *fleet.MDMAppleConfigProfile {

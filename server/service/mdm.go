@@ -17,14 +17,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
-	"github.com/micromdm/nanomdm/mdm"
+	nanomdm "github.com/micromdm/nanomdm/mdm"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -534,7 +536,7 @@ var appleMDMPremiumCommands = map[string]bool{
 }
 
 func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
-	cmd, err := mdm.DecodeCommand(rawXMLCmd)
+	cmd, err := nanomdm.DecodeCommand(rawXMLCmd)
 	if err != nil {
 		err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
 		return nil, ctxerr.Wrap(ctx, err, "decode plist command")
@@ -997,8 +999,6 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO: do we have Fleet-specific profiles for Windows that we'd want to prevent the user from deleting?
-
 	if err := svc.ds.DeleteMDMWindowsConfigProfile(ctx, profileUUID); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -1035,4 +1035,234 @@ func isAppleProfileID(profileIDOrUUID string) (uint, bool) {
 		return 0, false
 	}
 	return uint(id), true
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Batch Replace MDM Profiles
+////////////////////////////////////////////////////////////////////////////////
+
+type batchSetMDMProfilesRequest struct {
+	TeamID   *uint             `json:"-" query:"team_id,optional"`
+	TeamName *string           `json:"-" query:"team_name,optional"`
+	DryRun   bool              `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	Profiles map[string][]byte `json:"profiles"`
+}
+
+type batchSetMDMProfilesResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchSetMDMProfilesResponse) error() error { return r.Err }
+
+func (r batchSetMDMProfilesResponse) Status() int { return http.StatusNoContent }
+
+func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*batchSetMDMProfilesRequest)
+	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false); err != nil {
+		return batchSetMDMProfilesResponse{Err: err}, nil
+	}
+	return batchSetMDMProfilesResponse{}, nil
+}
+
+func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName *string, profiles map[string][]byte, dryRun, skipBulkPending bool) error {
+	var err error
+	if tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName); err != nil {
+		return err
+	}
+
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
+	if err := validateProfiles(profiles); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating profiles")
+	}
+
+	appleProfiles, err := getAppleProfiles(ctx, tmID, appCfg, profiles)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "TODO")
+	}
+
+	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profiles)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "TODO")
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	if err := svc.ds.BatchSetMDMProfiles(ctx, tmID, appleProfiles, windowsProfiles); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting config profiles")
+	}
+
+	// TODO(roberto): batch set as pending for windows/macOS, hoping to
+	// tackle this separately.
+
+	// TODO(roberto): should we generate activities only of any profiles were
+	// changed? this is the existing behavior for macOS profiles so I'm
+	// leaving it as-is for now.
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
+		TeamID:   tmID,
+		TeamName: tmName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
+	}
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedWindowsProfile{
+		TeamID:   tmID,
+		TeamName: tmName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for edited windows profile")
+	}
+
+	return nil
+}
+
+func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmName *string) (*uint, *string, error) {
+	if tmID != nil && tmName != nil {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
+	}
+	if tmID != nil || tmName != nil {
+		license, _ := license.FromContext(ctx)
+		if !license.IsPremium() {
+			field := "team_id"
+			if tmName != nil {
+				field = "team_name"
+			}
+			svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+			return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, ErrMissingLicense.Error()))
+		}
+	}
+
+	// if the team name is provided, load the corresponding team to get its id.
+	// vice-versa, if the id is provided, load it to get the name (required for
+	// the activity).
+	if tmName != nil || tmID != nil {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, tmID, tmName)
+		if err != nil {
+			return nil, nil, err
+		}
+		if tmID == nil {
+			tmID = &tm.ID
+		} else {
+			tmName = &tm.Name
+		}
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: tmID}, fleet.ActionWrite); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return tmID, tmName, nil
+}
+
+func getAppleProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, profiles map[string][]byte) ([]*fleet.MDMAppleConfigProfile, error) {
+	// any duplicate identifier or name in the provided set results in an error
+	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
+	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
+	for i, prof := range profiles {
+		if mdm.GetRawProfilePlatform(prof) != "darwin" {
+			continue
+		}
+		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof, tmID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", i), err.Error()),
+				"invalid mobileconfig profile")
+		}
+
+		if err := mdmProf.ValidateUserProvided(); err != nil {
+			return nil, ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", i), err.Error()))
+		}
+
+		if mdmProf.Name != i {
+			return nil, ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", i), fmt.Sprintf("Couldn’t edit custom_settings. The name provided for the profile must match the profile PayloadDisplayName: %q", mdmProf.Name)),
+				"duplicate mobileconfig profile by name")
+		}
+
+		if byName[mdmProf.Name] {
+			return nil, ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", i), fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
+				"duplicate mobileconfig profile by name")
+		}
+		byName[mdmProf.Name] = true
+
+		if byIdent[mdmProf.Identifier] {
+			return nil, ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", i), fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
+				"duplicate mobileconfig profile by identifier")
+		}
+		byIdent[mdmProf.Identifier] = true
+
+		profs = append(profs, mdmProf)
+	}
+
+	if !appCfg.MDM.EnabledAndConfigured {
+		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
+		// profile is provided, which can happen if a user runs `fleetctl get
+		// config` and tries to apply that YAML, as it will contain an empty/null
+		// custom_settings key, we just return a success response in this
+		// situation.
+		if len(profs) == 0 {
+			return []*fleet.MDMAppleConfigProfile{}, nil
+		}
+
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not configured"))
+	}
+
+	return profs, nil
+}
+
+func getWindowsProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, profiles map[string][]byte) ([]*fleet.MDMWindowsConfigProfile, error) {
+	profs := make([]*fleet.MDMWindowsConfigProfile, 0, len(profiles))
+
+	for name, syncML := range profiles {
+		if mdm.GetRawProfilePlatform(syncML) != "windows" {
+			continue
+		}
+
+		mdmProf := &fleet.MDMWindowsConfigProfile{
+			TeamID: tmID,
+			Name:   name,
+			SyncML: syncML,
+		}
+
+		if err := mdmProf.ValidateUserProvided(); err != nil {
+			return nil, ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", name), err.Error()))
+		}
+
+		profs = append(profs, mdmProf)
+	}
+
+	if !appCfg.MDM.WindowsEnabledAndConfigured {
+		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
+		// profile is provided, which can happen if a user runs `fleetctl get
+		// config` and tries to apply that YAML, as it will contain an empty/null
+		// custom_settings key, we just return a success response in this
+		// situation.
+		if len(profs) == 0 {
+			return nil, nil
+		}
+
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not configured"))
+	}
+
+	return profs, nil
+}
+
+func validateProfiles(profiles map[string][]byte) error {
+	for _, rawBytes := range profiles {
+		platform := mdm.GetRawProfilePlatform(rawBytes)
+		if platform != "darwin" && platform != "windows" {
+			// TODO(roberto): there's ongoing feedback with Marko about improving this message, as it's too windows specific
+			return fleet.NewInvalidArgumentError("mdm", "Only <Replace> supported as a top level element. Make sure you don’t have other top level elements.")
+		}
+	}
+
+	return nil
 }

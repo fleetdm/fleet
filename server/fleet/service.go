@@ -813,6 +813,10 @@ type Service interface {
 	// DeleteMDMWindowsConfigProfile deletes the specified windows profile.
 	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
 
+	// BatchSetMDMProfiles replaces the custom Windows/macOS profiles for a specified
+	// team or for hosts with no team.
+	BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles map[string][]byte, dryRun bool, skipBulkPending bool) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
 
