@@ -132,7 +132,7 @@
         - description: See what servers someone is logged-in on
           moreInfoUrl: https://community.spiceworks.com/topic/138171-is-there-a-way-to-see-what-servers-someone-is-logged-in-on
     - industryName: Intrusion detection
-      friendlyName: Build custom query and policy automations to detect indicators of compromise (IOCs).
+      friendlyName: Build custom query and policy automations to detect indicators of compromise (IOCs)
       description: Send webhooks and ship logs to detect intrusions and issues with devices.
       documentationUrl: https://fleetdm.com/docs/using-fleet/log-destinations
       tier: Free
