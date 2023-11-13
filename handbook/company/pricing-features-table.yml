@@ -377,7 +377,6 @@
       waysToUse:
       - description: Fork the best practices repo and use the GitHub Action to hook it up to your Fleet instance in minutes. Coming soon (2024-03-31)
         moreInfoUrl: https://github.com/fleetdm/fleet/issues/13643
-      moreInfoUrl: https://github.com/fleetdm/fleet-mdm-gitops
       productCategories: [Endpoint operations,Device management,Vulnerability management]
       tier: Free
       #  ╔═╗╦═╗╔═╗╔═╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -506,7 +505,7 @@
       comingSoonOn: 2023-12-31 #Customer-reedtimmer and customer-preston
       waysToUse:
       - description:
-          moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
+        moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
       usualDepartment: IT
       productCategories: [Device management]
     - industryName: Puppet module
@@ -544,7 +543,7 @@
       usualDepartment: IT
       waysToUse:
         - description:
-            moreInfoUrl: https://github.com/fleetdm/fleet/issues/14415
+          moreInfoUrl: https://github.com/fleetdm/fleet/issues/14415
       productCategories: [Endpoint operations,Device management]
     - industryName: Baselines (device groups)
       friendlyName: Manage different endpoints differently
