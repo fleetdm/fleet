@@ -300,9 +300,8 @@
     #  ╠╦╝║╣ ║║║║ ║ ║ ║╣   ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
     #  ╩╚═╚═╝╩ ╩╚═╝ ╩ ╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
     - industryName: Remote settings
-      waysToUse:
-       - description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.). Fleetd startup flags coming soon (2023-12-31) #customer-blanco
-         moreInfoUrl: https://github.com/fleetdm/fleet/issues/13825
+      description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.). Fleetd startup flags coming soon (2023-12-31) #customer-blanco
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/13825
       tier: Free
       usualDepartment: Security
       productCategories: [Endpoint operations]
@@ -374,9 +373,8 @@
     #  ╚═╝╩ ╩ ╚═╝╩  ╚═╝
     - industryName: GitOps
       friendlyName: Manage endpoints in git
-      waysToUse:
-      - description: Fork the best practices repo and use the GitHub Action to hook it up to your Fleet instance in minutes. Coming soon (2024-03-31)
-        moreInfoUrl: https://github.com/fleetdm/fleet/issues/13643
+      description: Fork the best practices repo and use the GitHub Action to hook it up to your Fleet instance in minutes. Coming soon (2024-03-31)
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/13643
       productCategories: [Endpoint operations,Device management,Vulnerability management]
       tier: Free
       #  ╔═╗╦═╗╔═╗╔═╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -501,11 +499,10 @@
       usualDepartment: IT
       productCategories: [Device management]
     - industryName: Install apps and packages on macOS and Windows computers.
+      description:
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
       tier: Premium
       comingSoonOn: 2023-12-31 #Customer-reedtimmer and customer-preston
-      waysToUse:
-      - description:
-        moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
       usualDepartment: IT
       productCategories: [Device management]
     - industryName: Puppet module
@@ -538,12 +535,11 @@
       friendlyName: Filter hosts using SQL
       tier: Free
     - industryName: Custom device data for help desk
+      description:
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14415
       tier: Free
       comingSoonOn: 2023-12-31
       usualDepartment: IT
-      waysToUse:
-        - description:
-          moreInfoUrl: https://github.com/fleetdm/fleet/issues/14415
       productCategories: [Endpoint operations,Device management]
     - industryName: Baselines (device groups)
       friendlyName: Manage different endpoints differently
