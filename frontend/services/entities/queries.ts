@@ -1,8 +1,8 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest, { getError } from "services";
+import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+import { getErrorReason } from "interfaces/errors";
 import { ISelectedTargetsForApi } from "interfaces/target";
-import { AxiosResponse } from "axios";
 import {
   ICreateQueryRequestBody,
   IModifyQueryRequestBody,
@@ -70,8 +70,10 @@ export default {
           total: 0,
         },
       });
-    } catch (response) {
-      throw new Error(getError(response as AxiosResponse));
+    } catch (e) {
+      throw new Error(
+        getErrorReason(e) || `run query: parse server error ${e}`
+      );
     }
   },
   update: (id: number, updateParams: IModifyQueryRequestBody) => {

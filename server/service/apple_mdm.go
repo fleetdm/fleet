@@ -495,6 +495,13 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	// check that Apple MDM is enabled - the middleware of that endpoint checks
+	// only that any MDM is enabled, maybe it's just Windows
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		err := fleet.NewInvalidArgumentError("profile_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		return ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
+	}
+
 	cp, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -531,9 +538,17 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID > 0 {
+		actTeamID = &teamID
+		actTeamName = &teamName
+	}
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
-		TeamID:            &teamID,
-		TeamName:          &teamName,
+		TeamID:            actTeamID,
+		TeamName:          actTeamName,
 		ProfileName:       cp.Name,
 		ProfileIdentifier: cp.Identifier,
 	}); err != nil {
@@ -2401,7 +2416,7 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 	return nil
 }
 
-func ReconcileProfiles(
+func ReconcileAppleProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,

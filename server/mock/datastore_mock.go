@@ -698,9 +698,9 @@ type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID strin
 
 type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) error
 
-type GetMDMWindowsProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
+type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
-type DeleteMDMWindowsProfileFunc func(ctx context.Context, profileUUID string) error
+type DeleteMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
 type GetMDMCommandPlatformFunc func(ctx context.Context, commandUUID string) (string, error)
 
@@ -709,6 +709,16 @@ type ListMDMCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, li
 type GetMDMWindowsBitLockerSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error)
 
 type GetMDMWindowsBitLockerStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error)
+
+type ListMDMWindowsProfilesToInstallFunc func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error)
+
+type ListMDMWindowsProfilesToRemoveFunc func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error)
+
+type BulkUpsertMDMWindowsHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
+
+type GetMDMWindowsProfilesContentsFunc func(ctx context.Context, profileUUIDs []string) (map[string][]byte, error)
+
+type BulkDeleteMDMWindowsHostsConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
@@ -1753,11 +1763,11 @@ type DataStore struct {
 	UpdateMDMWindowsEnrollmentsHostUUIDFunc        UpdateMDMWindowsEnrollmentsHostUUIDFunc
 	UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked bool
 
-	GetMDMWindowsProfileFunc        GetMDMWindowsProfileFunc
-	GetMDMWindowsProfileFuncInvoked bool
+	GetMDMWindowsConfigProfileFunc        GetMDMWindowsConfigProfileFunc
+	GetMDMWindowsConfigProfileFuncInvoked bool
 
-	DeleteMDMWindowsProfileFunc        DeleteMDMWindowsProfileFunc
-	DeleteMDMWindowsProfileFuncInvoked bool
+	DeleteMDMWindowsConfigProfileFunc        DeleteMDMWindowsConfigProfileFunc
+	DeleteMDMWindowsConfigProfileFuncInvoked bool
 
 	GetMDMCommandPlatformFunc        GetMDMCommandPlatformFunc
 	GetMDMCommandPlatformFuncInvoked bool
@@ -1770,6 +1780,21 @@ type DataStore struct {
 
 	GetMDMWindowsBitLockerStatusFunc        GetMDMWindowsBitLockerStatusFunc
 	GetMDMWindowsBitLockerStatusFuncInvoked bool
+
+	ListMDMWindowsProfilesToInstallFunc        ListMDMWindowsProfilesToInstallFunc
+	ListMDMWindowsProfilesToInstallFuncInvoked bool
+
+	ListMDMWindowsProfilesToRemoveFunc        ListMDMWindowsProfilesToRemoveFunc
+	ListMDMWindowsProfilesToRemoveFuncInvoked bool
+
+	BulkUpsertMDMWindowsHostProfilesFunc        BulkUpsertMDMWindowsHostProfilesFunc
+	BulkUpsertMDMWindowsHostProfilesFuncInvoked bool
+
+	GetMDMWindowsProfilesContentsFunc        GetMDMWindowsProfilesContentsFunc
+	GetMDMWindowsProfilesContentsFuncInvoked bool
+
+	BulkDeleteMDMWindowsHostsConfigProfilesFunc        BulkDeleteMDMWindowsHostsConfigProfilesFunc
+	BulkDeleteMDMWindowsHostsConfigProfilesFuncInvoked bool
 
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
@@ -4187,18 +4212,18 @@ func (s *DataStore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hos
 	return s.UpdateMDMWindowsEnrollmentsHostUUIDFunc(ctx, hostUUID, mdmDeviceID)
 }
 
-func (s *DataStore) GetMDMWindowsProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
+func (s *DataStore) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
 	s.mu.Lock()
-	s.GetMDMWindowsProfileFuncInvoked = true
+	s.GetMDMWindowsConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMWindowsProfileFunc(ctx, profileUUID)
+	return s.GetMDMWindowsConfigProfileFunc(ctx, profileUUID)
 }
 
-func (s *DataStore) DeleteMDMWindowsProfile(ctx context.Context, profileUUID string) error {
+func (s *DataStore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
 	s.mu.Lock()
-	s.DeleteMDMWindowsProfileFuncInvoked = true
+	s.DeleteMDMWindowsConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteMDMWindowsProfileFunc(ctx, profileUUID)
+	return s.DeleteMDMWindowsConfigProfileFunc(ctx, profileUUID)
 }
 
 func (s *DataStore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
@@ -4227,6 +4252,41 @@ func (s *DataStore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *flee
 	s.GetMDMWindowsBitLockerStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMWindowsBitLockerStatusFunc(ctx, host)
+}
+
+func (s *DataStore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+	s.mu.Lock()
+	s.ListMDMWindowsProfilesToInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMWindowsProfilesToInstallFunc(ctx)
+}
+
+func (s *DataStore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+	s.mu.Lock()
+	s.ListMDMWindowsProfilesToRemoveFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMWindowsProfilesToRemoveFunc(ctx)
+}
+
+func (s *DataStore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+	s.mu.Lock()
+	s.BulkUpsertMDMWindowsHostProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkUpsertMDMWindowsHostProfilesFunc(ctx, payload)
+}
+
+func (s *DataStore) GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string][]byte, error) {
+	s.mu.Lock()
+	s.GetMDMWindowsProfilesContentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMWindowsProfilesContentsFunc(ctx, profileUUIDs)
+}
+
+func (s *DataStore) BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error {
+	s.mu.Lock()
+	s.BulkDeleteMDMWindowsHostsConfigProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkDeleteMDMWindowsHostsConfigProfilesFunc(ctx, payload)
 }
 
 func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {

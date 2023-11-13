@@ -234,9 +234,9 @@ func (ds *Datastore) ListCarves(ctx context.Context, opt fleet.CarveListOptions)
 	if !opt.Expired {
 		stmt += ` WHERE NOT expired `
 	}
-	stmt = appendListOptionsToSQL(stmt, &opt.ListOptions)
+	stmt, params := appendListOptionsToSQL(stmt, &opt.ListOptions)
 	carves := []*fleet.CarveMetadata{}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &carves, stmt); err != nil && err != sql.ErrNoRows {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &carves, stmt, params...); err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "list carves")
 	}
 

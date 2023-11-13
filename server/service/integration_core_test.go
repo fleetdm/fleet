@@ -268,6 +268,60 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	require.True(t, found)
 }
 
+func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
+	t := s.T()
+
+	// create a new user
+	var createResp createUserResponse
+	userRawPwd := test.GoodPassword
+	params := fleet.UserPayload{
+		Name:       ptr.String("Gonna B Deleted"),
+		Email:      ptr.String("goingto@delete.com"),
+		Password:   ptr.String(userRawPwd),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	assert.NotZero(t, createResp.User.ID)
+	assert.True(t, createResp.User.AdminForcedPasswordReset)
+	u := *createResp.User
+
+	var loginResp loginResponse
+	s.DoJSON("POST", "/api/latest/fleet/login", params, http.StatusOK, &loginResp)
+	require.Equal(t, loginResp.User.ID, u.ID)
+
+	activities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
+
+	assert.GreaterOrEqual(t, len(activities.Activities), 1)
+	found := false
+	for _, activity := range activities.Activities {
+		if activity.Type == "user_logged_in" && *activity.ActorFullName == u.Name {
+			found = true
+			assert.Equal(t, u.Email, *activity.ActorEmail)
+		}
+	}
+	require.True(t, found)
+
+	err := s.ds.DeleteUser(context.Background(), u.ID)
+	require.NoError(t, err)
+
+	activities = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
+
+	assert.GreaterOrEqual(t, len(activities.Activities), 1)
+	found = false
+	for _, activity := range activities.Activities {
+		if activity.Type == "user_logged_in" && *activity.ActorFullName == u.Name {
+			found = true
+			assert.Equal(t, u.Email, *activity.ActorEmail)
+		}
+	}
+	require.True(t, found)
+
+	// ensure that on exit, the admin token is used
+	s.token = s.getTestAdminToken()
+}
+
 func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 	t := s.T()
 
@@ -1777,6 +1831,9 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	}
 	assert.Equal(t, len(listResp.Labels), builtinsCount)
 
+	// 'after' param is not supported for labels
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusBadRequest, &listResp, "order_key", "id", "after", "1")
+
 	// team filter, no host
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
@@ -2388,6 +2445,14 @@ func (s *integrationTestSuite) TestListGetCarves() {
 	require.Len(t, listResp.Carves, 2)
 	assert.Equal(t, c1.ID, listResp.Carves[0].ID)
 	assert.Equal(t, c3.ID, listResp.Carves[1].ID)
+
+	// with 'after' param
+	s.DoJSON(
+		"GET", "/api/latest/fleet/carves", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id", "after",
+		strconv.FormatInt(c1.ID, 10),
+	)
+	require.Len(t, listResp.Carves, 1)
+	assert.Equal(t, c3.ID, listResp.Carves[0].ID)
 
 	// include expired
 	s.DoJSON("GET", "/api/latest/fleet/carves", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id", "expired", "1")
