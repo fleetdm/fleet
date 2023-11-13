@@ -29,6 +29,10 @@ func GetRawProfilePlatform(profile []byte) string {
 	// trim leading whitespaces
 	trimmedProfile := bytes.TrimSpace(profile)
 
+	if len(trimmedProfile) == 0 {
+		return ""
+	}
+
 	darwinPrefix := []byte("<?xml")
 	if bytes.EqualFold(darwinPrefix, trimmedProfile[:len(darwinPrefix)]) {
 		return "darwin"
