@@ -52,6 +52,9 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 ### Events
 It's important for Fleet to engage at events. This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
+### Video
+Fleet's utilization of YouTube is an essential component of our commitment to nurturing a strong and informed user community. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it.
+
 ## Responsibilities
 
 ### Begin or modify an advertising campaign
@@ -146,10 +149,12 @@ Here are some links that filter relevant conversations on each platform:
 ### Book an event
 For an event to be considered, booked, and scheduled, we follow the event issue template.
 
-1. Create a [new GitHub issue for the #g-demand board](https://fleetdm.com/handbook/demand#contact-us) and select the "Event-preparation" template..
-2. Drag the issue into the "🗓 Ideas for future events" column.  
+1. Create a [new GitHub issue for the #g-demand board using the "Book event" issue template](https://github.com/fleetdm/confidential/issues/new/choose).
+2. Drag the issue into the "🗓 Ideas for future events" column.
 
 Once approval has been received, move the event into the "🗓 Planned events" column.
+
+Eventbrite pages for planned events are brought to design review or CEO office minutes before being published. Pages are checked for alignment with branding standards and accurate information.
 
 ### Review ongoing events
 Check the "🗓 Planned events" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
@@ -168,6 +173,15 @@ When a community member has a question about getting started with Fleet, they ca
 
 1. Add questionnaire details to the [Talk to an Expert](https://docs.google.com/spreadsheets/d/1aMLQ9z5TYn90AnE3g1sMPoxsMNMKXn_l3aWb9Kdi7G4/edit) spreadsheet.
 2. After meeting the contributor, follow up with an email including appropriate links.
+
+### Upload to YouTube
+Fleet regularly uploads a variety of content to YouTube such as podcast episodes, sprint demos, educational updates, design reviews, and more.
+
+- Login to the Fleet YouTube channel, click the create button and then upload the video.
+- Fill out relevant information such as title, description, thumbnail, playlists, audience, and [tags](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing).
+- Create a new video thumbnail within Figma in the [YouTube covers board](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) with the video Title.
+- Set the visibility to "Public"
+- Share video link on social media
 
 ## Rituals
 <rituals :rituals="rituals['handbook/demand/demand.rituals.yml']"></rituals>

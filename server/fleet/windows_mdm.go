@@ -28,3 +28,23 @@ type MDMWindowsConfigProfile struct {
 	CreatedAt   time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
 }
+
+type MDMWindowsProfilePayload struct {
+	ProfileUUID   string             `db:"profile_uuid"`
+	ProfileName   string             `db:"profile_name"`
+	HostUUID      string             `db:"host_uuid"`
+	Status        *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType MDMOperationType   `db:"operation_type"`
+	Detail        string             `db:"detail"`
+	CommandUUID   string             `db:"command_uuid"`
+}
+
+type MDMWindowsBulkUpsertHostProfilePayload struct {
+	ProfileUUID   string
+	ProfileName   string
+	HostUUID      string
+	CommandUUID   string
+	OperationType MDMOperationType
+	Status        *MDMDeliveryStatus
+	Detail        string
+}
