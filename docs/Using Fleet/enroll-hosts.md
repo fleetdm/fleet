@@ -4,24 +4,17 @@
 
 Fleet gathers information from an [osquery](https://github.com/osquery/osquery) agent installed on each of your hosts. The recommended way to install osquery is using fleetd.
 
+You can enroll macOS, Windows or Linux hosts via the [CLI](#cli) or [UI](#ui). To learn how to enroll Chromebooks, see [Enroll Chromebooks](#enroll-chromebooks).
+
 
 ### Supported osquery versions
 
 Fleet supports the [latest version of osquery](https://github.com/osquery/osquery/tags). 
 
-## How to enroll hosts?
 
-This section explains how to enroll macOS, Windows or Linux hosts. To learn how to enroll
-Chromebooks visit [Enroll Chromebooks with fleetd Chrome
-extension](#enroll-chromebooks-with-fleetd-chrome-extension).
 
-- [CLI](#cli)
-- [UI](#ui)
-  - [Generate installer to enroll host to a specific team](#generate-installer-to-enroll-host-to-a-specific-team)
-- [Enroll multiple hosts](#enroll-multiple-hosts)
-- [Including Fleet Desktop](#including-fleet-desktop)
 
-### CLI
+## CLI
 
 > You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/fleetctl-preview).
 
@@ -42,52 +35,37 @@ Generate macOS installer (.pkg)
 fleetctl package --type pkg --fleet-url=example.fleetinstance.com --enroll-secret=85O6XRG8'!l~P&zWt_'f&$QK(sM8_D4x
 ```
 
-### UI
+## UI
 
 To generate an installer in Fleet UI:
-1. Go to **Hosts** page, and select **Add hosts**.
-2. Select platform on the top (e.g. macOS).
-3. CLI command with all necessary flags will be generated. Copy and run the command in a CLI.
+1. Go to the **Hosts** page, and select **Add hosts**.
+2. Select the tab for your desired platform (e.g. macOS).
+3. A CLI command with all necessary flags will be generated. Copy and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
 
-#### Generate installer to enroll host to a specific team
+### Generate installer to enroll host to a specific team
 
-With hosts segmented into Teams, you can apply unique queries and give users access to only the hosts in specific Teams. [Learn more about teams](https://fleetdm.com/docs/using-fleet/segment-hosts).
+With hosts segmented into teams, you can apply unique queries and give users access to only the hosts in specific teams. [Learn more about teams](https://fleetdm.com/docs/using-fleet/segment-hosts).
 
-**Hosts page** 
+To generate an installer that enrolls to a specific team: from the **Hosts** page, select the desired team from the menu at the top of the screen, then follow the instructions above for generating an installer. The team's enroll secret will be included in the generated command.
 
-1. Select team on the top of the hosts page.
-2. Select **Add hosts**.
-3. The generated CLI command will include an enrollment secret for a team that is selected in the first step.
-4. Change team and select **Add hosts to** update `--enroll-secret` flag in generated CLI command.
-5. Copy and run the command in a CLI.
 
-**Settings > Teams page**
 
-1.  Select **Settings** > **Teams**.
-2. Create team or open existing team.
-3. Select **Add hosts** on the top of team page.
-4. The generated CLI command will include an enrollment secret for a selected team.
-5. Copy and run the command in a CLI.
+
 
 ### Enroll multiple hosts
 
 If you're managing an enterprise environment with multiple hosts, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro](https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your hosts.
-You can distribute fleetd installer generated in one of the ways explained above to add all your hosts to Fleet using your software management tool of choice.
+You can use your software management tool of choice to distribute a fleetd installer generated via the instructions above.
 
 ### Including Fleet Desktop
 
 > Fleet Desktop requires a Fleet version of 4.12.0 and above. To check your Fleet version, select the avatar on the right side of the top bar and select **My account**. Your Fleet version is displayed below the **Get API token** button.
 
-Hosts without Fleet Desktop currently installed require a new installer to be generated and run on the target host.
-How to generate an installer that includes Fleet Desktop in the Fleet UI:
-1. On the top bar in the Fleet UI, select **Hosts > Add hosts**.
-2. Select the **Include Fleet Desktop** checkbox.
-3. Select the clipboard icon to copy the `fleetctl package` command.
-4. In your terminal application, paste and run the copied command.
+Hosts without Fleet Desktop currently installed require a new installer to be generated and run on the target host. To include Fleet desktop in your installer, select the **Include Fleet Desktop** checkbox when generating an installer via the instructions above.
 
 Alternatively, you can generate an installer that includes Fleet Desktop in `fleetctl package` by appending the `--fleet-desktop` flag.
 
-## Enroll Chromebooks with fleetd Chrome extension
+## Enroll Chromebooks
 
 > The fleetd Chrome browser extension is supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). It is not intended for non-ChromeOS hosts with the Chrome browser installed.
 
@@ -114,7 +92,7 @@ Create an [organizational unit](https://support.google.com/a/answer/182537?hl=en
 In the Google Admin console:
 1. In the navigation menu, visit **Devices > Chrome > Apps & Extensions > Users & browsers**.
 2. Select the relevant OU where you want the fleetd Chrome extension to be installed.
-3. In the bottom right, select the yellow **+** button and select **Add Chrome app or extension by ID**.
+3. In the bottom right, select the **+** button and select **Add Chrome app or extension by ID**.
 4. Go to your Fleet instance select **Hosts > Add Hosts** and select **ChromeOS** in the popup modal.
 5. Enter the **Extension ID**, **Installation URL**, and **Policy for extensions** using the data provided in the modal.
 6. Under **Installation Policy**, select **Force install**, and under **Update URL**, select **Installation URL** (see above).
@@ -127,7 +105,7 @@ Create an [organizational unit](https://support.google.com/a/answer/182537?hl=en
 In the Google Admin console:
 1. In the navigation menu, select **Devices > Chrome > Managed Browsers**.
 2. Select the relevant OU where you want the fleetd Chrome extension to be blocked.
-3. In the bottom right, select the yellow **+** button and select **Add Chrome app or extension by ID**.
+3. In the bottom right, select the **+** button and select **Add Chrome app or extension by ID**.
 4. Go to your Fleet instance select **Hosts > Add Hosts** and select **ChromeOS** in the popup modal.
 5. Enter the **Extension ID** and **Installation URL** using the data provided in the modal.
 6. Under **Installation Policy**, select **Block**.
@@ -269,8 +247,7 @@ The following command-line flags to `fleetctl package` allow you to configure an
 | --enable-scripts           | Enable script execution (default: `false`)                                                                                              |
 | --debug                    | Enable debug logging (default: `false`)                                                                                                 |
 | --verbose                  | Log detailed information when building the package (default: false)                                                                     |
-| --local-wix-dir            | Use local installations of the 3 WiX v3 binaries this command uses (`heat.exe`, `candle.exe`, and
-`light.exe`) instead of installations in a pre-configered Docker Hub (only available on Windows w/ WiX v3)                                                    |
+| --local-wix-dir            | Use local installations of the 3 WiX v3 binaries this command uses (`heat.exe`, `candle.exe`, and `light.exe`) instead of installations in a pre-configered Docker Hub (only available on Windows w/ WiX v3)                                                    |
 | --help, -h                 | show help (default: `false`)                                                                                                            |
 
 Fleet supports other methods for adding your hosts to Fleet, such as the plain osquery

@@ -373,7 +373,7 @@ const PlatformWrapper = ({
               <InfoBanner className={`${baseClass}__chromeos--instructions`}>
                 For a step-by-step guide, see the documentation page for{" "}
                 <CustomLink
-                  url="https://fleetdm.com/docs/using-fleet/adding-hosts#enroll-chromebooks-with-fleetd-chrome-extension"
+                  url="https://fleetdm.com/docs/using-fleet/adding-hosts#enroll-chromebooks"
                   text="adding hosts"
                   newTab
                   multiline
