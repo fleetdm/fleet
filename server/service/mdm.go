@@ -1172,7 +1172,8 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 	defer ff.Close()
 
-	if isApple := strings.EqualFold(filepath.Ext(req.Profile.Filename), ".mobileconfig"); isApple {
+	fileExt := filepath.Ext(req.Profile.Filename)
+	if isApple := strings.EqualFold(fileExt, ".mobileconfig"); isApple {
 		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
@@ -1182,14 +1183,19 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		}, nil
 	}
 
-	profileName := strings.TrimSuffix(filepath.Base(req.Profile.Filename), filepath.Ext(req.Profile.Filename))
-	cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, ff)
-	if err != nil {
-		return &newMDMConfigProfileResponse{Err: err}, nil
+	if isWindows := strings.EqualFold(fileExt, ".xml"); isWindows {
+		profileName := strings.TrimSuffix(filepath.Base(req.Profile.Filename), fileExt)
+		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, ff)
+		if err != nil {
+			return &newMDMConfigProfileResponse{Err: err}, nil
+		}
+		return &newMDMConfigProfileResponse{
+			ProfileID: cp.ProfileUUID,
+		}, nil
 	}
-	return &newMDMConfigProfileResponse{
-		ProfileID: cp.ProfileUUID,
-	}, nil
+
+	err = &fleet.BadRequestError{Message: "Couldn't upload. The file should be a .mobileconfig or .xml file."}
+	return &newMDMConfigProfileResponse{Err: err}, nil
 }
 
 func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader) (*fleet.MDMWindowsConfigProfile, error) {
@@ -1221,6 +1227,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		SyncML: b,
 	}
 
+	// TODO(mna): datastore method to create a Windows config profile
 	//newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
 	//if err != nil {
 	//	return nil, ctxerr.Wrap(ctx, err)

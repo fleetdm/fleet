@@ -9,6 +9,7 @@ import (
 	"errors"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -925,6 +926,7 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 		}
 	}
 
+	const winProfContent = `<Replace></Replace>`
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
@@ -936,6 +938,14 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			// test authz get config profile (team 1)
 			_, err = svc.GetMDMWindowsConfigProfile(ctx, "team-1")
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
+
+			// test authz create new profile (no team)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", strings.NewReader(winProfContent))
+			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
+
+			// test authz create new profile (team 1)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", strings.NewReader(winProfContent))
+			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 
 			// test authz delete config profile (no team)
 			err = svc.DeleteMDMWindowsConfigProfile(ctx, "global")
