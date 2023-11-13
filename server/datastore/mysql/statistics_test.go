@@ -70,10 +70,10 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, `[{"count":10,"loc":["a","b","c"]}]`, string(stats.StoredErrors))
 	assert.Equal(t, []fleet.HostsCountByOsqueryVersion{}, stats.HostsEnrolledByOsqueryVersion) // should be empty slice instead of nil
 	assert.Equal(t, []fleet.HostsCountByOrbitVersion{}, stats.HostsEnrolledByOrbitVersion)     // should be empty slice instead of nil
-	// assert.Equal(t, false, stats.MDMEnabledAndConfigured)
-	// assert.Equal(t, false, stats.HostExpiryEnabled)
-	// assert.Equal(t, false, stats.MDMWindowsEnabledAndConfigured)
-	// assert.Equal(t, false, stats.LiveQueryDisabled)
+	assert.Equal(t, false, stats.MDMEnabledAndConfigured)
+	assert.Equal(t, false, stats.HostExpiryEnabled)
+	assert.Equal(t, false, stats.MDMWindowsEnabledAndConfigured)
+	assert.Equal(t, false, stats.LiveQueryDisabled)
 
 	firstIdentifier := stats.AnonymousIdentifier
 
