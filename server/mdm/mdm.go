@@ -5,7 +5,6 @@ import (
 	"crypto"
 	"crypto/x509"
 	"encoding/base64"
-	"unicode"
 
 	"go.mozilla.org/pkcs7"
 )
@@ -27,28 +26,16 @@ func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.Privat
 }
 
 func GetRawProfilePlatform(profile []byte) string {
-	// Function to compare byte slices case-insensitively for a specified length
-	compareBytesCaseInsensitive := func(slice1, slice2 []byte, length int) bool {
-		for i := 0; i < length && i < len(slice1) && i < len(slice2); i++ {
-			if unicode.ToLower(rune(slice1[i])) != unicode.ToLower(rune(slice2[i])) {
-				return false
-			}
-		}
-		return true
-	}
-
-	// Trimming leading whitespaces
+	// trim leading whitespaces
 	trimmedProfile := bytes.TrimSpace(profile)
 
-	// Checking for darwin platform with case-insensitive comparison
 	darwinPrefix := []byte("<?xml")
-	if len(trimmedProfile) >= len(darwinPrefix) && compareBytesCaseInsensitive(trimmedProfile, darwinPrefix, len(darwinPrefix)) {
+	if bytes.EqualFold(darwinPrefix, trimmedProfile[:len(darwinPrefix)]) {
 		return "darwin"
 	}
 
-	// Checking for windows platform with case-insensitive comparison
 	windowsPrefix := []byte("<replace")
-	if len(trimmedProfile) >= len(windowsPrefix) && compareBytesCaseInsensitive(trimmedProfile, windowsPrefix, len(windowsPrefix)) {
+	if bytes.EqualFold(windowsPrefix, trimmedProfile[:len(windowsPrefix)]) {
 		return "windows"
 	}
 

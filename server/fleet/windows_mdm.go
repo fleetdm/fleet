@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -49,7 +50,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 
 	doc := etree.NewDocument()
 	if err := doc.ReadFromBytes(m.SyncML); err != nil {
-		return err
+		return fmt.Errorf("Couldn’t upload. The file should include valid XML: %w", err)
 	}
 
 	for _, element := range doc.ChildElements() {
@@ -60,17 +61,26 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 		for _, target := range element.FindElements("Target") {
 			locURI := target.FindElement("LocURI")
 			if locURI != nil {
-				locURIText := locURI.Text()
-
-				if strings.HasPrefix(locURIText, microsoft_mdm.FleetBitLockerTargetLocURI) {
-					return errors.New("Custom configuration profiles can't include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
+				if err := validateFleetProvidedLocURI(locURI.Text()); err != nil {
+					return err
 				}
-
-				if strings.HasPrefix(locURIText, microsoft_mdm.FleetOSUpdateTargetLocURI) {
-					return errors.New("Custom configuration profiles can’t include Windows updates settings. To control these settings, use the mdm.windows_updates option.")
-				}
-
 			}
+		}
+	}
+
+	return nil
+}
+
+var fleetProvidedLocURIValidationMap = map[string][2]string{
+	microsoft_mdm.FleetBitLockerTargetLocURI: {"BitLocker", "mdm.enable_disk_encryption"},
+	microsoft_mdm.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
+}
+
+func validateFleetProvidedLocURI(locURI string) error {
+	sanitizedLocURI := strings.TrimSpace(locURI)
+	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
+		if strings.Contains(sanitizedLocURI, fleetLocURI) {
+			return fmt.Errorf("Custom configuration profiles can’t include %s settings. To control these settings, use the %s option.", errHints[0], errHints[1])
 		}
 	}
 
