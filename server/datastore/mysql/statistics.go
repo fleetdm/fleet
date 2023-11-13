@@ -86,8 +86,11 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.HostsStatusWebHookEnabled = appConfig.WebhookSettings.HostStatusWebhook.Enable
 		stats.MDMMacOsEnabled = appConfig.MDM.EnabledAndConfigured
 		stats.HostExpiryEnabled = appConfig.HostExpirySettings.HostExpiryEnabled
-		stats.JiraIntegrationEnabled = len(appConfig.Integrations.Jira) > 0
-		stats.ZendeskIntegrationEnabled = len(appConfig.Integrations.Zendesk) > 0
+
+		// TODO: Define how we want to coung Jira and Zenhub integration and add them.
+		// stats.JiraIntegrationEnabled = len(appConfig.Integrations.Jira) > 0
+		// stats.ZendeskIntegrationEnabled = len(appConfig.Integrations.Zendesk) > 0
+
 		stats.MDMWindowsEnabled = appConfig.MDM.WindowsEnabledAndConfigured
 		stats.LiveQueryDisabled = appConfig.ServerSettings.LiveQueryDisabled
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers

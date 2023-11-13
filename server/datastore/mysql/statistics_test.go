@@ -72,8 +72,11 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, []fleet.HostsCountByOrbitVersion{}, stats.HostsEnrolledByOrbitVersion)     // should be empty slice instead of nil
 	assert.Equal(t, false, stats.MDMMacOsEnabled)
 	assert.Equal(t, false, stats.HostExpiryEnabled)
-	assert.Equal(t, false, stats.JiraIntegrationEnabled)
-	assert.Equal(t, false, stats.ZendeskIntegrationEnabled)
+
+	// TODO: Define how we want to coung Jira and Zenhub integration and add them.
+	// assert.Equal(t, false, stats.JiraIntegrationEnabled)
+	// assert.Equal(t, false, stats.ZendeskIntegrationEnabled)
+
 	assert.Equal(t, false, stats.MDMWindowsEnabled)
 	assert.Equal(t, false, stats.LiveQueryDisabled)
 
