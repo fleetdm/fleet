@@ -106,9 +106,8 @@ func insertOrUpdateSoftware(db *sqlx.DB, hostID int, software Software) error {
 	err := db.Get(&existingID, query, software.Name, software.Version, software.Source)
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("select software: %w", err)
-	} else {
-		software.ID = existingID
 	}
+	software.ID = existingID
 
 	if existingID > 0 {
 		// Update existing record, set ID for the update
