@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -344,6 +345,180 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 		assert.Equal(t, fmt.Sprintf("e%d", i), r.Rows[1]["col3"])
 		assert.Equal(t, fmt.Sprintf("f%d", i), r.Rows[1]["col4"])
 	}
+}
+
+// TestLiveQueriesSomeFailToAuthorize when a user requests to run a mix of authorized and unauthorized queries
+func (s *liveQueriesTestSuite) TestLiveQueriesSomeFailToAuthorize() {
+	t := s.T()
+
+	host := s.hosts[0]
+
+	// Unauthorized query
+	q1, err := s.ds.NewQuery(
+		context.Background(), &fleet.Query{
+			Query:       "select 1 from osquery;",
+			Description: "desc1",
+			Name:        t.Name() + "query1",
+			Logging:     fleet.LoggingSnapshot,
+		},
+	)
+	require.NoError(t, err)
+
+	// Authorized query
+	q2, err := s.ds.NewQuery(
+		context.Background(), &fleet.Query{
+			Query:          "select 2 from osquery;",
+			Description:    "desc2",
+			Name:           t.Name() + "query2",
+			Logging:        fleet.LoggingSnapshot,
+			ObserverCanRun: true,
+		},
+	)
+	require.NoError(t, err)
+
+	s.lq.On("QueriesForHost", uint(1)).Return(map[string]string{fmt.Sprint(q1.ID): "select 2 from osquery;"}, nil)
+	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+	s.lq.On("RunQuery", mock.Anything, "select 2 from osquery;", []uint{host.ID}).Return(nil)
+	s.lq.On("StopQuery", mock.Anything).Return(nil)
+
+	// Switch to observer user.
+	originalToken := s.token
+	s.token = getTestUserToken(t, s.server, "user2")
+	defer func() {
+		s.token = originalToken
+	}()
+
+	liveQueryRequest := runLiveQueryRequest{
+		QueryIDs: []uint{q1.ID, q2.ID},
+		HostIDs:  []uint{host.ID},
+	}
+	liveQueryResp := runLiveQueryResponse{}
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
+	}()
+
+	// Give the above call a couple of seconds to create the campaign
+	time.Sleep(2 * time.Second)
+
+	cid2 := getCIDForQ(s, q2)
+
+	distributedReq := SubmitDistributedQueryResultsRequest{
+		NodeKey: *host.NodeKey,
+		Results: map[string][]map[string]string{
+			hostDistributedQueryPrefix + cid2: {{"col3": "c", "col4": "d"}, {"col3": "e", "col4": "f"}},
+		},
+		Statuses: map[string]fleet.OsqueryStatus{
+			hostDistributedQueryPrefix + cid2: 0,
+		},
+		Messages: map[string]string{
+			hostDistributedQueryPrefix + cid2: "some other msg",
+		},
+	}
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+
+	wg.Wait()
+
+	require.Len(t, liveQueryResp.Results, 2)
+	assert.Equal(t, 1, liveQueryResp.Summary.RespondedHostCount)
+
+	sort.Slice(
+		liveQueryResp.Results, func(i, j int) bool {
+			return liveQueryResp.Results[i].QueryID < liveQueryResp.Results[j].QueryID
+		},
+	)
+
+	require.True(t, q1.ID < q2.ID)
+
+	assert.Equal(t, q1.ID, liveQueryResp.Results[0].QueryID)
+	assert.Nil(t, liveQueryResp.Results[0].Results)
+	assert.Equal(t, authz.ForbiddenErrorMessage, *liveQueryResp.Results[0].Error)
+
+	assert.Equal(t, q2.ID, liveQueryResp.Results[1].QueryID)
+	require.Len(t, liveQueryResp.Results[1].Results, 1)
+	q2Results := liveQueryResp.Results[1].Results[0]
+	require.Len(t, q2Results.Rows, 2)
+	assert.Equal(t, "c", q2Results.Rows[0]["col3"])
+	assert.Equal(t, "d", q2Results.Rows[0]["col4"])
+	assert.Equal(t, "e", q2Results.Rows[1]["col3"])
+	assert.Equal(t, "f", q2Results.Rows[1]["col4"])
+}
+
+// TestLiveQueriesInvalidInput without query/host IDs
+func (s *liveQueriesTestSuite) TestLiveQueriesInvalidInputs() {
+	t := s.T()
+
+	host := s.hosts[0]
+
+	q1, err := s.ds.NewQuery(
+		context.Background(), &fleet.Query{
+			Query:       "select 1 from osquery;",
+			Description: "desc1",
+			Name:        t.Name() + "query1",
+			Logging:     fleet.LoggingSnapshot,
+		},
+	)
+	require.NoError(t, err)
+
+	liveQueryRequest := runLiveQueryRequest{
+		QueryIDs: []uint{},
+		HostIDs:  []uint{host.ID},
+	}
+	liveQueryResp := runLiveQueryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusBadRequest, &liveQueryResp)
+
+	liveQueryRequest = runLiveQueryRequest{
+		QueryIDs: []uint{q1.ID},
+		HostIDs:  []uint{},
+	}
+	s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusBadRequest, &liveQueryResp)
+
+	liveQueryRequest = runLiveQueryRequest{
+		QueryIDs: nil,
+		HostIDs:  []uint{host.ID},
+	}
+	s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusBadRequest, &liveQueryResp)
+
+	liveQueryRequest = runLiveQueryRequest{
+		QueryIDs: []uint{q1.ID},
+		HostIDs:  nil,
+	}
+	s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusBadRequest, &liveQueryResp)
+}
+
+// TestLiveQueriesFailsToAuthorize when an observer tries to run a live query
+func (s *liveQueriesTestSuite) TestLiveQueriesFailsToAuthorize() {
+	t := s.T()
+
+	host := s.hosts[0]
+
+	q1, err := s.ds.NewQuery(
+		context.Background(), &fleet.Query{
+			Query:       "select 1 from osquery;",
+			Description: "desc1",
+			Name:        t.Name() + "query1",
+			Logging:     fleet.LoggingSnapshot,
+		},
+	)
+	require.NoError(t, err)
+
+	liveQueryRequest := runLiveQueryRequest{
+		QueryIDs: []uint{q1.ID},
+		HostIDs:  []uint{host.ID},
+	}
+	liveQueryResp := runLiveQueryResponse{}
+
+	// Switch to observer user.
+	originalToken := s.token
+	s.token = getTestUserToken(t, s.server, "user2")
+	defer func() {
+		s.token = originalToken
+	}()
+	s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusForbidden, &liveQueryResp)
 }
 
 func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsToCreateCampaign() {

@@ -19,7 +19,7 @@ const ResetKeyModal = ({
   deviceAuthToken,
 }: IResetKeyModalProps): JSX.Element => {
   const { isLoading: isLoadingResetDEKey, error: errorResetDEKey } = useQuery(
-    ["resetDEkey"],
+    ["resetDEkey", deviceAuthToken],
     () => mdmAPI.resetEncryptionKey(deviceAuthToken),
     { refetchOnWindowFocus: false }
   );
@@ -60,7 +60,7 @@ const ResetKeyModal = ({
       title="Reset key"
       onExit={onClose}
       className={baseClass}
-      width="auto"
+      width="medium"
     >
       {renderModalBody()}
     </Modal>

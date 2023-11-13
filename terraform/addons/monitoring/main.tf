@@ -403,7 +403,7 @@ resource "aws_iam_policy" "cron_monitoring_lambda" {
 
 resource "aws_iam_role" "cron_monitoring_lambda" {
   count              = var.cron_monitoring == null ? 0 : 1
-  name               = "cron-monitoring-lambda"
+  name               = "${var.customer_prefix}-cron-monitoring-lambda"
   assume_role_policy = data.aws_iam_policy_document.cron_monitoring_lambda_assume_role.json
 }
 

@@ -3186,12 +3186,11 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	require.Equal(t, "https://foobar.example.com", acr.AppConfig.WebhookSettings.VulnerabilitiesWebhook.DestinationURL)
 
 	// Attempt to run live queries synchronously, should fail.
-	// TODO(lucas): This is a bug, the synchronous live query API should return 403 but currently returns 200.
-	// It doesn't run the query but incorrectly returns a 200.
 	s.DoJSON("GET", "/api/latest/fleet/queries/run", runLiveQueryRequest{
 		HostIDs:  []uint{h1.ID},
 		QueryIDs: []uint{q1.ID},
-	}, http.StatusOK, &runLiveQueryResponse{})
+	}, http.StatusForbidden, &runLiveQueryResponse{},
+	)
 
 	// Attempt to run live queries asynchronously (new unsaved query), should fail.
 	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{

@@ -1,0 +1,1 @@
+- Fix a UI bug in data tables where scrollbars would continue to be present despite no overflowing content

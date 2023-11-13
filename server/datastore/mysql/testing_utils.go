@@ -17,6 +17,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/go-kit/kit/log"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -298,11 +299,11 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 	// be truncated - a more precise approach must be used for those, e.g.
 	// delete where id > max before test, or something like that.
 	nonEmptyTables := map[string]bool{
-		"app_config_json":           true,
-		"migration_status_tables":   true,
-		"osquery_options":           true,
-		"mdm_apple_delivery_status": true,
-		"mdm_apple_operation_types": true,
+		"app_config_json":         true,
+		"migration_status_tables": true,
+		"osquery_options":         true,
+		"mdm_delivery_status":     true,
+		"mdm_operation_types":     true,
 	}
 	ctx := context.Background()
 
@@ -418,4 +419,20 @@ func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) { //nolint
 	}
 	require.NoError(t, rows.Err())
 	t.Logf("<< dumping table %s completed", tableName)
+}
+
+func generateDummyWindowsProfile(uuid string) []byte {
+	return []byte(fmt.Sprintf(`<Replace><Target><LocUri>./Device/Foo/%s</LocUri></Target></Replace>`, uuid))
+}
+
+// TODO(roberto): update when we have datastore functions and API methods for this
+func InsertWindowsProfileForTest(t *testing.T, ds *Datastore, teamID uint) string {
+	profUUID := uuid.NewString()
+	prof := generateDummyWindowsProfile(profUUID)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		stmt := `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml) VALUES (?, ?, ?, ?);`
+		_, err := q.ExecContext(context.Background(), stmt, profUUID, teamID, fmt.Sprintf("name-%s", uuid.NewString()), prof)
+		return err
+	})
+	return profUUID
 }

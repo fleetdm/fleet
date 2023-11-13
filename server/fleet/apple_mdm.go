@@ -41,64 +41,6 @@ const (
 	MDMAppleStatusNotNow             = "NotNow"
 )
 
-// MDMAppleDeliveryStatus is the status of an MDM command to apply a profile
-// to a device (whether it is installing or removing).
-type MDMAppleDeliveryStatus string
-
-// List of possible MDMAppleDeliveryStatus values. For a given host, the status
-// of a profile can be either of those, or NULL. The meaning of the status is
-// as follows:
-//
-//   - failed: the MDM command failed to apply, and it won't retry. This is
-//     currently a terminal state. TODO(mna): currently we only retry if the
-//     command failed to enqueue in ReconcileProfile (it resets the status to
-//     NULL). A failure in the asynchronous actual response of the MDM command
-//     (via MDMAppleCheckinAndCommandService.CommandAndReportResults) results in
-//     the failed state being applied and no retry. We should probably support
-//     some retries for such failures, and determine a maximum number of retries
-//     before giving up (either as a count of attempts - which would require
-//     storing somewhere - or as a time period, which we could determine based on
-//     the timestamps, e.g. time since created_at, if we added them to
-//     host_mdm_apple_profiles).
-//
-//   - verified: the MDM command was successfully applied, and Fleet has
-//     independently verified the status. This is a terminal state.
-//
-//   - verifying: the MDM command was successfully applied, but Fleet has not
-//     independently verified the status. This is an intermediate state,
-//     it may transition to failed, pending, or NULL.
-//
-//   - pending: the cron job that executes the MDM commands to apply profiles
-//     is processing this host, and the MDM command may even be enqueued. This
-//     is a temporary state, it may transition to failed, verifying, or NULL.
-//
-//   - NULL: the status set for profiles that need to be applied to a host
-//     (installed or removed), e.g. because the profile just got added to the
-//     host's team, or because the host moved to a new team, etc. This is a
-//     temporary state, it may transition to pending when the cron job runs to
-//     apply the profile. It may also be simply deleted from the host's profiles
-//     without the need to run an MDM command if the profile becomes unneeded and
-//     that status is for an Install operation (e.g. the profile got deleted from
-//     the team, or the host was moved to a team that doesn't apply that profile)
-//     or vice-versa if that status is for a Remove but the profile becomes
-//     required again. For the sake of statistics, as reported by
-//     GetMDMAppleHostsProfilesSummary or for the list hosts filter
-//     (filterHostsByMacOSSettingsStatus), a NULL status is equivalent to a
-//     Pending status.
-var (
-	MDMAppleDeliveryFailed    MDMAppleDeliveryStatus = "failed"
-	MDMAppleDeliveryVerified  MDMAppleDeliveryStatus = "verified"
-	MDMAppleDeliveryVerifying MDMAppleDeliveryStatus = "verifying"
-	MDMAppleDeliveryPending   MDMAppleDeliveryStatus = "pending"
-)
-
-type MDMAppleOperationType string
-
-const (
-	MDMAppleOperationTypeInstall MDMAppleOperationType = "install"
-	MDMAppleOperationTypeRemove  MDMAppleOperationType = "remove"
-)
-
 // MDMAppleEnrollmentProfilePayload contains the data necessary to create
 // an enrollment profile in Fleet.
 type MDMAppleEnrollmentProfilePayload struct {
@@ -266,11 +208,6 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 	}, nil
 }
 
-// AuthzType implements authz.AuthzTyper.
-func (cp MDMAppleConfigProfile) AuthzType() string {
-	return "mdm_apple_config_profile"
-}
-
 func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
 		return fmt.Errorf("payload identifier %s is not allowed", cp.Identifier)
@@ -281,19 +218,19 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
 type HostMDMAppleProfile struct {
-	HostUUID      string                  `db:"host_uuid" json:"-"`
-	CommandUUID   string                  `db:"command_uuid" json:"-"`
-	ProfileID     uint                    `db:"profile_id" json:"profile_id"`
-	Name          string                  `db:"name" json:"name"`
-	Identifier    string                  `db:"identifier" json:"-"`
-	Status        *MDMAppleDeliveryStatus `db:"status" json:"status"`
-	OperationType MDMAppleOperationType   `db:"operation_type" json:"operation_type"`
-	Detail        string                  `db:"detail" json:"detail"`
+	HostUUID      string             `db:"host_uuid" json:"-"`
+	CommandUUID   string             `db:"command_uuid" json:"-"`
+	ProfileID     uint               `db:"profile_id" json:"profile_id"`
+	Name          string             `db:"name" json:"name"`
+	Identifier    string             `db:"identifier" json:"-"`
+	Status        *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
+	Detail        string             `db:"detail" json:"detail"`
 }
 
 func (p HostMDMAppleProfile) IgnoreMDMClientError() bool {
 	switch p.OperationType {
-	case MDMAppleOperationTypeRemove:
+	case MDMOperationTypeRemove:
 		switch {
 		case strings.Contains(p.Detail, "MDMClientError (89)"):
 			return true
@@ -322,15 +259,15 @@ func (d HostMDMProfileDetail) Message() string {
 }
 
 type MDMAppleProfilePayload struct {
-	ProfileID         uint                    `db:"profile_id"`
-	ProfileIdentifier string                  `db:"profile_identifier"`
-	ProfileName       string                  `db:"profile_name"`
-	HostUUID          string                  `db:"host_uuid"`
-	Checksum          []byte                  `db:"checksum"`
-	Status            *MDMAppleDeliveryStatus `db:"status" json:"status"`
-	OperationType     MDMAppleOperationType   `db:"operation_type"`
-	Detail            string                  `db:"detail"`
-	CommandUUID       string                  `db:"command_uuid"`
+	ProfileID         uint               `db:"profile_id"`
+	ProfileIdentifier string             `db:"profile_identifier"`
+	ProfileName       string             `db:"profile_name"`
+	HostUUID          string             `db:"host_uuid"`
+	Checksum          []byte             `db:"checksum"`
+	Status            *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType     MDMOperationType   `db:"operation_type"`
+	Detail            string             `db:"detail"`
+	CommandUUID       string             `db:"command_uuid"`
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
@@ -339,8 +276,8 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	ProfileName       string
 	HostUUID          string
 	CommandUUID       string
-	OperationType     MDMAppleOperationType
-	Status            *MDMAppleDeliveryStatus
+	OperationType     MDMOperationType
+	Status            *MDMDeliveryStatus
 	Detail            string
 	Checksum          []byte
 }
