@@ -967,7 +967,7 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		}
 
 		if downloadRequested {
-			return downloadScriptResponse{
+			return downloadFileResponse{
 				content:     cp.Mobileconfig,
 				contentType: "application/x-apple-aspen-config",
 				filename:    fmt.Sprintf("%s_%s.mobileconfig", time.Now().Format("2006-01-02"), strings.ReplaceAll(cp.Name, " ", "_")),
@@ -985,7 +985,7 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if downloadRequested {
-		return downloadScriptResponse{
+		return downloadFileResponse{
 			content:     cp.SyncML,
 			contentType: "application/octet-stream", // not using the XML MIME type as a profile is not valid XML (a list of <Replace> elements)
 			filename:    fmt.Sprintf("%s_%s.xml", time.Now().Format("2006-01-02"), strings.ReplaceAll(cp.Name, " ", "_")),
