@@ -106,6 +106,8 @@ func insertOrUpdateSoftware(db *sqlx.DB, hostID int, software Software) error {
 	err := db.Get(&existingID, query, software.Name, software.Version, software.Source)
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("select software: %w", err)
+	} else {
+		software.ID = existingID
 	}
 
 	if existingID > 0 {
@@ -119,9 +121,13 @@ func insertOrUpdateSoftware(db *sqlx.DB, hostID int, software Software) error {
 	} else {
 		// Insert new record
 		insertQuery := `INSERT INTO software (name, version, source, bundle_identifier, ` + "`release`," + ` vendor_old, arch, vendor) VALUES (:name, :version, :source, :bundle_identifier, :release, :vendor_old, :arch, :vendor)`
-		_, err := db.NamedExec(insertQuery, software)
+		res, err := db.NamedExec(insertQuery, software)
 		if err != nil {
 			return fmt.Errorf("insert software: %w", err)
+		}
+		software.ID, err = res.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("get last insert id: %w", err)
 		}
 	}
 
