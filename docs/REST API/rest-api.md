@@ -3891,6 +3891,7 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | form | **Required.** The .mobileconfig (macOS) or XML (Windows) file containing the profile. |
 | team_id                   | string   | form | _Available in Fleet Premium_ The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
+| labels                   | array     | form | An array of labels to filter hosts in a team (or no team) that should get a profile. |
 
 #### Example
 
@@ -3911,7 +3912,7 @@ Content-Type: multipart/form-data; boundary=------------------------f02md47480un
 
 ```http
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
+Content-Disposition: form-data; name="team_id";
 
 1
 --------------------------f02md47480und42y
@@ -3996,7 +3997,8 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "identifier": "com.example.profile",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
-      "checksum": "dGVzdAo="
+      "checksum": "dGVzdAo=",
+      "labels": ["Label name 1"]
     },
     {
       "profile_id": 1338,
@@ -4005,7 +4007,8 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "platform": "windows",
       "created_at": "2023-04-31T00:00:00Z",
       "updated_at": "2023-04-31T00:00:00Z",
-      "checksum": "aCLemVr)"
+      "checksum": "aCLemVr)",
+      "labels": ["Label name 1", "Label name 3"]
     }
   ],
   "meta": {
