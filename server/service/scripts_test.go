@@ -844,7 +844,7 @@ func TestHostScriptDetailsSupportedPlatform(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+	ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
 		return []*fleet.HostScriptDetail{{HostID: hostID, ScriptID: 1337, Name: "some-script.sh"}}, nil, nil
 	}
 

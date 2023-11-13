@@ -460,7 +460,7 @@ VALUES
 	})
 
 	t.Run("empty slice returned if no scripts", func(t *testing.T) {
-		res, _, err := ds.GetHostScriptDetails(ctx, 42, ptr.Uint(1), fleet.ListOptions{}) // team 1 has no scripts
+		res, _, err := ds.GetHostScriptDetails(ctx, 42, ptr.Uint(1), fleet.ListOptions{}, "") // team 1 has no scripts
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		require.Len(t, res, 0)
@@ -500,7 +500,7 @@ VALUES
 				c.opts.IncludeMetadata = true
 				// custom ordering is not supported, always by name
 				c.opts.OrderKey = "name"
-				results, meta, err := ds.GetHostScriptDetails(ctx, 42, nil, c.opts)
+				results, meta, err := ds.GetHostScriptDetails(ctx, 42, nil, c.opts, "")
 				require.NoError(t, err)
 
 				require.Equal(t, len(c.wantNames), len(results))
