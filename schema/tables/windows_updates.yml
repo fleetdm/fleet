@@ -4,7 +4,6 @@ evented: false
 notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
 platforms:
   - darwin
-evented: false
 columns:
   - name: locale
     description: Location of the update.
