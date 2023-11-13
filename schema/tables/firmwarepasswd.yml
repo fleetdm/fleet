@@ -1,5 +1,6 @@
 name: firmwarepasswd
 description: "Information on the device's firmware password. Reference: https://support.apple.com/en-us/HT204455"
+evented: false
 notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
 platforms:
   - darwin
