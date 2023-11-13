@@ -307,10 +307,10 @@ WHERE
 	AND s.global_or_team_id = ?
 	`
 
-	args := []any{hostID, hostID, hostID, globalOrTeamID, extension}
+	args := []any{hostID, hostID, hostID, globalOrTeamID}
 	if len(extension) > 0 {
 		args = append(args, extension)
-		sql += `,
+		sql += `
 		AND s.name LIKE ?
 		`
 	}
