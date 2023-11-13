@@ -7,4 +7,25 @@ columns:
   - name: path
     description: The path to the host's Firefox preferences.
     type: text
+    required: true
+  - name: key
+    description: A specific item that describes the path.
+    type: text
     required: false
+  - name: value
+    description: The value for the specified key.
+    type: text
+    required: false
+  - name: fullkey
+    description: The expanded name of the specific item that describes the path.
+    type: text
+    required: false
+  - name: parent
+    description: The key's parent.
+    type: text
+    required: false
+  - name: query
+    description: The query is printed in this column. For example the SQL `SELECT * FROM firefox_preferences WHERE path = 'testdata/prefs.js' will print "*" in the query column.`
+    type: text
+    required: false
+  
