@@ -23,6 +23,8 @@ const ProfileDetails = ({ platform, createdAt }: IProfileDetailsProps) => {
 
   return (
     <div className={`${baseClass}__profile-details`}>
+      <span className={`${baseClass}__platform`}>{getPlatformName()}</span>
+      <span>&bull;</span>
       <span className={`${baseClass}__list-item-uploaded`}>
         {`Uploaded ${formatDistanceToNow(new Date(createdAt))} ago`}
       </span>

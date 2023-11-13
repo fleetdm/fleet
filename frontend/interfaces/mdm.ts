@@ -61,9 +61,11 @@ export interface IMdmProfile {
   profile_id: number;
   team_id: number;
   name: string;
+  platform: SupportedMdmPlatform;
   identifier: string;
   created_at: string;
   updated_at: string;
+  checksum: string;
 }
 
 export interface IMdmProfilesResponse {
