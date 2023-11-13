@@ -4,7 +4,8 @@ This document is a walkthrough guide for:
 - A Fleet member to publish new updates to [Fleet's TUF service](tuf.fleetctl.com). See [Pushing updates](#pushing-updates).
 - A Fleet member to delete targets from [Fleet's TUF service](tuf.fleetctl.com). See [Removing unused targets](#removing-unused-targets).
 - A Fleet member to become a publisher of updates for [Fleet's TUF service](tuf.fleetctl.com). See [Becoming a new Fleet publisher](#becoming-a-new-fleet-publisher).
-- Video walkthrough related to this process for additional [context](https://drive.google.com/file/d/1c_iukFEMne12Cxx9WVTt_j1Wp0sC1kQU/view?usp=drive_link).
+
+Video walkthrough related to this process for additional [context](https://drive.google.com/file/d/1c_iukFEMne12Cxx9WVTt_j1Wp0sC1kQU/view?usp=drive_link).
 
 ## Security
 
