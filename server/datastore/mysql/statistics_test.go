@@ -178,8 +178,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	// config.ServerSettings.LiveQueryDisabled = true
 	// config.Integrations.Jira = []*fleet.JiraIntegration{}
 	// config.Integrations.Zendesk = []*fleet.ZendeskIntegration{}
-	config.MDM.WindowsEnabledAndConfigured = true
-	config.ServerSettings.LiveQueryDisabled = true
+	// config.MDM.WindowsEnabledAndConfigured = true
+	// config.ServerSettings.LiveQueryDisabled = true
 
 	err = ds.SaveAppConfig(ctx, config)
 	require.NoError(t, err)
