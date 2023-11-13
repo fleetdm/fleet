@@ -58,7 +58,7 @@ const WindowsAutomaticEnrollmentPage = () => {
             <p>
               At the top of the page, search “Domain names“ and select{" "}
               <b>Domain names</b>. Then select <b>+ Add custom domain</b>, type
-              your organization&apos;s domain name (e.g. acme.com), and select{" "}
+              your Fleet URL (e.g. fleet.acme.com), and select{" "}
               <b>Add domain</b>.
             </p>
           </li>
