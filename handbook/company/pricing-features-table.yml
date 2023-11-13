@@ -626,6 +626,10 @@
       tier: Premium
       usualDepartment: Security
       productCategories: [Vulnerability management]
+    - industryName: Patched version #Can be determined using description from National Vulnerability Database (NVD). Description tells you which versions are affected.
+      tier: Premium
+      usualDepartment: Security
+      productCategories: [Vulnerability management]
 - categoryName: Data outputs
   features:
     - industryName: Flexible log destinations (AWS Kinesis, Lambda, GCP, Kafka)
