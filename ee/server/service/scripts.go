@@ -366,7 +366,7 @@ func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt f
 	}
 
 	if h.Platform != "darwin" && h.Platform != "windows" {
-		// only darwin is supported for now, all other platforms return empty results
+		// darwin and windows are supported for now, all other platforms return empty results
 		level.Debug(svc.logger).Log("msg", "unsupported platform for host script details", "platform", h.Platform, "host_id", h.ID)
 		return []*fleet.HostScriptDetail{}, &fleet.PaginationMetadata{}, nil
 	}

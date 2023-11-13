@@ -313,7 +313,6 @@ WHERE
 		sql += `
 		AND s.name LIKE ?
 		`
-		fmt.Println(sql)
 	}
 	stmt, args := appendListOptionsWithCursorToSQL(sql, args, &opt)
 

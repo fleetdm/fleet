@@ -363,7 +363,7 @@ func testListScripts(t *testing.T, ds *Datastore) {
 func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	names := []string{"script-1", "script-2", "script-3", "script-4", "script-5"}
+	names := []string{"script-1.sh", "script-2.sh", "script-3.sh", "script-4.sh", "script-5.sh"}
 	for _, r := range append(names[1:], names[0]) {
 		_, err := ds.NewScript(ctx, &fleet.Script{
 			Name:           r,
@@ -372,9 +372,16 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
+	// create a windows script as well
+	_, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script-6.ps1",
+		ScriptContents: `Write-Host "Hello, World!"`,
+	})
+	require.NoError(t, err)
+
 	scripts, _, err := ds.ListScripts(ctx, nil, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, scripts, 5)
+	require.Len(t, scripts, 6)
 
 	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
 		stmt := `
@@ -423,7 +430,7 @@ VALUES
 	t.Run("results match expected formatting and filtering", func(t *testing.T) {
 		res, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{}, "")
 		require.NoError(t, err)
-		require.Len(t, res, 5)
+		require.Len(t, res, 6)
 		for _, r := range res {
 			switch r.ScriptID {
 			case scripts[0].ID:
@@ -452,6 +459,9 @@ VALUES
 				require.Equal(t, "error", r.LastExecution.Status)
 			case scripts[4].ID:
 				require.Equal(t, scripts[4].Name, r.Name)
+				require.Nil(t, r.LastExecution)
+			case scripts[5].ID:
+				require.Equal(t, scripts[5].Name, r.Name)
 				require.Nil(t, r.LastExecution)
 			default:
 				t.Errorf("unexpected script id: %d", r.ScriptID)
@@ -500,7 +510,7 @@ VALUES
 				c.opts.IncludeMetadata = true
 				// custom ordering is not supported, always by name
 				c.opts.OrderKey = "name"
-				results, meta, err := ds.GetHostScriptDetails(ctx, 42, nil, c.opts, "")
+				results, meta, err := ds.GetHostScriptDetails(ctx, 42, nil, c.opts, "darwin")
 				require.NoError(t, err)
 
 				require.Equal(t, len(c.wantNames), len(results))
@@ -516,6 +526,14 @@ VALUES
 				require.Equal(t, c.wantNames, gotNames)
 			})
 		}
+	})
+
+	t.Run("windows ps1 scripts are supported", func(t *testing.T) {
+		res, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{}, "windows")
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Len(t, res, 1)
+		require.Equal(t, "script-6.ps1", res[0].Name)
 	})
 }
 
