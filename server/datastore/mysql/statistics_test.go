@@ -72,6 +72,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, []fleet.HostsCountByOrbitVersion{}, stats.HostsEnrolledByOrbitVersion)     // should be empty slice instead of nil
 	assert.Equal(t, false, stats.MDMEnabledAndConfigured)
 	assert.Equal(t, false, stats.HostExpiryEnabled)
+	assert.Equal(t, false, stats.JiraIntegrationEnabled)
+	assert.Equal(t, false, stats.ZendeskIntegrationEnabled)
 	assert.Equal(t, false, stats.MDMWindowsEnabledAndConfigured)
 	assert.Equal(t, false, stats.LiveQueryDisabled)
 
@@ -172,14 +174,14 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	config.Features.EnableHostUsers = false
 	config.VulnerabilitySettings.DatabasesPath = ""
 	config.WebhookSettings.HostStatusWebhook.Enable = true
-	// config.MDM.EnabledAndConfigured = true
-	// config.HostExpirySettings.HostExpiryEnabled = true
-	// config.MDM.WindowsEnabledAndConfigured = true
-	// config.ServerSettings.LiveQueryDisabled = true
-	// config.Integrations.Jira = []*fleet.JiraIntegration{}
-	// config.Integrations.Zendesk = []*fleet.ZendeskIntegration{}
-	// config.MDM.WindowsEnabledAndConfigured = true
-	// config.ServerSettings.LiveQueryDisabled = true
+	config.MDM.EnabledAndConfigured = true
+	config.HostExpirySettings.HostExpiryEnabled = true
+	config.MDM.WindowsEnabledAndConfigured = true
+	config.ServerSettings.LiveQueryDisabled = true
+	config.Integrations.Jira = []*fleet.JiraIntegration{}
+	config.Integrations.Zendesk = []*fleet.ZendeskIntegration{}
+	config.MDM.WindowsEnabledAndConfigured = true
+	config.ServerSettings.LiveQueryDisabled = true
 
 	err = ds.SaveAppConfig(ctx, config)
 	require.NoError(t, err)
