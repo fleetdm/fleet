@@ -175,7 +175,7 @@ func insertOrUpdateHost(db *sqlx.DB, host Host) (int, error) {
 	}
 
 	err = insertOrUpdateHostDisplayName(db, HostDisplayName{
-		HostID: int64(id),
+		HostID: id,
 		Name:   host.Hostname,
 	})
 	if err != nil {
