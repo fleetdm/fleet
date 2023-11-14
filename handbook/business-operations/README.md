@@ -165,7 +165,7 @@ Create a [new montly accounting issue](https://github.com/fleetdm/confidential/i
 - **When is the issue created?** We create and close the monthly accounting issue for the previous month within the first 7 days of the following month.  For example, the monthly accounting issue to close out the month of January is created promptly in February and closed before the end of the day, Feb 7th.  A convenient trick is to create the issue on the first Friday of the month and close it ASAP.
 
 ### Check franchise tax status
-No later than the second month of every quarter, we check [Delaware divison of Corporations](https://icis.corp.delaware.gov) to ensure that Fleet has paid the quarterly franchise tax amounts to remain in good standing with the state of Delaware.
+No later than the second month of every quarter, we check [Delaware divison of corporations](https://icis.corp.delaware.gov) to ensure that Fleet has paid the quarterly franchise tax amounts to remain in good standing with the state of Delaware.
 - Go to the [DCIS - eCorp website](https://icis.corp.delaware.gov/ecorp/logintax.aspx?FilingType=FranchiseTax) and use the details in 1Password to look up Fleet's status.
 - If no outstanding amounts: the tax has been paid.
 - If outstanding amounts shown: ensure payment before due date to avoid penalties, interest, and entering bad standing.
