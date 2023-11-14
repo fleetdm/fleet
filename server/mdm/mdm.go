@@ -1,6 +1,7 @@
 package mdm
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/x509"
 	"encoding/base64"
@@ -22,4 +23,24 @@ func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.Privat
 	}
 
 	return p7.Decrypt(cert, key)
+}
+
+func GetRawProfilePlatform(profile []byte) string {
+	trimmedProfile := bytes.TrimSpace(profile)
+
+	if len(trimmedProfile) == 0 {
+		return ""
+	}
+
+	darwinPrefix := []byte("<?xml")
+	if len(trimmedProfile) >= len(darwinPrefix) && bytes.EqualFold(darwinPrefix, trimmedProfile[:len(darwinPrefix)]) {
+		return "darwin"
+	}
+
+	windowsPrefix := []byte("<replace")
+	if len(trimmedProfile) >= len(windowsPrefix) && bytes.EqualFold(windowsPrefix, trimmedProfile[:len(windowsPrefix)]) {
+		return "windows"
+	}
+
+	return ""
 }

@@ -69,6 +69,8 @@ module.exports = {
                   // If a query has a 'requires MDM' tag, we'll set requiresMDM to true for this query, and we'll ingore this tag.
                   if(_.trim(tag.toLowerCase()) === 'mdm required'){
                     query.requiresMdm = true;
+                  } else if(_.trim(tag.toLowerCase()) === 'critical') {
+                    query.critical = true;
                   } else {
                     // Removing any extra whitespace from tags and changing them to be in lower case.
                     formattedTags.push(_.trim(tag.toLowerCase()));

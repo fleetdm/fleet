@@ -5,7 +5,8 @@ import { IApiError } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 import scriptAPI from "services/entities/scripts";
 
-import FileUploader from "pages/ManageControlsPage/components/FileUploader";
+import FileUploader from "components/FileUploader";
+
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "script-uploader";

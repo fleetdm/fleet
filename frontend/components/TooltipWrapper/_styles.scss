@@ -1,92 +1,34 @@
 .component__tooltip-wrapper {
   display: inline-flex;
-  position: relative;
-
-  &:hover {
-    .component__tooltip-wrapper__tip-text {
-      visibility: visible;
-      opacity: 1;
-    }
-
-    .delayed-tip {
-      transition: 300ms all;
-      transition-delay: 300ms;
-    }
-  }
 
   &__element {
-    position: static;
-    display: inline; // treat like a span but allow other tags as children
     white-space: nowrap;
-    &__underline {
-      position: absolute;
-      top: 0;
-      left: 0;
-      bottom: 0;
-
-      &::before {
-        content: attr(data-text);
-        opacity: 0;
-        visibility: hidden;
-      }
-      &::after {
-        content: "";
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        bottom: -2px;
-        left: 0;
-        border-bottom: 1px dashed $ui-fleet-black-50;
-      }
-    }
-
-    a {
-      position: relative;
-      z-index: 99;
-    }
   }
+
+  &__underline {
+    position: relative;
+    width: fit-content;
+    // compensate for bottom border and padding to maintain centering
+    top: 2px;
+    border-bottom: 1px dashed $ui-fleet-black-50;
+    padding-bottom: 1px;
+  }
+
   &__tip-text {
     width: max-content;
     max-width: 360px;
     padding: 6px;
     color: $core-white;
-    background-color: $core-fleet-blue;
+    background-color: $tooltip-bg;
     font-weight: $regular;
     font-size: $xx-small;
     border-radius: 4px;
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
     box-sizing: border-box;
     z-index: 99; // not more than the site nav
-    visibility: hidden;
-    opacity: 0;
-    transition: opacity 0.3s ease;
     line-height: 1.375;
     white-space: initial;
-
-    // invisible block to cover space so
-    // hover state can continue from text to bubble
-    &::before {
-      content: "";
-      width: 100%;
-      height: 6px;
-      position: absolute;
-      top: -6px;
-      left: 0;
-    }
     p {
       margin: 0;
-    }
-  }
-  &[data-position="top"] {
-    .component__tooltip-wrapper__tip-text {
-      top: auto;
-      bottom: 100%;
-
-      &::before {
-        display: none;
-      }
     }
   }
 }

@@ -728,6 +728,12 @@ func (svc *Service) validateMDM(
 			return
 		}
 	}
+	if !svc.config.MDM.IsMicrosoftWSTEPSet() {
+		if mdm.WindowsEnabledAndConfigured {
+			invalid.Append("mdm.windows_enabled_and_configured", "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.")
+			return
+		}
+	}
 
 	// if either macOS or Windows MDM is enabled, this setting can be set.
 	if !mdm.AtLeastOnePlatformEnabledAndConfigured() {
