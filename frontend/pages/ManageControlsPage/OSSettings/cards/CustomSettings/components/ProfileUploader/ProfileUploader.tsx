@@ -7,7 +7,7 @@ import mdmAPI from "services/entities/mdm";
 
 import FileUploader from "components/FileUploader";
 
-import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "profile-uploader";
 
@@ -33,17 +33,6 @@ const ProfileUploader = ({
     }
 
     const file = files[0];
-
-    if (
-      // file.type might be empty on some systems as uncommon file extensions
-      // would return an empty string.
-      (file.type !== "" && file.type !== "application/x-apple-aspen-config") ||
-      !file.name.includes(".mobileconfig")
-    ) {
-      renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);
-      setShowLoading(false);
-      return;
-    }
 
     try {
       await mdmAPI.uploadProfile(file, currentTeamId);
