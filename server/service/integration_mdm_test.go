@@ -8059,17 +8059,17 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	// Windows profile name conflicts with Apple's for no team
 	assertWindowsProfile("apple-global-profile.xml", "apple-global-profile", "./Test", 0, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 	// but no conflict for team 1
-	assertWindowsProfile("apple-global-profile.xml", "apple-global-profile", "./Test", 1, http.StatusOK, "")
+	assertWindowsProfile("apple-global-profile.xml", "apple-global-profile", "./Test", testTeam.ID, http.StatusOK, "")
 	// Apple profile name conflicts with Windows' for no team
 	assertAppleProfile("win-global-profile.mobileconfig", "win-global-profile", "test-global-ident-2", 0, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 	// but no conflict for team 1
-	assertAppleProfile("win-global-profile.mobileconfig", "win-global-profile", "test-global-ident-2", 1, http.StatusOK, "")
+	assertAppleProfile("win-global-profile.mobileconfig", "win-global-profile", "test-global-ident-2", testTeam.ID, http.StatusOK, "")
 	// Windows profile name conflicts with Apple's for team 1
-	assertWindowsProfile("apple-team-profile.xml", "apple-team-profile", "./Test", 1, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	assertWindowsProfile("apple-team-profile.xml", "apple-team-profile", "./Test", testTeam.ID, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 	// but no conflict for no-team
 	assertWindowsProfile("apple-team-profile.xml", "apple-team-profile", "./Test", 0, http.StatusOK, "")
 	// Apple profile name conflicts with Windows' for team 1
-	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", 1, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", testTeam.ID, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 	// but no conflict for no-team
 	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", 0, http.StatusOK, "")
 
@@ -8079,7 +8079,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// Windows-reserved LocURI
 	assertWindowsProfile("bitlocker.xml", "bitlocker", microsoft_mdm.FleetBitLockerTargetLocURI, 0, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include BitLocker settings.")
-	assertWindowsProfile("updates.xml", "updates", microsoft_mdm.FleetOSUpdateTargetLocURI, 0, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include Windows updates settings.")
+	assertWindowsProfile("updates.xml", "updates", microsoft_mdm.FleetOSUpdateTargetLocURI, testTeam.ID, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include Windows updates settings.")
 
 	// Windows invalid content
 	body, headers := generateNewProfileMultipartRequest(t, nil, "win.xml", []byte("\x00\x01\x02"), s.token)
