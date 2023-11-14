@@ -1227,19 +1227,19 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		})
 	}
 
-	// TODO(mna): reuse Windows config profile creation/validation from Roberto's PR.
-	cp := &fleet.MDMWindowsConfigProfile{
+	cp := fleet.MDMWindowsConfigProfile{
 		TeamID: &teamID,
 		Name:   profileName,
 		SyncML: b,
 	}
+	if err := cp.ValidateUserProvided(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate profile")
+	}
 
-	// TODO(mna): datastore method to create a Windows config profile
-	//newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
-	//if err != nil {
-	//	return nil, ctxerr.Wrap(ctx, err)
-	//}
-	newCP := cp
+	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
 
 	// TODO: Windows equivalent of this call:
 	//if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, []uint{newCP.ProfileID}, nil); err != nil {
