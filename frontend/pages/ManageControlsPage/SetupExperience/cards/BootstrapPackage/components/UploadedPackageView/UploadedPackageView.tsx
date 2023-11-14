@@ -3,7 +3,7 @@ import React from "react";
 import { IBootstrapPackageMetadata } from "interfaces/mdm";
 
 import CustomLink from "components/CustomLink";
-import UploadList from "pages/ManageControlsPage/components/UploadList";
+import UploadList from "pages/ManageControlsPage/components/UploadedList";
 
 import BootstrapPackageListItem from "../BootstrapPackageListItem";
 import BootstrapPackageTable from "../BootstrapPackageTable/BootstrapPackageTable";

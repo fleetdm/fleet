@@ -46,7 +46,7 @@ const ScriptPackageUploader = ({
   return (
     <FileUploader
       className={baseClass}
-      graphicName="file-sh"
+      graphicNames={["file-sh", "file-ps1"]}
       message="Script (.sh)"
       additionalInfo="Script will run with “#!/bin/sh”."
       accept=".sh"
