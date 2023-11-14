@@ -994,7 +994,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"plist data", 0, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "The file should include valid XML."},
 		{"valid windows profile", 0, `<Replace></Replace>`, true, ""},
 		{"mdm not enabled", 0, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
-		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "zzz"},
+		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
 	}
 
