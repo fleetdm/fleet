@@ -108,9 +108,6 @@ const generateActionDropdownOptions = (
   host: IHost,
   { script_id, last_execution }: IHostScript
 ): IDropdownOption[] => {
-  // Run action available to {globalteam} maintainer, {global|team} admin, {global|team} observers+,
-  // {global|team} observers
-
   const [hostTeamId, isHostOnline] = [host.team_id, host.status === "online"];
 
   const hasRunPermission =
