@@ -83,11 +83,11 @@ services:
       - "8028:80"
       - "1027:25"
     volumes:
-      - ./tools/smtp4dev:/smtp4dev
+      - ./tools/smtp4dev:/certs
     environment:
       - ServerOptions__TlsMode=ImplicitTls
-      - ServerOptions__TlsCertificate=/smtp4dev/fleet.crt
-      - ServerOptions__TlsCertificatePrivateKey=/smtp4dev/fleet.key
+      - ServerOptions__TlsCertificate=/certs/fleet.crt
+      - ServerOptions__TlsCertificatePrivateKey=/certs/fleet.key
 
   redis:
     image: redis:5
