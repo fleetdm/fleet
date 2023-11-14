@@ -76,26 +76,19 @@ services:
         "--smtp-auth-allow-insecure=true"
       ]
 
-# SMTP server with Basic Authentication and TLS
-  maildev:
-      image: maildev/maildev:latest
-      ports: 
-        - "1027:1025"
-        - "8027:1080"
-      volumes:
-        - ./tools/maildev:/maildev
-      command: 
-        [
-          "--incoming-secure",
-          "--https",
-          "--incoming-user", "maildev",
-          "--incoming-pass", "maildev",
-          "--https-key", "/maildev/fleet.key",
-          "--https-cert", "/maildev/fleet.crt",
-          "--incoming-cert", "/maildev/fleet.crt",
-          "--incoming-key", "/maildev/fleet.key"
-        ]
-        
+  # SMTP server with TLS
+  smtp4dev:
+    image: rnwood/smtp4dev:v3
+    ports:
+      - "8028:80"
+      - "1028:25"
+    volumes:
+      - ./tools/smtp4dev:/smtp4dev
+    environment:
+      - ServerOptions__TlsMode=ImplicitTls
+      - ServerOptions__TlsCertificate=/smtp4dev/fleet.crt
+      - ServerOptions__TlsCertificatePrivateKey=/smtp4dev/fleet.key
+
   redis:
     image: redis:5
     ports:
