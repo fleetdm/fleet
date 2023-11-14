@@ -87,6 +87,7 @@ jobs:
         done
         echo "mysql is ready"
 
+
     - name: Run Go Tests
       run: |
         GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
