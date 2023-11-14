@@ -6,7 +6,7 @@ import { GraphicNames } from "components/graphics";
 
 const baseClass = "list-item";
 
-type ISupportedGraphicNames = Extract<
+export type ISupportedGraphicNames = Extract<
   GraphicNames,
   | "file-configuration-profile"
   | "file-sh"

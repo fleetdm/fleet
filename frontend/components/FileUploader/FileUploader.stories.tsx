@@ -6,7 +6,7 @@ const meta: Meta<typeof FileUploader> = {
   title: "Components/FileUploader",
   component: FileUploader,
   args: {
-    graphicName: "file-configuration-profile",
+    graphicNames: ["file-configuration-profile"],
     message: "The main message",
     additionalInfo: "The additional message",
     accept: ".pdf",
