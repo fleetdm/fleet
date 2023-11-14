@@ -35,7 +35,7 @@ func (s *Script) Validate() error {
 		return errors.New("The file name must not be empty.")
 	}
 	if filepath.Ext(s.Name) != ".sh" && filepath.Ext(s.Name) != ".ps1" {
-		return errors.New("The file should be .sh or .ps1 file.")
+		return errors.New("File type not supported. Only .sh and .ps1 file type is allowed.")
 	}
 
 	if err := ValidateHostScriptContents(s.ScriptContents); err != nil {

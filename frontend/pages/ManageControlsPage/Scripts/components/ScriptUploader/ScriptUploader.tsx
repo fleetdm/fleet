@@ -1,13 +1,9 @@
 import React, { useContext, useState } from "react";
-import { AxiosResponse } from "axios";
 
-import { IApiError } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 import scriptAPI from "services/entities/scripts";
 
 import FileUploader from "components/FileUploader";
-
-import { getErrorMessage } from "./helpers";
 
 const baseClass = "script-uploader";
 
@@ -36,8 +32,10 @@ const ScriptPackageUploader = ({
       renderFlash("success", "Successfully uploaded!");
       onUpload();
     } catch (e) {
-      const error = e as AxiosResponse<IApiError>;
-      renderFlash("error", `Couldn't upload. ${getErrorMessage(error)}`);
+      renderFlash(
+        "error",
+        "Couldn’t upload. The file should be .sh or .ps1 file."
+      );
     } finally {
       setShowLoading(false);
     }
