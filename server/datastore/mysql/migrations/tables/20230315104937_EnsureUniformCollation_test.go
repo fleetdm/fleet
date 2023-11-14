@@ -9,6 +9,9 @@ import (
 )
 
 func TestUp_20230315104937(t *testing.T) {
+	// skipping old migration tests as migrations don't change and we're getting
+	// timeouts in CI
+	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t)
 	_, err := db.Exec("SET FOREIGN_KEY_CHECKS = 0")
 	require.NoError(t, err)
