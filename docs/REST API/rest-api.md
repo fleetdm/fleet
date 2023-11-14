@@ -1868,6 +1868,8 @@ the `software` table.
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
 
+If `software_title_id` is specified, an additional top-level key `"software_title"` is returned with the software title object corresponding to the `software_title_id`. See [List software titles](#list-software-titles) response payload for details about this object.
+
 If `software_version_id` is specified, an additional top-level key `"software"` is returned with the software object corresponding to the `software_version_id`. See [List software versions](#list-software-versions) response payload for details about this object.
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
@@ -6967,6 +6969,7 @@ Get a list of all software grouped by software title.
 
 ```json
 {
+  "counts_updated_at": "2022-01-01 12:32:00",
   "software_titles": [
     {
       "id": 12,
