@@ -1121,6 +1121,9 @@ type Datastore interface {
 	// host_mdm_windows_profiles that match the given payload.
 	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error
 
+	// NewMDMWindowsConfigProfile creates and returns a new configuration profile.
+	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile) (*MDMWindowsConfigProfile, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
 
