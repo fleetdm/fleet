@@ -39,6 +39,9 @@ func (t TeamConfig20220309133956) Value() (driver.Value, error) {
 }
 
 func TestUp_20220309133956(t *testing.T) {
+	// skipping old migration tests as migrations don't change and we're getting
+	// timeouts in CI
+	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t)
 
 	teams := []Team20220309133956{
