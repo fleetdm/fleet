@@ -3912,9 +3912,17 @@ Content-Type: multipart/form-data; boundary=------------------------f02md47480un
 
 ```http
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id";
+Content-Disposition: form-data; name="team_id"
 
 1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="label"
+
+Label name 1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="label"
+
+Label name 2
 --------------------------f02md47480und42y
 Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
 Content-Type: application/octet-stream
