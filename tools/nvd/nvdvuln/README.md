@@ -1,6 +1,6 @@
 # nvdvuln
 
-This tool can be used to reproduce false positives/negatives vulnerabilities found by Fleet.
+This tool can be used to reproduce false positive/negative vulnerabilities found by Fleet.
 
 The tool has two modes of operation:
 1. Run vulnerability processing using the NVD dataset on a specific software item. Such software item should be specified to the tool with the fields as stored in Fleet's `software` MySQL table.

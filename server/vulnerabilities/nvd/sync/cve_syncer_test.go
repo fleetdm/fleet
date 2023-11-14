@@ -84,9 +84,6 @@ func compareVulnerabilities(v1 schema.NVDCVEFeedJSON10DefCVEItem, v2 schema.NVDC
 			referenceData.Refsource = ""
 			referenceData.Name = referenceData.URL
 		}
-		// These fields do not match because we are comparing different sources (old feeds and new API).
-		v.LastModifiedDate = ""
-		v.PublishedDate = ""
 		// These fields mostly match, but sometimes differ.
 		v.CVE.CVEDataMeta.ASSIGNER = ""
 		v.CVE.Problemtype = nil

@@ -163,21 +163,24 @@ func (s *CVE) update(ctx context.Context) error {
 		return err
 	}
 
-	for _, cvesInYear := range newCVEsInYears {
+	for _, yearCVEs := range newCVEsInYears {
 		// Read the CVE file for the year.
-		storedCVEFeed, err := readCVEsLegacyFormat(s.dbDir, cvesInYear.year, s.logger)
+		storedCVEFeed, err := readCVEsLegacyFormat(s.dbDir, yearCVEs.year)
 		if err != nil {
 			return err
 		}
 
 		// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 		newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
-		for _, cve := range cvesInYear.cves {
+		for _, cve := range yearCVEs.cves {
 			legacyCVE := convertAPI20CVEToLegacy(cve, s.logger)
 			newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
 		}
 
-		// Update existing CVEs with the lastest updates.
+		// Update existing CVEs with the latest updates (e.g. NVD updated a CVSS metric on an existing CVE).
+		//
+		// This loop iterates the existing slice and, if there's an update for the item, it will
+		// update the item in place. The next for loop takes care of adding the newly reported CVEs.
 		for i, storedCVE := range storedCVEFeed.CVEItems {
 			if newLegacyCVE, ok := newLegacyCVEs[storedCVE.CVE.CVEDataMeta.ID]; ok {
 				storedCVEFeed.CVEItems[i] = newLegacyCVE
@@ -185,13 +188,15 @@ func (s *CVE) update(ctx context.Context) error {
 			}
 		}
 
-		// Add any new CVEs.
+		// Add any new CVEs (e.g. a new vulnerability has been found since last time so a new CVE number was reported).
+		//
+		// Any leftover items from the previous loop in newLegacyCVEs are new CVEs.
 		for _, cve := range newLegacyCVEs {
 			storedCVEFeed.CVEItems = append(storedCVEFeed.CVEItems, cve)
 		}
 
 		// Store the file for the year.
-		if err := storeCVEsInLegacyFormat(s.dbDir, cvesInYear.year, storedCVEFeed); err != nil {
+		if err := storeCVEsInLegacyFormat(s.dbDir, yearCVEs.year, storedCVEFeed); err != nil {
 			return err
 		}
 	}
@@ -351,7 +356,7 @@ func fileExists(path string) (bool, error) {
 	}
 }
 
-// storeAPI20CVEsInLegacyFormat stores the provided CVEs in API 2.0 format in the legacy feed format (gziped JSON by year).
+// storeAPI20CVEsInLegacyFormat stores the provided CVEs in API 2.0 format in the legacy feed format (gzipped JSON by year).
 func storeAPI20CVEsInLegacyFormat(dbDir string, year int, cves []nvdapi.CVEItem, logger log.Logger) error {
 	sort.Slice(cves, func(i, j int) bool {
 		return *cves[i].CVE.ID < *cves[j].CVE.ID
@@ -374,7 +379,7 @@ func storeAPI20CVEsInLegacyFormat(dbDir string, year int, cves []nvdapi.CVEItem,
 	return nil
 }
 
-// storeCVEsInLegacyFormat stores the CVEs in legacy feed format (gziped JSON).
+// storeCVEsInLegacyFormat stores the CVEs in legacy feed format (gzipped JSON).
 func storeCVEsInLegacyFormat(dbDir string, year int, cveFeed *schema.NVDCVEFeedJSON10) error {
 	path := filepath.Join(dbDir, fmt.Sprintf("nvdcve-1.1-%d.json.gz", year))
 	file, err := os.Create(path)
@@ -400,7 +405,7 @@ func storeCVEsInLegacyFormat(dbDir string, year int, cveFeed *schema.NVDCVEFeedJ
 }
 
 // readCVEsLegacyFormat loads the CVEs stored in the legacy feed format.
-func readCVEsLegacyFormat(dbDir string, year int, logger log.Logger) (*schema.NVDCVEFeedJSON10, error) {
+func readCVEsLegacyFormat(dbDir string, year int) (*schema.NVDCVEFeedJSON10, error) {
 	path := filepath.Join(dbDir, fmt.Sprintf("nvdcve-1.1-%d.json.gz", year))
 
 	file, err := os.Open(path)

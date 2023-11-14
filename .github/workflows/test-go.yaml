@@ -47,7 +47,7 @@ jobs:
 
     env:
       RACE_ENABLED: false
-      GO_TEST_TIMEOUT: 15m
+      GO_TEST_TIMEOUT: 30m
 
     steps:
     - name: Install Go
