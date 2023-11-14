@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -22,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/micromdm/scep/v2/cryptoutil/x509util"
 	"github.com/stretchr/testify/require"
 )
@@ -453,6 +455,7 @@ func TestRunMDMCommandValidations(t *testing.T) {
 		})
 	}
 }
+
 func TestMDMCommonAuthorization(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
@@ -954,6 +957,65 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			// test authz delete config profile (team 1)
 			err = svc.DeleteMDMWindowsConfigProfile(ctx, "team-1")
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
+		})
+	}
+}
+
+func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid != 1 {
+			return nil, &notFoundError{}
+		}
+		return &fleet.Team{ID: tid, Name: "team1"}, nil
+	}
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
+		if bytes.Contains(cp.SyncML, []byte("duplicate")) {
+			return nil, &alreadyExistsError{}
+		}
+		cp.ProfileUUID = uuid.New().String()
+		return &cp, nil
+	}
+
+	cases := []struct {
+		desc          string
+		tmID          uint
+		profile       string
+		mdmConfigured bool
+		wantErr       string
+	}{
+		{"empty profile", 0, "", true, "The file should include valid XML."},
+		{"plist data", 0, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "The file should include valid XML."},
+		{"valid windows profile", 0, `<Replace></Replace>`, true, ""},
+		{"mdm not enabled", 0, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
+		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "zzz"},
+		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						EnabledAndConfigured:        true,
+						WindowsEnabledAndConfigured: c.mdmConfigured,
+					},
+				}, nil
+			}
+			ctx = test.UserContext(ctx, test.UserAdmin)
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", strings.NewReader(c.profile))
+			if c.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, c.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }

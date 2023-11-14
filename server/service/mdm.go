@@ -1233,11 +1233,22 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		SyncML: b,
 	}
 	if err := cp.ValidateUserProvided(); err != nil {
+		// this is not great, but since the validations are shared between the CLI
+		// and the API, we must make some changes to error message here.
+		msg := err.Error()
+		if ix := strings.Index(msg, "To control these settings,"); ix >= 0 {
+			msg = strings.TrimSpace(msg[:ix])
+		}
+		err := fleet.NewInvalidArgumentError("profile", "Couldn't upload. "+msg)
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
 	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
 	if err != nil {
+		var existsErr existsErrorInterface
+		if errors.As(err, &existsErr) {
+			err = fleet.NewInvalidArgumentError("profile", "Couldn't upload. A configuration profile with this name already exists.")
+		}
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
