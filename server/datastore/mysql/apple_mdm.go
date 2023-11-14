@@ -118,6 +118,7 @@ SELECT
 	name,
 	identifier,
 	mobileconfig,
+	checksum,
 	created_at,
 	updated_at
 FROM

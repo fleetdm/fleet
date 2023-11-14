@@ -529,6 +529,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAnyMW.GET("/api/_version_/fleet/mdm/commands", listMDMCommandsEndpoint, listMDMCommandsRequest{})
 	mdmAnyMW.GET("/api/_version_/fleet/mdm/disk_encryption/summary", getMDMDiskEncryptionSummaryEndpoint, getMDMDiskEncryptionSummaryRequest{})
 	mdmAnyMW.GET("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
+
+	mdmAnyMW.GET("/api/_version_/fleet/mdm/profiles/{profile_id_or_uuid}", getMDMConfigProfileEndpoint, getMDMConfigProfileRequest{})
 	mdmAnyMW.DELETE("/api/_version_/fleet/mdm/profiles/{profile_id_or_uuid}", deleteMDMConfigProfileEndpoint, deleteMDMConfigProfileRequest{})
 
 	// the following set of mdm endpoints must always be accessible (even

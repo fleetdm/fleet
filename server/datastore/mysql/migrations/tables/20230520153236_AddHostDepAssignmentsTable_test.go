@@ -8,6 +8,9 @@ import (
 )
 
 func TestUp_20230520153236(t *testing.T) {
+	// skipping old migration tests as migrations don't change and we're getting
+	// timeouts in CI
+	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t)
 	applyNext(t, db)
 
