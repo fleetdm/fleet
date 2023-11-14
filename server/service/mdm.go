@@ -1160,12 +1160,12 @@ func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName 
 
 	appleProfiles, err := getAppleProfiles(ctx, tmID, appCfg, profiles)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "TODO")
+		return ctxerr.Wrap(ctx, err, "validating macOS profiles")
 	}
 
 	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profiles)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "TODO")
+		return ctxerr.Wrap(ctx, err, "validating Windows profiles")
 	}
 
 	if dryRun {

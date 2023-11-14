@@ -1181,7 +1181,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			``,
 		},
 		{
-			"only windows",
+			"mixed profiles",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			false,
 			nil,
@@ -1197,7 +1197,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			``,
 		},
 		{
-			"mixed profiles",
+			"only windows",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			false,
 			nil,
