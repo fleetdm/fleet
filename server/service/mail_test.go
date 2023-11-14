@@ -103,8 +103,8 @@ func TestMailService(t *testing.T) {
     "authentication_method": "authmethod_plain",
     "user_name": "mailpit-username",
     "password": "mailpit-password",
-    "enable_ssl_tls": true,
-    "verify_ssl_certs": true,
+    "enable_ssl_tls": false,
+    "verify_ssl_certs": false,
     "port": 1026,
     "server": "127.0.0.1",
     "sender_address": "foobar_updated@example.com"
