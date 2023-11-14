@@ -644,14 +644,26 @@ export const internationalTimeFormat = (date: number | Date): string => {
 
 const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
   darwin: {
-    enabled:
-      "The disk is encrypted. The user must enter their<br/> password when they start their computer.",
-    disabled:
-      "The disk might be encrypted, but FileVault is off. The<br/> disk can be accessed without entering a password.",
+    enabled: (
+      <>
+        The disk is encrypted. The user must enter their
+        <br /> password when they start their computer.
+      </>
+    ),
+    disabled: (
+      <>
+        The disk might be encrypted, but FileVault is off. The
+        <br /> disk can be accessed without entering a password.
+      </>
+    ),
   },
   windows: {
-    enabled:
-      "The disk is encrypted. If recently turned on,<br/> encryption could take awhile.",
+    enabled: (
+      <>
+        The disk is encrypted. If recently turned on,
+        <br /> encryption could take awhile.
+      </>
+    ),
     disabled: "The disk is unencrypted.",
   },
 };
