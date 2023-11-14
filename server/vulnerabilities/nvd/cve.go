@@ -47,7 +47,7 @@ func DownloadNVDCVEFeed(vulnPath string, logger log.Logger) error {
 
 	level.Debug(logger).Log("msg", "syncing CVEs")
 	start := time.Now()
-	if err := cveSyncer.Do(ctx, nvdsync.WithLogger(logger)); err != nil {
+	if err := cveSyncer.Do(ctx); err != nil {
 		return fmt.Errorf("download nvd cve feed: %w", err)
 	}
 	level.Debug(logger).Log("msg", "CVEs synced", "duration", time.Since(start))
