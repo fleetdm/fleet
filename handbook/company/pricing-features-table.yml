@@ -375,6 +375,10 @@
       moreInfoUrl: https://github.com/fleetdm/fleet-mdm-gitops
       productCategories: [Endpoint operations,Device management,Vulnerability management]
       tier: Free
+      demos:
+        description: A top savings and investment company wanted workflows and automation so that one bad actor can't brick their fleet.  This way, they have to make a pull request first.
+        quote: I don't want one bad actor to brick my fleet.  I want them to make a pull request first.
+        moreInfoUrl: https://docs.google.com/document/d/1hAQL6P--Tt3syq1MTRONAxhQA_2Vjt3oOJJt_O4xbiE/edit?disco=AAABAVnYvns&usp_dm=true#heading=h.7en766pueek4
       #  ╔═╗╦═╗╔═╗╔═╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
       #  ╠╣ ╠╦╝║╣ ║╣   ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
       #  ╚  ╩╚═╚═╝╚═╝  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝

@@ -333,7 +333,7 @@ const QueryDetailsPage = ({
         />
       );
     }
-    return <QueryReport queryReport={queryReport} isClipped={isClipped} />;
+    return <QueryReport {...{ queryReport, isClipped }} />;
   };
 
   return (
