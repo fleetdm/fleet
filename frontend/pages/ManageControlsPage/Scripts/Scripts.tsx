@@ -125,7 +125,6 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
           ListItemComponent={({ listItem }) => (
             <ScriptListItem script={listItem} onDelete={onClickDelete} />
           )}
-          sortCompareFn={(a, b) => a.name.localeCompare(b.name)}
         />
         <ScriptListPagination
           meta={meta}

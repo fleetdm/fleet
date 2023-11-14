@@ -1,4 +1,5 @@
 import React, { useContext } from "react";
+import { useQuery } from "react-query";
 import { AxiosResponse } from "axios";
 import { InjectedRouter } from "react-router";
 
@@ -42,37 +43,22 @@ const Scripts = ({
 }: IScriptsProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  // TODO - restore real data
+  const hostId = host?.id;
 
-  // const {
-  //   data: hostScriptResponse,
-  //   isLoading: isLoadingScriptData,
-  //   isError: isErrorScriptData,
-  //   refetch: refetchScriptsData,
-  // } = useQuery<IHostScriptsResponse, IApiError>(
-  //   ["scripts", hostId, page],
-  //   () => scriptsAPI.getHostScripts(hostId as number, page),
-  //   {
-  //     refetchOnWindowFocus: false,
-  //     retry: false,
-  //     enabled: Boolean(hostId),
-  //   }
-  // );
-
-  const hostScriptResponse: IHostScriptsResponse = {
-    scripts: [
-      {
-        script_id: 1,
-        name: "test windows script",
-        last_execution: {
-          execution_id: "1",
-          executed_at: "2021-08-10T15:00:00.000Z",
-          status: "pending",
-        },
-      },
-    ],
-    meta: { has_next_results: false, has_previous_results: false },
-  };
+  const {
+    data: hostScriptResponse,
+    isLoading: isLoadingScriptData,
+    isError: isErrorScriptData,
+    refetch: refetchScriptsData,
+  } = useQuery<IHostScriptsResponse, IApiError>(
+    ["scripts", hostId, page],
+    () => scriptsAPI.getHostScripts(hostId as number, page),
+    {
+      refetchOnWindowFocus: false,
+      retry: false,
+      enabled: Boolean(hostId),
+    }
+  );
 
   if (!host) return null;
 
@@ -92,8 +78,7 @@ const Scripts = ({
             host_id: host.id,
             script_id: script.script_id,
           });
-          // TODO - restore refetch call below
-          // refetchScriptsData();
+          refetchScriptsData();
         } catch (e) {
           const error = e as AxiosResponse<IApiError>;
           renderFlash("error", error.data.errors[0].reason);
@@ -104,11 +89,9 @@ const Scripts = ({
     }
   };
 
-  // TODO - restore
-  // if (isErrorScriptData) {
-  //   return <DataError card />;
-  // }
-
+  if (isErrorScriptData) {
+    return <DataError card />;
+  }
   const scriptColumnConfigs = generateTableColumnConfigs(onActionSelection);
   const data = generateDataSet(
     currentUser,
@@ -132,9 +115,7 @@ const Scripts = ({
           isAllPagesSelected={false}
           columns={scriptColumnConfigs}
           data={data}
-          // TODO - restore
-          // isLoading={isLoadingScriptData}
-          isLoading={false}
+          isLoading={isLoadingScriptData}
           onQueryChange={onQueryChange}
           disableNextPage={hostScriptResponse?.meta.has_next_results}
           defaultPageIndex={page}
