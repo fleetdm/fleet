@@ -1232,7 +1232,10 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	return nil
 }
 
-var macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+var (
+	macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+	citrixName          = regexp.MustCompile(`Citrix Workspace [0-9]+`)
+)
 
 // sanitizeSoftware performs any sanitization required to the ingested software fields.
 //
@@ -1279,6 +1282,38 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 					return
 				}
 				s.Version = "20" + s.Version // Cloudflare WARP was released on 2019.
+			},
+		},
+		{
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return h.Platform == "windows" && citrixName.Match([]byte(s.Name))
+			},
+			mutateSoftware: func(s *fleet.Software) {
+				parts := strings.Split(s.Version, ".")
+				if len(parts) <= 1 {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
+					return
+				}
+
+				part1, err := strconv.Atoi(parts[0])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+
+				part2, err := strconv.Atoi(parts[1])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+
+				if (part1*100 + part2) > 1904 {
+					newFirstPart := part1*100 + part2
+					newFirstStr := strconv.Itoa(newFirstPart)
+					newParts := []string{newFirstStr}
+					newParts = append(newParts, parts[2:]...)
+					s.Version = strings.Join(newParts, ".")
+				}
 			},
 		},
 	}
