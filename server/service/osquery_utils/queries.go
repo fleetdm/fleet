@@ -1307,13 +1307,11 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 					return
 				}
 
-				if (part1*100 + part2) > 1904 {
-					newFirstPart := part1*100 + part2
-					newFirstStr := strconv.Itoa(newFirstPart)
-					newParts := []string{newFirstStr}
-					newParts = append(newParts, parts[2:]...)
-					s.Version = strings.Join(newParts, ".")
-				}
+				newFirstPart := part1*100 + part2
+				newFirstStr := strconv.Itoa(newFirstPart)
+				newParts := []string{newFirstStr}
+				newParts = append(newParts, parts[2:]...)
+				s.Version = strings.Join(newParts, ".")
 			},
 		},
 	}

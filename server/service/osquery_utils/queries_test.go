@@ -1485,6 +1485,20 @@ func TestSanitizeSoftware(t *testing.T) {
 				Version: "1.2.3",
 			},
 		},
+		{
+			name: "Citrix Workspace on Windows",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "23.9.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "2309.1.104",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())
