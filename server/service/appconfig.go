@@ -644,6 +644,13 @@ func (svc *Service) validateMDM(
 		}
 	}
 
+	if !mdm.WindowsEnabledAndConfigured {
+		if mdm.WindowsSettings.CustomSettings.Set && len(mdm.WindowsSettings.CustomSettings.Value) != len(oldMdm.WindowsSettings.CustomSettings.Value) {
+			invalid.Append("windows_settings.custom_settings",
+				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
+		}
+	}
+
 	if name := mdm.AppleBMDefaultTeam; name != "" && name != oldMdm.AppleBMDefaultTeam {
 		if !license.IsPremium() {
 			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())

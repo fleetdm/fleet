@@ -935,6 +935,17 @@ func (svc *Service) editTeamFromSpec(
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
+	if spec.MDM.WindowsSettings.CustomSettings.Set {
+		if !appCfg.MDM.WindowsEnabledAndConfigured && len(team.Config.MDM.WindowsSettings.CustomSettings.Value) != len(spec.MDM.WindowsSettings.CustomSettings.Value) {
+			// TODO: Address potential edge cases when teams that previously utilized MDM features
+			// are edited later edited when MDM disabled
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.custom_settings",
+				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
+		}
+
+		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
+	}
+
 	if spec.Scripts.Set {
 		team.Config.Scripts = spec.Scripts
 	}

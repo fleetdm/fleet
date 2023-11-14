@@ -9121,3 +9121,159 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0)
 }
+
+func (s *integrationMDMTestSuite) TestAppConfigMDMWindowsProfiles() {
+	t := s.T()
+
+	// set the windows custom settings fields
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_settings": { "custom_settings": ["foo", "bar"] } }
+  }`), http.StatusOK, &acResp)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.WindowsSettings.CustomSettings.Value)
+
+	// check that they are returned by a GET /config
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.WindowsSettings.CustomSettings.Value)
+
+	// patch without specifying the windows custom settings fields and an unrelated
+	// field, should not remove them
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": true }
+  }`), http.StatusOK, &acResp)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.WindowsSettings.CustomSettings.Value)
+
+	// patch with explicitly empty windows custom settings fields, would remove
+	// them but this is a dry-run
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_settings": { "custom_settings": null } }
+  }`), http.StatusOK, &acResp, "dry_run", "true")
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.WindowsSettings.CustomSettings.Value)
+
+	// patch with explicitly empty windows custom settings fields, removes them
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_settings": { "custom_settings": null } }
+  }`), http.StatusOK, &acResp)
+	assert.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
+}
+
+func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
+	t := s.T()
+
+	// create a team through the service so it initializes the agent ops
+	teamName := t.Name() + "team1"
+	team := &fleet.Team{
+		Name:        teamName,
+		Description: "desc team1",
+	}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	team = createTeamResp.Team
+
+	rawTeamSpec := func(mdmValue string) json.RawMessage {
+		return json.RawMessage(fmt.Sprintf(`{ "specs": [{ "name": %q, "mdm": %s }] }`, team.Name, mdmValue))
+	}
+
+	// set the windows custom settings fields
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
+		{ "windows_settings": { "custom_settings": ["foo", "bar"] }  }
+	`), http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+
+	// check that they are returned by a GET /config
+	var teamResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.ElementsMatch(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+
+	// patch without specifying the windows custom settings fields and an unrelated
+	// field, should not remove them
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`{ "enable_disk_encryption": true }`), http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+
+	// check that they are returned by a GET /config
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.ElementsMatch(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+
+	// patch with explicitly empty windows custom settings fields, would remove
+	// them but this is a dry-run
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
+		{ "windows_settings": { "custom_settings": null } }
+  `), http.StatusOK, &applyResp, "dry_run", "true")
+	require.Len(t, applyResp.TeamIDsByName, 0)
+
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.ElementsMatch(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+
+	// patch with explicitly empty windows custom settings fields, removes them
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
+		{ "windows_settings": { "custom_settings": null } }
+  `), http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+
+	// apply with custom windows settings
+	//	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+	//		Name: teamName,
+	//		MDM: fleet.TeamSpecMDM{
+	//			WindowsSettings: fleet.WindowsSettings{CustomSettings: optjson.SetSlice[string]([]string{"foo", "bar"})},
+	//		},
+	//	}}}
+	//	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	//
+	//	// retrieving the team returns the custom macos settings
+	//	var teamResp getTeamResponse
+	//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	//	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	//
+	//	// apply without custom macos settings specified and unrelated field, should
+	//	// not replace existing settings
+	//	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+	//		Name: teamName,
+	//		MDM: fleet.TeamSpecMDM{
+	//			EnableDiskEncryption: optjson.SetBool(false),
+	//		},
+	//	}}}
+	//	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	//	teamResp = getTeamResponse{}
+	//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	//	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+	//
+	//	// apply with explicitly empty custom macos settings would clear the existing
+	//	// settings, but dry-run
+	//	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+	//		Name: teamName,
+	//		MDM: fleet.TeamSpecMDM{
+	//			WindowsSettings: fleet.WindowsSettings{CustomSettings: nil},
+	//		},
+	//	}}}
+	//	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	//	teamResp = getTeamResponse{}
+	//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	//	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	//
+	//	// apply with explicitly empty custom macos settings clears the existing settings
+	//	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+	//		Name: teamName,
+	//		MDM: fleet.TeamSpecMDM{
+	//			MacOSSettings: map[string]interface{}{"custom_settings": []string{}},
+	//		},
+	//	}}}
+	//	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	//	teamResp = getTeamResponse{}
+	//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	//	require.Equal(t, []string{}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+}

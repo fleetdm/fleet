@@ -161,6 +161,8 @@ type MDM struct {
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
+	WindowsSettings WindowsSettings `json:"windows_settings"`
+
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
@@ -498,6 +500,12 @@ func (c *AppConfig) Copy() *AppConfig {
 		scripts := make([]string, len(c.Scripts.Value))
 		copy(scripts, c.Scripts.Value)
 		clone.Scripts = optjson.SetSlice[string](scripts)
+	}
+
+	if c.MDM.WindowsSettings.CustomSettings.Set {
+		windowsSettings := make([]string, len(c.MDM.WindowsSettings.CustomSettings.Value))
+		copy(windowsSettings, c.MDM.WindowsSettings.CustomSettings.Value)
+		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice[string](windowsSettings)
 	}
 
 	return &clone
@@ -1131,4 +1139,10 @@ type Version struct{}
 // AuthzType implements authz.AuthzTyper.
 func (v *Version) AuthzType() string {
 	return "version"
+}
+
+type WindowsSettings struct {
+	// NOTE: These are only present here for informational purposes.
+	// (The source of truth for profiles is in MySQL.)
+	CustomSettings optjson.Slice[string] `json:"custom_settings"`
 }

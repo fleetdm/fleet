@@ -137,6 +137,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			MacOSSetupAssistant: optjson.String{Set: true},
 			BootstrapPackage:    optjson.String{Set: true},
 		},
+		// because the WindowsSettings was marshalled to JSON to be saved in the DB,
+		// it did get marshalled, and then when unmarshalled it was set (but
+		// empty).
+		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+		},
 	}, team.Config.MDM)
 
 	// an activity was created for team spec applied
