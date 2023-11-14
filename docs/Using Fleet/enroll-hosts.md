@@ -87,8 +87,6 @@ To install the fleetd Chrome extension on Google Admin, there are two steps:
 ### Step 1: OU for Chromebook users
 Create an [organizational unit](https://support.google.com/a/answer/182537?hl=en) where the extension should be installed. [Add all the relevant users](https://support.google.com/a/answer/182449?hl=en) to this OU.
 
-> Currently, the Chrome extension can only be installed across the entire organization. The work to enable installation for sub-groups is tracked in https://github.com/fleetdm/fleet/issues/13353. 
-
 In the Google Admin console:
 1. In the navigation menu, visit **Devices > Chrome > Apps & Extensions > Users & browsers**.
 2. Select the relevant OU where you want the fleetd Chrome extension to be installed.
