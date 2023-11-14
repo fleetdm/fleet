@@ -191,7 +191,7 @@ func (t *TeamMDM) Copy() *TeamMDM {
 	if t.WindowsSettings.CustomSettings.Set {
 		windowsSettings := make([]string, len(t.WindowsSettings.CustomSettings.Value))
 		copy(windowsSettings, t.WindowsSettings.CustomSettings.Value)
-		t.WindowsSettings.CustomSettings = optjson.SetSlice[string](windowsSettings)
+		clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
 	return &clone
 }

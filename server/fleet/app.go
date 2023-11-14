@@ -499,13 +499,13 @@ func (c *AppConfig) Copy() *AppConfig {
 	if c.Scripts.Set {
 		scripts := make([]string, len(c.Scripts.Value))
 		copy(scripts, c.Scripts.Value)
-		clone.Scripts = optjson.SetSlice[string](scripts)
+		clone.Scripts = optjson.SetSlice(scripts)
 	}
 
 	if c.MDM.WindowsSettings.CustomSettings.Set {
 		windowsSettings := make([]string, len(c.MDM.WindowsSettings.CustomSettings.Value))
 		copy(windowsSettings, c.MDM.WindowsSettings.CustomSettings.Value)
-		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice[string](windowsSettings)
+		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
 
 	return &clone
