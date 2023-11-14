@@ -81,7 +81,7 @@ services:
     image: rnwood/smtp4dev:v3
     ports:
       - "8028:80"
-      - "1028:25"
+      - "1027:25"
     volumes:
       - ./tools/smtp4dev:/smtp4dev
     environment:
