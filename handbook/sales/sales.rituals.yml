@@ -18,3 +18,10 @@
   description: "https://fleetdm.com/handbook/customers#review-rep-activity"
   moreInfoUrl: "https://fleetdm.com/handbook/customers#review-rep-activity"
   dri: "alexmitchelliii"
+-
+  task: "Sales team member onboarding"
+  startedOn: "2023-11-14"
+  frequency: "One-time"
+  description: "Once the standard Fleetie onboarding issue is complete, Sales team members should open a new issue from the Sales team member onboaring issue template and complete it"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training"
+  dri: "alexmitchelliii"
