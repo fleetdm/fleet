@@ -2,6 +2,7 @@ package mail
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -22,9 +23,9 @@ var testFunctions = [...]func(*testing.T, fleet.MailService){
 func TestMail(t *testing.T) {
 	// This mail test requires mailhog unauthenticated running on localhost:1025
 	// and mailpit running on localhost:1026.
-	// if _, ok := os.LookupEnv("MAIL_TEST"); !ok {
-	// 	t.Skip("Mail tests are disabled")
-	// }
+	if _, ok := os.LookupEnv("MAIL_TEST"); !ok {
+		t.Skip("Mail tests are disabled")
+	}
 
 	for _, f := range testFunctions {
 		r, err := NewService(config.TestConfig())
