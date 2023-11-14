@@ -10,6 +10,7 @@ type ISupportedGraphicNames = Extract<
   GraphicNames,
   | "file-configuration-profile"
   | "file-sh"
+  | "file-ps1"
   | "file-py"
   | "file-script"
   | "file-pdf"

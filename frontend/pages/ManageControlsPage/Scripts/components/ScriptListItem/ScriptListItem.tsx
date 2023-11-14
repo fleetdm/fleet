@@ -24,6 +24,8 @@ const getFileIconName = (fileName: string) => {
       return "file-py";
     case "sh":
       return "file-sh";
+    case "ps1":
+      return "file-ps1";
     default:
       return "file-script";
   }
