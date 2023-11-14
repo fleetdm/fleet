@@ -47,8 +47,7 @@
             <div :class="[query.tags.length > 2 ? 'mt-1' : '']"  class="d-flex flex-wrap align-items-center justify-content-end justify-content-sm-start">
               <div purpose="requires-mdm-badge" class="mr-md-1 ml-1 ml-md-0" :class="[query.tags.length > 2 ? 'mb-1' : '']" v-if="query.requiresMdm">requires mdm</div>
               <div purpose="critical-badge" class="mr-md-1 ml-1 ml-md-0" :class="[query.tags.length > 2 ? 'mb-1' : '']" v-if="query.critical">critical</div>
-
-              <span class="mb-1" v-if="!query.tags || !query.tags.length">--</span>
+              <span class="mb-1" v-if="(!query.tags || !query.tags.length) && !query.critical && !query.requiresMdm">--</span>
               <div purpose="query-tag" class="mr-md-1 ml-1 ml-md-0" :class="[query.tags.length > 2 ? 'mb-1' : '']" v-for="tag in query.tags">
                 {{tag}}
               </div>
