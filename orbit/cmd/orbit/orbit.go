@@ -1215,7 +1215,7 @@ func (s *serviceChecker) Execute() error {
 }
 
 func (s *serviceChecker) Interrupt(err error) {
-	log.Debug().Err(err).Msg("interrupt serviceChecker")
+	log.Error().Err(err).Msg("interrupt serviceChecker")
 	close(s.localInterruptCh) // Signal execute to return.
 }
 

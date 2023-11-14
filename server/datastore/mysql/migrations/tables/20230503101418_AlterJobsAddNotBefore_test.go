@@ -8,6 +8,9 @@ import (
 )
 
 func TestUp_20230503101418(t *testing.T) {
+	// skipping old migration tests as migrations don't change and we're getting
+	// timeouts in CI
+	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t)
 
 	r, err := db.Exec(`INSERT INTO jobs (name, args, state) VALUES (?, ?, ?)`, "Test", "{}", "queued")

@@ -118,6 +118,7 @@ SELECT
 	name,
 	identifier,
 	mobileconfig,
+	checksum,
 	created_at,
 	updated_at
 FROM
@@ -1188,9 +1189,6 @@ func (ds *Datastore) BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, 
 	})
 }
 
-// for tests, set to override the default batch size.
-var testDeleteMDMAppleProfilesBatchSize int
-
 func bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, profs []*fleet.MDMAppleProfilePayload) error {
 	if len(profs) == 0 {
 		return nil
@@ -1212,8 +1210,8 @@ func bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtCon
 
 	const defaultBatchSize = 1000 // results in this times 2 placeholders
 	batchSize := defaultBatchSize
-	if testDeleteMDMAppleProfilesBatchSize > 0 {
-		batchSize = testDeleteMDMAppleProfilesBatchSize
+	if testDeleteMDMProfilesBatchSize > 0 {
+		batchSize = testDeleteMDMProfilesBatchSize
 	}
 
 	resetBatch := func() {
@@ -1242,9 +1240,6 @@ func bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtCon
 	}
 	return nil
 }
-
-// for tests, set to override the default batch size.
-var testUpsertMDMAppleDesiredProfilesBatchSize int
 
 // Note that team ID 0 is used for profiles that apply to hosts in no team
 // (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
@@ -1485,8 +1480,8 @@ WHERE
 
 		const defaultBatchSize = 1000 // results in this times 9 placeholders
 		batchSize := defaultBatchSize
-		if testUpsertMDMAppleDesiredProfilesBatchSize > 0 {
-			batchSize = testUpsertMDMAppleDesiredProfilesBatchSize
+		if testUpsertMDMDesiredProfilesBatchSize > 0 {
+			batchSize = testUpsertMDMDesiredProfilesBatchSize
 		}
 
 		resetBatch := func() {
@@ -1740,8 +1735,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 
 	const defaultBatchSize = 1000 // results in this times 9 placeholders
 	batchSize := defaultBatchSize
-	if testUpsertMDMAppleDesiredProfilesBatchSize > 0 {
-		batchSize = testUpsertMDMAppleDesiredProfilesBatchSize
+	if testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = testUpsertMDMDesiredProfilesBatchSize
 	}
 
 	resetBatch := func() {
