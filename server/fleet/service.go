@@ -820,6 +820,10 @@ type Service interface {
 	// the specified team.
 	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader) (*MDMWindowsConfigProfile, error)
 
+	// NewMDMUnsupportedConfigProfile is called when a profile with an
+	// unsupported extension is uploaded.
+	NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
 
