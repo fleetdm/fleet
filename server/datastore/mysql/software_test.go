@@ -737,19 +737,19 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		expected := []fleet.Software{foo001}
 		test.ElementsMatchSkipID(t, software, expected)
 
-		opts.MatchQuery = "CVE-2022-0002"
+		opts.ListOptions.MatchQuery = "CVE-2022-0002"
 		software = listSoftwareCheckCount(t, ds, 1, 1, opts, true)
 		expected = []fleet.Software{foo001}
 		test.ElementsMatchSkipID(t, software, expected)
 
 		// partial CVE
-		opts.MatchQuery = "0002"
+		opts.ListOptions.MatchQuery = "0002"
 		software = listSoftwareCheckCount(t, ds, 1, 1, opts, true)
 		expected = []fleet.Software{foo001}
 		test.ElementsMatchSkipID(t, software, expected)
 
 		// unknown CVE
-		opts.MatchQuery = "CVE-2022-0000"
+		opts.ListOptions.MatchQuery = "CVE-2022-0000"
 		listSoftwareCheckCount(t, ds, 0, 0, opts, true)
 	})
 
@@ -765,13 +765,13 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		test.ElementsMatchSkipID(t, software, expected)
 
 		// query by version
-		opts.MatchQuery = "0.0.3"
+		opts.ListOptions.MatchQuery = "0.0.3"
 		software = listSoftwareCheckCount(t, ds, 2, 2, opts, true)
 		expected = []fleet.Software{foo003, bar003}
 		test.ElementsMatchSkipID(t, software, expected)
 
 		// query by version (case insensitive)
-		opts.MatchQuery = "V0.0.2"
+		opts.ListOptions.MatchQuery = "V0.0.2"
 		software = listSoftwareCheckCount(t, ds, 1, 1, opts, true)
 		expected = []fleet.Software{foo002}
 		test.ElementsMatchSkipID(t, software, expected)

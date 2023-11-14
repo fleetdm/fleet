@@ -753,8 +753,8 @@ const ActivityItem = ({
         size="small"
         hasWhiteBackground
       />
-      <div className={`${baseClass}__details`}>
-        <p>
+      <div className={`${baseClass}__details-wrapper`}>
+        <div className={"activity-details"}>
           {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
           <span className={`${baseClass}__details-topline`}>
             {activity.type === ActivityType.UserLoggedIn ? (
@@ -784,7 +784,7 @@ const ActivityItem = ({
           >
             {internationalTimeFormat(activityCreatedAt)}
           </ReactTooltip>
-        </p>
+        </div>
       </div>
       <div className={`${baseClass}__dash`} />
     </div>

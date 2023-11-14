@@ -595,37 +595,37 @@ allow {
 }
 
 ##
-# Apple MDM
+# Apple and Windows MDM
 ##
 
-# Global admins and maintainers can read and write Apple MDM config profiles.
+# Global admins and maintainers can read and write MDM config profiles.
 allow {
-  object.type == "mdm_apple_config_profile"
+  object.type == "mdm_config_profile"
   subject.global_role == [admin, maintainer][_]
   action == [read, write][_]
 }
 
-# Global gitops can write Apple MDM config profiles.
+# Global gitops can write MDM config profiles.
 allow {
-  object.type == "mdm_apple_config_profile"
+  object.type == "mdm_config_profile"
   subject.global_role == gitops
   action == write
 }
 
-# Team admins and maintainers can read and write Apple MDM config profiles on their teams.
+# Team admins and maintainers can read and write MDM config profiles on their teams.
 allow {
   not is_null(object.team_id)
   object.team_id != 0
-  object.type == "mdm_apple_config_profile"
+  object.type == "mdm_config_profile"
   team_role(subject, object.team_id) == [admin, maintainer][_]
   action == [read, write][_]
 }
 
-# Team gitops can write Apple MDM config profiles on their teams.
+# Team gitops can write MDM config profiles on their teams.
 allow {
   not is_null(object.team_id)
   object.team_id != 0
-  object.type == "mdm_apple_config_profile"
+  object.type == "mdm_config_profile"
   team_role(subject, object.team_id) == gitops
   action == write
 }
@@ -644,32 +644,32 @@ allow {
   action == [read, write][_]
 }
 
-# Global admins and maintainers can write (execute) MDM Apple commands.
+# Global admins and maintainers can write (execute) MDM commands.
 allow {
-  object.type == "mdm_apple_command"
+  object.type == "mdm_command"
   subject.global_role == [admin, maintainer][_]
   action == write
 }
 
-# Team admins and maintainers can write (execute) MDM Apple commands on hosts of their teams.
+# Team admins and maintainers can write (execute) MDM commands on hosts of their teams.
 allow {
   not is_null(object.team_id)
-  object.type == "mdm_apple_command"
+  object.type == "mdm_command"
   team_role(subject, object.team_id) == [admin, maintainer][_]
   action == write
 }
 
-# Global admins, maintainers, observers and observer_plus can read MDM Apple commands.
+# Global admins, maintainers, observers and observer_plus can read MDM commands.
 allow {
-  object.type == "mdm_apple_command"
+  object.type == "mdm_command"
   subject.global_role == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 
-# Team admins, maintainers, observers and observer_plus can read MDM Apple commands on hosts of their teams.
+# Team admins, maintainers, observers and observer_plus can read MDM commands on hosts of their teams.
 allow {
   not is_null(object.team_id)
-  object.type == "mdm_apple_command"
+  object.type == "mdm_command"
   team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
   action == read
 }

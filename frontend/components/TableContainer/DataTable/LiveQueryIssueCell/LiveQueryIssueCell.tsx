@@ -30,7 +30,7 @@ const LiveQueryIssueCell = ({
         data-tip-disable={false}
       >
         <Icon
-          name="issue"
+          name="error-outline"
           size="small"
           color={status === "offline" ? "status-error" : "status-warning"}
         />

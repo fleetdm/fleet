@@ -117,3 +117,64 @@ oHwpyQbv9Qs+3bjPOQ7DkwekT+w1cptEKudBCC3WQKui1P0NNL0R
 // prevent static analysis tools from raising issues due to detection of private key
 // in code.
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+
+func TestGetRawProfilePlatform(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    []byte
+		expected string
+	}{
+		{
+			name:     "Darwin case sensitive",
+			input:    []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"),
+			expected: "darwin",
+		},
+		{
+			name:     "Darwin case insensitive",
+			input:    []byte("<?XML version=\"1.0\" encoding=\"UTF-8\"?>"),
+			expected: "darwin",
+		},
+		{
+			name:     "Windows case sensitive",
+			input:    []byte("<Replace this=\"that\">"),
+			expected: "windows",
+		},
+		{
+			name:     "Windows case insensitive",
+			input:    []byte("<REPLACE this=\"that\">"),
+			expected: "windows",
+		},
+		{
+			name:     "Whitespace before prefix",
+			input:    []byte("   <?xml version=\"1.0\"?>"),
+			expected: "darwin",
+		},
+		{
+			name:     "Non-matching prefix",
+			input:    []byte("<nonmatching>"),
+			expected: "",
+		},
+		{
+			name:     "Empty input",
+			input:    []byte(""),
+			expected: "",
+		},
+		{
+			name:     "Only whitespaces",
+			input:    []byte("   "),
+			expected: "",
+		},
+		{
+			name:     "Partial match",
+			input:    []byte("<?x"),
+			expected: "",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetRawProfilePlatform(tt.input)
+			require.Equal(t, tt.expected, got)
+		})
+	}
+}

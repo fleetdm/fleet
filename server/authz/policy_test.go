@@ -1287,11 +1287,11 @@ func TestAuthorizeTeamPolicy(t *testing.T) {
 	})
 }
 
-func TestAuthorizeMDMAppleConfigProfile(t *testing.T) {
+func TestAuthorizeMDMConfigProfile(t *testing.T) {
 	t.Parallel()
 
-	globalProfile := &fleet.MDMAppleConfigProfile{}
-	team1Profile := &fleet.MDMAppleConfigProfile{
+	globalProfile := &fleet.MDMConfigProfileAuthz{}
+	team1Profile := &fleet.MDMConfigProfileAuthz{
 		TeamID: ptr.Uint(1),
 	}
 	runTestCases(t, []authTestCase{
@@ -1724,11 +1724,11 @@ func runTestCasesGroups(t *testing.T, testCaseGroups []tcGroup) {
 	}
 }
 
-func TestAuthorizeMDMAppleCommand(t *testing.T) {
+func TestAuthorizeMDMCommand(t *testing.T) {
 	t.Parallel()
 
-	globalCommand := &fleet.MDMAppleCommandAuthz{}
-	team1Command := &fleet.MDMAppleCommandAuthz{
+	globalCommand := &fleet.MDMCommandAuthz{}
+	team1Command := &fleet.MDMCommandAuthz{
 		TeamID: ptr.Uint(1),
 	}
 	runTestCases(t, []authTestCase{

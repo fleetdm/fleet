@@ -395,11 +395,17 @@ const SelectTargets = ({
 
     return (
       <>
-        <span>{total}</span>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
+        <b>{total}</b>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
         {onlinePercentage()}
         %&nbsp;
         <TooltipWrapper
-          tipContent={`Hosts are online if they<br /> have recently checked <br />into Fleet.`}
+          tipContent={
+            <>
+              Hosts are online if they <br />
+              have recently checked <br />
+              into Fleet.
+            </>
+          }
         >
           online
         </TooltipWrapper>

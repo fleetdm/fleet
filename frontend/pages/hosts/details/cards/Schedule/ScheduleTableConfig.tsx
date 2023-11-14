@@ -76,7 +76,14 @@ const generateTableHeaders = (): IDataColumn[] => {
     {
       Header: () => {
         return (
-          <TooltipWrapper tipContent="This is the performance <br />impact on this host.">
+          <TooltipWrapper
+            tipContent={
+              <>
+                This is the performance <br />
+                impact on this host.
+              </>
+            }
+          >
             Performance impact
           </TooltipWrapper>
         );

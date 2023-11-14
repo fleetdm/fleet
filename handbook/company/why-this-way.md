@@ -1,4 +1,4 @@
-# Why this way?
+# 💭 Why this way?
 
 At Fleet, we rarely label ideas as drafts or theories.  Everything is [always in draft](https://about.gitlab.com/handbook/values/#everything-is-in-draft) and subject to change in future iterations.
 
@@ -340,7 +340,29 @@ Since Fleet is more than MDM, you can collect logs and health data on any comput
 
 That means you can collect logs from Linux servers or Windows factory workstations without enabling remote script execution on those computers, even if you're using script execution on your Macs.
 
+## Why not mention the CEO in Slack threads?
+Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
 
+Now that the company has grown, the CEO gets mentioned in threads [too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) to keep up with thread replies, even for threads he participates in.
+
+From Mike:
+
+<blockquote purpose="large-quote">
+  Staying on top of your Slack mentions (including in threads!) is very important. Please use them. 
+But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.
+
+I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.
+
+ What do I still read?
+ 
+ - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
+ - If you send me a direct message, I'll see and read that ASAP.
+
+Keep in mind I am often in meetings all day, and may not be able to reply promptly.
+  
+When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Zach Wasserman.
+Thank you so much!" 🙇
+</blockquote> 
 
 
 #### Stubs
@@ -356,4 +378,4 @@ Please see [handbook/company/why-this-way#why-direct-responsibility](https://fle
 Please see [handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).
 
 <meta name="maintainedBy" value="mikermcneil">
-<meta name="title" value="Why this way?">
+<meta name="title" value="💭 Why this way?">

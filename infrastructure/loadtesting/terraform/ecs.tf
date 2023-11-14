@@ -169,24 +169,20 @@ resource "aws_ecs_task_definition" "backend" {
             value = "true"
           },
           {
-            name  = "FLEET_FIREHOSE_STATUS_STREAM"
-            value = aws_kinesis_firehose_delivery_stream.osquery_status.name
-          },
-          {
-            name  = "FLEET_FIREHOSE_RESULT_STREAM"
-            value = aws_kinesis_firehose_delivery_stream.osquery_results.name
-          },
-          {
-            name  = "FLEET_FIREHOSE_REGION"
-            value = data.aws_region.current.name
-          },
-          {
             name  = "FLEET_OSQUERY_STATUS_LOG_PLUGIN"
-            value = "firehose"
+            value = "filesystem"
+          },
+          {
+            name  = "FLEET_FILESYSTEM_STATUS_LOG_FILE"
+            value = "/dev/null"
           },
           {
             name  = "FLEET_OSQUERY_RESULT_LOG_PLUGIN"
-            value = "firehose"
+            value = "filesystem"
+          },
+          {
+            name  = "FLEET_FILESYSTEM_RESULT_LOG_FILE"
+            value = "/dev/null"
           },
           {
             name  = "FLEET_SERVER_TLS"

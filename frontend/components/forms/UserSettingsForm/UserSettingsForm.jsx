@@ -57,11 +57,14 @@ class UserSettingsForm extends Component {
             hint={renderEmailHint()}
             disabled={!smtpConfigured}
             tooltip={
-              "\
-              Editing your email address requires that SMTP or SES is configured in order to send a validation email.\
-              <br /><br /> \
-              Users with Admin role can configure SMTP in <strong>Settings &gt; Organization settings</strong>.\
-            "
+              <>
+                Editing your email address requires that SMTP or SES is
+                configured in order to send a validation email.
+                <br />
+                <br />
+                Users with Admin role can configure SMTP in{" "}
+                <strong>Settings &gt; Organization settings</strong>.
+              </>
             }
           />
         </div>

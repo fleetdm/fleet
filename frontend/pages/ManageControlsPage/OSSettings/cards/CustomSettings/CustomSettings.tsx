@@ -1,27 +1,27 @@
 import React, { useContext, useRef, useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosResponse } from "axios";
 
-import { IApiError } from "interfaces/errors";
 import { IMdmProfile, IMdmProfilesResponse } from "interfaces/mdm";
 import mdmAPI from "services/entities/mdm";
-import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
 import CustomLink from "components/CustomLink";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
-import FileUploader from "../../../components/FileUploader";
 import UploadList from "../../../components/UploadList";
 
-import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 import ProfileListItem from "./components/ProfileListItem";
 import ProfileListHeading from "./components/ProfileListHeading";
+import ProfileUploader from "./components/ProfileUploader";
 
 const baseClass = "custom-settings";
 
 interface ICustomSettingsProps {
   currentTeamId: number;
+  /** handler that fires when a change occures on the section (e.g. disk encryption
+   * enabled, profile uploaded) */
   onMutation: () => void;
 }
 
@@ -32,7 +32,6 @@ const CustomSettings = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
-  const [showLoading, setShowLoading] = useState(false);
 
   const selectedProfile = useRef<IMdmProfile | null>(null);
 
@@ -41,48 +40,23 @@ const CustomSettings = ({
     setShowDeleteProfileModal(true);
   };
 
-  const { data: profiles, refetch: refetchProfiles } = useQuery<
-    IMdmProfilesResponse,
-    unknown,
-    IMdmProfile[] | null
-  >(["profiles", currentTeamId], () => mdmAPI.getProfiles(currentTeamId), {
-    select: (data) => data.profiles,
-    refetchOnWindowFocus: false,
-  });
-
-  const onFileUpload = async (files: FileList | null) => {
-    setShowLoading(true);
-
-    if (!files || files.length === 0) {
-      setShowLoading(false);
-      return;
+  const {
+    data: profiles,
+    isLoading: isLoadingProfiles,
+    isError: isErrorProfiles,
+    refetch: refetchProfiles,
+  } = useQuery<IMdmProfilesResponse, unknown, IMdmProfile[] | null>(
+    ["profiles", currentTeamId],
+    () => mdmAPI.getProfiles(currentTeamId),
+    {
+      select: (data) => data.profiles,
+      refetchOnWindowFocus: false,
     }
+  );
 
-    const file = files[0];
-
-    if (
-      // file.type might be empty on some systems as uncommon file extensions
-      // would return an empty string.
-      (file.type !== "" && file.type !== "application/x-apple-aspen-config") ||
-      !file.name.includes(".mobileconfig")
-    ) {
-      renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);
-      setShowLoading(false);
-      return;
-    }
-
-    try {
-      await mdmAPI.uploadProfile(file, currentTeamId);
-      refetchProfiles();
-      onMutation();
-      renderFlash("success", "Successfully uploaded!");
-    } catch (e) {
-      const error = e as AxiosResponse<IApiError>;
-      const errMessage = getErrorMessage(error);
-      renderFlash("error", errMessage);
-    } finally {
-      setShowLoading(false);
-    }
+  const onUploadProfile = () => {
+    refetchProfiles();
+    onMutation();
   };
 
   const onCancelDelete = () => {
@@ -104,6 +78,30 @@ const CustomSettings = ({
     }
   };
 
+  const renderProfileList = () => {
+    if (isLoadingProfiles) {
+      return <Spinner />;
+    }
+
+    if (isErrorProfiles) {
+      return <DataError />;
+    }
+
+    if (!profiles || profiles.length === 0) {
+      return null;
+    }
+
+    return (
+      <UploadList
+        listItems={profiles}
+        HeadingComponent={ProfileListHeading}
+        ListItemComponent={({ listItem }) => (
+          <ProfileListItem profile={listItem} onDelete={onClickDelete} />
+        )}
+      />
+    );
+  };
+
   return (
     <div className={baseClass}>
       <h2>Custom settings</h2>
@@ -115,24 +113,10 @@ const CustomSettings = ({
           url="https://fleetdm.com/docs/using-fleet/mdm-custom-macos-settings"
         />
       </p>
-
-      {profiles && (
-        <UploadList
-          listItems={profiles}
-          HeadingComponent={ProfileListHeading}
-          ListItemComponent={({ listItem }) => (
-            <ProfileListItem profile={listItem} onDelete={onClickDelete} />
-          )}
-        />
-      )}
-
-      <FileUploader
-        icon="profile"
-        message="Configuration profile (.mobileconfig)"
-        accept=".mobileconfig,application/x-apple-aspen-config"
-        isLoading={showLoading}
-        onFileUpload={onFileUpload}
-        className={`${baseClass}__file-uploader`}
+      {renderProfileList()}
+      <ProfileUploader
+        currentTeamId={currentTeamId}
+        onUpload={onUploadProfile}
       />
       {showDeleteProfileModal && selectedProfile.current && (
         <DeleteProfileModal
