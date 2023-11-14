@@ -188,6 +188,11 @@ func (t *TeamMDM) Copy() *TeamMDM {
 	if t.MacOSSettings.DeprecatedEnableDiskEncryption != nil {
 		clone.MacOSSettings.DeprecatedEnableDiskEncryption = ptr.Bool(*t.MacOSSettings.DeprecatedEnableDiskEncryption)
 	}
+	if t.WindowsSettings.CustomSettings.Set {
+		windowsSettings := make([]string, len(t.WindowsSettings.CustomSettings.Value))
+		copy(windowsSettings, t.WindowsSettings.CustomSettings.Value)
+		t.WindowsSettings.CustomSettings = optjson.SetSlice[string](windowsSettings)
+	}
 	return &clone
 }
 
