@@ -4316,7 +4316,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 		"not_sh.txt", []byte(`echo "hello"`), s.token)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Validation Failed: File type not supported. Only .sh and .ps1 file type is allowed.")
+	require.Contains(t, errMsg, "Validation Failed:The file should be .sh or .ps1 file.")
 
 	// file content is empty
 	body, headers = generateNewScriptMultipartRequest(t, nil,
