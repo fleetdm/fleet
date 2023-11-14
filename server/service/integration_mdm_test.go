@@ -8025,7 +8025,17 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		return resp.ProfileID
 	}
 	createAppleProfile := func(name, ident string, teamID uint) string {
-		return assertAppleProfile(name+".mobileconfig", name, ident, teamID, http.StatusOK, "")
+		id := assertAppleProfile(name+".mobileconfig", name, ident, teamID, http.StatusOK, "")
+
+		var wantJSON string
+		if teamID == 0 {
+			wantJSON = fmt.Sprintf(`{"team_id": null, "team_name": null, "profile_name": %q, "profile_identifier": %q}`, name, ident)
+		} else {
+			wantJSON = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "profile_name": %q, "profile_identifier": %q}`, teamID, testTeam.Name, name, ident)
+		}
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedMacosProfile{}.ActivityName(), wantJSON, 0)
+
+		return id
 	}
 
 	assertWindowsProfile := func(filename, name, locURI string, teamID uint, wantStatus int, wantErrMsg string) string {
@@ -8050,7 +8060,17 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		return resp.ProfileID
 	}
 	createWindowsProfile := func(name string, teamID uint) string {
-		return assertWindowsProfile(name+".xml", name, "./Test", teamID, http.StatusOK, "")
+		id := assertWindowsProfile(name+".xml", name, "./Test", teamID, http.StatusOK, "")
+
+		var wantJSON string
+		if teamID == 0 {
+			wantJSON = fmt.Sprintf(`{"team_id": null, "team_name": null, "profile_name": %q}`, name)
+		} else {
+			wantJSON = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "profile_name": %q}`, teamID, testTeam.Name, name)
+		}
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedWindowsProfile{}.ActivityName(), wantJSON, 0)
+
+		return id
 	}
 
 	// create a couple Apple profiles for no-team and team
