@@ -62,20 +62,6 @@ services:
       - "8025:8025"
       - "1025:1025"
 
-  # SMTP server with Basic Authentication.
-  mailpit:
-    image: axllent/mailpit:latest
-    ports:
-      - "8026:8025"
-      - "1026:1025"
-    volumes:
-      - ./tools/mailpit/auth.txt:/auth.txt
-    command:
-      [
-        "--smtp-auth-file=/auth.txt",
-        "--smtp-auth-allow-insecure=true"
-      ]
-
 # SMTP server with Basic Authentication and TLS
   maildev:
       image: maildev/maildev:latest
