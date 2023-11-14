@@ -17,6 +17,7 @@ interface IScriptListItemProps {
   onDelete: (script: IScript) => void;
 }
 
+// TODO - useful to have a 'platform' field from API, for use elsewhere in app as well?
 const getFileRenderDetails = (
   fileName: string
 ): { graphicName: ISupportedGraphicNames; platform: string | null } => {
@@ -33,6 +34,26 @@ const getFileRenderDetails = (
       return { graphicName: "file-script", platform: null };
   }
 };
+
+interface IScriptListItemDetailsProps {
+  platform: string | null;
+  createdAt: string;
+}
+
+const ScriptListItemDetails = ({
+  platform,
+  createdAt,
+}: IScriptListItemDetailsProps) => (
+  <div className={`${baseClass}__details`}>
+    {platform && (
+      <>
+        <span>{platform}</span>
+        <span>&bull;</span>
+      </>
+    )}
+    <span>{`Uploaded ${formatDistanceToNow(new Date(createdAt))} ago`}</span>
+  </div>
+);
 
 const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
   const { renderFlash } = useContext(NotificationContext);
@@ -51,21 +72,17 @@ const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
 
   const { graphicName, platform } = getFileRenderDetails(script.name);
 
-  const ListItemDetails = () => (
-    <>
-      {platform && <span>{platform}</span>}
-      <span>{`Uploaded ${formatDistanceToNow(
-        new Date(script.created_at)
-      )} ago`}</span>
-    </>
-  );
-
   return (
     <ListItem
       className={baseClass}
       graphic={graphicName}
       title={script.name}
-      details={<ListItemDetails />}
+      details={
+        <ScriptListItemDetails
+          platform={platform}
+          createdAt={script.created_at}
+        />
+      }
       actions={
         <>
           <Button
