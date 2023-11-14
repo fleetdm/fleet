@@ -197,7 +197,7 @@
       .data-table-block {
         .data-table {
           &__wrapper {
-            overflow-x: scroll;
+            overflow-x: auto;
           }
           &__table {
             tbody {
