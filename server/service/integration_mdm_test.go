@@ -8315,7 +8315,6 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	// list for a non-existing team returns 404
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", nil, http.StatusNotFound, &listResp, "team_id", "99999")
 
-	_ = tm3
 	cases := []struct {
 		queries   []string // alternate query name and value
 		teamID    *uint
