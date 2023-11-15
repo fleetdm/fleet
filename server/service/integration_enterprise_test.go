@@ -1830,7 +1830,7 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	t := s.T()
 
-	// set the logo via the modifi appconfig endpoint, so that the cache is
+	// set the logo via the modify appconfig endpoint, so that the cache is
 	// properly updated.
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"org_info":{"org_logo_url": "http://example.com/logo"}}`), http.StatusOK, &acResp)
