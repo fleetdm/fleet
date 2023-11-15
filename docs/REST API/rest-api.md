@@ -883,6 +883,9 @@ None.
       "custom_settings": ["path/to/profile1.mobileconfig"],
       "enable_disk_encryption": true
     },
+    "windows_settings": {
+      "custom_settings": ["path/to/profile2.xml"],
+    },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
       "entity_id": "",
@@ -1084,6 +1087,7 @@ Modifies the Fleet's configuration with the supplied information.
 | webhook_url                          | string  | body  | _mdm.macos_migration settings_. The webhook url configured to receive requests to unenroll devices migrating from your old MDM solution. **Requires Fleet Premium license** |
 | custom_settings                   | list    | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
 | enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
+| custom_settings                   | list    | body  | _mdm.windows_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
 | scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
 | enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
@@ -1177,6 +1181,9 @@ Note that when making changes to the `integrations` object, all integrations mus
     "macos_settings": {
       "custom_settings": ["path/to/profile1.mobileconfig"],
       "enable_disk_encryption": true
+    },
+    "windows_settings": {
+      "custom_settings": ["path/to/profile2.xml"],
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -7376,8 +7383,11 @@ _Available in Fleet Premium_
         "deadline": "2022-01-01"
       },
       "macos_settings": {
-        "custom_settings": ["path/to/profile.mobileconfig"],
+        "custom_settings": ["path/to/profile1.mobileconfig"],
         "enable_disk_encryption": false
+      },
+      "windows_settings": {
+        "custom_settings": ["path/to/profile2.xml"],
       },
       "macos_setup": {
         "bootstrap_package": "",
@@ -7489,13 +7499,16 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;group_id                        | integer | body | The Zendesk group id to use. Zendesk tickets will be created in this group.                                                                                                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies         | boolean | body | Whether or not that Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
 | mdm                                                     | object  | body | MDM settings for the team.                                                                                                                                                                                |
-| &nbsp;&nbsp;macos_updates                               | object  | body | MacOS updates settings.                                                                                                                                                                                   |
+| &nbsp;&nbsp;macos_updates                               | object  | body | macOS updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
-| &nbsp;&nbsp;macos_settings                              | object  | body | MacOS-specific settings.                                                                                                                                                                                  |
+| &nbsp;&nbsp;macos_settings                              | object  | body | macOS-specific settings.                                                                                                                                                                                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of .mobileconfig files to apply to macOS hosts that belong to this team.                                                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true.                                                                                        |
-| &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS devices.                                                                                                                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;enable_end_user_authentication          | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
+| &nbsp;&nbsp;windows_settings                            | object  | body | Windows-specific settings.                                                                                                                                                                                |
+| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of XML files to apply to Windows hosts that belong to this team.                                                                                                                                |
+| &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS hosts.                                                                                                                                                      |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_end_user_authentication  | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
 
 
 #### Example (add users to a team)
@@ -7556,8 +7569,11 @@ _Available in Fleet Premium_
         "deadline": "2022-01-01"
       },
       "macos_settings": {
-        "custom_settings": ["path/to/profile.mobileconfig"],
+        "custom_settings": ["path/to/profile1.mobileconfig"],
         "enable_disk_encryption": false
+      },
+      "windows_settings": {
+        "custom_settings": ["path/to/profile2.xml"],
       },
       "macos_setup": {
         "bootstrap_package": "",

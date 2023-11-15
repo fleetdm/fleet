@@ -160,3 +160,29 @@ func RemoveDuplicatesFromSlice[T comparable](slice []T) []T {
 	}
 	return list
 }
+
+// SliceStringsMatch checks if two slices contain the same string elements,
+// regardless of order.
+func SliceStringsMatch(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	// create a map to count occurrences of elements in a
+	elementCount := make(map[string]int, len(a))
+	for _, item := range a {
+		elementCount[item]++
+	}
+
+	// decrease the count for each element in b
+	for _, item := range b {
+		elementCount[item]--
+		if elementCount[item] < 0 {
+			// if the count goes below zero, b has an element not
+			// in a or more occurrences of it than a
+			return false
+		}
+	}
+
+	return true
+}
