@@ -922,6 +922,9 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
 		return &cp, nil
 	}
+	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
+	}
 
 	checkShouldFail := func(t *testing.T, err error, shouldFail bool) {
 		if !shouldFail {
@@ -943,6 +946,14 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 
 			// test authz get config profile (team 1)
 			_, err = svc.GetMDMWindowsConfigProfile(ctx, "team-1")
+			checkShouldFail(t, err, tt.shouldFailTeamRead)
+
+			// test authz list config profiles (no team)
+			_, _, err = svc.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+			checkShouldFail(t, err, tt.shouldFailGlobalRead)
+
+			// test authz list config profiles (team 1)
+			_, _, err = svc.ListMDMConfigProfiles(ctx, ptr.Uint(1), fleet.ListOptions{})
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
 
 			// test authz create new profile (no team)
