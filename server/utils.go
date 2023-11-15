@@ -169,7 +169,7 @@ func SliceStringsMatch(a, b []string) bool {
 	}
 
 	// create a map to count occurrences of elements in a
-	elementCount := make(map[string]int)
+	elementCount := make(map[string]int, len(a))
 	for _, item := range a {
 		elementCount[item]++
 	}
