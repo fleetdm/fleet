@@ -9,9 +9,6 @@ import (
 )
 
 func TestUp_20230317173844(t *testing.T) {
-	// skipping old migration tests as migrations don't change and we're getting
-	// timeouts in CI
-	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t)
 
 	insertStmt := `
@@ -26,16 +23,16 @@ VALUES
 	execNoErr(t, db, insertStmt, 1, "JKL", "failed", "remove", "MDMClientError (96): Cannot replace profile 'p2' because it was not installed by the MDM server.")
 
 	selectStmt := `
-SELECT 
-	profile_id, 
-	profile_identifier AS identifier, 
-	host_uuid, 
-	command_uuid, 
-	status, 
-	operation_type, 
-	detail, 
-	profile_name AS name 
-FROM 
+SELECT
+	profile_id,
+	profile_identifier AS identifier,
+	host_uuid,
+	command_uuid,
+	status,
+	operation_type,
+	detail,
+	profile_name AS name
+FROM
 	host_mdm_apple_profiles`
 
 	var rows []fleet.HostMDMAppleProfile

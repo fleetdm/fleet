@@ -160,7 +160,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
 		return nil
 	}
 
@@ -906,7 +906,7 @@ func TestApplyAsGitOps(t *testing.T) {
 		teamEnrollSecrets = secrets
 		return nil
 	}
-	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
 		return nil
 	}
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error {
@@ -1086,7 +1086,7 @@ spec:
 	}, savedTeam.Config.MDM)
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, teamEnrollSecrets)
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
-	assert.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
+	assert.True(t, ds.BatchSetMDMProfilesFuncInvoked)
 
 	// add macos setup assistant to team
 	name = writeTmpYml(t, fmt.Sprintf(`
