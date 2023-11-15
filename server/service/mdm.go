@@ -1565,7 +1565,7 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 		}
 	}
 
-	// cursor-based pagination is not supported for scripts
+	// cursor-based pagination is not supported for profiles
 	opt.After = ""
 	// custom ordering is not supported, always by name
 	opt.OrderKey = "name"
