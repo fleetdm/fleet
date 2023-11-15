@@ -310,14 +310,14 @@ func (m MDMConfigProfileAuthz) AuthzType() string {
 // MDMConfigProfilePayload is the platform-agnostic struct returned by
 // endpoints that return MDM configuration profiles (get/list profiles).
 type MDMConfigProfilePayload struct {
-	ProfileID  string    `json:"profile_id"` // is a uuid string for Windows
-	TeamID     *uint     `json:"team_id"`    // null for no-team
-	Name       string    `json:"name"`
-	Platform   string    `json:"platform"`             // "windows" or "darwin"
-	Identifier string    `json:"identifier,omitempty"` // only set for macOS
-	Checksum   []byte    `json:"checksum,omitempty"`   // only set for macOS
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ProfileID  string    `json:"profile_id" db:"profile_id"` // is a uuid string for Windows
+	TeamID     *uint     `json:"team_id" db:"team_id"`       // null for no-team
+	Name       string    `json:"name" db:"name"`
+	Platform   string    `json:"platform" db:"platform"`               // "windows" or "darwin"
+	Identifier string    `json:"identifier,omitempty" db:"identifier"` // only set for macOS
+	Checksum   []byte    `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {

@@ -103,4 +103,57 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 
 func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 	panic("not implemented")
+
+	var profs []*fleet.MDMConfigProfilePayload
+
+	const selectStmt = `
+SELECT
+	CONVERT(profile_id, CHAR) as profile_id,
+	team_id,
+	name,
+	identifier,
+	checksum,
+	created_at,
+	updated_at
+FROM
+	mdm_apple_configuration_profiles
+WHERE
+	team_id = ? AND
+	identifier NOT IN (?)
+UNION
+SELECT
+	profile_uuid as profile_id,
+	team_id,
+	name,
+	'' as identifier,
+	'' as checksum,
+	created_at,
+	updated_at
+FROM
+	mdm_windows_configuration_profiles
+WHERE
+	team_id = ?
+`
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	args := []any{globalOrTeamID}
+	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profs, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select profiles")
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(profs) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			profs = profs[:len(profs)-1]
+		}
+	}
+	return profs, metaData, nil
 }
