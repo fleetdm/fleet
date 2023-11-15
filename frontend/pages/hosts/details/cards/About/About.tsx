@@ -17,7 +17,6 @@ interface IAboutProps {
   deviceMapping?: IDeviceUser[];
   munki?: IMunkiData | null;
   mdm?: IHostMdmData;
-  wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
 }
 
 const About = ({
