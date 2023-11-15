@@ -720,6 +720,8 @@ type GetMDMWindowsProfilesContentsFunc func(ctx context.Context, profileUUIDs []
 
 type BulkDeleteMDMWindowsHostsConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error
 
+type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error
+
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
 type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) error
@@ -1795,6 +1797,9 @@ type DataStore struct {
 
 	BulkDeleteMDMWindowsHostsConfigProfilesFunc        BulkDeleteMDMWindowsHostsConfigProfilesFunc
 	BulkDeleteMDMWindowsHostsConfigProfilesFuncInvoked bool
+
+	BatchSetMDMProfilesFunc        BatchSetMDMProfilesFunc
+	BatchSetMDMProfilesFuncInvoked bool
 
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
@@ -4287,6 +4292,13 @@ func (s *DataStore) BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context,
 	s.BulkDeleteMDMWindowsHostsConfigProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.BulkDeleteMDMWindowsHostsConfigProfilesFunc(ctx, payload)
+}
+
+func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+	s.mu.Lock()
+	s.BatchSetMDMProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles)
 }
 
 func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {

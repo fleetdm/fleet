@@ -1121,6 +1121,10 @@ type Datastore interface {
 	// host_mdm_windows_profiles that match the given payload.
 	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error
 
+	// BatchSetMDMProfiles sets the MDM Apple or Windows profiles for the given team or
+	// no team in a single transaction.
+	BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*MDMAppleConfigProfile, winProfiles []*MDMWindowsConfigProfile) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
 
