@@ -1836,7 +1836,7 @@ the `software` table.
 - `policy_updated_at`: the last time we updated the policy results for the host based on the queries ran.
 - `seen_time`: the last time the host contacted the fleet server, regardless of what operation it was for.
 - `software_updated_at`: the last time software changed for the host in any way.
-- `last_restarted_at`: the last time that the host was restarted
+- `last_restarted_at`: the last time that the host was restarted.
 
 ### List hosts
 
