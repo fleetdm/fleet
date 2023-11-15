@@ -9,13 +9,10 @@ import (
 )
 
 func TestUp_20231004144339(t *testing.T) {
-	// skipping old migration tests as migrations don't change and we're getting
-	// timeouts in CI
-	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t)
 
 	dataStmts := `
-		INSERT INTO teams VALUES 
+		INSERT INTO teams VALUES
 			(1,'2023-07-21 20:32:42','Team 1','','{\"mdm\": {\"macos_setup\": {\"bootstrap_package\": null, \"macos_setup_assistant\": null, \"enable_end_user_authentication\": false}, \"macos_updates\": {\"deadline\": null, \"minimum_version\": null}, \"macos_settings\": {\"custom_settings\": null, \"enable_disk_encryption\": false}}, \"features\": {\"enable_host_users\": true, \"enable_software_inventory\": true}, \"integrations\": {\"jira\": null, \"zendesk\": null}, \"agent_options\": {\"config\": {\"options\": {\"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}, \"webhook_settings\": {\"failing_policies_webhook\": {\"policy_ids\": null, \"destination_url\": \"\", \"host_batch_size\": 0, \"enable_failing_policies_webhook\": false}}}'),
 			(2,'2023-07-21 20:32:47','Team 2','','{\"mdm\": {\"macos_setup\": {\"bootstrap_package\": null, \"macos_setup_assistant\": null, \"enable_end_user_authentication\": false}, \"macos_updates\": {\"deadline\": null, \"minimum_version\": null}, \"macos_settings\": {\"custom_settings\": null, \"enable_disk_encryption\": true}}, \"features\": {\"enable_host_users\": true, \"enable_software_inventory\": true}, \"integrations\": {\"jira\": null, \"zendesk\": null}, \"agent_options\": {\"config\": {\"options\": {\"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}, \"webhook_settings\": {\"failing_policies_webhook\": {\"policy_ids\": null, \"destination_url\": \"\", \"host_batch_size\": 0, \"enable_failing_policies_webhook\": false}}}');
 	`
