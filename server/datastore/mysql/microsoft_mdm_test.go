@@ -113,6 +113,13 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		require.Equal(t, expected, *bls)
 	}
 
+	checkMDMProfilesSummary := func(t *testing.T, teamID *uint, expected fleet.MDMProfilesSummary) {
+		ps, err := ds.GetMDMWindowsProfilesSummary(ctx, teamID)
+		require.NoError(t, err)
+		require.NotNil(t, ps)
+		require.Equal(t, expected, *ps)
+	}
+
 	checkListHostsFilterOSSettings := func(t *testing.T, teamID *uint, status fleet.OSSettingsStatus, expectedIDs []uint) {
 		gotHosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{TeamFilter: teamID, OSSettingsFilter: status})
 		require.NoError(t, err)
@@ -144,9 +151,38 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		}
 	}
 
-	type hostIDsByStatus map[fleet.DiskEncryptionStatus][]uint
+	type hostIDsByDEStatus map[fleet.DiskEncryptionStatus][]uint
+	type hostIDsByProfileStatus map[fleet.MDMDeliveryStatus][]uint
 
-	checkExpected := func(t *testing.T, teamID *uint, expected hostIDsByStatus) {
+	expectedProfilesFromDE := func(expectedDE hostIDsByDEStatus) hostIDsByProfileStatus {
+		expectedProfiles := make(hostIDsByProfileStatus)
+		expectedProfiles[fleet.MDMDeliveryPending] = []uint{}
+		for status, hostIDs := range expectedDE {
+			switch status {
+			case fleet.DiskEncryptionVerified:
+				expectedProfiles[fleet.MDMDeliveryVerified] = hostIDs
+			case fleet.DiskEncryptionVerifying:
+				expectedProfiles[fleet.MDMDeliveryVerifying] = hostIDs
+			case fleet.DiskEncryptionFailed:
+				expectedProfiles[fleet.MDMDeliveryFailed] = hostIDs
+			case fleet.DiskEncryptionEnforcing, fleet.DiskEncryptionRemovingEnforcement, fleet.DiskEncryptionActionRequired:
+				expectedProfiles[fleet.MDMDeliveryPending] = append(expectedProfiles[fleet.MDMDeliveryPending], hostIDs...)
+			}
+		}
+		return expectedProfiles
+	}
+
+	checkExpected := func(t *testing.T, teamID *uint, expectedDE hostIDsByDEStatus, expectedProfiles ...hostIDsByProfileStatus) {
+		var ep hostIDsByProfileStatus
+		switch len(expectedProfiles) {
+		case 1:
+			ep = expectedProfiles[0]
+		case 0:
+			ep = expectedProfilesFromDE(expectedDE)
+		default:
+			require.FailNow(t, "expectedProfiles must have length 0 or 1")
+		}
+
 		for _, status := range []fleet.DiskEncryptionStatus{
 			fleet.DiskEncryptionVerified,
 			fleet.DiskEncryptionVerifying,
@@ -155,7 +191,7 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 			fleet.DiskEncryptionRemovingEnforcement,
 			fleet.DiskEncryptionActionRequired,
 		} {
-			hostIDs, ok := expected[status]
+			hostIDs, ok := expectedDE[status]
 			if !ok {
 				hostIDs = []uint{}
 			}
@@ -164,21 +200,28 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		}
 
 		checkBitLockerSummary(t, teamID, fleet.MDMWindowsBitLockerSummary{
-			Verified:            uint(len(expected[fleet.DiskEncryptionVerified])),
-			Verifying:           uint(len(expected[fleet.DiskEncryptionVerifying])),
-			Failed:              uint(len(expected[fleet.DiskEncryptionFailed])),
-			Enforcing:           uint(len(expected[fleet.DiskEncryptionEnforcing])),
-			RemovingEnforcement: uint(len(expected[fleet.DiskEncryptionRemovingEnforcement])),
-			ActionRequired:      uint(len(expected[fleet.DiskEncryptionActionRequired])),
+			Verified:            uint(len(expectedDE[fleet.DiskEncryptionVerified])),
+			Verifying:           uint(len(expectedDE[fleet.DiskEncryptionVerifying])),
+			Failed:              uint(len(expectedDE[fleet.DiskEncryptionFailed])),
+			Enforcing:           uint(len(expectedDE[fleet.DiskEncryptionEnforcing])),
+			RemovingEnforcement: uint(len(expectedDE[fleet.DiskEncryptionRemovingEnforcement])),
+			ActionRequired:      uint(len(expectedDE[fleet.DiskEncryptionActionRequired])),
 		})
 
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerified, expected[fleet.DiskEncryptionVerified])
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerifying, expected[fleet.DiskEncryptionVerifying])
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsFailed, expected[fleet.DiskEncryptionFailed])
+		checkMDMProfilesSummary(t, teamID, fleet.MDMProfilesSummary{
+			Pending:   uint(len(ep[fleet.MDMDeliveryPending])),
+			Failed:    uint(len(ep[fleet.MDMDeliveryFailed])),
+			Verifying: uint(len(ep[fleet.MDMDeliveryVerifying])),
+			Verified:  uint(len(ep[fleet.MDMDeliveryVerified])),
+		})
+
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerified, expectedDE[fleet.DiskEncryptionVerified])
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerifying, expectedDE[fleet.DiskEncryptionVerifying])
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsFailed, expectedDE[fleet.DiskEncryptionFailed])
 		var expectedPending []uint
-		expectedPending = append(expectedPending, expected[fleet.DiskEncryptionEnforcing]...)
-		expectedPending = append(expectedPending, expected[fleet.DiskEncryptionRemovingEnforcement]...)
-		expectedPending = append(expectedPending, expected[fleet.DiskEncryptionActionRequired]...)
+		expectedPending = append(expectedPending, expectedDE[fleet.DiskEncryptionEnforcing]...)
+		expectedPending = append(expectedPending, expectedDE[fleet.DiskEncryptionRemovingEnforcement]...)
+		expectedPending = append(expectedPending, expectedDE[fleet.DiskEncryptionActionRequired]...)
 		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsPending, expectedPending)
 	}
 
@@ -194,6 +237,21 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			stmt := `UPDATE host_disk_encryption_keys SET updated_at = ? where host_id = ?`
 			_, err := q.ExecContext(ctx, stmt, keyUpdatedAt, hostID)
+			return err
+		})
+	}
+
+	upsertHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, status fleet.MDMDeliveryStatus) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt := `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
+			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
+			return err
+		})
+	}
+
+	cleanupHostProfiles := func(t *testing.T) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles`)
 			return err
 		})
 	}
@@ -228,7 +286,7 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, ac.MDM.EnableDiskEncryption.Value)
 
-		checkExpected(t, nil, hostIDsByStatus{}) // no hosts are counted because disk encryption is not enabled
+		checkExpected(t, nil, hostIDsByDEStatus{}) // no hosts are counted because disk encryption is not enabled
 	})
 
 	t.Run("Disk encryption enabled", func(t *testing.T) {
@@ -242,18 +300,18 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 
 		t.Run("Bitlocker enforcing status", func(t *testing.T) {
 			// all windows hosts are counted as enforcing because they have not reported any disk encryption status yet
-			checkExpected(t, nil, hostIDsByStatus{
+			checkExpected(t, nil, hostIDsByDEStatus{
 				fleet.DiskEncryptionEnforcing: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
 			})
 
 			require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "test-key", "", ptr.Bool(true)))
-			checkExpected(t, nil, hostIDsByStatus{
+			checkExpected(t, nil, hostIDsByDEStatus{
 				// status is still pending because hosts_disks hasn't been updated yet
 				fleet.DiskEncryptionEnforcing: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
 			})
 
 			require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
-			checkExpected(t, nil, hostIDsByStatus{
+			checkExpected(t, nil, hostIDsByDEStatus{
 				fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
 				fleet.DiskEncryptionEnforcing: []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
 			})
@@ -303,7 +361,7 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 					var keyUpdatedAt, hostDisksUpdatedAt time.Time
 
 					t.Run("within grace period", func(t *testing.T) {
-						expected := make(hostIDsByStatus)
+						expected := make(hostIDsByDEStatus)
 						if c.expectedWithinGracePeriod == fleet.DiskEncryptionEnforcing {
 							expected[fleet.DiskEncryptionEnforcing] = append([]uint{testHostID}, otherWindowsHostIDs...)
 						} else {
@@ -325,7 +383,7 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 					})
 
 					t.Run("outside grace period", func(t *testing.T) {
-						expected := make(hostIDsByStatus)
+						expected := make(hostIDsByDEStatus)
 						if c.expectedOutsideGracePeriod == fleet.DiskEncryptionEnforcing {
 							expected[fleet.DiskEncryptionEnforcing] = append([]uint{testHostID}, otherWindowsHostIDs...)
 						} else {
@@ -352,7 +410,7 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 		// ensure hosts[0] is set to verified for the rest of the tests
 		require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "test-key", "", ptr.Bool(true)))
 		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
-		checkExpected(t, nil, hostIDsByStatus{
+		checkExpected(t, nil, hostIDsByDEStatus{
 			fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
 			fleet.DiskEncryptionEnforcing: []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
 		})
@@ -368,11 +426,32 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 				return err
 			})
 
-			checkExpected(t, nil, hostIDsByStatus{
+			expected := hostIDsByDEStatus{
 				fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
 				fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
 				fleet.DiskEncryptionEnforcing: []uint{hosts[2].ID, hosts[3].ID, hosts[4].ID},
-			})
+			}
+
+			checkExpected(t, nil, expected)
+
+			// bitlocker failed status determines MDM aggregate status (profiles status is ignored)
+			upsertHostProfileStatus(t, hosts[1].UUID, "some-windows-profile", fleet.MDMDeliveryFailed)
+			checkExpected(t, nil, expected)
+			upsertHostProfileStatus(t, hosts[1].UUID, "some-windows-profile", fleet.MDMDeliveryPending)
+			checkExpected(t, nil, expected)
+			upsertHostProfileStatus(t, hosts[1].UUID, "some-windows-profile", fleet.MDMDeliveryVerifying)
+			checkExpected(t, nil, expected)
+			upsertHostProfileStatus(t, hosts[1].UUID, "some-windows-profile", fleet.MDMDeliveryVerified)
+			checkExpected(t, nil, expected)
+
+			// profiles failed status determines MDM aggregate status (bitlocker status is ignored)
+			upsertHostProfileStatus(t, hosts[0].UUID, "some-windows-profile", fleet.MDMDeliveryFailed)
+			expectedProfiles := expectedProfilesFromDE(expected)
+			expectedProfiles[fleet.MDMDeliveryFailed] = append(expectedProfiles[fleet.MDMDeliveryFailed], hosts[0].ID)
+			expectedProfiles[fleet.MDMDeliveryVerified] = []uint{}
+			checkExpected(t, nil, expected, expectedProfiles)
+
+			cleanupHostProfiles(t)
 		})
 
 		t.Run("BitLocker team filtering", func(t *testing.T) {
@@ -389,10 +468,10 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 			require.NoError(t, ds.AddHostsToTeam(ctx, &team.ID, []uint{hosts[2].ID}))
 
 			// Check the summary for the team
-			checkExpected(t, &team.ID, hostIDsByStatus{}) // disk encryption is not enabled for team so hosts[2] is not counted
+			checkExpected(t, &team.ID, hostIDsByDEStatus{}) // disk encryption is not enabled for team so hosts[2] is not counted
 
 			// Check the summary for no team
-			checkExpected(t, nil, hostIDsByStatus{
+			checkExpected(t, nil, hostIDsByDEStatus{
 				fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
 				fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
 				fleet.DiskEncryptionEnforcing: []uint{hosts[3].ID, hosts[4].ID}, // hosts[2] is no longer included in the no team summary
@@ -406,12 +485,12 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 			require.True(t, tm.Config.MDM.EnableDiskEncryption)
 
 			// Check the summary for the team
-			checkExpected(t, &team.ID, hostIDsByStatus{
+			checkExpected(t, &team.ID, hostIDsByDEStatus{
 				fleet.DiskEncryptionEnforcing: []uint{hosts[2].ID}, // disk encryption is enabled for team so hosts[2] is counted
 			})
 
 			// Check the summary for no team (should be unchanged)
-			checkExpected(t, nil, hostIDsByStatus{
+			checkExpected(t, nil, hostIDsByDEStatus{
 				fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
 				fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
 				fleet.DiskEncryptionEnforcing: []uint{hosts[3].ID, hosts[4].ID},
@@ -425,7 +504,7 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 				true, "https://example.com", false, fleet.WellKnownMDMFleet))
 
 			// Check Windows servers not counted
-			checkExpected(t, nil, hostIDsByStatus{
+			checkExpected(t, nil, hostIDsByDEStatus{
 				fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
 				fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
 				fleet.DiskEncryptionEnforcing: []uint{hosts[4].ID}, // hosts[3] is not counted
@@ -461,6 +540,224 @@ func TestMDMWindowsDiskEncryption(t *testing.T) {
 			checkListHostsFilterDiskEncryption(t, nil, fleet.DiskEncryptionFailed, []uint{hosts[1].ID, hosts[5].ID})
 			checkListHostsFilterOSSettings(t, nil, fleet.OSSettingsFailed, []uint{hosts[1].ID, hosts[5].ID})
 		})
+	})
+}
+
+func TestMDMWindowsProfilesSummary(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := context.Background()
+
+	checkMDMProfilesSummary := func(t *testing.T, teamID *uint, expected fleet.MDMProfilesSummary) {
+		ps, err := ds.GetMDMWindowsProfilesSummary(ctx, teamID)
+		require.NoError(t, err)
+		require.NotNil(t, ps)
+		require.Equal(t, expected, *ps)
+	}
+
+	type hostIDsByProfileStatus map[fleet.MDMDeliveryStatus][]uint
+
+	checkExpected := func(t *testing.T, teamID *uint, ep hostIDsByProfileStatus) {
+		checkMDMProfilesSummary(t, teamID, fleet.MDMProfilesSummary{
+			Pending:   uint(len(ep[fleet.MDMDeliveryPending])),
+			Failed:    uint(len(ep[fleet.MDMDeliveryFailed])),
+			Verifying: uint(len(ep[fleet.MDMDeliveryVerifying])),
+			Verified:  uint(len(ep[fleet.MDMDeliveryVerified])),
+		})
+	}
+
+	upsertHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, status *fleet.MDMDeliveryStatus) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt := `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
+			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
+			if err != nil {
+				return err
+			}
+			stmt = `UPDATE host_mdm_windows_profiles SET operation_type = ? WHERE host_uuid = ? AND profile_uuid = ?`
+			_, err = q.ExecContext(ctx, stmt, fleet.MDMOperationTypeInstall, hostUUID, profUUID)
+			return err
+		})
+	}
+
+	cleanupHostProfiles := func(t *testing.T) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles`)
+			return err
+		})
+	}
+
+	// updateHostDisks := func(t *testing.T, hostID uint, encrypted bool, updated_at time.Time) {
+	// 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	// 		stmt := `UPDATE host_disks SET encrypted = ?, updated_at = ? where host_id = ?`
+	// 		_, err := q.ExecContext(ctx, stmt, encrypted, updated_at, hostID)
+	// 		return err
+	// 	})
+	// }
+
+	// setKeyUpdatedAt := func(t *testing.T, hostID uint, keyUpdatedAt time.Time) {
+	// 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	// 		stmt := `UPDATE host_disk_encryption_keys SET updated_at = ? where host_id = ?`
+	// 		_, err := q.ExecContext(ctx, stmt, keyUpdatedAt, hostID)
+	// 		return err
+	// 	})
+	// }
+
+	// Create some hosts
+	var hosts []*fleet.Host
+	for i := 0; i < 10; i++ {
+		p := "windows"
+		if i >= 5 {
+			p = "darwin"
+		}
+		u := uuid.New().String()
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         &u,
+			UUID:            u,
+			Hostname:        u,
+			Platform:        p,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, h)
+		hosts = append(hosts, h)
+
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet))
+	}
+
+	t.Run("Disk encryption disabled", func(t *testing.T) {
+		ac, err := ds.AppConfig(ctx)
+		require.NoError(t, err)
+		require.False(t, ac.MDM.EnableDiskEncryption.Value)
+
+		expected := hostIDsByProfileStatus{}
+		// no hosts are counted because no profiles and disk encryption is not enabled
+		checkExpected(t, nil, expected)
+
+		upsertHostProfileStatus(t, hosts[0].UUID, "some-windows-profile", &fleet.MDMDeliveryPending)
+		expected[fleet.MDMDeliveryPending] = []uint{hosts[0].ID}
+		checkExpected(t, nil, expected)
+
+		upsertHostProfileStatus(t, hosts[1].UUID, "some-windows-profile", &fleet.MDMDeliveryFailed)
+		expected[fleet.MDMDeliveryFailed] = []uint{hosts[1].ID}
+		checkExpected(t, nil, expected)
+
+		upsertHostProfileStatus(t, hosts[2].UUID, "some-windows-profile", &fleet.MDMDeliveryVerifying)
+		expected[fleet.MDMDeliveryVerifying] = []uint{hosts[2].ID}
+		checkExpected(t, nil, expected)
+
+		upsertHostProfileStatus(t, hosts[3].UUID, "some-windows-profile", &fleet.MDMDeliveryVerified)
+		expected[fleet.MDMDeliveryVerified] = []uint{hosts[3].ID}
+		checkExpected(t, nil, expected)
+
+		upsertHostProfileStatus(t, hosts[4].UUID, "some-windows-profile", nil)
+		// nil status is treated as pending
+		expected[fleet.MDMDeliveryPending] = append(expected[fleet.MDMDeliveryPending], hosts[4].ID)
+		checkExpected(t, nil, expected)
+
+		cleanupHostProfiles(t)
+	})
+
+	t.Run("Disk encryption enabled", func(t *testing.T) {
+		ac, err := ds.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+		require.NoError(t, ds.SaveAppConfig(ctx, ac))
+		ac, err = ds.AppConfig(ctx)
+		require.NoError(t, err)
+		require.True(t, ac.MDM.EnableDiskEncryption.Value)
+
+		t.Run("bitlocker pending", func(t *testing.T) {
+			expected := hostIDsByProfileStatus{
+				fleet.MDMDeliveryPending: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
+			}
+			// all hosts are pending because no profiles and disk encryption is enabled
+			checkExpected(t, nil, expected)
+
+			upsertHostProfileStatus(t, hosts[0].UUID, "some-windows-profile", &fleet.MDMDeliveryPending)
+			// hosts[0] status pending because both profiles status and bitlocker status are pending
+			checkExpected(t, nil, expected)
+
+			upsertHostProfileStatus(t, hosts[1].UUID, "some-windows-profile", &fleet.MDMDeliveryFailed)
+			// status for hosts[1] now failed because any failed status determines MDM aggregate status
+			expected[fleet.MDMDeliveryFailed] = []uint{hosts[1].ID}
+			expected[fleet.MDMDeliveryPending] = []uint{hosts[0].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID}
+			checkExpected(t, nil, expected)
+
+			upsertHostProfileStatus(t, hosts[2].UUID, "some-windows-profile", &fleet.MDMDeliveryVerifying)
+			// status for hosts[2] still pending because bitlocker pending status takes precedence over
+			// profiles verifying status
+			checkExpected(t, nil, expected)
+
+			upsertHostProfileStatus(t, hosts[3].UUID, "some-windows-profile", &fleet.MDMDeliveryVerified)
+			// status for hosts[3] still pending because bitlocker pending status takes precedence over
+			// profiles verified status
+			checkExpected(t, nil, expected)
+
+			upsertHostProfileStatus(t, hosts[4].UUID, "some-windows-profile", nil)
+			// hosts[0] status pending because bitlocker status is pending and nil profile status is
+			// also treated as pending
+			checkExpected(t, nil, expected)
+
+			cleanupHostProfiles(t)
+		})
+
+		t.Run("bitlocker verified", func(t *testing.T) {
+			expected := hostIDsByProfileStatus{
+				fleet.MDMDeliveryPending: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
+			}
+			// all hosts are pending because no profiles and disk encryption is enabled
+			checkExpected(t, nil, expected)
+
+			require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "test-key", "", ptr.Bool(true)))
+			// status is still pending because hosts_disks hasn't been updated yet
+			checkExpected(t, nil, expected)
+
+			require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
+			// status for hosts[0] now verified because bitlocker status is verified and host[0] has
+			// no profiles
+			checkExpected(t, nil, hostIDsByProfileStatus{
+				fleet.MDMDeliveryVerified: []uint{hosts[0].ID},
+				fleet.MDMDeliveryPending:  []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
+			})
+
+			upsertHostProfileStatus(t, hosts[0].UUID, "some-windows-profile", &fleet.MDMDeliveryFailed)
+			// status for hosts[0] now failed because any failed status takes precedence
+			expected = hostIDsByProfileStatus{
+				fleet.MDMDeliveryFailed:   []uint{hosts[0].ID},
+				fleet.MDMDeliveryVerified: []uint{},
+				fleet.MDMDeliveryPending:  []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
+			}
+			checkExpected(t, nil, expected)
+
+			upsertHostProfileStatus(t, hosts[0].UUID, "some-windows-profile", &fleet.MDMDeliveryPending)
+			// status for hosts[0] now pending because profiles status pendiing takes precedence over bitlocker status verified
+			expected[fleet.MDMDeliveryFailed] = []uint{}
+			expected[fleet.MDMDeliveryPending] = []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID}
+
+			upsertHostProfileStatus(t, hosts[0].UUID, "some-windows-profile", &fleet.MDMDeliveryVerifying)
+			// status for hosts[0] now verifying because profiles status verifying takes precedence over
+			// bitlocker status verified
+			expected[fleet.MDMDeliveryPending] = []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID}
+			expected[fleet.MDMDeliveryVerifying] = []uint{hosts[0].ID}
+
+			upsertHostProfileStatus(t, hosts[0].UUID, "some-windows-profile", &fleet.MDMDeliveryVerified)
+			// status for hosts[0] now verified because both profiles status and bitlocker status are verified
+			expected[fleet.MDMDeliveryPending] = []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID}
+			expected[fleet.MDMDeliveryVerified] = []uint{hosts[0].ID}
+			expected[fleet.MDMDeliveryVerifying] = []uint{}
+			checkExpected(t, nil, expected)
+
+			cleanupHostProfiles(t)
+		})
+
+		// updateHostDisks(t, hosts[0].ID, true, time.Now())
+		// setKeyUpdatedAt(t, hosts[0].ID, time.Now().Add(-2*time.Hour))
+
+		// turn off disk encryption
+		ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+		require.NoError(t, ds.SaveAppConfig(ctx, ac))
 	})
 }
 

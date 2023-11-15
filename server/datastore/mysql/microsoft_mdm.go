@@ -427,8 +427,8 @@ AND ` + whereHostDisksUpdated
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND (
-	(` + whereEncrypted + ` AND NOT ` + whereHostDisksUpdated + `)
-	OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `)
+    (` + whereEncrypted + ` AND NOT ` + whereHostDisksUpdated + `)
+    OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `)
 )`
 
 	case fleet.DiskEncryptionEnforcing:
@@ -438,10 +438,10 @@ AND (
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND (
-	NOT ` + whereKeyAvailable + `
-	OR (` + whereKeyAvailable + `
-		AND (NOT ` + whereEncrypted + `
-			AND (NOT ` + whereHostDisksUpdated + ` OR NOT ` + withinGracePeriod + `)
+    NOT ` + whereKeyAvailable + `
+    OR (` + whereKeyAvailable + `
+        AND (NOT ` + whereEncrypted + `
+            AND (NOT ` + whereHostDisksUpdated + ` OR NOT ` + withinGracePeriod + `)
 		)
 	)
 )`
@@ -619,12 +619,12 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 func subqueryHostsMDMWindowsOSSettingsStatusFailed() (string, []interface{}) {
 	sql := `
             SELECT
-				1 FROM host_mdm_windows_profiles hmwp
-			WHERE
-				h.uuid = hmwp.host_uuid
-				AND hmwp.status = 'failed'`
+                1 FROM host_mdm_windows_profiles hmwp
+            WHERE
+                h.uuid = hmwp.host_uuid
+                AND hmwp.status = ?`
 	args := []interface{}{
-		// fleet.MDMDeliveryFailed,
+		fleet.MDMDeliveryFailed,
 	}
 
 	return sql, args
@@ -633,18 +633,18 @@ func subqueryHostsMDMWindowsOSSettingsStatusFailed() (string, []interface{}) {
 func subqueryHostsMDMWindowsOSSettingsStatusPending() (string, []interface{}) {
 	sql := `
             SELECT
-				1 FROM host_mdm_windows_profiles hmwp
-			WHERE
-				h.uuid = hmwp.host_uuid
-				AND (hmwp.status IS NULL OR hmwp.status = 'pending') 
-				AND NOT EXISTS (
-					SELECT
-						1 FROM host_mdm_windows_profiles hmwp2
-					WHERE (h.uuid = hmwp2.host_uuid
-						AND hmwp2.status = 'failed'))`
+                1 FROM host_mdm_windows_profiles hmwp
+            WHERE
+                h.uuid = hmwp.host_uuid
+                AND (hmwp.status IS NULL OR hmwp.status = ?) 
+                AND NOT EXISTS (
+                    SELECT
+                        1 FROM host_mdm_windows_profiles hmwp2
+                    WHERE (h.uuid = hmwp2.host_uuid
+                        AND hmwp2.status = ?))`
 	args := []interface{}{
-		// fleet.MDMDeliveryPending,
-		// fleet.MDMDeliveryFailed,
+		fleet.MDMDeliveryPending,
+		fleet.MDMDeliveryFailed,
 	}
 	return sql, args
 }
@@ -652,25 +652,25 @@ func subqueryHostsMDMWindowsOSSettingsStatusPending() (string, []interface{}) {
 func subqueryHostsMDMWindowsOSSettingsStatusVerifying() (string, []interface{}) {
 	sql := `
             SELECT
-				1 FROM host_mdm_windows_profiles hmwp
-			WHERE
-				h.uuid = hmwp.host_uuid
-				AND hmwp.operation_type = 'install'
-				AND hmwp.status = 'verifying'
-				AND NOT EXISTS (
-					SELECT
-						1 FROM host_mdm_windows_profiles hmwp2
-					WHERE (h.uuid = hmwp2.host_uuid
-						AND hmwp2.operation_type = 'install'
-						AND(hmwp2.status IS NULL
-							OR hmwp2.status NOT IN('verifying', 'verified'))))`
+                1 FROM host_mdm_windows_profiles hmwp
+            WHERE
+                h.uuid = hmwp.host_uuid
+                AND hmwp.operation_type = ?
+                AND hmwp.status = ?
+                AND NOT EXISTS (
+                    SELECT
+                        1 FROM host_mdm_windows_profiles hmwp2
+                    WHERE (h.uuid = hmwp2.host_uuid
+                        AND hmwp2.operation_type = ?
+                        AND(hmwp2.status IS NULL
+                            OR hmwp2.status NOT IN(?, ?))))`
 
 	args := []interface{}{
-		// fleet.MDMOperationTypeInstall,
-		// fleet.MDMDeliveryVerifying,
-		// fleet.MDMOperationTypeInstall,
-		// fleet.MDMDeliveryVerifying,
-		// fleet.MDMDeliveryVerified,
+		fleet.MDMOperationTypeInstall,
+		fleet.MDMDeliveryVerifying,
+		fleet.MDMOperationTypeInstall,
+		fleet.MDMDeliveryVerifying,
+		fleet.MDMDeliveryVerified,
 	}
 	return sql, args
 }
@@ -678,28 +678,68 @@ func subqueryHostsMDMWindowsOSSettingsStatusVerifying() (string, []interface{}) 
 func subqueryHostsMDMWindowsOSSettingsStatusVerified() (string, []interface{}) {
 	sql := `
             SELECT
-				1 FROM host_mdm_windows_profiles hmwp
-			WHERE
-				h.uuid = hmwp.host_uuid
-				AND hmwp.operation_type = 'install'
-				AND hmwp.status = 'verified'
-				AND NOT EXISTS (
-					SELECT
-						1 FROM host_mdm_windows_profiles hmwp2
-					WHERE (h.uuid = hmwp2.host_uuid
-						AND hmwp2.operation_type = 'install'
-						AND(hmwp2.status IS NULL
-							OR hmwp2.status != 'verified')))`
+                1 FROM host_mdm_windows_profiles hmwp
+            WHERE
+                h.uuid = hmwp.host_uuid 
+                AND hmwp.operation_type = ?
+                AND hmwp.status = ?
+                AND NOT EXISTS (
+                    SELECT
+                        1 FROM host_mdm_windows_profiles hmwp2
+                    WHERE (h.uuid = hmwp2.host_uuid
+                        AND hmwp2.operation_type = ?
+                        AND(hmwp2.status IS NULL
+                            OR hmwp2.status != ?)))`
 	args := []interface{}{
-		// fleet.MDMOperationTypeInstall,
-		// fleet.MDMDeliveryVerified,
-		// fleet.MDMOperationTypeInstall,
-		// fleet.MDMDeliveryVerified,
+		fleet.MDMOperationTypeInstall,
+		fleet.MDMDeliveryVerified,
+		fleet.MDMOperationTypeInstall,
+		fleet.MDMDeliveryVerified,
 	}
 	return sql, args
 }
 
 func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	includeBitLocker, err := ds.getConfigEnableDiskEncryption(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	var counts []statusCounts
+	if !includeBitLocker {
+		counts, err = getMDMWindowsStatusCountsProfilesOnlyDB(ctx, ds, teamID)
+	} else {
+		counts, err = getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx, ds, teamID)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var res fleet.MDMProfilesSummary
+	for _, c := range counts {
+		switch c.Status {
+		case "failed":
+			res.Failed = c.Count
+		case "pending":
+			res.Pending = c.Count
+		case "verifying":
+			res.Verifying = c.Count
+		case "verified":
+			res.Verified = c.Count
+		default:
+			level.Debug(ds.logger).Log("msg", "unexpected mdm windows status count", "status", c.Status, "count", c.Count)
+		}
+	}
+
+	return &res, nil
+}
+
+type statusCounts struct {
+	Status string `db:"status"`
+	Count  uint   `db:"count"`
+}
+
+func getMDMWindowsStatusCountsProfilesOnlyDB(ctx context.Context, ds *Datastore, teamID *uint) ([]statusCounts, error) {
 	var args []interface{}
 	subqueryFailed, subqueryFailedArgs := subqueryHostsMDMWindowsOSSettingsStatusFailed()
 	args = append(args, subqueryFailedArgs...)
@@ -710,46 +750,149 @@ func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *u
 	subqueryVerified, subqueryVerifiedArgs := subqueryHostsMDMWindowsOSSettingsStatusVerified()
 	args = append(args, subqueryVerifiedArgs...)
 
-	// TODO: Do we need to factor in bitlocker status too?
-
-	// TODO: Try adding `h.platform = 'windows`` to query
-
-	sqlFmt := `
-SELECT
-    COUNT(
-        CASE WHEN EXISTS (%s)
-            THEN 1
-        END) AS failed,
-    COUNT(
-        CASE WHEN EXISTS (%s)
-            THEN 1
-        END) AS pending,
-    COUNT(
-        CASE WHEN EXISTS (%s)
-            THEN 1
-        END) AS verifying,
-	COUNT(
-        CASE WHEN EXISTS (%s)
-            THEN 1
-        END) AS verified
-FROM
-    hosts h
-WHERE
-    %s`
-
 	teamFilter := "h.team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
 		teamFilter = "h.team_id = ?"
 		args = append(args, *teamID)
 	}
 
-	stmt := fmt.Sprintf(sqlFmt, subqueryFailed, subqueryPending, subqueryVerifying, subqueryVerified, teamFilter)
+	stmt := fmt.Sprintf(`
+SELECT
+    CASE 
+        WHEN EXISTS (%s) THEN
+            'failed'
+        WHEN EXISTS (%s) THEN
+            'pending'
+        WHEN EXISTS (%s) THEN
+            'verifying'
+        WHEN EXISTS (%s) THEN
+            'verified'
+        ELSE
+            ''
+    END AS status,
+    SUM(1) AS count
+FROM
+    hosts h
+WHERE
+    h.platform = 'windows' AND %s
+GROUP BY
+    status`,
+		subqueryFailed,
+		subqueryPending,
+		subqueryVerifying,
+		subqueryVerified,
+		teamFilter,
+	)
 
-	var res fleet.MDMProfilesSummary
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...)
+	var counts []statusCounts
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &counts, stmt, args...)
 	if err != nil {
 		return nil, err
 	}
+	return counts, nil
+}
 
-	return &res, nil
+func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Datastore, teamID *uint) ([]statusCounts, error) {
+	var args []interface{}
+	subqueryFailed, subqueryFailedArgs := subqueryHostsMDMWindowsOSSettingsStatusFailed()
+	args = append(args, subqueryFailedArgs...)
+	subqueryPending, subqueryPendingArgs := subqueryHostsMDMWindowsOSSettingsStatusPending()
+	args = append(args, subqueryPendingArgs...)
+	subqueryVerifying, subqueryVeryingingArgs := subqueryHostsMDMWindowsOSSettingsStatusVerifying()
+	args = append(args, subqueryVeryingingArgs...)
+	subqueryVerified, subqueryVerifiedArgs := subqueryHostsMDMWindowsOSSettingsStatusVerified()
+	args = append(args, subqueryVerifiedArgs...)
+
+	profilesStatus := fmt.Sprintf(`
+        CASE WHEN EXISTS (%s) THEN
+            'profiles_failed'
+        WHEN EXISTS (%s) THEN
+            'profiles_pending'
+        WHEN EXISTS (%s) THEN
+            'profiles_verifying'
+        WHEN EXISTS (%s) THEN
+            'profiles_verified'
+        ELSE
+            ''
+        END`,
+		subqueryFailed,
+		subqueryPending,
+		subqueryVerifying,
+		subqueryVerified,
+	)
+
+	teamFilter := "h.team_id IS NULL"
+	if teamID != nil && *teamID > 0 {
+		teamFilter = "h.team_id = ?"
+		args = append(args, *teamID)
+	}
+	bitlockerJoin := `
+    LEFT JOIN host_mdm hmdm ON h.id = hmdm.host_id
+    LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
+    LEFT JOIN host_disks hd ON hd.host_id = h.id`
+
+	bitlockerStatus := fmt.Sprintf(`
+            CASE WHEN (%s) THEN
+                'bitlocker_verified'
+            WHEN (%s) THEN
+                'bitlocker_verifying'
+            WHEN (%s) THEN
+                'bitlocker_pending'
+            WHEN (%s) THEN
+                'bitlocker_failed'				
+            ELSE
+                ''
+            END`,
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed),
+	)
+
+	stmt := fmt.Sprintf(`
+SELECT
+    CASE (SELECT (%s) FROM hosts h2 WHERE h2.id = h.id)	
+    WHEN 'profiles_failed' THEN
+        'failed'
+    WHEN 'profiles_pending' THEN (
+        CASE (%s) 
+        WHEN 'bitlocker_failed' THEN
+            'failed'
+        ELSE
+            'pending'
+        END)
+    WHEN 'profiles_verifying' THEN (
+        CASE (%s)
+        WHEN 'bitlocker_failed' THEN
+            'failed'
+        WHEN 'bitlocker_pending' THEN
+            'pending'
+        ELSE
+            'verifying'
+        END)
+    ELSE 
+        REPLACE((%s), 'bitlocker_', '')
+    END as status, 
+    SUM(1) as count
+FROM
+    hosts h
+    %s
+WHERE
+	h.platform = 'windows' AND %s
+GROUP BY
+    status`,
+		profilesStatus,
+		bitlockerStatus,
+		bitlockerStatus,
+		bitlockerStatus,
+		bitlockerJoin,
+		teamFilter,
+	)
+
+	var counts []statusCounts
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &counts, stmt, args...)
+	if err != nil {
+		return nil, err
+	}
+	return counts, nil
 }
