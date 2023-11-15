@@ -1,9 +1,9 @@
 # ExpedITioners Podcast
 ## Jeff Chao: Configuration as code for efficiency and automation.
 
-<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:660px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.podcasts.apple.com/us/podcast/rich-trouton-declarative-device-management-and/id1641183838?i=1000626388077"></iframe>
+<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:660px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.podcasts.apple.com/us/podcast/jeff-chao-configuration-as-code-for-efficiency-and/id1641183838?i=1000634957170"></iframe>
 
-Listen to the episode on [Apple](https://podcasts.apple.com/us/podcast/rich-trouton-declarative-device-management-and/id1641183838?i=1000626388077), [Spotify](https://open.spotify.com/episode/7AHJinyvizmoHdfVTINu9y?si=sYhKqJXzQhetv8KyNMTxdA), or [PodBean](https://www.podbean.com/ew/pb-w65bb-1494d01).
+Listen to the episode on [Apple](https://podcasts.apple.com/us/podcast/jeff-chao-configuration-as-code-for-efficiency-and/id1641183838?i=1000634957170), [Spotify](https://open.spotify.com/episode/1qpPdOxQBlT0BMVpmu242o?si=BmE_XbJQQ5ep9N8aBAUAFw), or [PodBean](https://www.podbean.com/ew/pb-qpwzz-14fccce).
 
 ### Show notes: 
 
@@ -11,7 +11,7 @@ As the Co-Founder and Chief Technology Officer at Abbey Labs, Jeff Chao advocate
 
 ### Topics discussed:
 
-- How did you first get into tech?
+- Jeff's introduction to tech?
 - Enabling people to build things instead of just protecting them.
 - Attending DEFCON as a teenager.
 - Configuration as code for efficiency and automation.
