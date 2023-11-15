@@ -398,7 +398,7 @@ func TestGetProfilesContents(t *testing.T) {
 			paths := []string{}
 			for _, fileSpec := range tt.setupFiles {
 				filePath := filepath.Join(tempDir, fileSpec[0])
-				require.NoError(t, os.WriteFile(filePath, []byte(fileSpec[1]), 0666))
+				require.NoError(t, os.WriteFile(filePath, []byte(fileSpec[1]), 0644))
 				paths = append(paths, filePath)
 			}
 
