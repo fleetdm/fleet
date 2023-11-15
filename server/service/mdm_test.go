@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -9,6 +10,7 @@ import (
 	"errors"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/micromdm/scep/v2/cryptoutil/x509util"
 	"github.com/stretchr/testify/require"
 )
@@ -452,6 +455,7 @@ func TestRunMDMCommandValidations(t *testing.T) {
 		})
 	}
 }
+
 func TestMDMCommonAuthorization(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
@@ -915,6 +919,9 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 	ds.DeleteMDMWindowsConfigProfileFunc = func(ctx context.Context, profileUUID string) error {
 		return nil
 	}
+	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
+		return &cp, nil
+	}
 
 	checkShouldFail := func(t *testing.T, err error, shouldFail bool) {
 		if !shouldFail {
@@ -925,6 +932,7 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 		}
 	}
 
+	const winProfContent = `<Replace></Replace>`
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
@@ -937,6 +945,14 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			_, err = svc.GetMDMWindowsConfigProfile(ctx, "team-1")
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
 
+			// test authz create new profile (no team)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", strings.NewReader(winProfContent))
+			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
+
+			// test authz create new profile (team 1)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", strings.NewReader(winProfContent))
+			checkShouldFail(t, err, tt.shouldFailTeamWrite)
+
 			// test authz delete config profile (no team)
 			err = svc.DeleteMDMWindowsConfigProfile(ctx, "global")
 			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
@@ -944,6 +960,82 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			// test authz delete config profile (team 1)
 			err = svc.DeleteMDMWindowsConfigProfile(ctx, "team-1")
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
+		})
+	}
+}
+
+func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid != 1 {
+			return nil, &notFoundError{}
+		}
+		return &fleet.Team{ID: tid, Name: "team1"}, nil
+	}
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
+		if bytes.Contains(cp.SyncML, []byte("duplicate")) {
+			return nil, &alreadyExistsError{}
+		}
+		cp.ProfileUUID = uuid.New().String()
+		return &cp, nil
+	}
+
+	cases := []struct {
+		desc          string
+		tmID          uint
+		profile       string
+		mdmConfigured bool
+		wantErr       string
+	}{
+		{"empty profile", 0, "", true, "The file should include valid XML."},
+		{"plist data", 0, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "Only <Replace> supported as a top level element."},
+		{"random non-xml data", 0, "\x00\x01\x02", true, "The file should include valid XML:"},
+		{"valid windows profile", 0, `<Replace></Replace>`, true, ""},
+		{"mdm not enabled", 0, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
+		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},
+		{"multiple Replace", 0, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
+		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Only <Replace> supported as a top level element."},
+		{"BitLocker profile", 0, `<Replace><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
+		{"Windows updates profile", 0, `<Replace><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
+
+		{"team empty profile", 1, "", true, "The file should include valid XML."},
+		{"team plist data", 1, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "Only <Replace> supported as a top level element."},
+		{"team random non-xml data", 1, "\x00\x01\x02", true, "The file should include valid XML:"},
+		{"team valid windows profile", 1, `<Replace></Replace>`, true, ""},
+		{"team mdm not enabled", 1, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
+		{"team duplicate profile name", 1, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},
+		{"team multiple Replace", 1, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
+		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Only <Replace> supported as a top level element."},
+		{"team BitLocker profile", 1, `<Replace><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
+		{"team Windows updates profile", 1, `<Replace><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
+
+		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						EnabledAndConfigured:        true,
+						WindowsEnabledAndConfigured: c.mdmConfigured,
+					},
+				}, nil
+			}
+			ctx = test.UserContext(ctx, test.UserAdmin)
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", strings.NewReader(c.profile))
+			if c.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, c.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }

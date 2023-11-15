@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -1114,6 +1115,179 @@ func isAppleProfileID(profileIDOrUUID string) (uint, bool) {
 		return 0, false
 	}
 	return uint(id), true
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /mdm/profiles (Create Apple or Windows MDM Config Profile)
+////////////////////////////////////////////////////////////////////////////////
+
+type newMDMConfigProfileRequest struct {
+	TeamID  uint
+	Profile *multipart.FileHeader
+}
+
+func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := newMDMConfigProfileRequest{}
+
+	err := r.ParseMultipartForm(512 * units.MiB)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	val, ok := r.MultipartForm.Value["team_id"]
+	if !ok || len(val) < 1 {
+		// default is no team
+		decoded.TeamID = 0
+	} else {
+		teamID, err := strconv.Atoi(val[0])
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+		}
+		decoded.TeamID = uint(teamID)
+	}
+
+	fhs, ok := r.MultipartForm.File["profile"]
+	if !ok || len(fhs) < 1 {
+		return nil, &fleet.BadRequestError{Message: "no file headers for profile"}
+	}
+	decoded.Profile = fhs[0]
+
+	return &decoded, nil
+}
+
+type newMDMConfigProfileResponse struct {
+	ProfileID string `json:"profile_id"`
+	Err       error  `json:"error,omitempty"`
+}
+
+func (r newMDMConfigProfileResponse) error() error { return r.Err }
+
+func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*newMDMConfigProfileRequest)
+
+	ff, err := req.Profile.Open()
+	if err != nil {
+		return &newMDMConfigProfileResponse{Err: err}, nil
+	}
+	defer ff.Close()
+
+	fileExt := filepath.Ext(req.Profile.Filename)
+	if isApple := strings.EqualFold(fileExt, ".mobileconfig"); isApple {
+		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff)
+		if err != nil {
+			return &newMDMConfigProfileResponse{Err: err}, nil
+		}
+		return &newMDMConfigProfileResponse{
+			ProfileID: fmt.Sprint(cp.ProfileID),
+		}, nil
+	}
+
+	if isWindows := strings.EqualFold(fileExt, ".xml"); isWindows {
+		profileName := strings.TrimSuffix(filepath.Base(req.Profile.Filename), fileExt)
+		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, ff)
+		if err != nil {
+			return &newMDMConfigProfileResponse{Err: err}, nil
+		}
+		return &newMDMConfigProfileResponse{
+			ProfileID: cp.ProfileUUID,
+		}, nil
+	}
+
+	err = svc.NewMDMUnsupportedConfigProfile(ctx, req.TeamID, req.Profile.Filename)
+	return &newMDMConfigProfileResponse{Err: err}, nil
+}
+
+func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// this is required because we need authorize to return the error, and
+	// svc.authz is only available on the concrete Service struct, not on the
+	// Service interface so it cannot be done in the endpoint itself.
+	return &fleet.BadRequestError{Message: "Couldn't upload. The file should be a .mobileconfig or .xml file."}
+}
+
+func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader) (*fleet.MDMWindowsConfigProfile, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// check that Windows MDM is enabled - the middleware of that endpoint checks
+	// only that any MDM is enabled, maybe it's just macOS
+	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+		err := fleet.NewInvalidArgumentError("profile", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		return nil, ctxerr.Wrap(ctx, err, "check windows MDM enabled")
+	}
+
+	var teamName string
+	if teamID > 0 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to read Windows config profile",
+			InternalErr: err,
+		})
+	}
+
+	cp := fleet.MDMWindowsConfigProfile{
+		TeamID: &teamID,
+		Name:   profileName,
+		SyncML: b,
+	}
+	if err := cp.ValidateUserProvided(); err != nil {
+		// this is not great, but since the validations are shared between the CLI
+		// and the API, we must make some changes to error message here.
+		msg := err.Error()
+		if ix := strings.Index(msg, "To control these settings,"); ix >= 0 {
+			msg = strings.TrimSpace(msg[:ix])
+		}
+		err := &fleet.BadRequestError{Message: "Couldn't upload. " + msg}
+		return nil, ctxerr.Wrap(ctx, err, "validate profile")
+	}
+
+	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
+	if err != nil {
+		var existsErr existsErrorInterface
+		if errors.As(err, &existsErr) {
+			err = fleet.NewInvalidArgumentError("profile", "Couldn't upload. A configuration profile with this name already exists.").
+				WithStatus(http.StatusConflict)
+		}
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// TODO: Windows equivalent of this call:
+	//if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, []uint{newCP.ProfileID}, nil); err != nil {
+	//	return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	//}
+
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID > 0 {
+		actTeamID = &teamID
+		actTeamName = &teamName
+	}
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedWindowsProfile{
+		TeamID:      actTeamID,
+		TeamName:    actTeamName,
+		ProfileName: newCP.Name,
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm windows config profile")
+	}
+
+	return newCP, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
