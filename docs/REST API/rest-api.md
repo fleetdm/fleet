@@ -6971,6 +6971,7 @@ Get a list of all software grouped by software title.
 ```json
 {
   "counts_updated_at": "2022-01-01 12:32:00",
+  "count": 2,
   "software_titles": [
     {
       "id": 12,
@@ -7058,6 +7059,7 @@ Get a list of all software versions.
 ```json
 {
     "counts_updated_at": "2022-01-01 12:32:00",
+    "count": 1
     "software": [
       {
         "id": 1,
@@ -7087,6 +7089,8 @@ Get a list of all software versions.
 ```
 
 ### Count software
+
+> The count software API endpoint is deprecated as of Fleet 4.41. Please use the `GET /api/v1/fleet/software/versions` or `GET /api/v1/fleet/software/titles` above, which include a count in the response.
 
 `GET /api/v1/fleet/software/count`
 
