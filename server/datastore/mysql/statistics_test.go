@@ -176,8 +176,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	config.HostExpirySettings.HostExpiryEnabled = true
 	config.MDM.WindowsEnabledAndConfigured = true
 	config.ServerSettings.LiveQueryDisabled = true
-	config.MDM.WindowsEnabledAndConfigured = true
-	config.ServerSettings.LiveQueryDisabled = true
 	err = ds.SaveAppConfig(ctx, config)
 	require.NoError(t, err)
 
