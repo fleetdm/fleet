@@ -603,22 +603,22 @@ type getMDMAppleFileVaultSummaryRequest struct {
 	TeamID *uint `query:"team_id,optional"`
 }
 
-type getMDMAppleFileVauleSummaryResponse struct {
+type getMDMAppleFileVaultSummaryResponse struct {
 	*fleet.MDMAppleFileVaultSummary
 	Err error `json:"error,omitempty"`
 }
 
-func (r getMDMAppleFileVauleSummaryResponse) error() error { return r.Err }
+func (r getMDMAppleFileVaultSummaryResponse) error() error { return r.Err }
 
 func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMAppleFileVaultSummaryRequest)
 
 	fvs, err := svc.GetMDMAppleFileVaultSummary(ctx, req.TeamID)
 	if err != nil {
-		return &getMDMAppleFileVauleSummaryResponse{Err: err}, nil
+		return &getMDMAppleFileVaultSummaryResponse{Err: err}, nil
 	}
 
-	return &getMDMAppleFileVauleSummaryResponse{
+	return &getMDMAppleFileVaultSummaryResponse{
 		MDMAppleFileVaultSummary: fvs,
 	}, nil
 }

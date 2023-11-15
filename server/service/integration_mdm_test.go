@@ -562,6 +562,16 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	require.ElementsMatch(t, wantGlobalProfiles, installs)
 	require.Empty(t, removes)
 
+	expectedNoTeamSummary := fleet.MDMProfilesSummary{
+		Pending:   0,
+		Failed:    0,
+		Verifying: 1,
+		Verified:  0,
+	}
+	expectedTeamSummary := fleet.MDMProfilesSummary{}
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary)
+	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary) // empty because no hosts in team
+
 	// add the host to a team
 	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
 	require.NoError(t, err)
@@ -573,6 +583,16 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	require.ElementsMatch(t, wantTeamProfiles, installs)
 	// verify that we should delete both profiles
 	require.ElementsMatch(t, []string{"I1", "I2"}, removes)
+
+	expectedNoTeamSummary = fleet.MDMProfilesSummary{}
+	expectedTeamSummary = fleet.MDMProfilesSummary{
+		Pending:   0,
+		Failed:    0,
+		Verifying: 1,
+		Verified:  0,
+	}
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // empty because host was transferred
+	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)  // host now verifying team profiles
 
 	// set new team profiles (delete + addition)
 	teamProfiles = [][]byte{
@@ -590,6 +610,9 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	// verify that we should delete the old team profiles
 	require.ElementsMatch(t, []string{"I3"}, removes)
 
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // empty because host was transferred
+	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)  // host still verifying team profiles
+
 	// with no changes
 	s.awaitTriggerProfileSchedule(t, 0)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
@@ -603,19 +626,8 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	// one extra profile for the fleetd config
 	require.Len(t, resProfiles, len(wantTeamProfiles)+1)
 
-	var teamSummaryResp getMDMAppleProfilesSummaryResponse
-	s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{TeamID: &tm.ID}, http.StatusOK, &teamSummaryResp)
-	require.Equal(t, uint(0), teamSummaryResp.Pending)
-	require.Equal(t, uint(0), teamSummaryResp.Failed)
-	require.Equal(t, uint(1), teamSummaryResp.Verifying)
-	require.Equal(t, uint(0), teamSummaryResp.Verified)
-
-	var noTeamSummaryResp getMDMAppleProfilesSummaryResponse
-	s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{}, http.StatusOK, &noTeamSummaryResp)
-	require.Equal(t, uint(0), noTeamSummaryResp.Pending)
-	require.Equal(t, uint(0), noTeamSummaryResp.Failed)
-	require.Equal(t, uint(0), noTeamSummaryResp.Verifying)
-	require.Equal(t, uint(0), noTeamSummaryResp.Verified)
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary) // empty because host was transferred
+	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary)  // host still verifying team profiles
 }
 
 func (s *integrationMDMTestSuite) TestProfileRetries() {
@@ -3230,14 +3242,10 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	ctx := context.Background()
 
 	// no hosts with any disk encryption status's
-	fvsResp := getMDMAppleFileVauleSummaryResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
-	require.Equal(t, uint(0), fvsResp.Verifying)
-	require.Equal(t, uint(0), fvsResp.Verified)
-	require.Equal(t, uint(0), fvsResp.ActionRequired)
-	require.Equal(t, uint(0), fvsResp.Enforcing)
-	require.Equal(t, uint(0), fvsResp.Failed)
-	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+	expectedNoTeamDiskEncryptionSummary := fleet.MDMDiskEncryptionSummary{}
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+	expectedNoTeamProfilesSummary := fleet.MDMProfilesSummary{}
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
 
 	// 10 new hosts
 	var hosts []*fleet.Host
@@ -3294,49 +3302,31 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 
 	// hosts 1,2 have disk encryption "applied" status
 	generateAggregateValue(hosts[0:2], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, true)
-	fvsResp = getMDMAppleFileVauleSummaryResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
-	require.Equal(t, uint(2), fvsResp.Verifying)
-	require.Equal(t, uint(0), fvsResp.Verified)
-	require.Equal(t, uint(0), fvsResp.ActionRequired)
-	require.Equal(t, uint(0), fvsResp.Enforcing)
-	require.Equal(t, uint(0), fvsResp.Failed)
-	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+	expectedNoTeamDiskEncryptionSummary.Verifying.MacOS = 2
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+	expectedNoTeamProfilesSummary.Verifying = 2
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
 
 	// hosts 3,4 have disk encryption "action required" status
 	generateAggregateValue(hosts[2:4], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, false)
-	fvsResp = getMDMAppleFileVauleSummaryResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
-	require.Equal(t, uint(2), fvsResp.Verifying)
-	require.Equal(t, uint(0), fvsResp.Verified)
-	require.Equal(t, uint(2), fvsResp.ActionRequired)
-	require.Equal(t, uint(0), fvsResp.Enforcing)
-	require.Equal(t, uint(0), fvsResp.Failed)
-	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+	expectedNoTeamDiskEncryptionSummary.ActionRequired.MacOS = 2
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+	expectedNoTeamProfilesSummary.Pending = 2
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
 
 	// hosts 5,6 have disk encryption "enforcing" status
 
 	// host profiles status are `pending`
 	generateAggregateValue(hosts[4:6], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryPending, true)
-	fvsResp = getMDMAppleFileVauleSummaryResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
-	require.Equal(t, uint(2), fvsResp.Verifying)
-	require.Equal(t, uint(0), fvsResp.Verified)
-	require.Equal(t, uint(2), fvsResp.ActionRequired)
-	require.Equal(t, uint(2), fvsResp.Enforcing)
-	require.Equal(t, uint(0), fvsResp.Failed)
-	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+	expectedNoTeamDiskEncryptionSummary.Enforcing.MacOS = 2
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+	expectedNoTeamProfilesSummary.Pending = 4
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
 
 	// host profiles status dont exist
 	generateAggregateValue(hosts[4:6], fleet.MDMOperationTypeInstall, nil, true)
-	fvsResp = getMDMAppleFileVauleSummaryResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
-	require.Equal(t, uint(2), fvsResp.Verifying)
-	require.Equal(t, uint(0), fvsResp.Verified)
-	require.Equal(t, uint(2), fvsResp.ActionRequired)
-	require.Equal(t, uint(2), fvsResp.Enforcing)
-	require.Equal(t, uint(0), fvsResp.Failed)
-	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)               // no change
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary) // no change
 
 	// host profile is applied but decryptable key does not exist
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -3349,37 +3339,22 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 		require.NoError(t, err)
 		return err
 	})
-	fvsResp = getMDMAppleFileVauleSummaryResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
-	require.Equal(t, uint(2), fvsResp.Verifying)
-	require.Equal(t, uint(0), fvsResp.Verified)
-	require.Equal(t, uint(2), fvsResp.ActionRequired)
-	require.Equal(t, uint(2), fvsResp.Enforcing)
-	require.Equal(t, uint(0), fvsResp.Failed)
-	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)               // no change
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary) // no change
 
 	// hosts 7,8 have disk encryption "failed" status
 	generateAggregateValue(hosts[6:8], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryFailed, true)
-	fvsResp = getMDMAppleFileVauleSummaryResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
-	require.Equal(t, uint(2), fvsResp.Verifying)
-	require.Equal(t, uint(0), fvsResp.Verified)
-
-	require.Equal(t, uint(2), fvsResp.ActionRequired)
-	require.Equal(t, uint(2), fvsResp.Enforcing)
-	require.Equal(t, uint(2), fvsResp.Failed)
-	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+	expectedNoTeamDiskEncryptionSummary.Failed.MacOS = 2
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+	expectedNoTeamProfilesSummary.Failed = 2
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
 
 	// hosts 9,10 have disk encryption "removing enforcement" status
 	generateAggregateValue(hosts[8:10], fleet.MDMOperationTypeRemove, &fleet.MDMDeliveryPending, true)
-	fvsResp = getMDMAppleFileVauleSummaryResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
-	require.Equal(t, uint(2), fvsResp.Verifying)
-	require.Equal(t, uint(0), fvsResp.Verified)
-	require.Equal(t, uint(2), fvsResp.ActionRequired)
-	require.Equal(t, uint(2), fvsResp.Enforcing)
-	require.Equal(t, uint(2), fvsResp.Failed)
-	require.Equal(t, uint(2), fvsResp.RemovingEnforcement)
+	expectedNoTeamDiskEncryptionSummary.RemovingEnforcement.MacOS = 2
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+	expectedNoTeamProfilesSummary.Pending = 6
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
 
 	// team tests ====
 
@@ -3396,25 +3371,31 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 
 	// filtering by the "team_id" query param
 	generateAggregateValue(hosts[0:2], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, true)
-	fvsResp = getMDMAppleFileVauleSummaryResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp, "team_id", strconv.Itoa(int(tm.ID)))
-	require.Equal(t, uint(2), fvsResp.Verifying)
-	require.Equal(t, uint(0), fvsResp.Verified)
-	require.Equal(t, uint(0), fvsResp.ActionRequired)
-	require.Equal(t, uint(0), fvsResp.Enforcing)
-	require.Equal(t, uint(0), fvsResp.Failed)
-	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	var expectedTeamDiskEncryptionSummary fleet.MDMDiskEncryptionSummary
+	expectedTeamDiskEncryptionSummary.Verifying.MacOS = 2
+	s.checkMDMDiskEncryptionSummaries(t, &tm.ID, expectedTeamDiskEncryptionSummary, true)
+
+	expectedNoTeamDiskEncryptionSummary.Verifying.MacOS = 0 // now 0 because hosts 1,2 were added to team 1
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+
+	expectedTeamProfilesSummary := fleet.MDMProfilesSummary{Verifying: 2}
+	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamProfilesSummary, &expectedTeamProfilesSummary)
+
+	expectedNoTeamProfilesSummary = fleet.MDMProfilesSummary{
+		Verifying: 0, // now 0 because hosts 1,2 were added to team 1
+		Pending:   6,
+		Failed:    2,
+	}
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
 
 	// verified status for host 1
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, hosts[0], map[string]*fleet.HostMacOSProfile{prof.Identifier: {Identifier: prof.Identifier, DisplayName: prof.Name, InstallDate: time.Now()}}))
-	fvsResp = getMDMAppleFileVauleSummaryResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp, "team_id", strconv.Itoa(int(tm.ID)))
-	require.Equal(t, uint(2), fvsResp.Verifying)
-	require.Equal(t, uint(0), fvsResp.Verified)
-	require.Equal(t, uint(0), fvsResp.ActionRequired)
-	require.Equal(t, uint(0), fvsResp.Enforcing)
-	require.Equal(t, uint(0), fvsResp.Failed)
-	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+	// TODO: Why is there no change to the verification status of host 1 reflected in the summaries?
+	s.checkMDMDiskEncryptionSummaries(t, &tm.ID, expectedTeamDiskEncryptionSummary, true)              // no change
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)               // no change
+	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamProfilesSummary, &expectedTeamProfilesSummary)  // no change
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary) // no change
 }
 
 func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
@@ -8957,4 +8938,44 @@ func (s *integrationMDMTestSuite) newSyncMLUnenrollMsg(deviceID string, manageme
 				<Final/>
 			</SyncBody>
 			</SyncML>`), nil
+}
+
+func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMProfilesSummary, expectedAppleSummary *fleet.MDMProfilesSummary) {
+	if expectedAppleSummary != nil {
+		var apple getMDMAppleProfilesSummaryResponse
+		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{TeamID: teamID}, http.StatusOK, &apple)
+		require.Equal(t, expectedSummary.Failed, apple.Failed)
+		require.Equal(t, expectedSummary.Pending, apple.Pending)
+		require.Equal(t, expectedSummary.Verifying, apple.Verifying)
+		require.Equal(t, expectedSummary.Verified, apple.Verified)
+	}
+
+	var combined getMDMProfilesSummaryResponse
+	s.DoJSON("GET", "/api/v1/fleet/mdm/profiles/summary", getMDMProfilesSummaryRequest{TeamID: teamID}, http.StatusOK, &combined)
+	require.Equal(t, expectedSummary.Failed, combined.Failed)
+	require.Equal(t, expectedSummary.Pending, combined.Pending)
+	require.Equal(t, expectedSummary.Verifying, combined.Verifying)
+	require.Equal(t, expectedSummary.Verified, combined.Verified)
+}
+
+func (s *integrationMDMTestSuite) checkMDMDiskEncryptionSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMDiskEncryptionSummary, checkFileVaultSummary bool) {
+	if checkFileVaultSummary {
+		var apple getMDMAppleFileVaultSummaryResponse
+		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/filevault/summary", getMDMAppleProfilesSummaryRequest{TeamID: teamID}, http.StatusOK, &apple)
+		require.Equal(t, expectedSummary.Failed.MacOS, apple.Failed)
+		require.Equal(t, expectedSummary.Enforcing.MacOS, apple.Enforcing)
+		require.Equal(t, expectedSummary.ActionRequired.MacOS, apple.ActionRequired)
+		require.Equal(t, expectedSummary.Verifying.MacOS, apple.Verifying)
+		require.Equal(t, expectedSummary.Verified.MacOS, apple.Verified)
+		require.Equal(t, expectedSummary.RemovingEnforcement.MacOS, apple.RemovingEnforcement)
+	}
+
+	var combined getMDMDiskEncryptionSummaryResponse
+	s.DoJSON("GET", "/api/v1/fleet/mdm/disk_encryption/summary", getMDMProfilesSummaryRequest{TeamID: teamID}, http.StatusOK, &combined)
+	require.Equal(t, expectedSummary.Failed, combined.Failed)
+	require.Equal(t, expectedSummary.Enforcing, combined.Enforcing)
+	require.Equal(t, expectedSummary.ActionRequired, combined.ActionRequired)
+	require.Equal(t, expectedSummary.Verifying, combined.Verifying)
+	require.Equal(t, expectedSummary.Verified, combined.Verified)
+	require.Equal(t, expectedSummary.RemovingEnforcement, combined.RemovingEnforcement)
 }
