@@ -6940,6 +6940,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [List software versions](#list-software-versions)
 - [Count software](#count-software)
 - [Get software title](#get-software-title)
+- [Get software version](#get-software-version)
 
 ### List software titles
 
@@ -7155,6 +7156,54 @@ Returns the information of the specified software title. By default `versions` a
   }
 }
 ```
+
+### Get software version
+
+Returns the information of the specified software version.
+
+`GET /api/v1/fleet/software/versions/{id}`
+
+#### Example
+
+`GET /api/v1/fleet/software/versions/12`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software": {
+    "id": 425224,
+    "name": "Firefox.app",
+    "version": "117.0",
+    "bundle_identifier": "org.mozilla.firefox",
+    "source": "apps",
+    "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
+    "vulnerabilities": [
+      {
+        "cve": "CVE-2023-4863",
+        "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-4863",
+        "cvss_score": 8.8,
+        "epss_probability": 0.4101,
+        "cisa_known_exploit": true,
+        "cve_published": "2023-09-12T15:15:00Z",
+        "resolved_in_version": ""
+      },
+      {
+        "cve": "CVE-2023-5169",
+        "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-5169",
+        "cvss_score": 6.5,
+        "epss_probability": 0.00073,
+        "cisa_known_exploit": false,
+        "cve_published": "2023-09-27T15:19:00Z",
+        "resolved_in_version": "118"
+      }
+    ]
+  }
+}
+```
+
 ---
 
 ## Targets
