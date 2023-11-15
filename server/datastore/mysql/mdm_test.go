@@ -21,6 +21,7 @@ func TestMDMShared(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"TestMDMCommands", testMDMCommands},
+		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
 	}
 
 	for _, c := range cases {
@@ -161,4 +162,121 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, winCmd.CommandUUID, cmds[1].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
 	require.Equal(t, "200", cmds[1].Status)
+}
+
+func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
+	applyAndExpect := func(
+		newAppleSet []*fleet.MDMAppleConfigProfile,
+		newWindowsSet []*fleet.MDMWindowsConfigProfile,
+		tmID *uint,
+		wantApple []*fleet.MDMAppleConfigProfile,
+		wantWindows []*fleet.MDMWindowsConfigProfile,
+	) {
+		ctx := context.Background()
+		err := ds.BatchSetMDMProfiles(ctx, tmID, newAppleSet, newWindowsSet)
+		require.NoError(t, err)
+		expectAppleProfiles(t, ds, newAppleSet, tmID, wantApple)
+		expectWindowsProfiles(t, ds, newWindowsSet, tmID, wantWindows)
+	}
+
+	withTeamIDApple := func(p *fleet.MDMAppleConfigProfile, tmID uint) *fleet.MDMAppleConfigProfile {
+		p.TeamID = &tmID
+		return p
+	}
+
+	withTeamIDWindows := func(p *fleet.MDMWindowsConfigProfile, tmID uint) *fleet.MDMWindowsConfigProfile {
+		p.TeamID = &tmID
+		return p
+	}
+
+	// empty set for no team (both Apple and Windows)
+	applyAndExpect(nil, nil, nil, nil, nil)
+
+	// single Apple and Windows profile set for a specific team
+	applyAndExpect(
+		[]*fleet.MDMAppleConfigProfile{configProfileForTest(t, "N1", "I1", "a")},
+		[]*fleet.MDMWindowsConfigProfile{windowsConfigProfileForTest(t, "W1", "l1")},
+		ptr.Uint(1),
+		[]*fleet.MDMAppleConfigProfile{withTeamIDApple(configProfileForTest(t, "N1", "I1", "a"), 1)},
+		[]*fleet.MDMWindowsConfigProfile{withTeamIDWindows(windowsConfigProfileForTest(t, "W1", "l1"), 1)},
+	)
+
+	// single Apple and Windows profile set for no team
+	applyAndExpect(
+		[]*fleet.MDMAppleConfigProfile{configProfileForTest(t, "N1", "I1", "a")},
+		[]*fleet.MDMWindowsConfigProfile{windowsConfigProfileForTest(t, "W1", "l1")},
+		nil,
+		[]*fleet.MDMAppleConfigProfile{configProfileForTest(t, "N1", "I1", "a")},
+		[]*fleet.MDMWindowsConfigProfile{windowsConfigProfileForTest(t, "W1", "l1")},
+	)
+
+	// new Apple and Windows profile sets for a specific team
+	applyAndExpect(
+		[]*fleet.MDMAppleConfigProfile{
+			configProfileForTest(t, "N1", "I1", "a"), // unchanged
+			configProfileForTest(t, "N2", "I2", "b"),
+		},
+		[]*fleet.MDMWindowsConfigProfile{
+			windowsConfigProfileForTest(t, "W1", "l1"), // unchanged
+			windowsConfigProfileForTest(t, "W2", "l2"),
+		},
+		ptr.Uint(1),
+		[]*fleet.MDMAppleConfigProfile{
+			withTeamIDApple(configProfileForTest(t, "N1", "I1", "a"), 1),
+			withTeamIDApple(configProfileForTest(t, "N2", "I2", "b"), 1),
+		},
+		[]*fleet.MDMWindowsConfigProfile{
+			withTeamIDWindows(windowsConfigProfileForTest(t, "W1", "l1"), 1),
+			withTeamIDWindows(windowsConfigProfileForTest(t, "W2", "l2"), 1),
+		},
+	)
+
+	// edited profiles, unchanged profiles, and new profiles for a specific team
+	applyAndExpect(
+		[]*fleet.MDMAppleConfigProfile{
+			configProfileForTest(t, "N1", "I1", "a-updated"), // content updated
+			configProfileForTest(t, "N2", "I2", "b"),         // unchanged
+			configProfileForTest(t, "N3", "I3", "c"),         // new
+		},
+		[]*fleet.MDMWindowsConfigProfile{
+			windowsConfigProfileForTest(t, "W1", "l1-updated"), // content updated
+			windowsConfigProfileForTest(t, "W2", "l2"),         // unchanged
+			windowsConfigProfileForTest(t, "W3", "l3"),         // new
+		},
+		ptr.Uint(1),
+		[]*fleet.MDMAppleConfigProfile{
+			withTeamIDApple(configProfileForTest(t, "N1", "I1", "a-updated"), 1),
+			withTeamIDApple(configProfileForTest(t, "N2", "I2", "b"), 1),
+			withTeamIDApple(configProfileForTest(t, "N3", "I3", "c"), 1),
+		},
+		[]*fleet.MDMWindowsConfigProfile{
+			withTeamIDWindows(windowsConfigProfileForTest(t, "W1", "l1-updated"), 1),
+			withTeamIDWindows(windowsConfigProfileForTest(t, "W2", "l2"), 1),
+			withTeamIDWindows(windowsConfigProfileForTest(t, "W3", "l3"), 1),
+		},
+	)
+
+	// new Apple and Windows profiles to no team
+	applyAndExpect(
+		[]*fleet.MDMAppleConfigProfile{
+			configProfileForTest(t, "N4", "I4", "d"),
+			configProfileForTest(t, "N5", "I5", "e"),
+		},
+		[]*fleet.MDMWindowsConfigProfile{
+			windowsConfigProfileForTest(t, "W4", "l4"),
+			windowsConfigProfileForTest(t, "W5", "l5"),
+		},
+		nil,
+		[]*fleet.MDMAppleConfigProfile{
+			configProfileForTest(t, "N4", "I4", "d"),
+			configProfileForTest(t, "N5", "I5", "e"),
+		},
+		[]*fleet.MDMWindowsConfigProfile{
+			windowsConfigProfileForTest(t, "W4", "l4"),
+			windowsConfigProfileForTest(t, "W5", "l5"),
+		},
+	)
+
+	// Test Case 8: Clear profiles for a specific team
+	applyAndExpect(nil, nil, ptr.Uint(1), nil, nil)
 }

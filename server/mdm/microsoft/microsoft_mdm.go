@@ -397,7 +397,7 @@ const (
 
 const (
 	FleetBitLockerTargetLocURI = "./Device/Vendor/MSFT/BitLocker"
-	FleetOSUpdateTargetLocURI  = "./Device/Vendor/MSFT/Policy/Config/Update/"
+	FleetOSUpdateTargetLocURI  = "./Device/Vendor/MSFT/Policy/Config/Update"
 )
 
 func ResolveWindowsMDMDiscovery(serverURL string) (string, error) {

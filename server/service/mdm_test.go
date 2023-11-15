@@ -947,3 +947,389 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 		})
 	}
 }
+
+func TestMDMBatchSetProfiles(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			OrgInfo: fleet.OrgInfo{
+				OrgName: "Foo Inc.",
+			},
+			ServerSettings: fleet.ServerSettings{
+				ServerURL: "https://foo.example.com",
+			},
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+			},
+		}, nil
+	}
+
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 1, Name: name}, nil
+	}
+	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: id, Name: "team"}, nil
+	}
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+		return nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+
+	testCases := []struct {
+		name     string
+		user     *fleet.User
+		premium  bool
+		teamID   *uint
+		teamName *string
+		profiles map[string][]byte
+		wantErr  string
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			nil,
+			"",
+		},
+		{
+			"global admin, team",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			"",
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+			nil,
+			nil,
+			nil,
+			"",
+		},
+		{
+			"global maintainer, team",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			"",
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			false,
+			nil,
+			nil,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team admin, DOES belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			"",
+		},
+		{
+			"team admin, DOES belong to team by name",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			nil,
+			ptr.String("team"),
+			nil,
+			"",
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team admin, DOES NOT belong to team by name",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			nil,
+			ptr.String("team"),
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team maintainer, DOES belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			"",
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team observer, DOES belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"user no roles",
+			&fleet.User{ID: 1337},
+			false,
+			nil,
+			nil,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team id with free license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			ptr.Uint(1),
+			nil,
+			nil,
+			ErrMissingLicense.Error(),
+		},
+		{
+			"team name with free license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			ptr.String("team"),
+			nil,
+			ErrMissingLicense.Error(),
+		},
+		{
+			"team id and name specified",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			ptr.Uint(1),
+			ptr.String("team"),
+			nil,
+			"cannot specify both team_id and team_name",
+		},
+		{
+			"duplicate macOS profile name",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			ptr.Uint(1),
+			nil,
+			map[string][]byte{
+				"N1": mobileconfigForTest("N1", "I1"),
+				"N2": mobileconfigForTest("N1", "I2"),
+			},
+			`The name provided for the profile must match the profile PayloadDisplayName: "N1"`,
+		},
+		{
+			"duplicate macOS profile identifier",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			ptr.Uint(1),
+			nil,
+			map[string][]byte{
+				"N1": mobileconfigForTest("N1", "I1"),
+				"N2": mobileconfigForTest("N2", "I2"),
+				"N3": mobileconfigForTest("N3", "I1"),
+			},
+			`More than one configuration profile have the same identifier (PayloadIdentifier): "I1"`,
+		},
+		{
+			"only macOS",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			map[string][]byte{
+				"N1": mobileconfigForTest("N1", "I1"),
+				"N2": mobileconfigForTest("N2", "I2"),
+				"N3": mobileconfigForTest("N3", "I3"),
+			},
+			``,
+		},
+		{
+			"mixed profiles",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			map[string][]byte{
+				"N1": syncMLForTest("./foo/bar"),
+				"N2": syncMLForTest("./baz"),
+				"N3": syncMLForTest("./zab"),
+				"N4": mobileconfigForTest("N4", "I1"),
+				"N5": mobileconfigForTest("N5", "I2"),
+				"N6": mobileconfigForTest("N6", "I3"),
+			},
+			``,
+		},
+		{
+			"only windows",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			map[string][]byte{
+				"N1": syncMLForTest("./foo/bar"),
+				"N2": syncMLForTest("./baz"),
+				"N3": syncMLForTest("./zab"),
+			},
+			``,
+		},
+		{
+			"unsupported payload type",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			map[string][]byte{
+				"foo": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+			<plist version="1.0">
+			<dict>
+				<key>PayloadContent</key>
+				<array>
+					<dict>
+						<key>Enable</key>
+						<string>On</string>
+						<key>PayloadDisplayName</key>
+						<string>FileVault 2</string>
+						<key>PayloadIdentifier</key>
+						<string>com.apple.MCX.FileVault2.A5874654-D6BA-4649-84B5-43847953B369</string>
+						<key>PayloadType</key>
+						<string>com.apple.MCX.FileVault2</string>
+						<key>PayloadUUID</key>
+						<string>A5874654-D6BA-4649-84B5-43847953B369</string>
+						<key>PayloadVersion</key>
+						<integer>1</integer>
+					</dict>
+				</array>
+				<key>PayloadDisplayName</key>
+				<string>Config Profile Name</string>
+				<key>PayloadIdentifier</key>
+				<string>com.example.config.FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadType</key>
+				<string>Configuration</string>
+				<key>PayloadUUID</key>
+				<string>FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadVersion</key>
+				<integer>1</integer>
+			</dict>
+			</plist>`)},
+			"unsupported PayloadType(s)",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() { ds.BatchSetMDMProfilesFuncInvoked = false }()
+
+			// prepare the context with the user and license
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			tier := fleet.TierFree
+			if tt.premium {
+				tier = fleet.TierPremium
+			}
+			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
+
+			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				require.True(t, ds.BatchSetMDMProfilesFuncInvoked)
+				return
+			}
+			require.Error(t, err)
+			require.ErrorContains(t, err, tt.wantErr)
+			require.False(t, ds.BatchSetMDMProfilesFuncInvoked)
+		})
+	}
+}
+
+func TestValidateProfiles(t *testing.T) {
+	tests := []struct {
+		name     string
+		profiles map[string][]byte
+		wantErr  bool
+	}{
+		{
+			name: "Valid Darwin Profile",
+			profiles: map[string][]byte{
+				"darwinProfile": []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"),
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid Windows Profile",
+			profiles: map[string][]byte{
+				"windowsProfile": []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>"),
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid Profile",
+			profiles: map[string][]byte{
+				"invalidProfile": []byte("invalid data"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "Mixed Valid and Invalid Profiles",
+			profiles: map[string][]byte{
+				"validProfile":   []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"),
+				"invalidProfile": []byte("invalid data"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "Empty Profile",
+			profiles: map[string][]byte{
+				"emptyProfile": []byte(""),
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateProfiles(tt.profiles)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
