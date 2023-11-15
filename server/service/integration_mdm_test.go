@@ -3,7 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
+	"crypto/md5" // nolint:gosec // used only for tests
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
@@ -8281,7 +8281,8 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	tm2ProfF, err := s.ds.NewMDMAppleConfigProfile(ctx, *tprof)
 	require.NoError(t, err)
 	// checksum is not returned by New..., so compute it manually
-	checkSum := md5.Sum(tm2ProfF.Mobileconfig)
+	checkSum := md5.Sum(tm2ProfF.Mobileconfig) // nolint:gosec // used only for test
+
 	tm2ProfF.Checksum = checkSum[:]
 	tm2ProfG, err := s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "tG", TeamID: &tm2.ID, SyncML: []byte(`<Replace></Replace>`)})
 	require.NoError(t, err)
