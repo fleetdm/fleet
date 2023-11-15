@@ -6977,7 +6977,6 @@ Get a list of all software grouped by software title.
       "versions_count": 3,
       "source": "apps",
       "hosts_count": "48",
-      "vulnerabilities_count": 3
       "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
       "versions": [123, 124, 127]  
     },
