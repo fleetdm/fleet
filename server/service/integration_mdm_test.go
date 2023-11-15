@@ -8032,6 +8032,45 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	noTeamWinProfID := createWindowsProfile("win-global-profile", 0)
 	teamWinProfID := createWindowsProfile("win-team-profile", testTeam.ID)
 
+	// get the existing profiles work
+	expectedChecksum := []byte("1234\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00") // binary16 in the DB
+	expectedProfiles := []fleet.MDMConfigProfilePayload{
+		{ProfileID: fmt.Sprint(noTeamAppleProfID), Platform: "darwin", Name: "apple-global-profile", Identifier: "test-global-ident", TeamID: nil, Checksum: expectedChecksum},
+		{ProfileID: fmt.Sprint(teamAppleProfID), Platform: "darwin", Name: "apple-team-profile", Identifier: "test-team-ident", TeamID: &testTeam.ID, Checksum: expectedChecksum},
+		{ProfileID: noTeamWinProfID, Platform: "windows", Name: "win-global-profile", TeamID: nil},
+		{ProfileID: teamWinProfID, Platform: "windows", Name: "win-team-profile", TeamID: &testTeam.ID},
+	}
+	for _, prof := range expectedProfiles {
+		var getResp getMDMConfigProfileResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", prof.ProfileID), nil, http.StatusOK, &getResp)
+		require.NotZero(t, getResp.CreatedAt)
+		require.NotZero(t, getResp.UpdatedAt)
+		getResp.CreatedAt, getResp.UpdatedAt = time.Time{}, time.Time{}
+		require.Equal(t, prof, *getResp.MDMConfigProfilePayload)
+
+		resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", prof.ProfileID), nil, http.StatusOK, "alt", "media")
+		require.NotZero(t, resp.ContentLength)
+		require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
+		if getResp.Platform == "darwin" {
+			require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
+		} else {
+			require.Contains(t, resp.Header.Get("Content-Type"), "application/octet-stream")
+		}
+		require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
+
+		b, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, resp.ContentLength, int64(len(b)))
+	}
+
+	var getResp getMDMConfigProfileResponse
+	// get an unknown Apple profile
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", noTeamAppleProfID+1000), nil, http.StatusNotFound, &getResp)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", noTeamAppleProfID+1000), nil, http.StatusNotFound, "alt", "media")
+	// get an unknown Windows profile
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", "no-such-profile"), nil, http.StatusNotFound, &getResp)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", "no-such-profile"), nil, http.StatusNotFound, "alt", "media")
+
 	var deleteResp deleteMDMConfigProfileResponse
 	// delete existing Apple profiles
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", noTeamAppleProfID), nil, http.StatusOK, &deleteResp)

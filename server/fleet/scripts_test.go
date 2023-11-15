@@ -37,7 +37,7 @@ func TestScriptValidate(t *testing.T) {
 				Name:           "test.txt",
 				ScriptContents: "valid",
 			},
-			wantErr: errors.New("The file should be a .sh file."),
+			wantErr: errors.New("File type not supported. Only .sh and .ps1 file type is allowed."),
 		},
 		{
 			name: "invalid script content",
