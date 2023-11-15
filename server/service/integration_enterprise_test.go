@@ -1830,11 +1830,11 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	t := s.T()
 
-	ac, err := s.ds.AppConfig(context.Background())
-	require.NoError(t, err)
-	ac.OrgInfo.OrgLogoURL = "http://example.com/logo"
-	err = s.ds.SaveAppConfig(context.Background(), ac)
-	require.NoError(t, err)
+	// set the logo via the modifi appconfig endpoint, so that the cache is
+	// properly updated.
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"org_info":{"org_logo_url": "http://example.com/logo"}}`), http.StatusOK, &acResp)
+	require.Equal(t, "http://example.com/logo", acResp.OrgInfo.OrgLogoURL)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          51,
