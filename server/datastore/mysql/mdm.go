@@ -86,3 +86,17 @@ INNER JOIN hosts h ON h.uuid = mwe.host_uuid
 	}
 	return results, nil
 }
+
+func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
+		}
+
+		if err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
+		}
+
+		return nil
+	})
+}

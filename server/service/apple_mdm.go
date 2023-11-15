@@ -1421,39 +1421,10 @@ func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, 
 }
 
 func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte, dryRun, skipBulkPending bool) error {
-	if tmID != nil && tmName != nil {
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
-	}
-	if tmID != nil || tmName != nil {
-		license, _ := license.FromContext(ctx)
-		if !license.IsPremium() {
-			field := "team_id"
-			if tmName != nil {
-				field = "team_name"
-			}
-			svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, ErrMissingLicense.Error()))
-		}
-	}
-
-	// if the team name is provided, load the corresponding team to get its id.
-	// vice-versa, if the id is provided, load it to get the name (required for
-	// the activity).
-	if tmName != nil || tmID != nil {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, tmID, tmName)
-		if err != nil {
-			return err
-		}
-		if tmID == nil {
-			tmID = &tm.ID
-		} else {
-			tmName = &tm.Name
-		}
-	}
-
-	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: tmID}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
+	var err error
+	tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName)
+	if err != nil {
+		return err
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)

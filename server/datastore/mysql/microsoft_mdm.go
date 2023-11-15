@@ -900,3 +900,116 @@ INSERT INTO
 		TeamID:      cp.TeamID,
 	}, nil
 }
+
+func (ds *Datastore) batchSetMDMWindowsProfilesDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	tmID *uint,
+	profiles []*fleet.MDMWindowsConfigProfile,
+) error {
+	const loadExistingProfiles = `
+SELECT
+  name,
+  syncml
+FROM
+  mdm_windows_configuration_profiles
+WHERE
+  team_id = ? AND
+  name IN (?)
+`
+
+	const deleteProfilesNotInList = `
+DELETE FROM
+  mdm_windows_configuration_profiles
+WHERE
+  team_id = ? AND
+  name NOT IN (?)
+`
+
+	const deleteAllProfilesForTeam = `
+DELETE FROM
+  mdm_windows_configuration_profiles
+WHERE
+  team_id = ?
+`
+
+	const insertNewOrEditedProfile = `
+INSERT INTO
+  mdm_windows_configuration_profiles (
+    profile_uuid, team_id, name, syncml
+  )
+VALUES
+  ( UUID(), ?, ?, ? )
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
+  syncml = VALUES(syncml)
+`
+
+	// use a profile team id of 0 if no-team
+	var profTeamID uint
+	if tmID != nil {
+		profTeamID = *tmID
+	}
+
+	// build a list of names for the incoming profiles, will keep the
+	// existing ones if there's a match and no change
+	incomingNames := make([]string, len(profiles))
+	// at the same time, index the incoming profiles keyed by name for ease
+	// or processing
+	incomingProfs := make(map[string]*fleet.MDMWindowsConfigProfile, len(profiles))
+	for i, p := range profiles {
+		incomingNames[i] = p.Name
+		incomingProfs[p.Name] = p
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var existingProfiles []*fleet.MDMWindowsConfigProfile
+
+		if len(incomingNames) > 0 {
+			// load existing profiles that match the incoming profiles by name
+			stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build query to load existing profiles")
+			}
+			if err := sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "load existing profiles")
+			}
+		}
+
+		// figure out if we need to delete any profiles
+		keepNames := make([]string, 0, len(incomingNames))
+		for _, p := range existingProfiles {
+			if newP := incomingProfs[p.Name]; newP != nil {
+				keepNames = append(keepNames, p.Name)
+			}
+		}
+
+		var (
+			stmt string
+			args []interface{}
+			err  error
+		)
+		// delete the obsolete profiles (all those that are not in keepNames)
+		if len(keepNames) > 0 {
+			stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, keepNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete obsolete profiles")
+			}
+		} else {
+			if _, err := tx.ExecContext(ctx, deleteAllProfilesForTeam, profTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all profiles for team")
+			}
+		}
+
+		// insert the new profiles and the ones that have changed
+		for _, p := range incomingProfs {
+			if _, err := tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Name, p.SyncML); err != nil {
+				return ctxerr.Wrapf(ctx, err, "insert new/edited profile with name %q", p.Name)
+			}
+		}
+		return nil
+	})
+}
