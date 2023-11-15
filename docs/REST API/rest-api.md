@@ -6990,7 +6990,7 @@ Get a list of all software grouped by software title.
         },
         {
           "id": "12"
-          "version": 1.13,
+          "version": "1.13",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }
       ]  
@@ -7001,9 +7001,28 @@ Get a list of all software grouped by software title.
       "versions_count": 5,
       "source": "apps",
       "hosts_count": "345",
-      "vulnerabilities_count": 3
-      "vulnerabilities": ["CVE-2023-9876","CVE-2023-3456","CVE-2023-5678"],
-      "versions": [331, 332, 334, 348, 351]
+      "versions": [
+        {
+          "id": "331",
+          "version": "118.1",
+          "vulnerabilities": ["CVE-2023-1234"]
+        },
+        {
+          "id": "332",
+          "version": "119.0",
+          "vulnerabilities": ["CVE-2023-9876", "CVE-2023-2367"]
+        },
+        {
+          "id": "334",
+          "version": "119.4",
+          "vulnerabilities": ["CVE-2023-1133", "CVE-2023-2224"]
+        },
+        {
+          "id": "348",
+          "version": "121.5",
+          "vulnerabilities": ["CVE-2023-0987", "CVE-2023-5673", "CVE-2023-1334"]
+        },
+      ]
     }
   ]
 }
