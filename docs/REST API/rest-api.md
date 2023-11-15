@@ -7133,7 +7133,6 @@ Returns the information of the specified software title. By default `versions` a
     "versions_count": 3,
     "source": "apps",
     "hosts_count": "48",
-    "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
     "versions": [ 
       {
         "id": 123,
