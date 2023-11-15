@@ -1519,3 +1519,61 @@ func validateProfiles(profiles map[string][]byte) error {
 
 	return nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/profiles (List profiles)
+////////////////////////////////////////////////////////////////////////////////
+
+type listMDMConfigProfilesRequest struct {
+	TeamID      *uint             `query:"team_id,optional"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+type listMDMConfigProfilesResponse struct {
+	Meta     *fleet.PaginationMetadata        `json:"meta"`
+	Profiles []*fleet.MDMConfigProfilePayload `json:"profiles"`
+	Err      error                            `json:"error,omitempty"`
+}
+
+func (r listMDMConfigProfilesResponse) error() error { return r.Err }
+
+func listMDMConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*listMDMConfigProfilesRequest)
+
+	profs, meta, err := svc.ListMDMConfigProfiles(ctx, req.TeamID, req.ListOptions)
+	if err != nil {
+		return &listMDMConfigProfilesResponse{Err: err}, nil
+	}
+
+	res := listMDMConfigProfilesResponse{Meta: meta, Profiles: profs}
+	if profs == nil {
+		// return empty json array instead of json null
+		res.Profiles = []*fleet.MDMConfigProfilePayload{}
+	}
+	return &res, nil
+}
+
+func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err)
+	}
+
+	if teamID != nil && *teamID > 0 {
+		// confirm that team exists
+		if _, err := svc.ds.Team(ctx, *teamID); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err)
+		}
+	}
+
+	// cursor-based pagination is not supported for scripts
+	opt.After = ""
+	// custom ordering is not supported, always by name
+	opt.OrderKey = "name"
+	opt.OrderDirection = fleet.OrderAscending
+	// no matching query support
+	opt.MatchQuery = ""
+	// always include metadata for profiles
+	opt.IncludeMetadata = true
+
+	return svc.ds.ListMDMConfigProfiles(ctx, teamID, opt)
+}

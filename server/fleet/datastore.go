@@ -1076,6 +1076,10 @@ type Datastore interface {
 	// the specified profile uuid.
 	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
 
+	// ListMDMConfigProfiles returns a paginated list of configuration profiles
+	// corresponding to the criteria.
+	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// MDM Commands
 
