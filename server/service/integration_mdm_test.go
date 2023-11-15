@@ -9325,7 +9325,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		"N3":                                     syncMLForTest("./Foo/Bar"),
 	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Custom configuration profiles can’t include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
+	require.Contains(t, errMsg, "Custom configuration profiles can't include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
 
 	// os updates
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: map[string][]byte{
@@ -9334,7 +9334,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		"N3":                                    syncMLForTest("./Foo/Bar"),
 	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Custom configuration profiles can’t include Windows updates settings. To control these settings, use the mdm.windows_updates option.")
+	require.Contains(t, errMsg, "Custom configuration profiles can't include Windows updates settings. To control these settings, use the mdm.windows_updates option.")
 
 	// invalid windows tag
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: map[string][]byte{

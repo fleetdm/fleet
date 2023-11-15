@@ -994,8 +994,8 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		wantErr       string
 	}{
 		{"empty profile", 0, "", true, "The file should include valid XML."},
-		{"plist data", 0, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "The file should include valid XML."},
-		{"random non-xml data", 0, "\x00\x01\x02", true, "The file should include valid XML."},
+		{"plist data", 0, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "Only <Replace> supported as a top level element."},
+		{"random non-xml data", 0, "\x00\x01\x02", true, "The file should include valid XML:"},
 		{"valid windows profile", 0, `<Replace></Replace>`, true, ""},
 		{"mdm not enabled", 0, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
 		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},
@@ -1005,8 +1005,8 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"Windows updates profile", 0, `<Replace><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
 		{"team empty profile", 1, "", true, "The file should include valid XML."},
-		{"team plist data", 1, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "The file should include valid XML."},
-		{"team random non-xml data", 1, "\x00\x01\x02", true, "The file should include valid XML."},
+		{"team plist data", 1, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "Only <Replace> supported as a top level element."},
+		{"team random non-xml data", 1, "\x00\x01\x02", true, "The file should include valid XML:"},
 		{"team valid windows profile", 1, `<Replace></Replace>`, true, ""},
 		{"team mdm not enabled", 1, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
 		{"team duplicate profile name", 1, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},

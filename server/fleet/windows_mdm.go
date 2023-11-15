@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
@@ -45,8 +46,16 @@ type MDMWindowsConfigProfile struct {
 // Returns an error if these conditions are not met.
 func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	if mdm.GetRawProfilePlatform(m.SyncML) != "windows" {
-		// it doesn't start with <Replace>, assume it isn't valid XML.
-		return errors.New("The file should include valid XML.")
+		// it doesn't start with <Replace>, check if it is still valid XML.
+		if len(bytes.TrimSpace(m.SyncML)) == 0 {
+			return errors.New("The file should include valid XML.")
+		}
+		doc := etree.NewDocument()
+		if err := doc.ReadFromBytes(m.SyncML); err != nil {
+			return fmt.Errorf("The file should include valid XML: %w", err)
+		}
+		// valid xml, but does not start with <Replace>
+		return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
 	}
 
 	doc := etree.NewDocument()
@@ -56,7 +65,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 
 	for _, element := range doc.ChildElements() {
 		if element.Tag != CmdReplace {
-			return errors.New("Only <Replace> supported as a top level element. Make sure you don’t have other top level elements.")
+			return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
 		}
 
 		for _, target := range element.FindElements("Target") {
