@@ -23,12 +23,7 @@ type StatisticsPayload struct {
 	HostExpiryEnabled         bool   `json:"hostExpiryEnabled"`
 	MDMWindowsEnabled         bool   `json:"MDMWindowsEnabled"`
 	LiveQueryDisabled         bool   `json:"liveQueryDisabled"`
-
-	// TODO: Define how we want to coung Jira and Zenhub integration and add them.
-	// JiraIntegrationEnabled    bool   `json:"jiraIntegrationEnabled"`
-	// ZendeskIntegrationEnabled bool   `json:"zendeskIntegrationEnabled"`
-
-	NumWeeklyActiveUsers int `json:"numWeeklyActiveUsers"`
+	NumWeeklyActiveUsers      int    `json:"numWeeklyActiveUsers"`
 	// NumWeeklyPolicyViolationDaysActual is an aggregate count of actual policy violation days. One
 	// policy violation day is added for each policy that a host is failing as of the time the count
 	// is incremented. The count increments once per 24-hour interval and resets each week.
