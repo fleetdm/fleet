@@ -419,6 +419,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
+	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
 	return &TeamSpec{
 		Name:         t.Name,
 		AgentOptions: agentOptions,
