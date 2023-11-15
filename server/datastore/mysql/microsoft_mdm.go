@@ -773,14 +773,20 @@ SELECT
     SUM(1) AS count
 FROM
     hosts h
+    JOIN host_mdm hmdm ON h.id = hmdm.host_id
 WHERE
-    h.platform = 'windows' AND %s
+	hmdm.mdm_id = (SELECT id FROM mobile_device_management_solutions WHERE name = '%s') AND 
+	hmdm.is_server = 0 AND
+	hmdm.enrolled = 1 AND 
+    h.platform = 'windows' AND
+    %s
 GROUP BY
     status`,
 		subqueryFailed,
 		subqueryPending,
 		subqueryVerifying,
 		subqueryVerified,
+		fleet.WellKnownMDMFleet,
 		teamFilter,
 	)
 
@@ -827,7 +833,6 @@ func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Da
 		args = append(args, *teamID)
 	}
 	bitlockerJoin := `
-    LEFT JOIN host_mdm hmdm ON h.id = hmdm.host_id
     LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
     LEFT JOIN host_disks hd ON hd.host_id = h.id`
 
@@ -876,9 +881,14 @@ SELECT
     SUM(1) as count
 FROM
     hosts h
+    JOIN host_mdm hmdm ON h.id = hmdm.host_id
     %s
 WHERE
-	h.platform = 'windows' AND %s
+	hmdm.mdm_id = (SELECT id FROM mobile_device_management_solutions WHERE name = '%s') AND 
+    hmdm.is_server = 0 AND
+    hmdm.enrolled = 1 AND
+    h.platform = 'windows' AND
+    %s
 GROUP BY
     status`,
 		profilesStatus,
@@ -886,6 +896,7 @@ GROUP BY
 		bitlockerStatus,
 		bitlockerStatus,
 		bitlockerJoin,
+		fleet.WellKnownMDMFleet,
 		teamFilter,
 	)
 
