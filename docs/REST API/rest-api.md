@@ -3916,11 +3916,11 @@ Content-Disposition: form-data; name="team_id"
 
 1
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="label"
+Content-Disposition: form-data; name="labels"
 
 Label name 1
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="label"
+Content-Disposition: form-data; name="labels"
 
 Label name 2
 --------------------------f02md47480und42y
