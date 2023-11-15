@@ -2151,8 +2151,6 @@ func (ds *Datastore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uin
 	subqueryVerified, subqueryVerifiedArgs := subqueryHostsMacOSSetttingsStatusVerified()
 	args = append(args, subqueryVerifiedArgs...)
 
-	// TODO: Try adding `h.platform = 'darwin`` to query
-
 	sqlFmt := `
 SELECT
     COUNT(
@@ -2174,7 +2172,7 @@ SELECT
 FROM
     hosts h
 WHERE
-	%s`
+    h.platform = 'darwin' AND %s`
 
 	teamFilter := "h.team_id IS NULL"
 	if teamID != nil && *teamID > 0 {

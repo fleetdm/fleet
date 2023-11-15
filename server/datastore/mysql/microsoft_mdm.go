@@ -884,7 +884,7 @@ FROM
     JOIN host_mdm hmdm ON h.id = hmdm.host_id
     %s
 WHERE
-	hmdm.mdm_id = (SELECT id FROM mobile_device_management_solutions WHERE name = '%s') AND 
+    hmdm.mdm_id = (SELECT id FROM mobile_device_management_solutions WHERE name = '%s') AND 
     hmdm.is_server = 0 AND
     hmdm.enrolled = 1 AND
     h.platform = 'windows' AND
