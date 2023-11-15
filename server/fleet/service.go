@@ -597,7 +597,7 @@ type Service interface {
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
-	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*MDMAppleConfigProfile, error)
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile retrieves the specified configuration profile.
 	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
 	// DeleteMDMAppleConfigProfile deletes the specified configuration profile.
@@ -815,6 +815,14 @@ type Service interface {
 
 	// DeleteMDMWindowsConfigProfile deletes the specified windows profile.
 	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
+
+	// NewMDMWindowsConfigProfile creates a new Windows configuration profile for
+	// the specified team.
+	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader) (*MDMWindowsConfigProfile, error)
+
+	// NewMDMUnsupportedConfigProfile is called when a profile with an
+	// unsupported extension is uploaded.
+	NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error
 
 	// BatchSetMDMProfiles replaces the custom Windows/macOS profiles for a specified
 	// team or for hosts with no team.

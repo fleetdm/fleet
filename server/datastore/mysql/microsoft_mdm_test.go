@@ -1140,29 +1140,66 @@ func testGetMDMWindowsProfilesContents(t *testing.T, ds *Datastore) {
 func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			`INSERT INTO mdm_windows_configuration_profiles (profile_uuid, name, team_id, syncml) VALUES (uuid(), 'abc', ?, ?)`, 0, "<SyncML></SyncML>")
-		return err
-	})
+	// create a couple Windows profiles for no-team (nil and 0 means no team)
+	profA, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
+	require.NoError(t, err)
+	require.NotEmpty(t, profA.ProfileUUID)
+	profB, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: ptr.Uint(0), SyncML: []byte("<Replace></Replace>")})
+	require.NoError(t, err)
+	require.NotEmpty(t, profB.ProfileUUID)
+	// create an Apple profile for no-team
+	profC, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("c", "c", 0))
+	require.NoError(t, err)
+	require.NotZero(t, profC.ProfileID)
 
-	var profUUID string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &profUUID,
-			`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'abc'`)
-	})
+	// create the same name for team 1 as Windows profile
+	profATm, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
+	require.NoError(t, err)
+	require.NotEmpty(t, profATm.ProfileUUID)
+	require.NotNil(t, profATm.TeamID)
+	require.Equal(t, uint(1), *profATm.TeamID)
+	// create the same B profile for team 1 as Apple profile
+	profBTm, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 1))
+	require.NoError(t, err)
+	require.NotZero(t, profBTm.ProfileID)
 
-	_, err := ds.GetMDMWindowsConfigProfile(ctx, "not-valid")
+	var existsErr *existsError
+	// create a duplicate of Windows for no-team
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate of Apple for no-team
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "c", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate of Windows for team
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate of Apple for team
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate name with an Apple profile for no-team
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 0))
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate name with an Apple profile for team
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 1))
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+
+	_, err = ds.GetMDMWindowsConfigProfile(ctx, "not-valid")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
-	prof, err := ds.GetMDMWindowsConfigProfile(ctx, profUUID)
+	prof, err := ds.GetMDMWindowsConfigProfile(ctx, profA.ProfileUUID)
 	require.NoError(t, err)
-	require.Equal(t, profUUID, prof.ProfileUUID)
+	require.Equal(t, profA.ProfileUUID, prof.ProfileUUID)
 	require.NotNil(t, prof.TeamID)
 	require.Zero(t, *prof.TeamID)
-	require.Equal(t, "abc", prof.Name)
-	require.Equal(t, "<SyncML></SyncML>", string(prof.SyncML))
+	require.Equal(t, "a", prof.Name)
+	require.Equal(t, "<Replace></Replace>", string(prof.SyncML))
 	require.NotZero(t, prof.CreatedAt)
 	require.NotZero(t, prof.UpdatedAt)
 
@@ -1170,7 +1207,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
-	err = ds.DeleteMDMWindowsConfigProfile(ctx, profUUID)
+	err = ds.DeleteMDMWindowsConfigProfile(ctx, profA.ProfileUUID)
 	require.NoError(t, err)
 }
 

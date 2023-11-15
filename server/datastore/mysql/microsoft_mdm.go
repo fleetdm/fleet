@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -851,6 +852,53 @@ func bulkDeleteMDMWindowsHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtC
 		}
 	}
 	return nil
+}
+
+func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
+	profileUUID := uuid.New().String()
+	stmt := `
+INSERT INTO
+    mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml)
+(SELECT ?, ?, ?, ? FROM DUAL WHERE
+	NOT EXISTS (
+		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
+	)
+)`
+
+	var teamID uint
+	if cp.TeamID != nil {
+		teamID = *cp.TeamID
+	}
+
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID)
+	if err != nil {
+		switch {
+		case isDuplicate(err):
+			return nil, &existsError{
+				ResourceType: "MDMWindowsConfigProfile.Name",
+				Identifier:   cp.Name,
+				TeamID:       cp.TeamID,
+			}
+		default:
+			return nil, ctxerr.Wrap(ctx, err, "creating new windows mdm config profile")
+		}
+	}
+
+	aff, _ := res.RowsAffected()
+	if aff == 0 {
+		return nil, &existsError{
+			ResourceType: "MDMWindowsConfigProfile.Name",
+			Identifier:   cp.Name,
+			TeamID:       cp.TeamID,
+		}
+	}
+
+	return &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: profileUUID,
+		Name:        cp.Name,
+		SyncML:      cp.SyncML,
+		TeamID:      cp.TeamID,
+	}, nil
 }
 
 func (ds *Datastore) batchSetMDMWindowsProfilesDB(

@@ -265,6 +265,10 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		_, err := q.ExecContext(ctx, "DELETE FROM mdm_apple_configuration_profiles")
 		return err
 	})
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM mdm_windows_configuration_profiles")
+		return err
+	})
 	// clear any pending worker job
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM jobs")
@@ -8022,29 +8026,73 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
 	require.NoError(t, err)
 
-	createAppleProfile := func(name, ident string, teamID uint) int64 {
-		var id int64
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			mc := mcBytesForTest(name, ident, uuid.New().String())
-			res, err := q.ExecContext(ctx,
-				"INSERT INTO mdm_apple_configuration_profiles (identifier, name, mobileconfig, checksum, team_id) VALUES (?, ?, ?, ?, ?)",
-				ident, name, mc, "1234", teamID)
-			if err != nil {
-				return err
-			}
-			id, _ = res.LastInsertId()
-			return nil
-		})
+	assertAppleProfile := func(filename, name, ident string, teamID uint, wantStatus int, wantErrMsg string) string {
+		var tmPtr *uint
+		if teamID > 0 {
+			tmPtr = &teamID
+		}
+		body, headers := generateNewProfileMultipartRequest(t, tmPtr,
+			filename, mobileconfigForTest(name, ident), s.token)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/profiles", body.Bytes(), wantStatus, headers)
+
+		if wantErrMsg != "" {
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, wantErrMsg)
+			return ""
+		}
+
+		var resp newMDMConfigProfileResponse
+		err := json.NewDecoder(res.Body).Decode(&resp)
+		require.NoError(t, err)
+		require.NotEmpty(t, resp.ProfileID)
+		return resp.ProfileID
+	}
+	createAppleProfile := func(name, ident string, teamID uint) string {
+		id := assertAppleProfile(name+".mobileconfig", name, ident, teamID, http.StatusOK, "")
+
+		var wantJSON string
+		if teamID == 0 {
+			wantJSON = fmt.Sprintf(`{"team_id": null, "team_name": null, "profile_name": %q, "profile_identifier": %q}`, name, ident)
+		} else {
+			wantJSON = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "profile_name": %q, "profile_identifier": %q}`, teamID, testTeam.Name, name, ident)
+		}
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedMacosProfile{}.ActivityName(), wantJSON, 0)
+
 		return id
 	}
+
+	assertWindowsProfile := func(filename, name, locURI string, teamID uint, wantStatus int, wantErrMsg string) string {
+		var tmPtr *uint
+		if teamID > 0 {
+			tmPtr = &teamID
+		}
+		body, headers := generateNewProfileMultipartRequest(t, tmPtr,
+			filename, []byte(fmt.Sprintf(`<Replace><Target><LocURI>%s</LocURI></Target></Replace>`, locURI)), s.token)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/profiles", body.Bytes(), wantStatus, headers)
+
+		if wantErrMsg != "" {
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, wantErrMsg)
+			return ""
+		}
+
+		var resp newMDMConfigProfileResponse
+		err := json.NewDecoder(res.Body).Decode(&resp)
+		require.NoError(t, err)
+		require.NotEmpty(t, resp.ProfileID)
+		return resp.ProfileID
+	}
 	createWindowsProfile := func(name string, teamID uint) string {
-		id := uuid.New().String()
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
-				"INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml) VALUES (?, ?, ?, ?)",
-				id, teamID, name, `<Replace></Replace>`)
-			return err
-		})
+		id := assertWindowsProfile(name+".xml", name, "./Test", teamID, http.StatusOK, "")
+
+		var wantJSON string
+		if teamID == 0 {
+			wantJSON = fmt.Sprintf(`{"team_id": null, "team_name": null, "profile_name": %q}`, name)
+		} else {
+			wantJSON = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "profile_name": %q}`, teamID, testTeam.Name, name)
+		}
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedWindowsProfile{}.ActivityName(), wantJSON, 0)
+
 		return id
 	}
 
@@ -8055,11 +8103,47 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	noTeamWinProfID := createWindowsProfile("win-global-profile", 0)
 	teamWinProfID := createWindowsProfile("win-team-profile", testTeam.ID)
 
+	// Windows profile name conflicts with Apple's for no team
+	assertWindowsProfile("apple-global-profile.xml", "apple-global-profile", "./Test", 0, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	// but no conflict for team 1
+	assertWindowsProfile("apple-global-profile.xml", "apple-global-profile", "./Test", testTeam.ID, http.StatusOK, "")
+	// Apple profile name conflicts with Windows' for no team
+	assertAppleProfile("win-global-profile.mobileconfig", "win-global-profile", "test-global-ident-2", 0, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	// but no conflict for team 1
+	assertAppleProfile("win-global-profile.mobileconfig", "win-global-profile", "test-global-ident-2", testTeam.ID, http.StatusOK, "")
+	// Windows profile name conflicts with Apple's for team 1
+	assertWindowsProfile("apple-team-profile.xml", "apple-team-profile", "./Test", testTeam.ID, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	// but no conflict for no-team
+	assertWindowsProfile("apple-team-profile.xml", "apple-team-profile", "./Test", 0, http.StatusOK, "")
+	// Apple profile name conflicts with Windows' for team 1
+	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", testTeam.ID, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	// but no conflict for no-team
+	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", 0, http.StatusOK, "")
+
+	// not an xml nor mobileconfig file
+	assertWindowsProfile("foo.txt", "foo", "./Test", 0, http.StatusBadRequest, "Couldn't upload. The file should be a .mobileconfig or .xml file.")
+	assertAppleProfile("foo.txt", "foo", "foo-ident", 0, http.StatusBadRequest, "Couldn't upload. The file should be a .mobileconfig or .xml file.")
+
+	// Windows-reserved LocURI
+	assertWindowsProfile("bitlocker.xml", "bitlocker", microsoft_mdm.FleetBitLockerTargetLocURI, 0, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include BitLocker settings.")
+	assertWindowsProfile("updates.xml", "updates", microsoft_mdm.FleetOSUpdateTargetLocURI, testTeam.ID, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include Windows updates settings.")
+
+	// Windows invalid content
+	body, headers := generateNewProfileMultipartRequest(t, nil, "win.xml", []byte("\x00\x01\x02"), s.token)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/profiles", body.Bytes(), http.StatusBadRequest, headers)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't upload. The file should include valid XML:")
+	// Apple invalid content
+	body, headers = generateNewProfileMultipartRequest(t, nil,
+		"apple.mobileconfig", []byte("\x00\x01\x02"), s.token)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/profiles", body.Bytes(), http.StatusBadRequest, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "mobileconfig is not XML nor PKCS7 parseable")
+
 	// get the existing profiles work
-	expectedChecksum := []byte("1234\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00") // binary16 in the DB
 	expectedProfiles := []fleet.MDMConfigProfilePayload{
-		{ProfileID: fmt.Sprint(noTeamAppleProfID), Platform: "darwin", Name: "apple-global-profile", Identifier: "test-global-ident", TeamID: nil, Checksum: expectedChecksum},
-		{ProfileID: fmt.Sprint(teamAppleProfID), Platform: "darwin", Name: "apple-team-profile", Identifier: "test-team-ident", TeamID: &testTeam.ID, Checksum: expectedChecksum},
+		{ProfileID: fmt.Sprint(noTeamAppleProfID), Platform: "darwin", Name: "apple-global-profile", Identifier: "test-global-ident", TeamID: nil},
+		{ProfileID: fmt.Sprint(teamAppleProfID), Platform: "darwin", Name: "apple-team-profile", Identifier: "test-team-ident", TeamID: &testTeam.ID},
 		{ProfileID: noTeamWinProfID, Platform: "windows", Name: "win-global-profile", TeamID: nil},
 		{ProfileID: teamWinProfID, Platform: "windows", Name: "win-team-profile", TeamID: &testTeam.ID},
 	}
@@ -8068,7 +8152,13 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", prof.ProfileID), nil, http.StatusOK, &getResp)
 		require.NotZero(t, getResp.CreatedAt)
 		require.NotZero(t, getResp.UpdatedAt)
+		if getResp.Platform == "darwin" {
+			require.Len(t, getResp.Checksum, 16)
+		} else {
+			require.Empty(t, getResp.Checksum)
+		}
 		getResp.CreatedAt, getResp.UpdatedAt = time.Time{}, time.Time{}
+		getResp.Checksum = nil
 		require.Equal(t, prof, *getResp.MDMConfigProfilePayload)
 
 		resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", prof.ProfileID), nil, http.StatusOK, "alt", "media")
@@ -8088,34 +8178,49 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	var getResp getMDMConfigProfileResponse
 	// get an unknown Apple profile
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", noTeamAppleProfID+1000), nil, http.StatusNotFound, &getResp)
-	s.Do("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", noTeamAppleProfID+1000), nil, http.StatusNotFound, "alt", "media")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", 99999), nil, http.StatusNotFound, &getResp)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", 99999), nil, http.StatusNotFound, "alt", "media")
 	// get an unknown Windows profile
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", "no-such-profile"), nil, http.StatusNotFound, &getResp)
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", "no-such-profile"), nil, http.StatusNotFound, "alt", "media")
 
 	var deleteResp deleteMDMConfigProfileResponse
 	// delete existing Apple profiles
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", noTeamAppleProfID), nil, http.StatusOK, &deleteResp)
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", teamAppleProfID), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", noTeamAppleProfID), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", teamAppleProfID), nil, http.StatusOK, &deleteResp)
 	// delete non-existing Apple profile
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", noTeamAppleProfID+1000), nil, http.StatusNotFound, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", 99999), nil, http.StatusNotFound, &deleteResp)
 	// delete existing Windows profiles
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", noTeamWinProfID), nil, http.StatusOK, &deleteResp)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", teamWinProfID), nil, http.StatusOK, &deleteResp)
 	// delete non-existing Windows profile
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", "no-such-profile"), nil, http.StatusNotFound, &deleteResp)
 
-	// trying to delete profiles managed by Fleet fails
+	// trying to create/delete profiles managed by Fleet fails
 	for p := range mobileconfig.FleetPayloadIdentifiers() {
-		profileID := createAppleProfile(p, p, 0)
+		assertAppleProfile("foo.mobileconfig", p, p, 0, http.StatusBadRequest, fmt.Sprintf("payload identifier %s is not allowed", p))
+
+		// create it directly in the DB to test deletion
+		var id int64
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mc := mcBytesForTest(p, p, uuid.New().String())
+			res, err := q.ExecContext(ctx,
+				"INSERT INTO mdm_apple_configuration_profiles (identifier, name, mobileconfig, checksum, team_id) VALUES (?, ?, ?, ?, ?)",
+				p, p, mc, "1234", 0)
+			if err != nil {
+				return err
+			}
+			id, _ = res.LastInsertId()
+			return nil
+		})
+
 		var deleteResp deleteMDMConfigProfileResponse
-		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", profileID), nil, http.StatusBadRequest, &deleteResp)
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", id), nil, http.StatusBadRequest, &deleteResp)
 
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
 				"DELETE FROM mdm_apple_configuration_profiles WHERE profile_id = ?",
-				profileID)
+				id)
 			return err
 		})
 	}
@@ -9220,7 +9325,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		"N3":                                     syncMLForTest("./Foo/Bar"),
 	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Custom configuration profiles can’t include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
+	require.Contains(t, errMsg, "Custom configuration profiles can't include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
 
 	// os updates
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: map[string][]byte{
@@ -9229,7 +9334,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		"N3":                                    syncMLForTest("./Foo/Bar"),
 	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Custom configuration profiles can’t include Windows updates settings. To control these settings, use the mdm.windows_updates option.")
+	require.Contains(t, errMsg, "Custom configuration profiles can't include Windows updates settings. To control these settings, use the mdm.windows_updates option.")
 
 	// invalid windows tag
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: map[string][]byte{
