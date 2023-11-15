@@ -591,6 +591,14 @@ func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	if !ac.MDM.EnabledAndConfigured {
+		return &fleet.MDMProfilesSummary{}, nil
+	}
+
 	ps, err := svc.ds.GetMDMAppleProfilesSummary(ctx, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)

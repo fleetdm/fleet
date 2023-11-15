@@ -2055,6 +2055,14 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	if !ac.MDM.WindowsEnabledAndConfigured {
+		return &fleet.MDMProfilesSummary{}, nil
+	}
+
 	ps, err := svc.ds.GetMDMWindowsProfilesSummary(ctx, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
