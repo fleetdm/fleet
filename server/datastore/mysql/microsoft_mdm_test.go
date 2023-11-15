@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context" // nolint:gosec // used only to hash for efficient comparisons
+	"fmt"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestBulkOperationsMDMWindowsHostProfilesBatch3", testBulkOperationsMDMWindowsHostProfilesBatch3},
 		{"TestGetMDMWindowsProfilesContents", testGetMDMWindowsProfilesContents},
 		{"TestMDMWindowsConfigProfiles", testMDMWindowsConfigProfiles},
+		{"TestBatchSetMDMWindowsProfiles", testBatchSetMDMWindowsProfiles},
 	}
 
 	for _, c := range cases {
@@ -1138,29 +1140,66 @@ func testGetMDMWindowsProfilesContents(t *testing.T, ds *Datastore) {
 func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			`INSERT INTO mdm_windows_configuration_profiles (profile_uuid, name, team_id, syncml) VALUES (uuid(), 'abc', ?, ?)`, 0, "<SyncML></SyncML>")
-		return err
-	})
+	// create a couple Windows profiles for no-team (nil and 0 means no team)
+	profA, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
+	require.NoError(t, err)
+	require.NotEmpty(t, profA.ProfileUUID)
+	profB, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: ptr.Uint(0), SyncML: []byte("<Replace></Replace>")})
+	require.NoError(t, err)
+	require.NotEmpty(t, profB.ProfileUUID)
+	// create an Apple profile for no-team
+	profC, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("c", "c", 0))
+	require.NoError(t, err)
+	require.NotZero(t, profC.ProfileID)
 
-	var profUUID string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &profUUID,
-			`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'abc'`)
-	})
+	// create the same name for team 1 as Windows profile
+	profATm, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
+	require.NoError(t, err)
+	require.NotEmpty(t, profATm.ProfileUUID)
+	require.NotNil(t, profATm.TeamID)
+	require.Equal(t, uint(1), *profATm.TeamID)
+	// create the same B profile for team 1 as Apple profile
+	profBTm, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 1))
+	require.NoError(t, err)
+	require.NotZero(t, profBTm.ProfileID)
 
-	_, err := ds.GetMDMWindowsConfigProfile(ctx, "not-valid")
+	var existsErr *existsError
+	// create a duplicate of Windows for no-team
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate of Apple for no-team
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "c", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate of Windows for team
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate of Apple for team
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate name with an Apple profile for no-team
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 0))
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate name with an Apple profile for team
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 1))
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+
+	_, err = ds.GetMDMWindowsConfigProfile(ctx, "not-valid")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
-	prof, err := ds.GetMDMWindowsConfigProfile(ctx, profUUID)
+	prof, err := ds.GetMDMWindowsConfigProfile(ctx, profA.ProfileUUID)
 	require.NoError(t, err)
-	require.Equal(t, profUUID, prof.ProfileUUID)
+	require.Equal(t, profA.ProfileUUID, prof.ProfileUUID)
 	require.NotNil(t, prof.TeamID)
 	require.Zero(t, *prof.TeamID)
-	require.Equal(t, "abc", prof.Name)
-	require.Equal(t, "<SyncML></SyncML>", string(prof.SyncML))
+	require.Equal(t, "a", prof.Name)
+	require.Equal(t, "<Replace></Replace>", string(prof.SyncML))
 	require.NotZero(t, prof.CreatedAt)
 	require.NotZero(t, prof.UpdatedAt)
 
@@ -1168,6 +1207,128 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
-	err = ds.DeleteMDMWindowsConfigProfile(ctx, profUUID)
+	err = ds.DeleteMDMWindowsConfigProfile(ctx, profA.ProfileUUID)
 	require.NoError(t, err)
+}
+
+func expectWindowsProfiles(
+	t *testing.T,
+	ds *Datastore,
+	newSet []*fleet.MDMWindowsConfigProfile,
+	tmID *uint,
+	want []*fleet.MDMWindowsConfigProfile,
+) map[string]string {
+	if tmID == nil {
+		tmID = ptr.Uint(0)
+	}
+
+	var got []*fleet.MDMWindowsConfigProfile
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		ctx := context.Background()
+		return sqlx.SelectContext(ctx, q, &got, `SELECT * FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tmID)
+	})
+
+	// compare only the fields we care about, and build the resulting map of
+	// profile identifier as key to profile ID as value
+	m := make(map[string]string)
+	for _, gotp := range got {
+		require.NotEmpty(t, gotp.ProfileUUID)
+		m[gotp.Name] = gotp.ProfileUUID
+		if gotp.TeamID != nil && *gotp.TeamID == 0 {
+			gotp.TeamID = nil
+		}
+		gotp.ProfileUUID = ""
+		gotp.CreatedAt = time.Time{}
+		gotp.UpdatedAt = time.Time{}
+	}
+	// order is not guaranteed
+	require.ElementsMatch(t, want, got)
+
+	return m
+}
+
+func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	applyAndExpect := func(newSet []*fleet.MDMWindowsConfigProfile, tmID *uint, want []*fleet.MDMWindowsConfigProfile) map[string]string {
+		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			return ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, newSet)
+		})
+		require.NoError(t, err)
+		return expectWindowsProfiles(t, ds, newSet, tmID, want)
+	}
+
+	withTeamID := func(p *fleet.MDMWindowsConfigProfile, tmID uint) *fleet.MDMWindowsConfigProfile {
+		p.TeamID = &tmID
+		return p
+	}
+
+	// apply empty set for no-team
+	applyAndExpect(nil, nil, nil)
+
+	// apply single profile set for tm1
+	mTm1 := applyAndExpect([]*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "N1", "l1"),
+	}, ptr.Uint(1), []*fleet.MDMWindowsConfigProfile{
+		withTeamID(windowsConfigProfileForTest(t, "N1", "l1"), 1),
+	})
+
+	// apply single profile set for no-team
+	applyAndExpect([]*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "N1", "l1"),
+	}, nil, []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "N1", "l1"),
+	})
+
+	// apply new profile set for tm1
+	mTm1b := applyAndExpect([]*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "N1", "l1"), // unchanged
+		windowsConfigProfileForTest(t, "N2", "l2"),
+	}, ptr.Uint(1), []*fleet.MDMWindowsConfigProfile{
+		withTeamID(windowsConfigProfileForTest(t, "N1", "l1"), 1),
+		withTeamID(windowsConfigProfileForTest(t, "N2", "l2"), 1),
+	})
+	// uuid for N1-I1 is unchanged
+	require.Equal(t, mTm1["I1"], mTm1b["I1"])
+
+	// apply edited profile (by content only), unchanged profile and new profile
+	// for tm1
+	mTm1c := applyAndExpect([]*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "N1", "l1"), // content updated
+		windowsConfigProfileForTest(t, "N2", "l2"), // unchanged
+		windowsConfigProfileForTest(t, "N3", "l3"), // new
+	}, ptr.Uint(1), []*fleet.MDMWindowsConfigProfile{
+		withTeamID(windowsConfigProfileForTest(t, "N1", "l1"), 1),
+		withTeamID(windowsConfigProfileForTest(t, "N2", "l2"), 1),
+		withTeamID(windowsConfigProfileForTest(t, "N3", "l3"), 1),
+	})
+	// uuid for N1-I1 is unchanged
+	require.Equal(t, mTm1b["I1"], mTm1c["I1"])
+	// uuid for N2-I2 is unchanged
+	require.Equal(t, mTm1b["I2"], mTm1c["I2"])
+
+	// apply only new profiles to no-team
+	applyAndExpect([]*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "N4", "l4"),
+		windowsConfigProfileForTest(t, "N5", "l5"),
+	}, nil, []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "N4", "l4"),
+		windowsConfigProfileForTest(t, "N5", "l5"),
+	})
+
+	// clear profiles for tm1
+	applyAndExpect(nil, ptr.Uint(1), nil)
+}
+
+func windowsConfigProfileForTest(t *testing.T, name, locURI string) *fleet.MDMWindowsConfigProfile {
+	return &fleet.MDMWindowsConfigProfile{
+		Name: name,
+		SyncML: []byte(fmt.Sprintf(`
+			<Replace>
+				<Target>
+					<LocURI>%s</LocURI>
+				</Target>
+			</Replace>
+		`, locURI)),
+	}
 }

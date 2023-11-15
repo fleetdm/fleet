@@ -26,20 +26,33 @@ func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMA
 	stmt := `
 INSERT INTO
     mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig, checksum)
-VALUES (?, ?, ?, ?, UNHEX(MD5(mobileconfig)))`
+(SELECT ?, ?, ?, ?, UNHEX(MD5(?)) FROM DUAL WHERE
+	NOT EXISTS (
+		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
+	)
+)`
 
 	var teamID uint
 	if cp.TeamID != nil {
 		teamID = *cp.TeamID
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, cp.Identifier, cp.Name, cp.Mobileconfig)
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.Name, teamID)
 	if err != nil {
 		switch {
 		case isDuplicate(err):
 			return nil, ctxerr.Wrap(ctx, formatErrorDuplicateConfigProfile(err, &cp))
 		default:
-			return nil, ctxerr.Wrap(ctx, err, "creating new mdm config profile")
+			return nil, ctxerr.Wrap(ctx, err, "creating new apple mdm config profile")
+		}
+	}
+
+	aff, _ := res.RowsAffected()
+	if aff == 0 {
+		return nil, &existsError{
+			ResourceType: "MDMAppleConfigProfile.PayloadDisplayName",
+			Identifier:   cp.Name,
+			TeamID:       cp.TeamID,
 		}
 	}
 
@@ -1082,6 +1095,17 @@ func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*flee
 }
 
 func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		return ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, profiles)
+	})
+}
+
+func (ds *Datastore) batchSetMDMAppleProfilesDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	tmID *uint,
+	profiles []*fleet.MDMAppleConfigProfile,
+) error {
 	const loadExistingProfiles = `
 SELECT
   identifier,
