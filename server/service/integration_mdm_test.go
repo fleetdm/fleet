@@ -8167,7 +8167,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 		require.NoError(t, err)
 	}
 
-	// TODO: SOme global MDM config settings don't have MDMEnabledAndConfigured or
+	// TODO: Some global MDM config settings don't have MDMEnabledAndConfigured or
 	// WindowsMDMEnabledAndConfigured validations currently. Either add validations
 	// and test them or test abscence of validation.
 	t.Run("apply app config spec", func(t *testing.T) {
@@ -8381,7 +8381,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			acResp = checkAppConfig(t, false, false) // both disabled
 		})
 
-		t.Run("macos settings", func(t *testing.T) {
+		t.Run("custom settings", func(t *testing.T) {
 			t.Cleanup(func() {
 				require.NoError(t, s.ds.SaveAppConfig(ctx, appConfig))
 			})
@@ -8390,40 +8390,65 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			ac := appConfig.Copy()
 			ac.AgentOptions = nil
 			ac.MDM.MacOSSettings.CustomSettings = []string{}
+			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]string{})
 			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
 			acResp := checkAppConfig(t, true, true)
 			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
 
 			// add custom settings
 			ac.MDM.MacOSSettings.CustomSettings = []string{"foo", "bar"}
+			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]string{"baz", "zab"})
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, true, true)                                                                 // both mac and windows mdm enabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // applied
+			acResp = checkAppConfig(t, true, true)                                                                                 // both mac and windows mdm enabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // applied
+			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // applied
 
 			// directly set MDM.EnabledAndConfigured to false
 			ac.MDM.EnabledAndConfigured = false
 			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
-			acResp = checkAppConfig(t, false, true)                                                                // only windows mdm enabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // still applied
+			acResp = checkAppConfig(t, false, true)                                                                                // only windows mdm enabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // still applied
+			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // still applied
 
 			// making an unrelated change should not cause validation error
 			ac.OrgInfo.OrgName = "f1337"
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, false, true)                                                                // only windows mdm enabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // still applied
+			acResp = checkAppConfig(t, false, true)                                                                                // only windows mdm enabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // still applied
+			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // still applied
 			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
 
 			// remove custom settings
 			ac.MDM.MacOSSettings.CustomSettings = []string{}
+			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]string{})
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, false, true) // only windows mdm enabled
 			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
 
-			// add custom settings fails because only windows is enabled
+			// add custom macOS settings fails because only windows is enabled
 			ac.MDM.MacOSSettings.CustomSettings = []string{"foo", "bar"}
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
 			acResp = checkAppConfig(t, false, true) // only windows enabled
 			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
+
+			// add custom Windows settings suceeds because only macOS is disabled
+			ac.MDM.MacOSSettings.CustomSettings = []string{}
+			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]string{"baz", "zab"})
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, true)                                                                                // only windows mdm enabled
+			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // applied
+			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)                                                              // no change
+
+			// cleanup Windows settings
+			ac.MDM.MacOSSettings.CustomSettings = []string{}
+			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]string{})
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, true) // only windows mdm enabled
+			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
 
 			// directly set MDM.EnabledAndConfigured to true and windows to false
 			ac.MDM.EnabledAndConfigured = true
@@ -8431,50 +8456,100 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
 			acResp = checkAppConfig(t, true, false)                                                                // mac enabled, windows disabled
 			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // directly applied
+			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)                                      // still empty
+
+			// add custom windows settings fails because only mac is enabled
+			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]string{"baz", "zab"})
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
+			acResp = checkAppConfig(t, true, false) // only mac enabled
+			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
+			// set this value to empty again so we can test other assertions assuming we're not setting it
+			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]string{})
 
 			// changing unrelated config doesn't cause validation error
 			ac.OrgInfo.OrgName = "f1338"
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, true, false)                                                                // mac enabled, windows disabled
 			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // no change
+			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)                                      // no change
 			require.Equal(t, "f1338", acResp.AppConfig.OrgInfo.OrgName)
 
 			// remove custom settings doesn't cause validation error
 			ac.MDM.MacOSSettings.CustomSettings = []string{}
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, true, false) // only windows mdm enabled
+			acResp = checkAppConfig(t, true, false) // only mac enabled
 			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
 
-			// add custom settings suceeds because only Windows is disabled
+			// add custom macOS settings suceeds because only Windows is disabled
 			ac.MDM.MacOSSettings.CustomSettings = []string{"foo", "bar"}
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, true, false)                                                                // both mac and windows mdm enabled
+			acResp = checkAppConfig(t, true, false)                                                                // mac enabled, windows disabled
 			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // applied
+			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)                                      // no change
 
-			// directly set MDM.WindowsEnabledAndConfigured to false
-			ac.MDM.EnabledAndConfigured = false
+			// temporarily enable and add custom settings for both platforms
+			ac.MDM.EnabledAndConfigured = true
+			ac.MDM.WindowsEnabledAndConfigured = true
 			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
-			acResp = checkAppConfig(t, false, false)                                                               // both mac and windows mdm disabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // applied
+			acResp = checkAppConfig(t, true, true) // both mac and windows mdm enabled
+			ac.MDM.MacOSSettings.CustomSettings = []string{"foo", "bar"}
+			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]string{"baz", "zab"})
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, true, true)                                                                                 // both mac and windows mdm enabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // applied
+			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // applied
+
+			// directly set both configs to false
+			ac.MDM.EnabledAndConfigured = false
+			ac.MDM.WindowsEnabledAndConfigured = false
+			require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+			acResp = checkAppConfig(t, false, false)                                                                               // both mac and windows mdm disabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // no change
+			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // no change
 
 			// changing unrelated config doesn't cause validation error
 			ac.OrgInfo.OrgName = "f1339"
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
-			acResp = checkAppConfig(t, false, false)                                                               // both disabled
-			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings) // applied
+			acResp = checkAppConfig(t, false, false)                                                                               // both disabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // no change
+			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // no change
 			require.Equal(t, "f1339", acResp.AppConfig.OrgInfo.OrgName)
+
+			// setting the same values is ok even if mdm is disabled
+			ac.MDM.MacOSSettings.CustomSettings = []string{"foo", "bar"}
+			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]string{"baz", "zab"})
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
+			acResp = checkAppConfig(t, false, false)                                                                               // both disabled
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // no change
+			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // no change
+
+			// setting different values fail even if mdm is disabled, and only some of the profiles have changed
+			ac.MDM.MacOSSettings.CustomSettings = []string{"oof", "bar"}
+			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]string{"foo", "zab"})
+			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
+			acResp = checkAppConfig(t, false, false) // both disabled
+			// set the values back so we can compare them
+			ac.MDM.MacOSSettings.CustomSettings = []string{"foo", "bar"}
+			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]string{"baz", "zab"})
+			require.ElementsMatch(t, acResp.MDM.MacOSSettings.CustomSettings, ac.MDM.MacOSSettings.CustomSettings)                 // no change
+			require.ElementsMatch(t, acResp.MDM.WindowsSettings.CustomSettings.Value, ac.MDM.WindowsSettings.CustomSettings.Value) // no change
 
 			// setting empty values doesn't cause validation error when mdm is disabled
 			ac.MDM.MacOSSettings.CustomSettings = []string{}
+			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]string{})
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, false, false) // both disabled
 			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
 
 			// setting non-empty values fails because mdm disabled
 			ac.MDM.MacOSSettings.CustomSettings = []string{"foo", "bar"}
+			ac.MDM.WindowsSettings.CustomSettings = optjson.SetSlice([]string{"baz", "zab"})
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusUnprocessableEntity, &acResp)
 			acResp = checkAppConfig(t, false, false) // both disabled
 			require.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+			require.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
 		})
 	})
 

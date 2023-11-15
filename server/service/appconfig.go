@@ -15,6 +15,7 @@ import (
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -624,7 +625,7 @@ func (svc *Service) validateMDM(
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
 	if !oldMdm.EnabledAndConfigured {
-		if len(mdm.MacOSSettings.CustomSettings) > 0 && len(mdm.MacOSSettings.CustomSettings) != len(oldMdm.MacOSSettings.CustomSettings) {
+		if len(mdm.MacOSSettings.CustomSettings) > 0 && !server.SliceStringsMatch(mdm.MacOSSettings.CustomSettings, oldMdm.MacOSSettings.CustomSettings) {
 			invalid.Append("macos_settings.custom_settings",
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
@@ -645,7 +646,9 @@ func (svc *Service) validateMDM(
 	}
 
 	if !mdm.WindowsEnabledAndConfigured {
-		if mdm.WindowsSettings.CustomSettings.Set && len(mdm.WindowsSettings.CustomSettings.Value) != len(oldMdm.WindowsSettings.CustomSettings.Value) {
+		if mdm.WindowsSettings.CustomSettings.Set &&
+			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
+			!server.SliceStringsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
 			invalid.Append("windows_settings.custom_settings",
 				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
 		}

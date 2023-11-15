@@ -150,3 +150,26 @@ func TestRemoveDuplicatesFromSlice(t *testing.T) {
 		)
 	}
 }
+
+func TestSliceStringsMatch(t *testing.T) {
+	testCases := []struct {
+		a, b []string
+		want bool
+		name string
+	}{
+		{[]string{"foo", "bar"}, []string{"bar", "foo"}, true, "same elements in different order"},
+		{[]string{"foo", "bar"}, []string{"foo", "bar"}, true, "same elements in same order"},
+		{[]string{"foo", "bar"}, []string{"bar", "bar"}, false, "different number of same elements"},
+		{[]string{"foo", "bar"}, []string{"foo"}, false, "different lengths"},
+		{[]string{}, []string{}, true, "both slices empty"},
+		{[]string{"foo"}, []string{}, false, "one slice empty"},
+		{[]string{"unique"}, []string{"unique", "unique"}, false, "duplicate in one slice"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := SliceStringsMatch(tc.a, tc.b)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
