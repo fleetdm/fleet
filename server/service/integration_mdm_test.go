@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
@@ -8133,6 +8134,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't upload. The file should include valid XML:")
+
 	// Apple invalid content
 	body, headers = generateNewProfileMultipartRequest(t, nil,
 		"apple.mobileconfig", []byte("\x00\x01\x02"), s.token)
@@ -8235,6 +8237,171 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// try to delete the profile
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", profile.ProfileID), nil, http.StatusBadRequest, &deleteResp)
+}
+
+func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create some teams
+	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	tm3, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team3"})
+	require.NoError(t, err)
+
+	// create 5 profiles for no team and team 1, names are A, B, C ... for global and
+	// tA, tB, tC ... for team 1. Alternate macOS and Windows profiles.
+	for i := 0; i < 5; i++ {
+		name := string('A' + byte(i))
+		if i%2 == 0 {
+			prof, err := fleet.NewMDMAppleConfigProfile(mcBytesForTest(name, name+".identifier", name+".uuid"), nil)
+			require.NoError(t, err)
+			_, err = s.ds.NewMDMAppleConfigProfile(ctx, *prof)
+			require.NoError(t, err)
+
+			tprof, err := fleet.NewMDMAppleConfigProfile(mcBytesForTest("t"+name, "t"+name+".identifier", "t"+name+".uuid"), nil)
+			require.NoError(t, err)
+			tprof.TeamID = &tm1.ID
+			_, err = s.ds.NewMDMAppleConfigProfile(ctx, *tprof)
+			require.NoError(t, err)
+		} else {
+			_, err = s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: name, SyncML: []byte(`<Replace></Replace>`)})
+			require.NoError(t, err)
+			_, err = s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "t" + name, TeamID: &tm1.ID, SyncML: []byte(`<Replace></Replace>`)})
+			require.NoError(t, err)
+		}
+	}
+
+	// create a couple profiles (Win and mac) for team 2, and none for team 3
+	tprof, err := fleet.NewMDMAppleConfigProfile(mcBytesForTest("tF", "tF.identifier", "tF.uuid"), nil)
+	require.NoError(t, err)
+	tprof.TeamID = &tm2.ID
+	tm2ProfF, err := s.ds.NewMDMAppleConfigProfile(ctx, *tprof)
+	require.NoError(t, err)
+	// checksum is not returned by New..., so compute it manually
+	checkSum := md5.Sum(tm2ProfF.Mobileconfig)
+	tm2ProfF.Checksum = checkSum[:]
+	tm2ProfG, err := s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "tG", TeamID: &tm2.ID, SyncML: []byte(`<Replace></Replace>`)})
+	require.NoError(t, err)
+
+	// test that all fields are correctly returned with team 2
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(tm2.ID))
+	require.Len(t, listResp.Profiles, 2)
+	require.NotZero(t, listResp.Profiles[0].CreatedAt)
+	require.NotZero(t, listResp.Profiles[0].UpdatedAt)
+	require.NotZero(t, listResp.Profiles[1].CreatedAt)
+	require.NotZero(t, listResp.Profiles[1].UpdatedAt)
+	listResp.Profiles[0].CreatedAt, listResp.Profiles[0].UpdatedAt = time.Time{}, time.Time{}
+	listResp.Profiles[1].CreatedAt, listResp.Profiles[1].UpdatedAt = time.Time{}, time.Time{}
+	require.Equal(t, &fleet.MDMConfigProfilePayload{
+		ProfileID:  fmt.Sprint(tm2ProfF.ProfileID),
+		TeamID:     tm2ProfF.TeamID,
+		Name:       tm2ProfF.Name,
+		Platform:   "darwin",
+		Identifier: tm2ProfF.Identifier,
+		Checksum:   tm2ProfF.Checksum,
+	}, listResp.Profiles[0])
+	require.Equal(t, &fleet.MDMConfigProfilePayload{
+		ProfileID: tm2ProfG.ProfileUUID,
+		TeamID:    tm2ProfG.TeamID,
+		Name:      tm2ProfG.Name,
+		Platform:  "windows",
+	}, listResp.Profiles[1])
+
+	// list for a non-existing team returns 404
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", nil, http.StatusNotFound, &listResp, "team_id", "99999")
+
+	_ = tm3
+	cases := []struct {
+		queries   []string // alternate query name and value
+		teamID    *uint
+		wantNames []string
+		wantMeta  *fleet.PaginationMetadata
+	}{
+		{
+			wantNames: []string{"A", "B", "C", "D", "E"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "2"},
+			wantNames: []string{"A", "B"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "2", "page", "1"},
+			wantNames: []string{"C", "D"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "2", "page", "2"},
+			wantNames: []string{"E"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "3"},
+			teamID:    &tm1.ID,
+			wantNames: []string{"tA", "tB", "tC"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "3", "page", "1"},
+			teamID:    &tm1.ID,
+			wantNames: []string{"tD", "tE"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "3", "page", "2"},
+			teamID:    &tm1.ID,
+			wantNames: nil,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "3"},
+			teamID:    &tm2.ID,
+			wantNames: []string{"tF", "tG"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "2"},
+			teamID:    &tm3.ID,
+			wantNames: nil,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%v: %#v", c.teamID, c.queries), func(t *testing.T) {
+			var listResp listMDMConfigProfilesResponse
+			queryArgs := c.queries
+			if c.teamID != nil {
+				queryArgs = append(queryArgs, "team_id", fmt.Sprint(*c.teamID))
+			}
+			s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", nil, http.StatusOK, &listResp, queryArgs...)
+
+			require.Equal(t, len(c.wantNames), len(listResp.Profiles))
+			require.Equal(t, c.wantMeta, listResp.Meta)
+
+			var gotNames []string
+			if len(listResp.Profiles) > 0 {
+				gotNames = make([]string, len(listResp.Profiles))
+				for i, p := range listResp.Profiles {
+					gotNames[i] = p.Name
+					if c.teamID == nil {
+						// we set it to 0 for global
+						require.NotNil(t, p.TeamID)
+						require.Zero(t, *p.TeamID)
+					} else {
+						require.NotNil(t, p.TeamID)
+						require.Equal(t, *c.teamID, *p.TeamID)
+					}
+					require.NotEmpty(t, p.Platform)
+				}
+			}
+			require.Equal(t, c.wantNames, gotNames)
+		})
+	}
 }
 
 // ///////////////////////////////////////////////////////////////////////////
