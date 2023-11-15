@@ -547,40 +547,6 @@ export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
-export const humanHostLastRestart = (
-  detailUpdatedAt: string,
-  uptime: number | string
-): string => {
-  if (
-    !detailUpdatedAt ||
-    !uptime ||
-    detailUpdatedAt === DEFAULT_EMPTY_CELL_VALUE ||
-    detailUpdatedAt < INITIAL_FLEET_DATE ||
-    typeof uptime !== "number"
-  ) {
-    return "Unavailable";
-  }
-  try {
-    const currentDate = new Date();
-    const updatedDate = new Date(detailUpdatedAt);
-    const millisecondsLastUpdated =
-      currentDate.getTime() - updatedDate.getTime();
-
-    // Sum of calculated milliseconds since last updated with uptime
-    const millisecondsLastRestart =
-      millisecondsLastUpdated + uptime / NANOSECONDS_PER_MILLISECOND;
-
-    const restartDate = new Date();
-    restartDate.setMilliseconds(
-      restartDate.getMilliseconds() - millisecondsLastRestart
-    );
-
-    return restartDate.toISOString();
-  } catch {
-    return "Unavailable";
-  }
-};
-
 export const humanHostLastSeen = (lastSeen: string): string => {
   if (!lastSeen || lastSeen < INITIAL_FLEET_DATE) {
     return "Never";
