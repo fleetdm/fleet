@@ -528,7 +528,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 
 - [Generate Apple DEP Key Pair](#generate-apple-dep-key-pair)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
-- [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
+- [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
