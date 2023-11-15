@@ -74,12 +74,12 @@ export interface IMdmProfilesResponse {
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
 
-export type MacMdmProfileOperationType = "remove" | "install";
+export type ProfileOperationType = "remove" | "install";
 
 export interface IHostMdmProfile {
   profile_id: number;
   name: string;
-  operation_type: MacMdmProfileOperationType | null;
+  operation_type: ProfileOperationType | null;
   status: MdmProfileStatus;
   detail: string;
 }

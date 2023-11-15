@@ -3,140 +3,28 @@ import ReactTooltip from "react-tooltip";
 import { uniqueId } from "lodash";
 
 import Icon from "components/Icon";
-import { IconNames } from "components/icons";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import {
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
-  MacMdmProfileOperationType,
+  ProfileOperationType,
 } from "interfaces/mdm";
 
 import {
   isMdmProfileStatus,
   OsSettingsTableStatusValue,
 } from "../OSSettingsTableConfig";
-import TooltipContent, {
-  TooltipInnerContentFunc,
-  TooltipInnerContentOption,
-} from "./components/Tooltip/TooltipContent";
-import TooltipInnerContentActionRequired from "./components/Tooltip/ActionRequired";
+import TooltipContent from "./components/Tooltip/TooltipContent";
+import {
+  PROFILE_DISPLAY_CONFIG,
+  ProfileDisplayOption,
+  WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG,
+} from "./helpers";
 
 const baseClass = "os-setting-status-cell";
 
-type ProfileDisplayOption = {
-  statusText: string;
-  iconName: IconNames;
-  tooltip: TooltipInnerContentOption | null;
-} | null;
-
-type OperationTypeOption = Record<
-  OsSettingsTableStatusValue,
-  ProfileDisplayOption
->;
-type ProfileDisplayConfig = Record<
-  MacMdmProfileOperationType,
-  OperationTypeOption
->;
-
-const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
-  install: {
-    pending: {
-      statusText: "Enforcing (pending)",
-      iconName: "pending-outline",
-      tooltip: (innerProps) =>
-        innerProps.isDiskEncryptionProfile
-          ? "The hosts will receive the MDM command to turn on disk encryption " +
-            "when the hosts come online."
-          : "The host will receive the MDM command to install the configuration profile when the " +
-            "host comes online.",
-    },
-    action_required: {
-      statusText: "Action required (pending)",
-      iconName: "pending-outline",
-      tooltip: TooltipInnerContentActionRequired as TooltipInnerContentFunc,
-    },
-    verified: {
-      statusText: "Verified",
-      iconName: "success",
-      tooltip: (innerProps) =>
-        innerProps.isDiskEncryptionProfile
-          ? "The host turned disk encryption on and sent the key to Fleet. " +
-            "Fleet verified with osquery."
-          : "The host installed the configuration profile. Fleet verified with osquery.",
-    },
-    verifying: {
-      statusText: "Verifying",
-      iconName: "success-outline",
-      tooltip: (innerProps) =>
-        innerProps.isDiskEncryptionProfile
-          ? "The host acknowledged the MDM command to turn on disk encryption. " +
-            "Fleet is verifying with osquery and retrieving the disk encryption key. " +
-            "This may take up to one hour."
-          : "The host acknowledged the MDM command to install the configuration profile. Fleet is " +
-            "verifying with osquery.",
-    },
-    failed: {
-      statusText: "Failed",
-      iconName: "error",
-      tooltip: null,
-    },
-  },
-  remove: {
-    pending: {
-      statusText: "Removing enforcement (pending)",
-      iconName: "pending-outline",
-      tooltip: (innerProps) =>
-        innerProps.isDiskEncryptionProfile
-          ? "The host will receive the MDM command to remove the disk encryption profile when the " +
-            "host comes online."
-          : "The host will receive the MDM command to remove the configuration profile when the host " +
-            "comes online.",
-    },
-    action_required: null, // should not be reached
-    verified: null, // should not be reached
-    verifying: null, // should not be reached
-    failed: {
-      statusText: "Failed",
-      iconName: "error",
-      tooltip: null,
-    },
-  },
-};
-
-type WindowsDiskEncryptionDisplayConfig = Omit<
-  OperationTypeOption,
-  "action_required"
->;
-
-const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDisplayConfig = {
-  verified: {
-    statusText: "Verified",
-    iconName: "success",
-    tooltip: () =>
-      "The host turned disk encryption on and sent the key to Fleet. Fleet verified with osquery.",
-  },
-  verifying: {
-    statusText: "Verifying",
-    iconName: "success-outline",
-    tooltip: () =>
-      "The host acknowledged the MDM command to turn on disk encryption. Fleet is verifying with osquery and retrieving " +
-      "the disk encryption key. This may take up to one hour.",
-  },
-  pending: {
-    statusText: "Enforcing (pending)",
-    iconName: "pending-outline",
-    tooltip: () =>
-      "The host will receive the MDM command to turn on disk encryption when the host comes online.",
-  },
-  failed: {
-    statusText: "Failed",
-    iconName: "error",
-    tooltip: null,
-  },
-};
-
 interface IOSSettingStatusCellProps {
   status: OsSettingsTableStatusValue;
-  operationType: MacMdmProfileOperationType | null;
+  operationType: ProfileOperationType | null;
   profileName: string;
 }
 
