@@ -596,6 +596,7 @@ Once base64-decoded, they are PEM-encoded certificate and keys.
 | team_name | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of `team_name`/`team_id` can be provided. |
 | dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
 | profiles  | json   | body  | An array of strings, the base64-encoded .mobileconfig (macOS) or XML (Windows) files to apply.                                        |
+| labels   | array   | query | _Available in Fleet Premium_ An array of labels to filter hosts in a team (or no team) that should get a profile. |
 
 If no team (id or name) is provided, the profiles are applied for all hosts (for _Fleet Free_) or for hosts that are not assigned to any team (for _Fleet Premium_). After the call, the provided list of `profiles` will be the active profiles for that team (or no team) - that is, any existing profile that is not part of that list will be removed, and an existing profile with the same payload identifier (macOS) as a new profile will be edited. If the list of provided `profiles` is empty, all profiles are removed for that team (or no team).
 
