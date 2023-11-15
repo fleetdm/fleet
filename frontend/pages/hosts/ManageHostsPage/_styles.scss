@@ -196,6 +196,9 @@
     .table-container__data-table-block {
       .data-table-block {
         .data-table {
+          &__wrapper {
+            overflow-x: auto;
+          }
           &__table {
             tbody {
               .issues {
