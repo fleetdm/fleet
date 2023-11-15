@@ -71,7 +71,7 @@
         - description: 
           quote: 
           moreInfoUrl: 
-      buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Anomaly detection,Configuration management, attack surface monitoring, policy assessment]
+      buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Anomaly detection,Configuration management,Attack Surface Monitoring,Policy assessment]
       waysToUse:
         - description: Monitor devices that don't meet your organization's custom security policies
         - description: Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.
