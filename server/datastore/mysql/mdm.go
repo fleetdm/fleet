@@ -6,6 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -102,37 +103,47 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 }
 
 func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
-	panic("not implemented")
-
 	var profs []*fleet.MDMConfigProfilePayload
 
 	const selectStmt = `
 SELECT
-	CONVERT(profile_id, CHAR) as profile_id,
+	profile_id,
 	team_id,
 	name,
 	identifier,
 	checksum,
 	created_at,
 	updated_at
-FROM
-	mdm_apple_configuration_profiles
-WHERE
-	team_id = ? AND
-	identifier NOT IN (?)
-UNION
-SELECT
-	profile_uuid as profile_id,
-	team_id,
-	name,
-	'' as identifier,
-	'' as checksum,
-	created_at,
-	updated_at
-FROM
-	mdm_windows_configuration_profiles
-WHERE
-	team_id = ?
+FROM (
+	SELECT
+		CONVERT(profile_id, CHAR) as profile_id,
+		team_id,
+		name,
+		identifier,
+		checksum,
+		created_at,
+		updated_at
+	FROM
+		mdm_apple_configuration_profiles
+	WHERE
+		team_id = ? AND
+		identifier NOT IN (?)
+
+	UNION
+
+	SELECT
+		profile_uuid as profile_id,
+		team_id,
+		name,
+		'' as identifier,
+		'' as checksum,
+		created_at,
+		updated_at
+	FROM
+		mdm_windows_configuration_profiles
+	WHERE
+		team_id = ?
+) as combined_profiles
 `
 
 	var globalOrTeamID uint
@@ -140,8 +151,19 @@ WHERE
 		globalOrTeamID = *teamID
 	}
 
-	args := []any{globalOrTeamID}
+	fleetIdentsMap := mobileconfig.FleetPayloadIdentifiers()
+	fleetIdentifiers := make([]string, 0, len(fleetIdentsMap))
+	for k := range fleetIdentsMap {
+		fleetIdentifiers = append(fleetIdentifiers, k)
+	}
+
+	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID}
 	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
+
+	stmt, args, err := sqlx.In(stmt, args...)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "sqlx.In ListMDMConfigProfiles")
+	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profs, stmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select profiles")
