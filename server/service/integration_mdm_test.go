@@ -8132,7 +8132,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	body, headers := generateNewProfileMultipartRequest(t, nil, "win.xml", []byte("\x00\x01\x02"), s.token)
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't upload. The file should include valid XML.")
+	require.Contains(t, errMsg, "Couldn't upload. The file should include valid XML:")
 	// Apple invalid content
 	body, headers = generateNewProfileMultipartRequest(t, nil,
 		"apple.mobileconfig", []byte("\x00\x01\x02"), s.token)
