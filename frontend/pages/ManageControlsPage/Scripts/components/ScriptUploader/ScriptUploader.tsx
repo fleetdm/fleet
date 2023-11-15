@@ -53,7 +53,7 @@ const ScriptPackageUploader = ({
   return (
     <FileUploader
       className={baseClass}
-      graphicNames={["file-sh", "file-ps1"]}
+      graphicName={["file-sh", "file-ps1"]}
       message="Shell (.sh) for macOS or PowerShell (.ps1) for Windows"
       additionalInfo="Script will run with “#!/bin/sh”on macOS."
       accept=".sh,.ps1,.yml"

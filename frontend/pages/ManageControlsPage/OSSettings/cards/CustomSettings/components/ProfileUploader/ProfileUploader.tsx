@@ -60,7 +60,7 @@ const ProfileUploader = ({
 
   return (
     <FileUploader
-      graphicNames="file-configuration-profile"
+      graphicName="file-configuration-profile"
       message="Configuration profile (.mobileconfig)"
       accept=".mobileconfig,application/x-apple-aspen-config"
       isLoading={showLoading}

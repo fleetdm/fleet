@@ -22,7 +22,7 @@ type ISupportedGraphicNames = Extract<
 >;
 
 interface IFileUploaderProps {
-  graphicNames: ISupportedGraphicNames | ISupportedGraphicNames[];
+  graphicName: ISupportedGraphicNames | ISupportedGraphicNames[];
   message: string;
   additionalInfo?: string;
   /** Controls the loading spinner on the upload button */
@@ -40,7 +40,7 @@ interface IFileUploaderProps {
  * A component that encapsulates the UI for uploading a file.
  */
 const FileUploader = ({
-  graphicNames,
+  graphicName: graphicNames,
   message,
   additionalInfo,
   isLoading = false,
