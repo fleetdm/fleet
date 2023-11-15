@@ -478,7 +478,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	}
 
 	sql += whereClauses
-	sql = appendListOptionsToSQL(sql, &opt.ListOptions)
+	sql, args = appendListOptionsWithCursorToSQL(sql, args, &opt.ListOptions)
 
 	results := []*fleet.Query{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...); err != nil {

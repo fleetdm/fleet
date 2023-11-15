@@ -1,8 +1,9 @@
 package tables
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestUp_20220915165116(t *testing.T) {

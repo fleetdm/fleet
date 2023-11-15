@@ -303,7 +303,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 
 	metadata, err := sso.GetMetadata(&appConfig.SSOSettings.SSOProviderSettings)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting metadata")
+		return "", ctxerr.Wrap(ctx, badRequestErr("Could not get SSO Metadata. Check your SSO settings.", err))
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL

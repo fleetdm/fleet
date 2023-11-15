@@ -137,6 +137,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			MacOSSetupAssistant: optjson.String{Set: true},
 			BootstrapPackage:    optjson.String{Set: true},
 		},
+		// because the WindowsSettings was marshalled to JSON to be saved in the DB,
+		// it did get marshalled, and then when unmarshalled it was set (but
+		// empty).
+		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+		},
 	}, team.Config.MDM)
 
 	// an activity was created for team spec applied
@@ -1830,11 +1836,11 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	t := s.T()
 
-	ac, err := s.ds.AppConfig(context.Background())
-	require.NoError(t, err)
-	ac.OrgInfo.OrgLogoURL = "http://example.com/logo"
-	err = s.ds.SaveAppConfig(context.Background(), ac)
-	require.NoError(t, err)
+	// set the logo via the modify appconfig endpoint, so that the cache is
+	// properly updated.
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"org_info":{"org_logo_url": "http://example.com/logo"}}`), http.StatusOK, &acResp)
+	require.Equal(t, "http://example.com/logo", acResp.OrgInfo.OrgLogoURL)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          51,
@@ -3186,12 +3192,11 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	require.Equal(t, "https://foobar.example.com", acr.AppConfig.WebhookSettings.VulnerabilitiesWebhook.DestinationURL)
 
 	// Attempt to run live queries synchronously, should fail.
-	// TODO(lucas): This is a bug, the synchronous live query API should return 403 but currently returns 200.
-	// It doesn't run the query but incorrectly returns a 200.
 	s.DoJSON("GET", "/api/latest/fleet/queries/run", runLiveQueryRequest{
 		HostIDs:  []uint{h1.ID},
 		QueryIDs: []uint{q1.ID},
-	}, http.StatusOK, &runLiveQueryResponse{})
+	}, http.StatusForbidden, &runLiveQueryResponse{},
+	)
 
 	// Attempt to run live queries asynchronously (new unsaved query), should fail.
 	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{
@@ -4317,7 +4322,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 		"not_sh.txt", []byte(`echo "hello"`), s.token)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "The file should be a .sh file")
+	require.Contains(t, errMsg, "Validation Failed: File type not supported. Only .sh and .ps1 file type is allowed.")
 
 	// file content is empty
 	body, headers = generateNewScriptMultipartRequest(t, nil,
@@ -4368,6 +4373,16 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NotEqual(t, noTeamScriptID, newScriptResp.ScriptID)
 	tmScriptID := newScriptResp.ScriptID
 	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d}`, "script1.sh", tm.Name, tm.ID), 0)
+
+	// create a windows script
+	body, headers = generateNewScriptMultipartRequest(t, &tm.ID,
+		"script2.ps1", []byte(`Write-Host "Hello, World!"`), s.token)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
+	require.NoError(t, err)
+	require.NotZero(t, newScriptResp.ScriptID)
+	require.NotEqual(t, noTeamScriptID, newScriptResp.ScriptID)
+	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d}`, "script2.ps1", tm.Name, tm.ID), 0)
 
 	// get team's script
 	getScriptResp = getScriptResponse{}
@@ -4543,17 +4558,23 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	require.NoError(t, err)
 	tm3, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test-script-details-team3"})
 	require.NoError(t, err)
+	tm4, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test-script-details-team4-windows"})
+	require.NoError(t, err)
 
 	// create 5 scripts for no team and team 1
 	for i := 0; i < 5; i++ {
-		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d", i), ScriptContents: "echo"})
+		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d.sh", i), ScriptContents: "echo"})
 		require.NoError(t, err)
-		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d", i), TeamID: &tm1.ID, ScriptContents: "echo"})
+		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d.sh", i), TeamID: &tm1.ID, ScriptContents: "echo"})
 		require.NoError(t, err)
 	}
 
+	// add a windows script to team 4
+	_, err = s.ds.NewScript(ctx, &fleet.Script{Name: "test-script-details-windows.ps1", TeamID: &tm4.ID, ScriptContents: `Write-Host "Hello, World!"`})
+	require.NoError(t, err)
+
 	// create a single script for team 2
-	_, err = s.ds.NewScript(ctx, &fleet.Script{Name: "test-script-details-team-2", TeamID: &tm2.ID, ScriptContents: "echo"})
+	_, err = s.ds.NewScript(ctx, &fleet.Script{Name: "test-script-details-team-2.sh", TeamID: &tm2.ID, ScriptContents: "echo"})
 	require.NoError(t, err)
 
 	// create a host without a team
@@ -4600,7 +4621,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	})
 	require.NoError(t, err)
 
-	// create a Windows host (unsupported)
+	// create a Windows host
 	host3, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -4611,7 +4632,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 		UUID:            uuid.New().String(),
 		Hostname:        "host3",
 		Platform:        "windows",
-		TeamID:          nil,
+		TeamID:          &tm4.ID,
 	})
 	require.NoError(t, err)
 
@@ -4812,16 +4833,15 @@ VALUES
 		require.Len(t, resp.Scripts, 0)
 	})
 
-	t.Run("unsupported platform windows", func(t *testing.T) {
-		require.Nil(t, host3.TeamID)
-		noTeamScripts, _, err := s.ds.ListScripts(ctx, nil, fleet.ListOptions{})
+	t.Run("windows", func(t *testing.T) {
+		team4Scripts, _, err := s.ds.ListScripts(ctx, &tm4.ID, fleet.ListOptions{})
 		require.NoError(t, err)
-		require.True(t, len(noTeamScripts) > 0)
+		require.Len(t, team4Scripts, 1)
 
 		var resp getHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host3.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.Scripts)
-		require.Len(t, resp.Scripts, 0)
+		require.Len(t, resp.Scripts, 1)
 	})
 
 	t.Run("unsupported platform linux", func(t *testing.T) {

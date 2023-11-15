@@ -4,7 +4,7 @@ examples: >-
   
   ```
   
-  SELECT * FROM users JOIN user_ssh_keys USING (uid) WHERE encrypted = 0;,
+  SELECT * FROM users JOIN user_ssh_keys USING (uid) WHERE encrypted = 0;
   
   ```
 columns:

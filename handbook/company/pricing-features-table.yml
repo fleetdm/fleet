@@ -16,7 +16,7 @@
         - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
           quote: 
           moreInfoUrl: https://play.goconsensus.com/s4e490bb9
-      buzzwords: [Device trust,Zero trust,Beyondcorp,Device attestation,Conditional access]
+      buzzwords: [Device trust,Zero trust,Layer 7 device trust,Beyondcorp,Device attestation,Conditional access]
       waysToUse:
         - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
         - description: Block access to corporate apps for users whose devices with unexpected settings, like disabled screen lock, passwords that are too short, unencrypted hard disks, and more
@@ -72,7 +72,7 @@
         - description: 
           quote: 
           moreInfoUrl: 
-      buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Anomaly detection,Configuration management]
+      buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Anomaly detection,Configuration management,Attack Surface Monitoring,Policy assessment]
       waysToUse:
         - description: Monitor devices that don't meet your organization's custom security policies
         - description: Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.
@@ -377,6 +377,10 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/13643
       productCategories: [Endpoint operations,Device management,Vulnerability management]
       tier: Free
+      demos:
+        description: A top savings and investment company wanted workflows and automation so that one bad actor can't brick their fleet.  This way, they have to make a pull request first.
+        quote: I don't want one bad actor to brick my fleet.  I want them to make a pull request first.
+        moreInfoUrl: https://docs.google.com/document/d/1hAQL6P--Tt3syq1MTRONAxhQA_2Vjt3oOJJt_O4xbiE/edit?disco=AAABAVnYvns&usp_dm=true#heading=h.7en766pueek4
       #  ╔═╗╦═╗╔═╗╔═╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
       #  ╠╣ ╠╦╝║╣ ║╣   ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
       #  ╚  ╩╚═╚═╝╚═╝  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
@@ -629,11 +633,15 @@
     - industryName: Policy scoring
       friendlyName: Mark policies as critical
       tier: Premium
-    - industryName: Vulnerability scores (EPSS and CVSS)
+    - industryName: Vulnerability scores (EPSS and CVSS) #TODO: Incorporate this perspective: https://github.com/fleetdm/confidential/issues/4120#issuecomment-1802350614
       tier: Premium
       usualDepartment: Security
       productCategories: [Vulnerability management]
-    - industryName: CISA KEVs (known exploited vulnerabilities)
+    - industryName: CISA KEVs (known exploited vulnerabilities) #TODO: Incorporate this perspective: https://github.com/fleetdm/confidential/issues/4120#issuecomment-1802350614
+      tier: Premium
+      usualDepartment: Security
+      productCategories: [Vulnerability management]
+    - industryName: Patched version #Can be determined using description from National Vulnerability Database (NVD). Description tells you which versions are affected.
       tier: Premium
       usualDepartment: Security
       productCategories: [Vulnerability management]

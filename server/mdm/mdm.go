@@ -1,6 +1,7 @@
 package mdm
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/x509"
 	"encoding/base64"
@@ -22,4 +23,33 @@ func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.Privat
 	}
 
 	return p7.Decrypt(cert, key)
+}
+
+// GetRawProfilePlatform identifies the platform type of a profile bytes by
+// examining its initial content:
+//
+//   - Returns "darwin" if the profile starts with "<?xml", typical of Darwin
+//     platform profiles.
+//   - Returns "windows" if the profile begins with "<replace", as we only accept
+//     replaces directives for profiles.
+//   - Returns an empty string for profiles that are either unrecognized or
+//     empty.
+func GetRawProfilePlatform(profile []byte) string {
+	trimmedProfile := bytes.TrimSpace(profile)
+
+	if len(trimmedProfile) == 0 {
+		return ""
+	}
+
+	darwinPrefix := []byte("<?xml")
+	if len(trimmedProfile) >= len(darwinPrefix) && bytes.EqualFold(darwinPrefix, trimmedProfile[:len(darwinPrefix)]) {
+		return "darwin"
+	}
+
+	windowsPrefix := []byte("<replace")
+	if len(trimmedProfile) >= len(windowsPrefix) && bytes.EqualFold(windowsPrefix, trimmedProfile[:len(windowsPrefix)]) {
+		return "windows"
+	}
+
+	return ""
 }

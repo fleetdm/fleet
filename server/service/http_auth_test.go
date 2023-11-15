@@ -178,7 +178,11 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 }
 
 func getTestAdminToken(t *testing.T, server *httptest.Server) string {
-	testUser := testUsers["admin1"]
+	return getTestUserToken(t, server, "admin1")
+}
+
+func getTestUserToken(t *testing.T, server *httptest.Server, testUserId string) string {
+	testUser := testUsers[testUserId]
 
 	params := loginRequest{
 		Email:    testUser.Email,

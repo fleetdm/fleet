@@ -71,7 +71,7 @@ import DeleteHostModal from "../../components/DeleteHostModal";
 
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
-import MacSettingsModal from "../MacSettingsModal";
+import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
@@ -129,8 +129,6 @@ const HostDetailsPage = ({
     isSandboxMode,
     isOnlyObserver,
     filteredHostsPath,
-    availableTeams,
-    setCurrentTeam,
   } = useContext(AppContext);
   const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -141,7 +139,7 @@ const HostDetailsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
-  const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
+  const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
@@ -420,9 +418,9 @@ const HostDetailsPage = ({
     [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
   );
 
-  const toggleMacSettingsModal = useCallback(() => {
-    setShowMacSettingsModal(!showMacSettingsModal);
-  }, [showMacSettingsModal, setShowMacSettingsModal]);
+  const toggleOSSettingsModal = useCallback(() => {
+    setShowOSSettingsModal(!showOSSettingsModal);
+  }, [showOSSettingsModal, setShowOSSettingsModal]);
 
   const toggleBootstrapPackageModal = useCallback(() => {
     setShowBootstrapPackageModal(!showBootstrapPackageModal);
@@ -575,6 +573,7 @@ const HostDetailsPage = ({
       <HostActionDropdown
         hostTeamId={host.team_id}
         onSelect={onSelectHostAction}
+        hostPlatform={host.platform}
         hostStatus={host.status}
         hostMdmEnrollemntStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
@@ -623,14 +622,16 @@ const HostDetailsPage = ({
     },
   ];
 
-  // we want the scripts tabs on the list for only mac hosts and premium tier atm.
+  // we want the scripts tabs on the list for only mac and windows hosts and premium tier atm.
   // We filter it out for other platforms and non premium.
   // TODO: improve this code. We can pull the tab list component out
   // into its own component later.
-  const filteredSubNavTabs =
-    host?.platform === "darwin" && isPremiumTier
-      ? hostDetailsSubNav
-      : hostDetailsSubNav.filter((navItem) => navItem.title !== "scripts");
+
+  const showScripts =
+    ["darwin", "windows"].includes(host?.platform ?? "") && isPremiumTier;
+  const filteredSubNavTabs = showScripts
+    ? hostDetailsSubNav
+    : hostDetailsSubNav.filter((navItem) => navItem.title !== "scripts");
 
   const getTabIndex = (path: string): number => {
     return filteredSubNavTabs.findIndex((navItem) => {
@@ -690,8 +691,7 @@ const HostDetailsPage = ({
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
           isSandboxMode={isSandboxMode}
-          isOnlyObserver={isOnlyObserver}
-          toggleMacSettingsModal={toggleMacSettingsModal}
+          toggleOSSettingsModal={toggleOSSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
           hostMdmProfiles={host?.mdm.profiles ?? []}
           mdmName={mdm?.name}
@@ -739,13 +739,10 @@ const HostDetailsPage = ({
                 hostUsersEnabled={featuresConfig?.enable_host_users}
               />
             </TabPanel>
-            {host?.platform === "darwin" && isPremiumTier && (
+            {showScripts && (
               <TabPanel>
                 <ScriptsCard
-                  hostId={host?.id}
-                  page={page}
-                  router={router}
-                  isHostOnline={host?.status === "online"}
+                  {...{ currentUser, host, page, router }}
                   onShowDetails={onShowScriptDetails}
                 />
               </TabPanel>
@@ -823,11 +820,11 @@ const HostDetailsPage = ({
             policy={selectedPolicy}
           />
         )}
-        {showMacSettingsModal && (
-          <MacSettingsModal
+        {showOSSettingsModal && (
+          <OSSettingsModal
             platform={host?.platform}
             hostMDMData={host?.mdm}
-            onClose={toggleMacSettingsModal}
+            onClose={toggleOSSettingsModal}
           />
         )}
         {showUnenrollMdmModal && !!host && (

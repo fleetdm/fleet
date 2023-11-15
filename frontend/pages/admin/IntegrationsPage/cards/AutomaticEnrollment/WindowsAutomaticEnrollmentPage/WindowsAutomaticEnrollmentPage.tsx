@@ -50,15 +50,15 @@ const WindowsAutomaticEnrollmentPage = () => {
             <CustomLink
               newTab
               text="Sign in to Azure portal"
-              url="https://azure.microsoft.com/en-gb/get-started/azure-portal"
+              url="portal.azure.com"
             />
           </li>
           <li>
             <span>2.</span>
             <p>
-              Select <b>Azure Active Directory &gt; Custom domain names</b>,
-              then select <b>+ Add custom domain</b>, type your
-              organization&apos;s domain name (e.g. acme.com), and select{" "}
+              At the top of the page, search “Domain names“ and select{" "}
+              <b>Domain names</b>. Then select <b>+ Add custom domain</b>, type
+              your organization&apos;s domain name (e.g. acme.com), and select{" "}
               <b>Add domain</b>.
             </p>
           </li>
@@ -72,8 +72,8 @@ const WindowsAutomaticEnrollmentPage = () => {
           <li>
             <span>4.</span>
             <p>
-              Select <b>Azure Active Directory &gt; Mobility (MDM and MAM)</b>{" "}
-              (or search for “Mobility” at the top of the page).
+              At the top of the page, search for “Mobility (MDM and MAM)“ and
+              select <b>Mobility (MDM and MAM)</b>.
             </p>
           </li>
           <li>

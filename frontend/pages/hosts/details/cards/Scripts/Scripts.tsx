@@ -1,4 +1,4 @@
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext } from "react";
 import { useQuery } from "react-query";
 import { AxiosResponse } from "axios";
 import { InjectedRouter } from "react-router";
@@ -8,7 +8,7 @@ import scriptsAPI, {
   IHostScript,
   IHostScriptsResponse,
 } from "services/entities/scripts";
-import { IApiError, IError } from "interfaces/errors";
+import { IApiError } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 
 import Card from "components/Card";
@@ -16,34 +16,41 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import DataError from "components/DataError";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import { IHost } from "interfaces/host";
+import { IUser } from "interfaces/user";
 
-import { generateDataSet, generateTableHeaders } from "./ScriptsTableConfig";
+import {
+  generateDataSet,
+  generateTableColumnConfigs,
+} from "./ScriptsTableConfig";
 
 const baseClass = "host-scripts-section";
 
 interface IScriptsProps {
-  isHostOnline: boolean;
+  currentUser: IUser | null;
+  host?: IHost;
   router: InjectedRouter;
-  hostId?: number;
   page?: number;
   onShowDetails: (scriptExecutionId: string) => void;
 }
 
 const Scripts = ({
-  hostId,
+  currentUser,
+  host,
   page = 0,
-  isHostOnline,
   router,
   onShowDetails,
 }: IScriptsProps) => {
   const { renderFlash } = useContext(NotificationContext);
+
+  const hostId = host?.id;
 
   const {
     data: hostScriptResponse,
     isLoading: isLoadingScriptData,
     isError: isErrorScriptData,
     refetch: refetchScriptsData,
-  } = useQuery<IHostScriptsResponse, IError>(
+  } = useQuery<IHostScriptsResponse, IApiError>(
     ["scripts", hostId, page],
     () => scriptsAPI.getHostScripts(hostId as number, page),
     {
@@ -53,10 +60,10 @@ const Scripts = ({
     }
   );
 
-  if (!hostId) return null;
+  if (!host) return null;
 
   const onQueryChange = (data: ITableQueryData) => {
-    router.push(`${PATHS.HOST_SCRIPTS(hostId)}?page=${data.pageIndex}`);
+    router.push(`${PATHS.HOST_SCRIPTS(host.id)}?page=${data.pageIndex}`);
   };
 
   const onActionSelection = async (action: string, script: IHostScript) => {
@@ -68,7 +75,7 @@ const Scripts = ({
       case "run":
         try {
           await scriptsAPI.runScript({
-            host_id: hostId,
+            host_id: host.id,
             script_id: script.script_id,
           });
           refetchScriptsData();
@@ -85,9 +92,12 @@ const Scripts = ({
   if (isErrorScriptData) {
     return <DataError card />;
   }
-
-  const scriptHeaders = generateTableHeaders(onActionSelection);
-  const data = generateDataSet(hostScriptResponse?.scripts || [], isHostOnline);
+  const scriptColumnConfigs = generateTableColumnConfigs(onActionSelection);
+  const data = generateDataSet(
+    currentUser,
+    host,
+    hostScriptResponse?.scripts || []
+  );
 
   return (
     <Card className={baseClass} borderRadiusSize="large" includeShadow>
@@ -103,7 +113,7 @@ const Scripts = ({
           emptyComponent={() => <></>}
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          columns={scriptHeaders}
+          columns={scriptColumnConfigs}
           data={data}
           isLoading={isLoadingScriptData}
           onQueryChange={onQueryChange}

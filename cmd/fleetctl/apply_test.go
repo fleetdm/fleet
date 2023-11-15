@@ -14,17 +14,21 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanomdm_mock "github.com/fleetdm/fleet/v4/server/mock/nanomdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
+	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -156,7 +160,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
 		return nil
 	}
 
@@ -820,10 +824,20 @@ func TestApplyAsGitOps(t *testing.T) {
 
 	enqueuer := new(nanomdm_mock.Storage)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+
+	// mdm test configuration must be set so that activating windows MDM works.
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, nil, "../../server/service/testdata")
+
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
-		License:    license,
-		MDMStorage: enqueuer,
-		MDMPusher:  mockPusher{},
+		License:     license,
+		MDMStorage:  enqueuer,
+		MDMPusher:   mockPusher{},
+		FleetConfig: &fleetCfg,
 	})
 
 	gitOps := &fleet.User{
@@ -832,7 +846,7 @@ func TestApplyAsGitOps(t *testing.T) {
 		Email:      "gitops1@example.com",
 		GlobalRole: ptr.String(fleet.RoleGitOps),
 	}
-	gitOps, err := ds.NewUser(context.Background(), gitOps)
+	gitOps, err = ds.NewUser(context.Background(), gitOps)
 	require.NoError(t, err)
 	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return &fleet.Session{
@@ -892,7 +906,7 @@ func TestApplyAsGitOps(t *testing.T) {
 		teamEnrollSecrets = secrets
 		return nil
 	}
-	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
 		return nil
 	}
 	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error {
@@ -1072,7 +1086,7 @@ spec:
 	}, savedTeam.Config.MDM)
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, teamEnrollSecrets)
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
-	assert.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
+	assert.True(t, ds.BatchSetMDMProfilesFuncInvoked)
 
 	// add macos setup assistant to team
 	name = writeTmpYml(t, fmt.Sprintf(`
@@ -2984,6 +2998,28 @@ spec:
 `, macSetupFile),
 			wantErr: `macOS MDM isn't turned on.`,
 		},
+		{
+			desc: "app config enable windows mdm without feature flag",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_enabled_and_configured: true
+`,
+			wantErr: `422 Validation Failed: cannot enable Windows MDM without the feature flag explicitly enabled`,
+		},
+		{
+			desc: "app config enable windows mdm without WSTEP",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_enabled_and_configured: true
+`,
+			wantErr: `422 Validation Failed: Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.`,
+		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because
 	// they require a complex setup to mock the client that would communicate
@@ -2994,6 +3030,12 @@ spec:
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
+			// bit hacky, but since the env var is temporary while Windows MDM is in beta,
+			// didn't want to add a field to the test cases just for this.
+			if strings.Contains(c.desc, "WSTEP") {
+				t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
+			}
+
 			_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
 			setupDS(ds)
 			filename := writeTmpYml(t, c.spec)
