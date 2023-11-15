@@ -983,6 +983,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 			fleet.MDMDeliveryPending: []uint{hosts[0].ID, hosts[3].ID, otherHosts[0].ID, otherHosts[1].ID, otherHosts[2].ID, otherHosts[3].ID, otherHosts[4].ID},
 			fleet.MDMDeliveryFailed:  []uint{hosts[4].ID},
 		}
+		checkExpected(t, nil, expected)
 
 		// report otherHosts[0] as a server
 		require.NoError(t, ds.SetOrUpdateMDMData(ctx, otherHosts[0].ID, true, true, "https://example.com", false, fleet.WellKnownMDMFleet))
@@ -1017,6 +1018,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		expected = hostIDsByProfileStatus{
 			fleet.MDMDeliveryPending: []uint{otherHosts[1].ID, otherHosts[2].ID, otherHosts[3].ID, otherHosts[4].ID},
 		}
+		checkExpected(t, nil, expected)
 
 		cleanupTables(t)
 

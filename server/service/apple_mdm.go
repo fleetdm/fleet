@@ -638,6 +638,9 @@ type getMDMAppleFileVaultSummaryResponse struct {
 
 func (r getMDMAppleFileVaultSummaryResponse) error() error { return r.Err }
 
+// TODO: Should this endpoint be removed altogether? It seems to be unused. Did we announce a
+// breaking change to remove the old route?
+
 func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMAppleFileVaultSummaryRequest)
 
