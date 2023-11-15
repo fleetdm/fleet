@@ -68,7 +68,7 @@ const BootstrapPackageUploader = ({
       </p>
       <FileUploader
         message="Package (.pkg)"
-        graphicNames={["file-pkg"]}
+        graphicNames="file-pkg"
         accept=".pkg"
         onFileUpload={onUploadFile}
         isLoading={showLoading}

@@ -22,7 +22,7 @@ type ISupportedGraphicNames = Extract<
 >;
 
 interface IFileUploaderProps {
-  graphicNames: ISupportedGraphicNames[];
+  graphicNames: ISupportedGraphicNames | ISupportedGraphicNames[];
   message: string;
   additionalInfo?: string;
   /** Controls the loading spinner on the upload button */
@@ -51,7 +51,9 @@ const FileUploader = ({
   const classes = classnames(baseClass, className);
 
   const renderGraphics = () => {
-    return graphicNames.map((graphicName) => (
+    const graphicNamesArr =
+      typeof graphicNames === "string" ? [graphicNames] : graphicNames;
+    return graphicNamesArr.map((graphicName) => (
       <Graphic
         key={`${graphicName}-graphic`}
         className={`${baseClass}__graphic`}
