@@ -1082,6 +1082,17 @@ func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*flee
 }
 
 func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		return ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, profiles)
+	})
+}
+
+func (ds *Datastore) batchSetMDMAppleProfilesDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	tmID *uint,
+	profiles []*fleet.MDMAppleConfigProfile,
+) error {
 	const loadExistingProfiles = `
 SELECT
   identifier,
