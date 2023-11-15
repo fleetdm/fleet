@@ -19,9 +19,9 @@ type StatisticsPayload struct {
 	VulnDetectionEnabled      bool   `json:"vulnDetectionEnabled"`
 	SystemUsersEnabled        bool   `json:"systemUsersEnabled"`
 	HostsStatusWebHookEnabled bool   `json:"hostsStatusWebHookEnabled"`
-	MDMMacOsEnabled           bool   `json:"MDMMacOsEnabled"`
+	MDMMacOsEnabled           bool   `json:"mdmMacOsEnabled"`
 	HostExpiryEnabled         bool   `json:"hostExpiryEnabled"`
-	MDMWindowsEnabled         bool   `json:"MDMWindowsEnabled"`
+	MDMWindowsEnabled         bool   `json:"mdmWindowsEnabled"`
 	LiveQueryDisabled         bool   `json:"liveQueryDisabled"`
 	NumWeeklyActiveUsers      int    `json:"numWeeklyActiveUsers"`
 	// NumWeeklyPolicyViolationDaysActual is an aggregate count of actual policy violation days. One
