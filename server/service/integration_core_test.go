@@ -5055,7 +5055,6 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Equal(t, "free", acResp.License.Tier)
 	assert.Equal(t, "FleetTest", acResp.OrgInfo.OrgName) // set in SetupSuite
 	assert.False(t, acResp.MDM.AppleBMTermsExpired)
-	assert.False(t, acResp.MDMEnabled)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
@@ -5084,7 +5083,6 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	assert.Equal(t, "test", acResp.OrgInfo.OrgName)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
-	assert.False(t, acResp.MDMEnabled)
 
 	// the global agent options were not modified by the last call, so the
 	// corresponding activity should not have been created.
@@ -5283,13 +5281,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "missing or invalid license")
 
-	// try to enable Windows MDM, impossible without the feature flag
+	// try to enable Windows MDM, impossible without the WSTEP certs
 	// (only set in mdm integrations tests)
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_enabled_and_configured": true }
   }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "cannot enable Windows MDM without the feature flag explicitly enabled")
+	assert.Contains(t, errMsg, "Please configure Fleet with a certificate and key pair first.")
 
 	// verify that the Apple BM terms expired flag was never modified
 	acResp = appConfigResponse{}
