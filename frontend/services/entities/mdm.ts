@@ -84,7 +84,8 @@ const mdmService = {
   },
 
   getProfiles: (teamId = APP_CONTEXT_NO_TEAM_ID) => {
-    const path = `${endpoints.MDM_PROFILES}?${buildQueryStringFromParams({
+    const { MDM_PROFILES_OLD: MDM_PROFILES } = endpoints;
+    const path = `${MDM_PROFILES}?${buildQueryStringFromParams({
       team_id: teamId,
     })}`;
 
@@ -105,12 +106,12 @@ const mdmService = {
   },
 
   downloadProfile: (profileId: number) => {
-    const { MDM_PROFILE } = endpoints;
+    const { MDM_PROFILE_OLD: MDM_PROFILE } = endpoints;
     return sendRequest("GET", MDM_PROFILE(profileId));
   },
 
   deleteProfile: (profileId: number) => {
-    const { MDM_PROFILE } = endpoints;
+    const { MDM_PROFILE_OLD: MDM_PROFILE } = endpoints;
     return sendRequest("DELETE", MDM_PROFILE(profileId));
   },
 
