@@ -935,6 +935,17 @@ func (svc *Service) editTeamFromSpec(
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
+	if spec.MDM.WindowsSettings.CustomSettings.Set {
+		if !appCfg.MDM.WindowsEnabledAndConfigured &&
+			len(spec.MDM.WindowsSettings.CustomSettings.Value) > 0 &&
+			!server.SliceStringsMatch(team.Config.MDM.WindowsSettings.CustomSettings.Value, spec.MDM.WindowsSettings.CustomSettings.Value) {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.custom_settings",
+				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
+		}
+
+		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
+	}
+
 	if spec.Scripts.Set {
 		team.Config.Scripts = spec.Scripts
 	}
@@ -1004,6 +1015,7 @@ func (svc *Service) editTeamFromSpec(
 }
 
 func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.TeamSpec, applyUpon *fleet.MacOSSettings) error {
+	oldCustomSettings := applyUpon.CustomSettings
 	setFields, err := applyUpon.FromMap(spec.MDM.MacOSSettings)
 	if err != nil {
 		return fleet.NewUserMessageError(err, http.StatusBadRequest)
@@ -1014,8 +1026,11 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 		return ctxerr.Wrap(ctx, err, "apply team macos settings")
 	}
 
-	if (setFields["custom_settings"] && len(applyUpon.CustomSettings) > 0) ||
-		(setFields["enable_disk_encryption"] && *applyUpon.DeprecatedEnableDiskEncryption) {
+	customSettingsChanged := setFields["custom_settings"] &&
+		len(applyUpon.CustomSettings) > 0 &&
+		!server.SliceStringsMatch(applyUpon.CustomSettings, oldCustomSettings)
+
+	if customSettingsChanged || (setFields["enable_disk_encryption"] && *applyUpon.DeprecatedEnableDiskEncryption) {
 		field := "custom_settings"
 		if !setFields["custom_settings"] {
 			field = "enable_disk_encryption"

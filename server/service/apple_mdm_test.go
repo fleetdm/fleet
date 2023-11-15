@@ -591,11 +591,11 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			// test authz create new profile (no team)
-			_, err := svc.NewMDMAppleConfigProfile(ctx, 0, bytes.NewReader(mcBytes), int64(len(mcBytes)))
+			_, err := svc.NewMDMAppleConfigProfile(ctx, 0, bytes.NewReader(mcBytes))
 			checkShouldFail(err, tt.shouldFailGlobal)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMAppleConfigProfile(ctx, 1, bytes.NewReader(mcBytes), int64(len(mcBytes)))
+			_, err = svc.NewMDMAppleConfigProfile(ctx, 1, bytes.NewReader(mcBytes))
 			checkShouldFail(err, tt.shouldFailTeam)
 
 			// test authz list profiles (no team)
@@ -658,7 +658,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 		return nil
 	}
 
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r, r.Size())
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r)
 	require.NoError(t, err)
 	require.Equal(t, "Foo", cp.Name)
 	require.Equal(t, "Bar", cp.Identifier)
@@ -1990,7 +1990,7 @@ func TestMDMAppleCommander(t *testing.T) {
 	mdmStorage.RetrievePushInfoFuncInvoked = false
 }
 
-func TestMDMAppleReconcileProfiles(t *testing.T) {
+func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &nanomdm_mock.Storage{}
 	ds := new(mock.Store)
@@ -2210,7 +2210,7 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 			failedCount++
 			require.Len(t, payload, 0)
 		}
-		err := ReconcileProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
@@ -2246,7 +2246,7 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 		}
 
 		enqueueFailForOp = fleet.MDMOperationTypeRemove
-		err := ReconcileProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
@@ -2299,7 +2299,7 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 		}
 
 		enqueueFailForOp = fleet.MDMOperationTypeInstall
-		err := ReconcileProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)

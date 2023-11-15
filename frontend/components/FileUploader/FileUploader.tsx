@@ -8,10 +8,24 @@ import Graphic from "components/Graphic";
 
 const baseClass = "file-uploader";
 
+type ISupportedGraphicNames = Extract<
+  GraphicNames,
+  | "file-configuration-profile"
+  | "file-sh"
+  | "file-ps1"
+  | "file-py"
+  | "file-script"
+  | "file-pdf"
+  | "file-pkg"
+  | "file-p7m"
+  | "file-pem"
+>;
+
 interface IFileUploaderProps {
-  graphicName: GraphicNames;
+  graphicName: ISupportedGraphicNames | ISupportedGraphicNames[];
   message: string;
   additionalInfo?: string;
+  /** Controls the loading spinner on the upload button */
   isLoading?: boolean;
   /** A comma seperated string of one or more file types accepted to upload.
    * This is the same as the html accept attribute.
@@ -22,8 +36,11 @@ interface IFileUploaderProps {
   onFileUpload: (files: FileList | null) => void;
 }
 
+/**
+ * A component that encapsulates the UI for uploading a file.
+ */
 const FileUploader = ({
-  graphicName,
+  graphicName: graphicNames,
   message,
   additionalInfo,
   isLoading = false,
@@ -33,11 +50,24 @@ const FileUploader = ({
 }: IFileUploaderProps) => {
   const classes = classnames(baseClass, className);
 
+  const renderGraphics = () => {
+    const graphicNamesArr =
+      typeof graphicNames === "string" ? [graphicNames] : graphicNames;
+    return graphicNamesArr.map((graphicName) => (
+      <Graphic
+        key={`${graphicName}-graphic`}
+        className={`${baseClass}__graphic`}
+        name={graphicName}
+      />
+    ));
+  };
   return (
     <Card color="gray" className={classes}>
-      <Graphic name={graphicName} />
+      <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
       <p className={`${baseClass}__message`}>{message}</p>
-      <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
+      {additionalInfo && (
+        <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
+      )}
       <Button
         className={`${baseClass}__upload-button`}
         variant="brand"

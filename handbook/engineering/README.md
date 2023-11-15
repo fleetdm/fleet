@@ -8,7 +8,7 @@ The 🚀 Engineering department at Fleet is directly responsible for writing and
 ## Team
 | Role                            | Contributor(s)           |
 |:--------------------------------|:-----------------------------------------------------------------------------------------------------------|
-| Director of Product Devleopment | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Head of Product Engineering     | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Engineering Managers            | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_, [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
 | Product Quality Specialists     | [Reed Haynes](https://www.linkedin.com/in/george-karr-4977b441/) _([@xpkoala](https://github.com/xpkoala))_, [Sabrina Coy](https://www.linkedin.com/in/bricoy/) _([@sabrinabuckets](https://github.com/sabrinabuckets))_
 | Infrastructure Engineers        | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_

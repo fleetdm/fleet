@@ -83,27 +83,55 @@ func TestMDMApple(t *testing.T) {
 
 func testNewMDMAppleConfigProfileDuplicateName(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	initialCP := storeDummyConfigProfileForTest(t, ds)
 
-	// cannot create another profile with the same name if it is on the same team
-	duplicateCP := fleet.MDMAppleConfigProfile{
-		Name:         initialCP.Name,
-		Identifier:   "DifferentIdentifierDoesNotMatter",
-		TeamID:       initialCP.TeamID,
-		Mobileconfig: initialCP.Mobileconfig,
-	}
-	_, err := ds.NewMDMAppleConfigProfile(ctx, duplicateCP)
-	expectedErr := &existsError{ResourceType: "MDMAppleConfigProfile.PayloadDisplayName", Identifier: initialCP.Name, TeamID: initialCP.TeamID}
-	require.ErrorContains(t, err, expectedErr.Error())
+	// create a couple Apple profiles for no-team
+	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 0))
+	require.NoError(t, err)
+	require.NotZero(t, profA.ProfileID)
+	profB, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 0))
+	require.NoError(t, err)
+	require.NotZero(t, profB.ProfileID)
+	// create a Windows profile for no-team
+	profC, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "c", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
+	require.NoError(t, err)
+	require.NotEmpty(t, profC.ProfileUUID)
 
-	// can create another profile with the same name if it is on a different team
-	duplicateCP.TeamID = ptr.Uint(*duplicateCP.TeamID + 1)
-	newCP, err := ds.NewMDMAppleConfigProfile(ctx, duplicateCP)
+	// create the same name for team 1 as Apple profile
+	profATm, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 1))
 	require.NoError(t, err)
-	checkConfigProfile(t, duplicateCP, *newCP)
-	storedCP, err := ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileID)
+	require.NotZero(t, profATm.ProfileID)
+	require.NotNil(t, profATm.TeamID)
+	require.Equal(t, uint(1), *profATm.TeamID)
+	// create the same B profile for team 1 as Windows profile
+	profBTm, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
 	require.NoError(t, err)
-	checkConfigProfile(t, *newCP, *storedCP)
+	require.NotEmpty(t, profBTm.ProfileUUID)
+
+	var existsErr *existsError
+	// create a duplicate of Apple for no-team
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 0))
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate of Windows for no-team
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("c", "c", 0))
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate of Apple for team
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 1))
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate of Windows for team
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 1))
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate name with a Windows profile for no-team
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+	// create a duplicate name with a Windows profile for team
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
 }
 
 func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore) {
@@ -814,39 +842,47 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	require.Nil(t, key)
 }
 
-func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+func expectAppleProfiles(
+	t *testing.T,
+	ds *Datastore,
+	newSet []*fleet.MDMAppleConfigProfile,
+	tmID *uint,
+	want []*fleet.MDMAppleConfigProfile,
+) map[string]uint {
+	if tmID == nil {
+		tmID = ptr.Uint(0)
+	}
+	// don't use ds.ListMDMAppleConfigProfiles as it leaves out
+	// fleet-managed profiles.
+	var got []*fleet.MDMAppleConfigProfile
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		ctx := context.Background()
+		return sqlx.SelectContext(ctx, q, &got, `SELECT * FROM mdm_apple_configuration_profiles WHERE team_id = ?`, tmID)
+	})
 
+	// compare only the fields we care about, and build the resulting map of
+	// profile identifier as key to profile ID as value
+	m := make(map[string]uint)
+	for _, gotp := range got {
+		m[gotp.Identifier] = gotp.ProfileID
+		if gotp.TeamID != nil && *gotp.TeamID == 0 {
+			gotp.TeamID = nil
+		}
+		gotp.ProfileID = 0
+		gotp.CreatedAt = time.Time{}
+		gotp.UpdatedAt = time.Time{}
+	}
+	// order is not guaranteed
+	require.ElementsMatch(t, want, got)
+	return m
+}
+
+func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
 	applyAndExpect := func(newSet []*fleet.MDMAppleConfigProfile, tmID *uint, want []*fleet.MDMAppleConfigProfile) map[string]uint {
+		ctx := context.Background()
 		err := ds.BatchSetMDMAppleProfiles(ctx, tmID, newSet)
 		require.NoError(t, err)
-
-		if tmID == nil {
-			tmID = ptr.Uint(0)
-		}
-		// don't use ds.ListMDMAppleConfigProfiles as it leaves out
-		// fleet-managed profiles.
-		var got []*fleet.MDMAppleConfigProfile
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &got, `SELECT * FROM mdm_apple_configuration_profiles WHERE team_id = ?`, tmID)
-		})
-
-		// compare only the fields we care about, and build the resulting map of
-		// profile identifier as key to profile ID as value
-		m := make(map[string]uint)
-		for _, gotp := range got {
-			m[gotp.Identifier] = gotp.ProfileID
-			if gotp.TeamID != nil && *gotp.TeamID == 0 {
-				gotp.TeamID = nil
-			}
-			gotp.ProfileID = 0
-			gotp.CreatedAt = time.Time{}
-			gotp.UpdatedAt = time.Time{}
-		}
-		// order is not guaranteed
-		require.ElementsMatch(t, want, got)
-
-		return m
+		return expectAppleProfiles(t, ds, newSet, tmID, want)
 	}
 
 	withTeamID := func(p *fleet.MDMAppleConfigProfile, tmID uint) *fleet.MDMAppleConfigProfile {
@@ -991,17 +1027,17 @@ func teamConfigProfileForTest(t *testing.T, name, identifier, uuid string, teamI
 }
 
 func testMDMAppleProfileManagementBatch2(t *testing.T, ds *Datastore) {
-	testUpsertMDMAppleDesiredProfilesBatchSize = 2
+	testUpsertMDMDesiredProfilesBatchSize = 2
 	t.Cleanup(func() {
-		testUpsertMDMAppleDesiredProfilesBatchSize = 0
+		testUpsertMDMDesiredProfilesBatchSize = 0
 	})
 	testMDMAppleProfileManagement(t, ds)
 }
 
 func testMDMAppleProfileManagementBatch3(t *testing.T, ds *Datastore) {
-	testUpsertMDMAppleDesiredProfilesBatchSize = 3
+	testUpsertMDMDesiredProfilesBatchSize = 3
 	t.Cleanup(func() {
-		testUpsertMDMAppleDesiredProfilesBatchSize = 0
+		testUpsertMDMDesiredProfilesBatchSize = 0
 	})
 	testMDMAppleProfileManagement(t, ds)
 }
@@ -2471,21 +2507,21 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 }
 
 func testBulkSetPendingMDMAppleHostProfilesBatch2(t *testing.T, ds *Datastore) {
-	testUpsertMDMAppleDesiredProfilesBatchSize = 2
-	testDeleteMDMAppleProfilesBatchSize = 2
+	testUpsertMDMDesiredProfilesBatchSize = 2
+	testDeleteMDMProfilesBatchSize = 2
 	t.Cleanup(func() {
-		testUpsertMDMAppleDesiredProfilesBatchSize = 0
-		testDeleteMDMAppleProfilesBatchSize = 0
+		testUpsertMDMDesiredProfilesBatchSize = 0
+		testDeleteMDMProfilesBatchSize = 0
 	})
 	testBulkSetPendingMDMAppleHostProfiles(t, ds)
 }
 
 func testBulkSetPendingMDMAppleHostProfilesBatch3(t *testing.T, ds *Datastore) {
-	testUpsertMDMAppleDesiredProfilesBatchSize = 3
-	testDeleteMDMAppleProfilesBatchSize = 3
+	testUpsertMDMDesiredProfilesBatchSize = 3
+	testDeleteMDMProfilesBatchSize = 3
 	t.Cleanup(func() {
-		testUpsertMDMAppleDesiredProfilesBatchSize = 0
-		testDeleteMDMAppleProfilesBatchSize = 0
+		testUpsertMDMDesiredProfilesBatchSize = 0
+		testDeleteMDMProfilesBatchSize = 0
 	})
 	testBulkSetPendingMDMAppleHostProfiles(t, ds)
 }

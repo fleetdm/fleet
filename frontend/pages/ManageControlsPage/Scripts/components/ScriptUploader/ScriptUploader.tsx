@@ -5,7 +5,8 @@ import { IApiError } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 import scriptAPI from "services/entities/scripts";
 
-import FileUploader from "pages/ManageControlsPage/components/FileUploader";
+import FileUploader from "components/FileUploader";
+
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "script-uploader";
@@ -36,7 +37,14 @@ const ScriptPackageUploader = ({
       onUpload();
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;
-      renderFlash("error", `Couldn't upload. ${getErrorMessage(error)}`);
+      const apiErrMessage = getErrorMessage(error);
+      const renderErrMessage = apiErrMessage.includes(
+        "File type not supported. Only .sh and .ps1 file type is allowed."
+      )
+        ? // per https://github.com/fleetdm/fleet/issues/14752#issuecomment-1809927441
+          "The file should be .sh or .ps1 file."
+        : apiErrMessage;
+      renderFlash("error", `Couldn't upload. ${renderErrMessage}`);
     } finally {
       setShowLoading(false);
     }
@@ -45,10 +53,10 @@ const ScriptPackageUploader = ({
   return (
     <FileUploader
       className={baseClass}
-      graphicName="file-sh"
-      message="Script (.sh)"
-      additionalInfo="Script will run with “#!/bin/sh”."
-      accept=".sh"
+      graphicName={["file-sh", "file-ps1"]}
+      message="Shell (.sh) for macOS or PowerShell (.ps1) for Windows"
+      additionalInfo="Script will run with “#!/bin/sh”on macOS."
+      accept=".sh,.ps1,.yml"
       onFileUpload={onUploadFile}
       isLoading={showLoading}
     />
