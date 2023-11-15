@@ -281,7 +281,7 @@ func (c *Client) runAppConfigChecks(fn func(ac *fleet.EnrichedAppConfig) error) 
 
 // getProfilesContents takes file paths and creates a map of profile contents
 // keyed by the name of the profile (the file name on Windows,
-// PayloadDisplaName on macOS)
+// PayloadDisplayName on macOS)
 func getProfilesContents(baseDir string, paths []string) (map[string][]byte, error) {
 	files := resolveApplyRelativePaths(baseDir, paths)
 	fileContents := make(map[string][]byte, len(files))
