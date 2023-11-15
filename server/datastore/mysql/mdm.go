@@ -9,6 +9,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// for tests, set to override the default batch size.
+var testDeleteMDMProfilesBatchSize int
+
+// for tests, set to override the default batch size.
+var testUpsertMDMDesiredProfilesBatchSize int
+
 func (ds *Datastore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
 	stmt := `
 SELECT CASE
@@ -79,4 +85,18 @@ INNER JOIN hosts h ON h.uuid = mwe.host_uuid
 		return nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
 	return results, nil
+}
+
+func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
+		}
+
+		if err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
+		}
+
+		return nil
+	})
 }

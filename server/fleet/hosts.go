@@ -453,16 +453,16 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 	}
 	if fvprof != nil {
 		switch fvprof.OperationType {
-		case MDMAppleOperationTypeInstall:
+		case MDMOperationTypeInstall:
 			switch {
-			case fvprof.Status != nil && (*fvprof.Status == MDMAppleDeliveryVerifying || *fvprof.Status == MDMAppleDeliveryVerified):
+			case fvprof.Status != nil && (*fvprof.Status == MDMDeliveryVerifying || *fvprof.Status == MDMDeliveryVerified):
 				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
 					//  if a FileVault profile has been successfully installed on the host
 					//  AND we have fetched and are able to decrypt the key
 					switch {
-					case *fvprof.Status == MDMAppleDeliveryVerifying:
+					case *fvprof.Status == MDMDeliveryVerifying:
 						settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
-					case *fvprof.Status == MDMAppleDeliveryVerified:
+					case *fvprof.Status == MDMDeliveryVerified:
 						settings.DiskEncryption = DiskEncryptionVerified.addrOf()
 					}
 				} else if d.rawDecryptable != nil {
@@ -482,7 +482,7 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 					settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
 				}
 
-			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryFailed:
+			case fvprof.Status != nil && *fvprof.Status == MDMDeliveryFailed:
 				// if a FileVault profile failed to be installed [or removed]
 				settings.DiskEncryption = DiskEncryptionFailed.addrOf()
 
@@ -492,12 +492,12 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 				settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
 			}
 
-		case MDMAppleOperationTypeRemove:
+		case MDMOperationTypeRemove:
 			switch {
-			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryVerifying:
+			case fvprof.Status != nil && *fvprof.Status == MDMDeliveryVerifying:
 				// successfully removed, same as if	no filevault profile was found
 
-			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryFailed:
+			case fvprof.Status != nil && *fvprof.Status == MDMDeliveryFailed:
 				// if a FileVault profile failed to be [installed or] removed
 				settings.DiskEncryption = DiskEncryptionFailed.addrOf()
 
@@ -519,19 +519,19 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 	d.OSSettings = &HostMDMOSSettings{DiskEncryption: hde}
 }
 
-func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMAppleDeliveryStatus) *MDMAppleDeliveryStatus {
+func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMDeliveryStatus) *MDMDeliveryStatus {
 	if d.MacOSSettings == nil || d.MacOSSettings.DiskEncryption == nil {
 		return currStatus
 	}
 	switch *d.MacOSSettings.DiskEncryption {
 	case DiskEncryptionActionRequired, DiskEncryptionEnforcing, DiskEncryptionRemovingEnforcement:
-		return &MDMAppleDeliveryPending
+		return &MDMDeliveryPending
 	case DiskEncryptionFailed:
-		return &MDMAppleDeliveryFailed
+		return &MDMDeliveryFailed
 	case DiskEncryptionVerifying:
-		return &MDMAppleDeliveryVerifying
+		return &MDMDeliveryVerifying
 	case DiskEncryptionVerified:
-		return &MDMAppleDeliveryVerified
+		return &MDMDeliveryVerified
 	default:
 		return currStatus
 	}

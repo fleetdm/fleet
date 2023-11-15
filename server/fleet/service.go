@@ -301,7 +301,7 @@ type Service interface {
 
 	GetCampaignReader(ctx context.Context, campaign *DistributedQueryCampaign) (<-chan interface{}, context.CancelFunc, error)
 	CompleteCampaign(ctx context.Context, campaign *DistributedQueryCampaign) error
-	RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration) ([]QueryCampaignResult, int)
+	RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration) ([]QueryCampaignResult, int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// AgentOptionsService
@@ -339,7 +339,7 @@ type Service interface {
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
 	// selected by the label and HostListOptions provided.
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
-	DeleteHosts(ctx context.Context, ids []uint, opt HostListOptions, lid *uint) error
+	DeleteHosts(ctx context.Context, ids []uint, opt *HostListOptions, lid *uint) error
 	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
 	// SearchHosts performs a search on the hosts table using the following criteria:
 	//	- matchQuery is the query SQL
@@ -597,7 +597,7 @@ type Service interface {
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
-	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*MDMAppleConfigProfile, error)
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile retrieves the specified configuration profile.
 	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
 	// DeleteMDMAppleConfigProfile deletes the specified configuration profile.
@@ -809,6 +809,24 @@ type Service interface {
 
 	// Set or update the disk encryption key for a host.
 	SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error
+
+	// GetMDMWindowsConfigProfile retrieves the specified configuration profile.
+	GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*MDMWindowsConfigProfile, error)
+
+	// DeleteMDMWindowsConfigProfile deletes the specified windows profile.
+	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
+
+	// NewMDMWindowsConfigProfile creates a new Windows configuration profile for
+	// the specified team.
+	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader) (*MDMWindowsConfigProfile, error)
+
+	// NewMDMUnsupportedConfigProfile is called when a profile with an
+	// unsupported extension is uploaded.
+	NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error
+
+	// BatchSetMDMProfiles replaces the custom Windows/macOS profiles for a specified
+	// team or for hosts with no team.
+	BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles map[string][]byte, dryRun bool, skipBulkPending bool) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM

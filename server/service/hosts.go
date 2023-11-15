@@ -167,14 +167,17 @@ var (
 	deleteHostsSkipAuthorization = false
 )
 
+type deleteHostsFilters struct {
+	MatchQuery string           `json:"query"`
+	Status     fleet.HostStatus `json:"status"`
+	LabelID    *uint            `json:"label_id"`
+	TeamID     *uint            `json:"team_id"`
+}
+
 type deleteHostsRequest struct {
-	IDs     []uint `json:"ids"`
-	Filters struct {
-		MatchQuery string           `json:"query"`
-		Status     fleet.HostStatus `json:"status"`
-		LabelID    *uint            `json:"label_id"`
-		TeamID     *uint            `json:"team_id"`
-	} `json:"filters"`
+	IDs []uint `json:"ids"`
+	// Using a pointer to help determine whether an empty filter was passed, like: "filters":{}
+	Filters *deleteHostsFilters `json:"filters"`
 }
 
 type deleteHostsResponse struct {
@@ -189,12 +192,17 @@ func (r deleteHostsResponse) Status() int { return r.StatusCode }
 
 func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteHostsRequest)
-	listOpt := fleet.HostListOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: req.Filters.MatchQuery,
-		},
-		StatusFilter: req.Filters.Status,
-		TeamFilter:   req.Filters.TeamID,
+	var listOpts *fleet.HostListOptions
+	var labelID *uint
+	if req.Filters != nil {
+		listOpts = &fleet.HostListOptions{
+			ListOptions: fleet.ListOptions{
+				MatchQuery: req.Filters.MatchQuery,
+			},
+			StatusFilter: req.Filters.Status,
+			TeamFilter:   req.Filters.TeamID,
+		}
+		labelID = req.Filters.LabelID
 	}
 
 	// Since bulk deletes can take a long time, after DeleteHostsTimeout, we will return a 202 (Accepted) status code
@@ -203,7 +211,7 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	deleteDone := make(chan bool, 1)
 	ctx = context.WithoutCancel(ctx) // to make sure DB operations don't get killed after we return a 202
 	go func() {
-		err = svc.DeleteHosts(ctx, req.IDs, listOpt, req.Filters.LabelID)
+		err = svc.DeleteHosts(ctx, req.IDs, listOpts, labelID)
 		if err != nil {
 			// logging the error for future debug in case we already sent http.StatusAccepted
 			logging.WithErr(ctx, err)
@@ -225,16 +233,16 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}
 }
 
-func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.HostListOptions, lid *uint) error {
+func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts *fleet.HostListOptions, lid *uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
 	}
 
-	if len(ids) == 0 && lid == nil && opts.Empty() {
+	if len(ids) == 0 && lid == nil && opts == nil {
 		return &fleet.BadRequestError{Message: "list of ids or filters must be specified"}
 	}
 
-	if len(ids) > 0 && (lid != nil || !opts.Empty()) {
+	if len(ids) > 0 && (lid != nil || (opts != nil && !opts.Empty())) {
 		return &fleet.BadRequestError{Message: "Cannot specify a list of ids and filters at the same time"}
 	}
 
@@ -246,8 +254,11 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.Host
 		return svc.ds.DeleteHosts(ctx, ids)
 	}
 
+	if opts == nil {
+		opts = &fleet.HostListOptions{}
+	}
 	opts.DisableFailingPolicies = true // don't check policies for hosts that are about to be deleted
-	hostIDs, _, err := svc.hostIDsAndNamesFromFilters(ctx, opts, lid)
+	hostIDs, _, err := svc.hostIDsAndNamesFromFilters(ctx, *opts, lid)
 	if err != nil {
 		return err
 	}

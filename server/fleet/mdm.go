@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -236,4 +237,117 @@ type MDMDiskEncryptionSummary struct {
 	Enforcing           MDMPlatformsCounts `db:"enforcing" json:"enforcing"`
 	Failed              MDMPlatformsCounts `db:"failed" json:"failed"`
 	RemovingEnforcement MDMPlatformsCounts `db:"removing_enforcement" json:"removing_enforcement"`
+}
+
+// MDMDeliveryStatus is the status of an MDM command to apply a profile
+// to a device (whether it is installing or removing).
+type MDMDeliveryStatus string
+
+// List of possible MDMDeliveryStatus values. For a given host, the status
+// of a profile can be either of those, or NULL. The meaning of the status is
+// as follows:
+//
+//   - failed: the MDM command failed to apply, and it won't retry. This is
+//     currently a terminal state. TODO(mna): for macOS currently we only retry if the
+//     command failed to enqueue in ReconcileProfile (it resets the status to
+//     NULL). A failure in the asynchronous actual response of the MDM command
+//     (via MDMAppleCheckinAndCommandService.CommandAndReportResults) results in
+//     the failed state being applied and no retry. We should probably support
+//     some retries for such failures, and determine a maximum number of retries
+//     before giving up (either as a count of attempts - which would require
+//     storing somewhere - or as a time period, which we could determine based on
+//     the timestamps, e.g. time since created_at, if we added them to
+//     host_mdm_apple_profiles).
+//
+//   - verified: the MDM command was successfully applied, and Fleet has
+//     independently verified the status. This is a terminal state.
+//
+//   - verifying: the MDM command was successfully applied, but Fleet has not
+//     independently verified the status. This is an intermediate state,
+//     it may transition to failed, pending, or NULL.
+//
+//   - pending: the cron job that executes the MDM commands to apply profiles
+//     is processing this host, and the MDM command may even be enqueued. This
+//     is a temporary state, it may transition to failed, verifying, or NULL.
+//
+//   - NULL: the status set for profiles that need to be applied to a host
+//     (installed or removed), e.g. because the profile just got added to the
+//     host's team, or because the host moved to a new team, etc. This is a
+//     temporary state, it may transition to pending when the cron job runs to
+//     apply the profile. It may also be simply deleted from the host's profiles
+//     without the need to run an MDM command if the profile becomes unneeded and
+//     that status is for an Install operation (e.g. the profile got deleted from
+//     the team, or the host was moved to a team that doesn't apply that profile)
+//     or vice-versa if that status is for a Remove but the profile becomes
+//     required again. For the sake of statistics, as reported by
+//     the summary endpoints/functions or for the list hosts filter, a NULL
+//     status is equivalent to a Pending status.
+var (
+	MDMDeliveryFailed    MDMDeliveryStatus = "failed"
+	MDMDeliveryVerified  MDMDeliveryStatus = "verified"
+	MDMDeliveryVerifying MDMDeliveryStatus = "verifying"
+	MDMDeliveryPending   MDMDeliveryStatus = "pending"
+)
+
+type MDMOperationType string
+
+const (
+	MDMOperationTypeInstall MDMOperationType = "install"
+	MDMOperationTypeRemove  MDMOperationType = "remove"
+)
+
+// MDMConfigProfileAuthz is used to check user authorization to read/write an
+// MDM configuration profile.
+type MDMConfigProfileAuthz struct {
+	TeamID *uint `json:"team_id"` // required for authorization by team
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (m MDMConfigProfileAuthz) AuthzType() string {
+	return "mdm_config_profile"
+}
+
+// MDMConfigProfilePayload is the platform-agnostic struct returned by
+// endpoints that return MDM configuration profiles (get/list profiles).
+type MDMConfigProfilePayload struct {
+	ProfileID  string    `json:"profile_id"` // is a uuid string for Windows
+	TeamID     *uint     `json:"team_id"`    // null for no-team
+	Name       string    `json:"name"`
+	Platform   string    `json:"platform"`             // "windows" or "darwin"
+	Identifier string    `json:"identifier,omitempty"` // only set for macOS
+	Checksum   []byte    `json:"checksum,omitempty"`   // only set for macOS
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
+	var tid *uint
+	if cp.TeamID != nil && *cp.TeamID > 0 {
+		tid = cp.TeamID
+	}
+	return &MDMConfigProfilePayload{
+		ProfileID: cp.ProfileUUID,
+		TeamID:    tid,
+		Name:      cp.Name,
+		Platform:  "windows",
+		CreatedAt: cp.CreatedAt,
+		UpdatedAt: cp.UpdatedAt,
+	}
+}
+
+func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigProfilePayload {
+	var tid *uint
+	if cp.TeamID != nil && *cp.TeamID > 0 {
+		tid = cp.TeamID
+	}
+	return &MDMConfigProfilePayload{
+		ProfileID:  strconv.FormatUint(uint64(cp.ProfileID), 10),
+		TeamID:     tid,
+		Name:       cp.Name,
+		Identifier: cp.Identifier,
+		Platform:   "darwin",
+		Checksum:   cp.Checksum,
+		CreatedAt:  cp.CreatedAt,
+		UpdatedAt:  cp.UpdatedAt,
+	}
 }

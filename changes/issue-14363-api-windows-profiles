@@ -1,0 +1,2 @@
+* Added endpoint `DELETE /mdm/profiles/{id}` to delete an existing MDM profile (Windows and macOS).
+* Added endpoint `GET /mdm/profiles/{id}` to get or download an existing MDM profile (Windows and macOS).
