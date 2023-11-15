@@ -5,8 +5,18 @@ import { COLORS } from "styles/var/colors";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHostScript, ILastExecution } from "services/entities/scripts";
+import { IUser } from "interfaces/user";
 
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import { IHost } from "interfaces/host";
+import {
+  isGlobalAdmin,
+  isTeamMaintainer,
+  isTeamAdmin,
+  isGlobalMaintainer,
+  isGlobalObserver,
+  isTeamObserver,
+} from "utilities/permissions/permissions";
 
 import ScriptStatusCell from "./components/ScriptStatusCell";
 
@@ -56,7 +66,7 @@ const ScriptRunActionDropdownLabel = ({
 };
 
 // eslint-disable-next-line import/prefer-default-export
-export const generateTableHeaders = (
+export const generateTableColumnConfigs = (
   actionSelectHandler: (value: string, script: IHostScript) => void
 ) => {
   return [
@@ -93,12 +103,24 @@ export const generateTableHeaders = (
   ];
 };
 
-// NOTE: may need current user ID later for permission on actions.
 const generateActionDropdownOptions = (
-  { script_id, last_execution }: IHostScript,
-  isHostOnline: boolean
+  currentUser: IUser | null,
+  host: IHost,
+  { script_id, last_execution }: IHostScript
 ): IDropdownOption[] => {
-  return [
+  const [hostTeamId, isHostOnline] = [host.team_id, host.status === "online"];
+
+  const hasRunPermission =
+    !!currentUser &&
+    (isGlobalAdmin(currentUser) ||
+      isTeamAdmin(currentUser, hostTeamId) ||
+      isGlobalMaintainer(currentUser) ||
+      isTeamMaintainer(currentUser, hostTeamId) ||
+      // TODO - refactor all permissions to be clear and granular
+      // each of these (confusingly) cover both observer and observer+
+      isGlobalObserver(currentUser) ||
+      isTeamObserver(currentUser, hostTeamId));
+  const options: IDropdownOption[] = [
     {
       label: "Show details",
       disabled: last_execution === null,
@@ -115,16 +137,18 @@ const generateActionDropdownOptions = (
       value: "run",
     },
   ];
+  return hasRunPermission ? options : options.slice(0, 1);
 };
 
 export const generateDataSet = (
-  scripts: IHostScript[],
-  isHostOnline: boolean
+  currentUser: IUser | null,
+  host: IHost,
+  scripts: IHostScript[]
 ) => {
   return scripts.map((script) => {
     return {
       ...script,
-      actions: generateActionDropdownOptions(script, isHostOnline),
+      actions: generateActionDropdownOptions(currentUser, host, script),
     };
   });
 };

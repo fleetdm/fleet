@@ -728,7 +728,7 @@ the way that the Fleet server works.
 
 			if appCfg.MDM.EnabledAndConfigured {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newMDMAppleProfileManager(
+					return newMDMProfileManager(
 						ctx,
 						instanceID,
 						ds,

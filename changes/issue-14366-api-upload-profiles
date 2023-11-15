@@ -1,0 +1,1 @@
+* Added the `POST /mdm/profiles` endpoint to upload a Windows or macOS custom profile.

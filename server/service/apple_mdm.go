@@ -297,7 +297,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
 	defer ff.Close()
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, req.Profile.Size)
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff)
 	if err != nil {
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -306,10 +306,18 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	}, nil
 }
 
-func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*fleet.MDMAppleConfigProfile, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader) (*fleet.MDMAppleConfigProfile, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+
+	// check that Apple MDM is enabled - the middleware of that endpoint checks
+	// only that any MDM is enabled, maybe it's just Windows
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		err := fleet.NewInvalidArgumentError("profile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
+	}
+
 	var teamName string
 	if teamID >= 1 {
 		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
@@ -319,11 +327,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		teamName = tm.Name
 	}
 
-	b := make([]byte, size)
-	_, err := r.Read(b)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "failed to read config profile",
+			Message:     "failed to read Apple config profile",
 			InternalErr: err,
 		})
 	}
@@ -341,15 +348,28 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
 	if err != nil {
+		var existsErr existsErrorInterface
+		if errors.As(err, &existsErr) {
+			err = fleet.NewInvalidArgumentError("profile", "Couldn't upload. A configuration profile with this name already exists.").
+				WithStatus(http.StatusConflict)
+		}
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, []uint{newCP.ProfileID}, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID > 0 {
+		actTeamID = &teamID
+		actTeamName = &teamName
+	}
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
-		TeamID:            &teamID,
-		TeamName:          &teamName,
+		TeamID:            actTeamID,
+		TeamName:          actTeamName,
 		ProfileName:       newCP.Name,
 		ProfileIdentifier: newCP.Identifier,
 	}); err != nil {
@@ -386,7 +406,7 @@ func listMDMAppleConfigProfilesEndpoint(ctx context.Context, request interface{}
 }
 
 func (svc *Service) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*fleet.MDMAppleConfigProfile, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: &teamID}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
@@ -462,7 +482,7 @@ func (svc *Service) GetMDMAppleConfigProfile(ctx context.Context, profileID uint
 	}
 
 	// now we can do a specific authz check based on team id of profile before we return the profile
-	if err := svc.authz.Authorize(ctx, cp, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: cp.TeamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -495,6 +515,13 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	// check that Apple MDM is enabled - the middleware of that endpoint checks
+	// only that any MDM is enabled, maybe it's just Windows
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		err := fleet.NewInvalidArgumentError("profile_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		return ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
+	}
+
 	cp, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -511,7 +538,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 	}
 
 	// now we can do a specific authz check based on team id of profile before we delete the profile
-	if err := svc.authz.Authorize(ctx, cp, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: cp.TeamID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 
@@ -531,9 +558,17 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID > 0 {
+		actTeamID = &teamID
+		actTeamName = &teamName
+	}
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
-		TeamID:            &teamID,
-		TeamName:          &teamName,
+		TeamID:            actTeamID,
+		TeamName:          actTeamName,
 		ProfileName:       cp.Name,
 		ProfileIdentifier: cp.Identifier,
 	}); err != nil {
@@ -572,7 +607,7 @@ func getMDMAppleProfilesSummaryEndpoint(ctx context.Context, request interface{}
 }
 
 func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
-	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
@@ -609,7 +644,7 @@ func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{
 }
 
 func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
-	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
@@ -1386,39 +1421,10 @@ func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, 
 }
 
 func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte, dryRun, skipBulkPending bool) error {
-	if tmID != nil && tmName != nil {
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
-	}
-	if tmID != nil || tmName != nil {
-		license, _ := license.FromContext(ctx)
-		if !license.IsPremium() {
-			field := "team_id"
-			if tmName != nil {
-				field = "team_name"
-			}
-			svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, ErrMissingLicense.Error()))
-		}
-	}
-
-	// if the team name is provided, load the corresponding team to get its id.
-	// vice-versa, if the id is provided, load it to get the name (required for
-	// the activity).
-	if tmName != nil || tmID != nil {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, tmID, tmName)
-		if err != nil {
-			return err
-		}
-		if tmID == nil {
-			tmID = &tm.ID
-		} else {
-			tmName = &tm.Name
-		}
-	}
-
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: tmID}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
+	var err error
+	tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName)
+	if err != nil {
+		return err
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)
@@ -2401,7 +2407,7 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 	return nil
 }
 
-func ReconcileProfiles(
+func ReconcileAppleProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,

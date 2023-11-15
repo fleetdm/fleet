@@ -642,36 +642,6 @@ export const internationalTimeFormat = (date: number | Date): string => {
   );
 };
 
-const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
-  darwin: {
-    enabled:
-      "The disk is encrypted. The user must enter their<br/> password when they start their computer.",
-    disabled:
-      "The disk might be encrypted, but FileVault is off. The<br/> disk can be accessed without entering a password.",
-  },
-  windows: {
-    enabled:
-      "The disk is encrypted. If recently turned on,<br/> encryption could take awhile.",
-    disabled: "The disk is unencrypted.",
-  },
-};
-
-export const getHostDiskEncryptionTooltipMessage = (
-  platform: "darwin" | "windows" | "chrome", // TODO: improve this type
-  diskEncryptionEnabled = false
-) => {
-  if (platform === "chrome") {
-    return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
-  }
-
-  if (!["windows", "darwin"].includes(platform)) {
-    return "Disk encryption is enabled.";
-  }
-  return MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES[platform][
-    diskEncryptionEnabled ? "enabled" : "disabled"
-  ];
-};
-
 export const hostTeamName = (teamName: string | null): string => {
   if (!teamName) {
     return "No team";
@@ -881,6 +851,17 @@ export const TAGGED_TEMPLATES = {
   },
 };
 
+export const internallyTruncateText = (
+  original: string,
+  prefixLength = 280,
+  suffixLength = 10
+) => (
+  <>
+    {original.slice(0, prefixLength)}...
+    {original.slice(original.length - suffixLength)} <em>(truncated)</em>
+  </>
+);
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -903,7 +884,7 @@ export default {
   humanHostDetailUpdated,
   humanLastSeen,
   internationalTimeFormat,
-  getHostDiskEncryptionTooltipMessage,
+  internallyTruncateText,
   hostTeamName,
   humanQueryLastRun,
   inMilliseconds,
