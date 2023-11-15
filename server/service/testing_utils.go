@@ -643,6 +643,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		// function to return more information to the caller, or find a
 		// better way to test these endpoints.
 		//{"POST", "/api/latest/fleet/mdm/profiles", false, false},
+		{"GET", "/api/latest/fleet/mdm/profiles", false, false},
 	}
 }
 
