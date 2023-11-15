@@ -9,20 +9,17 @@ import (
 )
 
 func TestUp_20230911163618(t *testing.T) {
-	// skipping old migration tests as migrations don't change and we're getting
-	// timeouts in CI
-	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t)
 	insertStmt := `
 INSERT INTO  host_mdm_apple_profiles (
-	profile_id, 
-	profile_identifier, 
-	host_uuid, 
-	status, 
-	operation_type, 
-	detail, 
-	command_uuid, 
-	profile_name, 
+	profile_id,
+	profile_identifier,
+	host_uuid,
+	status,
+	operation_type,
+	detail,
+	command_uuid,
+	profile_name,
 	checksum)
 VALUES
 	(?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -71,14 +68,14 @@ VALUES
 
 	insertStmt = `
 INSERT INTO  host_mdm_apple_profiles (
-	profile_id, 
-	profile_identifier, 
-	host_uuid, 
-	status, 
-	operation_type, 
-	detail, 
-	command_uuid, 
-	profile_name, 
+	profile_id,
+	profile_identifier,
+	host_uuid,
+	status,
+	operation_type,
+	detail,
+	command_uuid,
+	profile_name,
 	checksum,
 	retries)
 VALUES

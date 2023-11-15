@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -22,6 +23,7 @@ func TestMDMShared(t *testing.T) {
 	}{
 		{"TestMDMCommands", testMDMCommands},
 		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
+		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
 	}
 
 	for _, c := range cases {
@@ -279,4 +281,131 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 
 	// Test Case 8: Clear profiles for a specific team
 	applyAndExpect(nil, nil, ptr.Uint(1), nil, nil)
+}
+
+func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	opts := fleet.ListOptions{OrderKey: "name", IncludeMetadata: true}
+	winProf := []byte("<Replace></Replace>")
+
+	// create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
+	require.NoError(t, err)
+
+	// both profile tables are empty
+	profs, meta, err := ds.ListMDMConfigProfiles(ctx, nil, opts)
+	require.NoError(t, err)
+	require.Len(t, profs, 0)
+	require.Equal(t, *meta, fleet.PaginationMetadata{})
+
+	// add fleet-managed profiles for the team and globally
+	for idf := range mobileconfig.FleetPayloadIdentifiers() {
+		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("name_"+idf, idf, team.ID))
+		require.NoError(t, err)
+		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("name_"+idf, idf, 0))
+		require.NoError(t, err)
+	}
+
+	// still returns no result
+	profs, meta, err = ds.ListMDMConfigProfiles(ctx, nil, opts)
+	require.NoError(t, err)
+	require.Len(t, profs, 0)
+	require.Equal(t, *meta, fleet.PaginationMetadata{})
+
+	profs, meta, err = ds.ListMDMConfigProfiles(ctx, &team.ID, opts)
+	require.NoError(t, err)
+	require.Len(t, profs, 0)
+	require.Equal(t, *meta, fleet.PaginationMetadata{})
+
+	// create a mac profile for global and a Windows profile for team
+	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("A", "A", 0))
+	require.NoError(t, err)
+	profB, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "B", TeamID: &team.ID, SyncML: winProf})
+	require.NoError(t, err)
+
+	// get global profiles returns the mac one
+	profs, meta, err = ds.ListMDMConfigProfiles(ctx, nil, opts)
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Equal(t, profA.Name, profs[0].Name)
+	require.Equal(t, *meta, fleet.PaginationMetadata{})
+
+	// get team profiles returns the Windows one
+	profs, meta, err = ds.ListMDMConfigProfiles(ctx, &team.ID, opts)
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Equal(t, profB.Name, profs[0].Name)
+	require.Equal(t, *meta, fleet.PaginationMetadata{})
+
+	// create more profiles and test the pagination with a table-driven test so that
+	// global and team both have 9 profiles (including A and B already created above).
+	for i := 0; i < 3; i++ {
+		inc := i * 4 // e.g. C, D, E, F on first loop, G, H, I, J on second loop, etc.
+
+		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP(string(rune('C'+inc)), string(rune('C'+inc)), 0))
+		require.NoError(t, err)
+		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP(string(rune('C'+inc+1)), string(rune('C'+inc+1)), team.ID))
+		require.NoError(t, err)
+
+		_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: string(rune('C' + inc + 2)), TeamID: nil, SyncML: winProf})
+		require.NoError(t, err)
+		_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: string(rune('C' + inc + 3)), TeamID: &team.ID, SyncML: winProf})
+		require.NoError(t, err)
+	}
+
+	cases := []struct {
+		desc      string
+		tmID      *uint
+		opts      fleet.ListOptions
+		wantNames []string
+		wantMeta  fleet.PaginationMetadata
+	}{
+		{"all global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true}, []string{"A", "C", "E", "G", "I", "K", "M"}, fleet.PaginationMetadata{}},
+		{"all team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true}, []string{"B", "D", "F", "H", "J", "L", "N"}, fleet.PaginationMetadata{}},
+
+		{"page 0 per page 2, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2}, []string{"A", "C"}, fleet.PaginationMetadata{HasNextResults: true}},
+		{"page 1 per page 2, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 1}, []string{"E", "G"}, fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true}},
+		{"page 2 per page 2, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 2}, []string{"I", "K"}, fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true}},
+		{"page 3 per page 2, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 3}, []string{"M"}, fleet.PaginationMetadata{HasPreviousResults: true}},
+		{"page 4 per page 2, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 4}, []string{}, fleet.PaginationMetadata{HasPreviousResults: true}},
+
+		{"page 0 per page 2, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2}, []string{"B", "D"}, fleet.PaginationMetadata{HasNextResults: true}},
+		{"page 1 per page 2, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 1}, []string{"F", "H"}, fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true}},
+		{"page 2 per page 2, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 2}, []string{"J", "L"}, fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true}},
+		{"page 3 per page 2, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 3}, []string{"N"}, fleet.PaginationMetadata{HasPreviousResults: true}},
+		{"page 4 per page 2, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 4}, []string{}, fleet.PaginationMetadata{HasPreviousResults: true}},
+
+		{"page 0 per page 3, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3}, []string{"A", "C", "E"}, fleet.PaginationMetadata{HasNextResults: true}},
+		{"page 1 per page 3, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 1}, []string{"G", "I", "K"}, fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true}},
+		{"page 2 per page 3, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 2}, []string{"M"}, fleet.PaginationMetadata{HasPreviousResults: true}},
+		{"page 3 per page 3, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 3}, []string{}, fleet.PaginationMetadata{HasPreviousResults: true}},
+
+		{"page 0 per page 3, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3}, []string{"B", "D", "F"}, fleet.PaginationMetadata{HasNextResults: true}},
+		{"page 1 per page 3, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 1}, []string{"H", "J", "L"}, fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true}},
+		{"page 2 per page 3, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 2}, []string{"N"}, fleet.PaginationMetadata{HasPreviousResults: true}},
+		{"page 3 per page 3, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 3}, []string{}, fleet.PaginationMetadata{HasPreviousResults: true}},
+
+		{"no metadata, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: false, PerPage: 2, Page: 1}, []string{"E", "G"}, fleet.PaginationMetadata{}},
+		{"no metadata, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: false, PerPage: 2, Page: 1}, []string{"F", "H"}, fleet.PaginationMetadata{}},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			profs, meta, err := ds.ListMDMConfigProfiles(ctx, c.tmID, c.opts)
+			require.NoError(t, err)
+			require.Len(t, profs, len(c.wantNames))
+
+			got := make([]string, len(profs))
+			for i, p := range profs {
+				got[i] = p.Name
+			}
+			require.Equal(t, got, c.wantNames)
+
+			var gotMeta fleet.PaginationMetadata
+			if meta != nil {
+				gotMeta = *meta
+			}
+			require.Equal(t, c.wantMeta, gotMeta)
+		})
+	}
 }

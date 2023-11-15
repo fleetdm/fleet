@@ -7,9 +7,6 @@ import (
 )
 
 func TestUp_20220208144831(t *testing.T) {
-	// skipping old migration tests as migrations don't change and we're getting
-	// timeouts in CI
-	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t)
 
 	_, err := db.Exec(`INSERT INTO software (name, version, source) VALUES ("authconfig", "6.2.8", "rpm_packages")`)
