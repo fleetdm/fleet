@@ -7130,7 +7130,6 @@ Returns the information of the specified software title. By default `versions` a
   "software_title": {
     "id": 12,
     "title": "Firefox.app",
-    "versions_count": 3,
     "source": "apps",
     "hosts_count": "48",
     "versions": [ 
