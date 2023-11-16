@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -380,7 +381,7 @@ func MapQueryReportResultsToRows(rows []*ScheduledQueryResultRow) ([]HostQueryRe
 		}
 		results = append(results, HostQueryResultRow{
 			HostID:      row.HostID,
-			Hostname:    row.Hostname,
+			Hostname:    row.HostDisplayName(),
 			LastFetched: row.LastFetched,
 			Columns:     columns,
 		})
@@ -421,11 +422,25 @@ type ScheduledQueryResultRow struct {
 	QueryID uint `db:"query_id"`
 	// HostID is the unique identifier of the host.
 	HostID uint `db:"host_id"`
-	// Hostname is the host's hostname.
-	Hostname string `db:"hostname"`
+	// Hostname is the host's hostname. NullString is used in case host does not exist.
+	Hostname sql.NullString `db:"hostname"`
+	// ComputerName is the host's computer_name.
+	ComputerName sql.NullString `db:"computer_name"`
+	// HardwareModel is the host's hardware_model.
+	HardwareModel sql.NullString `db:"hardware_model"`
+	// HardwareSerial is the host's hardware_serial.
+	HardwareSerial sql.NullString `db:"hardware_serial"`
 	// Data holds a single result row. It holds a map where the map keys
 	// are column names and map values are the values.
 	Data json.RawMessage `db:"data"`
 	// LastFetched is the time this result was received.
 	LastFetched time.Time `db:"last_fetched"`
+}
+
+func (s *ScheduledQueryResultRow) HostDisplayName() string {
+	// If host does not exist, all values below default to empty string
+	return HostDisplayName(
+		s.ComputerName.String, s.Hostname.String,
+		s.HardwareModel.String, s.HardwareSerial.String,
+	)
 }
