@@ -23,7 +23,7 @@ module.exports = {
     softwareInventoryEnabled: { required: true, type: 'boolean' },
     vulnDetectionEnabled: { required: true, type: 'boolean' },
     systemUsersEnabled: { required: true, type: 'boolean' },
-    hostsStatusWebHookEnabled: { required: true, type: 'boolean' },
+    hostsStatusWebHookEnabled: { required: true, type: 'boolean', columnName: 'hostStatusWebhookEnabled'},
     numWeeklyActiveUsers: { required: true, type: 'number' },
     numWeeklyPolicyViolationDaysActual: { required: true, type: 'number' },
     numWeeklyPolicyViolationDaysPossible: { required: true, type: 'number'},
