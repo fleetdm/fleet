@@ -41,7 +41,8 @@ const ProfileListItem = ({ profile, onDelete }: IProfileListItemProps) => {
   const onClickDownload = async () => {
     const fileContent = await mdmAPI.downloadProfile(profile.profile_id);
     const formatDate = format(new Date(), "yyyy-MM-dd");
-    const filename = `${formatDate}_${profile.name}.mobileconfig`;
+    const extension = profile.platform === "darwin" ? "mobileconfig" : "xml";
+    const filename = `${formatDate}_${profile.name}.${extension}`;
     const file = new File([fileContent], filename);
     FileSaver.saveAs(file);
   };

@@ -106,8 +106,11 @@ const mdmService = {
   },
 
   downloadProfile: (profileId: number) => {
-    const { MDM_PROFILE_OLD: MDM_PROFILE } = endpoints;
-    return sendRequest("GET", MDM_PROFILE(profileId));
+    const { MDM_PROFILE } = endpoints;
+    const path = `${MDM_PROFILE(profileId)}?${buildQueryStringFromParams({
+      alt: "media",
+    })}`;
+    return sendRequest("GET", path);
   },
 
   deleteProfile: (profileId: number) => {
