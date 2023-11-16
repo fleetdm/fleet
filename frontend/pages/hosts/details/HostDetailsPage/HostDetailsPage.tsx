@@ -719,7 +719,6 @@ const HostDetailsPage = ({
                 deviceMapping={deviceMapping}
                 munki={macadmins?.munki}
                 mdm={mdm}
-                wrapFleetHelper={wrapFleetHelper}
               />
               <div className="col-2">
                 <AgentOptionsCard

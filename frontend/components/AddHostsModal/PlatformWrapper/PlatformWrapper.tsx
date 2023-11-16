@@ -165,18 +165,18 @@ const PlatformWrapper = ({
     return (
       <div className={`${baseClass}__advanced--fleet-certificate`}>
         {type === "plain" ? (
-          <p className={`${baseClass}__advanced--heading`}>
+          <div className={`${baseClass}__advanced--heading`}>
             Download your Fleet certificate
-          </p>
+          </div>
         ) : (
-          <p
+          <div
             className={`${baseClass}__advanced--heading download-certificate--tooltip`}
           >
             Download your{" "}
             <TooltipWrapper tipContent="A Fleet certificate is required if Fleet is running with a self signed or otherwise untrusted certificate.">
               Fleet certificate:
             </TooltipWrapper>
-          </p>
+          </div>
         )}
         {isFetchingCertificate && (
           <p className={`${baseClass}__certificate-loading`}>
