@@ -225,15 +225,12 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 		return ctxerr.New(ctx, "empty raw response")
 	}
 
-	const findCommandsStmt = `SELECT command_uuid FROM windows_mdm_commands WHERE command_uuid IN (?)`
+	const findCommandsStmt = `SELECT command_uuid, raw_command FROM windows_mdm_commands WHERE command_uuid IN (?)`
 
 	const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
 
 	const dequeueCommandsStmt = `DELETE FROM windows_mdm_command_queue WHERE command_uuid IN (?)`
 
-	// raw_results and status_code values might be inserted on different requests?
-	// TODO: which response_id should we be tracking then? for now, using
-	// whatever comes first.
 	const insertResultsStmt = `
 INSERT INTO windows_mdm_command_results
     (enrollment_id, command_uuid, raw_result, response_id, status_code)
@@ -288,13 +285,13 @@ ON DUPLICATE KEY UPDATE
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN to search matching commands")
 		}
-		var matchingUUIDs []string
-		err = sqlx.SelectContext(ctx, tx, &matchingUUIDs, stmt, params...)
+		var matchingCmds []fleet.MDMWindowsCommand
+		err = sqlx.SelectContext(ctx, tx, &matchingCmds, stmt, params...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "selecting matching commands")
 		}
 
-		if len(matchingUUIDs) == 0 {
+		if len(matchingCmds) == 0 {
 			ds.logger.Log("warn", "unmatched commands", "uuids", cmdUUIDs)
 			return nil
 		}
@@ -303,22 +300,34 @@ ON DUPLICATE KEY UPDATE
 		// <Result> entries to track them as responses.
 		var args []any
 		var sb strings.Builder
-		for _, uuid := range matchingUUIDs {
+		var potentialProfilePayloads []*fleet.MDMWindowsProfilePayload
+		for _, cmd := range matchingCmds {
 			statusCode := ""
-			if status, ok := uuidsToStatus[uuid]; ok && status.Data != nil {
+			if status, ok := uuidsToStatus[cmd.CommandUUID]; ok && status.Data != nil {
 				statusCode = *status.Data
+				if status.Cmd != nil && *status.Cmd == fleet.CmdAtomic {
+					pp, err := fleet.BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, uuidsToStatus, enrollment.HostUUID)
+					if err != nil {
+						return err
+					}
+					potentialProfilePayloads = append(potentialProfilePayloads, pp)
+				}
 			}
 
 			rawResult := []byte{}
-			if result, ok := uuidsToResults[uuid]; ok && result.Data != nil {
+			if result, ok := uuidsToResults[cmd.CommandUUID]; ok && result.Data != nil {
 				var err error
 				rawResult, err = xml.Marshal(result)
 				if err != nil {
-					ds.logger.Log("err", err, "marshaling command result", "cmd_uuid", uuid)
+					ds.logger.Log("err", err, "marshaling command result", "cmd_uuid", cmd.CommandUUID)
 				}
 			}
-			args = append(args, enrollment.ID, uuid, rawResult, responseID, statusCode)
+			args = append(args, enrollment.ID, cmd.CommandUUID, rawResult, responseID, statusCode)
 			sb.WriteString("(?, ?, ?, ?, ?),")
+		}
+
+		if err := updateMDMWindowsHostProfileStatusFromResponseDB(ctx, tx, potentialProfilePayloads); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating host profile status")
 		}
 
 		// store the command results
@@ -328,6 +337,10 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		// dequeue the commands
+		var matchingUUIDs []string
+		for _, cmd := range matchingCmds {
+			matchingUUIDs = append(matchingUUIDs, cmd.CommandUUID)
+		}
 		stmt, params, err = sqlx.In(dequeueCommandsStmt, matchingUUIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN to dequeue commands")
@@ -338,6 +351,76 @@ ON DUPLICATE KEY UPDATE
 
 		return nil
 	})
+}
+
+// updateMDMWindowsHostProfileStatusFromResponseDB takes a slice of potential
+// profile payloads and updates the corresponding `status` and `detail` columns
+// in `host_mdm_windows_profiles`
+func updateMDMWindowsHostProfileStatusFromResponseDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	payloads []*fleet.MDMWindowsProfilePayload,
+) error {
+	if len(payloads) == 0 {
+		return nil
+	}
+
+	// this statement will act as a batch-update, no new host profiles
+	// should be inserted from a device MDM response, so we first check for
+	// matching entries and then perform the INSERT ... ON DUPLICATE KEY to
+	// update their detail and status.
+	const updateHostProfilesStmt = `
+		INSERT INTO host_mdm_windows_profiles
+			(host_uuid, profile_uuid, detail, status)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE
+			detail = VALUES(detail),
+			status = VALUES(status)`
+
+	// MySQL will use the `host_uuid` part of the primary key as a first
+	// pass, and then filter that subset by `command_uuid`.
+	const getMatchingHostProfilesStmt = `
+		SELECT host_uuid, profile_uuid, command_uuid
+		FROM host_mdm_windows_profiles
+		WHERE host_uuid = ? AND command_uuid IN (?)`
+
+	// grab command UUIDs to find matching entries using `getMatchingHostProfilesStmt`
+	commandUUIDs := make([]string, len(payloads))
+	// also grab the payloads keyed by the command uuid, so we can easily
+	// grab the corresponding `Detail` and `Status` from the matching
+	// command later on.
+	uuidsToPayloads := make(map[string]*fleet.MDMWindowsProfilePayload, len(payloads))
+	hostUUID := payloads[0].HostUUID
+	for _, payload := range payloads {
+		if payload.HostUUID != hostUUID {
+			return errors.New("all payloads must be for the same host uuid")
+		}
+		commandUUIDs = append(commandUUIDs, payload.CommandUUID)
+		uuidsToPayloads[payload.CommandUUID] = payload
+	}
+
+	// find the matching entries for the given host_uuid, command_uuid combinations.
+	stmt, args, err := sqlx.In(getMatchingHostProfilesStmt, hostUUID, commandUUIDs)
+	if err != nil {
+		return err
+	}
+	var matchingHostProfiles []fleet.MDMWindowsProfilePayload
+	if err := sqlx.SelectContext(ctx, tx, &matchingHostProfiles, stmt, args...); err != nil {
+		return err
+	}
+
+	// batch-update the matching entries with the desired detail and status>
+	var sb strings.Builder
+	args = args[:0]
+	for _, hp := range matchingHostProfiles {
+		payload := uuidsToPayloads[hp.CommandUUID]
+		args = append(args, hp.HostUUID, hp.ProfileUUID, payload.Detail, payload.Status)
+		sb.WriteString("(?, ?, ?, ?),")
+	}
+
+	stmt = fmt.Sprintf(updateHostProfilesStmt, strings.TrimSuffix(sb.String(), ","))
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	return err
 }
 
 func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
