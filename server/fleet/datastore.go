@@ -928,11 +928,11 @@ type Datastore interface {
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
 
-	// BulkSetPendingMDMAppleHostProfiles sets the status of profiles to install
+	// BulkSetPendingMDMHostProfiles sets the status of profiles to install
 	// or to remove for each affected host to pending for the provided criteria,
 	// which may be either a list of hostIDs, teamIDs, profileIDs or hostUUIDs
 	// (only one of those ID types can be provided).
-	BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error
+	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, profileUUIDs, hostUUIDs []string) error
 
 	// GetMDMAppleProfilesContents retrieves the XML contents of the
 	// profiles requested.

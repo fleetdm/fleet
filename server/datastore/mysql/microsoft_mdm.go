@@ -618,6 +618,20 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 }
 
 func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+	var result []*fleet.MDMWindowsProfilePayload
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		result, err = listMDMWindowsProfilesToInstallDB(ctx, tx, nil)
+		return err
+	})
+	return result, err
+}
+
+func listMDMWindowsProfilesToInstallDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	hostUUIDs []string,
+) ([]*fleet.MDMWindowsProfilePayload, error) {
 	// The query below is a set difference between:
 	//
 	// - Set A (ds), the desired state, can be obtained from a JOIN between
@@ -643,7 +657,7 @@ func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fl
             FROM mdm_windows_configuration_profiles mwcp
             JOIN hosts h ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
             JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
-            WHERE h.platform = 'windows'
+            WHERE h.platform = 'windows' AND (%s)
         ) as ds
         LEFT JOIN host_mdm_windows_profiles hmwp
             ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid
@@ -654,12 +668,43 @@ func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fl
         ( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = ? AND hmwp.status IS NULL )
 `
 
+	hostFilter := "TRUE"
+	if len(hostUUIDs) > 0 {
+		hostFilter = "h.uuid IN (?)"
+
+	}
+
+	var err error
+	args := []any{fleet.MDMOperationTypeInstall}
+	query = fmt.Sprintf(query, hostFilter)
+	if len(hostUUIDs) > 0 {
+		query, args, err = sqlx.In(query, hostUUIDs, args)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "building sqlx.In")
+		}
+	}
+
 	var profiles []*fleet.MDMWindowsProfilePayload
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeInstall)
+	err = sqlx.SelectContext(ctx, tx, &profiles, query, args...)
 	return profiles, err
 }
 
 func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+	var result []*fleet.MDMWindowsProfilePayload
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		result, err = listMDMWindowsProfilesToRemoveDB(ctx, tx, nil)
+		return err
+	})
+
+	return result, err
+}
+
+func listMDMWindowsProfilesToRemoveDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	hostUUIDs []string,
+) ([]*fleet.MDMWindowsProfilePayload, error) {
 	// The query below is a set difference between:
 	//
 	// - Set A (ds), the desired state, can be obtained from a JOIN between
@@ -689,11 +734,29 @@ func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fle
           RIGHT JOIN host_mdm_windows_profiles hmwp
             ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.uuid
           -- profiles that are in B but not in A
-          WHERE ds.profile_uuid IS NULL AND ds.uuid IS NULL
+          WHERE ds.profile_uuid IS NULL
+	    AND ds.uuid IS NULL
+	    AND (%s)  
 `
 
+	hostFilter := "TRUE"
+	if len(hostUUIDs) > 0 {
+		hostFilter = "hmwp.host_uuid IN (?)"
+
+	}
+
+	var err error
+	var args []any
+	query = fmt.Sprintf(query, hostFilter)
+	if len(hostUUIDs) > 0 {
+		query, args, err = sqlx.In(query, hostUUIDs)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	var profiles []*fleet.MDMWindowsProfilePayload
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query)
+	err = sqlx.SelectContext(ctx, tx, &profiles, query, args...)
 	return profiles, err
 }
 
@@ -802,7 +865,11 @@ func (ds *Datastore) BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context
 	})
 }
 
-func bulkDeleteMDMWindowsHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, profs []*fleet.MDMWindowsProfilePayload) error {
+func bulkDeleteMDMWindowsHostsConfigProfilesDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	profs []*fleet.MDMWindowsProfilePayload,
+) error {
 	if len(profs) == 0 {
 		return nil
 	}
@@ -1012,4 +1079,94 @@ ON DUPLICATE KEY UPDATE
 		}
 		return nil
 	})
+}
+
+func bulkSetPendingMDMWindowsHostProfilesDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	uuids []string,
+) error {
+	if len(uuids) == 0 {
+		return nil
+	}
+
+	profilesToInstall, err := listMDMWindowsProfilesToInstallDB(ctx, tx, uuids)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list profiles to install")
+	}
+
+	profilesToRemove, err := listMDMWindowsProfilesToRemoveDB(ctx, tx, uuids)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list profiles to remove")
+	}
+
+	if len(profilesToInstall) == 0 && len(profilesToRemove) == 0 {
+		return nil
+	}
+
+	if err := bulkDeleteMDMWindowsHostsConfigProfilesDB(ctx, tx, profilesToRemove); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk delete profiles to remove")
+	}
+
+	var (
+		pargs      []any
+		psb        strings.Builder
+		batchCount int
+	)
+
+	const defaultBatchSize = 1000
+	batchSize := defaultBatchSize
+	if testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = testUpsertMDMDesiredProfilesBatchSize
+	}
+
+	resetBatch := func() {
+		batchCount = 0
+		pargs = pargs[:0]
+		psb.Reset()
+	}
+
+	executeUpsertBatch := func(valuePart string, args []any) error {
+		baseStmt := fmt.Sprintf(`
+				INSERT INTO host_mdm_windows_profiles (
+					profile_uuid,
+					host_uuid,
+					profile_name,
+					operation_type,
+					status,
+					command_uuid
+				)
+				VALUES %s
+				ON DUPLICATE KEY UPDATE
+					operation_type = VALUES(operation_type),
+					status = NULL,
+					command_uuid = VALUES(command_uuid),
+					detail = '' 
+			`, strings.TrimSuffix(valuePart, ","))
+
+		_, err = tx.ExecContext(ctx, baseStmt, args...)
+		return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute batch")
+	}
+
+	for _, p := range profilesToInstall {
+		pargs = append(
+			pargs, p.ProfileUUID, p.HostUUID, p.ProfileName,
+			fleet.MDMOperationTypeInstall)
+		psb.WriteString("(?, ?, ?, ?, NULL, ''),")
+		batchCount++
+		if batchCount >= batchSize {
+			if err := executeUpsertBatch(psb.String(), pargs); err != nil {
+				return err
+			}
+			resetBatch()
+		}
+	}
+
+	if batchCount > 0 {
+		if err := executeUpsertBatch(psb.String(), pargs); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

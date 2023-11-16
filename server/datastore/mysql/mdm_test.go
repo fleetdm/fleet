@@ -2,6 +2,9 @@ package mysql
 
 import (
 	"context"
+	"fmt"
+	"sort"
+	"strconv"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -24,6 +27,9 @@ func TestMDMShared(t *testing.T) {
 		{"TestMDMCommands", testMDMCommands},
 		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
 		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
+		{"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
+		{"TestBulkSetPendingMDMHostProfilesBatch2", testBulkSetPendingMDMHostProfilesBatch2},
+		{"TestBulkSetPendingMDMHostProfilesBatch3", testBulkSetPendingMDMHostProfilesBatch3},
 	}
 
 	for _, c := range cases {
@@ -408,4 +414,856 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.wantMeta, gotMeta)
 		})
 	}
+}
+
+func testBulkSetPendingMDMHostProfilesBatch2(t *testing.T, ds *Datastore) {
+	testUpsertMDMDesiredProfilesBatchSize = 2
+	testDeleteMDMProfilesBatchSize = 2
+	t.Cleanup(func() {
+		testUpsertMDMDesiredProfilesBatchSize = 0
+		testDeleteMDMProfilesBatchSize = 0
+	})
+	testBulkSetPendingMDMHostProfiles(t, ds)
+}
+
+func testBulkSetPendingMDMHostProfilesBatch3(t *testing.T, ds *Datastore) {
+	testUpsertMDMDesiredProfilesBatchSize = 3
+	testDeleteMDMProfilesBatchSize = 3
+	t.Cleanup(func() {
+		testUpsertMDMDesiredProfilesBatchSize = 0
+		testDeleteMDMProfilesBatchSize = 0
+	})
+	testBulkSetPendingMDMHostProfiles(t, ds)
+}
+
+func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	hostIDsFromHosts := func(hosts ...*fleet.Host) []uint {
+		ids := make([]uint, len(hosts))
+		for i, h := range hosts {
+			ids[i] = h.ID
+		}
+		return ids
+	}
+
+	type anyProfile struct {
+		ProfileID        string                   `db:"profile_uuid"`
+		Status           *fleet.MDMDeliveryStatus `db:"status"`
+		OperationType    fleet.MDMOperationType   `db:"operation_type"`
+		IdentifierOrName string                   `db:"profile_name"`
+	}
+
+	// only asserts the profile ID, status and operation
+	assertHostProfiles := func(want map[*fleet.Host][]anyProfile) {
+		for h, wantProfs := range want {
+			var gotProfs []anyProfile
+
+			switch h.Platform {
+			case "windows":
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					return sqlx.SelectContext(
+						ctx, q, &gotProfs,
+						`SELECT
+						   profile_uuid,
+						   COALESCE(status, 'pending') as status,
+						   COALESCE(operation_type, '') as operation_type,
+						   profile_name
+					  	 FROM host_mdm_windows_profiles
+					  	 WHERE host_uuid = ?`, h.UUID)
+				})
+				require.Equal(t, len(wantProfs), len(gotProfs), "host uuid: %s", h.UUID)
+			default:
+				profs, err := ds.GetHostMDMProfiles(ctx, h.UUID)
+				require.NoError(t, err)
+				require.Equal(t, len(wantProfs), len(profs), "host uuid: %s", h.UUID)
+				for _, p := range profs {
+					gotProfs = append(gotProfs, anyProfile{
+						ProfileID:        fmt.Sprint(p.ProfileID),
+						Status:           p.Status,
+						OperationType:    p.OperationType,
+						IdentifierOrName: p.Identifier,
+					})
+				}
+			}
+
+			sortProfs := func(profs []anyProfile) []anyProfile {
+				sort.Slice(profs, func(i, j int) bool {
+					l, r := profs[i], profs[j]
+					if l.ProfileID == r.ProfileID {
+						return l.OperationType < r.OperationType
+					}
+
+					if len(l.ProfileID) <= 2 && len(r.ProfileID) <= 2 {
+						a, aErr := strconv.Atoi(l.ProfileID)
+						b, bErr := strconv.Atoi(r.ProfileID)
+
+						if aErr == nil && bErr == nil {
+							// both are numeric, compare as numbers
+							return a < b
+						}
+					}
+
+					// default alphabetical comparison
+					return l.ProfileID < r.ProfileID
+				})
+				return profs
+			}
+			gotProfs = sortProfs(gotProfs)
+			wantProfs = sortProfs(wantProfs)
+			for i, wp := range wantProfs {
+				gp := gotProfs[i]
+				require.Equal(t, wp.ProfileID, gp.ProfileID, "host uuid: %s, prof id or name: %s", h.UUID, gp.IdentifierOrName)
+				require.Equal(t, wp.Status, gp.Status, "host uuid: %s, prof id or name: %s", h.UUID, gp.IdentifierOrName)
+				require.Equal(t, wp.OperationType, gp.OperationType, "host uuid: %s, prof id or name: %s", h.UUID, gp.IdentifierOrName)
+			}
+		}
+	}
+
+	getProfs := func(teamID *uint) []*fleet.MDMConfigProfilePayload {
+		// TODO(roberto): the docs says that you can pass a comma separated
+		// list of columns to OrderKey, but that doesn't seem to work
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{OrderKey: "platform"})
+		require.NoError(t, err)
+		sort.Slice(profs, func(i, j int) bool {
+			l, r := profs[i], profs[j]
+
+			if l.Platform != r.Platform {
+				return l.Platform < r.Platform
+			}
+
+			return l.ProfileID < r.ProfileID
+		})
+		return profs
+	}
+
+	// create some darwin hosts, all enrolled
+	darwinHosts := make([]*fleet.Host, 3)
+	for i := 0; i < 3; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("test-host%d-name", i),
+			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			UUID:          fmt.Sprintf("test-uuid-%d", i),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		darwinHosts[i] = h
+		t.Logf("enrolled darwin host [%d]: %s", i, h.UUID)
+	}
+
+	// create a non-enrolled host
+	i := 3
+	unenrolledHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      fmt.Sprintf("test-host%d-name", i),
+		OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+		NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+		UUID:          fmt.Sprintf("test-uuid-%d", i),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	// create a non-darwin host
+	i = 4
+	linuxHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      fmt.Sprintf("test-host%d-name", i),
+		OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+		NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+		UUID:          fmt.Sprintf("test-uuid-%d", i),
+		Platform:      "linux",
+	})
+	require.NoError(t, err)
+
+	// create some windows hosts, all enrolled
+	i = 5
+	windowsHosts := make([]*fleet.Host, 3)
+	for j := 0; j < 3; j++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("test-host%d-name", i+j),
+			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i+j)),
+			NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i+j)),
+			UUID:          fmt.Sprintf("test-uuid-%d", i+j),
+			Platform:      "windows",
+		})
+		require.NoError(t, err)
+		windowsEnroll(t, ds, h)
+		windowsHosts[j] = h
+		t.Logf("enrolled windows host [%d]: %s", j, h.UUID)
+	}
+
+	// bulk set for no target ids, does nothing
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+	// bulk set for combination of target ids, not allowed
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{1}, []uint{2}, nil, nil, nil)
+	require.Error(t, err)
+
+	// bulk set for all created hosts, no profiles yet so nothing changed
+	allHosts := append(darwinHosts, unenrolledHost, linuxHost)
+	allHosts = append(allHosts, windowsHosts...)
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, hostIDsFromHosts(allHosts...), nil, nil, nil, nil)
+	require.NoError(t, err)
+	assertHostProfiles(map[*fleet.Host][]anyProfile{
+		darwinHosts[0]:  {},
+		darwinHosts[1]:  {},
+		darwinHosts[2]:  {},
+		unenrolledHost:  {},
+		linuxHost:       {},
+		windowsHosts[0]: {},
+		windowsHosts[1]: {},
+		windowsHosts[2]: {},
+	})
+
+	// create some global (no-team) profiles
+	macGlobalProfiles := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "G1", "G1", "a"),
+		configProfileForTest(t, "G2", "G2", "b"),
+		configProfileForTest(t, "G3", "G3", "c"),
+	}
+	winGlobalProfiles := []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "G1", "L1"),
+		windowsConfigProfileForTest(t, "G2", "L2"),
+		windowsConfigProfileForTest(t, "G3", "L3"),
+	}
+	err = ds.BatchSetMDMProfiles(ctx, nil, macGlobalProfiles, winGlobalProfiles)
+	require.NoError(t, err)
+	//macGlobalProfiles, err = ds.ListMDMAppleConfigProfiles(ctx, nil)
+	//require.NoError(t, err)
+	//require.Len(t, macGlobalProfiles, 3)
+	globalProfiles := getProfs(nil)
+	require.Len(t, globalProfiles, 6)
+
+	// list profiles to install, should result in the global profiles for all
+	// enrolled hosts
+	toInstallDarwin, err := ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Len(t, toInstallDarwin, len(macGlobalProfiles)*len(darwinHosts))
+	toInstallWindows, err := ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Len(t, toInstallWindows, len(winGlobalProfiles)*len(windowsHosts))
+
+	// none are listed as "to remove"
+	toRemoveDarwin, err := ds.ListMDMAppleProfilesToRemove(ctx)
+	require.NoError(t, err)
+	require.Len(t, toRemoveDarwin, 0)
+	toRemoveWindows, err := ds.ListMDMWindowsProfilesToRemove(ctx)
+	require.NoError(t, err)
+	require.Len(t, toRemoveWindows, 0)
+
+	// bulk set for all created hosts, enrolled hosts get the no-team profiles
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, hostIDsFromHosts(allHosts...), nil, nil, nil, nil)
+	require.NoError(t, err)
+	assertHostProfiles(map[*fleet.Host][]anyProfile{
+		darwinHosts[0]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		darwinHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		darwinHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+		windowsHosts[0]: {
+			{ProfileID: globalProfiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		windowsHosts[1]: {
+			{ProfileID: globalProfiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		windowsHosts[2]: {
+			{ProfileID: globalProfiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+	})
+
+	// create a team
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	// move darwinHosts[0] and windowsHosts[0] to that team
+	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{darwinHosts[0].ID, windowsHosts[0].ID})
+	require.NoError(t, err)
+
+	// 6 are still reported as "to install" because op=install and status=nil
+	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Len(t, toInstallDarwin, 6)
+	toInstallWindows, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Len(t, toInstallWindows, 6)
+
+	// those installed to enrolledHosts[0] are listed as "to remove"
+	toRemoveDarwin, err = ds.ListMDMAppleProfilesToRemove(ctx)
+	require.NoError(t, err)
+	require.Len(t, toRemoveDarwin, 3)
+	toRemoveWindows, err = ds.ListMDMWindowsProfilesToRemove(ctx)
+	require.NoError(t, err)
+	require.Len(t, toRemoveWindows, 3)
+
+	// update status of the moved host (team has no profiles)
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, hostIDsFromHosts(darwinHosts[0], windowsHosts[0]), nil, nil, nil, nil)
+	require.NoError(t, err)
+	assertHostProfiles(map[*fleet.Host][]anyProfile{
+		darwinHosts[0]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+		},
+		darwinHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		darwinHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+		// windows profiles are directly deleted without a pending state
+		windowsHosts[0]: {},
+		windowsHosts[1]: {
+			{ProfileID: globalProfiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		windowsHosts[2]: {
+			{ProfileID: globalProfiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+	})
+
+	// create another team
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	// move enrolledHosts[1] to that team
+	err = ds.AddHostsToTeam(ctx, &team2.ID, []uint{darwinHosts[1].ID, windowsHosts[1].ID})
+	require.NoError(t, err)
+
+	// 3 are still reported as "to install" because op=install and status=nil
+	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Len(t, toInstallDarwin, 3)
+	toInstallWindows, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Len(t, toInstallWindows, 3)
+
+	// 6 are now "to remove" for darwin
+	toRemoveDarwin, err = ds.ListMDMAppleProfilesToRemove(ctx)
+	require.NoError(t, err)
+	require.Len(t, toRemoveDarwin, 6)
+	// 3 are now "to remove" for windows
+	toRemoveWindows, err = ds.ListMDMWindowsProfilesToRemove(ctx)
+	require.NoError(t, err)
+	require.Len(t, toRemoveWindows, 3)
+
+	// update status of the moved host via its uuid (team has no profiles)
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, nil, nil, []string{darwinHosts[1].UUID, windowsHosts[1].UUID})
+	require.NoError(t, err)
+	assertHostProfiles(map[*fleet.Host][]anyProfile{
+		darwinHosts[0]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+		},
+		darwinHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+		},
+		darwinHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		unenrolledHost:  {},
+		linuxHost:       {},
+		windowsHosts[0]: {},
+		// windows profiles are directly deleted without a pending state
+		windowsHosts[1]: {},
+		windowsHosts[2]: {
+			{ProfileID: globalProfiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+	})
+
+	// create profiles for team 1
+	tm1DarwinProfiles := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "T1.1", "T1.1", "d"),
+		configProfileForTest(t, "T1.2", "T1.2", "e"),
+	}
+	tm1WindowsProfiles := []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "T1.1", "T1.1"),
+		windowsConfigProfileForTest(t, "T1.2", "T1.2"),
+	}
+	err = ds.BatchSetMDMProfiles(ctx, &team1.ID, tm1DarwinProfiles, tm1WindowsProfiles)
+	require.NoError(t, err)
+
+	tm1Profiles := getProfs(&team1.ID)
+	require.Len(t, tm1Profiles, 4)
+
+	// 5 are now reported as "to install" (3 global + 2 team1)
+	toInstallDarwin, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Len(t, toInstallDarwin, 5)
+	toInstallWindows, err = ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Len(t, toInstallWindows, 5)
+
+	// 6 are still "to remove"
+	toRemoveDarwin, err = ds.ListMDMAppleProfilesToRemove(ctx)
+	require.NoError(t, err)
+	require.Len(t, toRemoveDarwin, 6)
+	// no profiles to remove in windows
+	toRemoveWindows, err = ds.ListMDMWindowsProfilesToRemove(ctx)
+	require.NoError(t, err)
+	require.Len(t, toRemoveWindows, 0)
+
+	// update status of the affected team
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team1.ID}, nil, nil, nil)
+	require.NoError(t, err)
+	assertHostProfiles(map[*fleet.Host][]anyProfile{
+		darwinHosts[0]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: tm1Profiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: tm1Profiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		darwinHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+		},
+		darwinHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+		windowsHosts[0]: {
+			{ProfileID: tm1Profiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: tm1Profiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		windowsHosts[1]: {},
+		windowsHosts[2]: {
+			{ProfileID: globalProfiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+	})
+
+	darwinGlobalProfiles, err := ds.ListMDMAppleConfigProfiles(ctx, nil)
+	sort.Slice(darwinGlobalProfiles, func(i, j int) bool {
+		l, r := darwinGlobalProfiles[i], darwinGlobalProfiles[j]
+		return l.ProfileID < r.ProfileID
+	})
+	require.NoError(t, err)
+
+	// successfully remove globalProfiles[0, 1] for darwinHosts[0], and remove as failed globalProfiles[2]
+	// Do *not* use UpdateOrDeleteHostMDMAppleProfile here, as it deletes/updates based on command uuid
+	// (meant to be called from the MDMDirector in response from MDM commands), it would delete/update
+	// all rows in this test since we don't have command uuids.
+	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{
+			HostUUID: darwinHosts[0].UUID, ProfileID: darwinGlobalProfiles[0].ProfileID,
+			Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"),
+		},
+		{
+			HostUUID: darwinHosts[0].UUID, ProfileID: darwinGlobalProfiles[1].ProfileID,
+			Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"),
+		},
+		{
+			HostUUID: darwinHosts[0].UUID, ProfileID: darwinGlobalProfiles[2].ProfileID,
+			Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove, Checksum: []byte("csum"),
+		},
+	})
+	require.NoError(t, err)
+
+	// add a profile to team1, and remove profile T1.1
+	newTm1DarwinProfiles := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "T1.2", "T1.2", "e"),
+		configProfileForTest(t, "T1.3", "T1.3", "f"),
+	}
+	newTm1WindowsProfiles := []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "T1.1", "T1.1"),
+		windowsConfigProfileForTest(t, "T1.3", "T1.3"),
+	}
+
+	err = ds.BatchSetMDMProfiles(ctx, &team1.ID, newTm1DarwinProfiles, newTm1WindowsProfiles)
+	require.NoError(t, err)
+
+	newTm1Profiles := getProfs(&team1.ID)
+	require.Len(t, newTm1Profiles, 4)
+
+	// update status of the affected team
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team1.ID}, nil, nil, nil)
+	require.NoError(t, err)
+
+	assertHostProfiles(map[*fleet.Host][]anyProfile{
+		darwinHosts[0]: {
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: tm1Profiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: newTm1Profiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		darwinHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+		},
+		darwinHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+		windowsHosts[0]: {
+			{ProfileID: newTm1Profiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		windowsHosts[1]: {},
+		windowsHosts[2]: {
+			{ProfileID: globalProfiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+	})
+
+	// re-add tm1Profiles[0] to list of team1 profiles
+	// NOTE: even though it is the same profile, it's unique DB ID is different because
+	// it got deleted and re-inserted from the team's profiles, so this is reflected in
+	// the host's profiles list.
+	newTm1DarwinProfiles = []*fleet.MDMAppleConfigProfile{
+		tm1DarwinProfiles[0],
+		configProfileForTest(t, "T1.2", "T1.2", "e"),
+		configProfileForTest(t, "T1.3", "T1.3", "f"),
+	}
+	newTm1WindowsProfiles = []*fleet.MDMWindowsConfigProfile{
+		tm1WindowsProfiles[0],
+		windowsConfigProfileForTest(t, "T1.2", "T1.2"),
+		windowsConfigProfileForTest(t, "T1.3", "T1.3"),
+	}
+
+	err = ds.BatchSetMDMProfiles(ctx, &team1.ID, newTm1DarwinProfiles, newTm1WindowsProfiles)
+	require.NoError(t, err)
+	newTm1Profiles = getProfs(&team1.ID)
+	require.Len(t, newTm1Profiles, 6)
+
+	// update status of the affected team
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team1.ID}, nil, nil, nil)
+	require.NoError(t, err)
+
+	assertHostProfiles(map[*fleet.Host][]anyProfile{
+		darwinHosts[0]: {
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: newTm1Profiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		darwinHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+		},
+		darwinHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+		windowsHosts[0]: {
+			{ProfileID: newTm1Profiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		windowsHosts[1]: {},
+		windowsHosts[2]: {
+			{ProfileID: globalProfiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: globalProfiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+	})
+
+	// remove a global profile and add a new one
+
+	newDarwinGlobalProfiles := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "G2", "G2", "b"),
+		configProfileForTest(t, "G3", "G3", "c"),
+		configProfileForTest(t, "G4", "G4", "d"),
+	}
+	newWindowsGlobalProfiles := []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "G2", "G2"),
+		windowsConfigProfileForTest(t, "G3", "G3"),
+		windowsConfigProfileForTest(t, "G4", "G4"),
+	}
+
+	err = ds.BatchSetMDMProfiles(ctx, nil, newDarwinGlobalProfiles, newWindowsGlobalProfiles)
+	require.NoError(t, err)
+
+	newGlobalProfiles := getProfs(nil)
+	require.Len(t, newGlobalProfiles, 6)
+
+	// update status of the affected "no-team"
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{0}, nil, nil, nil)
+	require.NoError(t, err)
+
+	assertHostProfiles(map[*fleet.Host][]anyProfile{
+		darwinHosts[0]: {
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: newTm1Profiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		darwinHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+		},
+		darwinHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: newGlobalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+		windowsHosts[0]: {
+			{ProfileID: newTm1Profiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		windowsHosts[1]: {},
+		windowsHosts[2]: {
+			{ProfileID: newGlobalProfiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+	})
+
+	// add another global profile
+
+	newDarwinGlobalProfiles = []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "G2", "G2", "b"),
+		configProfileForTest(t, "G3", "G3", "c"),
+		configProfileForTest(t, "G4", "G4", "d"),
+		configProfileForTest(t, "G5", "G5", "e"),
+	}
+
+	newWindowsGlobalProfiles = []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "G2", "G2"),
+		windowsConfigProfileForTest(t, "G3", "G3"),
+		windowsConfigProfileForTest(t, "G4", "G4"),
+		windowsConfigProfileForTest(t, "G5", "G5"),
+	}
+
+	err = ds.BatchSetMDMProfiles(ctx, nil, newDarwinGlobalProfiles, newWindowsGlobalProfiles)
+	require.NoError(t, err)
+	newGlobalProfiles = getProfs(nil)
+	require.Len(t, newGlobalProfiles, 8)
+
+	newDarwinProfileID, err := strconv.ParseUint(newGlobalProfiles[3].ProfileID, 10, 64)
+	require.NoError(t, err)
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []uint{uint(newDarwinProfileID)}, []string{}, nil)
+	require.NoError(t, err)
+
+	assertHostProfiles(map[*fleet.Host][]anyProfile{
+		darwinHosts[0]: {
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: newTm1Profiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		darwinHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+		},
+		darwinHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: newGlobalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+		windowsHosts[0]: {
+			{ProfileID: newTm1Profiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		windowsHosts[1]: {},
+		windowsHosts[2]: {
+			{ProfileID: newGlobalProfiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[6].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+	})
+
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []uint{}, []string{newGlobalProfiles[7].ProfileID}, nil)
+	require.NoError(t, err)
+
+	assertHostProfiles(map[*fleet.Host][]anyProfile{
+		darwinHosts[0]: {
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: newTm1Profiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		darwinHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+		},
+		darwinHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: newGlobalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+		windowsHosts[0]: {
+			{ProfileID: newTm1Profiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		windowsHosts[1]: {},
+		windowsHosts[2]: {
+			{ProfileID: newGlobalProfiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[6].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[7].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+	})
+
+	// add a profile to team2
+
+	tm2DarwinProfiles := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "T2.1", "T2.1", "a"),
+	}
+
+	tm2WindowsProfiles := []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "T2.1", "T2.1"),
+	}
+
+	err = ds.BatchSetMDMProfiles(ctx, &team2.ID, tm2DarwinProfiles, tm2WindowsProfiles)
+	require.NoError(t, err)
+	tm2Profiles := getProfs(&team2.ID)
+	require.Len(t, tm2Profiles, 2)
+
+	// update status via tm2 id and the global 0 id to test that custom sql statement
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team2.ID, 0}, nil, nil, nil)
+	require.NoError(t, err)
+
+	assertHostProfiles(map[*fleet.Host][]anyProfile{
+		darwinHosts[0]: {
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: newTm1Profiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		darwinHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: tm2Profiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		darwinHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: newGlobalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+		windowsHosts[0]: {
+			{ProfileID: newTm1Profiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		windowsHosts[1]: {
+			{ProfileID: tm2Profiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		windowsHosts[2]: {
+			{ProfileID: newGlobalProfiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[6].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[7].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+	})
+
+	// simulate an entry with some values set to NULL
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET detail = NULL WHERE profile_id = ?`, globalProfiles[2].ProfileID)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	// do a final sync of all hosts, should not change anything
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, hostIDsFromHosts(append(darwinHosts, unenrolledHost, linuxHost)...), nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	assertHostProfiles(map[*fleet.Host][]anyProfile{
+		darwinHosts[0]: {
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: newTm1Profiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		darwinHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: tm2Profiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		darwinHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+			{ProfileID: newGlobalProfiles[0].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[2].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+		windowsHosts[0]: {
+			{ProfileID: newTm1Profiles[3].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newTm1Profiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		windowsHosts[1]: {
+			{ProfileID: tm2Profiles[1].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+		windowsHosts[2]: {
+			{ProfileID: newGlobalProfiles[4].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[5].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[6].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[7].ProfileID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		},
+	})
 }

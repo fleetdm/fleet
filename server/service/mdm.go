@@ -1266,10 +1266,9 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO: Windows equivalent of this call:
-	//if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, []uint{newCP.ProfileID}, nil); err != nil {
-	//	return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-	//}
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
 
 	var (
 		actTeamID   *uint
@@ -1350,8 +1349,23 @@ func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName 
 		return ctxerr.Wrap(ctx, err, "setting config profiles")
 	}
 
-	// TODO(roberto): batch set as pending for windows/macOS, hoping to
-	// tackle this separately.
+	// set pending status for windows profiles
+	winProfUUIDs := []string{}
+	for _, p := range windowsProfiles {
+		winProfUUIDs = append(winProfUUIDs, p.ProfileUUID)
+	}
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, nil, winProfUUIDs, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
+	}
+
+	// set pending status for apple profiles
+	appleProfIDs := []uint{}
+	for _, p := range appleProfiles {
+		appleProfIDs = append(appleProfIDs, p.ProfileID)
+	}
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, appleProfIDs, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
+	}
 
 	// TODO(roberto): should we generate activities only of any profiles were
 	// changed? this is the existing behavior for macOS profiles so I'm

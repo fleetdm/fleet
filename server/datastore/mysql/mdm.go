@@ -2,11 +2,13 @@ package mysql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -103,6 +105,7 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 }
 
 func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+
 	var profs []*fleet.MDMConfigProfilePayload
 
 	const selectStmt = `
@@ -181,4 +184,139 @@ FROM (
 		}
 	}
 	return profs, metaData, nil
+}
+
+// Note that team ID 0 is used for profiles that apply to hosts in no team
+// (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
+// slice arguments can have values.
+func (ds *Datastore) BulkSetPendingMDMHostProfiles(
+	ctx context.Context,
+	hostIDs, teamIDs, profileIDs []uint,
+	profileUUIDs, hostUUIDs []string,
+) error {
+	var countArgs int
+	if len(hostIDs) > 0 {
+		countArgs++
+	}
+	if len(teamIDs) > 0 {
+		countArgs++
+	}
+	if len(profileIDs) > 0 {
+		countArgs++
+	}
+	if len(profileUUIDs) > 0 {
+		countArgs++
+	}
+	if len(hostUUIDs) > 0 {
+		countArgs++
+	}
+	if countArgs > 1 {
+		return errors.New("only one of hostIDs, teamIDs, profileIDs, profileUUIDs or hostUUIDs can be provided")
+	}
+	if countArgs == 0 {
+		return nil
+	}
+
+	var (
+		hosts    []fleet.Host
+		args     []any
+		uuidStmt string
+	)
+
+	switch {
+	case len(hostUUIDs) > 0:
+		// TODO: if a very large number (~65K) of uuids was provided, could
+		// result in too many placeholders (not an immediate concern).
+		uuidStmt = `SELECT uuid, platform FROM hosts WHERE uuid IN (?)`
+		args = append(args, hostUUIDs)
+
+	case len(hostIDs) > 0:
+		// TODO: if a very large number (~65K) of uuids was provided, could
+		// result in too many placeholders (not an immediate concern).
+		uuidStmt = `SELECT uuid, platform FROM hosts WHERE id IN (?)`
+		args = append(args, hostIDs)
+
+	case len(teamIDs) > 0:
+		// TODO: if a very large number (~65K) of team IDs was provided, could
+		// result in too many placeholders (not an immediate concern).
+		uuidStmt = `SELECT uuid, platform FROM hosts WHERE `
+		if len(teamIDs) == 1 && teamIDs[0] == 0 {
+			uuidStmt += `team_id IS NULL`
+		} else {
+			uuidStmt += `team_id IN (?)`
+			args = append(args, teamIDs)
+			for _, tmID := range teamIDs {
+				if tmID == 0 {
+					uuidStmt += ` OR team_id IS NULL`
+					break
+				}
+			}
+		}
+
+	case len(profileIDs) > 0:
+		// TODO: if a very large number (~65K) of profile IDs was provided, could
+		// result in too many placeholders (not an immediate concern).
+		uuidStmt = `
+SELECT DISTINCT h.uuid, h.platform
+FROM hosts h
+JOIN mdm_apple_configuration_profiles macp
+	ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+WHERE
+	macp.profile_id IN (?) AND h.platform = 'darwin'`
+		args = append(args, profileIDs)
+
+	case len(profileUUIDs) > 0:
+		// TODO: if a very large number (~65K) of profile IDs was provided, could
+		// result in too many placeholders (not an immediate concern).
+		uuidStmt = `
+SELECT DISTINCT h.uuid, h.platform
+FROM hosts h
+JOIN mdm_windows_configuration_profiles mawp
+	ON h.team_id = mawp.team_id OR (h.team_id IS NULL AND mawp.team_id = 0)
+WHERE
+	mawp.profile_uuid IN (?) AND h.platform = 'windows'`
+		args = append(args, profileUUIDs)
+
+	}
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// TODO: this could be optimized to avoid querying for platform when
+		// profileIDs or profileUUIDs are provided.
+		if len(hosts) == 0 {
+			uuidStmt, args, err := sqlx.In(uuidStmt, args...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
+			}
+			if err := sqlx.SelectContext(ctx, tx, &hosts, uuidStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+			}
+		}
+
+		var macHosts []string
+		var winHosts []string
+		for _, h := range hosts {
+			switch h.Platform {
+			case "darwin":
+				macHosts = append(macHosts, h.UUID)
+			case "windows":
+				winHosts = append(winHosts, h.UUID)
+			default:
+				level.Debug(ds.logger).Log(
+					"msg", "tried to set profile status for a host with unsupported platform",
+					"platform", h.Platform,
+					"host_uuid", h.UUID,
+				)
+			}
+		}
+
+		if err := bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, macHosts); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
+		}
+
+		if err := bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
+		}
+
+		return nil
+	})
 }
