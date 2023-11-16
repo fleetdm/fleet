@@ -906,9 +906,6 @@ func getMDMProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc
 	req := request.(*getMDMProfilesSummaryRequest)
 	res := getMDMProfilesSummaryResponse{}
 
-	// TODO: Think about how to handle authz for this endpoint. As it is, we are
-	// authorizing the user once for each platform because of the legacy Apple endpoint.
-
 	as, err := svc.GetMDMAppleProfilesSummary(ctx, req.TeamID)
 	if err != nil {
 		return &getMDMAppleProfilesSummaryResponse{Err: err}, nil
