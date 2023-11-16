@@ -380,7 +380,7 @@ func MapQueryReportResultsToRows(rows []*ScheduledQueryResultRow) ([]HostQueryRe
 		}
 		results = append(results, HostQueryResultRow{
 			HostID:      row.HostID,
-			Hostname:    row.Hostname,
+			Hostname:    row.HostDisplayName(),
 			LastFetched: row.LastFetched,
 			Columns:     columns,
 		})
@@ -423,9 +423,19 @@ type ScheduledQueryResultRow struct {
 	HostID uint `db:"host_id"`
 	// Hostname is the host's hostname.
 	Hostname string `db:"hostname"`
+	// ComputerName is the host's computer_name.
+	ComputerName string `db:"computer_name"`
+	// HardwareModel is the host's hardware_model.
+	HardwareModel string `db:"hardware_model"`
+	// HardwareSerial is the host's hardware_serial.
+	HardwareSerial string `db:"hardware_serial"`
 	// Data holds a single result row. It holds a map where the map keys
 	// are column names and map values are the values.
 	Data json.RawMessage `db:"data"`
 	// LastFetched is the time this result was received.
 	LastFetched time.Time `db:"last_fetched"`
+}
+
+func (s *ScheduledQueryResultRow) HostDisplayName() string {
+	return HostDisplayName(s.ComputerName, s.Hostname, s.HardwareModel, s.HardwareSerial)
 }
