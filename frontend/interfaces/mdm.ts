@@ -55,21 +55,17 @@ export interface IMdmSummaryResponse {
   mobile_device_management_solution: IMdmSolution[] | null;
 }
 
-type SupportedMdmPlatform = "darwin" | "windows";
+type ProfilePlatform = "darwin" | "windows";
 
 export interface IMdmProfile {
-  profile_id: number;
+  profile_id: number | string; // string for windows profiles
   team_id: number;
   name: string;
-  platform: SupportedMdmPlatform;
-  identifier: string;
+  platform: ProfilePlatform;
+  identifier: string | null; // null for windows profiles
   created_at: string;
   updated_at: string;
-  checksum: string;
-}
-
-export interface IMdmProfilesResponse {
-  profiles: IMdmProfile[] | null;
+  checksum: string | null; // null for windows profiles
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";

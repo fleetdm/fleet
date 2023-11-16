@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { DiskEncryptionStatus, MdmProfileStatus } from "interfaces/mdm";
+import {
+  DiskEncryptionStatus,
+  IMdmProfile,
+  MdmProfileStatus,
+} from "interfaces/mdm";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
@@ -22,6 +26,20 @@ export type IDiskEncryptionSummaryResponse = Record<
   DiskEncryptionStatus,
   IDiskEncryptionStatusAggregate
 >;
+
+export interface IGetProfilesApiParams {
+  page?: number;
+  per_page?: number;
+  team_id?: number;
+}
+
+export interface IMdmProfilesResponse {
+  profiles: IMdmProfile[] | null;
+  meta: {
+    has_next_result: boolean;
+    has_previous_result: boolean;
+  };
+}
 
 // This function combines the profile status summary and the disk encryption summary
 // to generate the aggregate profile status summary. We are doing this as a temporary
@@ -83,10 +101,12 @@ const mdmService = {
     });
   },
 
-  getProfiles: (teamId = APP_CONTEXT_NO_TEAM_ID) => {
-    const { MDM_PROFILES_OLD: MDM_PROFILES } = endpoints;
+  getProfiles: (
+    params: IGetProfilesApiParams
+  ): Promise<IMdmProfilesResponse> => {
+    const { MDM_PROFILES } = endpoints;
     const path = `${MDM_PROFILES}?${buildQueryStringFromParams({
-      team_id: teamId,
+      ...params,
     })}`;
 
     return sendRequest("GET", path);
@@ -113,7 +133,7 @@ const mdmService = {
     return sendRequest("GET", path);
   },
 
-  deleteProfile: (profileId: number) => {
+  deleteProfile: (profileId: number | string) => {
     const { MDM_PROFILE } = endpoints;
     return sendRequest("DELETE", MDM_PROFILE(profileId));
   },

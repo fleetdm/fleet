@@ -48,13 +48,10 @@ export default {
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
 
-  // TODO: remove old endpoint when new one is implemented
-  MDM_PROFILES_OLD: `/${API_VERSION}/fleet/mdm/apple/profiles`,
-  MDM_PROFILE_OLD: (id: number) =>
-    `/${API_VERSION}/fleet/mdm/apple/profiles/${id}`,
-  // new profile endpoints
+  // MDM profile endpoints
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
-  MDM_PROFILE: (id: number) => `/${API_VERSION}/fleet/mdm/profiles/${id}`,
+  MDM_PROFILE: (id: number | string) =>
+    `/${API_VERSION}/fleet/mdm/profiles/${id}`,
 
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
   MDM_PROFILES_AGGREGATE_STATUSES: `/${API_VERSION}/fleet/mdm/apple/profiles/summary`,

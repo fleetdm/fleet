@@ -47,7 +47,12 @@ const CustomSettings = ({
     refetch: refetchProfiles,
   } = useQuery<IMdmProfilesResponse, unknown, IMdmProfile[] | null>(
     ["profiles", currentTeamId],
-    () => mdmAPI.getProfiles(currentTeamId),
+    () =>
+      mdmAPI.getProfiles({
+        team_id: currentTeamId,
+        page: 0,
+        per_page: 10,
+      }),
     {
       select: (data) => data.profiles,
       refetchOnWindowFocus: false,
@@ -64,7 +69,7 @@ const CustomSettings = ({
     setShowDeleteProfileModal(false);
   };
 
-  const onDeleteProfile = async (profileId: number) => {
+  const onDeleteProfile = async (profileId: number | string) => {
     try {
       await mdmAPI.deleteProfile(profileId);
       refetchProfiles();
