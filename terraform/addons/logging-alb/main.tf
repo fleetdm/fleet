@@ -126,7 +126,7 @@ resource "aws_kms_alias" "logs_alias" {
 
 module "s3_bucket_for_logs" {
   source  = "terraform-aws-modules/s3-bucket/aws"
-  version = "3.11.0"
+  version = "3.15.1"
 
   bucket = "${var.prefix}-alb-logs"
 
@@ -146,6 +146,9 @@ module "s3_bucket_for_logs" {
   server_side_encryption_configuration = {
     rule = {
       bucket_key_enabled = true
+      apply_server_side_encryption_by_default = {
+        sse_algorithm = "AES256"
+      }
     }
   }
   lifecycle_rule = [
@@ -161,7 +164,8 @@ module "s3_bucket_for_logs" {
       ]
       expiration = {
         days                         = var.s3_expiration_days
-        expired_object_delete_marker = true
+        # Always resets to false anyhow showing terraform changes constantly
+        expired_object_delete_marker = false
       }
       noncurrent_version_expiration = {
         newer_noncurrent_versions = var.s3_newer_noncurrent_versions
@@ -180,7 +184,7 @@ resource "aws_athena_database" "logs" {
 module "athena-s3-bucket" {
   count   = var.enable_athena == true ? 1 : 0
   source  = "terraform-aws-modules/s3-bucket/aws"
-  version = "3.11.0"
+  version = "3.15.1"
 
   bucket = "${var.prefix}-alb-logs-athena"
 
@@ -218,7 +222,8 @@ module "athena-s3-bucket" {
       ]
       expiration = {
         days                         = var.s3_expiration_days
-        expired_object_delete_marker = true
+        # Always resets to false anyhow showing terraform changes constantly
+        expired_object_delete_marker = false
       }
       noncurrent_version_expiration = {
         newer_noncurrent_versions = var.s3_newer_noncurrent_versions
