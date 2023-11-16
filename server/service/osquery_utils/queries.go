@@ -1286,7 +1286,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 		},
 		{
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return h.Platform == "windows" && citrixName.Match([]byte(s.Name))
+				return citrixName.Match([]byte(s.Name)) || s.Name == "Citrix Workspace.app"
 			},
 			mutateSoftware: func(s *fleet.Software) {
 				parts := strings.Split(s.Version, ".")
