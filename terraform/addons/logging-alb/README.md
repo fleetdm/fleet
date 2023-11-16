@@ -52,14 +52,14 @@ No requirements.
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | n/a |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 5.25.0 |
 
 ## Modules
 
 | Name | Source | Version |
 |------|--------|---------|
-| <a name="module_athena-s3-bucket"></a> [athena-s3-bucket](#module\_athena-s3-bucket) | terraform-aws-modules/s3-bucket/aws | 3.11.0 |
-| <a name="module_s3_bucket_for_logs"></a> [s3\_bucket\_for\_logs](#module\_s3\_bucket\_for\_logs) | terraform-aws-modules/s3-bucket/aws | 3.11.0 |
+| <a name="module_athena-s3-bucket"></a> [athena-s3-bucket](#module\_athena-s3-bucket) | terraform-aws-modules/s3-bucket/aws | 3.15.1 |
+| <a name="module_s3_bucket_for_logs"></a> [s3\_bucket\_for\_logs](#module\_s3\_bucket\_for\_logs) | terraform-aws-modules/s3-bucket/aws | 3.15.1 |
 
 ## Resources
 
