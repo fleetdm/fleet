@@ -3141,6 +3141,37 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		}
 	}
 
+	// Delete Munki from host -- no munki, but issues stick.
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "", []string{"error1", "error3"}, []string{}))
+	macadminsData = macadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
+	require.NotNil(t, macadminsData.Macadmins)
+	assert.Equal(t, "Off", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
+	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
+	require.Nil(t, macadminsData.Macadmins.Munki)
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 2)
+
+	// Bring Munki back, with same issues.
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "6.4", []string{"error1", "error3"}, []string{}))
+	macadminsData = macadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
+	require.NotNil(t, macadminsData.Macadmins)
+	assert.Equal(t, "Off", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
+	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
+	assert.NotNil(t, macadminsData.Macadmins.Munki)
+	require.NotNil(t, macadminsData.Macadmins.Munki.Version, "6.4")
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 2)
+
+	// Delete Munki from host without MDM -- nothing is returned
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostOnlyMunki.ID, "", nil, []string{}))
+	macadminsData = macadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMunki.ID), nil, http.StatusOK, &macadminsData)
+	require.Nil(t, macadminsData.Macadmins)
+
 	// TODO: ideally we'd pull this out into its own function that specifically tests
 	// the mdm summary endpoint. We can add additional tests for testing the platform
 	// and team_id query params for this endpoint.
