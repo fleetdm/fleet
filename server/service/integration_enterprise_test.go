@@ -137,6 +137,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			MacOSSetupAssistant: optjson.String{Set: true},
 			BootstrapPackage:    optjson.String{Set: true},
 		},
+		// because the WindowsSettings was marshalled to JSON to be saved in the DB,
+		// it did get marshalled, and then when unmarshalled it was set (but
+		// empty).
+		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+		},
 	}, team.Config.MDM)
 
 	// an activity was created for team spec applied
@@ -1830,11 +1836,11 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	t := s.T()
 
-	ac, err := s.ds.AppConfig(context.Background())
-	require.NoError(t, err)
-	ac.OrgInfo.OrgLogoURL = "http://example.com/logo"
-	err = s.ds.SaveAppConfig(context.Background(), ac)
-	require.NoError(t, err)
+	// set the logo via the modify appconfig endpoint, so that the cache is
+	// properly updated.
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"org_info":{"org_logo_url": "http://example.com/logo"}}`), http.StatusOK, &acResp)
+	require.Equal(t, "http://example.com/logo", acResp.OrgInfo.OrgLogoURL)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          51,

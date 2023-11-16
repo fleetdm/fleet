@@ -7,34 +7,31 @@ import (
 )
 
 func TestUp_20230721161508(t *testing.T) {
-	// skipping old migration tests as migrations don't change and we're getting
-	// timeouts in CI
-	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t)
 
 	dataStmts := `
-		INSERT INTO users VALUES 
+		INSERT INTO users VALUES
 			(1,'2023-07-21 20:32:32','2023-07-21 20:32:32',_binary '$2a$12$n6hwsD7OU2bAXX94551DQOBcNNhfsEPS3Y6JEuLDjsLNvry3lgJjy','0fF81xRQIriYzm5fdXouk3V3tRwsZJhV','admin','admin@email.com',0,'','',0,'admin',0),
 			(2,'2023-07-21 20:33:13','2023-07-21 20:35:26',_binary '$2a$12$YxPPOd5TOmYhDlH5CfGIfuxBe4GJ78gbwvtxoBHTTw.symxpVcEZS','JPDLcBcv4j1QwIU+rHoRWBt3HVJC8hnf','User 1','user1@email.com',0,'','',0,NULL,0),
 			(3,'2023-07-21 20:33:31','2023-07-21 20:36:42',_binary '$2a$12$u3kuHl44jMojsols1NayLu0pPBwZvnWH6j6ZuDk6HsN4r0jgg7BRu','MoWlTEHH9zR7blcJ0l7/1c4EMnkh/dxq','User2','user2@email.com',0,'','',0,NULL,0);
 
-		INSERT INTO teams VALUES 
+		INSERT INTO teams VALUES
 			(1,'2023-07-21 20:32:42','Team 1','','{\"mdm\": {\"macos_setup\": {\"bootstrap_package\": null, \"macos_setup_assistant\": null, \"enable_end_user_authentication\": false}, \"macos_updates\": {\"deadline\": null, \"minimum_version\": null}, \"macos_settings\": {\"custom_settings\": null, \"enable_disk_encryption\": false}}, \"features\": {\"enable_host_users\": true, \"enable_software_inventory\": true}, \"integrations\": {\"jira\": null, \"zendesk\": null}, \"agent_options\": {\"config\": {\"options\": {\"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}, \"webhook_settings\": {\"failing_policies_webhook\": {\"policy_ids\": null, \"destination_url\": \"\", \"host_batch_size\": 0, \"enable_failing_policies_webhook\": false}}}'),
 			(2,'2023-07-21 20:32:47','Team 2','','{\"mdm\": {\"macos_setup\": {\"bootstrap_package\": null, \"macos_setup_assistant\": null, \"enable_end_user_authentication\": false}, \"macos_updates\": {\"deadline\": null, \"minimum_version\": null}, \"macos_settings\": {\"custom_settings\": null, \"enable_disk_encryption\": false}}, \"features\": {\"enable_host_users\": true, \"enable_software_inventory\": true}, \"integrations\": {\"jira\": null, \"zendesk\": null}, \"agent_options\": {\"config\": {\"options\": {\"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}, \"webhook_settings\": {\"failing_policies_webhook\": {\"policy_ids\": null, \"destination_url\": \"\", \"host_batch_size\": 0, \"enable_failing_policies_webhook\": false}}}');
 
-		INSERT INTO user_teams (user_id, team_id, role) VALUES 
+		INSERT INTO user_teams (user_id, team_id, role) VALUES
 			(2,1,'admin'),
 			(2,2,'admin'),
 			(3,2,'admin'),
 			(3,1,'observer');
 
-		INSERT INTO packs (id, created_at, updated_at, disabled, name, description, platform, pack_type) VALUES 
+		INSERT INTO packs (id, created_at, updated_at, disabled, name, description, platform, pack_type) VALUES
 			(1,'2023-07-21 20:33:49','2023-07-21 20:33:49',0,'Global','Global pack','','global'),
 			(2,'2023-07-21 20:34:34','2023-07-21 20:34:34',0,'performance-metrics','','',NULL),
 			(3,'2023-07-21 20:36:03','2023-07-21 20:36:03',0,'Team: Team 1','Schedule additional queries for all hosts assigned to this team.','','team-1'),
 			(4,'2023-07-21 20:36:45','2023-07-21 20:36:45',0,'Team: Team 2','Schedule additional queries for all hosts assigned to this team.','','team-2');
- 
-		INSERT INTO queries (id, created_at, updated_at, saved, name, description, query, author_id, observer_can_run, team_id, team_id_char, platform, min_osquery_version, schedule_interval, automations_enabled, logging_type) VALUES 
+
+		INSERT INTO queries (id, created_at, updated_at, saved, name, description, query, author_id, observer_can_run, team_id, team_id_char, platform, min_osquery_version, schedule_interval, automations_enabled, logging_type) VALUES
 			(1,'2023-07-21 20:33:47','2023-07-21 20:33:47',1,'Admin Global Query','Admin desc','SELECT * FROM osquery_info;',1,1,NULL,'','','',0,0,''),
 			(2,'2023-07-21 20:34:34','2023-07-21 20:34:34',1,'per_query_perf','Records the CPU time and memory usage for each individual query. Helpful for identifying queries that may impact performance.','SELECT name, interval, executions, output_size, wall_time, (user_time/executions) AS avg_user_time, (system_time/executions) AS avg_system_time, average_memory FROM osquery_schedule;',1,0,NULL,'','','',0,0,''),
 			(3,'2023-07-21 20:34:34','2023-07-21 20:34:34',1,'runtime_perf','Track the amount of CPU time used by osquery.','SELECT ov.version AS os_version, ov.platform AS os_platform, ov.codename AS os_codename, i.*, p.resident_size, p.user_time, p.system_time, time.minutes AS counter, db.db_size_mb AS database_size FROM osquery_info i, os_version ov, processes p, time, (SELECT (sum(size) / 1024) / 1024.0 AS db_size_mb FROM (SELECT value FROM osquery_flags WHERE name = \'database_path\' LIMIT 1) flags, file WHERE path LIKE flags.value || \'%%\' AND type = \'regular\') db WHERE p.pid = i.pid;',1,0,NULL,'','','',0,0,''),
@@ -45,7 +42,7 @@ func TestUp_20230721161508(t *testing.T) {
 			(8,'2023-07-21 20:37:01','2023-07-21 20:37:01',1,'User 2 Query','Some desc','SELECT * FROM osquery_info;',3,1,NULL,'','','',0,0,''),
 			(9,'2023-07-21 20:37:01','2023-07-21 20:37:01',1,'User 2 Query 2','Some desc','SELECT * FROM osquery_info;',3,1,NULL,'','','',0,0,'');
 
-		INSERT INTO scheduled_queries VALUES 
+		INSERT INTO scheduled_queries VALUES
 			-- Global pack
 			(1,'2023-07-21 20:33:54','2023-07-21 20:33:54',1,1,86400,1,0,'','',NULL,'Admin Global Query','Admin Global Query','',NULL,''),
 			(2,'2023-07-21 20:34:00','2023-07-21 20:34:00',1,1,3600,1,0,'','',NULL,'Admin Global Query','Admin Global Query-1','',NULL,''),
@@ -125,18 +122,18 @@ func TestUp_20230721161508(t *testing.T) {
 	// 'per_query_perf' <- Original (kept because is referenced by an 2017 pack)
 	// 'per_query_perf - 7 - $timestamp' <- For schedule with id 7
 	// 'per_query_perf - 8 - $timestamp' <- For schedule with id 8
-	stmt = `SELECT 
-				name, 
-				description, 
-				query, 
-				author_id, 
-				saved, 
-				observer_can_run, 
+	stmt = `SELECT
+				name,
+				description,
+				query,
+				author_id,
+				saved,
+				observer_can_run,
 				platform,
 				min_osquery_version,
 				schedule_interval,
 				logging_type,
-				automations_enabled 
+				automations_enabled
 			FROM queries WHERE name LIKE ? AND team_id IS NULL
 	`
 
@@ -240,19 +237,19 @@ func TestUp_20230721161508(t *testing.T) {
 	//   - 'per_query_perf - 11 - $timestamp' for schedule#11
 	// For Team-2, we only have one schedule on 'backup_tool_perf', so I expect to see on team#2:
 	// 	 - 'backup_tool_perf - 12 - $timestamp'
-	stmt = `SELECT 
-		name, 
-		description, 
-		query, 
-		author_id, 
-		saved, 
-		observer_can_run, 
-		platform, 
-		min_osquery_version, 
-		schedule_interval, 
-		logging_type, 
-		automations_enabled 
-	FROM queries 
+	stmt = `SELECT
+		name,
+		description,
+		query,
+		author_id,
+		saved,
+		observer_can_run,
+		platform,
+		min_osquery_version,
+		schedule_interval,
+		logging_type,
+		automations_enabled
+	FROM queries
 	WHERE name LIKE ? AND team_id = ? AND name <> 'User 1 Query 2'`
 
 	rows, err = db.Query(stmt, "per_query_perf%", 1)

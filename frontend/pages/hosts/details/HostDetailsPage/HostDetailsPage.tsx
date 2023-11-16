@@ -129,8 +129,6 @@ const HostDetailsPage = ({
     isSandboxMode,
     isOnlyObserver,
     filteredHostsPath,
-    availableTeams,
-    setCurrentTeam,
   } = useContext(AppContext);
   const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -401,6 +399,7 @@ const HostDetailsPage = ({
       "geolocation",
       "batteries",
       "detail_updated_at",
+      "last_restarted_at",
     ])
   );
 
@@ -624,14 +623,16 @@ const HostDetailsPage = ({
     },
   ];
 
-  // we want the scripts tabs on the list for only mac hosts and premium tier atm.
+  // we want the scripts tabs on the list for only mac and windows hosts and premium tier atm.
   // We filter it out for other platforms and non premium.
   // TODO: improve this code. We can pull the tab list component out
   // into its own component later.
-  const filteredSubNavTabs =
-    host?.platform === "darwin" && isPremiumTier
-      ? hostDetailsSubNav
-      : hostDetailsSubNav.filter((navItem) => navItem.title !== "scripts");
+
+  const showScripts =
+    ["darwin", "windows"].includes(host?.platform ?? "") && isPremiumTier;
+  const filteredSubNavTabs = showScripts
+    ? hostDetailsSubNav
+    : hostDetailsSubNav.filter((navItem) => navItem.title !== "scripts");
 
   const getTabIndex = (path: string): number => {
     return filteredSubNavTabs.findIndex((navItem) => {
@@ -739,13 +740,10 @@ const HostDetailsPage = ({
                 hostUsersEnabled={featuresConfig?.enable_host_users}
               />
             </TabPanel>
-            {host?.platform === "darwin" && isPremiumTier && (
+            {showScripts && (
               <TabPanel>
                 <ScriptsCard
-                  hostId={host?.id}
-                  page={page}
-                  router={router}
-                  isHostOnline={host?.status === "online"}
+                  {...{ currentUser, host, page, router }}
                   onShowDetails={onShowScriptDetails}
                 />
               </TabPanel>

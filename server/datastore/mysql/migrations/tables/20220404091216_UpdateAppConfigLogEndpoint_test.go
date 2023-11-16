@@ -9,9 +9,6 @@ import (
 )
 
 func TestUp_20220404091216(t *testing.T) {
-	// skipping old migration tests as migrations don't change and we're getting
-	// timeouts in CI
-	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t) // must be done in top-level test as the migration comes from the test name
 	t.Run("no entry", func(t *testing.T) {
 		_, err := db.Exec(`DELETE FROM app_config_json`)

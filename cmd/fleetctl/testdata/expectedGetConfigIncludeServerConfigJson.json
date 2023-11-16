@@ -62,6 +62,9 @@
         "enable_end_user_authentication": false,
         "macos_setup_assistant": null
       },
+      "windows_settings": {
+        "custom_settings": null
+      },
       "end_user_authentication": {
         "entity_id": "",
         "issuer_uri": "",

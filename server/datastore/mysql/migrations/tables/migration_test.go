@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -52,6 +53,9 @@ func newDBConnForTests(t *testing.T) *sqlx.DB {
 }
 
 func getMigrationVersion(t *testing.T) int64 {
+	// Migration test functions look like this:
+	//   func TestUp_20231109115838(t *testing.T)
+	// so this extracts the timestamp part only.
 	v, err := strconv.Atoi(strings.TrimPrefix(t.Name(), "TestUp_"))
 	require.NoError(t, err)
 	return int64(v)
@@ -62,8 +66,18 @@ func getMigrationVersion(t *testing.T) int64 {
 //
 // It returns the database connection to perform additional queries and migrations.
 func applyUpToPrev(t *testing.T) *sqlx.DB {
-	db := newDBConnForTests(t)
+	// Run migration tests up to 2 months old. Our releases are on a 3-week
+	// cadence so this safely catches every migration in the release with a bit
+	// of buffer in case of delayed releases.
+	const maxMigrationTestAge = 60 * 24 * time.Hour
+
 	v := getMigrationVersion(t)
+	testDateTime, err := time.Parse("20060102150405", strconv.FormatInt(v, 10))
+	if err == nil && time.Since(testDateTime) > maxMigrationTestAge {
+		t.Skip("Skipping migration test for old migration, DB migrations are immutable so once tested for a release they don't need to be tested again.")
+	}
+
+	db := newDBConnForTests(t)
 	for {
 		current, err := MigrationClient.GetDBVersion(db.DB)
 		require.NoError(t, err)

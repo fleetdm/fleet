@@ -8,15 +8,12 @@ import (
 )
 
 func TestUp_20230918132351(t *testing.T) {
-	// skipping old migration tests as migrations don't change and we're getting
-	// timeouts in CI
-	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t)
 
 	insertStmt := `
 		INSERT INTO software_cve (
-			software_id, 
-			source, 
+			software_id,
+			source,
 			cve
 		)
 		VALUES (?, ?, ?)
@@ -38,8 +35,8 @@ func TestUp_20230918132351(t *testing.T) {
 	// Update the resolved_in_version and verify
 	updateVersion := "6.0.2-76060002.202210150739~1666289067~22.04~fe0ce53" // long string to test the capacity of the new column
 	updateStmt := `
-		UPDATE software_cve 
-		SET resolved_in_version = ? 
+		UPDATE software_cve
+		SET resolved_in_version = ?
 		WHERE software_id = ? AND source = ? AND cve = ?
 		`
 
