@@ -22,58 +22,8 @@ type OperationTypeOption = Record<
 
 type ProfileDisplayConfig = Record<ProfileOperationType, OperationTypeOption>;
 
-type DefaultProfileDisplayConfig = Record<
-  ProfileOperationType,
-  Omit<OperationTypeOption, "action_required">
->;
-
-// export const DEFAULT_PROFILE_DISPLAY_CONFIG: DefaultProfileDisplayConfig = {
-//   install: {
-//     verified: {
-//       statusText: "Verified",
-//       iconName: "success",
-//       tooltip: () =>
-//         "The host applied the setting. Fleet verified with osquery.",
-//     },
-//     verifying: {
-//       statusText: "Verifying",
-//       iconName: "success-outline",
-//       tooltip: () =>
-//         "The host acknowledged the MDM command to apply the setting. Fleet is verifying with osquery.",
-//     },
-//     // This is the display value for Enforcing status
-//     pending: {
-//       statusText: "Enforcing (pending)",
-//       iconName: "pending-outline",
-//       tooltip: () =>
-//         "The host will receive the MDM command to apply the the setting when the host comes online.",
-//     },
-//     failed: {
-//       statusText: "Verified",
-//       iconName: "success",
-//       tooltip: null,
-//     },
-//   },
-//   remove: {},
-// };
-
 export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
   install: {
-    pending: {
-      statusText: "Enforcing (pending)",
-      iconName: "pending-outline",
-      tooltip: (innerProps) =>
-        innerProps.isDiskEncryptionProfile
-          ? "The hosts will receive the MDM command to turn on disk encryption " +
-            "when the hosts come online."
-          : "The host will receive the MDM command to install the configuration profile when the " +
-            "host comes online.",
-    },
-    action_required: {
-      statusText: "Action required (pending)",
-      iconName: "pending-outline",
-      tooltip: TooltipInnerContentActionRequired as TooltipInnerContentFunc,
-    },
     verified: {
       statusText: "Verified",
       iconName: "success",
@@ -81,7 +31,7 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
         innerProps.isDiskEncryptionProfile
           ? "The host turned disk encryption on and sent the key to Fleet. " +
             "Fleet verified with osquery."
-          : "The host installed the configuration profile. Fleet verified with osquery.",
+          : "The host applied the setting. Fleet verified with osquery.",
     },
     verifying: {
       statusText: "Verifying",
@@ -91,8 +41,23 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
           ? "The host acknowledged the MDM command to turn on disk encryption. " +
             "Fleet is verifying with osquery and retrieving the disk encryption key. " +
             "This may take up to one hour."
-          : "The host acknowledged the MDM command to install the configuration profile. Fleet is " +
+          : "The host acknowledged the MDM command to apply the setting. Fleet is " +
             "verifying with osquery.",
+    },
+    pending: {
+      statusText: "Enforcing (pending)",
+      iconName: "pending-outline",
+      tooltip: (innerProps) =>
+        innerProps.isDiskEncryptionProfile
+          ? "The hosts will receive the MDM command to turn on disk encryption " +
+            "when the hosts come online."
+          : "The host will receive the MDM command to apply the settung when the " +
+            "host comes online.",
+    },
+    action_required: {
+      statusText: "Action required (pending)",
+      iconName: "pending-outline",
+      tooltip: TooltipInnerContentActionRequired as TooltipInnerContentFunc,
     },
     failed: {
       statusText: "Failed",
@@ -108,7 +73,7 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
         innerProps.isDiskEncryptionProfile
           ? "The host will receive the MDM command to remove the disk encryption profile when the " +
             "host comes online."
-          : "The host will receive the MDM command to remove the configuration profile when the host " +
+          : "The host will receive the MDM command to remove the setting when the host " +
             "comes online.",
     },
     action_required: null, // should not be reached
@@ -138,8 +103,8 @@ export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDispla
     statusText: "Verifying",
     iconName: "success-outline",
     tooltip: () =>
-      "The host acknowledged the MDM command to turn on disk encryption. Fleet is verifying with osquery and retrieving " +
-      "the disk encryption key. This may take up to one hour.",
+      "The host acknowledged the MDM command to turn on disk encryption. Fleet is verifying with " +
+      "osquery and retrieving the disk encryption key. This may take up to one hour.",
   },
   pending: {
     statusText: "Enforcing (pending)",
@@ -153,5 +118,3 @@ export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDispla
     tooltip: null,
   },
 };
-
-// const getDisplayOption = (platform, operationType) => {};
