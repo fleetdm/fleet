@@ -114,7 +114,7 @@ const mdmService = {
   },
 
   deleteProfile: (profileId: number) => {
-    const { MDM_PROFILE_OLD: MDM_PROFILE } = endpoints;
+    const { MDM_PROFILE } = endpoints;
     return sendRequest("DELETE", MDM_PROFILE(profileId));
   },
 
