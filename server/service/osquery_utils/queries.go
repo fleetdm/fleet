@@ -1295,6 +1295,11 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 					return
 				}
 
+				if len(parts[0]) > 2 {
+					// then the versioning is correct, so no need to change
+					return
+				}
+
 				part1, err := strconv.Atoi(parts[0])
 				if err != nil {
 					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
