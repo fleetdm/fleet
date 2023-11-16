@@ -427,8 +427,6 @@ github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7
 github.com/envoyproxy/protoc-gen-validate v0.6.2/go.mod h1:2t7qjJNvHPx8IjnBOzl9E9/baC+qXE/TeeyBRzgJDws=
 github.com/facebookincubator/flog v0.0.0-20190930132826-d2511d0ce33c h1:KqlxcP2nuOcMjudCvK0qME2K/aFBDH+xcvYv7HYQaYc=
 github.com/facebookincubator/flog v0.0.0-20190930132826-d2511d0ce33c/go.mod h1:QGzNH9ujQ2ZUr/CjDGZGWeDAVStrWNjHeEcjJL96Nuk=
-github.com/facebookincubator/nvdtools v0.1.6-0.20231010102659-d14ce526f176 h1:a8y0ludOtb3gZFy8SHcy6xgKEujEd/GeNO1FicC9frg=
-github.com/facebookincubator/nvdtools v0.1.6-0.20231010102659-d14ce526f176/go.mod h1:Kh55SAWnjckS96TBSrXI99KrEKH4iB0OJby3N8GRJO4=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fatih/color v1.9.0/go.mod h1:eQcE1qtQxscV5RaZvpXrrb8Drkc3/DdQ+uUYCNjL+zU=
 github.com/fatih/color v1.13.0/go.mod h1:kLAiJbzzSOZDVNGyDpeOxJ47H46qBXwg5ILebYFFOfk=
@@ -446,6 +444,8 @@ github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24 h1:XhczaxKV3J4Nj
 github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24/go.mod h1:QzQrCUTmSr9HotzKZAcfmy+czbEGK8Mq26hA+0DN4ag=
 github.com/fleetdm/nanomdm v0.3.1-0.20230710170238-fd0813187f24 h1:oP0kOAFDzu646/TXDCcvOGdDgSHJgk+X0Pfr60kp7Jg=
 github.com/fleetdm/nanomdm v0.3.1-0.20230710170238-fd0813187f24/go.mod h1:1O2RXbH9dERfnVTkcmNf/dnLs1W7txJWPpkX8xFCjYU=
+github.com/fleetdm/nvdtools v0.0.0-20231116173228-e331a28f16d8 h1:kzRL3+RNeGrm4j6YKw744h9bMnSFZvG8VytrTnQMtO0=
+github.com/fleetdm/nvdtools v0.0.0-20231116173228-e331a28f16d8/go.mod h1:Kh55SAWnjckS96TBSrXI99KrEKH4iB0OJby3N8GRJO4=
 github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03 h1:oW24iL1GfGWW1VhyWrVdw7VdnyvFePyzR88zvfnTqCo=
 github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03/go.mod h1:PajjVSF3LaELUh847MlOtanfqrF8R2DOO4oS3NSPemI=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=
