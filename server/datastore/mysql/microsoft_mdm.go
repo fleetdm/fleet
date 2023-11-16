@@ -727,8 +727,10 @@ func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *u
 			res.Verifying = c.Count
 		case "verified":
 			res.Verified = c.Count
+		case "":
+			level.Debug(ds.logger).Log("msg", fmt.Sprintf("counted %d windows hosts on team %v with mdm turned on but no profiles or bitlocker status", c.Count, teamID))
 		default:
-			level.Debug(ds.logger).Log("msg", "unexpected mdm windows status count", "status", c.Status, "count", c.Count)
+			return nil, ctxerr.New(ctx, fmt.Sprintf("unexpected mdm windows status count: status=%s, count=%d", c.Status, c.Count))
 		}
 	}
 
@@ -775,10 +777,11 @@ SELECT
 FROM
     hosts h
     JOIN host_mdm hmdm ON h.id = hmdm.host_id
+    JOIN mobile_device_management_solutions mdms ON hmdm.mdm_id = mdms.id
 WHERE
-	hmdm.mdm_id = (SELECT id FROM mobile_device_management_solutions WHERE name = '%s') AND 
-	hmdm.is_server = 0 AND
-	hmdm.enrolled = 1 AND 
+    mdms.name = '%s' AND
+    hmdm.is_server = 0 AND
+    hmdm.enrolled = 1 AND 
     h.platform = 'windows' AND
     %s
 GROUP BY
@@ -883,9 +886,10 @@ SELECT
 FROM
     hosts h
     JOIN host_mdm hmdm ON h.id = hmdm.host_id
+    JOIN mobile_device_management_solutions mdms ON hmdm.mdm_id = mdms.id
     %s
 WHERE
-    hmdm.mdm_id = (SELECT id FROM mobile_device_management_solutions WHERE name = '%s') AND 
+    mdms.name = '%s' AND
     hmdm.is_server = 0 AND
     hmdm.enrolled = 1 AND
     h.platform = 'windows' AND

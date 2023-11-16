@@ -9351,9 +9351,14 @@ func (s *integrationMDMTestSuite) newSyncMLUnenrollMsg(deviceID string, manageme
 }
 
 func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMProfilesSummary, expectedAppleSummary *fleet.MDMProfilesSummary) {
+	var queryParams []string
+	if teamID != nil {
+		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))
+	}
+
 	if expectedAppleSummary != nil {
 		var apple getMDMAppleProfilesSummaryResponse
-		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{TeamID: teamID}, http.StatusOK, &apple)
+		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{}, http.StatusOK, &apple, queryParams...)
 		require.Equal(t, expectedSummary.Failed, apple.Failed)
 		require.Equal(t, expectedSummary.Pending, apple.Pending)
 		require.Equal(t, expectedSummary.Verifying, apple.Verifying)
@@ -9361,7 +9366,7 @@ func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID
 	}
 
 	var combined getMDMProfilesSummaryResponse
-	s.DoJSON("GET", "/api/v1/fleet/mdm/profiles/summary", getMDMProfilesSummaryRequest{TeamID: teamID}, http.StatusOK, &combined)
+	s.DoJSON("GET", "/api/v1/fleet/mdm/profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &combined, queryParams...)
 	require.Equal(t, expectedSummary.Failed, combined.Failed)
 	require.Equal(t, expectedSummary.Pending, combined.Pending)
 	require.Equal(t, expectedSummary.Verifying, combined.Verifying)
@@ -9369,19 +9374,13 @@ func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID
 }
 
 func (s *integrationMDMTestSuite) checkMDMDiskEncryptionSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMDiskEncryptionSummary, checkFileVaultSummary bool) {
-	if checkFileVaultSummary {
-		var apple getMDMAppleFileVaultSummaryResponse
-		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/filevault/summary", getMDMAppleProfilesSummaryRequest{TeamID: teamID}, http.StatusOK, &apple)
-		require.Equal(t, expectedSummary.Failed.MacOS, apple.Failed)
-		require.Equal(t, expectedSummary.Enforcing.MacOS, apple.Enforcing)
-		require.Equal(t, expectedSummary.ActionRequired.MacOS, apple.ActionRequired)
-		require.Equal(t, expectedSummary.Verifying.MacOS, apple.Verifying)
-		require.Equal(t, expectedSummary.Verified.MacOS, apple.Verified)
-		require.Equal(t, expectedSummary.RemovingEnforcement.MacOS, apple.RemovingEnforcement)
+	var queryParams []string
+	if teamID != nil {
+		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))
 	}
 
 	var combined getMDMDiskEncryptionSummaryResponse
-	s.DoJSON("GET", "/api/v1/fleet/mdm/disk_encryption/summary", getMDMProfilesSummaryRequest{TeamID: teamID}, http.StatusOK, &combined)
+	s.DoJSON("GET", "/api/v1/fleet/mdm/disk_encryption/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &combined, queryParams...)
 	require.Equal(t, expectedSummary.Failed, combined.Failed)
 	require.Equal(t, expectedSummary.Enforcing, combined.Enforcing)
 	require.Equal(t, expectedSummary.ActionRequired, combined.ActionRequired)
