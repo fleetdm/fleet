@@ -94,8 +94,13 @@ const LabelFilterSelect = ({
   ]);
 
   const handleChange = (option: ILabel | IEmptyOption | null) => {
-    if (option === null) return;
+    console.log("handleChange");
+    if (option === null) {
+      setMenuIsOpen(false);
+      return;
+    }
     if ("type" in option) {
+      // typeof option === "ILabel"
       setMenuIsOpen(false);
       setLabelQuery("");
       selectRef.current?.blur();
@@ -173,6 +178,7 @@ const LabelFilterSelect = ({
         ValueContainer,
       }}
       onChange={handleChange}
+      closeMenuOnSelect
       {...{
         menuIsOpen,
         options,
