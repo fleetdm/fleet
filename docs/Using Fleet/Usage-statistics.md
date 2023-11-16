@@ -24,7 +24,7 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "softwareInventoryEnabled": true,
   "vulnDetectionEnabled": true,
   "systemUsersEnabled": true,
-  "hostStatusWebhookEnabled": true,
+  "hostsStatusWebHookEnabled": true,
   "numWeeklyActiveUsers": 999,
   "numWeeklyPolicyViolationDaysActual": 999,
   "numWeeklyPolicyViolationDaysPossible": 999,
