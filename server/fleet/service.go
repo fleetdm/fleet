@@ -606,6 +606,11 @@ type Service interface {
 	// specified team.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
 
+	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
+	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
+
 	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
 	// each host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).

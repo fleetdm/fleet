@@ -224,9 +224,9 @@ func (ts *withServer) DoRawWithHeaders(
 		err := json.NewDecoder(resp.Body).Decode(&je)
 		if err != nil {
 			t.Logf("Error trying to decode response body as Fleet jsonError: %s", err)
-			require.Equal(t, expectedStatusCode, resp.StatusCode, resp)
+			require.Equal(t, expectedStatusCode, resp.StatusCode, fmt.Sprintf("response: %+v", resp))
 		}
-		require.Equal(t, expectedStatusCode, resp.StatusCode, je)
+		require.Equal(t, expectedStatusCode, resp.StatusCode, fmt.Sprintf("Fleet jsonError: %+v", je))
 	}
 
 	return resp

@@ -9379,6 +9379,17 @@ func (s *integrationMDMTestSuite) checkMDMDiskEncryptionSummaries(t *testing.T, 
 		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))
 	}
 
+	if checkFileVaultSummary {
+		var fileVault getMDMAppleFileVaultSummaryResponse
+		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/filevault/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &fileVault, queryParams...)
+		require.Equal(t, expectedSummary.Failed.MacOS, fileVault.Failed)
+		require.Equal(t, expectedSummary.Enforcing.MacOS, fileVault.Enforcing)
+		require.Equal(t, expectedSummary.ActionRequired.MacOS, fileVault.ActionRequired)
+		require.Equal(t, expectedSummary.Verifying.MacOS, fileVault.Verifying)
+		require.Equal(t, expectedSummary.Verified.MacOS, fileVault.Verified)
+		require.Equal(t, expectedSummary.RemovingEnforcement.MacOS, fileVault.RemovingEnforcement)
+	}
+
 	var combined getMDMDiskEncryptionSummaryResponse
 	s.DoJSON("GET", "/api/v1/fleet/mdm/disk_encryption/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &combined, queryParams...)
 	require.Equal(t, expectedSummary.Failed, combined.Failed)

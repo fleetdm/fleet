@@ -578,6 +578,43 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 	return nil
 }
 
+type getMDMAppleFileVaultSummaryRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getMDMAppleFileVaultSummaryResponse struct {
+	*fleet.MDMAppleFileVaultSummary
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMAppleFileVaultSummaryResponse) error() error { return r.Err }
+
+func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMAppleFileVaultSummaryRequest)
+
+	fvs, err := svc.GetMDMAppleFileVaultSummary(ctx, req.TeamID)
+	if err != nil {
+		return &getMDMAppleFileVaultSummaryResponse{Err: err}, nil
+	}
+
+	return &getMDMAppleFileVaultSummaryResponse{
+		MDMAppleFileVaultSummary: fvs,
+	}, nil
+}
+
+func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
+	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	fvs, err := svc.ds.GetMDMAppleFileVaultSummary(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return fvs, nil
+}
+
 type getMDMAppleProfilesSummaryRequest struct {
 	TeamID *uint `query:"team_id,optional"`
 }
