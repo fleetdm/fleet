@@ -1,0 +1,2 @@
+- Fixed an edge case sorting bug by consolidating the logic for generating the `last_restarted`
+  value for hosts into the backend.

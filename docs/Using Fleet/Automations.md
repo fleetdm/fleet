@@ -70,8 +70,6 @@ Follow the steps below to configure Jira or Zendesk as a ticket destination:
 6. Select **Enable vulnerability automations** and choose **Ticket**.
 7. Under **Ticket destination**, select your ticket destination and select **Save**.
 
-The Jira and Zendesk ticket automations are currently in beta.
-
 ## Policy automations
 
 Policy automations are triggered if a policy is newly failing on at least one host. Policy automations are triggered separately for each failing policy.
@@ -129,8 +127,6 @@ Follow the steps below to configure Jira or Zendesk as a ticket destination:
 5. In the top bar, select **Policies > Manage automations**.
 6. Select **Enable policy automations**, check the policies you'd like to listen to, and choose **Ticket**.
 7. Under **Ticket destination**, select your ticket destination and select **Save**.
-
-The Jira and Zendesk ticket destinations are currently in beta.
 
 ## Host status automations
 

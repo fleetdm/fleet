@@ -20,6 +20,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   created_at: "2022-01-01T12:00:00Z",
   updated_at: "2022-01-02T12:00:00Z",
   detail_updated_at: "2022-01-02T12:00:00Z",
+  last_restarted_at: "2022-01-02T12:00:00Z",
   label_updated_at: "2022-01-02T12:00:00Z",
   policy_updated_at: "2022-01-02T12:00:00Z",
   last_enrolled_at: "2022-01-02T12:00:00Z",

@@ -10,7 +10,7 @@ import {
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
 import { generateWinDiskEncryptionProfile } from "../../helpers";
 
@@ -86,7 +86,7 @@ const tableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps): JSX.Element => {
       const profile = cellProps.row.original;
       return (
-        <TruncatedTextCell
+        <TooltipTruncatedTextCell
           tooltipBreakOnWord
           value={
             (profile.status === "failed" && profile.detail) ||
