@@ -8163,6 +8163,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		SeenTime:        time.Now(),
 		NodeKey:         ptr.String("2"),
 		UUID:            "2",
+		ComputerName:    "Foo Local2",
 		Hostname:        "foo.local2",
 		OsqueryHostID:   ptr.String("2"),
 		PrimaryIP:       "192.168.1.2",
@@ -8339,7 +8340,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		return gqrr.Results[i].Columns["usb_port"] < gqrr.Results[j].Columns["usb_port"]
 	})
 	require.Equal(t, host2Team1.ID, gqrr.Results[0].HostID)
-	require.Equal(t, host2Team1.Hostname, gqrr.Results[0].Hostname)
+	require.Equal(t, host2Team1.DisplayName(), gqrr.Results[0].Hostname)
 	require.NotZero(t, gqrr.Results[0].LastFetched)
 	require.Equal(t, map[string]string{
 		"class":       "239",
@@ -8356,7 +8357,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"version":     "0.19",
 	}, gqrr.Results[0].Columns)
 	require.Equal(t, host2Team1.ID, gqrr.Results[1].HostID)
-	require.Equal(t, host2Team1.Hostname, gqrr.Results[1].Hostname)
+	require.Equal(t, host2Team1.DisplayName(), gqrr.Results[1].Hostname)
 	require.NotZero(t, gqrr.Results[1].LastFetched)
 	require.Equal(t, map[string]string{
 		"class":       "0",
@@ -8383,7 +8384,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		return gqrr.Results[i].Columns["version"] > gqrr.Results[j].Columns["version"]
 	})
 	require.Equal(t, host1Global.ID, gqrr.Results[0].HostID)
-	require.Equal(t, host1Global.Hostname, gqrr.Results[0].Hostname)
+	require.Equal(t, host1Global.DisplayName(), gqrr.Results[0].Hostname)
 	require.NotZero(t, gqrr.Results[0].LastFetched)
 	require.Equal(t, map[string]string{
 		"build_distro":   "centos7",
@@ -8400,7 +8401,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"watcher":        "3570",
 	}, gqrr.Results[0].Columns)
 	require.Equal(t, host2Team1.ID, gqrr.Results[1].HostID)
-	require.Equal(t, host2Team1.Hostname, gqrr.Results[1].Hostname)
+	require.Equal(t, host2Team1.DisplayName(), gqrr.Results[1].Hostname)
 	require.NotZero(t, gqrr.Results[1].LastFetched)
 	require.Equal(t, map[string]string{
 		"build_distro":   "10.14",
