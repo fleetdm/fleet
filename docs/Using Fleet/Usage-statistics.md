@@ -1,9 +1,5 @@
 # Usage statistics
 
-```
-ℹ️  In Fleet 4.0, Usage statistics were introduced.
-```
-
 Fleet Device Management Inc. periodically collects information about your instance.
 
 ## What is included in usage statistics in Fleet?
