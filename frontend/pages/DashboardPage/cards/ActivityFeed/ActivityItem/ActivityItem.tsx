@@ -173,7 +173,9 @@ const TAGGED_TEMPLATES = {
     );
   },
   userCreated: (activity: IActivity) => {
-    return (
+    return activity.actor_id === activity.details?.user_id ? (
+      <>activated their account.</>
+    ) : (
       <>
         created a user <b> {activity.details?.user_email}</b>.
       </>

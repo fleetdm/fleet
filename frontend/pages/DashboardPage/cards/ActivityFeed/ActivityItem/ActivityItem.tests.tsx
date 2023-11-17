@@ -232,6 +232,10 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  // // // // // // // // // // // //
+  // created_user tests
+  // // // // // //// // // // // //
+
   it("renders a created_user type activity globally", () => {
     const activity = createMockActivity({
       type: ActivityType.UserCreated,
@@ -244,6 +248,24 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
   });
+
+  it("correctly renders a created_user type activity for a premium SSO user created by JIT provisioning", () => {
+    const activity = createMockActivity({
+      actor_full_name: "Jit Sso",
+      actor_id: 3,
+      type: ActivityType.UserCreated,
+      details: {
+        user_id: 3,
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    //  If actor_id is the same as user_id:
+    // "<name> activated their account."
+    expect(screen.getByText("Jit Sso")).toBeInTheDocument();
+    expect(screen.getByText(/activated their account\./)).toBeInTheDocument();
+  });
+  // // // // // //// // // // // //
 
   it("renders a deleted_user type activity globally", () => {
     const activity = createMockActivity({
