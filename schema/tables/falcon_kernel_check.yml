@@ -1,0 +1,19 @@
+name: falcon_kernel_check
+description: Get information about Crowdstrike Falcon agent installed on the host.
+evented: false
+notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
+platforms:
+  - linux
+columns:
+  - name: kernel
+    description: Version of the host's kernel.
+    type: text
+    required: false
+  - name: supported
+    description: Whether or not the host's kernel supports the Crowdstrike Falcon sensor version.
+    type: text
+    required: false
+  - name: sensor_version
+    description: Version of the Crowdstrike Falcon's sensor.
+    type: text
+    required: false
