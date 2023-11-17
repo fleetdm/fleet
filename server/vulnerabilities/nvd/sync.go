@@ -29,22 +29,29 @@ type SyncOptions struct {
 	VulnPath           string
 	CPEDBURL           string
 	CPETranslationsURL string
+	Debug              bool
 }
 
 // Sync downloads all the vulnerability data sources.
 func Sync(opts SyncOptions, logger log.Logger) error {
+	level.Debug(logger).Log("msg", "syncing CPE sqlite")
+	start := time.Now()
 	if err := DownloadCPEDBFromGithub(opts.VulnPath, opts.CPEDBURL); err != nil {
 		return fmt.Errorf("sync CPE database: %w", err)
 	}
+	level.Debug(logger).Log("msg", "CPE sqlite synced", "duration", time.Since(start))
 
 	level.Debug(logger).Log("msg", "downloading CPE translations", "url", opts.CPETranslationsURL)
 	if err := DownloadCPETranslationsFromGithub(opts.VulnPath, opts.CPETranslationsURL); err != nil {
 		return fmt.Errorf("sync CPE translations: %w", err)
 	}
 
-	if err := DownloadNVDCVEFeed(opts.VulnPath, logger); err != nil {
+	level.Debug(logger).Log("msg", "syncing CVEs")
+	start = time.Now()
+	if err := DownloadNVDCVEFeed(opts.VulnPath, opts.Debug, logger); err != nil {
 		return fmt.Errorf("sync NVD CVE feed: %w", err)
 	}
+	level.Debug(logger).Log("msg", "CVEs synced", "duration", time.Since(start))
 
 	if err := DownloadEPSSFeed(opts.VulnPath); err != nil {
 		return fmt.Errorf("sync EPSS CVE feed: %w", err)

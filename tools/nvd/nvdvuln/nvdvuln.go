@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -35,6 +36,19 @@ func main() {
 	softwareFromAPIToken := flag.String("software_from_api_token", "", "API token to authenticate to get the software")
 
 	flag.Parse()
+
+	if *debug {
+		go func() {
+			for {
+				select {
+				case <-time.After(5 * time.Second):
+					var m runtime.MemStats
+					runtime.ReadMemStats(&m)
+					fmt.Printf("Memory usage: Alloc = %v MiB, TotalAlloc = %v MiB, Sys = %v MiB\n", m.Alloc/1024/1024, m.TotalAlloc/1024/1024, m.Sys/1024/1024)
+				}
+			}
+		}()
+	}
 
 	singleSoftwareSet := *softwareName != ""
 	softwareFromURLSet := *softwareFromURL != ""
@@ -80,7 +94,7 @@ func main() {
 
 	if *sync {
 		fmt.Printf("Syncing into %s...\n", *dbDir)
-		if err := vulnDBSync(*dbDir, logger); err != nil {
+		if err := vulnDBSync(*dbDir, *debug, logger); err != nil {
 			panic(err)
 		}
 		if !singleSoftwareSet && !softwareFromURLSet {
@@ -253,9 +267,10 @@ func (s *softwareIterator) Close() error {
 	return nil
 }
 
-func vulnDBSync(vulnDBDir string, logger log.Logger) error {
+func vulnDBSync(vulnDBDir string, debug bool, logger log.Logger) error {
 	opts := nvd.SyncOptions{
 		VulnPath: vulnDBDir,
+		Debug:    debug,
 	}
 	err := nvd.Sync(opts, logger)
 	if err != nil {

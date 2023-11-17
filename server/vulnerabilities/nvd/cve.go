@@ -31,26 +31,19 @@ var semverPattern = regexp.MustCompile(`^v?(\d+\.\d+\.\d+)`)
 var nonNumericPartRegex = regexp.MustCompile(`(\d+)(\D.*)`)
 
 // DownloadNVDCVEFeed downloads CVEs information using the NVD API 2.0 to the provided path.
-func DownloadNVDCVEFeed(vulnPath string, logger log.Logger) error {
-	// With the current NVD API 2.0 that returns 2000 CVEs per request, and using the recommended
-	// 6 second delay between requests, the following timeout should support
-	// the initial full download of up to ~500000 CVEs.
-	syncTimeout := 40 * time.Minute
-
-	ctx, cancelFunc := context.WithTimeout(context.Background(), syncTimeout)
-	defer cancelFunc()
-
-	cveSyncer, err := nvdsync.NewCVE(vulnPath, nvdsync.WithLogger(logger))
+func DownloadNVDCVEFeed(vulnPath string, debug bool, logger log.Logger) error {
+	cveSyncer, err := nvdsync.NewCVE(
+		vulnPath,
+		nvdsync.WithLogger(logger),
+		nvdsync.WithDebug(debug),
+	)
 	if err != nil {
 		return err
 	}
 
-	level.Debug(logger).Log("msg", "syncing CVEs")
-	start := time.Now()
-	if err := cveSyncer.Do(ctx); err != nil {
+	if err := cveSyncer.Do(context.Background()); err != nil {
 		return fmt.Errorf("download nvd cve feed: %w", err)
 	}
-	level.Debug(logger).Log("msg", "CVEs synced", "duration", time.Since(start))
 
 	return nil
 }

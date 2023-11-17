@@ -1,13 +1,11 @@
 package nvdsync
 
 import (
-	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"net/http"
 	"os"
@@ -109,16 +107,9 @@ func (s *CVE) initSync(ctx context.Context) error {
 	}
 
 	// Perform the initial download of all CVE information.
-	cvesInYears, lastModStartDate, err := s.sync(ctx, nil)
+	lastModStartDate, err := s.sync(ctx, nil)
 	if err != nil {
 		return err
-	}
-
-	// Store all CVEs using the legacy feed format grouped by year.
-	for _, cveInYear := range cvesInYears {
-		if err := storeAPI20CVEsInLegacyFormat(s.dbDir, cveInYear.year, cveInYear.cves, s.logger); err != nil {
-			return err
-		}
 	}
 
 	// Write the lastModStartDate to be used in the next sync.
@@ -158,47 +149,9 @@ func (s *CVE) update(ctx context.Context) error {
 	lastModStartDate := string(lastModStartDate_)
 
 	// Get the new CVE updates since the previous synchronization.
-	newCVEsInYears, lastModStartDate, err := s.sync(ctx, &lastModStartDate)
+	lastModStartDate, err = s.sync(ctx, &lastModStartDate)
 	if err != nil {
 		return err
-	}
-
-	for _, yearCVEs := range newCVEsInYears {
-		// Read the CVE file for the year.
-		storedCVEFeed, err := readCVEsLegacyFormat(s.dbDir, yearCVEs.year)
-		if err != nil {
-			return err
-		}
-
-		// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
-		newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
-		for _, cve := range yearCVEs.cves {
-			legacyCVE := convertAPI20CVEToLegacy(cve, s.logger)
-			newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
-		}
-
-		// Update existing CVEs with the latest updates (e.g. NVD updated a CVSS metric on an existing CVE).
-		//
-		// This loop iterates the existing slice and, if there's an update for the item, it will
-		// update the item in place. The next for loop takes care of adding the newly reported CVEs.
-		for i, storedCVE := range storedCVEFeed.CVEItems {
-			if newLegacyCVE, ok := newLegacyCVEs[storedCVE.CVE.CVEDataMeta.ID]; ok {
-				storedCVEFeed.CVEItems[i] = newLegacyCVE
-				delete(newLegacyCVEs, storedCVE.CVE.CVEDataMeta.ID)
-			}
-		}
-
-		// Add any new CVEs (e.g. a new vulnerability has been found since last time so a new CVE number was reported).
-		//
-		// Any leftover items from the previous loop in newLegacyCVEs are new CVEs.
-		for _, cve := range newLegacyCVEs {
-			storedCVEFeed.CVEItems = append(storedCVEFeed.CVEItems, cve)
-		}
-
-		// Store the file for the year.
-		if err := storeCVEsInLegacyFormat(s.dbDir, yearCVEs.year, storedCVEFeed); err != nil {
-			return err
-		}
 	}
 
 	// Update the lastModStartDate for the next synchronization.
@@ -206,6 +159,46 @@ func (s *CVE) update(ctx context.Context) error {
 		return err
 	}
 
+	return nil
+}
+
+func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
+	// Read the CVE file for the year.
+	storedCVEFeed, err := readCVEsLegacyFormat(s.dbDir, year)
+	if err != nil {
+		return err
+	}
+
+	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
+	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
+	for _, cve := range cves {
+		legacyCVE := convertAPI20CVEToLegacy(cve, s.logger)
+		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
+	}
+
+	// Update existing CVEs with the latest updates (e.g. NVD updated a CVSS metric on an existing CVE).
+	//
+	// This loop iterates the existing slice and, if there's an update for the item, it will
+	// update the item in place. The next for loop takes care of adding the newly reported CVEs.
+	for i, storedCVE := range storedCVEFeed.CVEItems {
+		if newLegacyCVE, ok := newLegacyCVEs[storedCVE.CVE.CVEDataMeta.ID]; ok {
+			storedCVEFeed.CVEItems[i] = newLegacyCVE
+			delete(newLegacyCVEs, storedCVE.CVE.CVEDataMeta.ID)
+		}
+	}
+
+	// Add any new CVEs (e.g. a new vulnerability has been found since last time so a new CVE number was reported).
+	//
+	// Any leftover items from the previous loop in newLegacyCVEs are new CVEs.
+	for _, cve := range newLegacyCVEs {
+		storedCVEFeed.CVEItems = append(storedCVEFeed.CVEItems, cve)
+	}
+	storedCVEFeed.CVEDataNumberOfCVEs = strconv.FormatInt(int64(len(storedCVEFeed.CVEItems)), 10)
+
+	// Store the file for the year.
+	if err := storeCVEsInLegacyFormat(s.dbDir, year, storedCVEFeed); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -238,7 +231,7 @@ type httpClient struct {
 // Do implements common.HTTPClient.
 func (c *httpClient) Do(request *http.Request) (*http.Response, error) {
 	if c.debug {
-		fmt.Fprintf(os.Stderr, "%+v\n", request)
+		fmt.Fprintf(os.Stderr, "request: %+v\n", request)
 	}
 
 	response, err := c.Client.Do(request.WithContext(c.ctx))
@@ -247,10 +240,7 @@ func (c *httpClient) Do(request *http.Request) (*http.Response, error) {
 	}
 
 	if c.debug {
-		bodyBytes, _ := io.ReadAll(response.Body)
-		response.Body.Close()
-		response.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-		fmt.Fprintf(os.Stderr, "%+v %s\n%s\n", response, err, bodyBytes)
+		fmt.Fprintf(os.Stderr, "response: %+v\n", response)
 	}
 
 	return response, err
@@ -266,20 +256,22 @@ func (s *CVE) getHTTPClient(ctx context.Context, debug bool) common.HTTPClient {
 	}
 }
 
-// sync performs requests to the NVD https://services.nvd.nist.gov/rest/json/cves/2.0 service to get CVE information.
-// It returns the fetched CVEs and the lastModStartDate to use on a subsequent sync call.
+// sync performs requests to the NVD https://services.nvd.nist.gov/rest/json/cves/2.0 service to get CVE information
+// and updates the files in the local directory.
+// It returns the lastModStartDate to use on a subsequent sync call.
 //
 // If lastModStartDate is nil, it performs the initial (full) synchronization of ALL CVEs.
 // If lastModStartDate is set, then it fetches updates since the last sync call.
 //
 // Reference: https://nvd.nist.gov/developers/api-workflows.
-func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (cves []cvesInYear, newLastModStartDate string, err error) {
+func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModStartDate string, err error) {
 	var (
-		totalResults   = 1
-		cvesByYear     = make(map[int][]nvdapi.CVEItem)
-		retryAttempts  = 0
-		lastModEndDate *string
-		now            = time.Now().UTC().Format("2006-01-02T15:04:05.000")
+		totalResults            = 1
+		cvesByYear              = make(map[int][]nvdapi.CVEItem)
+		retryAttempts           = 0
+		lastModEndDate          *string
+		now                     = time.Now().UTC().Format("2006-01-02T15:04:05.000")
+		vulnerabilitiesReceived = 0
 	)
 	if lastModStartDate != nil {
 		lastModEndDate = ptr.String(now)
@@ -292,13 +284,13 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (cves []cvesIn
 		})
 		if err != nil {
 			if retryAttempts > maxRetryAttempts {
-				return nil, "", err
+				return "", err
 			}
 			s.logger.Log("msg", "NVD request returned error", "err", err, "retry-in", waitTimeForRetry)
 			retryAttempts++
 			select {
 			case <-ctx.Done():
-				return nil, "", ctx.Err()
+				return "", ctx.Err()
 			case <-time.After(waitTimeForRetry):
 				continue
 			}
@@ -311,22 +303,55 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (cves []cvesIn
 		for _, vuln := range cveResponse.Vulnerabilities {
 			year, err := strconv.Atoi((*vuln.CVE.ID)[4:8])
 			if err != nil {
-				return nil, "", err
+				return "", err
 			}
+			vulnerabilitiesReceived++
 			cvesByYear[year] = append(cvesByYear[year], vuln)
+		}
+
+		// Dump vulnerabilities to the year files to reduce memory footprint.
+		// Keeping all vulnerabilities in memory consumed around 11 GB of RAM.
+		var updateDuration time.Duration
+		if vulnerabilitiesReceived > 10_000 {
+			var (
+				yearWithMostVulns int
+				maxVulnsInYear    int
+			)
+			for year, cvesInYear := range cvesByYear {
+				if len(cvesInYear) > maxVulnsInYear {
+					yearWithMostVulns = year
+					maxVulnsInYear = len(cvesInYear)
+				}
+			}
+			start := time.Now()
+			if err := s.updateYearFile(yearWithMostVulns, cvesByYear[yearWithMostVulns]); err != nil {
+				return "", err
+			}
+			updateDuration = time.Since(start)
+			level.Debug(s.logger).Log("msg", "updated file", "year", yearWithMostVulns, "duration", updateDuration, "vulns", maxVulnsInYear)
+
+			vulnerabilitiesReceived -= maxVulnsInYear
+			delete(cvesByYear, yearWithMostVulns)
 		}
 
 		if startIndex < totalResults {
 			select {
 			case <-ctx.Done():
-				return nil, "", ctx.Err()
-			case <-time.After(timeBetweenRequests):
+				return "", ctx.Err()
+			case <-time.After(timeBetweenRequests - updateDuration):
 			}
 		}
 	}
-	cves = cvesByYearSlice(cvesByYear)
 
-	return cves, newLastModStartDate, nil
+	for year, cvesInYear := range cvesByYear {
+		start := time.Now()
+		if err := s.updateYearFile(year, cvesInYear); err != nil {
+			return "", err
+		}
+		level.Debug(s.logger).Log("msg", "updated file", "year", year, "duration", time.Since(start), "vulns", len(cvesInYear))
+	}
+
+	return newLastModStartDate, nil
 }
 
 // cvesByYearSlice returns a slice of CVEs per year sorted by year.
@@ -356,46 +381,29 @@ func fileExists(path string) (bool, error) {
 	}
 }
 
-// storeAPI20CVEsInLegacyFormat stores the provided CVEs in API 2.0 format in the legacy feed format (gzipped JSON by year).
-func storeAPI20CVEsInLegacyFormat(dbDir string, year int, cves []nvdapi.CVEItem, logger log.Logger) error {
-	sort.Slice(cves, func(i, j int) bool {
-		return *cves[i].CVE.ID < *cves[j].CVE.ID
-	})
-	cveFeed := schema.NVDCVEFeedJSON10{
-		CVEDataFormat:       "MITRE",
-		CVEDataNumberOfCVEs: strconv.FormatInt(int64(len(cves)), 10),
-		CVEDataTimestamp:    time.Now().Format("2006-01-02T15:04:05Z"),
-		CVEDataType:         "CVE",
-		CVEDataVersion:      "4.0",
-		CVEItems:            make([]*schema.NVDCVEFeedJSON10DefCVEItem, 0, len(cves)),
-	}
-	for _, cve := range cves {
-		cveFeed.CVEItems = append(cveFeed.CVEItems, convertAPI20CVEToLegacy(cve, logger))
-	}
-
-	if err := storeCVEsInLegacyFormat(dbDir, year, &cveFeed); err != nil {
-		return err
-	}
-	return nil
-}
-
 // storeCVEsInLegacyFormat stores the CVEs in legacy feed format (gzipped JSON).
 func storeCVEsInLegacyFormat(dbDir string, year int, cveFeed *schema.NVDCVEFeedJSON10) error {
+	sort.Slice(cveFeed.CVEItems, func(i, j int) bool {
+		return cveFeed.CVEItems[i].CVE.CVEDataMeta.ID < cveFeed.CVEItems[j].CVE.CVEDataMeta.ID
+	})
+
 	path := filepath.Join(dbDir, fmt.Sprintf("nvdcve-1.1-%d.json.gz", year))
 	file, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	w := gzip.NewWriter(file)
-	defer w.Close()
 
-	jsonEncoder := json.NewEncoder(w)
+	gzipWriter := gzip.NewWriter(file)
+	defer gzipWriter.Close()
+
+	jsonEncoder := json.NewEncoder(gzipWriter)
 	jsonEncoder.SetIndent("", "  ")
 	if err := jsonEncoder.Encode(cveFeed); err != nil {
 		return err
 	}
-	if err := w.Close(); err != nil {
+
+	if err := gzipWriter.Close(); err != nil {
 		return err
 	}
 	if err := file.Close(); err != nil {
@@ -410,22 +418,30 @@ func readCVEsLegacyFormat(dbDir string, year int) (*schema.NVDCVEFeedJSON10, err
 
 	file, err := os.Open(path)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return &schema.NVDCVEFeedJSON10{
+				CVEDataFormat:    "MITRE",
+				CVEDataTimestamp: time.Now().Format("2006-01-02T15:04:05Z"),
+				CVEDataType:      "CVE",
+				CVEDataVersion:   "4.0",
+			}, nil
+		}
 		return nil, err
 	}
 	defer file.Close()
 
-	r, err := gzip.NewReader(file)
+	gzipReader, err := gzip.NewReader(file)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
+	defer gzipReader.Close()
 
 	var cveFeed schema.NVDCVEFeedJSON10
-	if err := json.NewDecoder(r).Decode(&cveFeed); err != nil {
+	if err := json.NewDecoder(gzipReader).Decode(&cveFeed); err != nil {
 		return nil, err
 	}
 
-	if err := r.Close(); err != nil {
+	if err := gzipReader.Close(); err != nil {
 		return nil, err
 	}
 	if err := file.Close(); err != nil {
