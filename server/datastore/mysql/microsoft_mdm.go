@@ -879,6 +879,17 @@ SELECT
         ELSE
             'verifying'
         END)
+    WHEN 'profiles_verified' THEN (
+        CASE (%s)
+        WHEN 'bitlocker_failed' THEN
+            'failed'
+        WHEN 'bitlocker_pending' THEN
+            'pending'
+        WHEN 'bitlocker_verifying' THEN
+            'verifying'
+        ELSE
+            'verified'
+        END)
     ELSE 
         REPLACE((%s), 'bitlocker_', '')
     END as status, 
@@ -897,6 +908,7 @@ WHERE
 GROUP BY
     status`,
 		profilesStatus,
+		bitlockerStatus,
 		bitlockerStatus,
 		bitlockerStatus,
 		bitlockerStatus,

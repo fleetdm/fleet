@@ -144,6 +144,10 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 		for _, h := range gotHosts {
 			require.Contains(t, expectedIDs, h.ID)
 		}
+
+		count, err := ds.CountHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{TeamFilter: teamID, OSSettingsDiskEncryptionFilter: status})
+		require.NoError(t, err)
+		require.Equal(t, len(expectedIDs), count, fmt.Sprintf("status: %s", status))
 	}
 
 	checkHostBitLockerStatus := func(t *testing.T, expected fleet.DiskEncryptionStatus, hostIDs []uint) {
@@ -223,14 +227,10 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			Verified:  uint(len(ep[fleet.MDMDeliveryVerified])),
 		})
 
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerified, expectedDE[fleet.DiskEncryptionVerified])
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerifying, expectedDE[fleet.DiskEncryptionVerifying])
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsFailed, expectedDE[fleet.DiskEncryptionFailed])
-		var expectedPending []uint
-		expectedPending = append(expectedPending, expectedDE[fleet.DiskEncryptionEnforcing]...)
-		expectedPending = append(expectedPending, expectedDE[fleet.DiskEncryptionRemovingEnforcement]...)
-		expectedPending = append(expectedPending, expectedDE[fleet.DiskEncryptionActionRequired]...)
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsPending, expectedPending)
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerified, ep[fleet.MDMDeliveryVerified])
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerifying, ep[fleet.MDMDeliveryVerifying])
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsFailed, ep[fleet.MDMDeliveryFailed])
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsPending, ep[fleet.MDMDeliveryPending])
 	}
 
 	updateHostDisks := func(t *testing.T, hostID uint, encrypted bool, updated_at time.Time) {
@@ -292,7 +292,13 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 	t.Run("Disk encryption disabled", func(t *testing.T) {
 		ac, err := ds.AppConfig(ctx)
 		require.NoError(t, err)
+		ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+		require.NoError(t, ds.SaveAppConfig(ctx, ac))
+		ac, err = ds.AppConfig(ctx)
+		require.NoError(t, err)
 		require.False(t, ac.MDM.EnableDiskEncryption.Value)
+
+		cleanupHostProfiles(t)
 
 		checkExpected(t, nil, hostIDsByDEStatus{}) // no hosts are counted because disk encryption is not enabled
 	})
@@ -554,6 +560,26 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		require.Equal(t, expected, *ps)
 	}
 
+	checkListHostsFilterOSSettings := func(t *testing.T, teamID *uint, status fleet.OSSettingsStatus, expectedIDs []uint) {
+		gotHosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{TeamFilter: teamID, OSSettingsFilter: status})
+		require.NoError(t, err)
+		if len(expectedIDs) != len(gotHosts) {
+			gotIDs := make([]uint, len(gotHosts))
+			for _, h := range gotHosts {
+				gotIDs = append(gotIDs, h.ID)
+			}
+			require.Len(t, gotHosts, len(expectedIDs), fmt.Sprintf("status: %s expected: %v got: %v", status, expectedIDs, gotIDs))
+
+		}
+		for _, h := range gotHosts {
+			require.Contains(t, expectedIDs, h.ID)
+		}
+
+		count, err := ds.CountHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{TeamFilter: teamID, OSSettingsFilter: status})
+		require.NoError(t, err)
+		require.Equal(t, len(expectedIDs), count, "status: %s", status)
+	}
+
 	type hostIDsByProfileStatus map[fleet.MDMDeliveryStatus][]uint
 
 	checkExpected := func(t *testing.T, teamID *uint, ep hostIDsByProfileStatus) {
@@ -563,6 +589,11 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 			Verifying: uint(len(ep[fleet.MDMDeliveryVerifying])),
 			Verified:  uint(len(ep[fleet.MDMDeliveryVerified])),
 		})
+
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerified, ep[fleet.MDMDeliveryVerified])
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerifying, ep[fleet.MDMDeliveryVerifying])
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsFailed, ep[fleet.MDMDeliveryFailed])
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsPending, ep[fleet.MDMDeliveryPending])
 	}
 
 	upsertHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, status *fleet.MDMDeliveryStatus) {
