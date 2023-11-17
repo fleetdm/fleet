@@ -21,7 +21,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCreatedSavedQuery{},
 	ActivityTypeEditedSavedQuery{},
 	ActivityTypeDeletedSavedQuery{},
-	ActivityTypeDeletedMultipleSavedQuery{},
+	ActivityTypeDeletedMultipleSavedQueries{},
 	ActivityTypeAppliedSpecSavedQuery{},
 
 	ActivityTypeCreatedTeam{},
@@ -304,15 +304,15 @@ func (a ActivityTypeDeletedSavedQuery) Documentation() (activity string, details
 }`
 }
 
-type ActivityTypeDeletedMultipleSavedQuery struct {
+type ActivityTypeDeletedMultipleSavedQueries struct {
 	IDs []uint `json:"query_ids"`
 }
 
-func (a ActivityTypeDeletedMultipleSavedQuery) ActivityName() string {
-	return "deleted_multiple_saved_query"
+func (a ActivityTypeDeletedMultipleSavedQueries) ActivityName() string {
+	return "deleted_multiple_saved_queries"
 }
 
-func (a ActivityTypeDeletedMultipleSavedQuery) Documentation() (activity string, details string, detailsExample string) {
+func (a ActivityTypeDeletedMultipleSavedQueries) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when deleting multiple saved queries.`,
 		`This activity contains the following fields:
 - "query_ids": list of IDs of the deleted saved queries.`, `{

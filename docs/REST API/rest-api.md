@@ -503,7 +503,7 @@ for pagination. For a comprehensive list of activity types and detailed informat
       "actor_id": 1,
       "actor_gravatar": "",
       "actor_email": "name@example.com",
-      "type": "deleted_multiple_saved_query",
+      "type": "deleted_multiple_saved_queries",
       "details": {
         "query_ids": [
           2,

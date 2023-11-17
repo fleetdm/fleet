@@ -882,9 +882,9 @@ describe("Activity Feed", () => {
       screen.getByText("for no team via fleetctl.", { exact: false })
     ).toBeInTheDocument();
   });
-  it("renders a pluralized 'deleted_multiple_saved_query' type activity when deleting multiple queries.", () => {
+  it("renders a pluralized 'deleted_multiple_saved_queries' type activity when deleting multiple queries.", () => {
     const activity = createMockActivity({
-      type: ActivityType.DeletedMultipleSavedQuery,
+      type: ActivityType.DeletedMultipleSavedQueries,
       details: {
         query_ids: [1, 2, 3],
       },

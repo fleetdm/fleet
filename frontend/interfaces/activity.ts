@@ -12,7 +12,7 @@ export enum ActivityType {
   EditedPolicy = "edited_policy",
   CreatedSavedQuery = "created_saved_query",
   DeletedSavedQuery = "deleted_saved_query",
-  DeletedMultipleSavedQuery = "deleted_multiple_saved_query",
+  DeletedMultipleSavedQueries = "deleted_multiple_saved_queries",
   EditedSavedQuery = "edited_saved_query",
   CreatedTeam = "created_team",
   DeletedTeam = "deleted_team",

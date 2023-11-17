@@ -712,7 +712,7 @@ const getDetail = (
     case ActivityType.EditedScript: {
       return TAGGED_TEMPLATES.editedScript(activity);
     }
-    case ActivityType.DeletedMultipleSavedQuery: {
+    case ActivityType.DeletedMultipleSavedQueries: {
       return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
     }
     default: {

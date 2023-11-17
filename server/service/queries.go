@@ -542,7 +542,7 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedMultipleSavedQuery{
+		fleet.ActivityTypeDeletedMultipleSavedQueries{
 			IDs: ids,
 		},
 	); err != nil {
