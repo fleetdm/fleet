@@ -217,11 +217,22 @@ const TAGGED_TEMPLATES = {
     );
   },
   userChangedTeamRole: (activity: IActivity) => {
+    const { actor_id } = activity;
+    const { user_id, user_email, role, team_name } = activity.details || {};
+
+    const varText =
+      actor_id === user_id ? (
+        <>
+          was assigned the <b>{role}</b> role
+        </>
+      ) : (
+        <>
+          changed <b>{user_email}</b> to <b>{role}</b>
+        </>
+      );
     return (
       <>
-        changed <b>{activity.details?.user_email}</b> to{" "}
-        <b>{activity.details?.role}</b> for the{" "}
-        <b>{activity.details?.team_name}</b> team.
+        {varText} for the <b>{team_name}</b> team.
       </>
     );
   },
