@@ -119,10 +119,10 @@ func main() {
 	printf("3a. Duration: %s\n", time.Since(start))
 
 	waitProfilesAppliedOnTeams := func(teamsToWait []*fleet.Team) {
-		summaryDone := func(s fleet.MDMAppleConfigProfilesSummary) bool {
+		summaryDone := func(s fleet.MDMProfilesSummary) bool {
 			return s.Verifying == uint(hostCountPerTeam)
 		}
-		teamSummaries := make(map[uint]fleet.MDMAppleConfigProfilesSummary)
+		teamSummaries := make(map[uint]fleet.MDMProfilesSummary)
 		for {
 			doneCount := 0
 			for _, team := range teamsToWait {

@@ -461,11 +461,18 @@ func TestMDMCommonAuthorization(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
+	}
+
 	ds.GetMDMAppleFileVaultSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
 		return &fleet.MDMAppleFileVaultSummary{}, nil
 	}
 	ds.GetMDMWindowsBitLockerSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
 		return &fleet.MDMWindowsBitLockerSummary{}, nil
+	}
+	ds.GetMDMWindowsProfilesSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+		return &fleet.MDMProfilesSummary{}, nil
 	}
 
 	mockTeamFuncWithUser := func(u *fleet.User) mock.TeamFunc {
@@ -563,12 +570,16 @@ func TestMDMCommonAuthorization(t *testing.T) {
 		ds.TeamFunc = mockTeamFuncWithUser(tt.user)
 
 		t.Run(tt.name, func(t *testing.T) {
-			// test authz get disk encryptions summary (no team)
+			// test authz for MDM summary endpoints (no team)
 			_, err := svc.GetMDMDiskEncryptionSummary(ctx, nil)
 			checkShouldFail(err, tt.shouldFailGlobal)
+			_, err = svc.GetMDMWindowsProfilesSummary(ctx, nil)
+			checkShouldFail(err, tt.shouldFailGlobal)
 
-			// test authz get disk encryptions summary (team 1)
+			// test authz for MDM summary endpoints (team 1)
 			_, err = svc.GetMDMDiskEncryptionSummary(ctx, ptr.Uint(1))
+			checkShouldFail(err, tt.shouldFailTeam)
+			_, err = svc.GetMDMWindowsProfilesSummary(ctx, ptr.Uint(1))
 			checkShouldFail(err, tt.shouldFailTeam)
 		})
 	}
@@ -1351,7 +1362,8 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				<key>PayloadVersion</key>
 				<integer>1</integer>
 			</dict>
-			</plist>`)},
+			</plist>`),
+			},
 			"unsupported PayloadType(s)",
 		},
 	}

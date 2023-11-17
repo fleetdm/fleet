@@ -1135,7 +1135,7 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	var subqueryParams []interface{}
 	switch opt.MacOSSettingsFilter {
 	case fleet.OSSettingsFailed:
-		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusFailing()
+		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusFailed()
 	case fleet.OSSettingsPending:
 		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusPending()
 	case fleet.OSSettingsVerifying:
@@ -1195,7 +1195,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 
 	switch opt.OSSettingsFilter {
 	case fleet.OSSettingsFailed:
-		subqueryMacOS, subqueryParams = subqueryHostsMacOSSettingsStatusFailing()
+		subqueryMacOS, subqueryParams = subqueryHostsMacOSSettingsStatusFailed()
 		if isDiskEncryptionEnabled {
 			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionFailed)
 		}

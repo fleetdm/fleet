@@ -624,7 +624,7 @@ type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fl
 
 type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
 
-type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error)
+type GetMDMAppleProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
 type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
 
@@ -711,6 +711,8 @@ type ListMDMCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, li
 type GetMDMWindowsBitLockerSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error)
 
 type GetMDMWindowsBitLockerStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error)
+
+type GetMDMWindowsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
 type ListMDMWindowsProfilesToInstallFunc func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error)
 
@@ -1658,8 +1660,8 @@ type DataStore struct {
 	GetMDMAppleCommandRequestTypeFunc        GetMDMAppleCommandRequestTypeFunc
 	GetMDMAppleCommandRequestTypeFuncInvoked bool
 
-	GetMDMAppleHostsProfilesSummaryFunc        GetMDMAppleHostsProfilesSummaryFunc
-	GetMDMAppleHostsProfilesSummaryFuncInvoked bool
+	GetMDMAppleProfilesSummaryFunc        GetMDMAppleProfilesSummaryFunc
+	GetMDMAppleProfilesSummaryFuncInvoked bool
 
 	InsertMDMIdPAccountFunc        InsertMDMIdPAccountFunc
 	InsertMDMIdPAccountFuncInvoked bool
@@ -1789,6 +1791,9 @@ type DataStore struct {
 
 	GetMDMWindowsBitLockerStatusFunc        GetMDMWindowsBitLockerStatusFunc
 	GetMDMWindowsBitLockerStatusFuncInvoked bool
+
+	GetMDMWindowsProfilesSummaryFunc        GetMDMWindowsProfilesSummaryFunc
+	GetMDMWindowsProfilesSummaryFuncInvoked bool
 
 	ListMDMWindowsProfilesToInstallFunc        ListMDMWindowsProfilesToInstallFunc
 	ListMDMWindowsProfilesToInstallFuncInvoked bool
@@ -3968,11 +3973,11 @@ func (s *DataStore) GetMDMAppleCommandRequestType(ctx context.Context, commandUU
 	return s.GetMDMAppleCommandRequestTypeFunc(ctx, commandUUID)
 }
 
-func (s *DataStore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
+func (s *DataStore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
 	s.mu.Lock()
-	s.GetMDMAppleHostsProfilesSummaryFuncInvoked = true
+	s.GetMDMAppleProfilesSummaryFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMAppleHostsProfilesSummaryFunc(ctx, teamID)
+	return s.GetMDMAppleProfilesSummaryFunc(ctx, teamID)
 }
 
 func (s *DataStore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMIdPAccount) error {
@@ -4274,6 +4279,13 @@ func (s *DataStore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *flee
 	s.GetMDMWindowsBitLockerStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMWindowsBitLockerStatusFunc(ctx, host)
+}
+
+func (s *DataStore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	s.mu.Lock()
+	s.GetMDMWindowsProfilesSummaryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMWindowsProfilesSummaryFunc(ctx, teamID)
 }
 
 func (s *DataStore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
