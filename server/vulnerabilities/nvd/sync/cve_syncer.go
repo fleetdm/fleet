@@ -214,12 +214,6 @@ func (s *CVE) writeLastModStartDateFile(lastModStartDate string) error {
 	return nil
 }
 
-// cvesInYear contains a list of CVEs for a specific year.
-type cvesInYear struct {
-	year int
-	cves []nvdapi.CVEItem
-}
-
 // httpClient wraps an http.Client to allow for debug and setting a request context.
 type httpClient struct {
 	*http.Client
@@ -352,21 +346,6 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 	}
 
 	return newLastModStartDate, nil
-}
-
-// cvesByYearSlice returns a slice of CVEs per year sorted by year.
-func cvesByYearSlice(cvesByYear map[int][]nvdapi.CVEItem) []cvesInYear {
-	cves := make([]cvesInYear, 0, len(cvesByYear))
-	for year, yearCVEs := range cvesByYear {
-		cves = append(cves, cvesInYear{
-			year: year,
-			cves: yearCVEs,
-		})
-	}
-	sort.Slice(cves, func(i, j int) bool {
-		return cves[i].year < cves[j].year
-	})
-	return cves
 }
 
 // fileExists returns whether a file at path exists.
