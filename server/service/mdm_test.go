@@ -999,6 +999,9 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		cp.ProfileUUID = uuid.New().String()
 		return &cp, nil
 	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileIDs []uint, profileUUIDs []string, hostUUIDs []string) error {
+		return nil
+	}
 
 	cases := []struct {
 		desc          string
@@ -1083,6 +1086,9 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		return nil
 	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileIDs []uint, profileUUIDs []string, hostUUIDs []string) error {
 		return nil
 	}
 
