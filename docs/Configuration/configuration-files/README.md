@@ -792,7 +792,7 @@ For additional information on SSO configuration, including just-in-time (JIT) us
 
 ##### sso_settings.enable_jit_provisioning
 
-**Available in Fleet Premium**. Enables [just-in-time user provisioning](https://fleetdm.com/docs/deploying/configuration#just-in-time-jit-user-provisioning).
+**Available in Fleet Premium**. Enables [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning).
 
 - Optional setting (boolean)
 - Default value: `false`

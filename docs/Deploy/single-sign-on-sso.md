@@ -81,7 +81,7 @@ The new account's email and full name are copied from the user data in the SSO r
 By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
 To assign different roles for accounts created via JIT provisioning see [Customization of user roles](#customization-of-user-roles) below.
 
-To enable this option, go to **Settings > Organization settings > single sign-on options** and check "_Create user and sync permissions on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
+To enable this option, go to **Settings > Organization settings > Single sign-on options** and check "_Create user and sync permissions on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
 
 For this to work correctly make sure that:
 
