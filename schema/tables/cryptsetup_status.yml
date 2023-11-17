@@ -26,6 +26,6 @@ columns:
     type: text
     required: false
   - name: query
-    description: The query is printed in this column. For example the SQL `SELECT * FROM cryuptsetup_status WHERE name = 'LUKS_DRIVE' will print "*" in the query column.`
+    description: The query is printed in this column. For example the SQL `SELECT * FROM cryuptsetup_status WHERE name = 'LUKS_DRIVE'` will print "*" in the query column.
     type: text
     required: false

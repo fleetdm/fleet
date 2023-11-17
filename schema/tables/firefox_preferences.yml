@@ -26,7 +26,7 @@ columns:
     type: text
     required: false
   - name: query
-    description: The query is printed in this column. For example the SQL `SELECT * FROM firefox_preferences WHERE path = 'testdata/prefs.js' will print "*" in the query column.`
+    description: The query is printed in this column. For example the SQL `SELECT * FROM firefox_preferences WHERE path = 'testdata/prefs.js'` will print "*" in the query column.
     type: text
     required: false
   
