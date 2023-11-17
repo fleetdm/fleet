@@ -1428,8 +1428,8 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 
 func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
-		// assume the extension is not there
-		return nil
+		// munki is not there, and we need to mark it deleted if it was there before
+		return ds.SetOrUpdateMunkiInfo(ctx, host.ID, "", []string{}, []string{})
 	}
 	if len(rows) > 1 {
 		logger.Log("component", "service", "method", "ingestMunkiInfo", "warn",
