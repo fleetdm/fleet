@@ -192,16 +192,18 @@ const TAGGED_TEMPLATES = {
 
     if (actor_id === user_id) {
       // this is the case when SSO user is crated via JIT provisioning
+      // should only be possible for premium tier, but check anyway
       return (
         <>
-          was assigned the global <b>{role}</b> role.
+          was assigned the <b>{role}</b> role{isPremiumTier && " for all teams"}
+          .
         </>
       );
     }
     return (
       <>
-        changed <b>{user_email}</b> to {isPremiumTier && "global"}{" "}
-        <b>{activity.details?.role}</b> role.
+        changed <b>{user_email}</b> to <b>{activity.details?.role}</b>
+        {isPremiumTier && " for all teams"}.
       </>
     );
   },
