@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, getDefaultNormalizer } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 import createMockActivity from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
@@ -282,6 +282,51 @@ describe("Activity Feed", () => {
 
     expect(screen.getByText("changed", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    const forAllTeams = screen.queryByText("for all teams.");
+    expect(forAllTeams).toBeNull();
+  });
+  it("correctly renders a changed_user_global_role type activity for a premium SSO user created by JIT provisioning", () => {
+    const activity = createMockActivity({
+      actor_id: 3,
+      type: ActivityType.UserChangedGlobalRole,
+      details: {
+        user_id: 3,
+        user_email: "jit@sso.com",
+        role: "observer",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    //  If actor_id is the same as user_id:
+    // "<user_email> was assigned the global <role> role."
+    expect(
+      screen.getByText("was assigned the global", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
+    expect(screen.getByText("observer")).toBeInTheDocument();
+    const forAllTeams = screen.queryByText("for all teams.");
+    expect(forAllTeams).toBeNull();
+  });
+  it("correctly renders a changed_user_global_role type activity when changing an existing user's global role", () => {
+    const activity = createMockActivity({
+      actor_id: 1,
+      actor_full_name: "Ally Admin",
+      type: ActivityType.UserChangedGlobalRole,
+      details: {
+        user_id: 3,
+        user_email: "user@example.com",
+        role: "maintainer",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    //  If actor_id is different from user_id:
+    // "<actor_full_name> changed <user_email> to global <role>."
+    expect(screen.getByText("Ally Admin")).toBeInTheDocument();
+    expect(screen.getByText("changed", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("user@example.com")).toBeInTheDocument();
+    expect(screen.getByText("to global", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
     const forAllTeams = screen.queryByText("for all teams.");
     expect(forAllTeams).toBeNull();
