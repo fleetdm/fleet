@@ -39,10 +39,8 @@ module.exports = {
 
   fn: async function (inputs) {
 
-    // Clone the inputs to prevent them from being mutated when we create a database record.
-    let newHistoricalUsageSnapshotRecord = _.clone(inputs);
-    // Create a database record for these usage statistics
-    await HistoricalUsageSnapshot.create(newHistoricalUsageSnapshotRecord);
+    // Create a database record for these usage statistics.
+    await HistoricalUsageSnapshot.create(Object.assign({}, inputs));
 
     if(!sails.config.custom.datadogApiKey) {
       throw new Error('No Datadog API key configured! (Please set sails.config.custom.datadogApiKey)');
