@@ -472,6 +472,37 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_volumes.yml"
   },
   {
+    "name": "app_icons",
+    "description": "Icons and their locations for macOS applications.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "darwin"
+    ],
+    "columns": [
+      {
+        "name": "path",
+        "description": "The icon's path.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "icon",
+        "description": "The icon.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "hash",
+        "description": "The icon's hash.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/app_icons",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/app_icons.yml"
+  },
+  {
     "name": "app_schemes",
     "description": "macOS application schemes and handlers (e.g., http, file, mailto).",
     "url": "https://fleetdm.com/tables/app_schemes",
@@ -5379,6 +5410,112 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/crontab.yml"
   },
   {
+    "name": "cryptoinfo",
+    "description": "Get info about the a certificate on the host.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "columns": [
+      {
+        "name": "path",
+        "description": "Path to the certificate.",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "passphrase",
+        "description": "The passphrase for the certificate.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "key",
+        "description": "A specific item that describes the drive.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "value",
+        "description": "The value for the specified key.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "fullkey",
+        "description": "The expanded name of the specific item that describes the drive.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "parent",
+        "description": "The key's parent.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "query",
+        "description": "The query is printed in this column. For example the SQL `SELECT * FROM cryuptsetup_status WHERE name = 'LUKS_DRIVE' will print \"*\"` in the query column.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/cryptoinfo",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cryptoinfo.yml"
+  },
+  {
+    "name": "cryptsetup_status",
+    "description": "Get info about the encrypted drive on the host.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "linux"
+    ],
+    "columns": [
+      {
+        "name": "name",
+        "required": true,
+        "description": "The name of the drive.",
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "A specific item that describes the drive.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "value",
+        "description": "The value for the specified key.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "fullkey",
+        "description": "The expanded name of the specific item that describes the drive.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "parent",
+        "description": "The key's parent.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "query",
+        "description": "The query is printed in this column. For example the SQL `SELECT * FROM cryuptsetup_status WHERE name = 'LUKS_DRIVE'` will print \"*\" in the query column.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/cryptsetup_status",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cryptsetup_status.yml"
+  },
+  {
     "name": "csrutil_info",
     "platforms": [
       "darwin"
@@ -9949,6 +10086,56 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fextended_attributes.yml&value=name%3A%20extended_attributes%0Adescription%3A%20%7C%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
+    "name": "falcon_kernel_check",
+    "description": "Get information about Crowdstrike Falcon agent installed on the host.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "linux"
+    ],
+    "columns": [
+      {
+        "name": "kernel",
+        "description": "Version of the host's kernel.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "supported",
+        "description": "Whether or not the host's kernel supports the Crowdstrike Falcon sensor version.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "sensor_version",
+        "description": "Version of the Crowdstrike Falcon's sensor.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/falcon_kernel_check",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/falcon_kernel_check.yml"
+  },
+  {
+    "name": "falconctl_options",
+    "description": "Get information about Crowdstrike Falcon agent installed on the host.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "linux"
+    ],
+    "columns": [
+      {
+        "name": "options",
+        "description": "The falconctol options to run. Supported values are listed here: `--aid`, `--apd`,`--aph`, `--app`, `--cid`, `--feature`, `--metadata-query`, `--rfm-reason`,`--rfm-state`, `--tags`, `--version`",
+        "type": "text",
+        "required": true
+      }
+    ],
+    "url": "https://fleetdm.com/tables/falconctl_options",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/falconctl_options.yml"
+  },
+  {
     "name": "fan_speed_sensors",
     "description": "Fan speeds.",
     "url": "https://fleetdm.com/tables/fan_speed_sensors",
@@ -10523,6 +10710,25 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_prk.yml"
   },
   {
+    "name": "filevault_status",
+    "description": "Get current FileVault status.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "darwin"
+    ],
+    "columns": [
+      {
+        "name": "status",
+        "description": "FileVault status.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/filevault_status",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_status.yml"
+  },
+  {
     "name": "filevault_users",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
@@ -10730,6 +10936,55 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firefox_addons.yml"
   },
   {
+    "name": "firefox_preferences",
+    "description": "Get the filepath where the host's Firefox preferences live.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "darwin"
+    ],
+    "columns": [
+      {
+        "name": "path",
+        "description": "The path to the host's Firefox preferences.",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "key",
+        "description": "A specific item that describes the path.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "value",
+        "description": "The value for the specified key.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "fullkey",
+        "description": "The expanded name of the specific item that describes the path.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "parent",
+        "description": "The key's parent.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "query",
+        "description": "The query is printed in this column. For example the SQL `SELECT * FROM firefox_preferences WHERE path = 'testdata/prefs.js'` will print \"*\" in the query column.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/firefox_preferences",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firefox_preferences.yml"
+  },
+  {
     "name": "firmware_eficheck_integrity_check",
     "platforms": [
       "darwin"
@@ -10753,6 +11008,37 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/firmware_eficheck_integrity_check",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmware_eficheck_integrity_check.yml"
+  },
+  {
+    "name": "firmwarepasswd",
+    "description": "Information on the device's firmware password. Supported on Intel macOS hosts only. Reference: https://support.apple.com/en-us/HT204455",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "darwin"
+    ],
+    "columns": [
+      {
+        "name": "option_roms_allowed",
+        "description": "Whether or not option ROMs are allowed.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "password_enabled",
+        "description": "Whether or not the host has a firmware password.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "mode",
+        "description": "Host's mode setting.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/firmwarepasswd",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmwarepasswd.yml"
   },
   {
     "name": "gatekeeper",
@@ -12208,6 +12494,85 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/iokit_registry.yml"
+  },
+  {
+    "name": "ioreg",
+    "description": "Get values from macOS ioreg command. Columns are input options for the command. They match the ioreg command line tool.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "darwin"
+    ],
+    "columns": [
+      {
+        "name": "c",
+        "description": "List properties of objects with the given class.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "d",
+        "description": "Limit tree to the given depth.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "k",
+        "description": "List properties of objects with the given key.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "n",
+        "description": "List properties of objects with the given name.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "p",
+        "description": "Traverse registry over the given plane (IOService is default).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "r",
+        "description": "Show subtrees rooted by the given criteria.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "A specific item that describes the returned value.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "value",
+        "description": "The value for the specified key.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "fullkey",
+        "description": "The expanded name of the specific item that describes the value.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "parent",
+        "description": "The key's parent.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "query",
+        "description": "The query is printed in this column.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/ioreg",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/ioreg.yml"
   },
   {
     "name": "iptables",
@@ -16600,7 +16965,7 @@
   },
   {
     "name": "munki_info",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [macadmins/osquery-extension](https://github.com/macadmins/osquery-extension) and [Kolide](https://github.com/kolide/launcher).",
     "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
     "platforms": [
       "darwin"
@@ -16668,7 +17033,7 @@
   },
   {
     "name": "munki_installs",
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [macadmins/osquery-extension](https://github.com/macadmins/osquery-extension) and [Kolide](https://github.com/kolide/launcher).",
     "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
     "platforms": [
       "darwin"
@@ -26589,7 +26954,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": "Identify SSH keys stored in clear text in user directories\n```\nSELECT * FROM users JOIN user_ssh_keys USING (uid) WHERE encrypted = 0;,\n```",
+    "examples": "Identify SSH keys stored in clear text in user directories\n```\nSELECT * FROM users JOIN user_ssh_keys USING (uid) WHERE encrypted = 0;\n```",
     "columns": [
       {
         "name": "uid",
@@ -28711,6 +29076,61 @@
     ],
     "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/windows_update_history.table",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fwindows_update_history.yml&value=name%3A%20windows_update_history%0Adescription%3A%20%7C%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
+    "name": "windows_updates",
+    "description": "Returns information about Windows updates that are available for installation.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "platforms": [
+      "darwin"
+    ],
+    "columns": [
+      {
+        "name": "locale",
+        "description": "Location of the update.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "is_default",
+        "description": "Whether or not the update is the default.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "A specific item that describes the update.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "value",
+        "description": "The value for the specified key.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "fullkey",
+        "description": "The expanded name of the specific item that describes the update.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "parent",
+        "description": "The key's parent.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "query",
+        "description": "The query is printed in this column.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/windows_updates",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/windows_updates.yml"
   },
   {
     "name": "wmi_bios_info",
