@@ -494,21 +494,12 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 						return l.OperationType < r.OperationType
 					}
 
-					if len(l.ProfileID) <= 2 && len(r.ProfileID) <= 2 {
-						a, aErr := strconv.Atoi(l.ProfileID)
-						b, bErr := strconv.Atoi(r.ProfileID)
-
-						if aErr == nil && bErr == nil {
-							// both are numeric, compare as numbers
-							return a < b
-						}
-					}
-
 					// default alphabetical comparison
-					return l.ProfileID < r.ProfileID
+					return l.IdentifierOrName < r.IdentifierOrName
 				})
 				return profs
 			}
+
 			gotProfs = sortProfs(gotProfs)
 			wantProfs = sortProfs(wantProfs)
 			for i, wp := range wantProfs {
@@ -523,16 +514,15 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	getProfs := func(teamID *uint) []*fleet.MDMConfigProfilePayload {
 		// TODO(roberto): the docs says that you can pass a comma separated
 		// list of columns to OrderKey, but that doesn't seem to work
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{OrderKey: "platform"})
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
 		require.NoError(t, err)
 		sort.Slice(profs, func(i, j int) bool {
 			l, r := profs[i], profs[j]
-
 			if l.Platform != r.Platform {
 				return l.Platform < r.Platform
 			}
 
-			return l.ProfileID < r.ProfileID
+			return l.Name < r.Name
 		})
 		return profs
 	}
@@ -874,7 +864,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	darwinGlobalProfiles, err := ds.ListMDMAppleConfigProfiles(ctx, nil)
 	sort.Slice(darwinGlobalProfiles, func(i, j int) bool {
 		l, r := darwinGlobalProfiles[i], darwinGlobalProfiles[j]
-		return l.ProfileID < r.ProfileID
+		return l.Name < r.Name
 	})
 	require.NoError(t, err)
 

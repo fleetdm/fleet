@@ -651,9 +651,10 @@ func listMDMWindowsProfilesToInstallDB(
 	query := `
         SELECT
             ds.profile_uuid,
-            ds.host_uuid
+            ds.host_uuid,
+	    ds.name as profile_name
         FROM (
-            SELECT mwcp.profile_uuid, h.uuid as host_uuid
+            SELECT mwcp.profile_uuid, mwcp.name, h.uuid as host_uuid
             FROM mdm_windows_configuration_profiles mwcp
             JOIN hosts h ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
             JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
