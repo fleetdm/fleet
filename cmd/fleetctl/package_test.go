@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -11,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/stretchr/testify/require"
+	"pault.ag/go/debian/deb"
 )
 
 func TestPackage(t *testing.T) {
@@ -43,10 +45,74 @@ func TestPackage(t *testing.T) {
 	}
 
 	t.Run("deb", func(t *testing.T) {
-		runAppForTest(t, []string{"package", "--type=deb", "--insecure", "--disable-open-folder"})
+		shorterEnrollSecret := "aa"
+		longerEnrollSecret := "aaaaaa"
+		runAppForTest(t, []string{"package", "--type=deb", "--insecure", "--disable-open-folder", "--enroll-secret=" + longerEnrollSecret, "--fleet-url=https://localhost:8080"})
 		info, err := os.Stat(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
 		require.NoError(t, err)
-		require.Greater(t, info.Size(), int64(0)) // TODO verify contents
+		require.Greater(t, info.Size(), int64(0))
+
+		fd, err := os.Open(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
+		if err != nil {
+			panic(err)
+		}
+
+		debFile, err := deb.Load(fd, fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
+		if err != nil {
+			panic(err)
+		}
+		for {
+			hdr, err := debFile.Data.Next()
+			if err == io.EOF {
+				break
+			}
+			require.NoError(t, err)
+
+			if hdr.Name != "./etc/default/orbit" {
+				continue
+			}
+
+			data, err := io.ReadAll(debFile.Data)
+			require.NoError(t, err)
+
+			s := string(data)
+			require.Contains(t, s, fmt.Sprintf("ORBIT_ENROLL_SECRET=%s\n", longerEnrollSecret))
+		}
+
+		fd.Close()
+
+		runAppForTest(t, []string{"package", "--type=deb", "--insecure", "--disable-open-folder", "--enroll-secret=" + shorterEnrollSecret, "--fleet-url=https://localhost:8080"})
+		info, err = os.Stat(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
+		require.NoError(t, err)
+		require.Greater(t, info.Size(), int64(0))
+
+		fd, err = os.Open(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
+		if err != nil {
+			panic(err)
+		}
+		defer fd.Close()
+
+		debFile, err = deb.Load(fd, fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
+		if err != nil {
+			panic(err)
+		}
+		for {
+			hdr, err := debFile.Data.Next()
+			if err == io.EOF {
+				break
+			}
+			require.NoError(t, err)
+
+			if hdr.Name != "./etc/default/orbit" {
+				continue
+			}
+
+			data, err := io.ReadAll(debFile.Data)
+			require.NoError(t, err)
+
+			s := string(data)
+			require.Contains(t, s, fmt.Sprintf("ORBIT_ENROLL_SECRET=%s\n", shorterEnrollSecret))
+		}
 	})
 
 	t.Run("--use-sytem-configuration can't be used on installers that aren't pkg", func(t *testing.T) {
