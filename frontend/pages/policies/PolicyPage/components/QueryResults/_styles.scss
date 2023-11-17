@@ -1,4 +1,5 @@
 .query-results {
+
   .info-banner {
     margin: 2rem auto 1.25rem;
   }
@@ -11,6 +12,10 @@
       position: relative;
       bottom: 2px;
     }
+  }
+
+  .data-table__wrapper {
+    overflow-x: scroll;
   }
 
   .data-table-block .data-table thead th {

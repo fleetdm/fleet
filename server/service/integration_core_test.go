@@ -6326,7 +6326,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows[0], 48)        // total number of cols
+	require.Len(t, rows[0], 49)        // total number of cols
 
 	const (
 		idCol       = 3
@@ -8029,7 +8029,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows1[0], 48)        // total number of cols
+	require.Len(t, rows1[0], 49)        // total number of cols
 
 	var (
 		idIdx     int
@@ -8056,7 +8056,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows2[0], 48)        // total number of cols
+	require.Len(t, rows2[0], 49)        // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {
@@ -8163,6 +8163,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		SeenTime:        time.Now(),
 		NodeKey:         ptr.String("2"),
 		UUID:            "2",
+		ComputerName:    "Foo Local2",
 		Hostname:        "foo.local2",
 		OsqueryHostID:   ptr.String("2"),
 		PrimaryIP:       "192.168.1.2",
@@ -8339,7 +8340,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		return gqrr.Results[i].Columns["usb_port"] < gqrr.Results[j].Columns["usb_port"]
 	})
 	require.Equal(t, host2Team1.ID, gqrr.Results[0].HostID)
-	require.Equal(t, host2Team1.Hostname, gqrr.Results[0].Hostname)
+	require.Equal(t, host2Team1.DisplayName(), gqrr.Results[0].Hostname)
 	require.NotZero(t, gqrr.Results[0].LastFetched)
 	require.Equal(t, map[string]string{
 		"class":       "239",
@@ -8356,7 +8357,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"version":     "0.19",
 	}, gqrr.Results[0].Columns)
 	require.Equal(t, host2Team1.ID, gqrr.Results[1].HostID)
-	require.Equal(t, host2Team1.Hostname, gqrr.Results[1].Hostname)
+	require.Equal(t, host2Team1.DisplayName(), gqrr.Results[1].Hostname)
 	require.NotZero(t, gqrr.Results[1].LastFetched)
 	require.Equal(t, map[string]string{
 		"class":       "0",
@@ -8383,7 +8384,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		return gqrr.Results[i].Columns["version"] > gqrr.Results[j].Columns["version"]
 	})
 	require.Equal(t, host1Global.ID, gqrr.Results[0].HostID)
-	require.Equal(t, host1Global.Hostname, gqrr.Results[0].Hostname)
+	require.Equal(t, host1Global.DisplayName(), gqrr.Results[0].Hostname)
 	require.NotZero(t, gqrr.Results[0].LastFetched)
 	require.Equal(t, map[string]string{
 		"build_distro":   "centos7",
@@ -8400,7 +8401,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"watcher":        "3570",
 	}, gqrr.Results[0].Columns)
 	require.Equal(t, host2Team1.ID, gqrr.Results[1].HostID)
-	require.Equal(t, host2Team1.Hostname, gqrr.Results[1].Hostname)
+	require.Equal(t, host2Team1.DisplayName(), gqrr.Results[1].Hostname)
 	require.NotZero(t, gqrr.Results[1].LastFetched)
 	require.Equal(t, map[string]string{
 		"build_distro":   "10.14",

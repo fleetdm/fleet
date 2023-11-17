@@ -10,9 +10,9 @@ func TestUp_20220818101352(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	_, err := db.Exec(`INSERT INTO software (name, version, source, bundle_identifier, vendor, arch)
-	VALUES 
-	('zchunk-libs', '1.2.1', 'rpm_packages', '', 'Fedora Project', 'x86_64'), 
-	('zchunk-libs', '1.2.1', 'rpm_packages', '', 'Fedora Project II', 'x86_64'), 
+	VALUES
+	('zchunk-libs', '1.2.1', 'rpm_packages', '', 'Fedora Project', 'x86_64'),
+	('zchunk-libs', '1.2.1', 'rpm_packages', '', 'Fedora Project II', 'x86_64'),
 	('word', '1.2.1', 'rpm_packages', '', 'Fake MS', 'x86_64'),
 	('word', '1.2.2', 'rpm_packages', '', 'Fake MS', 'x86_64'),
 	('excel', '1.2.1', 'rpm_packages', '', '', 'x86_64')

@@ -281,5 +281,5 @@ func (r *Runner) updateTarget(target string) error {
 
 func (r *Runner) Interrupt(err error) {
 	r.cancel <- struct{}{}
-	log.Debug().Err(err).Msg("interrupt updater")
+	log.Error().Err(err).Msg("interrupt updater")
 }

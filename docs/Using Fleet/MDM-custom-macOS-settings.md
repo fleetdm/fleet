@@ -18,7 +18,9 @@ How to create a configuration profile with iMazing Profile Creator:
 
 2. Open iMazing Profile Creator and select macOS in the top bar.
 
-3. Find and choose the settings you'd like to enforce on your macOS hosts. Fleet recommends limiting the scope of the settings a single profile: only include settings from one tab in iMazing Profile Creator (ex. **Restrictions** tab). To enforce more settings, you can create and add additional profiles.
+3. Find and choose the settings you'd like to enforce on your macOS hosts.
+
+> The best practice is to limit the scope of a single profile: only include one setting (ex. Restrictions) per profile. To enforce more settings, create and add additional profiles.
 
 4. In iMazing Profile Creator, select the **General** tab. Enter a descriptive name in the **Name** field. When you add this profile to Fleet, Fleet will display this name in the Fleet UI.
 
@@ -90,7 +92,7 @@ Learn more about configuration options for hosts that aren't assigned to a team 
 
 * Verified: hosts that installed all configuration profiles. Fleet has verified with osquery.
 
-* Verifying: hosts that have acknowledged all MDM commands to install configuration profiles. Fleet is verifying the profiles are installed with osquery.
+* Verifying: hosts that have acknowledged all MDM commands to install configuration profiles. Fleet is verifying the profiles are installed with osquery. If the profile wasn't installed, Fleet will redeliver the profile.
 
 * Pending: hosts that will receive MDM commands to install configuration profiles when the hosts come online.
 

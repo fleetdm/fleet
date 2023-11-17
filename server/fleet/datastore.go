@@ -1076,6 +1076,10 @@ type Datastore interface {
 	// the specified profile uuid.
 	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
 
+	// ListMDMConfigProfiles returns a paginated list of configuration profiles
+	// corresponding to the criteria.
+	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// MDM Commands
 
@@ -1121,6 +1125,13 @@ type Datastore interface {
 	// host_mdm_windows_profiles that match the given payload.
 	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error
 
+	// NewMDMWindowsConfigProfile creates and returns a new configuration profile.
+	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile) (*MDMWindowsConfigProfile, error)
+
+	// BatchSetMDMProfiles sets the MDM Apple or Windows profiles for the given team or
+	// no team in a single transaction.
+	BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*MDMAppleConfigProfile, winProfiles []*MDMWindowsConfigProfile) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
 
@@ -1159,7 +1170,7 @@ type Datastore interface {
 
 	// GetHostScriptDetails returns the list of host script details for saved scripts applicable to
 	// a given host.
-	GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts ListOptions) ([]*HostScriptDetail, *PaginationMetadata, error)
+	GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts ListOptions, hostPlatform string) ([]*HostScriptDetail, *PaginationMetadata, error)
 
 	// BatchSetScripts sets the scripts for the given team or no team.
 	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) error

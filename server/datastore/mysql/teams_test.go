@@ -590,6 +590,9 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 						BootstrapPackage:    optjson.SetString("bootstrap"),
 						MacOSSetupAssistant: optjson.SetString("assistant"),
 					},
+					WindowsSettings: fleet.WindowsSettings{
+						CustomSettings: optjson.SetSlice([]string{"foo", "bar"}),
+					},
 				},
 			},
 		})
@@ -605,6 +608,9 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 			MacOSSetup: fleet.MacOSSetup{
 				BootstrapPackage:    optjson.SetString("bootstrap"),
 				MacOSSetupAssistant: optjson.SetString("assistant"),
+			},
+			WindowsSettings: fleet.WindowsSettings{
+				CustomSettings: optjson.SetSlice([]string{"foo", "bar"}),
 			},
 		}, mdm)
 	})

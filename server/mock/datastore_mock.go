@@ -702,6 +702,8 @@ type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string
 
 type DeleteMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
+type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
+
 type GetMDMCommandPlatformFunc func(ctx context.Context, commandUUID string) (string, error)
 
 type ListMDMCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error)
@@ -719,6 +721,10 @@ type BulkUpsertMDMWindowsHostProfilesFunc func(ctx context.Context, payload []*f
 type GetMDMWindowsProfilesContentsFunc func(ctx context.Context, profileUUIDs []string) (map[string][]byte, error)
 
 type BulkDeleteMDMWindowsHostsConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error
+
+type NewMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error)
+
+type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
@@ -738,7 +744,7 @@ type DeleteScriptFunc func(ctx context.Context, id uint) error
 
 type ListScriptsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error)
 
-type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error)
+type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error)
 
 type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error
 
@@ -1769,6 +1775,9 @@ type DataStore struct {
 	DeleteMDMWindowsConfigProfileFunc        DeleteMDMWindowsConfigProfileFunc
 	DeleteMDMWindowsConfigProfileFuncInvoked bool
 
+	ListMDMConfigProfilesFunc        ListMDMConfigProfilesFunc
+	ListMDMConfigProfilesFuncInvoked bool
+
 	GetMDMCommandPlatformFunc        GetMDMCommandPlatformFunc
 	GetMDMCommandPlatformFuncInvoked bool
 
@@ -1795,6 +1804,12 @@ type DataStore struct {
 
 	BulkDeleteMDMWindowsHostsConfigProfilesFunc        BulkDeleteMDMWindowsHostsConfigProfilesFunc
 	BulkDeleteMDMWindowsHostsConfigProfilesFuncInvoked bool
+
+	NewMDMWindowsConfigProfileFunc        NewMDMWindowsConfigProfileFunc
+	NewMDMWindowsConfigProfileFuncInvoked bool
+
+	BatchSetMDMProfilesFunc        BatchSetMDMProfilesFunc
+	BatchSetMDMProfilesFuncInvoked bool
 
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
@@ -4226,6 +4241,13 @@ func (s *DataStore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 	return s.DeleteMDMWindowsConfigProfileFunc(ctx, profileUUID)
 }
 
+func (s *DataStore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListMDMConfigProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMConfigProfilesFunc(ctx, teamID, opt)
+}
+
 func (s *DataStore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
 	s.mu.Lock()
 	s.GetMDMCommandPlatformFuncInvoked = true
@@ -4287,6 +4309,20 @@ func (s *DataStore) BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context,
 	s.BulkDeleteMDMWindowsHostsConfigProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.BulkDeleteMDMWindowsHostsConfigProfilesFunc(ctx, payload)
+}
+
+func (s *DataStore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
+	s.mu.Lock()
+	s.NewMDMWindowsConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewMDMWindowsConfigProfileFunc(ctx, cp)
+}
+
+func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+	s.mu.Lock()
+	s.BatchSetMDMProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles)
 }
 
 func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
@@ -4352,11 +4388,11 @@ func (s *DataStore) ListScripts(ctx context.Context, teamID *uint, opt fleet.Lis
 	return s.ListScriptsFunc(ctx, teamID, opt)
 }
 
-func (s *DataStore) GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+func (s *DataStore) GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.GetHostScriptDetailsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostScriptDetailsFunc(ctx, hostID, teamID, opts)
+	return s.GetHostScriptDetailsFunc(ctx, hostID, teamID, opts, hostPlatform)
 }
 
 func (s *DataStore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {

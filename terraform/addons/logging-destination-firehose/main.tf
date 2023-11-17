@@ -11,11 +11,6 @@ resource "aws_s3_bucket" "osquery-results" { #tfsec:ignore:aws-s3-encryption-cus
   bucket = var.osquery_results_s3_bucket.name
 }
 
-resource "aws_s3_bucket_acl" "osquery-results" {
-  bucket = aws_s3_bucket.osquery-results.bucket
-  acl    = "private"
-}
-
 resource "aws_s3_bucket_lifecycle_configuration" "osquery-results" {
   bucket = aws_s3_bucket.osquery-results.bucket
   rule {
@@ -52,11 +47,6 @@ resource "aws_s3_bucket_public_access_block" "osquery-results" {
 // in the future.
 resource "aws_s3_bucket" "osquery-status" { #tfsec:ignore:aws-s3-encryption-customer-key:exp:2022-07-01 #tfsec:ignore:aws-s3-enable-versioning #tfsec:ignore:aws-s3-enable-bucket-logging:exp:2022-06-15
   bucket = var.osquery_status_s3_bucket.name
-}
-
-resource "aws_s3_bucket_acl" "osquery-status" {
-  bucket = aws_s3_bucket.osquery-status.bucket
-  acl    = "private"
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "osquery-status" {
@@ -158,9 +148,9 @@ data "aws_iam_policy_document" "osquery_firehose_assume_role" {
 
 resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
   name        = var.osquery_results_s3_bucket.name
-  destination = "s3"
+  destination = "extended_s3"
 
-  s3_configuration {
+  extended_s3_configuration {
     role_arn   = aws_iam_role.firehose-results.arn
     bucket_arn = aws_s3_bucket.osquery-results.arn
   }
@@ -168,9 +158,9 @@ resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
 
 resource "aws_kinesis_firehose_delivery_stream" "osquery_status" {
   name        = var.osquery_status_s3_bucket.name
-  destination = "s3"
+  destination = "extended_s3"
 
-  s3_configuration {
+  extended_s3_configuration {
     role_arn   = aws_iam_role.firehose-status.arn
     bucket_arn = aws_s3_bucket.osquery-status.arn
   }

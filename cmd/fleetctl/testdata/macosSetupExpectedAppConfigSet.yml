@@ -26,6 +26,8 @@ spec:
       webhook_url: ""
     macos_settings:
       custom_settings: null
+    windows_settings:
+      custom_settings: null
     macos_setup:
       bootstrap_package: %s
       enable_end_user_authentication: false

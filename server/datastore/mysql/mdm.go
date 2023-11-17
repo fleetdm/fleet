@@ -6,6 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -85,4 +86,99 @@ INNER JOIN hosts h ON h.uuid = mwe.host_uuid
 		return nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
 	return results, nil
+}
+
+func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
+		}
+
+		if err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+	var profs []*fleet.MDMConfigProfilePayload
+
+	const selectStmt = `
+SELECT
+	profile_id,
+	team_id,
+	name,
+	platform,
+	identifier,
+	checksum,
+	created_at,
+	updated_at
+FROM (
+	SELECT
+		CONVERT(profile_id, CHAR) as profile_id,
+		team_id,
+		name,
+		'darwin' as platform,
+		identifier,
+		checksum,
+		created_at,
+		updated_at
+	FROM
+		mdm_apple_configuration_profiles
+	WHERE
+		team_id = ? AND
+		identifier NOT IN (?)
+
+	UNION
+
+	SELECT
+		profile_uuid as profile_id,
+		team_id,
+		name,
+		'windows' as platform,
+		'' as identifier,
+		'' as checksum,
+		created_at,
+		updated_at
+	FROM
+		mdm_windows_configuration_profiles
+	WHERE
+		team_id = ?
+) as combined_profiles
+`
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	fleetIdentsMap := mobileconfig.FleetPayloadIdentifiers()
+	fleetIdentifiers := make([]string, 0, len(fleetIdentsMap))
+	for k := range fleetIdentsMap {
+		fleetIdentifiers = append(fleetIdentifiers, k)
+	}
+
+	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID}
+	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
+
+	stmt, args, err := sqlx.In(stmt, args...)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "sqlx.In ListMDMConfigProfiles")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profs, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select profiles")
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(profs) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			profs = profs[:len(profs)-1]
+		}
+	}
+	return profs, metaData, nil
 }

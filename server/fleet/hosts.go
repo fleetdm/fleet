@@ -316,6 +316,9 @@ type Host struct {
 	// The boolean is based on information ingested from the Apple DEP API that is stored in the
 	// host_dep_assignments table.
 	DEPAssignedToFleet *bool `json:"dep_assigned_to_fleet,omitempty" db:"dep_assigned_to_fleet" csv:"-"`
+
+	// LastRestartedAt is a UNIX timestamp that indicates when the Host was last restarted.
+	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at"`
 }
 
 type MDMHostData struct {
@@ -629,21 +632,25 @@ func (h *Host) IsEligibleForBitLockerEncryption() bool {
 		(needsEncryption || encryptedWithoutKey)
 }
 
-// DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
+// HostDisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
 // empty. If Hostname is empty and both HardwareSerial and HardwareModel are not empty, it returns a
 // composite string with HardwareModel and HardwareSerial. If all else fails, it returns an empty
 // string.
-func (h *Host) DisplayName() string {
+func HostDisplayName(ComputerName string, Hostname string, HardwareModel string, HardwareSerial string) string {
 	switch {
-	case h.ComputerName != "":
-		return h.ComputerName
-	case h.Hostname != "":
-		return h.Hostname
-	case h.HardwareModel != "" && h.HardwareSerial != "":
-		return fmt.Sprintf("%s (%s)", h.HardwareModel, h.HardwareSerial)
+	case ComputerName != "":
+		return ComputerName
+	case Hostname != "":
+		return Hostname
+	case HardwareModel != "" && HardwareSerial != "":
+		return fmt.Sprintf("%s (%s)", HardwareModel, HardwareSerial)
 	default:
 		return ""
 	}
+}
+
+func (h *Host) DisplayName() string {
+	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
 }
 
 type HostIssues struct {

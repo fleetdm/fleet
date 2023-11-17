@@ -6,7 +6,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 
 import { IHostMdmData, IMunkiData, IDeviceUser } from "interfaces/host";
-import { humanHostLastRestart } from "utilities/helpers";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   MDM_STATUS_TOOLTIP,
@@ -17,7 +16,6 @@ interface IAboutProps {
   deviceMapping?: IDeviceUser[];
   munki?: IMunkiData | null;
   mdm?: IHostMdmData;
-  wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
 }
 
 const About = ({
@@ -209,10 +207,7 @@ const About = ({
           <span className="info-grid__header">Last restarted</span>
           <span className="info-grid__data">
             <HumanTimeDiffWithFleetLaunchCutoff
-              timeString={humanHostLastRestart(
-                aboutData.detail_updated_at,
-                aboutData.uptime
-              )}
+              timeString={aboutData.last_restarted_at}
             />
           </span>
         </div>
