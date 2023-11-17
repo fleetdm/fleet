@@ -78,6 +78,7 @@ export interface IActivityDetails {
   specs?: IQuery[] | IPolicy[];
   global?: boolean;
   public_ip?: string;
+  user_id?: number;
   user_email?: string;
   email?: string;
   role?: UserRole;

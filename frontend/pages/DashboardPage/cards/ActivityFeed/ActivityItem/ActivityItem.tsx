@@ -187,11 +187,21 @@ const TAGGED_TEMPLATES = {
     );
   },
   userChangedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
+    const { actor_id } = activity;
+    const { user_id, user_email, role } = activity.details || {};
+
+    if (actor_id === user_id) {
+      // this is the case when SSO user is crated via JIT provisioning
+      return (
+        <>
+          was assigned the global <b>{role}</b> role.
+        </>
+      );
+    }
     return (
       <>
-        changed <b>{activity.details?.user_email}</b> to{" "}
-        <b>{activity.details?.role}</b>
-        {isPremiumTier && " for all teams"}.
+        changed <b>{user_email}</b> to {isPremiumTier && "global"}{" "}
+        <b>{activity.details?.role}</b> role.
       </>
     );
   },
@@ -745,6 +755,19 @@ const ActivityItem = ({
   const indicatePremiumFeature =
     isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);
 
+  const renderActivityPrefix = () => {
+    if (activity.type === ActivityType.UserLoggedIn) {
+      return <b>{activity.actor_email} </b>;
+    }
+    if (
+      (activity.type === ActivityType.UserChangedGlobalRole ||
+        activity.type === ActivityType.UserChangedTeamRole) &&
+      activity.actor_id === activity.details?.user_id
+    ) {
+      return <b>{activity.details?.user_email} </b>;
+    }
+    return <b>{activity.actor_full_name} </b>;
+  };
   return (
     <div className={baseClass}>
       <Avatar
@@ -757,11 +780,7 @@ const ActivityItem = ({
         <div className={"activity-details"}>
           {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
           <span className={`${baseClass}__details-topline`}>
-            {activity.type === ActivityType.UserLoggedIn ? (
-              <b>{activity.actor_email} </b>
-            ) : (
-              <b>{activity.actor_full_name} </b>
-            )}
+            {renderActivityPrefix()}
             {getDetail(activity, isPremiumTier, onDetailsClick)}
           </span>
           <br />
