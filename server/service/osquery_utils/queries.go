@@ -718,16 +718,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Atom)' AS type,
-  '' AS bundle_identifier,
-  'atom_packages' AS source,
-  0 AS last_opened_at,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
   'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
   'homebrew_packages' AS source,
@@ -819,17 +809,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Atom)' AS type,
-  'atom_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
   'Package (Python)' AS type,
   'python_packages' AS source,
   '' AS release,
@@ -897,15 +876,6 @@ SELECT
   '' AS vendor,
   path AS installed_path
 FROM chocolatey_packages
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (Atom)' AS type,
-  'atom_packages' AS source,
-  '' AS vendor,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid);
 `),
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
