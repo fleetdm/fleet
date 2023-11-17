@@ -152,11 +152,11 @@ func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, err
 
 	// 4 - Try vendor/product from bundle identifier, like tld.vendor.product
 	bundleParts := strings.Split(software.BundleIdentifier, ".")
-	if len(bundleParts) >= 3 {
+	if len(bundleParts) == 3 {
 		search4 := dialect.From(goqu.I("cpe_2").As("c")).
 			Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("4 as weight")).
 			Where(
-				goqu.Or(goqu.L("c.vendor = ?", strings.ToLower(bundleParts[1]))), goqu.L("c.product = ?", strings.ToLower(bundleParts[2])),
+				goqu.L("c.vendor = ?", strings.ToLower(bundleParts[1])), goqu.L("c.product = ?", strings.ToLower(bundleParts[2])),
 			)
 		datasets = append(datasets, search4)
 	}
