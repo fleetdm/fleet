@@ -94,14 +94,9 @@ const LabelFilterSelect = ({
   ]);
 
   const handleChange = (option: ILabel | IEmptyOption | null) => {
-    console.log("handleChange");
-    if (option === null) {
-      setMenuIsOpen(false);
-      return;
-    }
+    if (option === null) return;
     if ("type" in option) {
       // typeof option === "ILabel"
-      setMenuIsOpen(false);
       setLabelQuery("");
       selectRef.current?.blur();
       onChange(option);
@@ -122,8 +117,13 @@ const LabelFilterSelect = ({
     }
   };
 
-  const onFocus = () => {
-    setMenuIsOpen(true);
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setMenuIsOpen(false);
+      selectRef.current?.blur();
+    } else {
+      setMenuIsOpen(true);
+    }
   };
 
   const onClickLabelSearchInput = () => {
@@ -163,38 +163,44 @@ const LabelFilterSelect = ({
   };
 
   return (
-    <Select<ILabel | IEmptyOption, false, IGroupOption>
-      ref={selectRef}
-      name="input-filter-select"
-      className={classes}
-      classNamePrefix={baseClass}
-      defaultMenuIsOpen={false}
-      placeholder="Filter by platform or label"
-      value={selectedLabel}
-      isSearchable={false}
-      components={{
-        GroupHeading: CustomLabelGroupHeading,
-        DropdownIndicator: CustomDropdownIndicator,
-        ValueContainer,
+    <div
+      onClick={() => {
+        setMenuIsOpen(!menuIsOpen);
       }}
-      onChange={handleChange}
-      closeMenuOnSelect
-      {...{
-        menuIsOpen,
-        options,
-        formatOptionLabel,
-        getOptionLabel,
-        getOptionValue,
-        labelQuery,
-        canAddNewLabels,
-        onAddLabel,
-        onBlur,
-        onFocus,
-        onChangeLabelQuery,
-        onClickLabelSearchInput,
-        onBlurLabelSearchInput,
-      }}
-    />
+    >
+      <Select<ILabel | IEmptyOption, false, IGroupOption>
+        ref={selectRef}
+        name="input-filter-select"
+        className={classes}
+        classNamePrefix={baseClass}
+        defaultMenuIsOpen={false}
+        placeholder="Filter by platform or label"
+        value={selectedLabel}
+        isSearchable={false}
+        components={{
+          GroupHeading: CustomLabelGroupHeading,
+          DropdownIndicator: CustomDropdownIndicator,
+          ValueContainer,
+        }}
+        onChange={handleChange}
+        closeMenuOnSelect
+        {...{
+          menuIsOpen,
+          options,
+          formatOptionLabel,
+          getOptionLabel,
+          getOptionValue,
+          labelQuery,
+          canAddNewLabels,
+          onKeyDown,
+          onAddLabel,
+          onBlur,
+          onChangeLabelQuery,
+          onClickLabelSearchInput,
+          onBlurLabelSearchInput,
+        }}
+      />
+    </div>
   );
 };
 
