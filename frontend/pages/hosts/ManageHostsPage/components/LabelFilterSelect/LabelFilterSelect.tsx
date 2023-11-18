@@ -103,6 +103,10 @@ const LabelFilterSelect = ({
     }
   };
 
+  const toggleMenu = () => {
+    menuIsOpen && selectRef.current?.blur();
+    setMenuIsOpen(!menuIsOpen);
+  };
   const onChangeLabelQuery = (event: React.ChangeEvent<HTMLInputElement>) => {
     // We need to stop the key presses propagation to prevent the dropdown from
     // picking up keypresses.
@@ -163,11 +167,7 @@ const LabelFilterSelect = ({
   };
 
   return (
-    <div
-      onClick={() => {
-        setMenuIsOpen(!menuIsOpen);
-      }}
-    >
+    <div onClick={toggleMenu}>
       <Select<ILabel | IEmptyOption, false, IGroupOption>
         ref={selectRef}
         name="input-filter-select"
