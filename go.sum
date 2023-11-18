@@ -444,8 +444,8 @@ github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24 h1:XhczaxKV3J4Nj
 github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24/go.mod h1:QzQrCUTmSr9HotzKZAcfmy+czbEGK8Mq26hA+0DN4ag=
 github.com/fleetdm/nanomdm v0.3.1-0.20230710170238-fd0813187f24 h1:oP0kOAFDzu646/TXDCcvOGdDgSHJgk+X0Pfr60kp7Jg=
 github.com/fleetdm/nanomdm v0.3.1-0.20230710170238-fd0813187f24/go.mod h1:1O2RXbH9dERfnVTkcmNf/dnLs1W7txJWPpkX8xFCjYU=
-github.com/fleetdm/nvdtools v0.0.0-20231116173228-e331a28f16d8 h1:kzRL3+RNeGrm4j6YKw744h9bMnSFZvG8VytrTnQMtO0=
-github.com/fleetdm/nvdtools v0.0.0-20231116173228-e331a28f16d8/go.mod h1:Kh55SAWnjckS96TBSrXI99KrEKH4iB0OJby3N8GRJO4=
+github.com/fleetdm/nvdtools v0.0.0-20231117230453-39dcd6cf5298 h1:lKzYkZe4Yoe/+wf7QmUeuS0Z5ZS5693jEWFjnGdYE+E=
+github.com/fleetdm/nvdtools v0.0.0-20231117230453-39dcd6cf5298/go.mod h1:Kh55SAWnjckS96TBSrXI99KrEKH4iB0OJby3N8GRJO4=
 github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03 h1:oW24iL1GfGWW1VhyWrVdw7VdnyvFePyzR88zvfnTqCo=
 github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03/go.mod h1:PajjVSF3LaELUh847MlOtanfqrF8R2DOO4oS3NSPemI=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=

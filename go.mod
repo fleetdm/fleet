@@ -327,4 +327,4 @@ replace github.com/micromdm/nanodep => github.com/fleetdm/nanodep v0.1.1-0.20221
 
 replace github.com/micromdm/scep/v2 => github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03
 
-replace github.com/facebookincubator/nvdtools => github.com/fleetdm/nvdtools v0.0.0-20231116173228-e331a28f16d8
+replace github.com/facebookincubator/nvdtools => github.com/fleetdm/nvdtools v0.0.0-20231117230453-39dcd6cf5298

@@ -232,9 +232,11 @@ func checkCVEs(
 		return nil, err
 	}
 
-	cache := cvefeed.NewCache(dict, cveToLog).SetRequireVersion(true).SetMaxSize(-1)
+	cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(-1)
 	// This index consumes too much RAM
 	// cache.Idx = cvefeed.NewIndex(dict)
+
+	cache.SetCveDebugLogger(cveToLog)
 
 	softwareCPECh := make(chan softwareCPEWithNVDMeta)
 	var foundVulns []fleet.SoftwareVulnerability
