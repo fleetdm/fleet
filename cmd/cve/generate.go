@@ -45,7 +45,7 @@ func main() {
 	}
 
 	// Sync the CVE files
-	if err := nvd.DownloadNVDCVEFeed(*dbDir, *debug, logger); err != nil {
+	if err := nvd.DownloadNVDCVEFeed(*dbDir, "", *debug, logger); err != nil {
 		panic(err)
 	}
 
@@ -71,7 +71,6 @@ func main() {
 	// Create modified and recent files
 	createEmptyFiles(*dbDir, "modified")
 	createEmptyFiles(*dbDir, "recent")
-
 }
 
 func compressFile(fileName string, newFileName string) {

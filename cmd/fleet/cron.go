@@ -353,6 +353,7 @@ func checkNVDVulnerabilities(
 			VulnPath:           config.DatabasesPath,
 			CPEDBURL:           config.CPEDatabaseURL,
 			CPETranslationsURL: config.CPETranslationsURL,
+			CVEFeedPrefixURL:   config.CVEFeedPrefixURL,
 		}
 		err := nvd.Sync(opts, logger)
 		if err != nil {

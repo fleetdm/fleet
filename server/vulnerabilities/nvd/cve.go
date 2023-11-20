@@ -2,8 +2,11 @@ package nvd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
+	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -15,6 +18,7 @@ import (
 	"github.com/facebookincubator/nvdtools/cvefeed"
 	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
 	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
+	"github.com/facebookincubator/nvdtools/providers/nvd"
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -30,8 +34,14 @@ var semverPattern = regexp.MustCompile(`^v?(\d+\.\d+\.\d+)`)
 // Define a regex pattern for splitting version strings into subparts
 var nonNumericPartRegex = regexp.MustCompile(`(\d+)(\D.*)`)
 
-// DownloadNVDCVEFeed downloads CVEs information using the NVD API 2.0 to the provided path.
-func DownloadNVDCVEFeed(vulnPath string, debug bool, logger log.Logger) error {
+// DownloadNVDCVEFeed downloads CVEs information from a CVE source.
+// If cveFeedPrefixURL is not set, the NVD API 2.0 is used to download CVE information to vulnPath.
+// If cveFeedPrefixURL is set, the CVE information will be downloaded assuming NVD's legacy feed format.
+func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string, debug bool, logger log.Logger) error {
+	if cveFeedPrefixURL != "" {
+		return downloadNVDCVELegacy(vulnPath, cveFeedPrefixURL)
+	}
+
 	cveSyncer, err := nvdsync.NewCVE(
 		vulnPath,
 		nvdsync.WithLogger(logger),
@@ -45,6 +55,41 @@ func DownloadNVDCVEFeed(vulnPath string, debug bool, logger log.Logger) error {
 		return fmt.Errorf("download nvd cve feed: %w", err)
 	}
 
+	return nil
+}
+
+func downloadNVDCVELegacy(vulnPath string, cveFeedPrefixURL string) error {
+	if cveFeedPrefixURL == "" {
+		return errors.New("missing cve_feed_prefix_url")
+	}
+
+	source := nvd.NewSourceConfig()
+	parsed, err := url.Parse(cveFeedPrefixURL)
+	if err != nil {
+		return fmt.Errorf("parsing cve feed url prefix override: %w", err)
+	}
+	source.Host = parsed.Host
+	source.CVEFeedPath = parsed.Path
+	source.Scheme = parsed.Scheme
+
+	cve := nvd.SupportedCVE["cve-1.1.json.gz"]
+	dfs := nvd.Sync{
+		Feeds:    []nvd.Syncer{cve},
+		Source:   source,
+		LocalDir: vulnPath,
+	}
+
+	syncTimeout := 5 * time.Minute
+	if os.Getenv("NETWORK_TEST") != "" {
+		syncTimeout = 10 * time.Minute
+	}
+
+	ctx, cancelFunc := context.WithTimeout(context.Background(), syncTimeout)
+	defer cancelFunc()
+
+	if err := dfs.Do(ctx); err != nil {
+		return fmt.Errorf("download nvd cve feed: %w", err)
+	}
 	return nil
 }
 

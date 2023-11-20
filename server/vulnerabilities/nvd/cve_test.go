@@ -132,7 +132,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 	// download the CVEs once for all sub-tests, and then disable syncing
 	err := nettest.RunWithNetRetry(t, func() error {
-		return DownloadNVDCVEFeed(tempDir, false, log.NewNopLogger())
+		return DownloadNVDCVEFeed(tempDir, "https://nvd.nist.gov/feeds/json/cve/1.1/", false, log.NewNopLogger())
 	})
 	require.NoError(t, err)
 
