@@ -202,6 +202,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			MacOSSetupAssistant: optjson.String{Set: true},
 			BootstrapPackage:    optjson.String{Set: true},
 		},
+		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+		},
 	}, team.Config.MDM)
 
 	// get the team via the GET endpoint, check that it properly returns the mdm settings
@@ -219,6 +222,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant: optjson.String{Set: true},
 			BootstrapPackage:    optjson.String{Set: true},
+		},
+		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
 		},
 	}, getTmResp.Team.Config.MDM)
 
@@ -239,6 +245,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant: optjson.String{Set: true},
 			BootstrapPackage:    optjson.String{Set: true},
+		},
+		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
 		},
 	}, listTmResp.Teams[0].Config.MDM)
 
@@ -1831,6 +1840,9 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant: optjson.String{Set: true},
 			BootstrapPackage:    optjson.String{Set: true},
+		},
+		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
 		},
 	}, getTmResp.Team.Config.MDM)
 
