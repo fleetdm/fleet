@@ -54,7 +54,7 @@ export default {
     `/${API_VERSION}/fleet/mdm/profiles/${id}`,
 
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
-  MDM_PROFILES_AGGREGATE_STATUSES: `/${API_VERSION}/fleet/mdm/apple/profiles/summary`,
+  MDM_PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/mdm/profiles/summary`,
   MDM_DISK_ENCRYPTION_SUMMARY: `/${API_VERSION}/fleet/mdm/disk_encryption/summary`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
   MDM_APPLE_ENROLLMENT_PROFILE: (token: string, ref?: string) => {

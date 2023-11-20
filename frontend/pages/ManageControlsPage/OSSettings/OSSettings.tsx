@@ -43,8 +43,7 @@ const OSSettings = ({
     isLoading: isLoadingAggregateProfileStatus,
   } = useQuery(
     ["aggregateProfileStatuses", teamId],
-    () =>
-      mdmAPI.getAggregateProfileStatuses(teamId, config?.mdm_enabled ?? false),
+    () => mdmAPI.getProfilesStatusSummary(teamId),
     {
       refetchOnWindowFocus: false,
       retry: false,
