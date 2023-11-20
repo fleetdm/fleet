@@ -9508,14 +9508,16 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		require.ElementsMatch(t, wantUUIDs, gotUUIDs)
 	}
 
-	checkHostDetails := func(t *testing.T, host *fleet.Host, wantProfs []string) {
+	checkHostDetails := func(t *testing.T, host *fleet.Host, wantProfs []string, wantStatus fleet.MDMDeliveryStatus) {
 		var gotHostResp getHostResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &gotHostResp)
 		require.NotNil(t, gotHostResp.Host.MDM.Profiles)
 		var gotProfs []string
 		require.Len(t, *gotHostResp.Host.MDM.Profiles, len(wantProfs))
 		for _, p := range *gotHostResp.Host.MDM.Profiles {
-			gotProfs = append(gotProfs, p.Name)
+			gotProfs = append(gotProfs, strings.Replace(p.Name, "name-", "", 1))
+			require.NotNil(t, p.Status)
+			require.Equal(t, wantStatus, *p.Status, "profile", p.Name)
 		}
 		require.ElementsMatch(t, wantProfs, gotProfs)
 	}
@@ -9525,7 +9527,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// trigger a profile sync
 	verifyProfiles(mdmDevice, 3, false)
 	checkHostsProfilesMatch(host, globalProfiles)
-	checkHostDetails(t, host, globalProfiles)
+	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerifying)
 
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0, false)
@@ -9537,7 +9539,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// trigger a profile sync, device gets the team profile
 	verifyProfiles(mdmDevice, 2, false)
 	checkHostsProfilesMatch(host, teamProfiles)
-	checkHostDetails(t, host, teamProfiles)
+	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerifying)
 
 	// set new team profiles (delete + addition)
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -9555,7 +9557,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	// check that we deleted the old profile in the DB
 	checkHostsProfilesMatch(host, teamProfiles)
-	checkHostDetails(t, host, teamProfiles)
+	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerifying)
 
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0, false)
@@ -9578,7 +9580,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0, false)
-
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMWindowsProfiles() {
