@@ -1209,11 +1209,11 @@ ON DUPLICATE KEY UPDATE
 
 func (ds *Datastore) BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, profs []*fleet.MDMAppleProfilePayload) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		return bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, profs)
+		return ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, profs)
 	})
 }
 
-func bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, profs []*fleet.MDMAppleProfilePayload) error {
+func (ds *Datastore) bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, profs []*fleet.MDMAppleProfilePayload) error {
 	if len(profs) == 0 {
 		return nil
 	}
@@ -1234,8 +1234,8 @@ func bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtCon
 
 	const defaultBatchSize = 1000 // results in this times 2 placeholders
 	batchSize := defaultBatchSize
-	if testDeleteMDMProfilesBatchSize > 0 {
-		batchSize = testDeleteMDMProfilesBatchSize
+	if ds.testDeleteMDMProfilesBatchSize > 0 {
+		batchSize = ds.testDeleteMDMProfilesBatchSize
 	}
 
 	resetBatch := func() {
@@ -1265,7 +1265,7 @@ func bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtCon
 	return nil
 }
 
-func bulkSetPendingMDMAppleHostProfilesDB(
+func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	uuids []string,
@@ -1366,7 +1366,7 @@ func bulkSetPendingMDMAppleHostProfilesDB(
 	// delete all host profiles to start from a clean slate, new entries will be added next
 	// TODO(roberto): is this really necessary? this was pre-existing
 	// behavior but I think it can be refactored. For now leaving it as-is.
-	if err := bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, wantedProfiles); err != nil {
+	if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, wantedProfiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk delete all profiles")
 	}
 
@@ -1388,7 +1388,7 @@ func bulkSetPendingMDMAppleHostProfilesDB(
 			hostProfilesToClean = append(hostProfilesToClean, p)
 		}
 	}
-	if err := bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, hostProfilesToClean); err != nil {
+	if err := ds.bulkDeleteMDMAppleHostsConfigProfilesDB(ctx, tx, hostProfilesToClean); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk delete profiles to clean")
 	}
 
@@ -1426,8 +1426,8 @@ func bulkSetPendingMDMAppleHostProfilesDB(
 
 	const defaultBatchSize = 1000 // results in this times 9 placeholders
 	batchSize := defaultBatchSize
-	if testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = testUpsertMDMDesiredProfilesBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
 	}
 
 	resetBatch := func() {
@@ -1680,8 +1680,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 
 	const defaultBatchSize = 1000 // results in this times 9 placeholders
 	batchSize := defaultBatchSize
-	if testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = testUpsertMDMDesiredProfilesBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
 	}
 
 	resetBatch := func() {

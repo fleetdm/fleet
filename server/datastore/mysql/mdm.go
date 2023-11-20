@@ -12,12 +12,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// for tests, set to override the default batch size.
-var testDeleteMDMProfilesBatchSize int
-
-// for tests, set to override the default batch size.
-var testUpsertMDMDesiredProfilesBatchSize int
-
 func (ds *Datastore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
 	stmt := `
 SELECT CASE
@@ -309,11 +303,11 @@ WHERE
 			}
 		}
 
-		if err := bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, macHosts); err != nil {
+		if err := ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, macHosts); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 		}
 
-		if err := bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts); err != nil {
+		if err := ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
 		}
 
