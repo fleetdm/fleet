@@ -1332,7 +1332,7 @@ This flag only has effect if one of the following is true:
 - `activity_audit_log_plugin` is set to `filesystem` and `activity_enable_audit_log` is set to `true`.
 
 This flag will cause the osquery result and status log files to be automatically
-rotated when files reach a size of 500 Mb or an age of 28 days.
+rotated when files reach a size of 500 MB or an age of 28 days.
 
 - Default value: `false`
 - Environment variable: `FLEET_FILESYSTEM_ENABLE_LOG_ROTATION`
