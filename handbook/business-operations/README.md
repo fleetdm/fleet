@@ -192,7 +192,7 @@ Follow these steps to perform quarterly reporting for Fleet's investors:
   - Net dollar retention rate
     - How to calculate: (starting ARR + new subscriptions and expansions - churn)/starting ARR. 
   - Cash burn
-    - How to calculate: (start of quarter runway - end of quarter runway)/3. 
+    - How to calculate: start of quarter runway - end of quarter runway. 
 
 
 ### Grant equity
