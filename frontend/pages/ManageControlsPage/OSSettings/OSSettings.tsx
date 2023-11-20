@@ -16,6 +16,7 @@ const baseClass = "os-settings";
 interface IOSSettingsProps {
   params: Params;
   router: InjectedRouter;
+  currentPage: number;
   location: {
     search: string;
   };
@@ -23,6 +24,7 @@ interface IOSSettingsProps {
 
 const OSSettings = ({
   router,
+  currentPage,
   location: { search: queryString },
   params,
 }: IOSSettingsProps) => {
@@ -87,6 +89,8 @@ const OSSettings = ({
             key={teamId}
             currentTeamId={teamId}
             onMutation={refetchAggregateProfileStatus}
+            router={router}
+            currentPage={currentPage}
           />
         }
       />

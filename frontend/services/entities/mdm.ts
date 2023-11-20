@@ -36,8 +36,8 @@ export interface IGetProfilesApiParams {
 export interface IMdmProfilesResponse {
   profiles: IMdmProfile[] | null;
   meta: {
-    has_next_result: boolean;
-    has_previous_result: boolean;
+    has_next_results: boolean;
+    has_previous_results: boolean;
   };
 }
 
@@ -125,7 +125,7 @@ const mdmService = {
     return sendRequest("POST", MDM_PROFILES, formData);
   },
 
-  downloadProfile: (profileId: number) => {
+  downloadProfile: (profileId: number | string) => {
     const { MDM_PROFILE } = endpoints;
     const path = `${MDM_PROFILE(profileId)}?${buildQueryStringFromParams({
       alt: "media",
