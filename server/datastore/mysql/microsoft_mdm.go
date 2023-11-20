@@ -1565,7 +1565,6 @@ func (ds *Datastore) GetHostMDMWindowsProfiles(ctx context.Context, hostUUID str
 	stmt := fmt.Sprintf(`
 SELECT
 	profile_uuid,
-	'' AS identifier,
 	profile_name AS name,
 	-- internally, a NULL status implies that the cron needs to pick up
 	-- this profile, for the user that difference doesn't exist, the
@@ -1577,12 +1576,12 @@ SELECT
 FROM
 	host_mdm_windows_profiles
 WHERE
-	host_uuid = ?`,
+host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
 		fleet.MDMDeliveryPending,
-		// fleet.MDMOperationTypeRemove,
-		// fleet.MDMDeliveryPending,
-		// fleet.MDMDeliveryVerifying,
-		// fleet.MDMDeliveryVerified,
+		fleet.MDMOperationTypeRemove,
+		fleet.MDMDeliveryPending,
+		fleet.MDMDeliveryVerifying,
+		fleet.MDMDeliveryVerified,
 	)
 
 	var profiles []fleet.HostMDMWindowsProfile

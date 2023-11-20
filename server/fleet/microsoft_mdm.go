@@ -1385,7 +1385,6 @@ type HostMDMWindowsProfile struct {
 	CommandUUID   string             `db:"command_uuid" json:"command_uuid"`
 	ProfileUUID   string             `db:"profile_uuid" json:"profile_uuid"`
 	Name          string             `db:"name" json:"name"`
-	Identifier    string             `db:"identifier" json:"identifier"`
 	Status        *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
 	Detail        string             `db:"detail" json:"detail"`
@@ -1396,7 +1395,7 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 		HostUUID:      p.HostUUID,
 		ProfileID:     p.ProfileUUID,
 		Name:          p.Name,
-		Identifier:    p.Identifier,
+		Identifier:    "",
 		Status:        p.Status,
 		OperationType: p.OperationType,
 		Detail:        p.Detail,

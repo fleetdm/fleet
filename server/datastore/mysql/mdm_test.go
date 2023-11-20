@@ -618,9 +618,9 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	}
 	err = ds.BatchSetMDMProfiles(ctx, nil, macGlobalProfiles, winGlobalProfiles)
 	require.NoError(t, err)
-	// macGlobalProfiles, err = ds.ListMDMAppleConfigProfiles(ctx, nil)
-	// require.NoError(t, err)
-	// require.Len(t, macGlobalProfiles, 3)
+	macGlobalProfiles, err = ds.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, macGlobalProfiles, 3)
 	globalProfiles := getProfs(nil)
 	require.Len(t, globalProfiles, 6)
 
