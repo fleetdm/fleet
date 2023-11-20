@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
@@ -60,8 +61,10 @@ func main() {
 	for i := 0; i < entries; i++ {
 		year := startingYear + i
 		suffix := strconv.Itoa(year)
+		fileNameRaw := filepath.Join(*dbDir, fileFmt(suffix, "json", ""))
 		fileName := filepath.Join(*dbDir, fileFmt(suffix, "json", "gz"))
 		metaName := filepath.Join(*dbDir, fileFmt(suffix, "meta", ""))
+		compressFile(fileNameRaw, fileName)
 		createMetadata(fileName, metaName)
 	}
 
@@ -69,6 +72,37 @@ func main() {
 	createEmptyFiles(*dbDir, "modified")
 	createEmptyFiles(*dbDir, "recent")
 
+}
+
+func compressFile(fileName string, newFileName string) {
+	// Read old file
+	file, err := os.Open(fileName)
+	if err != nil {
+		panic(err)
+	}
+	read := bufio.NewReader(file)
+	data, err := io.ReadAll(read)
+	if err != nil {
+		panic(err)
+	}
+	file.Close()
+
+	// Write new file
+	newFile, err := os.Create(newFileName)
+	if err != nil {
+		panic(err)
+	}
+	writer := gzip.NewWriter(newFile)
+	if _, err = writer.Write(data); err != nil {
+		panic(err)
+	}
+	writer.Close()
+	newFile.Close()
+
+	// Remove old file
+	if err = os.Remove(fileName); err != nil {
+		panic(err)
+	}
 }
 
 func createMetadata(fileName string, metaName string) {
