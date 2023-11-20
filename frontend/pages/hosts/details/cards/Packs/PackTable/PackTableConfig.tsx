@@ -79,7 +79,16 @@ const generatePackTableHeaders = (): IDataColumn[] => {
     {
       Header: () => {
         return (
-          <TooltipWrapper tipContent="The last time the query ran<br/>since the last time osquery <br/>started on this host.">
+          <TooltipWrapper
+            tipContent={
+              <>
+                The last time the query ran
+                <br />
+                since the last time osquery <br />
+                started on this host.
+              </>
+            }
+          >
             Last run
           </TooltipWrapper>
         );
@@ -93,7 +102,14 @@ const generatePackTableHeaders = (): IDataColumn[] => {
     {
       Header: () => {
         return (
-          <TooltipWrapper tipContent="This is the performance <br />impact on this host.">
+          <TooltipWrapper
+            tipContent={
+              <>
+                This is the performance <br />
+                impact on this host.
+              </>
+            }
+          >
             Performance impact
           </TooltipWrapper>
         );

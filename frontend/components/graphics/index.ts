@@ -5,6 +5,7 @@ import EmptyPolicies from "./EmptyPolicies";
 import EmptySoftware from "./EmptySoftware";
 import FileConfigurationProfile from "./FileConfigurationProfile";
 import FileSh from "./FileSh";
+import FilePs1 from "./FilePs1";
 import FilePy from "./FilePy";
 import FileScript from "./FileScript";
 import FilePdf from "./FilePdf";
@@ -31,6 +32,7 @@ export const GRAPHIC_MAP = {
   // File type graphics
   "file-configuration-profile": FileConfigurationProfile,
   "file-sh": FileSh,
+  "file-ps1": FilePs1,
   "file-py": FilePy,
   "file-script": FileScript,
   "file-pdf": FilePdf,

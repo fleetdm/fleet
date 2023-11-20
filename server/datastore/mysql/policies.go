@@ -345,7 +345,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 	}
 
 	initialQuery, args = searchLike(initialQuery, args, opts.MatchQuery, policySearchColumns...)
-	initialQuery = appendListOptionsToSQL(initialQuery, &opts)
+	initialQuery, args = appendListOptionsWithCursorToSQL(initialQuery, args, &opts)
 
 	var ids []uint
 	err := sqlx.SelectContext(ctx, q, &ids, initialQuery, args...)
@@ -391,7 +391,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsFo
 	opts.Page = 0
 	opts.PerPage = 0
 
-	query = appendListOptionsToSQL(query, &opts)
+	query, args = appendListOptionsWithCursorToSQL(query, args, &opts)
 
 	var policies []*fleet.Policy
 	err = sqlx.SelectContext(ctx, q, &policies, query, args...)

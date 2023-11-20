@@ -1,0 +1,3 @@
+Fixes to /fleet/queries/run endpoint:
+- now returns 403 for an unauthorized user
+- now returns 400 when query_ids or host_ids are not specified

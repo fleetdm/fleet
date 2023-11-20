@@ -1330,6 +1330,28 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			},
 			cpe: "cpe:2.3:a:jetbrains:pycharm:2022.1:*:*:*:*:macos:*:*",
 		},
+		{
+			software: fleet.Software{
+				Name:             "Google Chrome Helper.app",
+				Source:           "apps",
+				Version:          "111.0.5563.64",
+				Vendor:           "",
+				BundleIdentifier: "com.google.Chrome.helper",
+			},
+			// DO NOT MATCH with Google Chrome
+			cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Acrobat Uninstaller.app",
+				Source:           "apps",
+				Version:          "6.0",
+				Vendor:           "",
+				BundleIdentifier: "com.adobe.Acrobat.Uninstaller",
+			},
+			// DO NOT MATCH with Adobe Acrobat
+			cpe: "",
+		},
 	}
 
 	tempDir := t.TempDir()

@@ -1,1 +1,0 @@
-* Allow macOS hosts that turned on MDM features via SSO to run `sudo profiles renew --type enrollment` to renew their MDM enrollment.

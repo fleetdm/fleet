@@ -1,0 +1,19 @@
+name: firmwarepasswd
+description: "Information on the device's firmware password. Supported on Intel macOS hosts only. Reference: https://support.apple.com/en-us/HT204455"
+evented: false
+notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
+platforms:
+  - darwin
+columns:
+  - name: option_roms_allowed
+    description: Whether or not option ROMs are allowed.
+    required: false
+    type: text
+  - name: password_enabled
+    description: Whether or not the host has a firmware password.
+    required: false
+    type: text
+  - name: mode
+    description: Host's mode setting.
+    required: false
+    type: text

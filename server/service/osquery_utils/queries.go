@@ -718,16 +718,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Atom)' AS type,
-  '' AS bundle_identifier,
-  'atom_packages' AS source,
-  0 AS last_opened_at,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
   'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
   'homebrew_packages' AS source,
@@ -819,17 +809,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Atom)' AS type,
-  'atom_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
   'Package (Python)' AS type,
   'python_packages' AS source,
   '' AS release,
@@ -897,15 +876,6 @@ SELECT
   '' AS vendor,
   path AS installed_path
 FROM chocolatey_packages
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (Atom)' AS type,
-  'atom_packages' AS source,
-  '' AS vendor,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid);
 `),
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
@@ -1232,7 +1202,10 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	return nil
 }
 
-var macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+var (
+	macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+	citrixName          = regexp.MustCompile(`Citrix Workspace [0-9]+`)
+)
 
 // sanitizeSoftware performs any sanitization required to the ingested software fields.
 //
@@ -1279,6 +1252,41 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 					return
 				}
 				s.Version = "20" + s.Version // Cloudflare WARP was released on 2019.
+			},
+		},
+		{
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return citrixName.Match([]byte(s.Name)) || s.Name == "Citrix Workspace.app"
+			},
+			mutateSoftware: func(s *fleet.Software) {
+				parts := strings.Split(s.Version, ".")
+				if len(parts) <= 1 {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
+					return
+				}
+
+				if len(parts[0]) > 2 {
+					// then the versioning is correct, so no need to change
+					return
+				}
+
+				part1, err := strconv.Atoi(parts[0])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+
+				part2, err := strconv.Atoi(parts[1])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+
+				newFirstPart := part1*100 + part2
+				newFirstStr := strconv.Itoa(newFirstPart)
+				newParts := []string{newFirstStr}
+				newParts = append(newParts, parts[2:]...)
+				s.Version = strings.Join(newParts, ".")
 			},
 		},
 	}
@@ -1428,8 +1436,8 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 
 func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
-		// assume the extension is not there
-		return nil
+		// munki is not there, and we need to mark it deleted if it was there before
+		return ds.SetOrUpdateMunkiInfo(ctx, host.ID, "", []string{}, []string{})
 	}
 	if len(rows) > 1 {
 		logger.Log("component", "service", "method", "ingestMunkiInfo", "warn",

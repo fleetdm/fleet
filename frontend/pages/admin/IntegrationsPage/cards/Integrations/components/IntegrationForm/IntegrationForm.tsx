@@ -226,12 +226,13 @@ const IntegrationForm = ({
               parseTarget
               value={projectKey}
               tooltip={
-                "\
-              To find the Jira project key, head to your project in <br /> \
-              Jira. Your project key is located in the URL. For example, in <br /> \
-              “jira.example.com/projects/JRAEXAMPLE,” <br /> \
-              “JRAEXAMPLE” is your project key. \
-            "
+                <>
+                  To find the Jira project key, head to your project in <br />
+                  Jira. Your project key is located in the URL. For example, in{" "}
+                  <br />
+                  “jira.example.com/projects/JRAEXAMPLE,” <br />
+                  “JRAEXAMPLE” is your project key.
+                </>
               }
             />
           ) : (
@@ -244,11 +245,15 @@ const IntegrationForm = ({
               parseTarget
               value={groupId === 0 ? null : groupId}
               tooltip={
-                "\
-              To find the Zendesk group ID, select <b>Admin > <br /> \
-              People > Groups</b>. Find the group and select it. <br /> \
-              The group ID will appear in the search field. \
-            "
+                <>
+                  To find the Zendesk group ID, select{" "}
+                  <b>
+                    Admin &gt; <br />
+                    People &gt; Groups
+                  </b>
+                  . Find the group and select it. <br />
+                  The group ID will appear in the search field.
+                </>
               }
             />
           )}

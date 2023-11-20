@@ -343,6 +343,10 @@ export const useTeamIdParam = ({
     isTeamObserver:
       !!currentTeam?.id &&
       permissions.isTeamObserver(currentUser, currentTeam.id),
+    isObserverPlus:
+      !!currentTeam?.id &&
+      !!currentUser &&
+      permissions.isObserverPlus(currentUser, currentTeam.id),
     teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }),
     userTeams,
     handleTeamChange,
