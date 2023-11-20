@@ -186,23 +186,23 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 	return nil
 }
 
-func (ds *Datastore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
+func (ds *Datastore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 	stmt := fmt.Sprintf(`
 SELECT
-	profile_id,
-	profile_name AS name,
-	profile_identifier AS identifier,
-	-- internally, a NULL status implies that the cron needs to pick up
-	-- this profile, for the user that difference doesn't exist, the
-	-- profile is effectively pending. This is consistent with all our
-	-- aggregation functions.
-	COALESCE(status, '%s') AS status,
-	COALESCE(operation_type, '') AS operation_type,
-	COALESCE(detail, '') AS detail
+profile_id,
+profile_name AS name,
+profile_identifier AS identifier,
+-- internally, a NULL status implies that the cron needs to pick up
+-- this profile, for the user that difference doesn't exist, the
+-- profile is effectively pending. This is consistent with all our
+-- aggregation functions.
+COALESCE(status, '%s') AS status,
+COALESCE(operation_type, '') AS operation_type,
+COALESCE(detail, '') AS detail
 FROM
-	host_mdm_apple_profiles
+host_mdm_apple_profiles
 WHERE
-	host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,

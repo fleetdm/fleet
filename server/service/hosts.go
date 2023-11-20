@@ -966,12 +966,15 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get app config for host mdm details")
 	}
 
-	var profiles []fleet.HostMDMAppleProfile
+	var profiles []fleet.HostMDMProfile
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
 		case "windows":
-			if ac.MDM.WindowsEnabledAndConfigured && license.IsPremium(ctx) {
+			if !ac.MDM.WindowsEnabledAndConfigured {
+				break
+			}
+			if license.IsPremium(ctx) {
 				hde, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
 				switch {
 				case err != nil:
@@ -982,9 +985,21 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 					host.MDM.OSSettings.DiskEncryption = fleet.HostMDMDiskEncryption{}
 				}
 			}
+			profs, err := svc.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get host mdm windows profiles")
+			}
+			if profs == nil {
+				profs = []fleet.HostMDMWindowsProfile{}
+			}
+			for _, p := range profs {
+				p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
+				profiles = append(profiles, p.ToHostMDMProfile())
+			}
+
 		case "darwin":
 			if ac.MDM.EnabledAndConfigured {
-				profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
+				profs, err := svc.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
 				}
@@ -998,7 +1013,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
 					}
 					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
-					profiles = append(profiles, p)
+					profiles = append(profiles, p.ToHostMDMProfile())
 				}
 			}
 		}

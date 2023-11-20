@@ -820,8 +820,8 @@ type Datastore interface {
 	// profile using the unique key defined by `team_id` and `identifier`
 	DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) error
 
-	// GetHostMDMProfiles returns the MDM profile information for the specified host UUID.
-	GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
+	// GetHostMDMAppleProfiles returns the MDM profile information for the specified host UUID.
+	GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
 
 	CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error
 
@@ -1075,6 +1075,9 @@ type Datastore interface {
 	// DeleteMDMWindowsConfigProfile deletes the Windows MDM profile corresponding to
 	// the specified profile uuid.
 	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
+
+	// GetHostMDMWindowsProfiles returns the MDM profile information for the specified Windows host UUID.
+	GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]HostMDMWindowsProfile, error)
 
 	// ListMDMConfigProfiles returns a paginated list of configuration profiles
 	// corresponding to the criteria.

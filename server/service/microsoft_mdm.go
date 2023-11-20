@@ -2120,6 +2120,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 			OperationType: fleet.MDMOperationTypeInstall,
 			Status:        &fleet.MDMDeliveryPending,
 		})
+		level.Debug(logger).Log("msg", "installing profile", "profile_id", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
 	}
 
 	// Grab the contents of all the profiles we need to install

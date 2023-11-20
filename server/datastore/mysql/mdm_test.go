@@ -474,7 +474,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				})
 				require.Equal(t, len(wantProfs), len(gotProfs), "host uuid: %s", h.UUID)
 			default:
-				profs, err := ds.GetHostMDMProfiles(ctx, h.UUID)
+				profs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 				require.NoError(t, err)
 				require.Equal(t, len(wantProfs), len(profs), "host uuid: %s", h.UUID)
 				for _, p := range profs {
@@ -618,9 +618,9 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	}
 	err = ds.BatchSetMDMProfiles(ctx, nil, macGlobalProfiles, winGlobalProfiles)
 	require.NoError(t, err)
-	//macGlobalProfiles, err = ds.ListMDMAppleConfigProfiles(ctx, nil)
-	//require.NoError(t, err)
-	//require.Len(t, macGlobalProfiles, 3)
+	macGlobalProfiles, err = ds.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, macGlobalProfiles, 3)
 	globalProfiles := getProfs(nil)
 	require.Len(t, globalProfiles, 6)
 
