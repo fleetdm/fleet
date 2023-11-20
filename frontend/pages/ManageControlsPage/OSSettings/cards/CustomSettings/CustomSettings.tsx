@@ -63,7 +63,7 @@ const CustomSettings = ({
       mdmAPI.getProfiles({
         team_id: currentTeamId,
         page: currentPage,
-        per_page: 1,
+        per_page: PROFILES_PER_PAGE,
       }),
     {
       refetchOnWindowFocus: false,
