@@ -670,7 +670,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 		mobileconfig.FleetdConfigPayloadIdentifier: fleet.MDMDeliveryVerifying,
 	}
 	checkProfilesStatus := func(t *testing.T) {
-		storedProfs, err := s.ds.GetHostMDMProfiles(ctx, h.UUID)
+		storedProfs, err := s.ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 		require.NoError(t, err)
 		require.Len(t, storedProfs, len(expectedProfileStatuses))
 		for _, p := range storedProfs {
@@ -1156,7 +1156,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	// - prof2 + old filevault are pending removal
 	// - fleetd config being reinstalled (to update the enroll secret)
 	s.awaitTriggerProfileSchedule(t)
-	hostProfs, err := s.ds.GetHostMDMProfiles(ctx, mdmHost.UUID)
+	hostProfs, err := s.ds.GetHostMDMAppleProfiles(ctx, mdmHost.UUID)
 	require.NoError(t, err)
 	require.Len(t, hostProfs, 5)
 
@@ -1212,7 +1212,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 
 	// and its profiles have been left untouched
 	s.awaitTriggerProfileSchedule(t)
-	hostProfs, err = s.ds.GetHostMDMProfiles(ctx, mdmHost2.UUID)
+	hostProfs, err = s.ds.GetHostMDMAppleProfiles(ctx, mdmHost2.UUID)
 	require.NoError(t, err)
 	require.Len(t, hostProfs, 3)
 
@@ -5704,7 +5704,7 @@ func (s *integrationMDMTestSuite) assertHostConfigProfiles(want map[*fleet.Host]
 	ctx := context.Background()
 
 	for h, wantProfs := range want {
-		gotProfs, err := ds.GetHostMDMProfiles(ctx, h.UUID)
+		gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 		require.NoError(t, err)
 		require.Equal(t, len(wantProfs), len(gotProfs), "host uuid: %s", h.UUID)
 
@@ -9486,11 +9486,24 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		require.ElementsMatch(t, wantUUIDs, gotUUIDs)
 	}
 
+	checkHostDetails := func(t *testing.T, host *fleet.Host, wantProfs []string) {
+		var gotHostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &gotHostResp)
+		require.NotNil(t, gotHostResp.Host.MDM.Profiles)
+		var gotProfs []string
+		require.Len(t, *gotHostResp.Host.MDM.Profiles, len(wantProfs))
+		for _, p := range *gotHostResp.Host.MDM.Profiles {
+			gotProfs = append(gotProfs, p.Name)
+		}
+		require.ElementsMatch(t, wantProfs, gotProfs)
+	}
+
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 	// trigger a profile sync
 	verifyProfiles(mdmDevice, 3)
 	checkHostsProfilesMatch(host, globalProfiles)
+	checkHostDetails(t, host, globalProfiles)
 
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0)
@@ -9502,6 +9515,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// trigger a profile sync, device gets the team profile
 	verifyProfiles(mdmDevice, 2)
 	checkHostsProfilesMatch(host, teamProfiles)
+	checkHostDetails(t, host, teamProfiles)
 
 	// set new team profiles (delete + addition)
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -9519,6 +9533,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	// check that we deleted the old profile in the DB
 	checkHostsProfilesMatch(host, teamProfiles)
+	checkHostDetails(t, host, teamProfiles)
 
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0)

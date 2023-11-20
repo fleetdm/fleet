@@ -228,6 +228,20 @@ type HostMDMAppleProfile struct {
 	Detail        string             `db:"detail" json:"detail"`
 }
 
+// ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
+func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
+	return HostMDMProfile{
+		HostUUID:      p.HostUUID,
+		ProfileID:     p.ProfileID,
+		Name:          p.Name,
+		Identifier:    p.Identifier,
+		Status:        p.Status,
+		OperationType: p.OperationType,
+		Detail:        p.Detail,
+		Platform:      "darwin",
+	}
+}
+
 func (p HostMDMAppleProfile) IgnoreMDMClientError() bool {
 	switch p.OperationType {
 	case MDMOperationTypeRemove:

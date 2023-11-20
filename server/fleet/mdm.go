@@ -259,6 +259,20 @@ type MDMProfilesSummary struct {
 	Failed uint `json:"failed" db:"failed"`
 }
 
+// HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
+// a Windows or macOS profile. The ProfileID field is a string for Windows and an integer for macOS.
+type HostMDMProfile struct {
+	HostUUID      string             `db:"-" json:"-"`
+	CommandUUID   string             `db:"-" json:"-"`
+	ProfileID     interface{}        `db:"-" json:"profile_id"`
+	Name          string             `db:"-" json:"name"`
+	Identifier    string             `db:"-" json:"-"`
+	Status        *MDMDeliveryStatus `db:"-" json:"status"`
+	OperationType MDMOperationType   `db:"-" json:"operation_type"`
+	Detail        string             `db:"-" json:"detail"`
+	Platform      string             `db:"-" json:"platform"`
+}
+
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
 // to a device (whether it is installing or removing).
 type MDMDeliveryStatus string

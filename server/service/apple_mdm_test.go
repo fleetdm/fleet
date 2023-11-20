@@ -701,7 +701,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 		expectedByProfileID[ep.ProfileID] = ep
 	}
 
-	ds.GetHostMDMProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
+	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 		if hostUUID == "H057-UU1D-1337" {
 			return expected, nil
 		}
@@ -800,7 +800,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 			ds.AppConfigFuncInvoked = false
 			ds.HostFuncInvoked = false
 			ds.HostByIdentifierFuncInvoked = false
-			ds.GetHostMDMProfilesFuncInvoked = false
+			ds.GetHostMDMAppleProfilesFuncInvoked = false
 
 			var gotHost *fleet.HostDetail
 			if c.hostID != nil {
@@ -823,7 +823,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 				return
 			}
 
-			require.True(t, ds.GetHostMDMProfilesFuncInvoked)
+			require.True(t, ds.GetHostMDMAppleProfilesFuncInvoked)
 			require.NotNil(t, gotHost.MDM.Profiles)
 			require.ElementsMatch(t, *c.expected, *gotHost.MDM.Profiles)
 		})

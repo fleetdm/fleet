@@ -318,7 +318,7 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	gotHost, err := ds.Host(ctx, h0.ID)
 	require.NoError(t, err)
 	require.Nil(t, gotHost.MDM.Profiles)
-	gotProfs, err := ds.GetHostMDMProfiles(ctx, h0.UUID)
+	gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, h0.UUID)
 	require.NoError(t, err)
 	require.Nil(t, gotProfs)
 
@@ -337,7 +337,7 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	gotHost, err = ds.Host(ctx, h1.ID)
 	require.NoError(t, err)
 	require.Nil(t, gotHost.MDM.Profiles)
-	gotProfs, err = ds.GetHostMDMProfiles(ctx, h1.UUID)
+	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, h1.UUID)
 	require.NoError(t, err)
 	require.Nil(t, gotProfs)
 
@@ -378,7 +378,7 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Nil(t, gotHost.MDM.Profiles) // ds.Host never returns MDM profiles
 
-	gotProfs, err = ds.GetHostMDMProfiles(ctx, h0.UUID)
+	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, h0.UUID)
 	require.NoError(t, err)
 	require.Len(t, gotProfs, 3)
 	for _, gp := range gotProfs {
@@ -394,7 +394,7 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Nil(t, gotHost.MDM.Profiles) // ds.Host never returns MDM profiles
 
-	gotProfs, err = ds.GetHostMDMProfiles(ctx, h1.UUID)
+	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, h1.UUID)
 	require.NoError(t, err)
 	require.Len(t, gotProfs, 3)
 	for _, gp := range gotProfs {
@@ -432,7 +432,7 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	gotProfs, err = ds.GetHostMDMProfiles(ctx, h1.UUID)
+	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, h1.UUID)
 	require.NoError(t, err)
 	require.Len(t, gotProfs, 2) // remove+verifying is not there anymore
 
@@ -807,7 +807,7 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
-	hostProfs, err := ds.GetHostMDMProfiles(ctx, testUUID)
+	hostProfs, err := ds.GetHostMDMAppleProfiles(ctx, testUUID)
 	require.NoError(t, err)
 	require.Len(t, hostProfs, len(profiles))
 
@@ -834,7 +834,7 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
 
-	hostProfs, err = ds.GetHostMDMProfiles(ctx, testUUID)
+	hostProfs, err = ds.GetHostMDMAppleProfiles(ctx, testUUID)
 	require.NoError(t, err)
 	require.Empty(t, hostProfs)
 	key, err = ds.GetHostDiskEncryptionKey(ctx, hostID)
@@ -2156,7 +2156,7 @@ func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {
 		Status:            &fleet.MDMDeliveryPending,
 		Checksum:          []byte("csum"),
 	}}))
-	cps, err := ds.GetHostMDMProfiles(ctx, "h1")
+	cps, err := ds.GetHostMDMAppleProfiles(ctx, "h1")
 	require.NoError(t, err)
 	require.Len(t, cps, 1)
 	require.Equal(t, "name1", cps[0].Name)
@@ -2172,7 +2172,7 @@ func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {
 		Detail:        "MDMClientError (89): Profile with identifier 'p1' not found.",
 		OperationType: fleet.MDMOperationTypeRemove,
 	}))
-	cps, err = ds.GetHostMDMProfiles(ctx, "h1")
+	cps, err = ds.GetHostMDMAppleProfiles(ctx, "h1")
 	require.NoError(t, err)
 	require.Len(t, cps, 0) // we ignore error code 89 and delete the pending record as well
 
@@ -2187,7 +2187,7 @@ func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {
 		Status:            &fleet.MDMDeliveryPending,
 		Checksum:          []byte("csum"),
 	}}))
-	cps, err = ds.GetHostMDMProfiles(ctx, "h2")
+	cps, err = ds.GetHostMDMAppleProfiles(ctx, "h2")
 	require.NoError(t, err)
 	require.Len(t, cps, 1)
 	require.Equal(t, "name2", cps[0].Name)
@@ -2203,7 +2203,7 @@ func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {
 		Detail:        "MDMClientError (96): Cannot replace profile 'p2' because it was not installed by the MDM server.",
 		OperationType: fleet.MDMOperationTypeRemove,
 	}))
-	cps, err = ds.GetHostMDMProfiles(ctx, "h2")
+	cps, err = ds.GetHostMDMAppleProfiles(ctx, "h2")
 	require.NoError(t, err)
 	require.Len(t, cps, 1)
 	require.Equal(t, "name2", cps[0].Name)
@@ -2238,7 +2238,7 @@ func testDeleteMDMAppleProfilesForHost(t *testing.T, ds *Datastore) {
 		Checksum:          []byte("csum"),
 	}}))
 
-	gotProfs, err := ds.GetHostMDMProfiles(ctx, h.UUID)
+	gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 	require.NoError(t, err)
 	require.Len(t, gotProfs, 1)
 
@@ -2247,7 +2247,7 @@ func testDeleteMDMAppleProfilesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.deleteMDMAppleProfilesForHost(ctx, tx, h.UUID))
 	require.NoError(t, tx.Commit())
 	require.NoError(t, err)
-	gotProfs, err = ds.GetHostMDMProfiles(ctx, h.UUID)
+	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 	require.NoError(t, err)
 	require.Nil(t, gotProfs)
 }
@@ -2540,7 +2540,7 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	// only asserts the profile ID, status and operation
 	assertHostProfiles := func(want map[*fleet.Host][]fleet.HostMDMAppleProfile) {
 		for h, wantProfs := range want {
-			gotProfs, err := ds.GetHostMDMProfiles(ctx, h.UUID)
+			gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 			require.NoError(t, err)
 			require.Equal(t, len(wantProfs), len(gotProfs), "host uuid: %s", h.UUID)
 
@@ -4005,7 +4005,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 
 	checkHostMDMProfileStatuses := func() {
 		for _, h := range hosts {
-			gotProfs, err := ds.GetHostMDMProfiles(ctx, h.UUID)
+			gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 			require.NoError(t, err)
 			require.Len(t, gotProfs, 3)
 			for _, p := range gotProfs {
@@ -4670,7 +4670,7 @@ func testResetMDMAppleEnrollment(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	upsertHostCPs([]*fleet.Host{host}, []*fleet.MDMAppleConfigProfile{cp}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerified, ctx, ds, t)
 
-	gotProfs, err := ds.GetHostMDMProfiles(ctx, host.UUID)
+	gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Len(t, gotProfs, 1)
 
@@ -4719,7 +4719,7 @@ func testResetMDMAppleEnrollment(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Zero(t, enrollment.TokenUpdateTally)
 
-	gotProfs, err = ds.GetHostMDMProfiles(ctx, host.UUID)
+	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Empty(t, gotProfs)
 
@@ -4815,7 +4815,7 @@ func TestMDMProfileVerification(t *testing.T) {
 	}
 
 	checkHostStatus := func(t *testing.T, h *fleet.Host, expectedStatus fleet.MDMDeliveryStatus, expectedDetail string) error {
-		gotProfs, err := ds.GetHostMDMProfiles(ctx, h.UUID)
+		gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 		if err != nil {
 			return err
 		}

@@ -1377,3 +1377,28 @@ func GetEncodedBinarySecurityToken(typeID WindowsMDMEnrollmentType, payload stri
 
 	return base64.URLEncoding.EncodeToString(rawBytes), nil
 }
+
+// HostMDMWindowsProfile represents the status of an MDM profile for a Windows host.
+type HostMDMWindowsProfile struct {
+	HostUUID      string             `db:"host_uuid" json:"host_uuid"`
+	CommandUUID   string             `db:"command_uuid" json:"command_uuid"`
+	ProfileUUID   string             `db:"profile_uuid" json:"profile_uuid"`
+	Name          string             `db:"name" json:"name"`
+	Identifier    string             `db:"identifier" json:"identifier"`
+	Status        *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
+	Detail        string             `db:"detail" json:"detail"`
+}
+
+func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
+	return HostMDMProfile{
+		HostUUID:      p.HostUUID,
+		ProfileID:     p.ProfileUUID,
+		Name:          p.Name,
+		Identifier:    p.Identifier,
+		Status:        p.Status,
+		OperationType: p.OperationType,
+		Detail:        p.Detail,
+		Platform:      "windows",
+	}
+}

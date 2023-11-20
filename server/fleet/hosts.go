@@ -357,7 +357,7 @@ type MDMHostData struct {
 	// It is a pointer to a slice so that when set, it gets marhsaled even
 	// if the slice is empty, but when unset, it doesn't get marshaled
 	// (e.g. we don't return that information for the List Hosts endpoint).
-	Profiles *[]HostMDMAppleProfile `json:"profiles,omitempty" db:"profiles" csv:"-"`
+	Profiles *[]HostMDMProfile `json:"profiles,omitempty" db:"profiles" csv:"-"`
 
 	// MacOSSettings indicates macOS-specific MDM settings for the host, such
 	// as disk encryption status and whether any user action is required to

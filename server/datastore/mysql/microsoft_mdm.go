@@ -1321,3 +1321,34 @@ ON DUPLICATE KEY UPDATE
 		return nil
 	})
 }
+
+func (ds *Datastore) GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+	stmt := fmt.Sprintf(`
+SELECT
+	profile_uuid,
+	'' AS identifier,
+	profile_name AS name,
+	-- internally, a NULL status implies that the cron needs to pick up
+	-- this profile, for the user that difference doesn't exist, the
+	-- profile is effectively pending. This is consistent with all our
+	-- aggregation functions.
+	COALESCE(status, '%s') AS status,
+	COALESCE(operation_type, '') AS operation_type,
+	COALESCE(detail, '') AS detail
+FROM
+	host_mdm_windows_profiles
+WHERE
+	host_uuid = ?`,
+		fleet.MDMDeliveryPending,
+		// fleet.MDMOperationTypeRemove,
+		// fleet.MDMDeliveryPending,
+		// fleet.MDMDeliveryVerifying,
+		// fleet.MDMDeliveryVerified,
+	)
+
+	var profiles []fleet.HostMDMWindowsProfile
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID); err != nil {
+		return nil, err
+	}
+	return profiles, nil
+}
