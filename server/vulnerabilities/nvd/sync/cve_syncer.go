@@ -163,6 +163,12 @@ func (s *CVE) update(ctx context.Context) error {
 }
 
 func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
+	// The NVD legacy feed files start at year 2002.
+	// This is assumed by the facebookincubator/nvdtools package.
+	if year < 2002 {
+		year = 2002
+	}
+
 	// Read the CVE file for the year.
 	readStart := time.Now()
 	storedCVEFeed, err := readCVEsLegacyFormat(s.dbDir, year)
