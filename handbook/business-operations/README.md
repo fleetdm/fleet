@@ -241,6 +241,7 @@ The following table lists this department's rituals, frequency, and Directly Res
 | Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | Joanne Stableford |
 | KPI roundup + weekly update | Weekly | Update KPI spreadsheet with BizOps KPI data by 5pm US central time every Friday.  At 5pm check other department KPIs to make sure they have been updated, and if not, notify DRIs and the apprentice to the CEO which KPIs have not been updated. | Nathanael Holliday |
 | [Deliver annual report for venture line](https://fleetdm.com/handbook/business-operations#deliver-annual-report-for-venture-line) | Annually | Within 60 days of the new year, provide financial statements to SVB, along with board-approved projections for the new year. | Joanne Stableford |
+| KPI roundup | Weekly | Every Friday BizOps updates their KPIs in KPI sheet and makes sure the other departments have done so by 5pm US central time so the weekly update can be posted with updated information at  6pm. | Nathanael Holliday |
 
 
 <!--
