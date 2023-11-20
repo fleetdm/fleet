@@ -14,6 +14,10 @@ interface IPaginationProps {
   className?: string;
 }
 
+/**
+ * This is the new pagination component that we will want to replace other pagination
+ * components with. Going forward this should be the component used for pagination.
+ */
 const Pagination = ({
   disableNext,
   disablePrev,
