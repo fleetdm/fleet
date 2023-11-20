@@ -2,6 +2,7 @@ import URL_PREFIX from "router/url_prefix";
 import { OsqueryPlatform } from "interfaces/platform";
 import paths from "router/paths";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
+import React from "react";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -262,11 +263,30 @@ export const VULNERABLE_DROPDOWN_OPTIONS = [
 ];
 
 // Keys from API
-export const MDM_STATUS_TOOLTIP: Record<string, string> = {
-  "On (automatic)": `<span>MDM was turned on automatically using Apple Automated Device Enrollment (DEP), Windows Autopilot, or Windows Azure AD Join. Administrators can block end users from turning MDM off.</span>`,
-  "On (manual)": `<span>MDM was turned on manually. End users can turn MDM off.</span>`,
-  Off: `<span>Hosts with MDM off don&apos;t receive macOS <br /> settings and macOS update encouragement.</span>`,
-  Pending: `<span>Hosts ordered via Apple Business Manager <br /> (ABM). These will automatically enroll to Fleet <br /> and turn on MDM when they&apos;re unboxed.</span>`,
+export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
+  "On (automatic)": (
+    <span>
+      MDM was turned on automatically using Apple Automated Device Enrollment
+      (DEP), Windows Autopilot, or Windows Azure AD Join. Administrators can
+      block end users from turning MDM off.
+    </span>
+  ),
+  "On (manual)": (
+    <span>MDM was turned on manually. End users can turn MDM off.</span>
+  ),
+  Off: (
+    <span>
+      Hosts with MDM off don&apos;t receive macOS <br /> settings and macOS
+      update encouragement.
+    </span>
+  ),
+  Pending: (
+    <span>
+      Hosts ordered via Apple Business Manager <br /> (ABM). These will
+      automatically enroll to Fleet <br /> and turn on MDM when they&apos;re
+      unboxed.
+    </span>
+  ),
 };
 
 export const DEFAULT_CREATE_USER_ERRORS = {

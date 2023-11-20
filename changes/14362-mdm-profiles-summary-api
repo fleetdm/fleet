@@ -1,0 +1,3 @@
+- Added new endpoint `GET /mdm/profiles/summary` to get summarizes the current state of MDM
+  configuration profiles on each host in the specified team (or, if no team is specified, each host
+  that is not assigned to any team).

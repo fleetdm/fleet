@@ -239,6 +239,26 @@ type MDMDiskEncryptionSummary struct {
 	RemovingEnforcement MDMPlatformsCounts `db:"removing_enforcement" json:"removing_enforcement"`
 }
 
+// MDMProfilesSummary reports the number of hosts being managed with MDM configuration
+// profiles. Each host may be counted in only one of four mutually-exclusive categories:
+// Failed, Pending, Verifying, or Verified.
+type MDMProfilesSummary struct {
+	// Verified includes each host where Fleet has verified the installation of all of the
+	// profiles currently applicable to the host. If any of the profiles are pending, failed, or
+	// subject to verification for the host, the host is not counted as verified.
+	Verified uint `json:"verified" db:"verified"`
+	// Verifying includes each host where the MDM service has successfully delivered all of the
+	// profiles currently applicable to the host. If any of the profiles are pending or failed for
+	// the host, the host is not counted as verifying.
+	Verifying uint `json:"verifying" db:"verifying"`
+	// Pending includes each host that has not yet applied one or more of the profiles currently
+	// applicable to the host. If a host failed to apply any profiles, it is not counted as pending.
+	Pending uint `json:"pending" db:"pending"`
+	// Failed includes each host that has failed to apply one or more of the profiles currently
+	// applicable to the host.
+	Failed uint `json:"failed" db:"failed"`
+}
+
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
 // to a device (whether it is installing or removing).
 type MDMDeliveryStatus string

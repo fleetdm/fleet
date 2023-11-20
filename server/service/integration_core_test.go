@@ -3141,6 +3141,37 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		}
 	}
 
+	// Delete Munki from host -- no munki, but issues stick.
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "", []string{"error1", "error3"}, []string{}))
+	macadminsData = macadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
+	require.NotNil(t, macadminsData.Macadmins)
+	assert.Equal(t, "Off", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
+	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
+	require.Nil(t, macadminsData.Macadmins.Munki)
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 2)
+
+	// Bring Munki back, with same issues.
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "6.4", []string{"error1", "error3"}, []string{}))
+	macadminsData = macadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
+	require.NotNil(t, macadminsData.Macadmins)
+	assert.Equal(t, "Off", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
+	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
+	assert.NotNil(t, macadminsData.Macadmins.Munki)
+	require.NotNil(t, macadminsData.Macadmins.Munki.Version, "6.4")
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 2)
+
+	// Delete Munki from host without MDM -- nothing is returned
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostOnlyMunki.ID, "", nil, []string{}))
+	macadminsData = macadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMunki.ID), nil, http.StatusOK, &macadminsData)
+	require.Nil(t, macadminsData.Macadmins)
+
 	// TODO: ideally we'd pull this out into its own function that specifically tests
 	// the mdm summary endpoint. We can add additional tests for testing the platform
 	// and team_id query params for this endpoint.
@@ -8163,6 +8194,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		SeenTime:        time.Now(),
 		NodeKey:         ptr.String("2"),
 		UUID:            "2",
+		ComputerName:    "Foo Local2",
 		Hostname:        "foo.local2",
 		OsqueryHostID:   ptr.String("2"),
 		PrimaryIP:       "192.168.1.2",
@@ -8339,7 +8371,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		return gqrr.Results[i].Columns["usb_port"] < gqrr.Results[j].Columns["usb_port"]
 	})
 	require.Equal(t, host2Team1.ID, gqrr.Results[0].HostID)
-	require.Equal(t, host2Team1.Hostname, gqrr.Results[0].Hostname)
+	require.Equal(t, host2Team1.DisplayName(), gqrr.Results[0].Hostname)
 	require.NotZero(t, gqrr.Results[0].LastFetched)
 	require.Equal(t, map[string]string{
 		"class":       "239",
@@ -8356,7 +8388,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"version":     "0.19",
 	}, gqrr.Results[0].Columns)
 	require.Equal(t, host2Team1.ID, gqrr.Results[1].HostID)
-	require.Equal(t, host2Team1.Hostname, gqrr.Results[1].Hostname)
+	require.Equal(t, host2Team1.DisplayName(), gqrr.Results[1].Hostname)
 	require.NotZero(t, gqrr.Results[1].LastFetched)
 	require.Equal(t, map[string]string{
 		"class":       "0",
@@ -8383,7 +8415,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		return gqrr.Results[i].Columns["version"] > gqrr.Results[j].Columns["version"]
 	})
 	require.Equal(t, host1Global.ID, gqrr.Results[0].HostID)
-	require.Equal(t, host1Global.Hostname, gqrr.Results[0].Hostname)
+	require.Equal(t, host1Global.DisplayName(), gqrr.Results[0].Hostname)
 	require.NotZero(t, gqrr.Results[0].LastFetched)
 	require.Equal(t, map[string]string{
 		"build_distro":   "centos7",
@@ -8400,7 +8432,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"watcher":        "3570",
 	}, gqrr.Results[0].Columns)
 	require.Equal(t, host2Team1.ID, gqrr.Results[1].HostID)
-	require.Equal(t, host2Team1.Hostname, gqrr.Results[1].Hostname)
+	require.Equal(t, host2Team1.DisplayName(), gqrr.Results[1].Hostname)
 	require.NotZero(t, gqrr.Results[1].LastFetched)
 	require.Equal(t, map[string]string{
 		"build_distro":   "10.14",

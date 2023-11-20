@@ -887,6 +887,43 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 	return nil, fleet.ErrMissingLicense
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/profiles/summary
+////////////////////////////////////////////////////////////////////////////////
+
+type getMDMProfilesSummaryRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getMDMProfilesSummaryResponse struct {
+	fleet.MDMProfilesSummary
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMProfilesSummaryResponse) error() error { return r.Err }
+
+func getMDMProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMProfilesSummaryRequest)
+	res := getMDMProfilesSummaryResponse{}
+
+	as, err := svc.GetMDMAppleProfilesSummary(ctx, req.TeamID)
+	if err != nil {
+		return &getMDMAppleProfilesSummaryResponse{Err: err}, nil
+	}
+
+	ws, err := svc.GetMDMWindowsProfilesSummary(ctx, req.TeamID)
+	if err != nil {
+		return &getMDMProfilesSummaryResponse{Err: err}, nil
+	}
+
+	res.Verified = as.Verified + ws.Verified
+	res.Verifying = as.Verifying + ws.Verifying
+	res.Failed = as.Failed + ws.Failed
+	res.Pending = as.Pending + ws.Pending
+
+	return &res, nil
+}
+
 // authorizeAllHostsTeams is a helper function that loads the hosts
 // corresponding to the hostUUIDs and authorizes the context user to execute
 // the specified authzAction (e.g. fleet.ActionWrite) for all the hosts' teams

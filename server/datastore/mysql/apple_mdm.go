@@ -2012,7 +2012,7 @@ WHERE
 	return dest, nil
 }
 
-func subqueryHostsMacOSSettingsStatusFailing() (string, []interface{}) {
+func subqueryHostsMacOSSettingsStatusFailed() (string, []interface{}) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -2159,9 +2159,9 @@ func subqueryHostsMacOSSetttingsStatusVerified() (string, []interface{}) {
 	return sql, args
 }
 
-func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
+func (ds *Datastore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
 	var args []interface{}
-	subqueryFailed, subqueryFailedArgs := subqueryHostsMacOSSettingsStatusFailing()
+	subqueryFailed, subqueryFailedArgs := subqueryHostsMacOSSettingsStatusFailed()
 	args = append(args, subqueryFailedArgs...)
 	subqueryPending, subqueryPendingArgs := subqueryHostsMacOSSettingsStatusPending()
 	args = append(args, subqueryPendingArgs...)
@@ -2191,7 +2191,7 @@ SELECT
 FROM
     hosts h
 WHERE
-    %s`
+    h.platform = 'darwin' AND %s`
 
 	teamFilter := "h.team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
@@ -2201,7 +2201,7 @@ WHERE
 
 	stmt := fmt.Sprintf(sqlFmt, subqueryFailed, subqueryPending, subqueryVerifying, subqueryVerified, teamFilter)
 
-	var res fleet.MDMAppleConfigProfilesSummary
+	var res fleet.MDMProfilesSummary
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...)
 	if err != nil {
 		return nil, err
