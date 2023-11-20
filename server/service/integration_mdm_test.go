@@ -9518,6 +9518,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			gotProfs = append(gotProfs, strings.Replace(p.Name, "name-", "", 1))
 			require.NotNil(t, p.Status)
 			require.Equal(t, wantStatus, *p.Status, "profile", p.Name)
+			require.Equal(t, "windows", p.Platform)
 		}
 		require.ElementsMatch(t, wantProfs, gotProfs)
 	}

@@ -819,13 +819,29 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 			require.True(t, ds.AppConfigFuncInvoked)
 
 			if !c.mdmEnabled {
-				require.Equal(t, gotHost.MDM.Profiles, c.expected)
+				var ep []fleet.HostMDMProfile
+				switch c.expected {
+				case &expectedNilSlice:
+					ns := []fleet.HostMDMProfile(nil)
+					ep = ns
+				case &expectedEmptySlice:
+					ep = []fleet.HostMDMProfile{}
+				default:
+					for _, p := range *c.expected {
+						ep = append(ep, p.ToHostMDMProfile())
+					}
+				}
+				require.Equal(t, gotHost.MDM.Profiles, &ep)
 				return
 			}
 
 			require.True(t, ds.GetHostMDMAppleProfilesFuncInvoked)
 			require.NotNil(t, gotHost.MDM.Profiles)
-			require.ElementsMatch(t, *c.expected, *gotHost.MDM.Profiles)
+			ep := make([]fleet.HostMDMProfile, 0, len(*gotHost.MDM.Profiles))
+			for _, p := range *c.expected {
+				ep = append(ep, p.ToHostMDMProfile())
+			}
+			require.ElementsMatch(t, ep, *gotHost.MDM.Profiles)
 		})
 	}
 }

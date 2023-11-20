@@ -22,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/kit/log/level"
 	"github.com/gocarina/gocsv"
 )
 
@@ -990,8 +989,9 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get host mdm windows profiles")
 			}
-			level.Info(svc.logger).Log("msg", "got windows profilse", "profile", profs)
-
+			if profs == nil {
+				profs = []fleet.HostMDMWindowsProfile{}
+			}
 			for _, p := range profs {
 				p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
 				profiles = append(profiles, p.ToHostMDMProfile())

@@ -397,6 +397,7 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		ds.AppConfigFuncInvoked = false
 		ds.GetMDMWindowsBitLockerStatusFuncInvoked = false
 		ds.GetHostMDMAppleProfilesFuncInvoked = false
+		ds.GetHostMDMWindowsProfilesFuncInvoked = false
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
@@ -408,6 +409,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 			return &fleet.HostMDMDiskEncryption{Status: &c.wantStatus, Detail: ""}, nil
 		}
 		ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 			return nil, nil
 		}
 	}
@@ -479,6 +483,9 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 		return &fleet.HostMDMDiskEncryption{Status: &verified, Detail: ""}, nil
 	}
 	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}
 
