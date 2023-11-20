@@ -43,5 +43,5 @@ output "dep" {
 }
 
 output "apn" {
-  value = var.enable_apple_mdm == false ? null : aws_secretsmanager_secret.apn
+  value = var.enable_apple_mdm == false ? null : aws_secretsmanager_secret.apn[0]
 }

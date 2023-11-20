@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
 import RevealButton from "./RevealButton";
@@ -85,7 +85,7 @@ describe("Reveal button", () => {
       />
     );
 
-    await user.hover(screen.getByText(SHOW_TEXT));
+    await fireEvent.mouseEnter(screen.getByText(SHOW_TEXT));
 
     expect(screen.getByText(TOOLTIP_HTML)).toBeInTheDocument();
   });

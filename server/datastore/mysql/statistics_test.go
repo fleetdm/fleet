@@ -70,6 +70,10 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, `[{"count":10,"loc":["a","b","c"]}]`, string(stats.StoredErrors))
 	assert.Equal(t, []fleet.HostsCountByOsqueryVersion{}, stats.HostsEnrolledByOsqueryVersion) // should be empty slice instead of nil
 	assert.Equal(t, []fleet.HostsCountByOrbitVersion{}, stats.HostsEnrolledByOrbitVersion)     // should be empty slice instead of nil
+	assert.Equal(t, false, stats.MDMMacOsEnabled)
+	assert.Equal(t, false, stats.HostExpiryEnabled)
+	assert.Equal(t, false, stats.MDMWindowsEnabled)
+	assert.Equal(t, false, stats.LiveQueryDisabled)
 
 	firstIdentifier := stats.AnonymousIdentifier
 
@@ -168,7 +172,10 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	config.Features.EnableHostUsers = false
 	config.VulnerabilitySettings.DatabasesPath = ""
 	config.WebhookSettings.HostStatusWebhook.Enable = true
-
+	config.MDM.EnabledAndConfigured = true
+	config.HostExpirySettings.HostExpiryEnabled = true
+	config.MDM.WindowsEnabledAndConfigured = true
+	config.ServerSettings.LiveQueryDisabled = true
 	err = ds.SaveAppConfig(ctx, config)
 	require.NoError(t, err)
 

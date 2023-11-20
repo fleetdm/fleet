@@ -1,0 +1,1 @@
+* Fixed caching of a team's MDM configuration so that it implements a custom cloning, avoiding performance issues at scale.

@@ -1,0 +1,19 @@
+name: app_icons
+description: Icons and their locations for macOS applications.
+evented: false
+notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
+platforms:
+  - darwin
+columns:
+  - name: path
+    description: The icon's path.
+    type: text
+    required: false
+  - name: icon
+    description: The icon.
+    type: text
+    required: false
+  - name: hash
+    description: The icon's hash.
+    type: text
+    required: false

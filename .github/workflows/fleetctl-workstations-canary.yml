@@ -1,8 +1,8 @@
-# This workflow applies the latest MDM profiles to the workstations team.
+# This workflow applies the latest configuration profiles (macOS settings) and macOS updates minimum version and deadline to the workstations (canary) team.
 # It uses a fleet instance also built and executed from source.
 #
 # It runs automatically when a file is changed in /mdm_profiles.
-name: Apply latest MDM profiles (Canary)
+name: Apply latest configuration profiles and macOS updates (Canary)
 
 on:
   push:
@@ -44,6 +44,6 @@ jobs:
           FLEET_TEAM_NAME: 💻🐣 Workstations (canary)
           MDM_CONFIG_REPO: fleetdm/fleet
           MDM_CONFIG_DIRECTORY: mdm_profiles
-          MAC_OS_MIN_VERSION: "13.5"
-          MAC_OS_VERSION_DEADLINE: 2023-08-09
+          MAC_OS_MIN_VERSION: "14.1.1"
+          MAC_OS_VERSION_DEADLINE: 2023-11-23
           MAC_OS_ENABLE_DISK_ENCRYPTION: true

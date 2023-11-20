@@ -1,1 +1,0 @@
-* Added the `POST /fleet/mdm/commands/run` platform-agnostic endpoint to run an MDM command.
