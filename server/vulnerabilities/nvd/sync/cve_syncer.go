@@ -1,3 +1,6 @@
+// Package nvdsync provides a CVE syncer that uses the NVD 2.0 API to download CVE information
+// and stores it in the legacy format. The reason we decided to store in the legacy format is because
+// the github.com/facebookincubator/nvdtools doesn't yet support parsing the new API 2.0 JSON format.
 package nvdsync
 
 import (
@@ -25,6 +28,9 @@ import (
 
 // CVE syncs CVE information from the NVD database (nvd.nist.gov) using its API 2.0.
 // It stores the CVE information using the legacy feed format.
+// The reason we decided to store in the legacy format is because
+// the github.com/facebookincubator/nvdtools doesn't yet support parsing
+// the new API 2.0 JSON format.
 type CVE struct {
 	client *http.Client
 	dbDir  string
