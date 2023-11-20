@@ -102,6 +102,7 @@ const DataTable = ({
   renderPagination,
   setExportRows,
 }: IDataTableProps): JSX.Element => {
+  const { resetSelectedRows } = useContext(TableContext);
   const { isOnlyObserver } = useContext(AppContext);
 
   const columns = useMemo(() => {
@@ -151,8 +152,8 @@ const DataTable = ({
       disableMultiSort: true,
       disableSortRemove: true,
       manualSortBy,
-      // Resets row selection on (server-side) pagination
-      autoResetSelectedRows: true,
+      // Initializes as false, but changes briefly to true on successful notification
+      autoResetSelectedRows: resetSelectedRows,
       // Expands the enumerated `filterTypes` for react-table
       // (see https://github.com/TanStack/react-table/blob/alpha/packages/react-table/src/filterTypes.ts)
       // with custom `filterTypes` defined for this `useTable` instance
@@ -253,14 +254,12 @@ const DataTable = ({
 
   useEffect(() => {
     if (isClientSideFilter && searchQueryColumn) {
-      toggleAllRowsSelected(false); // Resets row selection on query change (client-side)
       setDebouncedClientFilter(searchQueryColumn, searchQuery || "");
     }
   }, [searchQuery, searchQueryColumn]);
 
   useEffect(() => {
     if (isClientSideFilter && selectedDropdownFilter) {
-      toggleAllRowsSelected(false); // Resets row selection on filter change (client-side)
       selectedDropdownFilter === "all"
         ? setDebouncedClientFilter("platforms", "")
         : setDebouncedClientFilter("platforms", selectedDropdownFilter);
@@ -576,7 +575,6 @@ const DataTable = ({
             <Button
               variant="unstyled"
               onClick={() => {
-                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
                 onClientSidePaginationChange &&
                   onClientSidePaginationChange(pageIndex - 1);
                 previousPage();
@@ -588,7 +586,6 @@ const DataTable = ({
             <Button
               variant="unstyled"
               onClick={() => {
-                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
                 onClientSidePaginationChange &&
                   onClientSidePaginationChange(pageIndex + 1);
                 nextPage();

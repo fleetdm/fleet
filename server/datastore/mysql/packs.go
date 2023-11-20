@@ -455,8 +455,7 @@ func (ds *Datastore) ListPacks(ctx context.Context, opt fleet.PackListOptions) (
 		query = `SELECT * FROM packs`
 	}
 	var packs []*fleet.Pack
-	query, params := appendListOptionsToSQL(query, &opt.ListOptions)
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &packs, query, params...)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &packs, appendListOptionsToSQL(query, &opt.ListOptions))
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "listing packs")
 	}

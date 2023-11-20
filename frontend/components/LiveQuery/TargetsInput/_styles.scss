@@ -21,16 +21,8 @@
         min-height: 89px;
       }
 
-      // Properly vertically aligns host issue icon
       .display_name__cell {
-        display: inline-flex;
-        align-items: center;
         white-space: nowrap;
-
-        .host-issue {
-          margin-left: $pad-xsmall;
-          display: inline-flex;
-        }
       }
 
       .data-table-block {
@@ -72,16 +64,9 @@
       &__wrapper {
         margin: 0;
       }
-
-      // Properly vertically aligns host issue icon
-      .display_name__cell {
-        display: inline-flex;
-        align-items: center;
-        white-space: nowrap;
-
-        .host-issue {
-          margin-left: $pad-xsmall;
-          display: inline-flex;
+      .host-issue {
+        .icon {
+          vertical-align: inherit;
         }
       }
     }

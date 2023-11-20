@@ -2,7 +2,7 @@ export interface IQueryReportResultRow {
   host_id: number;
   host_name: string;
   last_fetched: string;
-  columns: any; // {col:val, ...}
+  columns: any;
 }
 
 // Query report

@@ -1,6 +1,6 @@
 import React from "react";
 import { noop } from "lodash";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import Radio from "./Radio";
@@ -76,7 +76,7 @@ describe("Radio - component", () => {
     expect(radioComponent).toHaveClass("disabled");
   });
 
-  it("render a tooltip from the tooltip prop", async () => {
+  it("render a tooltip from the tooltip prop", () => {
     render(
       <Radio
         disabled
@@ -88,7 +88,6 @@ describe("Radio - component", () => {
       />
     );
 
-    await fireEvent.mouseEnter(screen.getByText("Radio Label"));
     const tooltip = screen.getByText("A Test Radio Tooltip");
     expect(tooltip).toBeInTheDocument();
   });

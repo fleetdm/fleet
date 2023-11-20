@@ -316,9 +316,6 @@ type Host struct {
 	// The boolean is based on information ingested from the Apple DEP API that is stored in the
 	// host_dep_assignments table.
 	DEPAssignedToFleet *bool `json:"dep_assigned_to_fleet,omitempty" db:"dep_assigned_to_fleet" csv:"-"`
-
-	// LastRestartedAt is a UNIX timestamp that indicates when the Host was last restarted.
-	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at"`
 }
 
 type MDMHostData struct {
@@ -456,16 +453,16 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 	}
 	if fvprof != nil {
 		switch fvprof.OperationType {
-		case MDMOperationTypeInstall:
+		case MDMAppleOperationTypeInstall:
 			switch {
-			case fvprof.Status != nil && (*fvprof.Status == MDMDeliveryVerifying || *fvprof.Status == MDMDeliveryVerified):
+			case fvprof.Status != nil && (*fvprof.Status == MDMAppleDeliveryVerifying || *fvprof.Status == MDMAppleDeliveryVerified):
 				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
 					//  if a FileVault profile has been successfully installed on the host
 					//  AND we have fetched and are able to decrypt the key
 					switch {
-					case *fvprof.Status == MDMDeliveryVerifying:
+					case *fvprof.Status == MDMAppleDeliveryVerifying:
 						settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
-					case *fvprof.Status == MDMDeliveryVerified:
+					case *fvprof.Status == MDMAppleDeliveryVerified:
 						settings.DiskEncryption = DiskEncryptionVerified.addrOf()
 					}
 				} else if d.rawDecryptable != nil {
@@ -485,7 +482,7 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 					settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
 				}
 
-			case fvprof.Status != nil && *fvprof.Status == MDMDeliveryFailed:
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryFailed:
 				// if a FileVault profile failed to be installed [or removed]
 				settings.DiskEncryption = DiskEncryptionFailed.addrOf()
 
@@ -495,12 +492,12 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 				settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
 			}
 
-		case MDMOperationTypeRemove:
+		case MDMAppleOperationTypeRemove:
 			switch {
-			case fvprof.Status != nil && *fvprof.Status == MDMDeliveryVerifying:
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryVerifying:
 				// successfully removed, same as if	no filevault profile was found
 
-			case fvprof.Status != nil && *fvprof.Status == MDMDeliveryFailed:
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryFailed:
 				// if a FileVault profile failed to be [installed or] removed
 				settings.DiskEncryption = DiskEncryptionFailed.addrOf()
 
@@ -522,19 +519,19 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 	d.OSSettings = &HostMDMOSSettings{DiskEncryption: hde}
 }
 
-func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMDeliveryStatus) *MDMDeliveryStatus {
+func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMAppleDeliveryStatus) *MDMAppleDeliveryStatus {
 	if d.MacOSSettings == nil || d.MacOSSettings.DiskEncryption == nil {
 		return currStatus
 	}
 	switch *d.MacOSSettings.DiskEncryption {
 	case DiskEncryptionActionRequired, DiskEncryptionEnforcing, DiskEncryptionRemovingEnforcement:
-		return &MDMDeliveryPending
+		return &MDMAppleDeliveryPending
 	case DiskEncryptionFailed:
-		return &MDMDeliveryFailed
+		return &MDMAppleDeliveryFailed
 	case DiskEncryptionVerifying:
-		return &MDMDeliveryVerifying
+		return &MDMAppleDeliveryVerifying
 	case DiskEncryptionVerified:
-		return &MDMDeliveryVerified
+		return &MDMAppleDeliveryVerified
 	default:
 		return currStatus
 	}
@@ -632,25 +629,21 @@ func (h *Host) IsEligibleForBitLockerEncryption() bool {
 		(needsEncryption || encryptedWithoutKey)
 }
 
-// HostDisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
+// DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
 // empty. If Hostname is empty and both HardwareSerial and HardwareModel are not empty, it returns a
 // composite string with HardwareModel and HardwareSerial. If all else fails, it returns an empty
 // string.
-func HostDisplayName(ComputerName string, Hostname string, HardwareModel string, HardwareSerial string) string {
+func (h *Host) DisplayName() string {
 	switch {
-	case ComputerName != "":
-		return ComputerName
-	case Hostname != "":
-		return Hostname
-	case HardwareModel != "" && HardwareSerial != "":
-		return fmt.Sprintf("%s (%s)", HardwareModel, HardwareSerial)
+	case h.ComputerName != "":
+		return h.ComputerName
+	case h.Hostname != "":
+		return h.Hostname
+	case h.HardwareModel != "" && h.HardwareSerial != "":
+		return fmt.Sprintf("%s (%s)", h.HardwareModel, h.HardwareSerial)
 	default:
 		return ""
 	}
-}
-
-func (h *Host) DisplayName() string {
-	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
 }
 
 type HostIssues struct {

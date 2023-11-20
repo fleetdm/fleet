@@ -1,4 +1,5 @@
 import React from "react";
+import { buildQueryStringFromParams } from "utilities/url";
 
 const baseClass = "upload-list";
 
@@ -6,14 +7,12 @@ interface IUploadListProps {
   listItems: any[]; // TODO: typings
   HeadingComponent?: (props: any) => JSX.Element; // TODO: Typings
   ListItemComponent: (props: { listItem: any }) => JSX.Element; // TODO: types
-  sortCompareFn?: (a: any, b: any) => number;
 }
 
 const UploadList = ({
   listItems,
   HeadingComponent,
   ListItemComponent,
-  sortCompareFn,
 }: IUploadListProps) => {
   const items = listItems.map((listItem) => {
     return (
@@ -29,9 +28,7 @@ const UploadList = ({
           <HeadingComponent />
         </div>
       )}
-      <ul className={`${baseClass}__list`}>
-        {sortCompareFn ? items.sort(sortCompareFn) : items}
-      </ul>
+      <ul className={`${baseClass}__list`}>{items}</ul>
     </div>
   );
 };

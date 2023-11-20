@@ -5,6 +5,7 @@ import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
+import { IRole } from "interfaces/role";
 
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
@@ -397,14 +398,11 @@ const UserForm = ({
         value={formData.email || ""}
         disabled={!isNewUser && !(smtpConfigured || sesConfigured)}
         tooltip={
-          <>
-            Editing an email address requires that SMTP or SES is configured in
-            order to send a validation email.
-            <br />
-            <br />
-            Users with Admin role can configure SMTP in{" "}
-            <strong>Settings &gt; Organization settings</strong>.
-          </>
+          "\
+              Editing an email address requires that SMTP or SES is configured in order to send a validation email. \
+              <br /><br /> \
+              Users with Admin role can configure SMTP in <strong>Settings &gt; Organization settings</strong>. \
+            "
         }
       />
       {!isNewUser &&
@@ -436,16 +434,11 @@ const UserForm = ({
           value={canUseSso && formData.sso_enabled}
           disabled={!canUseSso}
           wrapperClassName={`${baseClass}__invite-admin`}
-          tooltipContent={
-            <>
-              Enabling single sign-on for a user requires that SSO is first
-              enabled for the organization.
-              <br />
-              <br />
-              Users with Admin role can configure SSO in{" "}
-              <strong>Settings &gt; Organization settings</strong>.
-            </>
-          }
+          tooltip={`
+              Enabling single sign-on for a user requires that SSO is first enabled for the organization.
+              <br /><br />
+              Users with Admin role can configure SSO in <strong>Settings &gt; Organization settings</strong>.
+            `}
         >
           Enable single sign-on
         </Checkbox>
@@ -477,18 +470,14 @@ const UserForm = ({
                   name={"newUserType"}
                   onChange={onRadioChange("newUserType")}
                   tooltip={
-                    smtpConfigured || sesConfigured ? (
-                      ""
-                    ) : (
-                      <>
-                        The &quot;Invite user&quot; feature requires that SMTP
-                        or SES is configured in order to send invitation emails.
-                        <br />
-                        <br />
-                        SMTP can be configured in Settings &gt; Organization
-                        settings.
-                      </>
-                    )
+                    smtpConfigured || sesConfigured
+                      ? ""
+                      : `
+                      The &quot;Invite user&quot; feature requires that SMTP or SES
+                      is configured in order to send invitation emails.
+                      <br /><br />
+                      SMTP can be configured in Settings &gt; Organization settings.
+                    `
                   }
                 />
               </>
@@ -517,16 +506,10 @@ const UserForm = ({
                       "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
                     ]}
                     blockAutoComplete
-                    tooltip={
-                      <>
-                        This password is temporary. This user will be asked to
-                        set a new password after logging in to the Fleet UI.
-                        <br />
-                        <br />
-                        This user will not be asked to set a new password after
-                        logging in to fleetctl or the Fleet API.
-                      </>
-                    }
+                    tooltip={`\
+                      This password is temporary. This user will be asked to set a new password after logging in to the Fleet UI.<br /><br />\
+                      This user will not be asked to set a new password after logging in to fleetctl or the Fleet API.\
+                    `}
                   />
                 </div>
               </>

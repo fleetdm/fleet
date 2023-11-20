@@ -46,21 +46,41 @@ The query may take several seconds to complete because Fleet has to wait for the
 
 *In Fleet 4.35.0, the "Schedule" page was removed, and query automations are now configured on the "Queries" page. Instructions for scheduling queries in earlier versions of Fleet can be found [here](https://github.com/fleetdm/fleet/blob/ac797c8f81ede770853c25fd04102da9f5e109bf/docs/Using-Fleet/Fleet-UI.md#schedule-a-query).*
 
-Fleet allows you to schedule queries to run at a set frequency. Scheduled queries will send data to Fleet and/or your [log destination](https://fleetdm.com/docs/using-fleet/log-destinations) automatically. 
+>Only users with the [admin role](https://fleetdm.com/docs/using-fleet/manage-access#admin) can manage query automations.
 
-By default, queries that run on a schedule will only target platforms compatible with that query. This behavior can be overridden by setting the platforms in **Advanced options** when saving a query.
+Fleet allows you to schedule queries to run at a set frequency. Scheduled queries will send data to your log destination automatically. 
 
-**How to send data to your log destination:**
+The default log destination, **filesystem**, is good to start. With this set, data is sent to the `/var/log/osquery/osqueryd.snapshots.log` file on each host’s filesystem. To see which log destinations are available in Fleet, head to the [log destinations page](https://fleetdm.com/docs/using-fleet/log-destinations).
 
-*Only users with the [admin role](https://fleetdm.com/docs/using-fleet/manage-access#admin) can manage query automations.*
+By default, queries that run on a schedule will only target platforms compatible with that query. This behavior can be overridden by setting the platforms in "advanced options" when saving a query.
+
+**How to schedule queries:**
 
 1. In the top navigation, select **Queries**.
 
 2. Select **Manage automations**.
 
-3. Check the box next to the queries you want to send data to your log destination, and select **Save**. (The frequency that queries run at is set when a query is created.)
+3. Check the box next to the queries you want to automate, and select **Save**.
 
-> Note: When viewing a specific [team](https://fleetdm.com/docs/using-fleet/segment-hosts) in Fleet Premium, only queries that belong to the selected team will be listed. When configuring query automations for all hosts, only global queries will be listed.
+> The frequency that queries run at is set when a query is created.
+
+With Fleet Premium, you can schedule queries for groups of hosts using [the teams feature](https://fleetdm.com/docs/using-fleet/segment-hosts). This allows you to collect different data for each group.
+
+> In Fleet Premium, groups of hosts are called "teams."
+
+**How to use teams to schedule queries for a group of hosts:**
+
+1. If you haven't already, first [create a team](https://fleetdm.com/docs/using-fleet/segment-hosts#create-a-team) and [transfer hosts](https://fleetdm.com/docs/using-fleet/segment-hosts#transfer-hosts-to-a-team) to the team.
+
+2. In the top navigation, select **Queries**.
+
+3. In the **Teams** dropdown below the top navigation, select the team you want to manage automation for.
+
+4. Select **Manage automations**
+
+5. Select the queries you want to run on a schedule for this team, and select **Save**.
+
+   > Note: Only queries that belong to the selected team will be listed. When configuring query automations for all hosts, only global queries will be listed.
 
 ## Update agent options
 

@@ -8,7 +8,6 @@ module.exports = {
 
 
   fn: async function () {
-    let util = require('util');
 
     // Find all VantaConnection records with isConnectedToVanta: true
     let allActiveVantaConnections = await VantaConnection.find({isConnectedToVanta: true});
@@ -199,10 +198,6 @@ module.exports = {
           return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
         });
 
-        if(!detailedInformationAboutThisHost.host) {
-          throw new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), the response from the Fleet API did not include a host. Response from the Fleet API: ${util.inspect(detailedInformationAboutThisHost)}`);
-        }
-
         if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
           // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
           let driveInformationForThisHost = {
@@ -287,10 +282,6 @@ module.exports = {
         .intercept((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll throw an error.
           return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
         });
-
-        if(!detailedInformationAboutThisHost.host){
-          throw new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), the response from the Fleet API did not include a host. Response from the Fleet API: ${util.inspect(detailedInformationAboutThisHost)}`);
-        }
 
         if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
           // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`

@@ -15,11 +15,15 @@ import Icon from "components/Icon/Icon";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
+import {
+  getHostDiskEncryptionTooltipMessage,
+  humanHostMemory,
+  wrapFleetHelper,
+} from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
 
-import OSSettingsIndicator from "./OSSettingsIndicator";
+import MacSettingsIndicator from "./MacSettingsIndicator";
 import HostSummaryIndicator from "./HostSummaryIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 import { generateWinDiskEncryptionProfile } from "../../helpers";
@@ -37,7 +41,8 @@ interface IHostSummaryProps {
   diskEncryptionEnabled?: boolean;
   isPremiumTier?: boolean;
   isSandboxMode?: boolean;
-  toggleOSSettingsModal?: () => void;
+  isOnlyObserver?: boolean;
+  toggleMacSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
   hostMdmProfiles?: IHostMdmProfile[];
   mdmName?: string;
@@ -50,55 +55,14 @@ interface IHostSummaryProps {
   osSettings?: IOSSettings;
 }
 
-const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
-  darwin: {
-    enabled: (
-      <>
-        The disk is encrypted. The user must enter their
-        <br /> password when they start their computer.
-      </>
-    ),
-    disabled: (
-      <>
-        The disk might be encrypted, but FileVault is off. The
-        <br /> disk can be accessed without entering a password.
-      </>
-    ),
-  },
-  windows: {
-    enabled: (
-      <>
-        The disk is encrypted. If recently turned on,
-        <br /> encryption could take awhile.
-      </>
-    ),
-    disabled: "The disk is unencrypted.",
-  },
-};
-
-const getHostDiskEncryptionTooltipMessage = (
-  platform: "darwin" | "windows" | "chrome", // TODO: improve this type
-  diskEncryptionEnabled = false
-) => {
-  if (platform === "chrome") {
-    return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
-  }
-
-  if (!["windows", "darwin"].includes(platform)) {
-    return "Disk encryption is enabled.";
-  }
-  return MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES[platform][
-    diskEncryptionEnabled ? "enabled" : "disabled"
-  ];
-};
-
 const HostSummary = ({
   titleData,
   bootstrapPackageData,
   diskEncryptionEnabled,
   isPremiumTier,
   isSandboxMode = false,
-  toggleOSSettingsModal,
+  isOnlyObserver,
+  toggleMacSettingsModal,
   toggleBootstrapPackageModal,
   hostMdmProfiles,
   mdmName,
@@ -214,7 +178,7 @@ const HostSummary = ({
     return (
       <div className="info-flex__item info-flex__item--title">
         <span className="info-flex__header">Disk encryption</span>
-        <TooltipWrapper tipContent={tooltipMessage}>
+        <TooltipWrapper tipContent={tooltipMessage} position="bottom">
           {statusText}
         </TooltipWrapper>
       </div>
@@ -267,9 +231,9 @@ const HostSummary = ({
           hostMdmProfiles &&
           hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
             <HostSummaryIndicator title="OS settings">
-              <OSSettingsIndicator
+              <MacSettingsIndicator
                 profiles={hostMdmProfiles}
-                onClick={toggleOSSettingsModal}
+                onClick={toggleMacSettingsModal}
               />
             </HostSummaryIndicator>
           )}

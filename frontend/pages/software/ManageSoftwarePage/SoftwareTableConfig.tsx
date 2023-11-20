@@ -8,7 +8,7 @@ import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
 import {
   formatFloatAsPercentage,
-  getSoftwareBundleTooltipJSX,
+  getSoftwareBundleTooltipMarkup,
 } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
@@ -79,15 +79,13 @@ const generateEPSSColumnHeader = (isSandboxMode = false) => {
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={
-            <>
-              The probability that this software will be exploited
-              <br />
-              in the next 30 days (EPSS probability). This data is
-              <br />
-              reported by FIRST.org.
-            </>
-          }
+          tipContent={`
+            The probability that this software will be exploited
+            <br />
+            in the next 30 days (EPSS probability). This data is
+            <br />
+            reported by FIRST.org.
+          `}
         >
           Probability of exploit
         </TooltipWrapper>
@@ -207,7 +205,7 @@ const generateTableHeaders = (
             customOnClick={onClickSoftware}
             value={name}
             tooltipContent={
-              bundle ? getSoftwareBundleTooltipJSX(bundle) : undefined
+              bundle ? getSoftwareBundleTooltipMarkup(bundle) : undefined
             }
           />
         );

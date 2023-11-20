@@ -9,7 +9,7 @@ import { IQuery } from "interfaces/query";
 import { ITargetsAPIResponse } from "interfaces/target";
 import { IEditPackFormData } from "interfaces/pack";
 
-import { getErrorReason } from "interfaces/errors";
+import { getError } from "services";
 import packsAPI from "services/entities/packs";
 
 import PackForm from "components/forms/packs/PackForm";
@@ -54,12 +54,10 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
         "success",
         "Pack successfully created. Add queries to your pack."
       );
-    } catch (e) {
-      if (
-        getErrorReason(e, {
-          reasonIncludes: "Duplicate entry",
-        })
-      ) {
+    } catch (response) {
+      const error = getError(response);
+
+      if (error.includes("Duplicate entry")) {
         renderFlash(
           "error",
           "Unable to create pack. Pack names must be unique."

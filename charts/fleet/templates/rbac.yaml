@@ -14,8 +14,8 @@ rules:
   resources:
   - secrets
   resourceNames:
-  - {{ .Values.database.secretName }}
-  - {{ .Values.cache.secretName }}
+  - {{ .Values.mysql.secretName }}
+  - {{ .Values.redis.secretName }}
   - {{ .Values.fleet.secretName }}
   - {{ .Values.osquery.secretName }}
   verbs:

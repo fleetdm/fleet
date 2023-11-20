@@ -1,0 +1,1 @@
+- If live queries are disabled globally, all UI buttons to run a live query or policy are disabled with a tooltip explanation

@@ -55,7 +55,6 @@ func getInfoAboutSessionEndpoint(ctx context.Context, request interface{}, svc f
 func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*fleet.Session, error) {
 	session, err := svc.ds.SessionByID(ctx, id)
 	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
 		return nil, err
 	}
 
@@ -97,7 +96,6 @@ func deleteSessionEndpoint(ctx context.Context, request interface{}, svc fleet.S
 func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 	session, err := svc.ds.SessionByID(ctx, id)
 	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
 		return err
 	}
 
@@ -303,7 +301,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 
 	metadata, err := sso.GetMetadata(&appConfig.SSOSettings.SSOProviderSettings)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, badRequestErr("Could not get SSO Metadata. Check your SSO settings.", err))
+		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting metadata")
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL

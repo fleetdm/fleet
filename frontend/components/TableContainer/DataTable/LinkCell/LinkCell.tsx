@@ -11,7 +11,7 @@ interface ILinkCellProps {
   className?: string;
   customOnClick?: (e: React.MouseEvent) => void;
   /** allows viewing overflow for tooltip */
-  tooltipContent?: string | React.ReactNode;
+  tooltipContent?: string;
   title?: string;
 }
 
@@ -33,7 +33,7 @@ const LinkCell = ({
 
   return tooltipContent ? (
     <TooltipWrapper
-      position="top-start"
+      position="top"
       className="link-cell-tooltip-wrapper"
       tipContent={tooltipContent}
     >

@@ -3,7 +3,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 4.0"
     }
   }
 }
@@ -17,8 +17,7 @@ provider "aws" {
 }
 
 locals {
-  fleet_image = "fleetdm/fleet:v4.40.0"
-  domain_name = "example.com"
+  fleet_image = "fleetdm/fleet:v4.39.0"
 }
 
 resource "random_pet" "main" {}
@@ -27,7 +26,7 @@ module "acm" {
   source  = "terraform-aws-modules/acm/aws"
   version = "4.3.1"
 
-  domain_name = "${random_pet.main.id}.${local.domain_name}"
+  domain_name = "${random_pet.main.id}.example.com"
   zone_id     = data.aws_route53_zone.main.id
 
   wait_for_validation = true
@@ -35,7 +34,7 @@ module "acm" {
 
 resource "aws_route53_record" "main" {
   zone_id = data.aws_route53_zone.main.id
-  name    = "${random_pet.main.id}.${local.domain_name}"
+  name    = "${random_pet.main.id}.example.com"
   type    = "A"
 
   alias {
@@ -46,12 +45,12 @@ resource "aws_route53_record" "main" {
 }
 
 data "aws_route53_zone" "main" {
-  name         = "${local.domain_name}."
+  name         = "example.com."
   private_zone = false
 }
 
 module "firehose-logging" {
-  source = "github.com/fleetdm/fleet//terraform/addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.1.0"
+  source = "github.com/fleetdm/fleet//terraform/addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.0.0"
   osquery_results_s3_bucket = {
     name = "${random_pet.main.id}-results"
   }
@@ -62,7 +61,7 @@ module "firehose-logging" {
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "5.1.2"
+  version = "3.18.1"
 
   name = random_pet.main.id
   cidr = "10.10.0.0/16"
@@ -92,7 +91,7 @@ module "vpc" {
 }
 
 module "byo-vpc" {
-  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.7.0"
+  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.4.0"
   vpc_config = {
     vpc_id = module.vpc.vpc_id
     networking = {
@@ -105,11 +104,10 @@ module "byo-vpc" {
     subnets        = module.vpc.database_subnets
   }
   redis_config = {
-    instance_size                 = "cache.m6g.large"
-    subnets                       = module.vpc.elasticache_subnets
+    instance_size = "cache.m6g.large"
+    subnets       = module.vpc.elasticache_subnets
     elasticache_subnet_group_name = module.vpc.elasticache_subnet_group_name
     availability_zones            = module.vpc.azs
-    allowed_cidrs                 = module.vpc.private_subnets_cidr_blocks
   }
   alb_config = {
     subnets         = module.vpc.public_subnets

@@ -19,10 +19,6 @@ type StatisticsPayload struct {
 	VulnDetectionEnabled      bool   `json:"vulnDetectionEnabled"`
 	SystemUsersEnabled        bool   `json:"systemUsersEnabled"`
 	HostsStatusWebHookEnabled bool   `json:"hostsStatusWebHookEnabled"`
-	MDMMacOsEnabled           bool   `json:"mdmMacOsEnabled"`
-	HostExpiryEnabled         bool   `json:"hostExpiryEnabled"`
-	MDMWindowsEnabled         bool   `json:"mdmWindowsEnabled"`
-	LiveQueryDisabled         bool   `json:"liveQueryDisabled"`
 	NumWeeklyActiveUsers      int    `json:"numWeeklyActiveUsers"`
 	// NumWeeklyPolicyViolationDaysActual is an aggregate count of actual policy violation days. One
 	// policy violation day is added for each policy that a host is failing as of the time the count
@@ -58,5 +54,5 @@ type HostsCountByOSVersion struct {
 }
 
 const (
-	StatisticsFrequency = time.Hour * 24
+	StatisticsFrequency = time.Hour * 24 * 3
 )
