@@ -233,6 +233,8 @@ func checkCVEs(
 	// This index consumes too much RAM
 	// cache.Idx = cvefeed.NewIndex(dict)
 
+	cache.SetTargetSWMatching(true)
+
 	softwareCPECh := make(chan softwareCPEWithNVDMeta)
 	var foundVulns []fleet.SoftwareVulnerability
 
