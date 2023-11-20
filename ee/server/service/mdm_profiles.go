@@ -90,3 +90,9 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 	<integer>1</integer>
 </dict>
 </plist>`))
+
+// TODO(mna): we have a potential issue here with profile names - we need to
+// make sure they are unique for a given team, but there is no validation of
+// Fleet-reserved profile names, only of identifiers. A user could create a
+// "Disk encryption" profile for a custom profile, and then later on Fleet
+// would fail to enable disk encryption. See https://github.com/fleetdm/fleet/issues/15133.

@@ -1,16 +1,13 @@
 # Load test of osquery queries in macOS and Windows
 
-Following are the steps to load test osquery on macOS and Windows.
+Following are the steps to load test osquery on macOS, Windows and Linux.
 The purpose is to know the impact of Fleet provided queries on real devices.
 
 > The scripts that process osquery logs were written and tested on macOS.
 
-> At the time of writing, the changes that add watchdog logging needed for this script are
-> merged but not released yet (https://github.com/osquery/osquery/pull/8070).
-> You will have to download and extract the osqueryd executable from the PR: https://github.com/osquery/osquery/suites/14033523376/artifacts/783724086
-
 ## Requirements
 
+- Osquery [v5.10.2](https://github.com/osquery/osquery/releases/tag/5.10.2) (the `--enable_watchdog_debug` flag was added on v5.10.2).
 - Install gnuplot and ripgrep, e.g. on macOS:
 ```sh
 brew install gnuplot ripgrep
@@ -175,6 +172,7 @@ sudo ENROLL_SECRET=<...> /opt/osquery/bin/osqueryd \
 ```
 
 ### Run osqueryi (shell)
+
 If you just need the osquery shell, and do not need to connect to Fleet server.
 
 ```shell

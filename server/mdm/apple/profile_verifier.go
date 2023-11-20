@@ -126,8 +126,8 @@ func VerifyHostMDMProfiles(ctx context.Context, ds ProfileVerificationStore, hos
 // HandleHostMDMProfileInstallResult ingests the result of an install profile command reported via
 // the MDM protocol and updates the verification status in the datastore. It is intended to be
 // called by the Fleet MDM checkin and command service install profile request handler.
-func HandleHostMDMProfileInstallResult(ctx context.Context, ds ProfileVerificationStore, hostUUID string, cmdUUID string, status *fleet.MDMAppleDeliveryStatus, detail string) error {
-	if status != nil && *status == fleet.MDMAppleDeliveryFailed {
+func HandleHostMDMProfileInstallResult(ctx context.Context, ds ProfileVerificationStore, hostUUID string, cmdUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
+	if status != nil && *status == fleet.MDMDeliveryFailed {
 		m, err := ds.GetHostMDMProfileRetryCountByCommandUUID(ctx, hostUUID, cmdUUID)
 		if err != nil {
 			return err
@@ -147,6 +147,6 @@ func HandleHostMDMProfileInstallResult(ctx context.Context, ds ProfileVerificati
 		HostUUID:      hostUUID,
 		Status:        status,
 		Detail:        detail,
-		OperationType: fleet.MDMAppleOperationTypeInstall,
+		OperationType: fleet.MDMOperationTypeInstall,
 	})
 }

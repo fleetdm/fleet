@@ -269,17 +269,17 @@ func TestHostMDMAppleProfileIgnoreClientError(t *testing.T) {
 	require.True(t, HostMDMAppleProfile{
 		CommandUUID:   "c1",
 		HostUUID:      "h1",
-		Status:        &MDMAppleDeliveryFailed,
+		Status:        &MDMDeliveryFailed,
 		Detail:        "MDMClientError (89): Profile with identifier 'p1' not found.",
-		OperationType: MDMAppleOperationTypeRemove,
+		OperationType: MDMOperationTypeRemove,
 	}.IgnoreMDMClientError())
 
 	require.False(t, HostMDMAppleProfile{
 		CommandUUID:   "c1",
 		HostUUID:      "h1",
-		Status:        &MDMAppleDeliveryFailed,
+		Status:        &MDMDeliveryFailed,
 		Detail:        "MDMClientError (96): Cannot replace profile 'p2' because it was not installed by the MDM server.",
-		OperationType: MDMAppleOperationTypeRemove,
+		OperationType: MDMOperationTypeRemove,
 	}.IgnoreMDMClientError())
 }
 

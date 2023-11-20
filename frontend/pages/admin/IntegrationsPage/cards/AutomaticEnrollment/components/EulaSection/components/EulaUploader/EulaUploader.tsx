@@ -5,7 +5,7 @@ import { IApiError } from "interfaces/errors";
 import mdmAPI from "services/entities/mdm";
 import { NotificationContext } from "context/notification";
 
-import FileUploader from "pages/ManageControlsPage/components/FileUploader/FileUploader";
+import FileUploader from "components/FileUploader/FileUploader";
 import CustomLink from "components/CustomLink";
 
 import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";

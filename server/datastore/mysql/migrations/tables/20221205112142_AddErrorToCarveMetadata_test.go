@@ -13,7 +13,7 @@ func TestUp_20221205112142(t *testing.T) {
 INSERT INTO carve_metadata
   (host_id, block_count, block_size, carve_size, carve_id, request_id, session_id)
 VALUES
-  (1, 10, 1000, 10000, "carve_id", "request_id", ?) 
+  (1, 10, 1000, 10000, "carve_id", "request_id", ?)
 `
 
 	execNoErr(t, db, "INSERT INTO hosts (hostname, osquery_host_id) VALUES ('foo.example.com', 'foo')")
@@ -30,7 +30,7 @@ VALUES
 INSERT INTO carve_metadata
   (host_id, block_count, block_size, carve_size, carve_id, request_id, session_id, error)
 VALUES
-  (1, 10, 1000, 10000, "carve_id", "request_id", 4, "made_up_error") 
+  (1, 10, 1000, 10000, "carve_id", "request_id", 4, "made_up_error")
 `)
 	// Update an existing row to add an error
 	execNoErr(t, db, `UPDATE carve_metadata SET error = "updated_error" WHERE session_id = 3`)

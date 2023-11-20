@@ -1,6 +1,6 @@
-import { flatMap, map } from "lodash";
+import { flatMap } from "lodash";
 
-import { IOsQueryTable, IQueryTableColumn } from "interfaces/osquery_table";
+import { IOsQueryTable } from "interfaces/osquery_table";
 
 import osqueryFleetTablesJSON from "../../schema/osquery_fleet_schema.json";
 

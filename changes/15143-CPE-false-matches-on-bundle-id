@@ -1,0 +1,3 @@
+Previous fix for #13889 caused false positives on software with similar names. Tightening the matching to reduce false positive rate.
+- Google Chrome Helper.app no longer matches Google Chrome.app
+- Acrobat Uninstaller.app no longer matches Acrobat.app

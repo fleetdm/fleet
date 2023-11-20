@@ -1283,6 +1283,8 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.macos_settings.custom_settings        | list   | body  | The list of .mobileconfig files to apply to hosts that belong to this team.                                                                                                                                                         |
 | scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
+| mdm.windows_settings                      | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                  |
+| mdm.windows_settings.custom_settings      | list   | body  | The list of .xml files to apply to hosts that belong to this team.                                                                                                                                                                  |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
 
@@ -1342,6 +1344,9 @@ If the `name` is not already associated with an existing team, this API route cr
         "macos_settings": {
           "custom_settings": ["path/to/profile1.mobileconfig"],
           "enable_disk_encryption": true
+        },
+        "windows_settings": {
+          "custom_settings": ["path/to/profile2.xml"],
         }
       },
       "scripts": ["path/to/script.sh"],

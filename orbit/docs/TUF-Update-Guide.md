@@ -9,6 +9,7 @@ This document is a walkthrough guide for:
 
 - The TUF keys for `targets`, `snapshot` and `timestamp` should be stored on a USB stick (used solely for this purpose). Whenever you need to push updates to Fleet's TUF repository you can temporarily copy the encrypted keys to your workstation (under the `keys/` folder, more on this below).
 - The keys should be stored encrypted with its passphrase stored in 1Password (on a private vault).
+- Every `fleetctl updates` command will prompt for the passphrases to decrypt the encrypted keys. You can input the passphrases every time or can alternatively set the following environment variables: `FLEET_TIMESTAMP_PASSPHRASE`, `FLEET_SNAPSHOT_PASSPHRASE` and `FLEET_TARGETS_PASSPHRASE`. Make sure to not leave traces of the passphrases (scripts, history and/or environment) when you are done.
 
 ## Syncing Fleet's TUF repository
 
@@ -124,6 +125,11 @@ fleetctl updates add --target /path/to/downloaded/linux/osqueryd --platform linu
 fleetctl updates add --target /path/to/downloaded/windows/osqueryd.exe --platform windows --name osqueryd --version 5.9.1 -t edge
 ```
 
+#### Push updates
+
+Once all components are updated in your local repository we need to push the changes to the remote repository.
+See [Pushing releases to Fleet's TUF repository](#pushing-releases-to-fleets-tuf-repository).
+
 ### Promoting `edge` to the `stable` channel
 
 > Make sure to install fleetd components using the `stable` channels in the three supported OSs (this is useful to smoke test the update).
@@ -185,7 +191,12 @@ fleetctl updates add --target ./repository/targets/osqueryd/linux/edge/osqueryd 
 fleetctl updates add --target ./repository/targets/osqueryd/windows/edge/osqueryd.exe --platform windows --name osqueryd --version 5.9.1 -t 5.9 -t 5 -t stable
 ```
 
-#### Pushing releases to Fleet's TUF repository
+#### Push updates
+
+Once all components are updated in your local repository we need to push the changes to the remote repository.
+See [Pushing releases to Fleet's TUF repository](#pushing-releases-to-fleets-tuf-repository).
+
+### Pushing releases to Fleet's TUF repository
 
 Once you are done with the changes on your local repository, you can use the following command to review the changes before pushing (`--dryrun` allows us to verify the upgrade before pushing):
 ```sh

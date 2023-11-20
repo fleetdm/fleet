@@ -29,7 +29,7 @@ If you don't use MDM features, to enable scripts, we'll deploy a fleetd agent wi
 
 2. Deploy fleetd to your hosts. If your hosts already have fleetd installed, you can deploy the new fleetd on-top of the old installation.
 
-Learn more about generating a fleetd agent and deploying it [here](./enroll-hosts.md#enroll-hosts-with-fleetd).
+Learn more about generating a fleetd agent and deploying it [here](./enroll-hosts.md).
 
 ### Step 2: Write a script
 

@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -52,6 +53,9 @@ func newDBConnForTests(t *testing.T) *sqlx.DB {
 }
 
 func getMigrationVersion(t *testing.T) int64 {
+	// Migration test functions look like this:
+	//   func TestUp_20231109115838(t *testing.T)
+	// so this extracts the timestamp part only.
 	v, err := strconv.Atoi(strings.TrimPrefix(t.Name(), "TestUp_"))
 	require.NoError(t, err)
 	return int64(v)
@@ -62,8 +66,18 @@ func getMigrationVersion(t *testing.T) int64 {
 //
 // It returns the database connection to perform additional queries and migrations.
 func applyUpToPrev(t *testing.T) *sqlx.DB {
-	db := newDBConnForTests(t)
+	// Run migration tests up to 2 months old. Our releases are on a 3-week
+	// cadence so this safely catches every migration in the release with a bit
+	// of buffer in case of delayed releases.
+	const maxMigrationTestAge = 60 * 24 * time.Hour
+
 	v := getMigrationVersion(t)
+	testDateTime, err := time.Parse("20060102150405", strconv.FormatInt(v, 10))
+	if err == nil && time.Since(testDateTime) > maxMigrationTestAge {
+		t.Skip("Skipping migration test for old migration, DB migrations are immutable so once tested for a release they don't need to be tested again.")
+	}
+
+	db := newDBConnForTests(t)
 	for {
 		current, err := MigrationClient.GetDBVersion(db.DB)
 		require.NoError(t, err)
@@ -76,9 +90,15 @@ func applyUpToPrev(t *testing.T) *sqlx.DB {
 	}
 }
 
-func execNoErr(t *testing.T, db *sqlx.DB, query string, args ...any) {
-	_, err := db.Exec(query, args...)
+func execNoErrLastID(t *testing.T, db *sqlx.DB, query string, args ...any) int64 {
+	res, err := db.Exec(query, args...)
 	require.NoError(t, err)
+	id, _ := res.LastInsertId()
+	return id
+}
+
+func execNoErr(t *testing.T, db *sqlx.DB, query string, args ...any) {
+	execNoErrLastID(t, db, query, args...)
 }
 
 // applyNext performs the next migration in the chain.
@@ -119,7 +139,7 @@ func insertHost(t *testing.T, db *sqlx.DB) uint {
 	insertHostStmt := `
 		INSERT INTO hosts (
 			hostname, uuid, platform, osquery_version, os_version, build, platform_like, code_name,
-			cpu_type, cpu_subtype, cpu_brand, hardware_vendor, hardware_model, hardware_version, 
+			cpu_type, cpu_subtype, cpu_brand, hardware_vendor, hardware_model, hardware_version,
 			hardware_serial, computer_name
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`

@@ -106,6 +106,11 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting mdm_apple_configuration_profiles for team %d", tid)
 		}
 
+		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE team_id=?`, tid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting mdm_windows_configuration_profiles for team %d", tid)
+		}
+
 		return nil
 	})
 }
@@ -248,7 +253,7 @@ func (ds *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt
 		ds.whereFilterTeams(filter, "t"),
 	)
 	query, params := searchLike(query, nil, opt.MatchQuery, teamSearchColumns...)
-	query = appendListOptionsToSQL(query, &opt)
+	query, params = appendListOptionsWithCursorToSQL(query, params, &opt)
 	teams := []*fleet.Team{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teams, query, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list teams")

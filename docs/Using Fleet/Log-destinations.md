@@ -16,8 +16,11 @@ This document provides a list of the supported log destinations in Fleet.
 
 Log destinations can be used in Fleet to log:
 - Osquery [status logs](https://osquery.readthedocs.io/en/stable/deployment/logging/#status-logs).
+
 - Osquery [schedule query result logs](https://osquery.readthedocs.io/en/stable/deployment/logging/#results-logs).
-- Fleet audit logs. 
+
+- Fleet [audit logs](https://fleetdm.com/docs/using-fleet/audit-logs).
+
 
 To configure each log destination, you must set the correct logging configuration options in Fleet.
 Check out the reference documentation for:

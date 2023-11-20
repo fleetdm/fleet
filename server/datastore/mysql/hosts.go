@@ -482,6 +482,7 @@ var hostRefs = []string{
 var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_apple_profiles":           "host_uuid",
 	"host_mdm_apple_bootstrap_packages": "host_uuid",
+	"host_mdm_windows_profiles":         "host_uuid",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -578,6 +579,7 @@ SELECT
   COALESCE(hst.seen_time, h.created_at) AS seen_time,
   t.name AS team_name,
   COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
+  (CASE WHEN uptime = 0 THEN DATE('0001-01-01') ELSE DATE_SUB(h.detail_updated_at, INTERVAL uptime/1000 MICROSECOND) END) as last_restarted_at,
   (
     SELECT
       additional
@@ -847,7 +849,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
     t.name AS team_name,
-    COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
+    COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
+	(CASE WHEN uptime = 0 THEN DATE('0001-01-01') ELSE DATE_SUB(h.detail_updated_at, INTERVAL uptime/1000 MICROSECOND) END) as last_restarted_at
 	`
 
 	sql += hostMDMSelect
@@ -1132,7 +1135,7 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	var subqueryParams []interface{}
 	switch opt.MacOSSettingsFilter {
 	case fleet.OSSettingsFailed:
-		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusFailing()
+		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusFailed()
 	case fleet.OSSettingsPending:
 		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusPending()
 	case fleet.OSSettingsVerifying:
@@ -1177,47 +1180,133 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 		return sql, params
 	}
 
+	// TODO: Look into ways we can convert some of the LEFT JOINs in the main list hosts query
+	// to INNER JOINs if the OSSettingsFilter is set. This would allow us to use indices
+	// from the `host_mdm` table, for example, to cut down on the number of rows that need
+	// to be scanned. For now, this method assumes that LEFT JOINs are used in the main query
+	// and adds extra where clauses to filter out Windows hosts that are not enrolled to Fleet MDM
+	// or are servers. Similar logic could be applied to macOS hosts but is not included in this
+	// current implementation.
+
 	sqlFmt := ` AND h.platform IN('windows', 'darwin')`
 	if opt.TeamFilter == nil {
-		// macOS settings filter is not compatible with the "all teams" option so append the "no
-		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
+		// OS settings filter is not compatible with the "all teams" option so append the "no team"
+		// filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 		sqlFmt += ` AND h.team_id IS NULL`
 	}
+	var whereMacOS, whereWindows string
 	sqlFmt += ` AND ((h.platform = 'windows' AND (%s)) OR (h.platform = 'darwin' AND (%s)))`
 
+	// construct the WHERE for macOS
 	var subqueryMacOS string
-	var subqueryParams []interface{}
-	whereWindows := "FALSE"
-	whereMacOS := "FALSE"
-
+	var paramsMacOS []interface{}
 	switch opt.OSSettingsFilter {
 	case fleet.OSSettingsFailed:
-		subqueryMacOS, subqueryParams = subqueryHostsMacOSSettingsStatusFailing()
-		if isDiskEncryptionEnabled {
-			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionFailed)
-		}
+		subqueryMacOS, paramsMacOS = subqueryHostsMacOSSettingsStatusFailed()
 	case fleet.OSSettingsPending:
-		subqueryMacOS, subqueryParams = subqueryHostsMacOSSettingsStatusPending()
-		if isDiskEncryptionEnabled {
-			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing)
-		}
+		subqueryMacOS, paramsMacOS = subqueryHostsMacOSSettingsStatusPending()
 	case fleet.OSSettingsVerifying:
-		subqueryMacOS, subqueryParams = subqueryHostsMacOSSetttingsStatusVerifying()
-		if isDiskEncryptionEnabled {
-			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying)
-		}
+		subqueryMacOS, paramsMacOS = subqueryHostsMacOSSetttingsStatusVerifying()
 	case fleet.OSSettingsVerified:
-		subqueryMacOS, subqueryParams = subqueryHostsMacOSSetttingsStatusVerified()
-		if isDiskEncryptionEnabled {
-			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionVerified)
-		}
+		subqueryMacOS, paramsMacOS = subqueryHostsMacOSSetttingsStatusVerified()
 	}
-
 	if subqueryMacOS != "" {
 		whereMacOS = "EXISTS (" + subqueryMacOS + ")"
+	} else {
+		whereMacOS = "FALSE"
 	}
 
-	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS), append(params, subqueryParams...)
+	// construct the WHERE for windows
+	whereWindows = `hmdm.name = ? AND hmdm.enrolled = 1 AND hmdm.is_server = 0`
+	paramsWindows := []interface{}{fleet.WellKnownMDMFleet}
+	subqueryFailed, paramsFailed := subqueryHostsMDMWindowsOSSettingsStatusFailed()
+	paramsWindows = append(paramsWindows, paramsFailed...)
+	subqueryPending, paramsPending := subqueryHostsMDMWindowsOSSettingsStatusPending()
+	paramsWindows = append(paramsWindows, paramsPending...)
+	subqueryVerifying, paramsVerifying := subqueryHostsMDMWindowsOSSettingsStatusVerifying()
+	paramsWindows = append(paramsWindows, paramsVerifying...)
+	subqueryVerified, paramsVerified := subqueryHostsMDMWindowsOSSettingsStatusVerified()
+	paramsWindows = append(paramsWindows, paramsVerified...)
+
+	profilesStatus := fmt.Sprintf(`
+        CASE WHEN EXISTS (%s) THEN
+            'profiles_failed'
+        WHEN EXISTS (%s) THEN
+            'profiles_pending'
+        WHEN EXISTS (%s) THEN
+            'profiles_verifying'
+        WHEN EXISTS (%s) THEN
+            'profiles_verified'
+        ELSE
+            ''
+        END`,
+		subqueryFailed,
+		subqueryPending,
+		subqueryVerifying,
+		subqueryVerified,
+	)
+
+	bitlockerStatus := `''`
+	if isDiskEncryptionEnabled {
+		bitlockerStatus = fmt.Sprintf(`
+            CASE WHEN (%s) THEN
+                'bitlocker_verified'
+            WHEN (%s) THEN
+                'bitlocker_verifying'
+            WHEN (%s) THEN
+                'bitlocker_pending'
+            WHEN (%s) THEN
+                'bitlocker_failed'				
+            ELSE
+                ''
+            END`,
+			ds.whereBitLockerStatus(fleet.DiskEncryptionVerified),
+			ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying),
+			ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing),
+			ds.whereBitLockerStatus(fleet.DiskEncryptionFailed),
+		)
+	}
+
+	whereWindows += fmt.Sprintf(` AND (
+    CASE (%s)	
+    WHEN 'profiles_failed' THEN
+        'failed'
+    WHEN 'profiles_pending' THEN (
+        CASE (%s) 
+        WHEN 'bitlocker_failed' THEN
+            'failed'
+        ELSE
+            'pending'
+        END)
+    WHEN 'profiles_verifying' THEN (
+        CASE (%s)
+        WHEN 'bitlocker_failed' THEN
+            'failed'
+        WHEN 'bitlocker_pending' THEN
+            'pending'
+        ELSE
+            'verifying'
+        END)
+	WHEN 'profiles_verified' THEN (
+        CASE (%s)
+        WHEN 'bitlocker_failed' THEN
+            'failed'
+        WHEN 'bitlocker_pending' THEN
+            'pending'
+        WHEN 'bitlocker_verifying' THEN
+            'verifying'
+        ELSE
+            'verified'
+        END)
+    ELSE 
+        REPLACE((%s), 'bitlocker_', '')
+    END) = ?`, profilesStatus, bitlockerStatus, bitlockerStatus, bitlockerStatus, bitlockerStatus)
+
+	paramsWindows = append(paramsWindows, opt.OSSettingsFilter)
+	params = append(params, paramsWindows...)
+	params = append(params, paramsMacOS...)
+
+	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS), params
 }
 
 func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}, enableDiskEncryption bool) (string, []interface{}) {
@@ -1226,10 +1315,8 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt
 	}
 
 	sqlFmt := " AND h.platform IN('windows', 'darwin')"
-	// TODO: Should we add no team filter here? It isn't included for the FileVault filter but is
-	// for the general macOS settings filter.
 	if opt.TeamFilter == nil {
-		// macOS settings filter is not compatible with the "all teams" option so append the "no
+		// OS settings filter is not compatible with the "all teams" option so append the "no
 		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 		sqlFmt += ` AND h.team_id IS NULL`
 	}
@@ -2920,7 +3007,7 @@ func (ds *Datastore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, vers
 	}
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_munki_info SET version = ? WHERE host_id = ?`,
+		`UPDATE host_munki_info SET version = ?, deleted_at = NULL WHERE host_id = ?`,
 		`INSERT INTO host_munki_info (version, host_id) VALUES (?, ?)`,
 		version, hostID,
 	)
