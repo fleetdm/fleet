@@ -38,3 +38,13 @@ go run -tags fts5 ./tools/nvd/nvdvuln/nvdvuln.go \
     -software_from_url https://fleet.example.com \
     -software_from_api_token <...>
 ```
+
+## CPU and memory usage
+
+> Requirement: gnuplot (`brew install gnuplot`)
+
+If set to `-debug` mode, the `nvdvuln` tool will sample its CPU and memory usage and store them on a file under the `-db_dir`.
+Such data can be visualized with the following command:
+```sh
+./tools/nvd/nvdvuln/gnuplot.sh /path/to/db/directory
+```

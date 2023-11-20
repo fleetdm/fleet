@@ -1,7 +1,6 @@
 package nvdsync
 
 import (
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -122,7 +121,8 @@ func (s *CVE) initSync(ctx context.Context) error {
 
 // removeLegacyFeeds removes all the legacy feed files downloaded by previous versions of Fleet.
 func (s *CVE) removeLegacyFeeds() error {
-	jsonGzs, err := filepath.Glob(filepath.Join(s.dbDir, "nvdcve-1.1-*.json.gz"))
+	// Using * to remove new unfinished syncs (uncompressed)
+	jsonGzs, err := filepath.Glob(filepath.Join(s.dbDir, "nvdcve-1.1-*.json*"))
 	if err != nil {
 		return err
 	}
@@ -164,10 +164,12 @@ func (s *CVE) update(ctx context.Context) error {
 
 func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 	// Read the CVE file for the year.
+	readStart := time.Now()
 	storedCVEFeed, err := readCVEsLegacyFormat(s.dbDir, year)
 	if err != nil {
 		return err
 	}
+	level.Debug(s.logger).Log("msg", "read cves", "year", year, "duration", time.Since(readStart))
 
 	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
@@ -180,12 +182,14 @@ func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 	//
 	// This loop iterates the existing slice and, if there's an update for the item, it will
 	// update the item in place. The next for loop takes care of adding the newly reported CVEs.
+	updateStart := time.Now()
 	for i, storedCVE := range storedCVEFeed.CVEItems {
 		if newLegacyCVE, ok := newLegacyCVEs[storedCVE.CVE.CVEDataMeta.ID]; ok {
 			storedCVEFeed.CVEItems[i] = newLegacyCVE
 			delete(newLegacyCVEs, storedCVE.CVE.CVEDataMeta.ID)
 		}
 	}
+	level.Debug(s.logger).Log("msg", "updated cves", "year", year, "duration", time.Since(updateStart))
 
 	// Add any new CVEs (e.g. a new vulnerability has been found since last time so a new CVE number was reported).
 	//
@@ -196,9 +200,12 @@ func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 	storedCVEFeed.CVEDataNumberOfCVEs = strconv.FormatInt(int64(len(storedCVEFeed.CVEItems)), 10)
 
 	// Store the file for the year.
+	storeStart := time.Now()
 	if err := storeCVEsInLegacyFormat(s.dbDir, year, storedCVEFeed); err != nil {
 		return err
 	}
+	level.Debug(s.logger).Log("msg", "stored cves", "year", year, "duration", time.Since(storeStart))
+
 	return nil
 }
 
@@ -224,8 +231,9 @@ type httpClient struct {
 
 // Do implements common.HTTPClient.
 func (c *httpClient) Do(request *http.Request) (*http.Response, error) {
+	start := time.Now()
 	if c.debug {
-		fmt.Fprintf(os.Stderr, "request: %+v\n", request)
+		fmt.Fprintf(os.Stderr, "%s, request: %+v\n", time.Now(), request)
 	}
 
 	response, err := c.Client.Do(request.WithContext(c.ctx))
@@ -234,7 +242,7 @@ func (c *httpClient) Do(request *http.Request) (*http.Response, error) {
 	}
 
 	if c.debug {
-		fmt.Fprintf(os.Stderr, "response: %+v\n", response)
+		fmt.Fprintf(os.Stderr, "%s (%s) response: %+v\n", time.Now(), time.Since(start), response)
 	}
 
 	return response, err
@@ -271,6 +279,7 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 		lastModEndDate = ptr.String(now)
 	}
 	for startIndex := 0; startIndex < totalResults; {
+		startRequestTime := time.Now()
 		cveResponse, err := nvdapi.GetCVEs(s.getHTTPClient(ctx, s.debug), nvdapi.GetCVEsParams{
 			StartIndex:       ptr.Int(startIndex),
 			LastModStartDate: lastModStartDate,
@@ -289,6 +298,7 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 				continue
 			}
 		}
+		requestDuration := time.Since(startRequestTime)
 		retryAttempts = 0
 		totalResults = cveResponse.TotalResults
 		startIndex += cveResponse.ResultsPerPage
@@ -332,7 +342,7 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 			select {
 			case <-ctx.Done():
 				return "", ctx.Err()
-			case <-time.After(timeBetweenRequests - updateDuration):
+			case <-time.After(timeBetweenRequests - requestDuration - updateDuration):
 			}
 		}
 	}
@@ -360,31 +370,25 @@ func fileExists(path string) (bool, error) {
 	}
 }
 
-// storeCVEsInLegacyFormat stores the CVEs in legacy feed format (gzipped JSON).
+// storeCVEsInLegacyFormat stores the CVEs in legacy feed format.
 func storeCVEsInLegacyFormat(dbDir string, year int, cveFeed *schema.NVDCVEFeedJSON10) error {
 	sort.Slice(cveFeed.CVEItems, func(i, j int) bool {
 		return cveFeed.CVEItems[i].CVE.CVEDataMeta.ID < cveFeed.CVEItems[j].CVE.CVEDataMeta.ID
 	})
 
-	path := filepath.Join(dbDir, fmt.Sprintf("nvdcve-1.1-%d.json.gz", year))
+	path := filepath.Join(dbDir, fmt.Sprintf("nvdcve-1.1-%d.json", year))
 	file, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	gzipWriter := gzip.NewWriter(file)
-	defer gzipWriter.Close()
-
-	jsonEncoder := json.NewEncoder(gzipWriter)
+	jsonEncoder := json.NewEncoder(file)
 	jsonEncoder.SetIndent("", "  ")
 	if err := jsonEncoder.Encode(cveFeed); err != nil {
 		return err
 	}
 
-	if err := gzipWriter.Close(); err != nil {
-		return err
-	}
 	if err := file.Close(); err != nil {
 		return err
 	}
@@ -393,7 +397,7 @@ func storeCVEsInLegacyFormat(dbDir string, year int, cveFeed *schema.NVDCVEFeedJ
 
 // readCVEsLegacyFormat loads the CVEs stored in the legacy feed format.
 func readCVEsLegacyFormat(dbDir string, year int) (*schema.NVDCVEFeedJSON10, error) {
-	path := filepath.Join(dbDir, fmt.Sprintf("nvdcve-1.1-%d.json.gz", year))
+	path := filepath.Join(dbDir, fmt.Sprintf("nvdcve-1.1-%d.json", year))
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -409,20 +413,11 @@ func readCVEsLegacyFormat(dbDir string, year int) (*schema.NVDCVEFeedJSON10, err
 	}
 	defer file.Close()
 
-	gzipReader, err := gzip.NewReader(file)
-	if err != nil {
-		return nil, err
-	}
-	defer gzipReader.Close()
-
 	var cveFeed schema.NVDCVEFeedJSON10
-	if err := json.NewDecoder(gzipReader).Decode(&cveFeed); err != nil {
+	if err := json.NewDecoder(file).Decode(&cveFeed); err != nil {
 		return nil, err
 	}
 
-	if err := gzipReader.Close(); err != nil {
-		return nil, err
-	}
 	if err := file.Close(); err != nil {
 		return nil, err
 	}

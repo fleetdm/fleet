@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"runtime"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -17,6 +17,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/go-cmp/cmp"
+	"github.com/shirou/gopsutil/v3/process"
 )
 
 func main() {
@@ -37,46 +38,33 @@ func main() {
 
 	flag.Parse()
 
-	if *debug {
-		go func() {
-			for {
-				select {
-				case <-time.After(5 * time.Second):
-					var m runtime.MemStats
-					runtime.ReadMemStats(&m)
-					fmt.Printf("Memory usage: Alloc = %v MiB, TotalAlloc = %v MiB, Sys = %v MiB\n", m.Alloc/1024/1024, m.TotalAlloc/1024/1024, m.Sys/1024/1024)
-				}
-			}
-		}()
-	}
-
 	singleSoftwareSet := *softwareName != ""
 	softwareFromURLSet := *softwareFromURL != ""
 
 	if !*sync && !singleSoftwareSet && !softwareFromURLSet {
-		fmt.Printf("Must either set --sync, --software_name or --software_from_url")
+		printf("Must either set --sync, --software_name or --software_from_url\n")
 		return
 	}
 
 	if singleSoftwareSet && softwareFromURLSet {
-		fmt.Printf("Cannot set both --software_name and --software_from_url")
+		printf("Cannot set both --software_name and --software_from_url\n")
 		return
 	}
 
 	if singleSoftwareSet {
 		if *softwareVersion == "" {
-			fmt.Printf("Must set --software_version")
+			printf("Must set --software_version\n")
 			return
 		}
 		if *softwareSource == "" {
-			fmt.Printf("Must set --software_source")
+			printf("Must set --software_source\n")
 			return
 		}
 	}
 
 	if softwareFromURLSet {
 		if *softwareFromAPIToken == "" {
-			fmt.Printf("Must set --software_from_api_token")
+			printf("Must set --software_from_api_token\n")
 			return
 		}
 	}
@@ -85,7 +73,39 @@ func main() {
 		panic(err)
 	}
 
+	if *debug {
+		// Sample the process CPU and memory usage every second
+		// and store it on a file under the dbDir.
+		process, err := process.NewProcess(int32(os.Getpid()))
+		if err != nil {
+			panic(err)
+		}
+		cpuAndMemFile, err := os.Create(filepath.Join(*dbDir, "cpu_and_mem.dat"))
+		if err != nil {
+			panic(err)
+		}
+		defer cpuAndMemFile.Close()
+		go func() {
+			for {
+				select {
+				case <-time.After(1 * time.Second):
+					cpuPercent, err := process.CPUPercent()
+					if err != nil {
+						panic(err)
+					}
+					memInfo, err := process.MemoryInfo()
+					if err != nil {
+						panic(err)
+					}
+					now := time.Now().UTC().Format("15:04:05")
+					fmt.Fprintf(cpuAndMemFile, "%s %.2f %.2f\n", now, cpuPercent, float64(memInfo.RSS)/1024.0/1024.0)
+				}
+			}
+		}()
+	}
+
 	logger := log.NewJSONLogger(os.Stdout)
+	logger = log.With(logger, "ts", log.DefaultTimestampUTC)
 	if *debug {
 		logger = level.NewFilter(logger, level.AllowDebug())
 	} else {
@@ -93,7 +113,7 @@ func main() {
 	}
 
 	if *sync {
-		fmt.Printf("Syncing into %s...\n", *dbDir)
+		printf("Syncing into %s...\n", *dbDir)
 		if err := vulnDBSync(*dbDir, *debug, logger); err != nil {
 			panic(err)
 		}
@@ -117,9 +137,9 @@ func main() {
 	} else { // softwareFromURLSet
 		software = getSoftwareFromURL(*softwareFromURL, *softwareFromAPIToken, *debug)
 		if *debug {
-			fmt.Printf("Retrieved software:\n")
+			printf("Retrieved software:\n")
 			for _, s := range software {
-				fmt.Printf("%+v\n", s)
+				printf("%+v\n", s)
 			}
 		}
 		// Set CPE to empty to trigger CPE matching.
@@ -149,7 +169,7 @@ func main() {
 		}
 		if singleSoftwareSet || *debug {
 			for _, cpe := range cpes {
-				fmt.Printf("Matched CPE: %d: %s\n", cpe.SoftwareID, cpe.CPE)
+				printf("Matched CPE: %d: %s\n", cpe.SoftwareID, cpe.CPE)
 			}
 		}
 		return int64(len(cpes)), nil
@@ -164,16 +184,16 @@ func main() {
 		return nil
 	}
 
-	fmt.Println("Translating software to CPE...")
+	printf("Translating software to CPE...\n")
 	err := nvd.TranslateSoftwareToCPE(ctx, ds, *dbDir, logger)
 	if err != nil {
 		panic(err)
 	}
 	if len(softwareCPEs) == 0 {
-		fmt.Println("Unable to match a CPE for the software...")
+		printf("Unable to match a CPE for the software...\n")
 		return
 	}
-	fmt.Println("Translating CPEs to CVEs...")
+	printf("Translating CPEs to CVEs...\n")
 	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, *dbDir, logger, true, 1*time.Hour)
 	if err != nil {
 		panic(err)
@@ -184,7 +204,7 @@ func main() {
 		for _, vuln := range vulns {
 			cves = append(cves, vuln.CVE)
 		}
-		fmt.Printf("CVEs found for %s (%s): %s\n", *softwareName, *softwareVersion, strings.Join(cves, ", "))
+		printf("CVEs found for %s (%s): %s\n", *softwareName, *softwareVersion, strings.Join(cves, ", "))
 	} else { // softwareFromURLSet
 		expectedSoftwareMap := make(map[uint][]string)
 		for _, s := range software {
@@ -207,18 +227,18 @@ func main() {
 			sort.Strings(foundSoftwareCVEs[softwareID])
 		}
 		if *debug {
-			fmt.Printf("Found vulnerabilities:\n")
+			printf("Found vulnerabilities:\n")
 			for softwareID, cves := range foundSoftwareCVEs {
-				fmt.Printf("%s (%d): %s\n", getSoftwareName(software, softwareID), softwareID, cves)
+				printf("%s (%d): %s\n", getSoftwareName(software, softwareID), softwareID, cves)
 			}
 		}
 		if cmp.Equal(expectedSoftwareMap, foundSoftwareCVEs) {
-			fmt.Printf("CVEs found and expected matched!\n")
+			printf("CVEs found and expected matched!\n")
 			return
 		}
 		for s, expectedVulns := range expectedSoftwareMap {
 			if vulnsFound, ok := foundSoftwareCVEs[s]; !ok || !cmp.Equal(expectedVulns, vulnsFound) {
-				fmt.Printf("Mismatched software %s (%d): expected=%+v vs found=%+v\n", getSoftwareName(software, s), s, expectedVulns, vulnsFound)
+				printf("Mismatched software %s (%d): expected=%+v vs found=%+v\n", getSoftwareName(software, s), s, expectedVulns, vulnsFound)
 				if ok {
 					delete(foundSoftwareCVEs, s)
 				}
@@ -226,7 +246,7 @@ func main() {
 		}
 		for s, vulnsFound := range foundSoftwareCVEs {
 			if expectedVulns, ok := expectedSoftwareMap[s]; !ok || !cmp.Equal(expectedVulns, vulnsFound) {
-				fmt.Printf("Mismatched software %s (%d): expected=%+v vs found=%+v\n", getSoftwareName(software, s), s, expectedVulns, vulnsFound)
+				printf("Mismatched software %s (%d): expected=%+v vs found=%+v\n", getSoftwareName(software, s), s, expectedVulns, vulnsFound)
 			}
 		}
 	}
@@ -302,4 +322,8 @@ func getSoftwareFromURL(url, apiToken string, debug bool) []fleet.Software {
 		filteredSoftware = append(filteredSoftware, s)
 	}
 	return filteredSoftware
+}
+
+func printf(format string, a ...any) {
+	fmt.Printf(time.Now().UTC().Format("2006-01-02T15:04:05Z")+": "+format, a...)
 }

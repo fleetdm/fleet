@@ -50,7 +50,7 @@ func DownloadNVDCVEFeed(vulnPath string, debug bool, logger log.Logger) error {
 
 const publishedDateFmt = "2006-01-02T15:04Z" // not quite RFC3339
 
-var rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.gz$`)
+var rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.json.*$`)
 
 func getNVDCVEFeedFiles(vulnPath string) ([]string, error) {
 	var files []string
