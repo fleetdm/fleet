@@ -637,7 +637,7 @@ func subqueryHostsMDMWindowsOSSettingsStatusPending() (string, []interface{}) {
                 1 FROM host_mdm_windows_profiles hmwp
             WHERE
                 h.uuid = hmwp.host_uuid
-                AND (hmwp.status IS NULL OR hmwp.status = ?) 
+                AND (hmwp.status IS NULL OR hmwp.status = ?)
                 AND NOT EXISTS (
                     SELECT
                         1 FROM host_mdm_windows_profiles hmwp2
@@ -681,7 +681,7 @@ func subqueryHostsMDMWindowsOSSettingsStatusVerified() (string, []interface{}) {
             SELECT
                 1 FROM host_mdm_windows_profiles hmwp
             WHERE
-                h.uuid = hmwp.host_uuid 
+                h.uuid = hmwp.host_uuid
                 AND hmwp.operation_type = ?
                 AND hmwp.status = ?
                 AND NOT EXISTS (
@@ -761,7 +761,7 @@ func getMDMWindowsStatusCountsProfilesOnlyDB(ctx context.Context, ds *Datastore,
 
 	stmt := fmt.Sprintf(`
 SELECT
-    CASE 
+    CASE
         WHEN EXISTS (%s) THEN
             'failed'
         WHEN EXISTS (%s) THEN
@@ -781,7 +781,7 @@ FROM
 WHERE
     mdms.name = '%s' AND
     hmdm.is_server = 0 AND
-    hmdm.enrolled = 1 AND 
+    hmdm.enrolled = 1 AND
     h.platform = 'windows' AND
     %s
 GROUP BY
@@ -848,7 +848,7 @@ func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Da
             WHEN (%s) THEN
                 'bitlocker_pending'
             WHEN (%s) THEN
-                'bitlocker_failed'				
+                'bitlocker_failed'
             ELSE
                 ''
             END`,
@@ -860,11 +860,11 @@ func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Da
 
 	stmt := fmt.Sprintf(`
 SELECT
-    CASE (SELECT (%s) FROM hosts h2 WHERE h2.id = h.id)	
+    CASE (SELECT (%s) FROM hosts h2 WHERE h2.id = h.id)
     WHEN 'profiles_failed' THEN
         'failed'
     WHEN 'profiles_pending' THEN (
-        CASE (%s) 
+        CASE (%s)
         WHEN 'bitlocker_failed' THEN
             'failed'
         ELSE
@@ -890,9 +890,9 @@ SELECT
         ELSE
             'verified'
         END)
-    ELSE 
+    ELSE
         REPLACE((%s), 'bitlocker_', '')
-    END as status, 
+    END as status,
     SUM(1) as count
 FROM
     hosts h
@@ -1043,8 +1043,8 @@ func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, paylo
 
 	const defaultBatchSize = 1000 // results in this times 9 placeholders
 	batchSize := defaultBatchSize
-	if testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = testUpsertMDMDesiredProfilesBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
 	}
 
 	resetBatch := func() {
@@ -1106,11 +1106,11 @@ func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []
 
 func (ds *Datastore) BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, profs []*fleet.MDMWindowsProfilePayload) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		return bulkDeleteMDMWindowsHostsConfigProfilesDB(ctx, tx, profs)
+		return ds.bulkDeleteMDMWindowsHostsConfigProfilesDB(ctx, tx, profs)
 	})
 }
 
-func bulkDeleteMDMWindowsHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, profs []*fleet.MDMWindowsProfilePayload) error {
+func (ds *Datastore) bulkDeleteMDMWindowsHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, profs []*fleet.MDMWindowsProfilePayload) error {
 	if len(profs) == 0 {
 		return nil
 	}
@@ -1131,8 +1131,8 @@ func bulkDeleteMDMWindowsHostsConfigProfilesDB(ctx context.Context, tx sqlx.ExtC
 
 	const defaultBatchSize = 1000 // results in this times 2 placeholders
 	batchSize := defaultBatchSize
-	if testDeleteMDMProfilesBatchSize > 0 {
-		batchSize = testDeleteMDMProfilesBatchSize
+	if ds.testDeleteMDMProfilesBatchSize > 0 {
+		batchSize = ds.testDeleteMDMProfilesBatchSize
 	}
 
 	resetBatch := func() {
