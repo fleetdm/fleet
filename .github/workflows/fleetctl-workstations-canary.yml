@@ -2,7 +2,7 @@
 # It uses a fleet instance also built and executed from source.
 #
 # It runs automatically when a file is changed in /mdm_profiles.
-name: Apply latest MDM profiles (Canary)
+name: Apply latest configuration profiles and macOS updates (Canary)
 
 on:
   push:
