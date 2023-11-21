@@ -554,6 +554,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if appConfig.MDM.WindowsUpdates.GracePeriodDays.Valid {
 			grace = &appConfig.MDM.WindowsUpdates.GracePeriodDays.Value
 		}
+
+		if deadline != nil {
+			// TODO(mna): set the MDM profile for no-team
+		} else {
+			// TODO(mna): remove the MDM profile from no-team
+		}
+
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),

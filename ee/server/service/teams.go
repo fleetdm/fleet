@@ -241,6 +241,13 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if team.Config.MDM.WindowsUpdates.GracePeriodDays.Valid {
 			grace = &team.Config.MDM.WindowsUpdates.GracePeriodDays.Value
 		}
+
+		if deadline != nil {
+			// TODO(mna): set the MDM profile for the team
+		} else {
+			// TODO(mna): remove the MDM profile from the team
+		}
+
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
