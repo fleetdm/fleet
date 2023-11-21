@@ -84,7 +84,7 @@ const Checkbox = (props: ICheckboxProps) => {
           {tooltipContent ? (
             <span className={`${baseClass}__label-tooltip tooltip`}>
               <TooltipWrapper tipContent={tooltipContent}>
-                {children as string}
+                {children}
               </TooltipWrapper>
             </span>
           ) : (
