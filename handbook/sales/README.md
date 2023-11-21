@@ -43,8 +43,6 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 
 --->
 
-
-
 ## Responsibilities
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 

@@ -1,9 +1,6 @@
 # Demand
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
-## What we do
-The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other [programs](https://fleetdm.com/handbook/demand#programs).
-
 ## Team
 | Role                            | Contributor(s)
 |:--------------------------------|:------------------------------------------------------------------------------------------------------------------------|
@@ -14,8 +11,6 @@ The Demand department is directly responsible for growing awareness of Fleet and
 
 
 ## Contact us
-
-
 - To **make a request** of the Demand department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-demand&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, at-mention a [team member](#team) in the [#g-demand](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
@@ -23,6 +18,7 @@ The Demand department is directly responsible for growing awareness of Fleet and
 > To **make a request** related to **product marketing**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Aproduct-marketing&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [Head of Product Marketing](#team) in the [help-pmm-2023](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
 
 ## Responsibilities
+The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 
 ### Begin or modify an advertising campaign
 Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-website)"](https://app.zenhub.com/workspaces/g-website-6451748b4eb15200131d4bab/board?sprints=none).
