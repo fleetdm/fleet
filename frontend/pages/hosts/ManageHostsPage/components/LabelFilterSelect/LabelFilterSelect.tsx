@@ -167,11 +167,10 @@ const LabelFilterSelect = ({
   };
 
   return (
-    <div onClick={toggleMenu}>
+    <div className={classes} onClick={toggleMenu}>
       <Select<ILabel | IEmptyOption, false, IGroupOption>
         ref={selectRef}
         name="input-filter-select"
-        className={classes}
         classNamePrefix={baseClass}
         defaultMenuIsOpen={false}
         placeholder="Filter by platform or label"

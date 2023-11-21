@@ -94,6 +94,10 @@
     display: inherit;
     vertical-align: top;
   }
+
+  &__help-text {
+    @include help-text;
+  }
 }
 
 .inverse {
