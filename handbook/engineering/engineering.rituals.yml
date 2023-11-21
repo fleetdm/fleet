@@ -91,6 +91,9 @@
   description: "Check the osquery Slack invitation that is linked to from Fleet and the Fleet website to make sure it is valid."
   moreInfoUrl: "https://fleetdm.com/slack"
   dri: "eashaw"
+  autoIssue:   # Enables automation of GitHub issues
+    labels: [ "#g-website" ] # label to be applied to issue
+    repo: fleet
 
 
 
