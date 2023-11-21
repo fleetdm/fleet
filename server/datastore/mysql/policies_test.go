@@ -1037,7 +1037,7 @@ func testPoliciesByID(t *testing.T, ds *Datastore) {
 	_ = newTestPolicy(t, ds, user1, "policy2", "darwin", nil)
 	host1 := newTestHostWithPlatform(t, ds, "host1", "darwin", nil)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{uint(policy1.ID): ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{policy1.ID: ptr.Bool(true)}, time.Now(), false))
 	require.NoError(t, ds.UpdateHostPolicyCounts(context.Background()))
 
 	policiesByID, err := ds.PoliciesByID(context.Background(), []uint{1, 2})
