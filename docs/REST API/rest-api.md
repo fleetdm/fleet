@@ -6978,20 +6978,20 @@ Get a list of all software grouped by software title.
       "name": "Firefox.app",
       "versions_count": 3,
       "source": "apps",
-      "hosts_count": "48",
+      "hosts_count": 48,
       "versions": [ 
         {
-          "id": "123",
+          "id": 123,
           "version": "1.12",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }, 
         {
-          "id": "124", 
+          "id": 124, 
           "version": "3.4",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         },
         {
-          "id": "12"
+          "id": 12
           "version": "1.13",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }
@@ -7005,22 +7005,22 @@ Get a list of all software grouped by software title.
       "hosts_count": "345",
       "versions": [
         {
-          "id": "331",
+          "id": 331,
           "version": "118.1",
           "vulnerabilities": ["CVE-2023-1234"]
         },
         {
-          "id": "332",
+          "id": 332,
           "version": "119.0",
           "vulnerabilities": ["CVE-2023-9876", "CVE-2023-2367"]
         },
         {
-          "id": "334",
+          "id": 334,
           "version": "119.4",
           "vulnerabilities": ["CVE-2023-1133", "CVE-2023-2224"]
         },
         {
-          "id": "348",
+          "id": 348,
           "version": "121.5",
           "vulnerabilities": ["CVE-2023-0987", "CVE-2023-5673", "CVE-2023-1334"]
         },
@@ -7136,25 +7136,25 @@ Returns the information of the specified software title. By default `versions` a
     "id": 12,
     "title": "Firefox.app",
     "source": "apps",
-    "hosts_count": "48",
+    "hosts_count": 48,
     "versions": [ 
       {
         "id": 123,
         "version": "117.0",
         "vulnerabilities": ["CVE-2023-1234"],
-        "hosts_count": "37"
+        "hosts_count": 37
       },
       {
         "id": 124,
         "version": "116.0",
         "vulnerabilities": ["CVE-2023-4321"],
-        "hosts_count": "7"
+        "hosts_count": 7
       },
       {
         "id": 127,
         "version": "115.5",
         "vulnerabilities": ["CVE-2023-7654"],
-        "hosts_count": "4"
+        "hosts_count": 4
       }
     ]  
   }
