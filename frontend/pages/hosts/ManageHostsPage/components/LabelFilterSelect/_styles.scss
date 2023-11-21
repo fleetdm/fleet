@@ -32,6 +32,7 @@
       box-shadow: none;
       border: 1px solid $core-vibrant-blue;
     }
+    &--is-focused,
     &--menu-is-open {
       .custom-dropdown-indicator {
         svg {
@@ -99,10 +100,6 @@
 
   .label-filter-select__option {
     padding: 10px 1rem;
-
-    &:hover {
-      cursor: pointer;
-    }
 
     &--is-selected,
     &:active {

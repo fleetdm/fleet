@@ -14,6 +14,7 @@ import scriptAPI, {
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import ScriptListHeading from "./components/ScriptListHeading";
 import ScriptListItem from "./components/ScriptListItem";
@@ -24,7 +25,7 @@ import ScriptUploader from "./components/ScriptUploader";
 
 const baseClass = "scripts";
 
-const SCRIPTS_PER_PAGE = 10;
+const SCRIPTS_PER_PAGE = 10; // TODO: confirm this is the desired default
 
 interface IScriptsProps {
   router: InjectedRouter; // v3
@@ -139,8 +140,8 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
-        Upload scripts to change configuration and remediate issues on macOS and
-        Windows hosts. You can run scripts on individual hosts.{" "}
+        Upload scripts to change configuration and remediate issues on macOS
+        hosts. You can run scripts on individual hosts.{" "}
         <CustomLink
           text="Learn more"
           url="https://fleetdm.com/docs/using-fleet/scripts"

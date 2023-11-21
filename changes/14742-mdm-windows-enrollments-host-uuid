@@ -1,0 +1,2 @@
+- Added host detail query for Windows hosts to ingest MDM device id
+- Updated Windows MDM device enrollment flow to associate MDM device id with host uuid

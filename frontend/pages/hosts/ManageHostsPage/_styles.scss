@@ -197,20 +197,31 @@
       .data-table-block {
         .data-table {
           &__wrapper {
-            overflow-x: auto;
+            overflow-x: scroll;
           }
           &__table {
-            tbody {
-              .issues {
-                &__cell {
-                  display: flex;
-                  align-items: center;
-                  gap: $pad-small;
-                  .issue-cell__icon {
-                    display: flex;
-                    align-items: center;
+            thead {
+              tr {
+                th {
+                  .last-col-header-with-tip {
+                    min-width: 90px;
+                    .component__tooltip-wrapper__tip-text {
+                      left: -126px;
+                    }
+                  }
+                  .status-header {
+                    .component__tooltip-wrapper__tip-text {
+                      left: -220px;
+                    }
                   }
                 }
+              }
+            }
+
+            tbody {
+              .issues__cell {
+                display: flex;
+                align-items: center;
               }
 
               .device_mapping__cell,
@@ -274,6 +285,10 @@
     padding-bottom: $pad-large;
   }
 
+  .total-issues-count {
+    margin-left: $pad-small;
+  }
+
   &__export-btn {
     margin-left: $pad-medium;
 
@@ -283,6 +298,16 @@
       margin-left: 8px;
       position: relative;
       top: -2px;
+    }
+  }
+
+  .mdm_enrollment_status__header,
+  .mdm_server_url__header {
+    .last-col-header-with-tip {
+      width: 180px;
+    }
+    .component__tooltip-wrapper__tip-text {
+      left: -156px; // Wide tooltip needs to be shifted left (edge case example when it's second to last column)
     }
   }
 }

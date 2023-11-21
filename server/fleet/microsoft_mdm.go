@@ -921,14 +921,13 @@ type ProtoCmdOperation struct {
 
 // Protocol Command
 type SyncMLCmd struct {
-	XMLName         xml.Name    `xml:",omitempty"`
-	CmdID           string      `xml:"CmdID"`
-	MsgRef          *string     `xml:"MsgRef,omitempty"`
-	CmdRef          *string     `xml:"CmdRef,omitempty"`
-	Cmd             *string     `xml:"Cmd,omitempty"`
-	Data            *string     `xml:"Data,omitempty"`
-	Items           []CmdItem   `xml:"Item,omitempty"`
-	ReplaceCommands []SyncMLCmd `xml:"Replace,omitempty"`
+	XMLName xml.Name  `xml:",omitempty"`
+	CmdID   string    `xml:"CmdID"`
+	MsgRef  *string   `xml:"MsgRef,omitempty"`
+	CmdRef  *string   `xml:"CmdRef,omitempty"`
+	Cmd     *string   `xml:"Cmd,omitempty"`
+	Data    *string   `xml:"Data,omitempty"`
+	Items   []CmdItem `xml:"Item,omitempty"`
 }
 
 // ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
@@ -1377,134 +1376,4 @@ func GetEncodedBinarySecurityToken(typeID WindowsMDMEnrollmentType, payload stri
 	}
 
 	return base64.URLEncoding.EncodeToString(rawBytes), nil
-}
-
-// HostMDMWindowsProfile represents the status of an MDM profile for a Windows host.
-type HostMDMWindowsProfile struct {
-	HostUUID      string             `db:"host_uuid" json:"host_uuid"`
-	CommandUUID   string             `db:"command_uuid" json:"command_uuid"`
-	ProfileUUID   string             `db:"profile_uuid" json:"profile_uuid"`
-	Name          string             `db:"name" json:"name"`
-	Status        *MDMDeliveryStatus `db:"status" json:"status"`
-	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
-	Detail        string             `db:"detail" json:"detail"`
-}
-
-func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
-	return HostMDMProfile{
-		HostUUID:      p.HostUUID,
-		ProfileID:     p.ProfileUUID,
-		Name:          p.Name,
-		Identifier:    "",
-		Status:        p.Status,
-		OperationType: p.OperationType,
-		Detail:        p.Detail,
-		Platform:      "windows",
-	}
-}
-
-// BuildMDMWindowsProfilePayloadFromMDMResponse builds a
-// MDMWindowsProfilePayload for a command that was used to deliver a
-// configuration profile.
-//
-// Profiles are groups of `<Replace>` commands wrapped in an `<Atomic>`, both
-// the top-level atomic and each replace have different CmdID values and Status
-// responses. For example a profile might look like:
-//
-// <Atomic>
-//
-//	<CmdID>foo</CmdID>
-//	<Replace>
-//	  <CmdID>bar</CmdID>
-//	  ...
-//	</Replace>
-//	<Replace>
-//	  <CmdID>baz</CmdID>
-//	  ...
-//	</Replace>
-//
-// </Atomic>
-//
-// And the response from the MDM server will be something like:
-//
-// <SyncBody>
-// <Status>
-//
-//	<CmdID>foo</CmdID>
-//	<Cmd>Atomic</Cmd>
-//	<Data>200</Data>
-//	...
-//
-// </Status>
-// <Status>
-//
-//	<CmdID>bar</CmdID>
-//	<Cmd>Replace</Cmd>
-//	<Data>200</Data>
-//	...
-//
-// </Status>
-// <Status>
-//
-//	<CmdID>baz</CmdID>
-//	<Cmd>Replace</Cmd>
-//	<Data>200</Data>
-//	...
-//
-// </Status>
-// ...
-// </SyncBody>
-//
-// As currently specified:
-//   - The status of the resulting command should be the status of the
-//     top-level `<Atomic>` operation
-//   - The detail of the resulting command should be an aggregate of all the
-//     status responses of every nested `Replace` operation
-func BuildMDMWindowsProfilePayloadFromMDMResponse(
-	cmd MDMWindowsCommand,
-	statuses map[string]SyncMLCmd,
-	hostUUID string,
-) (*MDMWindowsProfilePayload, error) {
-	status, ok := statuses[cmd.CommandUUID]
-	if !ok {
-		return nil, fmt.Errorf("missing status for root command %s", cmd.CommandUUID)
-	}
-	commandStatus := WindowsResponseToDeliveryStatus(*status.Data)
-	var details []string
-	if status.Data != nil && commandStatus == MDMDeliveryFailed {
-		syncML := new(SyncMLCmd)
-		if err := xml.Unmarshal(cmd.RawCommand, syncML); err != nil {
-			return nil, err
-		}
-		for _, nested := range syncML.ReplaceCommands {
-			if status, ok := statuses[nested.CmdID]; ok && status.Data != nil {
-				details = append(details, fmt.Sprintf("CmdID %s: status %s", nested.CmdID, *status.Data))
-			}
-		}
-	}
-	detail := strings.Join(details, ", ")
-	return &MDMWindowsProfilePayload{
-		HostUUID:      hostUUID,
-		Status:        &commandStatus,
-		OperationType: "",
-		Detail:        detail,
-		CommandUUID:   cmd.CommandUUID,
-	}, nil
-}
-
-// WindowsResponseToDeliveryStatus converts a response string from Windows MDM
-// into an MDMDeliveryStatus.
-//
-// If the response starts with "2" (any 2xx response), it returns
-// MDMDeliveryVerifying, otherwise, it returns MDMDeliveryFailed.
-func WindowsResponseToDeliveryStatus(resp string) MDMDeliveryStatus {
-	if len(resp) == 0 {
-		return MDMDeliveryPending
-	}
-
-	if strings.HasPrefix(resp, "2") {
-		return MDMDeliveryVerifying
-	}
-
-	return MDMDeliveryFailed
 }

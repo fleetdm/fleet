@@ -41,11 +41,6 @@ func clone(v interface{}) (interface{}, error) {
 		return cloner.Clone()
 	}
 
-	// TODO(mna): consider making implementation of the cloner interface
-	// mandatory, and panic/fail loudly if not implemented. Reflection-based deep
-	// cloning has significant performance issues at scale (better yet - make the
-	// cache accept/return cloner types instead of interface{}).
-
 	if v == nil {
 		return nil, nil
 	}
@@ -162,7 +157,6 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 		scheduledQueriesExp:  defaultScheduledQueriesExpiration,
 		teamAgentOptionsExp:  defaultTeamAgentOptionsExpiration,
 		teamFeaturesExp:      defaultTeamFeaturesExpiration,
-		teamMDMConfigExp:     defaultTeamMDMConfigExpiration,
 		queryByNameExp:       defaultQueryByNameExpiration,
 		queryResultsCountExp: defaultQueryResultsCountExpiration,
 	}
@@ -298,9 +292,6 @@ func (ds *cachedMysql) TeamMDMConfig(ctx context.Context, teamID uint) (*fleet.T
 	if err != nil {
 		return nil, err
 	}
-
-	ds.c.Set(key, cfg, ds.teamMDMConfigExp)
-
 	return cfg, nil
 }
 

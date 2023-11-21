@@ -1,0 +1,1 @@
+* Added support for `--context` and `--debug` flags to `fleetctl mdm run-command` 

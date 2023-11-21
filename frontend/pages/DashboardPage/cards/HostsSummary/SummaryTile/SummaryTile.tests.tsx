@@ -1,6 +1,6 @@
 import React from "react";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 import paths from "router/paths";
 import SummaryTile from "./SummaryTile";
@@ -102,7 +102,7 @@ describe("SummaryTile - component", () => {
       />
     );
 
-    await fireEvent.mouseEnter(screen.getByText("Windows hosts"));
+    await user.hover(screen.getByText("Windows hosts"));
 
     expect(screen.getByText("Hosts on any Windows device")).toBeInTheDocument();
   });

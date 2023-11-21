@@ -167,6 +167,9 @@
 
   .download-certificate--tooltip {
     margin-bottom: 0;
+    div {
+      display: inline;
+    }
   }
 
   &__copy-message {

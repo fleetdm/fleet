@@ -161,88 +161,44 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 // Delete Hosts
 /////////////////////////////////////////////////////////////////////////////////
 
-// These values are modified during testing.
-var (
-	deleteHostsTimeout           = 30 * time.Second
-	deleteHostsSkipAuthorization = false
-)
-
-type deleteHostsFilters struct {
-	MatchQuery string           `json:"query"`
-	Status     fleet.HostStatus `json:"status"`
-	LabelID    *uint            `json:"label_id"`
-	TeamID     *uint            `json:"team_id"`
-}
-
 type deleteHostsRequest struct {
-	IDs []uint `json:"ids"`
-	// Using a pointer to help determine whether an empty filter was passed, like: "filters":{}
-	Filters *deleteHostsFilters `json:"filters"`
+	IDs     []uint `json:"ids"`
+	Filters struct {
+		MatchQuery string           `json:"query"`
+		Status     fleet.HostStatus `json:"status"`
+		LabelID    *uint            `json:"label_id"`
+		TeamID     *uint            `json:"team_id"`
+	} `json:"filters"`
 }
 
 type deleteHostsResponse struct {
-	Err        error `json:"error,omitempty"`
-	StatusCode int   `json:"-"`
+	Err error `json:"error,omitempty"`
 }
 
 func (r deleteHostsResponse) error() error { return r.Err }
 
-// Status implements statuser interface to send out custom HTTP success codes.
-func (r deleteHostsResponse) Status() int { return r.StatusCode }
-
 func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteHostsRequest)
-	var listOpts *fleet.HostListOptions
-	var labelID *uint
-	if req.Filters != nil {
-		listOpts = &fleet.HostListOptions{
-			ListOptions: fleet.ListOptions{
-				MatchQuery: req.Filters.MatchQuery,
-			},
-			StatusFilter: req.Filters.Status,
-			TeamFilter:   req.Filters.TeamID,
-		}
-		labelID = req.Filters.LabelID
+	listOpt := fleet.HostListOptions{
+		ListOptions: fleet.ListOptions{
+			MatchQuery: req.Filters.MatchQuery,
+		},
+		StatusFilter: req.Filters.Status,
+		TeamFilter:   req.Filters.TeamID,
 	}
-
-	// Since bulk deletes can take a long time, after DeleteHostsTimeout, we will return a 202 (Accepted) status code
-	// and allow the delete operation to proceed.
-	var err error
-	deleteDone := make(chan bool, 1)
-	ctx = context.WithoutCancel(ctx) // to make sure DB operations don't get killed after we return a 202
-	go func() {
-		err = svc.DeleteHosts(ctx, req.IDs, listOpts, labelID)
-		if err != nil {
-			// logging the error for future debug in case we already sent http.StatusAccepted
-			logging.WithErr(ctx, err)
-		}
-		deleteDone <- true
-	}()
-	select {
-	case <-deleteDone:
-		if err != nil {
-			return deleteHostsResponse{Err: err}, nil
-		}
-		return deleteHostsResponse{StatusCode: http.StatusOK}, nil
-	case <-time.After(deleteHostsTimeout):
-		if deleteHostsSkipAuthorization {
-			// Only called during testing.
-			svc.(validationMiddleware).Service.(*Service).authz.SkipAuthorization(ctx)
-		}
-		return deleteHostsResponse{StatusCode: http.StatusAccepted}, nil
+	err := svc.DeleteHosts(ctx, req.IDs, listOpt, req.Filters.LabelID)
+	if err != nil {
+		return deleteHostsResponse{Err: err}, nil
 	}
+	return deleteHostsResponse{}, nil
 }
 
-func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts *fleet.HostListOptions, lid *uint) error {
+func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.HostListOptions, lid *uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
 	}
 
-	if len(ids) == 0 && lid == nil && opts == nil {
-		return &fleet.BadRequestError{Message: "list of ids or filters must be specified"}
-	}
-
-	if len(ids) > 0 && (lid != nil || (opts != nil && !opts.Empty())) {
+	if len(ids) > 0 && (lid != nil || !opts.Empty()) {
 		return &fleet.BadRequestError{Message: "Cannot specify a list of ids and filters at the same time"}
 	}
 
@@ -254,11 +210,8 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts *fleet.Hos
 		return svc.ds.DeleteHosts(ctx, ids)
 	}
 
-	if opts == nil {
-		opts = &fleet.HostListOptions{}
-	}
 	opts.DisableFailingPolicies = true // don't check policies for hosts that are about to be deleted
-	hostIDs, _, err := svc.hostIDsAndNamesFromFilters(ctx, *opts, lid)
+	hostIDs, _, err := svc.hostIDsAndNamesFromFilters(ctx, opts, lid)
 	if err != nil {
 		return err
 	}
@@ -503,6 +456,13 @@ func (r getHostSummaryResponse) error() error { return r.Err }
 
 func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostSummaryRequest)
+	if req.LowDiskSpace != nil {
+		if *req.LowDiskSpace < 1 || *req.LowDiskSpace > 100 {
+			err := ctxerr.Errorf(ctx, "invalid low_disk_space threshold, must be between 1 and 100: %d", *req.LowDiskSpace)
+			return getHostSummaryResponse{Err: err}, nil
+		}
+	}
+
 	summary, err := svc.GetHostSummary(ctx, req.TeamID, req.Platform, req.LowDiskSpace)
 	if err != nil {
 		return getHostSummaryResponse{Err: err}, nil
@@ -515,14 +475,6 @@ func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *string, lowDiskSpace *int) (*fleet.HostSummary, error) {
-	if lowDiskSpace != nil {
-		if *lowDiskSpace < 1 || *lowDiskSpace > 100 {
-			svc.authz.SkipAuthorization(ctx)
-			return nil, ctxerr.Wrap(
-				ctx, badRequest(fmt.Sprintf("invalid low_disk_space threshold, must be between 1 and 100: %d", *lowDiskSpace)),
-			)
-		}
-	}
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -706,7 +658,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return err
 	}
 	if !skipBulkPending {
-		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil, nil); err != nil {
+		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 	}
@@ -843,7 +795,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
 		return err
 	}
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 	serials, err := svc.ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
@@ -966,15 +918,12 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get app config for host mdm details")
 	}
 
-	var profiles []fleet.HostMDMProfile
+	var profiles []fleet.HostMDMAppleProfile
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
 		case "windows":
-			if !ac.MDM.WindowsEnabledAndConfigured {
-				break
-			}
-			if license.IsPremium(ctx) {
+			if ac.MDM.WindowsEnabledAndConfigured && license.IsPremium(ctx) {
 				hde, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
 				switch {
 				case err != nil:
@@ -985,21 +934,9 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 					host.MDM.OSSettings.DiskEncryption = fleet.HostMDMDiskEncryption{}
 				}
 			}
-			profs, err := svc.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get host mdm windows profiles")
-			}
-			if profs == nil {
-				profs = []fleet.HostMDMWindowsProfile{}
-			}
-			for _, p := range profs {
-				p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
-				profiles = append(profiles, p.ToHostMDMProfile())
-			}
-
 		case "darwin":
 			if ac.MDM.EnabledAndConfigured {
-				profs, err := svc.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+				profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
 				}
@@ -1013,7 +950,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
 					}
 					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
-					profiles = append(profiles, p.ToHostMDMProfile())
+					profiles = append(profiles, p)
 				}
 			}
 		}

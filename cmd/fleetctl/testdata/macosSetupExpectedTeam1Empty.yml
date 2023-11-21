@@ -20,8 +20,6 @@ spec:
       windows_updates:
         deadline_days: null
         grace_period_days: null
-      windows_settings:
-        custom_settings: null
     scripts: null
     name: tm1
 

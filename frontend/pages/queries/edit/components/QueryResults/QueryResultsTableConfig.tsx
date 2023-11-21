@@ -2,6 +2,7 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
+import { isPlainObject } from "lodash";
 
 import {
   CellProps,
@@ -14,7 +15,6 @@ import {
 
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import { internallyTruncateText } from "utilities/helpers";
 
 type IHeaderProps = HeaderProps<TableInstance> & {
   column: ColumnInstance & IDataColumn;
@@ -27,9 +27,9 @@ interface IDataColumn extends ColumnInterface {
   accessor: string;
 }
 
-const _unshiftHostname = (columns: IDataColumn[]) => {
-  const newHeaders = [...columns];
-  const displayNameIndex = columns.findIndex(
+const _unshiftHostname = (headers: IDataColumn[]) => {
+  const newHeaders = [...headers];
+  const displayNameIndex = headers.findIndex(
     (h) => h.id === "host_display_name"
   );
   if (displayNameIndex >= 0) {
@@ -39,7 +39,7 @@ const _unshiftHostname = (columns: IDataColumn[]) => {
     newHeaders.unshift({ ...displayNameHeader, title: "Host" });
   }
   // TODO: Remove after v5 when host_hostname is removed rom API response.
-  const hostNameIndex = columns.findIndex((h) => h.id === "host_hostname");
+  const hostNameIndex = headers.findIndex((h) => h.id === "host_hostname");
   if (hostNameIndex >= 0) {
     newHeaders.splice(hostNameIndex, 1);
   }
@@ -47,44 +47,35 @@ const _unshiftHostname = (columns: IDataColumn[]) => {
   return newHeaders;
 };
 
-const generateColumnConfigsFromRows = (
-  // TODO - narrow typing down this entire chain of logic
-  // typed as any[] to accomodate loose typing of websocket API
-  results: any[] // {col:val, ...} for each row of query results
-): Column[] => {
+const generateResultsTableHeaders = (results: any[]): Column[] => {
+  /* Results include an array of objects, each representing a table row
+  Each key value pair in an object represents a column name and value
+  To create headers, use JS set to create an array of all unique column names */
   const uniqueColumnNames = Array.from(
     results.reduce(
-      (accOuter, row) =>
-        Object.keys(row).reduce(
-          (accInner, colNameInRow) => accInner.add(colNameInRow),
-          accOuter
-        ),
+      (s, o) => Object.keys(o).reduce((t, k) => t.add(k), s),
       new Set() // Set prevents listing duplicate headers
     )
   );
 
-  const columnsConfigs = uniqueColumnNames.map((colName) => {
+  const headers = uniqueColumnNames.map((key) => {
     return {
-      id: colName as string,
-      title: colName as string,
+      id: key as string,
+      title: key as string,
       Header: (headerProps: IHeaderProps) => (
         <HeaderCell
           value={headerProps.column.title || headerProps.column.id}
           isSortedDesc={headerProps.column.isSortedDesc}
         />
       ),
-      accessor: colName as string,
-      Cell: (cellProps: ICellProps) => {
-        const val = cellProps?.cell?.value;
-        return !!val?.length && val.length > 300
-          ? internallyTruncateText(val)
-          : val ?? null;
-      },
+      accessor: key as string,
+      Cell: (cellProps: ICellProps) => cellProps?.cell?.value || null,
       Filter: DefaultColumnFilter,
+      // filterType: "text",
       disableSortBy: false,
     };
   });
-  return _unshiftHostname(columnsConfigs);
+  return _unshiftHostname(headers);
 };
 
-export default generateColumnConfigsFromRows;
+export default generateResultsTableHeaders;

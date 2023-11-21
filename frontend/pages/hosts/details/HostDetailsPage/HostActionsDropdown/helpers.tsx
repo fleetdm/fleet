@@ -3,7 +3,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { cloneDeep } from "lodash";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
-const DEFAULT_OPTIONS = [
+const DEFAULT_OPTIONS: IDropdownOption[] = [
   {
     label: "Transfer",
     value: "transfer",
@@ -30,11 +30,10 @@ const DEFAULT_OPTIONS = [
     disabled: false,
     value: "delete",
   },
-] as const;
+];
 
 // eslint-disable-next-line import/prefer-default-export
 interface IHostActionConfigOptions {
-  hostPlatform: string;
   isPremiumTier: boolean;
   isGlobalAdmin: boolean;
   isGlobalMaintainer: boolean;
@@ -64,7 +63,6 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
     isMdmEnabledAndConfigured,
   } = config;
   return (
-    config.hostPlatform === "darwin" &&
     isMdmEnabledAndConfigured &&
     isEnrolledInMdm &&
     isFleetMdm &&
@@ -147,7 +145,7 @@ const setOptionsAsDisabled = (
 // eslint-disable-next-line import/prefer-default-export
 export const generateHostActionOptions = (config: IHostActionConfigOptions) => {
   // deep clone to always start with a fresh copy of the default options.
-  let options: IDropdownOption[] = cloneDeep([...DEFAULT_OPTIONS]);
+  let options = cloneDeep(DEFAULT_OPTIONS);
   options = filterOutOptions(options, config);
 
   if (options.length === 0) return options;

@@ -16,7 +16,6 @@ interface IHostActionsDropdownProps {
   hostMdmEnrollemntStatus: MdmEnrollmentStatus | null;
   doesStoreEncryptionKey?: boolean;
   mdmName?: string;
-  hostPlatform?: string;
   onSelect: (value: string) => void;
 }
 
@@ -26,7 +25,6 @@ const HostActionsDropdown = ({
   hostMdmEnrollemntStatus,
   doesStoreEncryptionKey,
   mdmName,
-  hostPlatform = "",
   onSelect,
 }: IHostActionsDropdownProps) => {
   const {
@@ -47,7 +45,6 @@ const HostActionsDropdown = ({
   );
 
   const options = generateHostActionOptions({
-    hostPlatform,
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,

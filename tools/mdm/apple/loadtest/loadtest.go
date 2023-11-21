@@ -119,10 +119,10 @@ func main() {
 	printf("3a. Duration: %s\n", time.Since(start))
 
 	waitProfilesAppliedOnTeams := func(teamsToWait []*fleet.Team) {
-		summaryDone := func(s fleet.MDMProfilesSummary) bool {
+		summaryDone := func(s fleet.MDMAppleConfigProfilesSummary) bool {
 			return s.Verifying == uint(hostCountPerTeam)
 		}
-		teamSummaries := make(map[uint]fleet.MDMProfilesSummary)
+		teamSummaries := make(map[uint]fleet.MDMAppleConfigProfilesSummary)
 		for {
 			doneCount := 0
 			for _, team := range teamsToWait {
@@ -240,8 +240,8 @@ func main() {
 	}
 }
 
-var profiles = map[string][]byte{
-	"Disable Bluetooth sharing": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+var profiles = [][]byte{
+	[]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -301,7 +301,7 @@ var profiles = map[string][]byte{
         </array>
 </dict>
 </plist>`),
-	"Ensure Auto Update Is Enabled": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	[]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -338,7 +338,7 @@ var profiles = map[string][]byte{
         <integer>1</integer>
 </dict>
 </plist>`),
-	"Ensure Download New Updates When Available Is Enabled": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	[]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -375,7 +375,7 @@ var profiles = map[string][]byte{
         <integer>1</integer>
 </dict>
 </plist>`),
-	"Ensure Install of macOS Updates Is Enabled": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	[]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -412,7 +412,7 @@ var profiles = map[string][]byte{
         <integer>1</integer>
 </dict>
 </plist>`),
-	"Ensure Install Application Updates from the App Store Is Enabled": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	[]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -449,7 +449,7 @@ var profiles = map[string][]byte{
         <integer>1</integer>
 </dict>
 </plist>`),
-	"Ensure Install Security Responses and System Files Is Enabled": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	[]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -488,7 +488,7 @@ var profiles = map[string][]byte{
         <integer>1</integer>
 </dict>
 </plist>`),
-	"Ensure Software Update Deferment Is Less Than or Equal to 30 Days": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	[]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -525,7 +525,7 @@ var profiles = map[string][]byte{
         <integer>1</integer>
 </dict>
 </plist>`),
-	"Disable iCloud Drive storage solution usage": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	[]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -562,7 +562,7 @@ var profiles = map[string][]byte{
         <integer>1</integer>
 </dict>
 </plist>`),
-	"Ensure Firewall Logging Is Enabled and Configured": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	[]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -603,7 +603,7 @@ var profiles = map[string][]byte{
         <integer>1</integer>
 </dict>
 </plist>`),
-	"Ensure Bonjour Advertising Services Is Disabled": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	[]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>

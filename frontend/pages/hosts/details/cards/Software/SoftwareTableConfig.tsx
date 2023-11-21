@@ -14,7 +14,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { COLORS } from "styles/var/colors";
-import { getSoftwareBundleTooltipJSX } from "utilities/helpers";
+import { getSoftwareBundleTooltipMarkup } from "utilities/helpers";
 
 interface IHeaderProps {
   column: {
@@ -106,13 +106,14 @@ const condenseVulnerabilities = (vulns: string[]): string[] => {
 const renderBundleTooltip = (name: string, bundle: string) => (
   <span className="name-container">
     <TooltipWrapper
-      position="top-start"
-      tipContent={
+      position="top"
+      tipContent={`
         <span>
           <b>Bundle identifier: </b>
-          <br />${bundle}
+          <br />
+          ${bundle}
         </span>
-      }
+      `}
     >
       {name}
     </TooltipWrapper>
@@ -220,7 +221,7 @@ export const generateSoftwareTableHeaders = ({
             customOnClick={onClickSoftware}
             value={name}
             tooltipContent={
-              bundle ? getSoftwareBundleTooltipJSX(bundle) : undefined
+              bundle ? getSoftwareBundleTooltipMarkup(bundle) : undefined
             }
           />
         );
@@ -355,14 +356,7 @@ export const generateSoftwareTableHeaders = ({
       title: "File path",
       Header: () => {
         return (
-          <TooltipWrapper
-            tipContent={
-              <>
-                This is where the software is <br />
-                located on this host.
-              </>
-            }
-          >
+          <TooltipWrapper tipContent="This is where the software is <br />located on this host.">
             File path
           </TooltipWrapper>
         );

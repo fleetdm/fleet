@@ -14,7 +14,7 @@ export interface IRadioProps {
   name?: string;
   className?: string;
   disabled?: boolean;
-  tooltip?: React.ReactNode;
+  tooltip?: string;
   testId?: string;
 }
 

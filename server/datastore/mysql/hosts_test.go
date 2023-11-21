@@ -154,7 +154,6 @@ func TestHosts(t *testing.T) {
 		{"GetMatchingHostSerials", testGetMatchingHostSerials},
 		{"ListHostsLiteByIDs", testHostsListHostsLiteByIDs},
 		{"ListHostsWithPagination", testListHostsWithPagination},
-		{"LastRestarted", testLastRestarted},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -764,8 +763,8 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 			ProfileIdentifier: "identifier",
 			HostUUID:          hosts[0].UUID, // hosts[0] is assgined to team 1
 			CommandUUID:       "command-uuid-1",
-			OperationType:     fleet.MDMOperationTypeInstall,
-			Status:            &fleet.MDMDeliveryVerifying,
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+			Status:            &fleet.MDMAppleDeliveryVerifying,
 			Checksum:          []byte("csum"),
 		},
 	}))
@@ -782,8 +781,8 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 			ProfileIdentifier: "identifier",
 			HostUUID:          hosts[9].UUID, // hosts[9] is assgined to no team
 			CommandUUID:       "command-uuid-2",
-			OperationType:     fleet.MDMOperationTypeInstall,
-			Status:            &fleet.MDMDeliveryVerifying,
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+			Status:            &fleet.MDMAppleDeliveryVerifying,
 			Checksum:          []byte("csum"),
 		},
 	}))
@@ -809,8 +808,8 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 			ProfileIdentifier: mobileconfig.FleetFileVaultPayloadIdentifier,
 			HostUUID:          hosts[8].UUID, // hosts[8] is assgined to no team
 			CommandUUID:       "command-uuid-3",
-			OperationType:     fleet.MDMOperationTypeInstall,
-			Status:            &fleet.MDMDeliveryPending,
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+			Status:            &fleet.MDMAppleDeliveryPending,
 			Checksum:          []byte("disk-encryption-csum"),
 		},
 	}))
@@ -3016,7 +3015,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 
 	// verifying status
-	upsertHostCPs([]*fleet.Host{hosts[0], hosts[1]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
+	upsertHostCPs([]*fleet.Host{hosts[0], hosts[1]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerifying, ctx, ds, t)
 	oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
 	createDiskEncryptionRecord(ctx, ds, t, hosts[0].ID, "key-1", true, oneMinuteAfterThreshold)
 	createDiskEncryptionRecord(ctx, ds, t, hosts[1].ID, "key-1", true, oneMinuteAfterThreshold)
@@ -3032,8 +3031,8 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	upsertHostCPs(
 		[]*fleet.Host{hosts[2], hosts[3]},
 		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
-		fleet.MDMOperationTypeInstall,
-		&fleet.MDMDeliveryVerifying, ctx, ds, t,
+		fleet.MDMAppleOperationTypeInstall,
+		&fleet.MDMAppleDeliveryVerifying, ctx, ds, t,
 	)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[2].ID}, false, oneMinuteAfterThreshold)
 	require.NoError(t, err)
@@ -3053,8 +3052,8 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	upsertHostCPs(
 		[]*fleet.Host{hosts[4]},
 		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
-		fleet.MDMOperationTypeInstall,
-		&fleet.MDMDeliveryPending, ctx, ds, t,
+		fleet.MDMAppleOperationTypeInstall,
+		&fleet.MDMAppleDeliveryPending, ctx, ds, t,
 	)
 
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
@@ -3068,7 +3067,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	upsertHostCPs(
 		[]*fleet.Host{hosts[5]},
 		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
-		fleet.MDMOperationTypeInstall,
+		fleet.MDMAppleOperationTypeInstall,
 		nil, ctx, ds, t,
 	)
 
@@ -3083,8 +3082,8 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	upsertHostCPs(
 		[]*fleet.Host{hosts[6]},
 		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
-		fleet.MDMOperationTypeInstall,
-		&fleet.MDMDeliveryPending, ctx, ds, t,
+		fleet.MDMAppleOperationTypeInstall,
+		&fleet.MDMAppleDeliveryPending, ctx, ds, t,
 	)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[6].ID}, false, oneMinuteAfterThreshold)
 	require.NoError(t, err)
@@ -3097,7 +3096,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 0)
 
 	// failed status
-	upsertHostCPs([]*fleet.Host{hosts[7], hosts[8]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryFailed, ctx, ds, t)
+	upsertHostCPs([]*fleet.Host{hosts[7], hosts[8]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryFailed, ctx, ds, t)
 
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
@@ -3107,7 +3106,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 0)
 
 	// removing enforcement status
-	upsertHostCPs([]*fleet.Host{hosts[9]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeRemove, &fleet.MDMDeliveryPending, ctx, ds, t)
+	upsertHostCPs([]*fleet.Host{hosts[9]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeRemove, &fleet.MDMAppleDeliveryPending, ctx, ds, t)
 
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
@@ -3117,7 +3116,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 1)
 
 	// verified status
-	upsertHostCPs([]*fleet.Host{hosts[0]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerified, ctx, ds, t)
+	upsertHostCPs([]*fleet.Host{hosts[0]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryVerified, ctx, ds, t)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 1)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 1)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 2)
@@ -5822,7 +5821,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	prof, err := ds.NewMDMAppleConfigProfile(context.Background(), *configProfileForTest(t, "N1", "I1", "U1"))
 	require.NoError(t, err)
 	err = ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
-		{ProfileID: prof.ProfileID, ProfileIdentifier: prof.Identifier, ProfileName: prof.Name, HostUUID: host.UUID, OperationType: fleet.MDMOperationTypeInstall, Checksum: []byte("csum")},
+		{ProfileID: prof.ProfileID, ProfileIdentifier: prof.Identifier, ProfileName: prof.Name, HostUUID: host.UUID, OperationType: fleet.MDMAppleOperationTypeInstall, Checksum: []byte("csum")},
 	})
 	require.NoError(t, err)
 
@@ -5855,12 +5854,6 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.RecordHostBootstrapPackage(context.Background(), "command-uuid", host.UUID)
 	require.NoError(t, err)
 	_, err = ds.NewHostScriptExecutionRequest(context.Background(), &fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "foo"})
-	require.NoError(t, err)
-
-	_, err = ds.writer(context.Background()).Exec(`
-          INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, command_uuid)
-          VALUES (?, uuid(), uuid())
-	`, host.UUID)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
@@ -7530,73 +7523,4 @@ func testListHostsWithPagination(t *testing.T, ds *Datastore) {
 	count, err := ds.CountHosts(ctx, filter, fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Equal(t, hostCount, count)
-}
-
-func testLastRestarted(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	// Arbitrary value
-	const uptimeVal = 16691000000000
-	now := time.Now()
-	newHostFunc := func(name string, uptimeZero bool) (*fleet.Host, time.Time) {
-		newHost := &fleet.Host{
-			DetailUpdatedAt: now,
-			LabelUpdatedAt:  now,
-			PolicyUpdatedAt: now,
-			SeenTime:        now,
-			NodeKey:         ptr.String(name),
-			UUID:            name,
-			Hostname:        "foo.local." + name,
-		}
-
-		var expectedLastRestartedAt time.Time
-
-		if uptimeZero {
-			newHost.Uptime = 0
-		} else {
-			newHost.Uptime = uptimeVal
-			// Rounding to nearest second because the SQL query does integer division.
-			expectedLastRestartedAt = newHost.DetailUpdatedAt.Add(-newHost.Uptime).Round(time.Second).UTC()
-		}
-
-		host, err := ds.NewHost(ctx, newHost)
-		require.NoError(t, err)
-		require.NotNil(t, host)
-		return host, expectedLastRestartedAt
-	}
-
-	hostCount := 10
-	hosts := make([]*fleet.Host, 0, hostCount)
-	hostsToVals := make(map[uint]time.Time, 0)
-	for i := 0; i < hostCount; i++ {
-		nh, expectedVal := newHostFunc(fmt.Sprintf("h%d", i), i%2 == 0)
-		hosts = append(hosts, nh)
-		hostsToVals[nh.ID] = expectedVal
-	}
-
-	opts := fleet.HostListOptions{}
-
-	userFilter := fleet.TeamFilter{User: test.UserAdmin}
-
-	returnedHosts := listHostsCheckCount(t, ds, userFilter, opts, len(hosts))
-
-	for i, h := range returnedHosts {
-		require.Equal(t, hosts[i].Uptime, h.Uptime)
-		require.Equal(t, hostsToVals[h.ID], h.LastRestartedAt)
-	}
-
-	h1 := hosts[0] // has Uptime == 0
-	h2 := hosts[1] // has Uptime == uptimeVal
-
-	host, err := ds.Host(ctx, h1.ID)
-	require.NoError(t, err)
-	require.Equal(t, h1.ID, host.ID)
-	require.Equal(t, time.Duration(0), host.Uptime)
-	require.Equal(t, hostsToVals[host.ID], host.LastRestartedAt)
-
-	host, err = ds.Host(ctx, h2.ID)
-	require.NoError(t, err)
-	require.Equal(t, h2.ID, host.ID)
-	require.Equal(t, time.Duration(uptimeVal), host.Uptime)
-	require.Equal(t, hostsToVals[host.ID], host.LastRestartedAt)
 }

@@ -1,5 +1,6 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 
 import LastUpdatedText from ".";
 
@@ -26,9 +27,11 @@ describe("Last updated text", () => {
   });
 
   it("renders tooltip on hover", async () => {
-    render(<LastUpdatedText whatToRetrieve="software" />);
+    const { user } = renderWithSetup(
+      <LastUpdatedText whatToRetrieve="software" />
+    );
 
-    await fireEvent.mouseEnter(screen.getByText("Updated never"));
+    await user.hover(screen.getByText("Updated never"));
 
     expect(screen.getByText(/to retrieve software/i)).toBeInTheDocument();
   });

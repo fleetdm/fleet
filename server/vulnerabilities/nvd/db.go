@@ -84,7 +84,7 @@ func generateCPEItem(item cpedict.CPEItem) ([]interface{}, map[string]string, er
 
 const batchSize = 800
 
-func GenerateCPEDB(path string, items []cpedict.CPEItem) error {
+func GenerateCPEDB(path string, items *cpedict.CPEList) error {
 	err := os.Remove(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -105,7 +105,7 @@ func GenerateCPEDB(path string, items []cpedict.CPEItem) error {
 	deprecationsCount := 0
 	var deprecationsBatch []interface{}
 
-	for _, item := range items {
+	for _, item := range items.Items {
 		cpes, deprecations, err := generateCPEItem(item)
 		if err != nil {
 			return err

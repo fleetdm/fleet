@@ -158,7 +158,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			includedCVEs: []string{
 				"CVE-2019-20916",
 				"CVE-2021-3572",
-				"CVE-2023-5752",
 			},
 			continuesToUpdate: false,
 		},
