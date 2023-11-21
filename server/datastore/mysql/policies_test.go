@@ -53,6 +53,7 @@ func TestPolicies(t *testing.T) {
 		{"TestListGlobalPoliciesCanPaginate", testListGlobalPoliciesCanPaginate},
 		{"TestListTeamPoliciesCanPaginate", testListTeamPoliciesCanPaginate},
 		{"TestCountPolicies", testCountPolicies},
+		// {"TestUpdatePolicyHostCounts", testUpdatePolicyHostCounts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2428,4 +2429,65 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	globalCount, err = ds.CountPolicies(ctx, nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, 10, globalCount)
+}
+
+func TestUpdatePolicyHostCounts(t *testing.T) {
+
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+	defer TruncateTables(t, ds)
+
+	// new policy
+	policy, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "policy1"})
+	require.NoError(t, err)
+
+	require.Equal(t, uint(0), policy.FailingHostCount)
+	require.Equal(t, uint(0), policy.PassingHostCount)
+
+	// insert 3 results into policy_membership
+	insertStmt := `
+		INSERT INTO policy_membership (policy_id, host_id, passes)
+		VALUES
+			(?, ?, 1),
+			(?, ?, 1),
+			(?, ?, 0)
+		`
+
+	args := []interface{}{
+		policy.ID, 1,
+		policy.ID, 2,
+		policy.ID, 3,
+	}
+
+	_, err = ds.writer(context.Background()).ExecContext(context.Background(), insertStmt, args...)
+	require.NoError(t, err)
+
+	selectStatement := `
+		SELECT policy_id, host_id, passes from policy_membership;
+		`
+
+	result := []struct {
+		PolicyID uint `db:"policy_id"`
+		HostID   uint `db:"host_id"`
+		Passes   bool `db:"passes"`
+	}{}
+
+	err = ds.writer(context.Background()).Select(&result, selectStatement)
+	require.NoError(t, err)
+
+	// check policy host counts before update
+	policy, err = ds.Policy(context.Background(), policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(0), policy.FailingHostCount)
+	require.Equal(t, uint(0), policy.PassingHostCount)
+
+	// update policy host counts
+	err = ds.UpdateHostPolicyCounts(context.Background())
+	require.NoError(t, err)
+
+	// check policy host counts
+	policy, err = ds.Policy(context.Background(), policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), policy.FailingHostCount)
+	require.Equal(t, uint(2), policy.PassingHostCount)
 }
