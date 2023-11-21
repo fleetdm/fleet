@@ -158,7 +158,7 @@ The following highlights should be considered when deciding if we promote a feat
   explains why the feature is advertised as "beta" and tracking the feature's progress towards advertising the feature as "stable."
 - The feature will be advertised as "beta" in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
-### Maintain current versions
+### Maintain compatibility with current versions of operating systems and CIS benchmarks
 Fleet's product offerings depend on the capabilities of other platforms. This requires the ongoing attention of the product and engineering teams to ensure that we are up-to-date with new capabilities and that our existing capabilities continue to function. The first step to staying up-to-date with Fleet's partners is to know when the partner platform changes. 
 
 Every week, a member of the product team looks up whether there is:
