@@ -1,22 +1,19 @@
-import axios, {
-  AxiosError,
-  AxiosResponse,
-  ResponseType as AxiosResponseType,
-} from "axios";
-import local from "utilities/local";
+import axios, { isAxiosError, ResponseType as AxiosResponseType } from "axios";
 import URL_PREFIX from "router/url_prefix";
+import { authToken } from "utilities/local";
 
-const sendRequest = async (
+export const sendRequest = async (
   method: "GET" | "POST" | "PATCH" | "DELETE" | "HEAD",
   path: string,
   data?: unknown,
   responseType: AxiosResponseType = "json",
-  timeout?: number
-): Promise<any> => {
+  timeout?: number,
+  skipParseError?: boolean
+) => {
   const { origin } = global.window.location;
 
   const url = `${origin}${URL_PREFIX}/api${path}`;
-  const token = local.getItem("auth_token");
+  const token = authToken();
 
   try {
     const response = await axios({
@@ -30,17 +27,19 @@ const sendRequest = async (
       },
     });
 
-    return Promise.resolve(response.data);
+    return response.data;
   } catch (error) {
-    const axiosError = error as AxiosError;
-    return Promise.reject(axiosError.response);
+    if (skipParseError) {
+      return Promise.reject(error);
+    }
+    let reason: unknown | undefined;
+    if (isAxiosError(error)) {
+      reason = error.response || error.message || error.code;
+    }
+    return Promise.reject(
+      reason || `send request: parse server error: ${error}`
+    );
   }
-};
-
-// return the first error
-export const getError = (response: unknown): string => {
-  const r = response as AxiosResponse;
-  return r.data?.errors?.[0]?.reason || ""; // TODO: check if any callers rely on empty return value
 };
 
 export default sendRequest;

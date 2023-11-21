@@ -123,3 +123,55 @@ func TestBase64DecodePaddingAgnostic(t *testing.T) {
 		require.Equal(t, got, c.want)
 	}
 }
+
+func TestRemoveDuplicatesFromSlice(t *testing.T) {
+	tests := map[string]struct {
+		input  []interface{}
+		output []interface{}
+	}{
+		"no duplicates": {
+			input:  []interface{}{34, 56, 1},
+			output: []interface{}{34, 56, 1},
+		},
+		"1 duplicate": {
+			input:  []interface{}{"a", "d", "a"},
+			output: []interface{}{"a", "d"},
+		},
+		"all duplicates": {
+			input:  []interface{}{true, true, true},
+			output: []interface{}{true},
+		},
+	}
+	for name, test := range tests {
+		t.Run(
+			name, func(t *testing.T) {
+				require.Equal(t, test.output, RemoveDuplicatesFromSlice(test.input))
+			},
+		)
+	}
+}
+
+func TestSliceStringsMatch(t *testing.T) {
+	testCases := []struct {
+		a, b []string
+		want bool
+		name string
+	}{
+		{[]string{"foo", "bar"}, []string{"bar", "foo"}, true, "same elements in different order"},
+		{[]string{"foo", "bar"}, []string{"foo", "bar"}, true, "same elements in same order"},
+		{[]string{"foo", "bar"}, []string{"bar", "bar"}, false, "different number of same elements"},
+		{[]string{"foo", "foo", "bar"}, []string{"bar", "foo", "foo"}, true, "both have duplicates"},
+		{[]string{"foo", "bar", "bar"}, []string{"bar", "foo", "foo"}, false, "both have duplicates but elements don't match"},
+		{[]string{"foo", "bar"}, []string{"foo"}, false, "different lengths"},
+		{[]string{}, []string{}, true, "both slices empty"},
+		{[]string{"foo"}, []string{}, false, "one slice empty"},
+		{[]string{"unique"}, []string{"unique", "unique"}, false, "duplicate in one slice"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := SliceStringsMatch(tc.a, tc.b)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

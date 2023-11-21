@@ -187,7 +187,10 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 				return nil, nil
 			}
-			ds.GetHostMDMProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
+			ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
+				return nil, nil
+			}
+			ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
 				return nil, nil
 			}
 			ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
@@ -205,7 +208,11 @@ func TestMDMRunCommand(t *testing.T) {
 				}
 				return hosts, nil
 			}
+			winCmds := map[string]struct{}{}
 			ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
+				// every command uuid is different
+				require.NotContains(t, winCmds, cmd.CommandUUID)
+				winCmds[cmd.CommandUUID] = struct{}{}
 				return nil
 			}
 			ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {

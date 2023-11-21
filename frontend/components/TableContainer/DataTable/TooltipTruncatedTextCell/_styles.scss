@@ -1,0 +1,27 @@
+.tooltip-truncated-cell {
+  .text-muted {
+    color: $ui-fleet-black-50;
+  }
+  .data-table__tooltip-truncated-text {
+    &--cell {
+      display: inline-block;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      max-width: 101%;
+    }
+  }
+
+  .truncated-tooltip {
+    .safari-hack {
+      height: 0px;
+    }
+  }
+
+  // allows for the tooltip text to break on a word instead of a character
+  &.tooltip-break-on-word {
+    .truncated-tooltip {
+      word-break: normal;
+    }
+  }
+}

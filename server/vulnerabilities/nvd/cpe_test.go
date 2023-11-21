@@ -29,7 +29,7 @@ func TestCPEFromSoftware(t *testing.T) {
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -56,7 +56,7 @@ func TestCPETranslations(t *testing.T) {
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -348,7 +348,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	err = TranslateSoftwareToCPE(context.Background(), ds, tempDir, kitlog.NewNopLogger())
@@ -397,7 +397,7 @@ func TestTranslateSoftwareToCPEIgnoreEmptyVersion(t *testing.T) {
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	err = TranslateSoftwareToCPE(context.Background(), ds, tempDir, kitlog.NewNopLogger())
@@ -444,7 +444,7 @@ func TestLegacyCPEDB(t *testing.T) {
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -1329,6 +1329,28 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "com.jetbrains.pycharm.ce",
 			},
 			cpe: "cpe:2.3:a:jetbrains:pycharm:2022.1:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Google Chrome Helper.app",
+				Source:           "apps",
+				Version:          "111.0.5563.64",
+				Vendor:           "",
+				BundleIdentifier: "com.google.Chrome.helper",
+			},
+			// DO NOT MATCH with Google Chrome
+			cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Acrobat Uninstaller.app",
+				Source:           "apps",
+				Version:          "6.0",
+				Vendor:           "",
+				BundleIdentifier: "com.adobe.Acrobat.Uninstaller",
+			},
+			// DO NOT MATCH with Adobe Acrobat
+			cpe: "",
 		},
 	}
 

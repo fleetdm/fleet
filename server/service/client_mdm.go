@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/beevik/etree"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
@@ -334,7 +335,23 @@ func (c *Client) prepareWindowsMDMCommand(rawCmd []byte) ([]byte, error) {
 	if _, err := fleet.ParseWindowsMDMCommand(rawCmd); err != nil {
 		return nil, err
 	}
-	return rawCmd, nil
+
+	// ensure there's a CmdID with a random UUID value, we're manipulating
+	// the document this way to make sure we don't introduce any unintended
+	// changes to the command XML.
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(rawCmd); err != nil {
+		return nil, err
+	}
+	element := doc.FindElement("//CmdID")
+	// if we can't find a CmdID, just add one.
+	if element == nil {
+		root := doc.Root()
+		element = root.CreateElement("CmdID")
+	}
+	element.SetText(uuid.NewString())
+
+	return doc.WriteToBytes()
 }
 
 func (c *Client) prepareAppleMDMCommand(rawCmd []byte) ([]byte, error) {
