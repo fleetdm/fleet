@@ -820,8 +820,8 @@ type Datastore interface {
 	// profile using the unique key defined by `team_id` and `identifier`
 	DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) error
 
-	// GetHostMDMProfiles returns the MDM profile information for the specified host UUID.
-	GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
+	// GetHostMDMAppleProfiles returns the MDM profile information for the specified host UUID.
+	GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
 
 	CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error
 
@@ -928,11 +928,11 @@ type Datastore interface {
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
 
-	// BulkSetPendingMDMAppleHostProfiles sets the status of profiles to install
+	// BulkSetPendingMDMHostProfiles sets the status of profiles to install
 	// or to remove for each affected host to pending for the provided criteria,
 	// which may be either a list of hostIDs, teamIDs, profileIDs or hostUUIDs
 	// (only one of those ID types can be provided).
-	BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error
+	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, profileUUIDs, hostUUIDs []string) error
 
 	// GetMDMAppleProfilesContents retrieves the XML contents of the
 	// profiles requested.
@@ -1075,6 +1075,9 @@ type Datastore interface {
 	// DeleteMDMWindowsConfigProfile deletes the Windows MDM profile corresponding to
 	// the specified profile uuid.
 	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
+
+	// GetHostMDMWindowsProfiles returns the MDM profile information for the specified Windows host UUID.
+	GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]HostMDMWindowsProfile, error)
 
 	// ListMDMConfigProfiles returns a paginated list of configuration profiles
 	// corresponding to the criteria.

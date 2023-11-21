@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, getDefaultNormalizer } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 import createMockActivity from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
@@ -232,6 +232,10 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  // // // // // // // // // // // //
+  // created_user tests
+  // // // // // //// // // // // //
+
   it("renders a created_user type activity globally", () => {
     const activity = createMockActivity({
       type: ActivityType.UserCreated,
@@ -245,6 +249,24 @@ describe("Activity Feed", () => {
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
   });
 
+  it("correctly renders a created_user type activity for a premium SSO user created by JIT provisioning", () => {
+    const activity = createMockActivity({
+      actor_full_name: "Jit Sso",
+      actor_id: 3,
+      type: ActivityType.UserCreated,
+      details: {
+        user_id: 3,
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    //  If actor_id is the same as user_id:
+    // "<name> activated their account."
+    expect(screen.getByText("Jit Sso")).toBeInTheDocument();
+    expect(screen.getByText(/activated their account\./)).toBeInTheDocument();
+  });
+  // // // // // //// // // // // //
+
   it("renders a deleted_user type activity globally", () => {
     const activity = createMockActivity({
       type: ActivityType.UserDeleted,
@@ -257,6 +279,10 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
   });
+
+  // // // // // // // // // // // //
+  // changed_user_global_role  tests
+  // // // // // //// // // // // //
 
   it("renders a changed_user_global_role type activity globally for premium users", () => {
     const activity = createMockActivity({
@@ -287,7 +313,78 @@ describe("Activity Feed", () => {
     expect(forAllTeams).toBeNull();
   });
 
-  it("renders a changed_user_team_role type activity globally", () => {
+  it("correctly renders a changed_user_global_role type activity for a premium SSO user created by JIT provisioning", () => {
+    const activity = createMockActivity({
+      actor_id: 3,
+      type: ActivityType.UserChangedGlobalRole,
+      details: {
+        user_id: 3,
+        user_email: "jit@sso.com",
+        role: "observer",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    //  If actor_id is the same as user_id:
+    // "<user_email> was assigned the <role> for all teams."
+    expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
+    expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
+    expect(screen.getByText("observer")).toBeInTheDocument();
+    expect(screen.getByText(/role for all teams./)).toBeInTheDocument();
+  });
+
+  it("correctly renders a changed_user_global_role type activity when changing an existing user's global role, premium", () => {
+    const activity = createMockActivity({
+      actor_id: 1,
+      actor_full_name: "Ally Admin",
+      type: ActivityType.UserChangedGlobalRole,
+      details: {
+        user_id: 3,
+        user_email: "user@example.com",
+        role: "maintainer",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    //  If actor_id is different from user_id on premium:
+    // "<actor_full_name> changed <user_email> to <role> for all teams."
+    expect(screen.getByText("Ally Admin")).toBeInTheDocument();
+    expect(screen.getByText(/changed/)).toBeInTheDocument();
+    expect(screen.getByText("user@example.com")).toBeInTheDocument();
+    expect(screen.getByText(/to/)).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    expect(screen.getByText(/for all teams/)).toBeInTheDocument();
+  });
+
+  it("correctly renders a changed_user_global_role type activity when changing an existing user's global role, free", () => {
+    const activity = createMockActivity({
+      actor_id: 1,
+      actor_full_name: "Ally Admin",
+      type: ActivityType.UserChangedGlobalRole,
+      details: {
+        user_id: 3,
+        user_email: "user@example.com",
+        role: "maintainer",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+
+    //  If actor_id is different from user_id on free:
+    // "<actor_full_name> changed <user_email> to <role>."
+    expect(screen.getByText("Ally Admin")).toBeInTheDocument();
+    expect(screen.getByText("changed", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("user@example.com")).toBeInTheDocument();
+    expect(screen.getByText("to", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    const forAllTeams = screen.queryByText("for all teams.");
+    expect(forAllTeams).toBeNull();
+  });
+
+  // // // // // // // // // // // //
+  // changed_user_team_role  tests
+  // // // // // //// // // // // //
+
+  it("renders a changed_user_team_role type activity", () => {
     const activity = createMockActivity({
       type: ActivityType.UserChangedTeamRole,
       details: {
@@ -303,6 +400,63 @@ describe("Activity Feed", () => {
     expect(screen.getByText("maintainer")).toBeInTheDocument();
     expect(screen.getByText("Test Team")).toBeInTheDocument();
   });
+
+  it("correctly renders a changed_user_team_role type activity when a new SSO team user is created via JIT provisioning", () => {
+    const activity = createMockActivity({
+      actor_id: 1,
+      actor_full_name: "Ally Admin",
+      type: ActivityType.UserChangedTeamRole,
+      details: {
+        user_id: 1,
+        user_email: "jit@sso.com",
+        role: "maintainer",
+        team_name: "Test Team",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    // If actor_id is the same as user_id:
+    // "<user_email> was assigned the <role> role for the <team_name> team."
+    expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
+    expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    expect(screen.getByText(/role for the/)).toBeInTheDocument();
+    expect(screen.getByText(/Test Team/)).toBeInTheDocument();
+    expect(screen.getByText(/team\./)).toBeInTheDocument();
+
+    expect(screen.queryByText("Ally Admin")).toBeNull();
+    const forAllTeams = screen.queryByText("for all teams.");
+    expect(forAllTeams).toBeNull();
+  });
+
+  it("correctly renders a changed_user_team_role type activity when changing an existing user's team role", () => {
+    const activity = createMockActivity({
+      actor_id: 1,
+      actor_full_name: "Ally Admin",
+      type: ActivityType.UserChangedTeamRole,
+      details: {
+        user_id: 3,
+        user_email: "user@example.com",
+        role: "maintainer",
+        team_name: "Test Team",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    //  If actor_id is different from user_id:
+    // "<actor_full_name> changed <user_email> to <role> for the <team_name> team."
+    expect(screen.getByText("Ally Admin")).toBeInTheDocument();
+    expect(screen.getByText(/changed/)).toBeInTheDocument();
+    expect(screen.getByText("user@example.com")).toBeInTheDocument();
+    expect(screen.getByText(/to/)).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    expect(screen.getByText(/for the/)).toBeInTheDocument();
+    expect(screen.getByText(/Test Team/)).toBeInTheDocument();
+    expect(screen.getByText(/team\./)).toBeInTheDocument();
+    expect(screen.queryByText("for all teams.")).toBeNull();
+  });
+
+  // // // // // // // // // // // //
 
   it("renders a deleted_user_team_role type activity globally", () => {
     const activity = createMockActivity({

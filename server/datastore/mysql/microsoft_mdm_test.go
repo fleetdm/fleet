@@ -1675,21 +1675,21 @@ func testBulkOperationsMDMWindowsHostProfiles(t *testing.T, ds *Datastore) {
 }
 
 func testBulkOperationsMDMWindowsHostProfilesBatch2(t *testing.T, ds *Datastore) {
-	testUpsertMDMDesiredProfilesBatchSize = 2
-	testDeleteMDMProfilesBatchSize = 2
+	ds.testUpsertMDMDesiredProfilesBatchSize = 2
+	ds.testDeleteMDMProfilesBatchSize = 2
 	t.Cleanup(func() {
-		testUpsertMDMDesiredProfilesBatchSize = 0
-		testDeleteMDMProfilesBatchSize = 0
+		ds.testUpsertMDMDesiredProfilesBatchSize = 0
+		ds.testDeleteMDMProfilesBatchSize = 0
 	})
 	testBulkOperationsMDMWindowsHostProfiles(t, ds)
 }
 
 func testBulkOperationsMDMWindowsHostProfilesBatch3(t *testing.T, ds *Datastore) {
-	testUpsertMDMDesiredProfilesBatchSize = 3
-	testDeleteMDMProfilesBatchSize = 3
+	ds.testUpsertMDMDesiredProfilesBatchSize = 3
+	ds.testDeleteMDMProfilesBatchSize = 3
 	t.Cleanup(func() {
-		testUpsertMDMDesiredProfilesBatchSize = 0
-		testDeleteMDMProfilesBatchSize = 0
+		ds.testUpsertMDMDesiredProfilesBatchSize = 0
+		ds.testDeleteMDMProfilesBatchSize = 0
 	})
 	testBulkOperationsMDMWindowsHostProfiles(t, ds)
 }

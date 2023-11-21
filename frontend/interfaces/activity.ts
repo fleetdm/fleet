@@ -38,6 +38,9 @@ export enum ActivityType {
   CreatedMacOSProfile = "created_macos_profile",
   DeletedMacOSProfile = "deleted_macos_profile",
   EditedMacOSProfile = "edited_macos_profile",
+  CreatedWindowsProfile = "created_windows_profile",
+  DeletedWindowsProfile = "deleted_windows_profile",
+  EditedWindowsProfile = "edited_windows_profile",
   EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
   DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
   AddedBootstrapPackage = "added_bootstrap_package",
@@ -80,6 +83,7 @@ export interface IActivityDetails {
   specs?: IQuery[] | IPolicy[];
   global?: boolean;
   public_ip?: string;
+  user_id?: number;
   user_email?: string;
   email?: string;
   role?: UserRole;

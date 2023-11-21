@@ -670,7 +670,7 @@ func (s *integrationMDMTestSuite) TestProfileRetries() {
 		mobileconfig.FleetdConfigPayloadIdentifier: fleet.MDMDeliveryVerifying,
 	}
 	checkProfilesStatus := func(t *testing.T) {
-		storedProfs, err := s.ds.GetHostMDMProfiles(ctx, h.UUID)
+		storedProfs, err := s.ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 		require.NoError(t, err)
 		require.Len(t, storedProfs, len(expectedProfileStatuses))
 		for _, p := range storedProfs {
@@ -1156,7 +1156,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	// - prof2 + old filevault are pending removal
 	// - fleetd config being reinstalled (to update the enroll secret)
 	s.awaitTriggerProfileSchedule(t)
-	hostProfs, err := s.ds.GetHostMDMProfiles(ctx, mdmHost.UUID)
+	hostProfs, err := s.ds.GetHostMDMAppleProfiles(ctx, mdmHost.UUID)
 	require.NoError(t, err)
 	require.Len(t, hostProfs, 5)
 
@@ -1212,7 +1212,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 
 	// and its profiles have been left untouched
 	s.awaitTriggerProfileSchedule(t)
-	hostProfs, err = s.ds.GetHostMDMProfiles(ctx, mdmHost2.UUID)
+	hostProfs, err = s.ds.GetHostMDMAppleProfiles(ctx, mdmHost2.UUID)
 	require.NoError(t, err)
 	require.Len(t, hostProfs, 3)
 
@@ -3838,7 +3838,7 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionRotation() {
 	require.False(t, resp.Notifications.RotateDiskEncryptionKey)
 }
 
-func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
+func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -5704,7 +5704,7 @@ func (s *integrationMDMTestSuite) assertHostConfigProfiles(want map[*fleet.Host]
 	ctx := context.Background()
 
 	for h, wantProfs := range want {
-		gotProfs, err := ds.GetHostMDMProfiles(ctx, h.UUID)
+		gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 		require.NoError(t, err)
 		require.Equal(t, len(wantProfs), len(gotProfs), "host uuid: %s", h.UUID)
 
@@ -7485,7 +7485,6 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	require.Len(t, getMDMCmdResp.Results, 1)
 	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
 	getMDMCmdResp.Results[0].UpdatedAt = time.Time{}
-	fmt.Println(string(getMDMCmdResp.Results[0].Result))
 	require.Equal(t, &fleet.MDMCommandResult{
 		HostUUID:    orbitHost.UUID,
 		CommandUUID: cmdOneUUID,
@@ -9443,7 +9442,22 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	})
 	require.NoError(t, err)
 
-	verifyProfiles := func(device *mdmtest.TestWindowsMDMClient, n int) {
+	verifyHostProfileStatus := func(cmds []fleet.ProtoCmdOperation, wantStatus string) {
+		for _, cmd := range cmds {
+			var gotStatus string
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				stmt := `SELECT status FROM host_mdm_windows_profiles WHERE command_uuid = ?`
+				return sqlx.GetContext(context.Background(), q, &gotStatus, stmt, cmd.Cmd.CmdID)
+			})
+			require.EqualValues(t, fleet.WindowsResponseToDeliveryStatus(wantStatus), gotStatus, "command_uuid", cmd.Cmd.CmdID)
+		}
+	}
+
+	verifyProfiles := func(device *mdmtest.TestWindowsMDMClient, n int, fail bool) {
+		mdmResponseStatus := microsoft_mdm.CmdStatusOK
+		if fail {
+			mdmResponseStatus = microsoft_mdm.CmdStatusAtomicFailed
+		}
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err := device.StartManagementSession()
 		require.NoError(t, err)
@@ -9455,15 +9469,17 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		require.NoError(t, err)
 		for _, c := range cmds {
 			cmdID := c.Cmd.CmdID
+			status := microsoft_mdm.CmdStatusOK
 			if c.Verb == "Atomic" {
 				atomicCmds = append(atomicCmds, c)
+				status = mdmResponseStatus
 			}
 			device.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: mdm_types.CmdStatus},
 				MsgRef:  &msgID,
 				CmdRef:  &cmdID,
-				Cmd:     ptr.String("Exec"),
-				Data:    ptr.String("200"),
+				Cmd:     ptr.String(c.Verb),
+				Data:    &status,
 				Items:   nil,
 				CmdID:   uuid.NewString(),
 			})
@@ -9471,10 +9487,16 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		// TODO: verify profile contents as well
 		require.Len(t, atomicCmds, n)
 
+		// before we send the response, commands should be "pending"
+		verifyHostProfileStatus(atomicCmds, "")
+
 		cmds, err = device.SendResponse()
 		require.NoError(t, err)
 		// the ack of the message should be the only returned command
 		require.Len(t, cmds, 1)
+
+		// verify that we updated status in the db
+		verifyHostProfileStatus(atomicCmds, mdmResponseStatus)
 	}
 
 	checkHostsProfilesMatch := func(host *fleet.Host, wantUUIDs []string) {
@@ -9486,22 +9508,39 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		require.ElementsMatch(t, wantUUIDs, gotUUIDs)
 	}
 
+	checkHostDetails := func(t *testing.T, host *fleet.Host, wantProfs []string, wantStatus fleet.MDMDeliveryStatus) {
+		var gotHostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &gotHostResp)
+		require.NotNil(t, gotHostResp.Host.MDM.Profiles)
+		var gotProfs []string
+		require.Len(t, *gotHostResp.Host.MDM.Profiles, len(wantProfs))
+		for _, p := range *gotHostResp.Host.MDM.Profiles {
+			gotProfs = append(gotProfs, strings.Replace(p.Name, "name-", "", 1))
+			require.NotNil(t, p.Status)
+			require.Equal(t, wantStatus, *p.Status, "profile", p.Name)
+			require.Equal(t, "windows", p.Platform)
+		}
+		require.ElementsMatch(t, wantProfs, gotProfs)
+	}
+
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 	// trigger a profile sync
-	verifyProfiles(mdmDevice, 3)
+	verifyProfiles(mdmDevice, 3, false)
 	checkHostsProfilesMatch(host, globalProfiles)
+	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerifying)
 
 	// another sync shouldn't return profiles
-	verifyProfiles(mdmDevice, 0)
+	verifyProfiles(mdmDevice, 0, false)
 
 	// add the host to a team
 	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
 	require.NoError(t, err)
 
 	// trigger a profile sync, device gets the team profile
-	verifyProfiles(mdmDevice, 2)
+	verifyProfiles(mdmDevice, 2, false)
 	checkHostsProfilesMatch(host, teamProfiles)
+	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerifying)
 
 	// set new team profiles (delete + addition)
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -9515,13 +9554,33 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	}
 
 	// trigger a profile sync, device gets the team profile
-	verifyProfiles(mdmDevice, 1)
+	verifyProfiles(mdmDevice, 1, false)
+
+	// check that we deleted the old profile in the DB
+	checkHostsProfilesMatch(host, teamProfiles)
+	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerifying)
+
+	// another sync shouldn't return profiles
+	verifyProfiles(mdmDevice, 0, false)
+
+	// set new team profiles (delete + addition)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, teamProfiles[1])
+		return err
+	})
+	teamProfiles = []string{
+		teamProfiles[0],
+		mysql.InsertWindowsProfileForTest(t, s.ds, tm.ID),
+	}
+	// trigger a profile sync, this time fail the delivery
+	verifyProfiles(mdmDevice, 1, true)
 
 	// check that we deleted the old profile in the DB
 	checkHostsProfilesMatch(host, teamProfiles)
 
 	// another sync shouldn't return profiles
-	verifyProfiles(mdmDevice, 0)
+	verifyProfiles(mdmDevice, 0, false)
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMWindowsProfiles() {
