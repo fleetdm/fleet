@@ -7,9 +7,6 @@ import (
 )
 
 func TestUp_20230330134823(t *testing.T) {
-	// skipping old migration tests as migrations don't change and we're getting
-	// timeouts in CI
-	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t)
 
 	_, err := db.Exec(`INSERT INTO software (id, name, version, source, bundle_identifier, vendor, arch)

@@ -7,9 +7,6 @@ import (
 )
 
 func TestUp_20230608103123(t *testing.T) {
-	// skipping old migration tests as migrations don't change and we're getting
-	// timeouts in CI
-	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t)
 
 	insertProfStmt := "INSERT INTO mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig, checksum) VALUES (?, ?, ?, ?, 'made up')"

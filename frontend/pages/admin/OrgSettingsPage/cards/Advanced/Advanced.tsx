@@ -46,22 +46,17 @@ const Advanced = ({
     setFormData({ ...formData, [name]: value });
   };
 
-  const validateForm = () => {
+  useEffect(() => {
+    // validate desired form fields
     const errors: IAppConfigFormErrors = {};
 
-    if (enableHostExpiry) {
-      if (!hostExpiryWindow || hostExpiryWindow <= 0) {
-        errors.host_expiry_window =
-          "Host expiry window must be a positive number";
-      }
+    if (enableHostExpiry && (!hostExpiryWindow || hostExpiryWindow <= 0)) {
+      errors.host_expiry_window =
+        "Host expiry window must be a positive number";
     }
 
     setFormErrors(errors);
-  };
-
-  useEffect(() => {
-    validateForm();
-  }, [enableHostExpiry]);
+  }, [enableHostExpiry, hostExpiryWindow]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -166,35 +161,37 @@ const Advanced = ({
                 value={enableHostExpiry}
                 parseTarget
                 tooltipContent={
-                  <p>
-                    When enabled, allows automatic cleanup <br />
-                    of hosts that have not communicated with Fleet <br />
-                    in some number of days.{" "}
+                  <>
+                    When enabled, allows automatic cleanup of
+                    <br />
+                    hosts that have not communicated with Fleet in
+                    <br />
+                    the number of days specified in the{" "}
+                    <strong>
+                      Host expiry
+                      <br />
+                      window
+                    </strong>{" "}
+                    setting.{" "}
                     <em className="hint hint--brand">
                       (Default: <strong>Off</strong>)
                     </em>
-                  </p>
+                  </>
                 }
               >
                 Host expiry
               </Checkbox>
-              <InputField
-                label="Host expiry window"
-                type="number"
-                disabled={!enableHostExpiry}
-                onChange={handleInputChange}
-                name="hostExpiryWindow"
-                value={hostExpiryWindow}
-                parseTarget
-                onBlur={validateForm}
-                error={formErrors.host_expiry_window}
-                tooltipContent={
-                  <p>
-                    If a host has not communicated with Fleet in the specified
-                    number of days, it will be removed.
-                  </p>
-                }
-              />
+              {enableHostExpiry && (
+                <InputField
+                  label="Host expiry window"
+                  type="number"
+                  onChange={handleInputChange}
+                  name="hostExpiryWindow"
+                  value={hostExpiryWindow}
+                  parseTarget
+                  error={formErrors.host_expiry_window}
+                />
+              )}
               <Checkbox
                 onChange={handleInputChange}
                 name="disableLiveQuery"

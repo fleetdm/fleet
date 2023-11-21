@@ -228,6 +228,20 @@ type HostMDMAppleProfile struct {
 	Detail        string             `db:"detail" json:"detail"`
 }
 
+// ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
+func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
+	return HostMDMProfile{
+		HostUUID:      p.HostUUID,
+		ProfileID:     p.ProfileID,
+		Name:          p.Name,
+		Identifier:    p.Identifier,
+		Status:        p.Status,
+		OperationType: p.OperationType,
+		Detail:        p.Detail,
+		Platform:      "darwin",
+	}
+}
+
 func (p HostMDMAppleProfile) IgnoreMDMClientError() bool {
 	switch p.OperationType {
 	case MDMOperationTypeRemove:
@@ -280,26 +294,6 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	Status            *MDMDeliveryStatus
 	Detail            string
 	Checksum          []byte
-}
-
-// MDMAppleConfigProfilesSummary reports the number of hosts being managed with MDM configuration
-// profiles. Each host may be counted in only one of four mutually-exclusive categories:
-// Failed, Pending, Verifying, or Verified.
-type MDMAppleConfigProfilesSummary struct {
-	// Verified includes each host where Fleet has verified the installation of all of the
-	// profiles currently applicable to the host. If any of the profiles are pending, failed, or
-	// subject to verification for the host, the host is not counted as verified.
-	Verified uint `json:"verified" db:"verified"`
-	// Verifying includes each host where the MDM service has successfully delivered all of the
-	// profiles currently applicable to the host. If any of the profiles are pending or failed for
-	// the host, the host is not counted as verifying.
-	Verifying uint `json:"verifying" db:"verifying"`
-	// Pending includes each host that has not yet applied one or more of the profiles currently
-	// applicable to the host. If a host failed to apply any profiles, it is not counted as pending.
-	Pending uint `json:"pending" db:"pending"`
-	// Failed includes each host that has failed to apply one or more of the profiles currently
-	// applicable to the host.
-	Failed uint `json:"failed" db:"failed"`
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk

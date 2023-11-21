@@ -8,9 +8,6 @@ import (
 )
 
 func TestUp_20220215152203(t *testing.T) {
-	// skipping old migration tests as migrations don't change and we're getting
-	// timeouts in CI
-	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t)
 
 	execNoErr(t, db, `INSERT INTO host_munki_info (host_id, version) VALUES (1, "6.2.8")`)

@@ -1,0 +1,1 @@
+* Fixed detection of disabled Redis cluster mode for Redis hosted on RedisLabs.

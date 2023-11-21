@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
@@ -45,17 +46,26 @@ type MDMWindowsConfigProfile struct {
 // Returns an error if these conditions are not met.
 func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	if mdm.GetRawProfilePlatform(m.SyncML) != "windows" {
-		return errors.New("Only <Replace> supported as a top level element. Make sure you don’t have other top level elements.")
+		// it doesn't start with <Replace>, check if it is still valid XML.
+		if len(bytes.TrimSpace(m.SyncML)) == 0 {
+			return errors.New("The file should include valid XML.")
+		}
+		doc := etree.NewDocument()
+		if err := doc.ReadFromBytes(m.SyncML); err != nil {
+			return fmt.Errorf("The file should include valid XML: %w", err)
+		}
+		// valid xml, but does not start with <Replace>
+		return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
 	}
 
 	doc := etree.NewDocument()
 	if err := doc.ReadFromBytes(m.SyncML); err != nil {
-		return fmt.Errorf("Couldn’t upload. The file should include valid XML: %w", err)
+		return fmt.Errorf("The file should include valid XML: %w", err)
 	}
 
 	for _, element := range doc.ChildElements() {
 		if element.Tag != CmdReplace {
-			return errors.New("Only <Replace> supported as a top level element. Make sure you don’t have other top level elements.")
+			return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
 		}
 
 		for _, target := range element.FindElements("Target") {
@@ -80,7 +90,7 @@ func validateFleetProvidedLocURI(locURI string) error {
 	sanitizedLocURI := strings.TrimSpace(locURI)
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
-			return fmt.Errorf("Custom configuration profiles can’t include %s settings. To control these settings, use the %s option.", errHints[0], errHints[1])
+			return fmt.Errorf("Custom configuration profiles can't include %s settings. To control these settings, use the %s option.", errHints[0], errHints[1])
 		}
 	}
 

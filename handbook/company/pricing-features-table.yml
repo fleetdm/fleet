@@ -16,11 +16,12 @@
         - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
           quote: 
           moreInfoUrl: https://play.goconsensus.com/s4e490bb9
-      buzzwords: [Device trust,Zero trust,Beyondcorp,Device attestation,Conditional access]
+      buzzwords: [Device trust,Zero trust,Layer 7 device trust,Beyondcorp,Device attestation,Conditional access]
       waysToUse:
         - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
         - description: Block access to corporate apps for users whose devices with unexpected settings, like disabled screen lock, passwords that are too short, unencrypted hard disks, and more
-        - description: Quickly implement conditional access based on device health using osquery and a simple REST API.
+        - description: Quickly implement conditional access based on device health using osquery and a simple device health REST API. Coming soon (2023-12-31)
+          moreInfoUrl: https://github.com/fleetdm/fleet/issues/14920
         - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
           moreInfoUrl: https://duo.com/docs/device-health
         - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems.
@@ -71,7 +72,7 @@
         - description: 
           quote: 
           moreInfoUrl: 
-      buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Anomaly detection,Configuration management]
+      buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Anomaly detection,Configuration management,Attack Surface Monitoring,Policy assessment]
       waysToUse:
         - description: Monitor devices that don't meet your organization's custom security policies
         - description: Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.
@@ -299,7 +300,8 @@
     #  ╠╦╝║╣ ║║║║ ║ ║ ║╣   ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
     #  ╩╚═╚═╝╩ ╩╚═╝ ╩ ╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
     - industryName: Remote settings
-      description: Configure agent options remotely, over the air.  (Includes osquery config, fleetd options, and osquery startup flags.)
+      description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.). Fleetd startup flags coming soon (2023-12-31) #customer-blanco
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/13825
       tier: Free
       usualDepartment: Security
       productCategories: [Endpoint operations]
@@ -371,8 +373,8 @@
     #  ╚═╝╩ ╩ ╚═╝╩  ╚═╝
     - industryName: GitOps
       friendlyName: Manage endpoints in git
-      description: Fork the best practices repo and use the GitHub Action to hook it up to your Fleet instance in minutes.
-      moreInfoUrl: https://github.com/fleetdm/fleet-mdm-gitops
+      description: Fork the best practices repo and use the GitHub Action to hook it up to your Fleet instance in minutes. Coming soon (2024-03-31)
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/13643
       productCategories: [Endpoint operations,Device management,Vulnerability management]
       tier: Free
       demos:
@@ -451,7 +453,12 @@
       tier: Free
       usualDepartment: IT
       waysToUse:
-        - description: Deploy custom configuration profiles on macOS and Windows (coming soon) and verify that they're installed.
+        - description: Deploy configuration profiles on macOS and verify that they're installed. Windows coming soon (2023-12-31).
+          moreInfoUrl: https://github.com/fleetdm/fleet/issues/13281
+        - description: Deploy custom declaration (DDM) profiles on macOS. Coming soon (2024-03-31).
+          moreInfoUrl: https://github.com/fleetdm/fleet/issues/14550
+        - description: Target profiles to specific hosts using SQL. Coming soon (2023-12-31)
+          moreInfoUrl: https://github.com/fleetdm/fleet/issues/14715
         - description: Automatically re-deploy configuration profiles on macOS they're not installed.
       productCategories: [Device management]
     - industryName: Self service
@@ -463,7 +470,7 @@
       tier: Free
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Low-level macOS MDM commands (e.g. remote restart)
+    - industryName: Low-level MDM commands for macOS and Windows (e.g. remote restart)
       tier: Free
       usualDepartment: IT
       productCategories: [Device management]
@@ -491,16 +498,13 @@
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Manage queued MDM commands on macOS
-      tier: Premium
-      comingSoonOn: 2023-12-31
-      usualDepartment: IT
-      productCategories: [Device management]
     - industryName: Remotely lock and wipe macOS computers
       tier: Premium
       usualDepartment: IT
       productCategories: [Device management]
-    - industryName: Install and update apps on macOS and Windows computers.
+    - industryName: Install apps and packages on macOS and Windows computers.
+      description:
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
       tier: Premium
       comingSoonOn: 2023-12-31 #Customer-reedtimmer and customer-preston
       usualDepartment: IT
@@ -517,6 +521,9 @@
       waysToUse:
         - description: Implement software inventory recommendations from the SANS 20 / CIS 18.
           moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
+        - description: View a list of all software and their versions installed on all your hosts.
+        - description: View a list of software rolled up by title. Coming soon (2023-12-31)
+          moreInfoUrl: https://github.com/fleetdm/fleet/issues/14674
     - industryName: Hardware inventory
       tier: Free
       waysToUse:
@@ -531,6 +538,13 @@
     - industryName: Labels (SQL-driven)
       friendlyName: Filter hosts using SQL
       tier: Free
+    - industryName: Custom device data for help desk
+      description:
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14415
+      tier: Free
+      comingSoonOn: 2023-12-31
+      usualDepartment: IT
+      productCategories: [Endpoint operations,Device management]
     - industryName: Baselines (device groups)
       friendlyName: Manage different endpoints differently
       description: Set baselines and strategies for hosts in different situations called "teams", and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
@@ -608,6 +622,7 @@
       waysToUse:
         - description: Monitor performance for automated queries.
         - description: Monitor performance for live queries. Coming soon (2024-01-26) #Customer-blanco
+          moreInfoUrl: https://github.com/fleetdm/fleet/issues/467
     - industryName: Detect and surface issues with devices (policies)
       tier: Free
     - industryName: Vulnerability dashboard
@@ -626,6 +641,10 @@
       tier: Premium
       usualDepartment: Security
       productCategories: [Vulnerability management]
+    - industryName: Patched version #Can be determined using description from National Vulnerability Database (NVD). Description tells you which versions are affected.
+      tier: Premium
+      usualDepartment: Security
+      productCategories: [Vulnerability management]
 - categoryName: Data outputs
   features:
     - industryName: Flexible log destinations (AWS Kinesis, Lambda, GCP, Kafka)
@@ -634,6 +653,7 @@
       productCategories: [Endpoint operations]
       waysToUse:
         - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-01-26) #Customer-blanco
+          moreInfoUrl: https://github.com/fleetdm/fleet/issues/11999
     - industryName: File carving (AWS S3)
       tier: Free
       usualDepartment: Security

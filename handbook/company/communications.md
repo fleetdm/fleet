@@ -1192,10 +1192,12 @@ Once you have the above follow these steps:
     > 
     > e.g., `node ./node_modules/sails/bin/sails run build-static-content --skipGithubRequests`
 
+    >Note: When this script runs, the website's configuration file ([`website/.sailsrc`](https://github.com/fleetdm/fleet/blob/main/website/.sailsrc)) will automatically be updated with information the website uses to display content built from Markdown and YAML. Changes to this file should never be committed to the GitHub repo. If you want to exclude changes to this file in any PRs you make, you can run this terminal command in your local copy of the Fleet repo: `git update-index --assume-unchanged ./website/.sailsrc`.
+
 3. Once the script is complete, start the website server. From the `website/` folder:
   - **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`
   - **With Sails.js installed globally:** start the server by running `sails lift`.
-4. When the server has started, the Fleet website will be availible at [http://localhost:2024](http://localhost:2024)
+4. When the server has started, the Fleet website will be available at [http://localhost:2024](http://localhost:2024)
     
   > **Note:** Some features, such as self-service license dispenser and account creation, are not available when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw` in the [#g-website](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack.
 
