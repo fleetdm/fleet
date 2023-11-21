@@ -183,8 +183,8 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 		ctx := context.Background()
 		err := ds.BatchSetMDMProfiles(ctx, tmID, newAppleSet, newWindowsSet)
 		require.NoError(t, err)
-		expectAppleProfiles(t, ds, newAppleSet, tmID, wantApple)
-		expectWindowsProfiles(t, ds, newWindowsSet, tmID, wantWindows)
+		expectAppleProfiles(t, ds, tmID, wantApple)
+		expectWindowsProfiles(t, ds, tmID, wantWindows)
 	}
 
 	withTeamIDApple := func(p *fleet.MDMAppleConfigProfile, tmID uint) *fleet.MDMAppleConfigProfile {
