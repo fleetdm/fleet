@@ -700,6 +700,18 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 	return nil
 }
 
+func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Context, teamID *uint, profileName string) error {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE team_id=? AND name=?`, globalOrTeamID, profileName)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	return nil
+}
+
 func subqueryHostsMDMWindowsOSSettingsStatusFailed() (string, []interface{}) {
 	sql := `
             SELECT

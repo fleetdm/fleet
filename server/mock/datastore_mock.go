@@ -702,6 +702,8 @@ type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string
 
 type DeleteMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
+type DeleteMDMWindowsConfigProfileByTeamAndNameFunc func(ctx context.Context, teamID *uint, profileName string) error
+
 type GetHostMDMWindowsProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error)
 
 type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
@@ -1778,6 +1780,9 @@ type DataStore struct {
 
 	DeleteMDMWindowsConfigProfileFunc        DeleteMDMWindowsConfigProfileFunc
 	DeleteMDMWindowsConfigProfileFuncInvoked bool
+
+	DeleteMDMWindowsConfigProfileByTeamAndNameFunc        DeleteMDMWindowsConfigProfileByTeamAndNameFunc
+	DeleteMDMWindowsConfigProfileByTeamAndNameFuncInvoked bool
 
 	GetHostMDMWindowsProfilesFunc        GetHostMDMWindowsProfilesFunc
 	GetHostMDMWindowsProfilesFuncInvoked bool
@@ -4249,6 +4254,13 @@ func (s *DataStore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 	s.DeleteMDMWindowsConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteMDMWindowsConfigProfileFunc(ctx, profileUUID)
+}
+
+func (s *DataStore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Context, teamID *uint, profileName string) error {
+	s.mu.Lock()
+	s.DeleteMDMWindowsConfigProfileByTeamAndNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMWindowsConfigProfileByTeamAndNameFunc(ctx, teamID, profileName)
 }
 
 func (s *DataStore) GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {

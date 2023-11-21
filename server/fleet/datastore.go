@@ -1076,6 +1076,10 @@ type Datastore interface {
 	// the specified profile uuid.
 	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
 
+	// DeleteMDMWindowsConfigProfileByTeamAndName deletes the Windows MDM profile corresponding to
+	// the specified team ID (or no team if nil) and profile name.
+	DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Context, teamID *uint, profileName string) error
+
 	// GetHostMDMWindowsProfiles returns the MDM profile information for the specified Windows host UUID.
 	GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]HostMDMWindowsProfile, error)
 

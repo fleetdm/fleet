@@ -1022,11 +1022,28 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 }
 
 func (svc *Service) mdmWindowsEnableOSUpdates(ctx context.Context, teamID *uint, updates fleet.WindowsUpdates) error {
-	// TODO(mna): implement...
+	var contents bytes.Buffer
+	params := windowsOSUpdatesProfileOptions{
+		Deadline:    updates.DeadlineDays.Value,
+		GracePeriod: updates.GracePeriodDays.Value,
+	}
+	if err := windowsOSUpdatesProfileTemplate.Execute(&contents, params); err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling Windows OS updates")
+	}
+
+	_, err := svc.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		TeamID: teamID,
+		Name:   WindowsOSUpdatesProfileName,
+		SyncML: contents.Bytes(),
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "create Windows OS updates profile")
+	}
+
 	return nil
 }
 
 func (svc *Service) mdmWindowsDisableOSUpdates(ctx context.Context, teamID *uint) error {
-	// TODO(mna): implement...
-	return nil
+	err := svc.ds.DeleteMDMWindowsConfigProfileByTeamAndName(ctx, teamID, WindowsOSUpdatesProfileName)
+	return ctxerr.Wrap(ctx, err, "delete Windows OS updates profile")
 }
