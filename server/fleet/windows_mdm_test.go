@@ -41,6 +41,13 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "Reserved LocURI with implicit ./Device prefix",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`<Replace><Target><LocURI>./Vendor/MSFT/BitLocker/Foo</LocURI></Target></Replace>`),
+			},
+			wantErr: true,
+		},
+		{
 			name: "XML with Multiple Replace Elements",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`<Replace><Target><LocURI>Custom/URI1</LocURI></Target></Replace><Replace><Target><LocURI>Custom/URI2</LocURI></Target></Replace>`),
