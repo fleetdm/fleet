@@ -62,10 +62,13 @@ func (ds *Datastore) PolicyByName(ctx context.Context, name string) (*fleet.Poli
 		fmt.Sprint(`SELECT `+policyCols+`,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
-		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+		COALESCE(ps.passing_host_count, 0) as passing_host_count,
+		COALESCE(ps.failing_host_count, 0) as failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
+		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
+			AND ((p.team_id IS NULL AND ps.inherited_team_id = 0)
+				OR (p.team_id IS NOT NULL AND ps.inherited_team_id = p.team_id))
 		WHERE p.name=?`), name)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -95,6 +98,8 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
 		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
+		AND ((p.team_id IS NULL AND ps.inherited_team_id = 0)
+			OR (p.team_id IS NOT NULL AND ps.inherited_team_id = p.team_id))
 		WHERE p.id=? AND %s`, policyCols, teamWhere),
 		args...)
 	if err != nil {
@@ -293,112 +298,75 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 }
 
 func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
-	return listPoliciesDB(ctx, ds.reader(ctx), nil, nil, opts)
+	return listPoliciesDB(ctx, ds.reader(ctx), nil, opts)
 }
 
 // returns the list of policies associated with the provided teamID, or the
 // global policies if teamID is nil. The pass/fail host counts are the totals
 // regardless of hosts' team if countsForTeamID is nil, or the totals just for
 // hosts that belong to the provided countsForTeamID if it is not nil.
-func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsForTeamID *uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	var args []interface{}
 
-	var initialQuery string
-
-	// Sorting by failing host counts requires an expensive join with the
-	// policy membership table and may result in long response times
-	if opts.OrderKey == "failing_host_count" {
-		if countsForTeamID != nil {
-			initialQuery = `
-				SELECT p.id
-				FROM policies p
-				LEFT JOIN (
-					SELECT pm.policy_id,
-						COUNT(*) AS failing_host_count
-					FROM policy_membership pm
-					INNER JOIN hosts h ON pm.host_id = h.id AND pm.passes = false AND h.team_id = ?
-					GROUP BY pm.policy_id
-				) AS subq ON p.id = subq.policy_id
-			`
-			args = append(args, *countsForTeamID)
-		} else {
-			initialQuery = `
-				SELECT p.id
-				FROM policies p
-				LEFT JOIN (
-					SELECT pm.policy_id,
-						COUNT(*) AS failing_host_count
-					FROM policy_membership pm
-					WHERE pm.passes = false
-					GROUP BY pm.policy_id
-				) AS subq ON p.id = subq.policy_id
-			`
-		}
-	} else {
-		initialQuery = "SELECT id FROM policies"
-	}
-
-	if teamID != nil {
-		initialQuery += " WHERE team_id = ?"
-		args = append(args, *teamID)
-	} else {
-		initialQuery += " WHERE team_id IS NULL"
-	}
-
-	initialQuery, args = searchLike(initialQuery, args, opts.MatchQuery, policySearchColumns...)
-	initialQuery, args = appendListOptionsWithCursorToSQL(initialQuery, args, &opts)
-
-	var ids []uint
-	err := sqlx.SelectContext(ctx, q, &ids, initialQuery, args...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "retrieving policy ids")
-	}
-
-	if len(ids) == 0 {
-		return []*fleet.Policy{}, nil
-	}
-
-	args = []interface{}{} // reset args
-
-	counts := `
-	(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-	(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
-`
-	if countsForTeamID != nil {
-		counts = `
-		(select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=true and h.team_id = ?) as passing_host_count,
-		(select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=false and h.team_id = ?) as failing_host_count
-`
-		args = append(args, *countsForTeamID, *countsForTeamID)
-	}
-
-	query := fmt.Sprintf(`
-		SELECT `+policyCols+`,
+	query := `
+		SELECT ` + policyCols + `,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
-			%s
+			COALESCE(ps.passing_host_count, 0) AS passing_host_count,
+			COALESCE(ps.failing_host_count, 0) AS failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
-		WHERE p.id IN (?)`, counts)
+		LEFT JOIN policy_stats ps ON p.id = ps.policy_id AND ps.inherited_team_id = 0
+	`
 
-	args = append(args, ids)
-
-	query, args, err = sqlx.In(query, args...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to get policies by ID")
+	if teamID != nil {
+		query += " WHERE team_id = ?"
+		args = append(args, *teamID)
+	} else {
+		query += " WHERE team_id IS NULL"
 	}
 
-	// removing pagination options to avoid double pagination
-	opts.Page = 0
-	opts.PerPage = 0
-
+	query, args = searchLike(query, args, opts.MatchQuery, policySearchColumns...)
 	query, args = appendListOptionsWithCursorToSQL(query, args, &opts)
 
 	var policies []*fleet.Policy
-	err = sqlx.SelectContext(ctx, q, &policies, query, args...)
+	err := sqlx.SelectContext(ctx, q, &policies, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing policies")
 	}
+
+	return policies, nil
+}
+
+// getInheritedPoliciesForTeam returns the list of global policies with the
+// passing and failing host counts for the provided teamID
+func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, TeamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+	var args []interface{}
+
+	query := `
+        SELECT 
+            ` + policyCols + `,
+			COALESCE(u.name, '<deleted>') AS author_name,
+			COALESCE(u.email, '') AS author_email,
+            COALESCE(ps.passing_host_count, 0) as passing_host_count,
+            COALESCE(ps.failing_host_count, 0) as failing_host_count
+        FROM policies p
+        LEFT JOIN users u ON p.author_id = u.id
+        LEFT JOIN policy_stats ps ON p.id = ps.policy_id AND ps.inherited_team_id = ?
+        WHERE p.team_id IS NULL
+    `
+
+	args = append(args, TeamID)
+
+	query, args = searchLike(query, args, opts.MatchQuery, policySearchColumns...)
+	query, _ = appendListOptionsToSQL(query, &opts)
+
+	var policies []*fleet.Policy
+	err := sqlx.SelectContext(ctx, q, &policies, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing inherited policies")
+	}
+
 	return policies, nil
 }
 
@@ -432,10 +400,13 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 	sql := `SELECT ` + policyCols + `,
 	  COALESCE(u.name, '<deleted>') AS author_name,
 	  COALESCE(u.email, '') AS author_email,
-	  (select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-	  (select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+	  COALESCE(ps.passing_host_count, 0) as passing_host_count,
+	  COALESCE(ps.failing_host_count, 0) as failing_host_count
 	  FROM policies p
 	  LEFT JOIN users u ON p.author_id = u.id
+	  LEFT JOIN policy_stats ps ON p.id = ps.policy_id
+	  	AND ((p.team_id IS NULL AND ps.inherited_team_id = 0)
+				OR (p.team_id IS NOT NULL AND ps.inherited_team_id = p.team_id))
 	  WHERE p.id IN (?)`
 	query, args, err := sqlx.In(sql, ids)
 	if err != nil {
@@ -562,12 +533,12 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 }
 
 func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
-	teamPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), &teamID, nil, opts)
+	teamPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), &teamID, opts)
 	if err != nil {
 		return nil, nil, err
 	}
 	// get inherited (global) policies with counts of hosts for that team
-	inheritedPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), nil, &teamID, iopts)
+	inheritedPolicies, err = getInheritedPoliciesForTeam(ctx, ds.reader(ctx), teamID, iopts)
 	if err != nil {
 		return nil, nil, err
 	}
