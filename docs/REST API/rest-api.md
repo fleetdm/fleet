@@ -6936,6 +6936,8 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
+- [Upload a software](#upload-a-software)
+- [Delete a software](#delete-a-software)
 - [List software titles](#list-software-titles)
 - [List software versions](#list-software-versions)
 - [Count software](#count-software)
@@ -6944,7 +6946,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ### Upload a software
 
-Uploads software to install on macOS and Windows hosts during enrollment.
+Upload a software to install on macOS and Windows hosts during enrollment.
 
 `POST /api/v1/fleet/software`
 
@@ -6980,6 +6982,27 @@ Content-Type: application/octet-stream
 
 --------------------------d8c247122f594ba0
 ```
+
+### Delete a software
+
+Delete an uploaded software.
+
+`DELETE /api/v1/fleet/software/{id}`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| id              | integer | path | **Required**. The ID of uploaded software version to delete.|
+
+#### Parameters
+
+`DELETE /api/v1/fleet/software/24`
+
+##### Default response
+
+`Status: 204`
+
 
 ### List software titles
 
