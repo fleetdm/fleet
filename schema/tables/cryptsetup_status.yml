@@ -1,0 +1,31 @@
+name: cryptsetup_status
+description: Get info about the encrypted drive on the host.
+evented: false
+notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
+platforms:
+  - linux
+columns:
+  - name: name
+    required: true
+    description: The name of the drive.
+    type: text
+  - name: key
+    description: A specific item that describes the drive.
+    type: text
+    required: false
+  - name: value
+    description: The value for the specified key.
+    type: text
+    required: false
+  - name: fullkey
+    description: The expanded name of the specific item that describes the drive.
+    type: text
+    required: false
+  - name: parent
+    description: The key's parent.
+    type: text
+    required: false
+  - name: query
+    description: The query is printed in this column. For example the SQL `SELECT * FROM cryuptsetup_status WHERE name = 'LUKS_DRIVE'` will print "*" in the query column.
+    type: text
+    required: false
