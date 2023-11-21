@@ -243,9 +243,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 
 		if deadline != nil {
-			// TODO(mna): set the MDM profile for the team
-		} else {
-			// TODO(mna): remove the MDM profile from the team
+			if err := svc.mdmWindowsEnableOSUpdates(ctx, &team.ID, team.Config.MDM.WindowsUpdates); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "enable team windows OS updates")
+			}
+		} else if err := svc.mdmWindowsDisableOSUpdates(ctx, &team.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "disable team windows OS updates")
 		}
 
 		if err := svc.ds.NewActivity(

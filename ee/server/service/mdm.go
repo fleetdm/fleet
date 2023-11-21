@@ -1020,3 +1020,13 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 		},
 	}, nil
 }
+
+func (svc *Service) mdmWindowsEnableOSUpdates(ctx context.Context, teamID *uint, updates fleet.WindowsUpdates) error {
+	// TODO(mna): implement...
+	return nil
+}
+
+func (svc *Service) mdmWindowsDisableOSUpdates(ctx context.Context, teamID *uint) error {
+	// TODO(mna): implement...
+	return nil
+}
