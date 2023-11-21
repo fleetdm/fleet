@@ -2364,7 +2364,8 @@ If this value is not defined, Fleet checks for the latest release in Github and 
 ##### cve_feed_prefix_url
 
 Like the CPE dictionary, we allow users to define where to get the legacy CVE feeds from.
-In this case, the URL should be a host that serves the files in the legacy feed format at path `/feeds/json/cve/1.1/`.
+In this case, the URL should be a host that serves the files in the legacy feed format.
+For example: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL` + `/nvdcve-1.1-2002.meta`
 Fleet expects to find all the JSON Feeds that can be found in https://nvd.nist.gov/vuln/data-feeds.
 
 When not defined, Fleet downloads CVE information from the nvd.nist.gov host using the NVD 2.0 API.
