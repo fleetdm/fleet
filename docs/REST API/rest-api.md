@@ -7143,6 +7143,7 @@ Returns the information of the specified software title. By default `versions` a
         "version": "117.0",
         "vulnerabilities": ["CVE-2023-1234"],
         "hosts_count": 37
+        "uploaded": true
       },
       {
         "id": 124,
