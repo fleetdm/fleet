@@ -4,10 +4,11 @@
 
 Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source systems management platform and security agent. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
 
-We are dedicated to clearing the thicket:
-- 🔌 making security and IT interoperable and easy to automate
-- 🚪 an inviting (outsider-friendly) way to manage computers, CVEs, and infrastructure
-- 🪟 clarity and trust through open-source software
+Fleet is dedicated to a comprehensive strategy against [whatever this is](https://chat.openai.com/share/e44ba6f3-b3ed-488a-a15e-a5a723f20c98): 
+
+- 🔌 making security and IT interoperable and easy to automate with open standards and data.
+- 🚪 creating an inviting (outsider-friendly) way to manage computers, CVEs, and infrastructure.
+- 🪟 building clarity and trust through open-source software.
 
 This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.com/handbook/company/communications#strategy), [operating principles](#why-this-way), and [brand](https://fleetdm.com/logos).
 
@@ -134,6 +135,7 @@ Fleet raised its Series A funding round.  The world now has at least 1.65 millio
 To provide clarity about decision-making, [responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility), and resources, everyone at Fleet has a manager, and [every manager](https://fleetdm.com/handbook/company#management) has direct reports.  Fleet's organizational chart is accessible company-wide as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
 
 - 🔦 [Business Operations](https://fleetdm.com/handbook/business-operations): The Business Operations department is directly responsible for these traditional functions: People, Finance, Legal, IT, and Revenue Operations (RevOps).
+- 🏹 [Customer Success](https://fleetdm.com/handbook/customer-success): The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
 - 🐋 [Sales](https://fleetdm.com/handbook/sales): The Sales department is directly responsible for attaining the revenue goals of Fleet and helping customers deliver on their objectives.
 - 🫧 [Demand](https://fleetdm.com/handbook/demand): The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other programs.
 - 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product.

@@ -1,2 +1,0 @@
-- Fix banners on the host details page. If the ABM expired banner is displayed we suppress all
-  other banners on that page.

@@ -358,3 +358,12 @@ func checkWrappedSyncMLCmd(tag string, data string) error {
 	}
 	return nil
 }
+
+func syncMLForTest(locURI string) []byte {
+	return []byte(fmt.Sprintf(`
+		<Replace>
+			<Target>
+				<LocURI>%s</LocURI>
+			</Target>
+		</Replace>`, locURI))
+}

@@ -796,7 +796,7 @@ func TestHostScriptDetailsAuth(t *testing.T) {
 					require.Equal(t, uint(42), hostID)
 					return &fleet.Host{ID: hostID}, nil
 				}
-				ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+				ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
 					require.Nil(t, teamID)
 					return []*fleet.HostScriptDetail{}, nil, nil
 				}
@@ -809,7 +809,7 @@ func TestHostScriptDetailsAuth(t *testing.T) {
 					require.Equal(t, uint(42), hostID)
 					return &fleet.Host{ID: hostID, TeamID: ptr.Uint(1)}, nil
 				}
-				ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+				ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
 					require.NotNil(t, teamID)
 					require.Equal(t, uint(1), *teamID)
 					return []*fleet.HostScriptDetail{}, nil, nil
@@ -844,7 +844,7 @@ func TestHostScriptDetailsSupportedPlatform(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+	ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
 		return []*fleet.HostScriptDetail{{HostID: hostID, ScriptID: 1337, Name: "some-script.sh"}}, nil, nil
 	}
 
@@ -857,7 +857,7 @@ func TestHostScriptDetailsSupportedPlatform(t *testing.T) {
 		{"centos", false},
 		{"rhel", false},
 		{"debian", false},
-		{"windows", false},
+		{"windows", true},
 	} {
 		t.Run(tt.platform, func(t *testing.T) {
 			ds.GetHostScriptDetailsFuncInvoked = false
