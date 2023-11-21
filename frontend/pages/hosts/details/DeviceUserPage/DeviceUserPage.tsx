@@ -444,7 +444,6 @@ const DeviceUserPage = ({
                     aboutData={aboutData}
                     deviceMapping={deviceMapping}
                     munki={deviceMacAdminsData?.munki}
-                    wrapFleetHelper={wrapFleetHelper}
                   />
                 </TabPanel>
                 <TabPanel>

@@ -7,7 +7,8 @@ import scriptAPI, { IScript } from "services/entities/scripts";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
-import Graphic from "components/Graphic";
+import ListItem from "components/ListItem";
+import { ISupportedGraphicNames } from "components/ListItem/ListItem";
 
 const baseClass = "script-list-item";
 
@@ -16,18 +17,43 @@ interface IScriptListItemProps {
   onDelete: (script: IScript) => void;
 }
 
-const getFileIconName = (fileName: string) => {
+// TODO - useful to have a 'platform' field from API, for use elsewhere in app as well?
+const getFileRenderDetails = (
+  fileName: string
+): { graphicName: ISupportedGraphicNames; platform: string | null } => {
   const fileExtension = fileName.split(".").pop();
 
   switch (fileExtension) {
     case "py":
-      return "file-py";
+      return { graphicName: "file-py", platform: null };
     case "sh":
-      return "file-sh";
+      return { graphicName: "file-sh", platform: "macOS" };
+    case "ps1":
+      return { graphicName: "file-ps1", platform: "Windows" };
     default:
-      return "file-script";
+      return { graphicName: "file-script", platform: null };
   }
 };
+
+interface IScriptListItemDetailsProps {
+  platform: string | null;
+  createdAt: string;
+}
+
+const ScriptListItemDetails = ({
+  platform,
+  createdAt,
+}: IScriptListItemDetailsProps) => (
+  <div className={`${baseClass}__details`}>
+    {platform && (
+      <>
+        <span>{platform}</span>
+        <span>&bull;</span>
+      </>
+    )}
+    <span>{`Uploaded ${formatDistanceToNow(new Date(createdAt))} ago`}</span>
+  </div>
+);
 
 const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
   const { renderFlash } = useContext(NotificationContext);
@@ -44,34 +70,38 @@ const ScriptListItem = ({ script, onDelete }: IScriptListItemProps) => {
     }
   };
 
+  const { graphicName, platform } = getFileRenderDetails(script.name);
+
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__value-group ${baseClass}__script-data`}>
-        <Graphic name={getFileIconName(script.name)} />
-        <div className={`${baseClass}__script-info`}>
-          <span className={`${baseClass}__script-name`}>{script.name}</span>
-          <span className={`${baseClass}__script-uploaded`}>
-            {`Uploaded ${formatDistanceToNow(new Date(script.created_at))} ago`}
-          </span>
-        </div>
-      </div>
-      <div className={`${baseClass}__value-group ${baseClass}__script-actions`}>
-        <Button
-          className={`${baseClass}__download-button`}
-          variant="text-icon"
-          onClick={onClickDownload}
-        >
-          <Icon name="download" />
-        </Button>
-        <Button
-          className={`${baseClass}__delete-button`}
-          variant="text-icon"
-          onClick={() => onDelete(script)}
-        >
-          <Icon name="trash" color="ui-fleet-black-75" />
-        </Button>
-      </div>
-    </div>
+    <ListItem
+      className={baseClass}
+      graphic={graphicName}
+      title={script.name}
+      details={
+        <ScriptListItemDetails
+          platform={platform}
+          createdAt={script.created_at}
+        />
+      }
+      actions={
+        <>
+          <Button
+            className={`${baseClass}__action-button`}
+            variant="text-icon"
+            onClick={onClickDownload}
+          >
+            <Icon name="download" />
+          </Button>
+          <Button
+            className={`${baseClass}__action-button`}
+            variant="text-icon"
+            onClick={() => onDelete(script)}
+          >
+            <Icon name="trash" color="ui-fleet-black-75" />
+          </Button>
+        </>
+      }
+    />
   );
 };
 

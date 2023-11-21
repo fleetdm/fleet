@@ -72,7 +72,7 @@ data "aws_subnet" "redis" {
 
 module "redis" {
   source  = "cloudposse/elasticache-redis/aws"
-  version = "0.48.0"
+  version = "0.53.0"
 
   name                          = var.redis_config.name
   replication_group_id          = var.redis_config.replication_group_id == null ? var.redis_config.name : var.redis_config.replication_group_id

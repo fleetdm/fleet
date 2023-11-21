@@ -297,7 +297,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
 	defer ff.Close()
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, req.Profile.Size)
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff)
 	if err != nil {
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -306,10 +306,18 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	}, nil
 }
 
-func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader) (*fleet.MDMAppleConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+
+	// check that Apple MDM is enabled - the middleware of that endpoint checks
+	// only that any MDM is enabled, maybe it's just Windows
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		err := fleet.NewInvalidArgumentError("profile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
+	}
+
 	var teamName string
 	if teamID >= 1 {
 		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
@@ -319,11 +327,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		teamName = tm.Name
 	}
 
-	b := make([]byte, size)
-	_, err := r.Read(b)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "failed to read config profile",
+			Message:     "failed to read Apple config profile",
 			InternalErr: err,
 		})
 	}
@@ -341,15 +348,28 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
 	if err != nil {
+		var existsErr existsErrorInterface
+		if errors.As(err, &existsErr) {
+			err = fleet.NewInvalidArgumentError("profile", "Couldn't upload. A configuration profile with this name already exists.").
+				WithStatus(http.StatusConflict)
+		}
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, []uint{newCP.ProfileID}, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []uint{newCP.ProfileID}, nil, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID > 0 {
+		actTeamID = &teamID
+		actTeamName = &teamName
+	}
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
-		TeamID:            &teamID,
-		TeamName:          &teamName,
+		TeamID:            actTeamID,
+		TeamName:          actTeamName,
 		ProfileName:       newCP.Name,
 		ProfileIdentifier: newCP.Identifier,
 	}); err != nil {
@@ -534,7 +554,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 		return ctxerr.Wrap(ctx, err)
 	}
 	// cannot use the profile ID as it is now deleted
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -558,12 +578,49 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 	return nil
 }
 
+type getMDMAppleFileVaultSummaryRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getMDMAppleFileVaultSummaryResponse struct {
+	*fleet.MDMAppleFileVaultSummary
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMAppleFileVaultSummaryResponse) error() error { return r.Err }
+
+func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMAppleFileVaultSummaryRequest)
+
+	fvs, err := svc.GetMDMAppleFileVaultSummary(ctx, req.TeamID)
+	if err != nil {
+		return &getMDMAppleFileVaultSummaryResponse{Err: err}, nil
+	}
+
+	return &getMDMAppleFileVaultSummaryResponse{
+		MDMAppleFileVaultSummary: fvs,
+	}, nil
+}
+
+func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
+	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	fvs, err := svc.ds.GetMDMAppleFileVaultSummary(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return fvs, nil
+}
+
 type getMDMAppleProfilesSummaryRequest struct {
 	TeamID *uint `query:"team_id,optional"`
 }
 
 type getMDMAppleProfilesSummaryResponse struct {
-	fleet.MDMAppleConfigProfilesSummary
+	fleet.MDMProfilesSummary
 	Err error `json:"error,omitempty"`
 }
 
@@ -586,54 +643,21 @@ func getMDMAppleProfilesSummaryEndpoint(ctx context.Context, request interface{}
 	return &res, nil
 }
 
-func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
+func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
 	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	ps, err := svc.ds.GetMDMAppleHostsProfilesSummary(ctx, teamID)
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		return &fleet.MDMProfilesSummary{}, nil
+	}
+
+	ps, err := svc.ds.GetMDMAppleProfilesSummary(ctx, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	return ps, nil
-}
-
-type getMDMAppleFileVaultSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional"`
-}
-
-type getMDMAppleFileVauleSummaryResponse struct {
-	*fleet.MDMAppleFileVaultSummary
-	Err error `json:"error,omitempty"`
-}
-
-func (r getMDMAppleFileVauleSummaryResponse) error() error { return r.Err }
-
-func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*getMDMAppleFileVaultSummaryRequest)
-
-	fvs, err := svc.GetMDMAppleFileVaultSummary(ctx, req.TeamID)
-	if err != nil {
-		return &getMDMAppleFileVauleSummaryResponse{Err: err}, nil
-	}
-
-	return &getMDMAppleFileVauleSummaryResponse{
-		MDMAppleFileVaultSummary: fvs,
-	}, nil
-}
-
-func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
-	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	fvs, err := svc.ds.GetMDMAppleFileVaultSummary(ctx, teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	return fvs, nil
 }
 
 type uploadAppleInstallerRequest struct {
@@ -1401,39 +1425,10 @@ func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, 
 }
 
 func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte, dryRun, skipBulkPending bool) error {
-	if tmID != nil && tmName != nil {
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
-	}
-	if tmID != nil || tmName != nil {
-		license, _ := license.FromContext(ctx)
-		if !license.IsPremium() {
-			field := "team_id"
-			if tmName != nil {
-				field = "team_name"
-			}
-			svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, ErrMissingLicense.Error()))
-		}
-	}
-
-	// if the team name is provided, load the corresponding team to get its id.
-	// vice-versa, if the id is provided, load it to get the name (required for
-	// the activity).
-	if tmName != nil || tmID != nil {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, tmID, tmName)
-		if err != nil {
-			return err
-		}
-		if tmID == nil {
-			tmID = &tm.ID
-		} else {
-			tmName = &tm.Name
-		}
-	}
-
-	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: tmID}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
+	var err error
+	tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName)
+	if err != nil {
+		return err
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)
@@ -1499,7 +1494,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	}
 
 	if !skipBulkPending {
-		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil); err != nil {
+		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 	}
@@ -2191,7 +2186,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	if nanoEnroll != nil && nanoEnroll.Enabled &&
 		nanoEnroll.Type == "Device" && nanoEnroll.TokenUpdateTally == 1 {
 		// device is enrolled for the first time, not a token update
-		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(r.Context, nil, nil, nil, []string{r.ID}); err != nil {
+		if err := svc.ds.BulkSetPendingMDMHostProfiles(r.Context, nil, nil, nil, nil, []string{r.ID}); err != nil {
 			return err
 		}
 
