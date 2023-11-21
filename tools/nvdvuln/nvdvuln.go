@@ -22,6 +22,7 @@ func main() {
 	softwareVersion := flag.String("software_version", "", "Version of the software as ingested by Fleet")
 	softwareSource := flag.String("software_source", "", "Source for this software (e.g. 'apps' for macOS applications)")
 	softwareBundleIdentifier := flag.String("software_bundle_identifier", "", "Bundle identifier of the software as ingested by Fleet (for macOS apps only)")
+	cveToLog := flag.String("cve_to_log", "", "CVE Identifier to log (e.g. CVE-2021-1234)")
 
 	flag.Parse()
 
@@ -95,7 +96,7 @@ func main() {
 		return
 	}
 	fmt.Println("Translating CPEs to CVEs...")
-	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, *vulnDBDir, logger, true, 1*time.Hour)
+	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, *vulnDBDir, logger, true, 1*time.Hour, *cveToLog)
 	if err != nil {
 		panic(err)
 	}

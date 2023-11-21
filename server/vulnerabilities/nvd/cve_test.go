@@ -258,7 +258,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			return nil
 		}
 
-		_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), false, 1*time.Hour)
+		_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), false, 1*time.Hour, "")
 		require.NoError(t, err)
 
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
@@ -303,7 +303,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
 			return true, nil
 		}
-		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, 1*time.Hour)
+		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, 1*time.Hour, "")
 		require.NoError(t, err)
 
 		byCPE := make(map[uint]int)
@@ -323,7 +323,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
 			return false, nil
 		}
-		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, 1*time.Hour)
+		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, 1*time.Hour, "")
 		require.NoError(t, err)
 
 		// no recent vulnerability should be reported

@@ -113,6 +113,7 @@ func TranslateCPEToCVE(
 	logger kitlog.Logger,
 	collectVulns bool,
 	periodicity time.Duration,
+	cveToLog string, // CVE ID to log for debugging purposes, use with /tools/nvdvuln
 ) ([]fleet.SoftwareVulnerability, error) {
 	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
@@ -164,6 +165,7 @@ func TranslateCPEToCVE(
 			file,
 			collectVulns,
 			knownNVDBugRules,
+			cveToLog,
 		)
 		if err != nil {
 			return nil, err
@@ -223,6 +225,7 @@ func checkCVEs(
 	jsonFile string,
 	collectVulns bool,
 	knownNVDBugRules CPEMatchingRules,
+	cveToLog string,
 ) ([]fleet.SoftwareVulnerability, error) {
 	dict, err := cvefeed.LoadJSONDictionary(jsonFile)
 	if err != nil {
@@ -232,6 +235,8 @@ func checkCVEs(
 	cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(-1)
 	// This index consumes too much RAM
 	// cache.Idx = cvefeed.NewIndex(dict)
+
+	cache.SetCveDebugLogger(cveToLog)
 
 	softwareCPECh := make(chan softwareCPEWithNVDMeta)
 	var foundVulns []fleet.SoftwareVulnerability
