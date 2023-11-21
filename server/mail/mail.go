@@ -227,6 +227,8 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 	return nil
 }
 
+const dialTimeoutDuration = 28 * time.Second
+
 // dialTimeout sets a timeout on net.Dial to prevent email from attempting to
 // send indefinitely.
 func dialTimeout(addr string, tlsConfig *tls.Config) (client *smtp.Client, err error) {
@@ -243,9 +245,9 @@ func dialTimeout(addr string, tlsConfig *tls.Config) (client *smtp.Client, err e
 
 	var conn net.Conn
 	if tlsConfig == nil {
-		conn, err = net.DialTimeout("tcp", addr, 28*time.Second)
+		conn, err = net.DialTimeout("tcp", addr, dialTimeoutDuration)
 	} else {
-		conn, err = tls.DialWithDialer(&net.Dialer{Timeout: 28 * time.Second}, "tcp", addr, tlsConfig)
+		conn, err = tls.DialWithDialer(&net.Dialer{Timeout: dialTimeoutDuration}, "tcp", addr, tlsConfig)
 	}
 
 	if err != nil {

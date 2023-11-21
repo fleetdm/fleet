@@ -77,7 +77,7 @@ services:
       ]
 
   # SMTP server with TLS
-  smtp4dev:
+  smtp4dev_test:
     image: rnwood/smtp4dev:v3
     ports:
       - "8028:80"
