@@ -1140,6 +1140,11 @@ type Datastore interface {
 	// NewMDMWindowsConfigProfile creates and returns a new configuration profile.
 	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile) (*MDMWindowsConfigProfile, error)
 
+	// SetOrUpdateMDMWindowsConfigProfile creates or replaces a Windows profile.
+	// The profile gets replaced if it already exists for the same team and name
+	// combination.
+	SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile) error
+
 	// BatchSetMDMProfiles sets the MDM Apple or Windows profiles for the given team or
 	// no team in a single transaction.
 	BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*MDMAppleConfigProfile, winProfiles []*MDMWindowsConfigProfile) error

@@ -1031,7 +1031,7 @@ func (svc *Service) mdmWindowsEnableOSUpdates(ctx context.Context, teamID *uint,
 		return ctxerr.Wrap(ctx, err, "enabling Windows OS updates")
 	}
 
-	_, err := svc.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+	err := svc.ds.SetOrUpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		TeamID: teamID,
 		Name:   WindowsOSUpdatesProfileName,
 		SyncML: contents.Bytes(),

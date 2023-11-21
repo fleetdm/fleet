@@ -1370,6 +1370,51 @@ INSERT INTO
 	}, nil
 }
 
+func (ds *Datastore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+	profileUUID := uuid.New().String()
+	stmt := `
+INSERT INTO
+	mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml)
+(SELECT ?, ?, ?, ? FROM DUAL WHERE
+	NOT EXISTS (
+		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
+	)
+)
+ON DUPLICATE KEY UPDATE
+	syncml = VALUES(syncml)
+`
+
+	var teamID uint
+	if cp.TeamID != nil {
+		teamID = *cp.TeamID
+	}
+
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID)
+	if err != nil {
+		switch {
+		case isDuplicate(err):
+			return &existsError{
+				ResourceType: "MDMWindowsConfigProfile.Name",
+				Identifier:   cp.Name,
+				TeamID:       cp.TeamID,
+			}
+		default:
+			return ctxerr.Wrap(ctx, err, "creating new windows mdm config profile")
+		}
+	}
+
+	aff, _ := res.RowsAffected()
+	if aff == 0 {
+		return &existsError{
+			ResourceType: "MDMWindowsConfigProfile.Name",
+			Identifier:   cp.Name,
+			TeamID:       cp.TeamID,
+		}
+	}
+
+	return nil
+}
+
 func (ds *Datastore) batchSetMDMWindowsProfilesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
