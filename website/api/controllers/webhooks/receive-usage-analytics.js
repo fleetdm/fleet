@@ -282,20 +282,24 @@ module.exports = {
       }//∞
     }//ﬁ
 
-    await sails.helpers.http.post.with({
-      url: 'https://api.us5.datadoghq.com/api/v2/series',
-      data: {
-        series: metricsToSendToDatadog,
-      },
-      headers: {
-        'DD-API-KEY': sails.config.custom.datadogApiKey,
-        'Content-Type': 'application/json',
-      }
-    }).tolerate((err)=>{
-      // If there was an error sending metrics to Datadog, we'll log the error in a warning, but we won't throw an error.
-      // This way, we'll still return a 200 status to the Fleet instance that sent usage analytics.
-      sails.log.warn(`When the receive-usage-analytics webhook tried to send metrics to Datadog, an error occured. Raw error: ${require('util').inspect(err)}`);
-    });
+    // Break the metrics into smaller arrays to ensure we don't eexceed Datadog's 512 kb request body limit.
+    let chunkedMetrics = _.chunk(metricsToSendToDatadog, 500);// Note: 500 stringified JSON metrics is ~410 kb.
+    for(let chunkOfMetrics of chunkedMetrics) {
+      await sails.helpers.http.post.with({
+        url: 'https://api.us5.datadoghq.com/api/v2/series',
+        data: {
+          series: chunkOfMetrics,
+        },
+        headers: {
+          'DD-API-KEY': sails.config.custom.datadogApiKey,
+          'Content-Type': 'application/json',
+        }
+      }).tolerate((err)=>{
+        // If there was an error sending metrics to Datadog, we'll log the error in a warning, but we won't throw an error.
+        // This way, we'll still return a 200 status to the Fleet instance that sent usage analytics.
+        sails.log.warn(`When the receive-usage-analytics webhook tried to send metrics to Datadog, an error occured. Raw error: ${require('util').inspect(err)}`);
+      });
+    }//∞
 
 
 
