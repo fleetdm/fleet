@@ -120,9 +120,9 @@ module.exports = {
         let previousIssuesCreatedForThisRitual = [];
 
         if(ritual.autoIssue.repo === 'fleet'){
-          previousIssuesCreatedForThisRitual = _.uniq(_.filter(currentIssuesInMainGithubRepo, {title: ritual.task, user: {login: ritual.dri}}), 'node_id');
+          previousIssuesCreatedForThisRitual = _.uniq(_.filter(currentIssuesInMainGithubRepo, {title: ritual.task, assignee: {login: ritual.dri}}), 'node_id');
         } else {
-          previousIssuesCreatedForThisRitual = _.uniq(_.filter(currentIssuesInConfidentialGithubRepo, {title: ritual.task, user: {login: ritual.dri}}), 'node_id');
+          previousIssuesCreatedForThisRitual = _.uniq(_.filter(currentIssuesInConfidentialGithubRepo, {title: ritual.task, assignee: {login: ritual.dri}}), 'node_id');
         }
 
         let nextIssueShouldBeCreatedAt;
@@ -152,15 +152,15 @@ module.exports = {
         // // Create an issue with right labels and assignee, in the right repo.
         if (!dry) {
           // [?] https://docs.github.com/en/rest/issues/issues#create-an-issue
-          // await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues`, {
-          //   title: ritual.task,
-          //   body: ritual.description,
-          //   labels: ritual.autoIssue.labels,
-          //   assignees: [ ritual.dri ]
-          // }, baseHeaders);
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues`, {
+            title: ritual.task,
+            body: ritual.description,
+            labels: ritual.autoIssue.labels,
+            assignees: [ ritual.dri ]
+          }, baseHeaders);
         } else {
+          sails.log('Dry run: Would have created an issue for ritual:', ritual);
         }
-        sails.log('Dry run: Would have created an issue for ritual:', ritual);
       }//∞
     }//∞
 
