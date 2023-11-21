@@ -3922,14 +3922,12 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
 - [Turn off MDM for a host](#turn-off-mdm-for-a-host)
 - [Upload a bootstrap package](#upload-a-bootstrap-package)
-- [Get metadata about a bootstrap package](#get-metadata-about-a-bootstrap-package)
+- [Get or download a bootstrap package](#get-or-download-a-bootstrap-package)
 - [Delete a bootstrap package](#delete-a-bootstrap-package)
-- [Download a bootstrap package](#download-a-bootstrap-package)
 - [Get a summary of bootstrap package status](#get-a-summary-of-bootstrap-package-status)
 - [Upload an EULA file](#upload-an-eula-file)
-- [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
+- [Get or download an EULA file](#get-or-download-an-eula-file)
 - [Delete an EULA file](#delete-an-eula-file)
-- [Download an EULA file](#download-an-eula-file)
 
 ### Add custom macOS setting (configuration profile)
 
@@ -4541,26 +4539,26 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
-### Get metadata about a bootstrap package
+
+### Get or download a bootstrap package
 
 _Available in Fleet Premium_
 
-Get information about a bootstrap package that was uploaded to Fleet.
-
-`GET /api/v1/fleet/mdm/apple/bootstrap/{team_id}/metadata`
+`GET /mdm/bootstrap/{team_id}`
 
 #### Parameters
 
-| Name       | Type    | In    | Description                                                                                                                                                                                                        |
-| -------    | ------  | ---   | ---------------------------------------------------------------------------------------------------------------------------------------------------------                                                          |
-| team_id    | string  | url   | **Required** The team ID for the package. Zero (0) can be specified to get information about the bootstrap package for hosts that don't belong to a team.                                                          |
-| for_update | boolean | query | If set to `true`, the authorization will be for a `write` action instead of a `read`. Useful for the write-only `gitops` role when requesting the bootstrap metadata to check if the package needs to be replaced. |
+| Name       | Type    | In    | Description                                      |
+| -----------| ------  | ----- | ------------------------------------------------ |
+| team_id    | integer | path  | **Required.** The desired bootstrap package's team's ID. |
+| alt        | string  | query | If specified and set to "media", downloads the bootstrap package's contents. |
+| for_update | boolean | query | If set to `true`, the authorization will be for a `write` action instead of a `read`. Useful for the write-only `gitops` role when requesting the bootstrap metadata to check if the package needs to be replaced. _(Only relevant if `alt` is not specified.)_ |
 
-#### Example
+#### Example (get a bootstrap package)
 
-`GET /api/v1/fleet/mdm/apple/bootstrap/0/metadata`
+`GET /mdm/bootstrap/123`
 
-##### Default response
+##### Example response
 
 `Status: 200`
 
@@ -4569,15 +4567,28 @@ Get information about a bootstrap package that was uploaded to Fleet.
   "name": "bootstrap-package.pkg",
   "team_id": 0,
   "sha256": "6bebb4433322fd52837de9e4787de534b4089ac645b0692dfb74d000438da4a3",
-  "token": "AA598E2A-7952-46E3-B89D-526D45F7E233",
   "created_at": "2023-04-20T13:02:05Z"
 }
 ```
 
 In the response above:
-
-- `token` is the value you can use to [download a bootstrap package](#download-a-bootstrap-package)
 - `sha256` is the SHA256 digest of the bytes of the bootstrap package file.
+
+
+#### Example (download bootstrap package's contents)
+
+`GET /mdm/bootstrap/123?alt=media`
+
+##### Example response
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
 
 ### Delete a bootstrap package
 
@@ -4602,35 +4613,7 @@ Delete a team's bootstrap package.
 
 `Status: 200`
 
-### Download a bootstrap package
 
-_Available in Fleet Premium_
-
-Download a bootstrap package.
-
-`GET /api/v1/fleet/mdm/apple/bootstrap`
-
-#### Parameters
-
-| Name  | Type   | In    | Description                                      |
-| ----- | ------ | ----- | ------------------------------------------------ |
-| token | string | query | **Required** The token of the bootstrap package. |
-
-#### Example
-
-`GET /api/v1/fleet/mdm/apple/bootstrap?token=AA598E2A-7952-46E3-B89D-526D45F7E233`
-
-##### Default response
-
-`Status: 200`
-
-```http
-Status: 200
-Content-Type: application/octet-stream
-Content-Disposition: attachment
-Content-Length: <length>
-Body: <blob>
-```
 
 ### Get a summary of bootstrap package status
 
@@ -4735,33 +4718,48 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
-### Get metadata about an EULA file
+### Get or download an EULA file
 
 _Available in Fleet Premium_
 
-Get information about the EULA file that was uploaded to Fleet. If no EULA was previously uploaded, this endpoint returns a `404` status code.
+`GET /mdm/eula/{team_id}`
 
-`GET /api/v1/fleet/mdm/apple/setup/eula/metadata`
+#### Parameters
 
-#### Example
+| Name       | Type    | In    | Description                                      |
+| -----------| ------  | ----- | ------------------------------------------------ |
+| team_id    | integer | path  | **Required.** The desired EULA file's team's ID. |
+| alt        | string  | query | If specified and set to "media", downloads the EULA file's contents. |
 
-`GET /api/v1/fleet/mdm/apple/setup/eula/metadata`
+#### Example (get EULA file)
 
-##### Default response
+`GET /mdm/eula/123`
+
+##### Example response
 
 `Status: 200`
 
 ```json
 {
   "name": "eula.pdf",
-  "token": "AA598E2A-7952-46E3-B89D-526D45F7E233",
   "created_at": "2023-04-20T13:02:05Z"
 }
 ```
 
-In the response above:
+#### Example (download EULA file's contents)
 
-- `token` is the value you can use to [download an EULA](#download-an-eula-file)
+`GET /mdm/eula/123?alt=media`
+
+##### Example response
+
+```http
+Status: 200
+Content-Type: application/pdf
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
 
 ### Delete an EULA file
 
@@ -4785,35 +4783,6 @@ Delete an EULA file.
 
 `Status: 200`
 
-### Download an EULA file
-
-_Available in Fleet Premium_
-
-Download an EULA file
-
-`GET /api/v1/fleet/mdm/apple/setup/eula/{token}`
-
-#### Parameters
-
-| Name  | Type   | In    | Description                              |
-| ----- | ------ | ----- | ---------------------------------------- |
-| token | string | path  | **Required** The token of the EULA file. |
-
-#### Example
-
-`GET /api/v1/fleet/mdm/apple/setup/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
-
-##### Default response
-
-`Status: 200`
-
-```http
-Status: 200
-Content-Type: application/pdf
-Content-Disposition: attachment
-Content-Length: <length>
-Body: <blob>
-```
 
 ---
 
