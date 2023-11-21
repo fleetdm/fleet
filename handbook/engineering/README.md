@@ -178,7 +178,7 @@ Some ideas:
 - Try out an experimental refactor. 
 
 ### Assume developer on-call alias
-The on-call Developer is responsible for: 
+The on-call developer is responsible for: 
 - Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#the-developer-on-call-rotation).
 - Preforming the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities).
 - [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
