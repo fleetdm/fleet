@@ -1,10 +1,6 @@
 # Sales
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
-## What we do
-The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
-
-
 ## Team
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
@@ -17,16 +13,9 @@ The Sales department is directly responsible for attaining the revenue goals of 
 | Sales Development Rep (SDR)           | [Ringo Ringhofer](https://www.linkedin.com/in/tom-ringhofer/) _([@ringoshere](https://github.com/ringoshere))_, [Brad Macdowall](https://www.linkedin.com/in/bradmacdowall/) _([@bradmacd](https://github.com/bradmacd))_
 
 ## Contact us
-- To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
+- To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV)).
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board?sprints=none) for this department, including pending tasks and the status of new requests.
   - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
-- If urgent, or if you need help submitting your request, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel.
-
-
-## Customer codenames
-Occasionally, we will need to track public issues for customers who wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
-
-
 
 <!---
 
@@ -57,6 +46,10 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 
 
 ## Responsibilities
+The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
+
+## Assign a Customer codename
+Occasionally, we will need to track public issues for customers who wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
 
 ### Send a quote
 During the buying cycle, the champion will need to start the process to secure funding in cooperation with the economic buyer and the finance org.
@@ -186,7 +179,7 @@ Please see [handbook/company/communications#customer-support-service-level-agree
 Please see [handbook/sales#create-a-customer-agreement](https://fleetdm.com/handbook/sales#create-a-customer-agreement) for all sections above.
 
 ##### Customer codenames
-Please see [Handbook/customer-success#create-customer-support-issue](https://www.fleetdm.com/handbook/create-customer-support-issue)
+Please see [Handbook/sales#assign-a-customer-codename](https://www.fleetdm.com/handbook/sales#assign-a-customer-codename)
 
 ##### Document customer requests
 Please see [handbook/customer-success#document-customer-requests](https://fleetdm.com/handbook/customer-success#document-customer-requests)
