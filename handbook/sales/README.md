@@ -2,7 +2,7 @@
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
-| Role                                  | Contributor(s)           |
+| Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | Chief Revenue Officer (CRO)           | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
 | 🏹 [Customer Success](https://www.fleetdm.com/handbook/customer-success#responsibilities) | [Customer Success team members](https://www.fleetdm.com/handbook/customer-success#team)
