@@ -14,7 +14,6 @@ The Demand department is directly responsible for growing awareness of Fleet and
 
 
 ## Contact us
-
 > To make a request related to product marketing, press, brandfronts, pitchfronts, featurefronts, ideal customer profiles (ICPs), personas, or targeting [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Aproduct-marketing&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________).
 >
 > If urgent, or if you need help submitting your request, at-mention the [Head of Product Marketing](#team) in the [help-pmm-2023](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel.
@@ -26,34 +25,6 @@ The Demand department is directly responsible for growing awareness of Fleet and
 - If urgent, or if you need help submitting your request, mention a [team member](#team) in the [#g-demand](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel:
   - For all urgent events, videos, or social media questions, mention the Field Marketer.
   - For all urgent questions related to articles or the Fleet community, mention the Community Advocate.
-
-
-## Programs
-Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through events, community support, [social media](#social-media), conversation-starting, [ads](#ads), video, and articles.
-
-### Social media
-Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
-
-Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/demand#engage-with-the-community).
-
-Here are some topics for social media posts:
-- Fleet the product
-- Internal progress
-- Highlighting community contributions
-- Highlighting Fleet and osquery accomplishments
-- Industry news about osquery
-- Industry news about device management
-- Upcoming events, interviews, and podcasts
-
-### Ads
-Fleet uses advertising to spread awareness through a broader audience and foster greater engagement within user communities. The more people actively using Fleet, or contributing, the better Fleet will be.
-
-
-### Events
-It's important for Fleet to engage at events. This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
-
-### Video
-Fleet's utilization of YouTube is an essential component of our commitment to nurturing a strong and informed user community. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it.
 
 ## Responsibilities
 
@@ -188,6 +159,28 @@ Fleet regularly uploads a variety of content to YouTube such as podcast episodes
 
 <!-- TODO: Explore the stubs from this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
 <!-- TODO: Slightly later, in another PR, finish processing this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
+
+#### Stubs
+The following stubs are included only to make links backward compatible
+
+##### Programs
+Please see [handbook/company/communications#product-marketing-programs](https://fleetdm.com/handbook/company/communications#product-marketing-programs)
+
+##### Social media
+Please see [handbook/company/communications#social-media](https://fleetdm.com/handbook/company/communications#social-media)
+
+##### Ads
+Please see [handbook/company/communications#ads](https://fleetdm.com/handbook/company/communications#ads)
+
+##### Events
+Please see [handbook/company/communications#events](https://fleetdm.com/handbook/company/communications#events)
+
+##### Video
+Please see [handbook/company/communications#video](https://fleetdm.com/handbook/company/communications#video)
+
+
+
+
 
 <meta name="maintainedBy" value="3kindsoffish">
 <meta name="title" value="🫧 Demand">
