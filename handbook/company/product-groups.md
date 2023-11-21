@@ -88,7 +88,7 @@ Behind every MDM [wireframe at Fleet](https://fleetdm.com/handbook/company/why-t
 Start off cross-platform for every option, setting, and feature. If we **prove** it's impossible, _then_ work backward making it platform-specific.
 
 - **Bridge the Mac and Windows gap.** Implement enough help text, links, guides, gifs, etc that a reasonably persistent human being can figure it out just by trying to use the UI.
-   Even if that means we have fewer features or slightly lower granularity (we can iterate and add more granularity later), Make it easy enough to understand. Whether they're experienced Mac admins people or career Windows folks (even if someone has never used a Windows tool) they should _"get it"_. 
+   Even if that means we have fewer features or slightly lower granularity (we can iterate and add more granularity later), make it easy enough to understand. Whether they're experienced Mac admins people or career Windows folks (even if someone has never used a Windows tool) they should _"get it"_. 
 
 - **Control the noise.** Bring the needs surface level, tuck away things you don't need by default (when possible, given time). For example, hide Windows controls if there are no Windows devices (based on number of Windows hosts).
 
@@ -101,7 +101,7 @@ New tickets are estimated, specified, and prioritized on the roadmap:
 ### Scrum items
 Our scrum boards are exclusively composed of four types of scrum items:
 
-1. **User stories**: These are simple and concise descriptions of features or requirements from the user's perspective, marked with the `story` label. They keep our focus on delivering value to our customers. Occasionally, due to ZenHub's ticket sub-task structure, the term 'epic' may be seen. However, we treat these as regular user stories.
+1. **User stories**: These are simple and concise descriptions of features or requirements from the user's perspective, marked with the `story` label. They keep our focus on delivering value to our customers. Occasionally, due to ZenHub's ticket sub-task structure, the term "epic" may be seen. However, we treat these as regular user stories.
 
 2. **Sub-tasks**: These smaller, more manageable tasks contribute to the completion of a larger user story. Sub-tasks are labeled as `~sub-task` and enable us to break down complex tasks into more detailed and easier-to-estimate work units. Sub-tasks are always assigned to exactly one user story.
 
