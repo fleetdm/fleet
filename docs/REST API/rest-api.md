@@ -6942,6 +6942,45 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software title](#get-software-title)
 - [Get software version](#get-software-version)
 
+### Upload a software
+
+Uploads software to install on macOS and Windows hosts during enrollment.
+
+`POST /api/v1/fleet/software`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| software        | file    | form | **Required**. Installer file. PKG or DMG for macOS and MSI or EXE for Windows hosts.   |
+| team_id         | integer | form | The team ID. If specified, the software will only be available to hosts assigned to this team. If not specified, the software will only be available to hosts that are not assigned to any team (No team).  |
+
+#### Example
+
+`POST /api/v1/fleet/software`
+
+##### Request header
+
+```http
+Content-Length: 8500
+Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+
+##### Request body
+
+```http
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="team_id"
+1
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="software"; filename="ZoomInstallFull.pkg"
+Content-Type: application/octet-stream
+
+[binary content of PKG file]
+
+--------------------------d8c247122f594ba0
+```
+
 ### List software titles
 
 Get a list of all software grouped by software title.
@@ -7182,6 +7221,7 @@ Returns the information of the specified software version.
     "id": 425224,
     "name": "Firefox.app",
     "version": "117.0",
+    "uploaded": true,
     "bundle_identifier": "org.mozilla.firefox",
     "source": "apps",
     "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
