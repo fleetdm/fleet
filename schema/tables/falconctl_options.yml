@@ -1,0 +1,11 @@
+name: falconctl_options
+description: Get information about Crowdstrike Falcon agent installed on the host.
+evented: false
+notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
+platforms:
+  - linux
+columns:
+  - name: options
+    description: "The falconctol options to run. Supported values are listed here: `--aid`, `--apd`,`--aph`, `--app`, `--cid`, `--feature`, `--metadata-query`, `--rfm-reason`,`--rfm-state`, `--tags`, `--version`"
+    type: text
+    required: true

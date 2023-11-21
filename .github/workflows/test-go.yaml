@@ -41,7 +41,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        go-version: ['^1.21.3']
+        go-version: ['${{ vars.GO_VERSION }}']
         mysql: ["mysql:5.7.21", "mysql:8.0.28"]
     runs-on: ${{ matrix.os }}
 
@@ -86,6 +86,7 @@ jobs:
             sleep 1
         done
         echo "mysql is ready"
+
 
     - name: Run Go Tests
       run: |

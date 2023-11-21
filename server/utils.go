@@ -145,3 +145,44 @@ func Base64DecodePaddingAgnostic(s string) ([]byte, error) {
 	us := strings.TrimRight(s, string(base64.StdPadding))
 	return base64.RawStdEncoding.DecodeString(us)
 }
+
+// RemoveDuplicatesFromSlice returns a slice with all the duplicates removed from the input slice.
+func RemoveDuplicatesFromSlice[T comparable](slice []T) []T {
+	// We are using the allKeys map as a set here
+	allKeys := make(map[T]struct{})
+	var list []T
+
+	for _, i := range slice {
+		if _, exists := allKeys[i]; !exists {
+			allKeys[i] = struct{}{}
+			list = append(list, i)
+		}
+	}
+	return list
+}
+
+// SliceStringsMatch checks if two slices contain the same string elements,
+// regardless of order.
+func SliceStringsMatch(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	// create a map to count occurrences of elements in a
+	elementCount := make(map[string]int, len(a))
+	for _, item := range a {
+		elementCount[item]++
+	}
+
+	// decrease the count for each element in b
+	for _, item := range b {
+		elementCount[item]--
+		if elementCount[item] < 0 {
+			// if the count goes below zero, b has an element not
+			// in a or more occurrences of it than a
+			return false
+		}
+	}
+
+	return true
+}

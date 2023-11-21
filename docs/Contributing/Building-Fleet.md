@@ -35,6 +35,10 @@ Install dependencies:
 ```sh
 sudo apt-get install -y git golang make nodejs npm
 sudo npm install -g yarn
+# Install nvm to manage node versions (apt very out of date) https://github.com/nvm-sh/nvm#install--update-script
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+# refresh your session before continuing
+nvm install v19.7.0
 ```
 
 #### Windows

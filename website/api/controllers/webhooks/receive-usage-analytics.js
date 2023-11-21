@@ -19,7 +19,7 @@ module.exports = {
     softwareInventoryEnabled: { type: 'boolean', defaultsTo: false },
     vulnDetectionEnabled: { type: 'boolean', defaultsTo: false },
     systemUsersEnabled: { type: 'boolean', defaultsTo: false },
-    hostStatusWebhookEnabled: { type: 'boolean', defaultsTo: false },
+    hostsStatusWebHookEnabled: { type: 'boolean', defaultsTo: false },
     numWeeklyActiveUsers: { type: 'number', defaultsTo: 0 },
     numWeeklyPolicyViolationDaysActual: { type: 'number', defaultsTo: 0 },
     numWeeklyPolicyViolationDaysPossible: { type: 'number', defaultsTo: 0 },
@@ -39,8 +39,8 @@ module.exports = {
 
   fn: async function (inputs) {
 
-    // Create a database record for these usage statistics
-    await HistoricalUsageSnapshot.create(inputs);
+    // Create a database record for these usage statistics.
+    await HistoricalUsageSnapshot.create(Object.assign({}, inputs));
 
     if(!sails.config.custom.datadogApiKey) {
       throw new Error('No Datadog API key configured! (Please set sails.config.custom.datadogApiKey)');
@@ -53,7 +53,7 @@ module.exports = {
       `software_inventory_enabled:${inputs.softwareInventoryEnabled}`,
       `vuln_detection_enabled:${inputs.vulnDetectionEnabled}`,
       `system_users_enabled:${inputs.systemUsersEnabled}`,
-      `host_status_webhook_enabled:${inputs.hostStatusWebhookEnabled}`,
+      `host_status_webhook_enabled:${inputs.hostsStatusWebHookEnabled}`,
     ];
 
     // Create a timestamp in seconds for these metrics
