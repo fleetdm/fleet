@@ -2051,6 +2051,23 @@ func NewSyncMLCmdStatus(msgRef string, cmdRef string, cmdOrig string, statusCode
 	}
 }
 
+func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+		return &fleet.MDMProfilesSummary{}, nil
+	}
+
+	ps, err := svc.ds.GetMDMWindowsProfilesSummary(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return ps, nil
+}
+
 func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
 	// retrieve the profiles to install/remove.
 	toInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
@@ -2103,6 +2120,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 			OperationType: fleet.MDMOperationTypeInstall,
 			Status:        &fleet.MDMDeliveryPending,
 		})
+		level.Debug(logger).Log("msg", "installing profile", "profile_id", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
 	}
 
 	// Grab the contents of all the profiles we need to install

@@ -1,0 +1,4 @@
+- Updated `POST /scripts` to allow `.ps1` scripts for Windows
+- Updated `fleetctl` output to reflect support for `.ps1` scripts
+- Updated `GET /hosts/{id}/scripts` to return `.sh` scripts for MacOS hosts and `.ps1` scripts for
+  Windows hosts.

@@ -1,0 +1,1 @@
+* Stop reporting Atom editor packages in software inventory. The Atom editor is retired and the relevant tables are being removed from osquery.

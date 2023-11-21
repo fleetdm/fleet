@@ -53,9 +53,6 @@ parasails.registerPage('homepage', {
         {
           // When the image is completly in the user's viewport, add the 'animate' class to it.
           imageToAnimate.classList.add('animate');
-        } else if(imageToAnimate.classList.contains('animate')) {
-          // When it is no longer in the user's viewport, remove the 'animate' class if it has it.
-          imageToAnimate.classList.remove('animate');
         }
       });
     }

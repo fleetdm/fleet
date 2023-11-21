@@ -129,5 +129,15 @@
       "product": ["intellij_idea"],
       "vendor": ["jetbrains"]
     }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.pycharm/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["pycharm"],
+      "vendor": ["jetbrains"]
+    }
   }
 ]

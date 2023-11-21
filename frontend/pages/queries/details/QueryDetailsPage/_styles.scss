@@ -38,6 +38,9 @@
     display: flex;
     gap: $pad-large;
     font-size: $x-small;
+    .component__tooltip-wrapper__underline {
+      top: 0px;
+    }
   }
 
   &__automations,

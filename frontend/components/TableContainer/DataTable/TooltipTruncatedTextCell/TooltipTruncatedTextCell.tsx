@@ -1,11 +1,11 @@
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React from "react";
 import { uniqueId } from "lodash";
 import classnames from "classnames";
 
 import ReactTooltip from "react-tooltip";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
-interface ITruncatedTextCellProps {
+interface ITooltipTruncatedTextCellProps {
   value: string | number | boolean;
   /** If set to `true` the text inside the tooltip will break on words instead of any character.
    * By default the tooltip text breaks on any character.
@@ -15,44 +15,30 @@ interface ITruncatedTextCellProps {
   classes?: string;
 }
 
-const baseClass = "truncated-cell";
+const baseClass = "tooltip-truncated-cell";
 
-const TruncatedTextCell = ({
+const TooltipTruncatedTextCell = ({
   value,
   tooltipBreakOnWord = false,
   classes = "w250",
-}: ITruncatedTextCellProps): JSX.Element => {
+}: ITooltipTruncatedTextCellProps): JSX.Element => {
   const classNames = classnames(baseClass, classes, {
     "tooltip-break-on-word": tooltipBreakOnWord,
   });
 
-  const ref = useRef<HTMLInputElement>(null);
-
-  const [offsetWidth, setOffsetWidth] = useState(0);
-  const [scrollWidth, setScrollWidth] = useState(0);
-
-  useLayoutEffect(() => {
-    if (ref?.current !== null) {
-      setOffsetWidth(ref.current.offsetWidth);
-      setScrollWidth(ref.current.scrollWidth);
-    }
-  }, []);
-
   const tooltipId = uniqueId();
-  const tooltipDisabled = offsetWidth === scrollWidth;
   const isDefaultValue = value === DEFAULT_EMPTY_CELL_VALUE;
   return (
-    <div ref={ref} className={classNames}>
+    <div className={classNames}>
       <div
-        className={"data-table__truncated-text"}
+        className={"data-table__tooltip-truncated-text"}
         data-tip
         data-for={tooltipId}
-        data-tip-disable={tooltipDisabled}
       >
         <span
-          className={`data-table__truncated-text--cell ${
+          className={`data-table__tooltip-truncated-text--cell ${
             isDefaultValue ? "text-muted" : ""
-          } ${tooltipDisabled ? "" : "truncated"}`}
+          } `}
         >
           {value}
         </span>
@@ -77,4 +63,4 @@ const TruncatedTextCell = ({
   );
 };
 
-export default TruncatedTextCell;
+export default TooltipTruncatedTextCell;
