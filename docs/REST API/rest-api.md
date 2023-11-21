@@ -6974,7 +6974,7 @@ Get a list of all software grouped by software title.
   "count": 2,
   "software_titles": [
     {
-      "id": 12,
+      "id": "12",
       "name": "Firefox.app",
       "versions_count": 3,
       "source": "apps",
@@ -6984,6 +6984,7 @@ Get a list of all software grouped by software title.
           "id": "123",
           "version": "1.12",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+          "uploaded": true
         }, 
         {
           "id": "124", 
