@@ -17,8 +17,6 @@ This handbook page details processes specific to working [with](#team) and [with
 ## Responsibilities
 The 🚀 Engineering department at Fleet is directly responsible for writing and maintaining the [code](https://github.com/fleetdm/fleet) for Fleet's core product and infrastructure.
 
-> work in progress, contributions welcome, please just make only one small change at a time per PR.  See https://fleetdm.com/handbook/company/leadership#vision-for-dept-handbook-pages for info
-
 ### Record engineering KPIs
 We track the success of this process by observing the throughput of issues through the system and identifying where buildups (and therefore bottlenecks) are occurring.
 The metrics are:
