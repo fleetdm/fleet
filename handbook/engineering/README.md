@@ -211,15 +211,6 @@ For each bug found, please use the [bug report template](https://github.com/flee
 
 For unreleased bugs in an active sprint, a new bug is created with the `~unreleased bug` label. The `:release` label and associated product group label is added, and the engineer responsible for the feature is assigned. If QA is unsure who the bug should be assigned to, it is assigned to the EM. Fixing the bug becomes part of the story.
 
-### Create an engineering-initiated user story
-1. Create a [new feature request issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~engineering-initiated&projects=&template=feature-request.md&title=) in GitHub.
-2. Ensure it is labeled with `~engineering-initiated` and the relevant product group. Remove any `~customer-request` label.
-3. Assign it to yourself. You will own this user story until it is either prioritized or closed.
-4. Schedule a time with an EM and/or PM to present your story. Iterate based on feedback.
-5. You, your EM or PM can bring this to Feature Fest for consideration. All engineering-initiated changes go through the same [drafting process](https://fleetdm.com/handbook/product#intake) as any other story.
-
-> We aspire to dedicate 20% of each sprint to technical changes, but may allocate less based on customer needs and business priorities.
-
 ### Accept new Apple developer account terms
 Engineering is responsible for managing third-party accounts required to support engineering infrastructure. We use the official Fleet Apple developer account to notarize installers we generate for Apple devices. Whenever Apple releases new terms of service, we are unable to notarize new packages until the new terms are accepted.
 
@@ -247,7 +238,6 @@ As a hiring manager we want to ensure the interview process follows these steps 
 7. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @zwass.
 
 If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
-
 
 ### Renew MDM certificate signing request (CSR) 
 The certificate signing request (CSR) certificate expires every year. It needs to be renewed prior to expiring. This is notified to the team by the MDM calendar event [IMPORTANT: Renew MDM CSR certificate](https://calendar.google.com/calendar/event?action=TEMPLATE&tmeid=NHM3YzZja2FoZTA4bm9jZTE3NWFvMTduMTlfMjAyNDA5MTFUMTczMDAwWiBjXzI0YjkwMjZiZmIzZDVkMDk1ZGQzNzA2ZTEzMWQ3ZjE2YTJmNDhjN2E1MDU1NDcxNzA1NjlmMDc4ODNiNmU3MzJAZw&tmsrc=c_24b9026bfb3d5d095dd3706e131d7f16a2f48c7a505547170569f07883b6e732%40group.calendar.google.com&scp=ALL)
