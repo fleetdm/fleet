@@ -6995,7 +6995,7 @@ Delete an uploaded software.
 | ----            | ------- | ---- | --------------------------------------------     |
 | id              | integer | path | **Required**. The ID of uploaded software version to delete.|
 
-#### Parameters
+#### Example
 
 `DELETE /api/v1/fleet/software/24`
 
