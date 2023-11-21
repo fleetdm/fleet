@@ -58,6 +58,10 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 
 ## Responsibilities
 
+### Onboard as a new sales team member
+Once the standard Fleetie onboarding issue is complete, Sales team members should open a new issue from the Sales team member onboaring issue template and complete it.
+[Fleet values training](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training)
+
 ### Send a quote
 During the buying cycle, the champion will need to start the process to secure funding in cooperation with the economic buyer and the finance org.
 
