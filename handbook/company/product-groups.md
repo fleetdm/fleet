@@ -364,15 +364,16 @@ Potential reasons for why a feature may be de-prioritized include:
 Just as when a feature request is not accepted in the 🎁🗣 Feature Fest meeting, whenever a feature is de-prioritized after it has been accepted, it only means that the feature has been _de-prioritized at this time_. It is up to the requester to bring the request back again at another 🎁🗣 Feature Fest meeting.
 
 ## Quality
-The goal of quality assurance is to identify corrections and optimizations before release by:
-- Testing for bugs
-- Exploring edge cases
-- Observing error message UX
-- Living the developer experience (using the API/CLI)
-- Clarifying operator experience (looking at logs)
-- Improving API response time latency
-- Verifying UI comprehensibility
-- Optimizing for simplicity, data accuracy, and perceived data freshness
+The goal of quality assurance is to identify corrections and optimizations before release by verifying;
+- Bugs
+- Fixes for bugs
+- Edge cases
+- Error messages
+- Developer experience (using the API/CLI)
+- Operator experience (looking at logs)
+- API response time latency
+- UI comprehensibility
+- Simplicity, data accuracy, and perceived data freshness
 
 Fleet uses a human-oriented quality assurance (QA) process to make sure the product meets the standards of users and organizations. Automated tests are important, but they can't catch everything. Many issues are hard to notice until a human looks empathetically at the user experience, whether in the user interface, the REST API, or the command line.
 
