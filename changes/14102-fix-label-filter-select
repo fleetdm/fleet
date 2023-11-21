@@ -1,0 +1,2 @@
+- Fix a bug in which the manage page's label filter selection menu did not close when open and
+  clicked. Added some additional UX improvements around this component.

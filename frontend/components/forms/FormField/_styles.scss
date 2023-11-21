@@ -37,6 +37,10 @@
   }
 
   &--checkbox {
+    // flex properties only have an effect when checkbox help text is present
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
     margin-bottom: $pad-medium;
   }
 

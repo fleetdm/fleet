@@ -887,6 +887,43 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 	return nil, fleet.ErrMissingLicense
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/profiles/summary
+////////////////////////////////////////////////////////////////////////////////
+
+type getMDMProfilesSummaryRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getMDMProfilesSummaryResponse struct {
+	fleet.MDMProfilesSummary
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMProfilesSummaryResponse) error() error { return r.Err }
+
+func getMDMProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMProfilesSummaryRequest)
+	res := getMDMProfilesSummaryResponse{}
+
+	as, err := svc.GetMDMAppleProfilesSummary(ctx, req.TeamID)
+	if err != nil {
+		return &getMDMAppleProfilesSummaryResponse{Err: err}, nil
+	}
+
+	ws, err := svc.GetMDMWindowsProfilesSummary(ctx, req.TeamID)
+	if err != nil {
+		return &getMDMProfilesSummaryResponse{Err: err}, nil
+	}
+
+	res.Verified = as.Verified + ws.Verified
+	res.Verifying = as.Verifying + ws.Verifying
+	res.Failed = as.Failed + ws.Failed
+	res.Pending = as.Pending + ws.Pending
+
+	return &res, nil
+}
+
 // authorizeAllHostsTeams is a helper function that loads the hosts
 // corresponding to the hostUUIDs and authorizes the context user to execute
 // the specified authzAction (e.g. fleet.ActionWrite) for all the hosts' teams
@@ -1266,10 +1303,9 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO: Windows equivalent of this call:
-	//if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, []uint{newCP.ProfileID}, nil); err != nil {
-	//	return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-	//}
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
 
 	var (
 		actTeamID   *uint
@@ -1350,8 +1386,23 @@ func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName 
 		return ctxerr.Wrap(ctx, err, "setting config profiles")
 	}
 
-	// TODO(roberto): batch set as pending for windows/macOS, hoping to
-	// tackle this separately.
+	// set pending status for windows profiles
+	winProfUUIDs := []string{}
+	for _, p := range windowsProfiles {
+		winProfUUIDs = append(winProfUUIDs, p.ProfileUUID)
+	}
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, nil, winProfUUIDs, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
+	}
+
+	// set pending status for apple profiles
+	appleProfIDs := []uint{}
+	for _, p := range appleProfiles {
+		appleProfIDs = append(appleProfIDs, p.ProfileID)
+	}
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, appleProfIDs, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
+	}
 
 	// TODO(roberto): should we generate activities only of any profiles were
 	// changed? this is the existing behavior for macOS profiles so I'm

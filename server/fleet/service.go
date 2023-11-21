@@ -606,15 +606,15 @@ type Service interface {
 	// specified team.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
 
-	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
-	// each host in the specified team (or, if no team is specified, each host that is not assigned
-	// to any team).
-	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleConfigProfilesSummary, error)
-
 	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
+
+	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
+	// each host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
@@ -815,6 +815,10 @@ type Service interface {
 
 	// DeleteMDMWindowsConfigProfile deletes the specified windows profile.
 	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
+
+	// GetMDMWindowsProfileSummary summarizes the current state of MDM configuration profiles on each host
+	// in the specified team (or, if no team is specified, each host that is not assigned to any team).
+	GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	// NewMDMWindowsConfigProfile creates a new Windows configuration profile for
 	// the specified team.

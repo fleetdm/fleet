@@ -1,0 +1,2 @@
+- policy results are now cached in mysql for faster sort operations on policy counts.  counts are
+updated by the cleanups_then_aggregation cron job 1X per hour by default.

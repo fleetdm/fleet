@@ -1,0 +1,11 @@
+name: filevault_status
+description: Get current FileVault status.
+evented: false
+notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
+platforms:
+  - darwin
+columns:
+  - name: status
+    description: FileVault status.
+    type: text
+    required: false

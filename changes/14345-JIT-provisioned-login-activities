@@ -1,0 +1,2 @@
+- Update activity feed to elegantly communicate when a JIT-provisioned user logs in for the first
+  time, thereby creating their account.
