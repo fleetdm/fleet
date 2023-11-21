@@ -348,15 +348,11 @@ func isClusterDisabled(err error) bool {
 //
 // At some point it seems like the error message changed from wrapping the
 // command name with backticks to single quotes.
-//
-// On RedisLabs, user reports indicate that the CLUSTER command fails with "ERR
-// command is not allowed" when cluster mode is disabled.
 func isClusterCommandUnknown(err error) bool {
 	return strings.Contains(err.Error(), "ERR unknown command `CLUSTER`") ||
 		strings.Contains(err.Error(), "ERR unknown command 'CLUSTER'") ||
 		strings.Contains(err.Error(), "ERR unknown command CLUSTER") ||
-		strings.Contains(err.Error(), `ERR unknown command "CLUSTER"`) ||
-		strings.Contains(err.Error(), `ERR command is not allowed`)
+		strings.Contains(err.Error(), `ERR unknown command "CLUSTER"`)
 }
 
 func ScanKeys(pool fleet.RedisPool, pattern string, count int) ([]string, error) {

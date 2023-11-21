@@ -32,10 +32,10 @@ Example:
 You can automatically send these logs to your log destination. Learn how to configure this [here](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
 
 To view activities in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
+	
+## Activity types
 
-Following is a summary of the types of administrative activities logged by Fleet:
-
-## created_pack
+### Type `created_pack`
 
 Generated when creating scheduled query packs.
 
@@ -52,7 +52,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_pack
+### Type `edited_pack`
 
 Generated when editing scheduled query packs.
 
@@ -69,7 +69,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_pack
+### Type `deleted_pack`
 
 Generated when deleting scheduled query packs.
 
@@ -84,13 +84,13 @@ This activity contains the following fields:
 }
 ```
 
-## applied_spec_pack
+### Type `applied_spec_pack`
 
 Generated when applying a scheduled query pack spec.
 
 This activity does not contain any detail fields.
 
-## created_policy
+### Type `created_policy`
 
 Generated when creating policies.
 
@@ -107,7 +107,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_policy
+### Type `edited_policy`
 
 Generated when editing policies.
 
@@ -124,7 +124,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_policy
+### Type `deleted_policy`
 
 Generated when deleting policies.
 
@@ -141,7 +141,7 @@ This activity contains the following fields:
 }
 ```
 
-## applied_spec_policy
+### Type `applied_spec_policy`
 
 Generated when applying policy specs.
 
@@ -180,7 +180,7 @@ This activity contains a field "policies" where each item is a policy spec with 
 }
 ```
 
-## created_saved_query
+### Type `created_saved_query`
 
 Generated when creating a new query.
 
@@ -197,7 +197,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_saved_query
+### Type `edited_saved_query`
 
 Generated when editing a saved query.
 
@@ -214,7 +214,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_saved_query
+### Type `deleted_saved_query`
 
 Generated when deleting a saved query.
 
@@ -229,7 +229,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_multiple_saved_query
+### Type `deleted_multiple_saved_query`
 
 Generated when deleting multiple saved queries.
 
@@ -244,7 +244,7 @@ This activity contains the following fields:
 }
 ```
 
-## applied_spec_saved_query
+### Type `applied_spec_saved_query`
 
 Generated when applying a query spec.
 
@@ -267,7 +267,7 @@ This activity contains a field "specs" where each item is a query spec with the 
 }
 ```
 
-## created_team
+### Type `created_team`
 
 Generated when creating teams.
 
@@ -284,7 +284,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_team
+### Type `deleted_team`
 
 Generated when deleting teams.
 
@@ -301,7 +301,7 @@ This activity contains the following fields:
 }
 ```
 
-## applied_spec_team
+### Type `applied_spec_team`
 
 Generated when applying team specs.
 
@@ -322,7 +322,7 @@ This activity contains a field "teams" where each item contains the team details
 }
 ```
 
-## transferred_hosts
+### Type `transferred_hosts`
 
 Generated when a user transfers a host (or multiple hosts) to a team (or no team).
 
@@ -343,7 +343,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_agent_options
+### Type `edited_agent_options`
 
 Generated when agent options are edited (either globally or for a team).
 
@@ -362,7 +362,7 @@ This activity contains the following fields:
 }
 ```
 
-## live_query
+### Type `live_query`
 
 Generated when running live queries.
 
@@ -381,13 +381,13 @@ This activity contains the following fields:
 }
 ```
 
-## user_added_by_sso
+### Type `user_added_by_sso`
 
 Generated when new users are added via SSO JIT provisioning
 
 This activity does not contain any detail fields.
 
-## user_logged_in
+### Type `user_logged_in`
 
 Generated when users successfully log in to Fleet.
 
@@ -402,7 +402,7 @@ This activity contains the following fields:
 }
 ```
 
-## user_failed_login
+### Type `user_failed_login`
 
 Generated when users try to log in to Fleet and fail.
 
@@ -419,7 +419,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_user
+### Type `created_user`
 
 Generated when a user is created.
 
@@ -438,7 +438,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_user
+### Type `deleted_user`
 
 Generated when a user is deleted.
 
@@ -457,7 +457,7 @@ This activity contains the following fields:
 }
 ```
 
-## changed_user_global_role
+### Type `changed_user_global_role`
 
 Generated when user global roles are changed.
 
@@ -478,7 +478,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_user_global_role
+### Type `deleted_user_global_role`
 
 Generated when user global roles are deleted.
 
@@ -499,7 +499,7 @@ This activity contains the following fields:
 }
 ```
 
-## changed_user_team_role
+### Type `changed_user_team_role`
 
 Generated when user team roles are changed.
 
@@ -524,7 +524,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_user_team_role
+### Type `deleted_user_team_role`
 
 Generated when user team roles are deleted.
 
@@ -549,7 +549,7 @@ This activity contains the following fields:
 }
 ```
 
-## mdm_enrolled
+### Type `mdm_enrolled`
 
 Generated when a host is enrolled in Fleet's MDM.
 
@@ -570,7 +570,7 @@ This activity contains the following fields:
 }
 ```
 
-## mdm_unenrolled
+### Type `mdm_unenrolled`
 
 Generated when a host is unenrolled from Fleet's MDM.
 
@@ -589,7 +589,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_macos_min_version
+### Type `edited_macos_min_version`
 
 Generated when the minimum required macOS version or deadline is modified.
 
@@ -610,7 +610,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_windows_updates
+### Type `edited_windows_updates`
 
 Generated when the Windows OS updates deadline or grace period is modified.
 
@@ -631,7 +631,7 @@ This activity contains the following fields:
 }
 ```
 
-## read_host_disk_encryption_key
+### Type `read_host_disk_encryption_key`
 
 Generated when a user reads the disk encryption key for a host.
 
@@ -648,7 +648,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_macos_profile
+### Type `created_macos_profile`
 
 Generated when a user adds a new macOS profile to a team (or no team).
 
@@ -669,7 +669,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_macos_profile
+### Type `deleted_macos_profile`
 
 Generated when a user deletes a macOS profile from a team (or no team).
 
@@ -690,7 +690,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_macos_profile
+### Type `edited_macos_profile`
 
 Generated when a user edits the macOS profiles of a team (or no team) via the fleetctl CLI.
 
@@ -707,7 +707,7 @@ This activity contains the following fields:
 }
 ```
 
-## changed_macos_setup_assistant
+### Type `changed_macos_setup_assistant`
 
 Generated when a user sets the macOS setup assistant for a team (or no team).
 
@@ -726,7 +726,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_macos_setup_assistant
+### Type `deleted_macos_setup_assistant`
 
 Generated when a user deletes the macOS setup assistant for a team (or no team).
 
@@ -745,7 +745,7 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_macos_disk_encryption
+### Type `enabled_macos_disk_encryption`
 
 Generated when a user turns on macOS disk encryption for a team (or no team).
 
@@ -762,7 +762,7 @@ This activity contains the following fields:
 }
 ```
 
-## disabled_macos_disk_encryption
+### Type `disabled_macos_disk_encryption`
 
 Generated when a user turns off macOS disk encryption for a team (or no team).
 
@@ -779,7 +779,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_bootstrap_package
+### Type `added_bootstrap_package`
 
 Generated when a user adds a new bootstrap package to a team (or no team).
 
@@ -798,7 +798,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_bootstrap_package
+### Type `deleted_bootstrap_package`
 
 Generated when a user deletes a bootstrap package from a team (or no team).
 
@@ -817,7 +817,7 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_macos_setup_end_user_auth
+### Type `enabled_macos_setup_end_user_auth`
 
 Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a team (or no team).
 
@@ -834,7 +834,7 @@ This activity contains the following fields:
 }
 ```
 
-## disabled_macos_setup_end_user_auth
+### Type `disabled_macos_setup_end_user_auth`
 
 Generated when a user turns off end user authentication for macOS hosts that automatically enroll to a team (or no team).
 
@@ -851,19 +851,19 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_windows_mdm
+### Type `enabled_windows_mdm`
 
 Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns on MDM features for all Windows hosts (servers excluded).
 
 This activity does not contain any detail fields.
 
-## disabled_windows_mdm
+### Type `disabled_windows_mdm`
 
 Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns off MDM features for all Windows hosts.
 
 This activity does not contain any detail fields.
 
-## ran_script
+### Type `ran_script`
 
 Generated when a script is sent to be run for a host.
 
@@ -884,7 +884,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_script
+### Type `added_script`
 
 Generated when a script is added to a team (or no team).
 
@@ -903,7 +903,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_script
+### Type `deleted_script`
 
 Generated when a script is deleted from a team (or no team).
 
@@ -922,68 +922,13 @@ This activity contains the following fields:
 }
 ```
 
-## edited_script
+### Type `edited_script`
 
 Generated when a user edits the scripts of a team (or no team) via the fleetctl CLI.
 
 This activity contains the following fields:
 - "team_id": The ID of the team that the scripts apply to, `null` if they apply to devices that are not in a team.
 - "team_name": The name of the team that the scripts apply to, `null` if they apply to devices that are not in a team.
-
-#### Example
-
-```json
-{
-  "team_id": 123,
-  "team_name": "Workstations"
-}
-```
-
-## created_windows_profile
-
-Generated when a user adds a new Windows profile to a team (or no team).
-
-This activity contains the following fields:
-- "profile_name": Name of the profile.
-- "team_id": The ID of the team that the profile applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the profile applies to, `null` if it applies to devices that are not in a team.
-
-#### Example
-
-```json
-{
-  "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations"
-}
-```
-
-## deleted_windows_profile
-
-Generated when a user deletes a Windows profile from a team (or no team).
-
-This activity contains the following fields:
-- "profile_name": Name of the deleted profile.
-- "team_id": The ID of the team that the profile applied to, `null` if it applied to devices that are not in a team.
-- "team_name": The name of the team that the profile applied to, `null` if it applied to devices that are not in a team.
-
-#### Example
-
-```json
-{
-  "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations"
-}
-```
-
-## edited_windows_profile
-
-Generated when a user edits the Windows profiles of a team (or no team) via the fleetctl CLI.
-
-This activity contains the following fields:
-- "team_id": The ID of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
-- "team_name": The name of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
 
 #### Example
 

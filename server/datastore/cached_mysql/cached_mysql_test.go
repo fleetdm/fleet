@@ -400,7 +400,6 @@ func TestCachedTeamFeatures(t *testing.T) {
 		EnableHostUsers:         false,
 		EnableSoftwareInventory: true,
 		AdditionalQueries:       &aq,
-		DetailQueryOverrides:    map[string]*string{"a": ptr.String("A"), "b": ptr.String("B")},
 	}
 
 	testTeam := fleet.Team{
@@ -428,18 +427,9 @@ func TestCachedTeamFeatures(t *testing.T) {
 		return nil
 	}
 
-	// get it the first time, it will populate the cache
 	features, err := ds.TeamFeatures(context.Background(), 1)
 	require.NoError(t, err)
 	require.Equal(t, testFeatures, *features)
-	require.True(t, mockedDS.TeamFeaturesFuncInvoked)
-	mockedDS.TeamFeaturesFuncInvoked = false
-
-	// get it again, will retrieve it from the cache
-	features, err = ds.TeamFeatures(context.Background(), 1)
-	require.NoError(t, err)
-	require.Equal(t, testFeatures, *features)
-	require.False(t, mockedDS.TeamFeaturesFuncInvoked)
 
 	// saving a team updates features in cache
 	aq = json.RawMessage(`{"bar": "baz"}`)
@@ -447,7 +437,6 @@ func TestCachedTeamFeatures(t *testing.T) {
 		EnableHostUsers:         true,
 		EnableSoftwareInventory: false,
 		AdditionalQueries:       &aq,
-		DetailQueryOverrides:    map[string]*string{"c": ptr.String("C")},
 	}
 	updateTeam := &fleet.Team{
 		ID:        testTeam.ID,
@@ -461,12 +450,10 @@ func TestCachedTeamFeatures(t *testing.T) {
 
 	_, err = ds.SaveTeam(context.Background(), updateTeam)
 	require.NoError(t, err)
-	require.True(t, mockedDS.SaveTeamFuncInvoked)
 
 	features, err = ds.TeamFeatures(context.Background(), testTeam.ID)
 	require.NoError(t, err)
 	require.Equal(t, updateFeatures, *features)
-	require.False(t, mockedDS.TeamFeaturesFuncInvoked)
 
 	// deleting a team removes the features from the cache
 	err = ds.DeleteTeam(context.Background(), testTeam.ID)
@@ -474,28 +461,19 @@ func TestCachedTeamFeatures(t *testing.T) {
 
 	_, err = ds.TeamFeatures(context.Background(), testTeam.ID)
 	require.Error(t, err)
-	require.True(t, mockedDS.TeamFeaturesFuncInvoked)
 }
 
 func TestCachedTeamMDMConfig(t *testing.T) {
 	t.Parallel()
 
 	mockedDS := new(mock.Store)
-	ds := New(mockedDS, WithTeamMDMConfigExpiration(100*time.Millisecond))
+	ds := New(mockedDS, WithTeamFeaturesExpiration(100*time.Millisecond))
 	ao := json.RawMessage(`{}`)
 
 	testMDMConfig := fleet.TeamMDM{
-		EnableDiskEncryption: true,
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
-		},
-		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:                 []string{"a", "b"},
-			DeprecatedEnableDiskEncryption: ptr.Bool(false),
-		},
-		MacOSSetup: fleet.MacOSSetup{
-			BootstrapPackage: optjson.SetString("bootstrap"),
 		},
 	}
 
@@ -524,28 +502,15 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 		return nil
 	}
 
-	// get the team's config, will load it into cache
 	mdmConfig, err := ds.TeamMDMConfig(context.Background(), 1)
 	require.NoError(t, err)
 	require.Equal(t, testMDMConfig, *mdmConfig)
-	require.True(t, mockedDS.TeamMDMConfigFuncInvoked)
-	mockedDS.TeamMDMConfigFuncInvoked = false
-
-	// get it again, will get it from cache
-	mdmConfig, err = ds.TeamMDMConfig(context.Background(), 1)
-	require.NoError(t, err)
-	require.Equal(t, testMDMConfig, *mdmConfig)
-	require.False(t, mockedDS.TeamMDMConfigFuncInvoked)
 
 	// saving a team updates config in cache
 	updateMDMConfig := fleet.TeamMDM{
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("13.13.13"),
 			Deadline:       optjson.SetString("2022-03-01"),
-		},
-		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:                 nil,
-			DeprecatedEnableDiskEncryption: ptr.Bool(true),
 		},
 	}
 	updateTeam := &fleet.Team{
@@ -560,12 +525,10 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 
 	_, err = ds.SaveTeam(context.Background(), updateTeam)
 	require.NoError(t, err)
-	require.True(t, mockedDS.SaveTeamFuncInvoked)
 
 	mdmConfig, err = ds.TeamMDMConfig(context.Background(), testTeam.ID)
 	require.NoError(t, err)
 	require.Equal(t, updateMDMConfig, *mdmConfig)
-	require.False(t, mockedDS.TeamMDMConfigFuncInvoked)
 
 	// deleting a team removes the config from the cache
 	err = ds.DeleteTeam(context.Background(), testTeam.ID)
@@ -573,5 +536,4 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 
 	_, err = ds.TeamMDMConfig(context.Background(), testTeam.ID)
 	require.Error(t, err)
-	require.True(t, mockedDS.TeamMDMConfigFuncInvoked)
 }

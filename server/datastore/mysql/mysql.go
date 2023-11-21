@@ -81,11 +81,6 @@ type Datastore struct {
 	stmtCacheMu sync.Mutex
 	// stmtCache holds statements for queries.
 	stmtCache map[string]*sqlx.Stmt
-
-	// for tests, set to override the default batch size.
-	testDeleteMDMProfilesBatchSize int
-	// for tests, set to override the default batch size.
-	testUpsertMDMDesiredProfilesBatchSize int
 }
 
 // reader returns the DB instance to use for read-only statements, which is the
@@ -801,8 +796,9 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 //
 // NOTE: this method will mutate the options argument if no explicit PerPage
 // option is set (a default value will be provided) or if the cursor approach is used.
-func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []interface{}) {
-	return appendListOptionsWithCursorToSQL(sql, nil, opts)
+func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) string {
+	sql, _ = appendListOptionsWithCursorToSQL(sql, nil, opts)
+	return sql
 }
 
 // Appends the list options SQL to the passed in SQL string. This appended

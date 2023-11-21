@@ -1,10 +1,8 @@
 import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
-import { isAxiosError } from "axios";
 
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
-import { getErrorReason } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
@@ -32,23 +30,15 @@ const useSetWindowsMdm = ({
 
   const turnOnWindowsMdm = async () => {
     try {
-      const updatedConfig = await configAPI.updateMDMConfig(
-        {
+      const updatedConfig = await configAPI.update({
+        mdm: {
           windows_enabled_and_configured: enable,
         },
-        true
-      );
+      });
       setConfig(updatedConfig);
       renderFlash("success", successMessage);
-    } catch (e) {
-      let msg = errorMessage;
-      if (enable && isAxiosError(e) && e.response?.status === 422) {
-        msg =
-          getErrorReason(e, {
-            nameEquals: "mdm.windows_enabled_and_configured",
-          }) || msg;
-      }
-      renderFlash("error", msg);
+    } catch {
+      renderFlash("error", errorMessage);
     } finally {
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
     }

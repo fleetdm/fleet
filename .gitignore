@@ -37,7 +37,6 @@ mysqldata/
 
 # test helm charts
 helm-temp
-charts/fleet/charts
 
 #editors
 .idea

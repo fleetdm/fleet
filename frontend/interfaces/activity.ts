@@ -12,7 +12,6 @@ export enum ActivityType {
   EditedPolicy = "edited_policy",
   CreatedSavedQuery = "created_saved_query",
   DeletedSavedQuery = "deleted_saved_query",
-  DeletedMultipleSavedQuery = "deleted_multiple_saved_query",
   EditedSavedQuery = "edited_saved_query",
   CreatedTeam = "created_team",
   DeletedTeam = "deleted_team",
@@ -73,7 +72,6 @@ export interface IActivityDetails {
   query_id?: number;
   query_name?: string;
   query_sql?: string;
-  query_ids?: number[];
   team_id?: number | null;
   team_name?: string | null;
   teams?: ITeamSummary[];
@@ -81,7 +79,6 @@ export interface IActivityDetails {
   specs?: IQuery[] | IPolicy[];
   global?: boolean;
   public_ip?: string;
-  user_id?: number;
   user_email?: string;
   email?: string;
   role?: UserRole;

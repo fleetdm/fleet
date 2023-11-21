@@ -1,6 +1,6 @@
 import React from "react";
 import { noop } from "lodash";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 import createMockOsqueryTable from "__mocks__/osqueryTableMock";
 import QuerySidePanel from "./QuerySidePanel";
@@ -10,7 +10,7 @@ describe("QuerySidePanel - component", () => {
     render(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
-        onOsqueryTableSelect={() => noop}
+        onOsqueryTableSelect={(tableName: string) => noop}
         onClose={noop}
       />
     );
@@ -23,7 +23,7 @@ describe("QuerySidePanel - component", () => {
     const { container } = render(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
-        onOsqueryTableSelect={() => noop}
+        onOsqueryTableSelect={(tableName: string) => noop}
         onClose={noop}
       />
     );
@@ -42,7 +42,7 @@ describe("QuerySidePanel - component", () => {
     const { container } = render(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
-        onOsqueryTableSelect={() => noop}
+        onOsqueryTableSelect={(tableName: string) => noop}
         onClose={noop}
       />
     );
@@ -51,15 +51,14 @@ describe("QuerySidePanel - component", () => {
     expect(platformList.length).toBe(11); // 2 columns are set to hidden
   });
 
-  it("renders the platform specific column tooltip", async () => {
+  it("renders the platform specific column tooltip", () => {
     render(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
-        onOsqueryTableSelect={() => noop}
+        onOsqueryTableSelect={(tableName: string) => noop}
         onClose={noop}
       />
     );
-    await fireEvent.mouseEnter(screen.getByText("email"));
 
     const tooltip = screen.getByText(/only available on chrome/i);
     expect(tooltip).toBeInTheDocument();
@@ -69,7 +68,7 @@ describe("QuerySidePanel - component", () => {
     render(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
-        onOsqueryTableSelect={() => noop}
+        onOsqueryTableSelect={(tableName: string) => noop}
         onClose={noop}
       />
     );
@@ -88,7 +87,7 @@ describe("QuerySidePanel - component", () => {
         selectedOsqueryTable={createMockOsqueryTable({
           notes: "This table is being used for testing.",
         })}
-        onOsqueryTableSelect={() => noop}
+        onOsqueryTableSelect={(tableName: string) => noop}
         onClose={noop}
       />
     );
@@ -103,7 +102,7 @@ describe("QuerySidePanel - component", () => {
     render(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
-        onOsqueryTableSelect={() => noop}
+        onOsqueryTableSelect={(tableName: string) => noop}
         onClose={noop}
       />
     );

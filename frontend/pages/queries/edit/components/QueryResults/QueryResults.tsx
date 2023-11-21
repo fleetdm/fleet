@@ -21,7 +21,7 @@ import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
 
-import generateColumnConfigsFromRows from "./QueryResultsTableConfig";
+import generateResultsTableHeaders from "./QueryResultsTableConfig";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
@@ -60,10 +60,8 @@ const QueryResults = ({
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
-  const [resultsColumnConfigs, setResultsColumnConfigs] = useState<Column[]>(
-    []
-  );
-  const [errorColumnConfigs, setErrorColumnConfigs] = useState<Column[]>([]);
+  const [tableHeaders, setTableHeaders] = useState<Column[]>([]);
+  const [errorTableHeaders, setErrorTableHeaders] = useState<Column[]>([]);
   const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
     queryResults
   );
@@ -87,26 +85,24 @@ const QueryResults = ({
 
   useEffect(() => {
     if (queryResults && queryResults.length > 0) {
-      const newResultsColumnConfigs = generateColumnConfigsFromRows(
-        queryResults
-      );
+      const generatedTableHeaders = generateResultsTableHeaders(queryResults);
       // Update tableHeaders if new headers are found
-      if (newResultsColumnConfigs !== resultsColumnConfigs) {
-        setResultsColumnConfigs(newResultsColumnConfigs);
+      if (generatedTableHeaders !== tableHeaders) {
+        setTableHeaders(generatedTableHeaders);
       }
     }
   }, [queryResults]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
 
   useEffect(() => {
-    if (errorColumnConfigs?.length === 0 && !!errors?.length) {
-      setErrorColumnConfigs(generateColumnConfigsFromRows(errors));
+    if (errorTableHeaders?.length === 0 && !!errors?.length) {
+      setErrorTableHeaders(generateResultsTableHeaders(errors));
 
-      if (errorColumnConfigs && errorColumnConfigs.length > 0) {
-        const newErrorColumnConfigs = generateColumnConfigsFromRows(errors);
+      if (errorTableHeaders && errorTableHeaders.length > 0) {
+        const generatedErrorTableHeaders = generateResultsTableHeaders(errors);
 
         // Update errorTableHeaders if new headers are found
-        if (newErrorColumnConfigs !== resultsColumnConfigs) {
-          setErrorColumnConfigs(newErrorColumnConfigs);
+        if (generatedErrorTableHeaders !== tableHeaders) {
+          setErrorTableHeaders(generatedErrorTableHeaders);
         }
       }
     }
@@ -118,7 +114,7 @@ const QueryResults = ({
       generateCSVQueryResults(
         filteredResults,
         generateCSVFilename(`${queryName || CSV_TITLE} - Results`),
-        resultsColumnConfigs
+        tableHeaders
       )
     );
   };
@@ -130,7 +126,7 @@ const QueryResults = ({
       generateCSVQueryResults(
         filteredErrors,
         generateCSVFilename(`${queryName || CSV_TITLE} - Errors`),
-        errorColumnConfigs
+        errorTableHeaders
       )
     );
   };
@@ -194,9 +190,7 @@ const QueryResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
-          columns={
-            tableType === "results" ? resultsColumnConfigs : errorColumnConfigs
-          }
+          columns={tableType === "results" ? tableHeaders : errorTableHeaders}
           data={tableData || []}
           emptyComponent={renderNoResults}
           isLoading={false}
@@ -218,8 +212,7 @@ const QueryResults = ({
   const renderResultsTab = () => {
     // TODO - clean up these conditions
     const hasNoResultsYet =
-      !isQueryFinished &&
-      (!queryResults?.length || resultsColumnConfigs === null);
+      !isQueryFinished && (!queryResults?.length || tableHeaders === null);
     const finishedWithNoResults = isQueryFinished && !queryResults?.length;
 
     if (hasNoResultsYet) {

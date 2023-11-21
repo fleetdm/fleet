@@ -91,8 +91,7 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 // (to avoid having to left join hosts).
 func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint) ([]*fleet.ScheduledQueryResultRow, error) {
 	selectStmt := `
-		SELECT qr.query_id, qr.host_id, qr.last_fetched, qr.data,
-			h.hostname, h.computer_name, h.hardware_model, h.hardware_serial
+		SELECT qr.query_id, qr.host_id, COALESCE(h.hostname, '') as hostname, qr.last_fetched, qr.data
 			FROM query_results qr
 			LEFT JOIN hosts h ON (qr.host_id=h.id)
 			WHERE query_id = ?

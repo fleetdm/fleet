@@ -1,0 +1,1 @@
+- Add inherited table information to URL params and use URL params for source of truth to fix any bugs between multi-table view

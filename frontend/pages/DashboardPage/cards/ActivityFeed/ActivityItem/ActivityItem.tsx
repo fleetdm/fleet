@@ -173,9 +173,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   userCreated: (activity: IActivity) => {
-    return activity.actor_id === activity.details?.user_id ? (
-      <>activated their account.</>
-    ) : (
+    return (
       <>
         created a user <b> {activity.details?.user_email}</b>.
       </>
@@ -189,22 +187,10 @@ const TAGGED_TEMPLATES = {
     );
   },
   userChangedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
-    const { actor_id } = activity;
-    const { user_id, user_email, role } = activity.details || {};
-
-    if (actor_id === user_id) {
-      // this is the case when SSO user is crated via JIT provisioning
-      // should only be possible for premium tier, but check anyway
-      return (
-        <>
-          was assigned the <b>{role}</b> role{isPremiumTier && " for all teams"}
-          .
-        </>
-      );
-    }
     return (
       <>
-        changed <b>{user_email}</b> to <b>{activity.details?.role}</b>
+        changed <b>{activity.details?.user_email}</b> to{" "}
+        <b>{activity.details?.role}</b>
         {isPremiumTier && " for all teams"}.
       </>
     );
@@ -219,22 +205,11 @@ const TAGGED_TEMPLATES = {
     );
   },
   userChangedTeamRole: (activity: IActivity) => {
-    const { actor_id } = activity;
-    const { user_id, user_email, role, team_name } = activity.details || {};
-
-    const varText =
-      actor_id === user_id ? (
-        <>
-          was assigned the <b>{role}</b> role
-        </>
-      ) : (
-        <>
-          changed <b>{user_email}</b> to <b>{role}</b>
-        </>
-      );
     return (
       <>
-        {varText} for the <b>{team_name}</b> team.
+        changed <b>{activity.details?.user_email}</b> to{" "}
+        <b>{activity.details?.role}</b> for the{" "}
+        <b>{activity.details?.team_name}</b> team.
       </>
     );
   },
@@ -630,9 +605,6 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  deletedMultipleSavedQuery: (activity: IActivity) => {
-    return <> deleted multiple queries.</>;
-  },
 };
 
 const getDetail = (
@@ -761,9 +733,6 @@ const getDetail = (
     case ActivityType.EditedWindowsUpdates: {
       return TAGGED_TEMPLATES.editedWindowsUpdates(activity);
     }
-    case ActivityType.DeletedMultipleSavedQuery: {
-      return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
-    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -800,19 +769,6 @@ const ActivityItem = ({
   const indicatePremiumFeature =
     isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);
 
-  const renderActivityPrefix = () => {
-    if (activity.type === ActivityType.UserLoggedIn) {
-      return <b>{activity.actor_email} </b>;
-    }
-    if (
-      (activity.type === ActivityType.UserChangedGlobalRole ||
-        activity.type === ActivityType.UserChangedTeamRole) &&
-      activity.actor_id === activity.details?.user_id
-    ) {
-      return <b>{activity.details?.user_email} </b>;
-    }
-    return <b>{activity.actor_full_name} </b>;
-  };
   return (
     <div className={baseClass}>
       <Avatar
@@ -821,11 +777,15 @@ const ActivityItem = ({
         size="small"
         hasWhiteBackground
       />
-      <div className={`${baseClass}__details-wrapper`}>
-        <div className={"activity-details"}>
+      <div className={`${baseClass}__details`}>
+        <p>
           {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
           <span className={`${baseClass}__details-topline`}>
-            {renderActivityPrefix()}
+            {activity.type === ActivityType.UserLoggedIn ? (
+              <b>{activity.actor_email} </b>
+            ) : (
+              <b>{activity.actor_full_name} </b>
+            )}
             {getDetail(activity, isPremiumTier, onDetailsClick)}
           </span>
           <br />
@@ -848,7 +808,7 @@ const ActivityItem = ({
           >
             {internationalTimeFormat(activityCreatedAt)}
           </ReactTooltip>
-        </div>
+        </p>
       </div>
       <div className={`${baseClass}__dash`} />
     </div>

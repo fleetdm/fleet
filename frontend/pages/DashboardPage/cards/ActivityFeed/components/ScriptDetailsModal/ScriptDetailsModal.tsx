@@ -210,7 +210,7 @@ const ScriptDetailsModal = ({
 
   return (
     <Modal
-      title={"Script details"}
+      title={"Script Details"}
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}

@@ -78,7 +78,6 @@ const PolicyPage = ({
     isTeamMaintainer,
     isTeamObserver,
     teamIdForApi,
-    isObserverPlus,
   } = useTeamIdParam({
     location,
     router,
@@ -259,7 +258,6 @@ const PolicyPage = ({
       isTeamAdmin,
       isTeamMaintainer,
       isTeamObserver,
-      isObserverPlus,
       storedPolicyError,
       createPolicy,
       onOsqueryTableSelect,

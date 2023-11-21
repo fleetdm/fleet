@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"database/sql"
 	"encoding/json"
 	"testing"
 	"time"
@@ -229,7 +228,7 @@ func TestMapQueryReportResultRows(t *testing.T) {
 			rows: []*ScheduledQueryResultRow{
 				{
 					HostID:      1,
-					Hostname:    sql.NullString{String: "macOS host", Valid: true},
+					Hostname:    "macOS host",
 					LastFetched: macOSUSBDevicesLastFetched,
 					Data: json.RawMessage(`{
 						"class": "9",
@@ -248,7 +247,7 @@ func TestMapQueryReportResultRows(t *testing.T) {
 				},
 				{
 					HostID:      1,
-					Hostname:    sql.NullString{String: "macOS host", Valid: true},
+					Hostname:    "macOS host",
 					LastFetched: macOSUSBDevicesLastFetched,
 					Data: json.RawMessage(`{
 						"class": "9",
@@ -267,7 +266,7 @@ func TestMapQueryReportResultRows(t *testing.T) {
 				},
 				{
 					HostID:      2,
-					Hostname:    sql.NullString{String: "ubuntu host", Valid: true},
+					Hostname:    "ubuntu host",
 					LastFetched: ubuntuUSBDevicesLastFetched,
 					Data: json.RawMessage(`{
 						"class": "9",
@@ -351,7 +350,7 @@ func TestMapQueryReportResultRows(t *testing.T) {
 			rows: []*ScheduledQueryResultRow{
 				{
 					HostID:      1,
-					Hostname:    sql.NullString{String: "macOS host", Valid: true},
+					Hostname:    "macOS host",
 					LastFetched: macOSOsqueryInfoLastFetched,
 					Data: json.RawMessage(`{
 						"build_distro": "10.14",
@@ -397,7 +396,7 @@ func TestMapQueryReportResultRows(t *testing.T) {
 			rows: []*ScheduledQueryResultRow{
 				{
 					HostID:      3,
-					Hostname:    sql.NullString{String: "bar", Valid: true},
+					Hostname:    "bar",
 					LastFetched: time.Now(),
 					Data:        json.RawMessage(`invalid JSON`),
 				},
@@ -409,7 +408,7 @@ func TestMapQueryReportResultRows(t *testing.T) {
 			rows: []*ScheduledQueryResultRow{
 				{
 					HostID:      3,
-					Hostname:    sql.NullString{String: "bar", Valid: true},
+					Hostname:    "bar",
 					LastFetched: time.Now(),
 					Data:        json.RawMessage(`{"foobar": 1}`),
 				},

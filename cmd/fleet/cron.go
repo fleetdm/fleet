@@ -948,7 +948,7 @@ func newAppleMDMDEPProfileAssigner(
 	return s, nil
 }
 
-func newMDMProfileManager(
+func newMDMAppleProfileManager(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
@@ -967,11 +967,8 @@ func newMDMProfileManager(
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
-		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
-		}),
-		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
-			return service.ReconcileWindowsProfiles(ctx, ds, logger)
+		schedule.WithJob("manage_profiles", func(ctx context.Context) error {
+			return service.ReconcileProfiles(ctx, ds, commander, logger)
 		}),
 	)
 

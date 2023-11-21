@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -21,30 +19,17 @@ func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity
 
 	var userID *uint
 	var userName *string
-	var userEmail *string
 	if user != nil {
 		userID = &user.ID
 		userName = &user.Name
-		userEmail = &user.Email
 	}
 
-	cols := []string{"user_id", "user_name", "activity_type", "details"}
-	args := []any{
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO activities (user_id, user_name, activity_type, details) VALUES(?,?,?,?)`,
 		userID,
 		userName,
 		activity.ActivityName(),
 		detailsBytes,
-	}
-	if userEmail != nil {
-		args = append(args, userEmail)
-		cols = append(cols, "user_email")
-	}
-
-	insertStmt := `INSERT INTO activities (%s) VALUES (%s)`
-	sql := fmt.Sprintf(insertStmt, strings.Join(cols, ","), strings.Repeat("?,", len(cols)-1)+"?")
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		sql,
-		args...,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "new activity")
@@ -65,8 +50,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			a.activity_type,
 			a.details,
 			a.user_name as name,
-			a.streamed,
-			a.user_email
+			a.streamed
 		FROM activities a
 		WHERE true`
 
