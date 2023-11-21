@@ -249,6 +249,9 @@ spec:
     scripts:
         - path/to/script1.sh
         - path/to/script2.sh
+    software:
+        - path/to/installer.pkg
+        - path/to/installer.msi
 ```
 
 ### Team agent options
@@ -339,14 +342,31 @@ List of saved scripts that can be run on hosts that are part of the team.
 - Default value: none
 - Config file format:
   ```yaml
-apiVersion: v1
-kind: team
-spec:
-  team:
-    name: Client Platform Engineering
-    scripts:
-      - path/to/script1.sh
-      - path/to/script2.sh
+  apiVersion: v1
+  kind: team
+  spec:
+    team:
+      name: Client Platform Engineering
+      scripts:
+        - path/to/script1.sh
+        - path/to/script2.sh
+  ```
+
+### Team sofware
+
+List of software that will be installed on hosts that are part of the team during enrollment.
+
+- Default value: none
+- Config file format:
+  ```yaml
+  apiVersion: v1
+  kind: team
+  spec:
+    team:
+      name: Client Platform Engineering
+      software:
+        - path/to/installer.pkg
+        - path/to/installer.msi
   ```
 
 ## Organization settings
@@ -1195,6 +1215,20 @@ List of saved scripts that can be run on all hosts.
   scripts:
     - path/to/script1.sh
     - path/to/script2.sh
+  ```
+
+#### Software
+
+List of the software that will be installed on macOS and Windows hosts during enrollment.
+
+> If you want to add scripts to hosts on a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](#teams).
+
+- Default value: none
+- Config file format:
+  ```yaml
+  software:
+    - path/to/installer.pkg
+    - path/to/installer.msi
   ```
 
 #### Advanced configuration
