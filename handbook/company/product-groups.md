@@ -154,6 +154,7 @@ User stories are small and independently valuable.
 - Is it small enough? Will this task be likely to fit in 1 sprint when estimated?
 - Is it valuable enough? Will this task drive business value when released, independent of other tasks?
 
+<!--
 #### Engineering-initiated stories
 Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
 
@@ -162,6 +163,7 @@ It is important to frame engineering-initiated user stories the same way we fram
 To [create an engineering-initiated user story](https://fleetdm.com/handbook/engineering#creating-an-engineering-initiated-story), follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=), add the `~engineering-initiated` label, assign it to yourself, and work with an EM or PM to progress the story through the drafting process.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users.
+-->
 
 #### Defining "done"
 To successfully deliver a user story, the people working on it need to know what "done" means.
