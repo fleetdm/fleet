@@ -587,6 +587,7 @@ OPTIONS
 
 ## Meetings
 
+<!--
 ### Eng Together
 This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held monthly for one hour.
 
@@ -600,6 +601,7 @@ This meeting is to disseminate engineering-wide announcements, promote cohesion 
   - Everyone is welcome to present on a technical topic. Add your name and tech talk subject in the agenda doc included in the Eng Together calendar event.
 - Social
   - Structured and/or unstructured social activities
+
 
 ### User story discovery
 User story discovery meetings are scheduled as needed to align on large or complicated user stories. Before a discovery meeting is scheduled, the user story must be prioritized for product drafting and go through the design and specification process. When the user story is ready to be estimated, a user story discovery meeting may be scheduled to provide more dedicated, synchronous time for the team to discuss the user story than is available during weekly estimation sessions.
@@ -621,6 +623,7 @@ All participants are expected to review the user story and associated designs an
 - Software Engineers: Clarifying questions and implementation details
 - Product Quality Specialist: Testing plan
 
+
 ### Group weeklies
 A chance for deeper, synchronous discussion on topics relevant across product groups like “Frontend weekly”, “Backend weekly”, etc.
 
@@ -630,6 +633,7 @@ A chance for deeper, synchronous discussion on topics relevant across product gr
 - Discuss common patterns and conventions in the codebase
 - Review difficult frontend bugs
 - Write engineering-initiated stories
+-->
 
 ### Design consultation
 Design consultations are scheduled as needed with the relevant participants, typically product designers and frontend engineers. It is an opportunity to collaborate and discuss design, implementation, and story requirements. The meeting is scheduled as needed by the product designer or frontend engineer when a user story is in the "Prioritized" column on the [drafting board](https://app.zenhub.com/workspaces/-drafting-ships-in-6-weeks-6192dd66ea2562000faea25c/board). 
