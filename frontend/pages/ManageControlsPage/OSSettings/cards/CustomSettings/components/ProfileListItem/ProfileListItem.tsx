@@ -7,23 +7,8 @@ import mdmAPI from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import ListItem from "components/ListItem";
 
 const baseClass = "profile-list-item";
-
-interface IProfileDetailsProps {
-  createdAt: string;
-}
-
-const ProfileDetails = ({ createdAt }: IProfileDetailsProps) => {
-  return (
-    <div className={`${baseClass}__profile-details`}>
-      <span className={`${baseClass}__list-item-uploaded`}>
-        {`Uploaded ${formatDistanceToNow(new Date(createdAt))} ago`}
-      </span>
-    </div>
-  );
-};
 
 interface IProfileListItemProps {
   profile: IMdmProfile;
@@ -40,30 +25,35 @@ const ProfileListItem = ({ profile, onDelete }: IProfileListItemProps) => {
   };
 
   return (
-    <ListItem
-      className={baseClass}
-      graphic="file-configuration-profile"
-      title={profile.name}
-      details={<ProfileDetails createdAt={profile.created_at} />}
-      actions={
-        <>
-          <Button
-            className={`${baseClass}__action-button`}
-            variant="text-icon"
-            onClick={onClickDownload}
-          >
-            <Icon name="download" />
-          </Button>
-          <Button
-            className={`${baseClass}__action-button`}
-            variant="text-icon"
-            onClick={() => onDelete(profile)}
-          >
-            <Icon name="trash" color="ui-fleet-black-75" />
-          </Button>
-        </>
-      }
-    />
+    <div className={baseClass}>
+      <div className={`${baseClass}__list-item-data`}>
+        <Icon name="profile" />
+        <div className={`${baseClass}__list-item-info`}>
+          <span className={`${baseClass}__list-item-name`}>{profile.name}</span>
+          <span className={`${baseClass}__list-item-uploaded`}>
+            {`Uploaded ${formatDistanceToNow(
+              new Date(profile.created_at)
+            )} ago`}
+          </span>
+        </div>
+      </div>
+      <div className={`${baseClass}__list-item-actions`}>
+        <Button
+          className={`${baseClass}__list-item-button`}
+          variant="text-icon"
+          onClick={onClickDownload}
+        >
+          <Icon name="download" />
+        </Button>
+        <Button
+          className={`${baseClass}__list-item-button`}
+          variant="text-icon"
+          onClick={() => onDelete(profile)}
+        >
+          <Icon name="trash" color="ui-fleet-black-75" />
+        </Button>
+      </div>
+    </div>
   );
 };
 

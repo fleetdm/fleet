@@ -90,10 +90,10 @@
   description: "Filter all action items from CEO's GitHub notifications"
   dri: "sampfluger88"
 -
-  task: "Check LinkedIn for unread messages"
+  task: "Confirm Dripify unread messages against LinkedIn"
   startedOn: "2023-09-25"
-  frequency: "Daily"
+  frequency: "Triweekly"
   description: "Prevent connections from slipping through the cracks"
-  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#check-linkedin-for-unread-messages"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/ceo#confirm-dripify-unread-messages-against-linkedin"
   dri: "sampfluger88"
   autoIssue:

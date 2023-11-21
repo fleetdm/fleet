@@ -61,13 +61,12 @@ func TestListOptionsFromRequest(t *testing.T) {
 
 		// All params defined
 		{
-			url: "/foo?order_key=foo&order_direction=desc&page=1&per_page=100&after=bar",
+			url: "/foo?order_key=foo&order_direction=desc&page=1&per_page=100",
 			listOptions: fleet.ListOptions{
 				OrderKey:       "foo",
 				OrderDirection: fleet.OrderDescending,
 				Page:           1,
 				PerPage:        100,
-				After:          "bar",
 			},
 		},
 
@@ -96,11 +95,6 @@ func TestListOptionsFromRequest(t *testing.T) {
 		// bad order_direction
 		{
 			url:          "/foo?&order_direction=foo&order_key=foo",
-			shouldErr400: true,
-		},
-		// after without order_key
-		{
-			url:          "/foo?page=1&after=foo",
 			shouldErr400: true,
 		},
 	}

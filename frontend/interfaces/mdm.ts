@@ -55,8 +55,6 @@ export interface IMdmSummaryResponse {
   mobile_device_management_solution: IMdmSolution[] | null;
 }
 
-type SupportedMdmPlatform = "darwin" | "windows";
-
 export interface IMdmProfile {
   profile_id: number;
   team_id: number;

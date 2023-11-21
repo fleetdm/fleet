@@ -1,0 +1,4 @@
+For the following endpoints:
+/api/v1/fleet/software
+/api/v1/fleet/software/count
+  - added validation on `page`, `per_page`, `order_key`, `order_direction` -- invalid values will now return 400 HTTP status code

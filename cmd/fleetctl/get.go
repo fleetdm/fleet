@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/beevik/etree"
 	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
@@ -1122,15 +1122,6 @@ func printKeyValueTable(c *cli.Context, rows [][]string) {
 	table.Render()
 }
 
-func printTableWithXML(c *cli.Context, columns []string, data [][]string) {
-	table := defaultTable(c.App.Writer)
-	table.SetHeader(columns)
-	table.SetReflowDuringAutoWrap(false)
-	table.SetAutoWrapText(false)
-	table.AppendBulk(data)
-	table.Render()
-}
-
 func getTeamsJSONFlag() cli.Flag {
 	return &cli.BoolFlag{
 		Name:  jsonFlagName,
@@ -1433,14 +1424,9 @@ func getMDMCommandResultsCommand() *cli.Command {
 			// print the results as a table
 			data := [][]string{}
 			for _, r := range res {
-				formattedResult, err := formatXML(r.Result)
-				// if we get an error, just log it and use the
-				// unformatted command
-				if err != nil {
-					if getDebug(c) {
-						log(c, fmt.Sprintf("error formatting command: %s\n", err))
-					}
-					formattedResult = r.Result
+				if bytes.Contains(r.Result, []byte("\t")) {
+					// tabs in the XML result tends to break the table formatting
+					r.Result = bytes.ReplaceAll(r.Result, []byte("\t"), []byte(" "))
 				}
 				data = append(data, []string{
 					r.CommandUUID,
@@ -1448,11 +1434,11 @@ func getMDMCommandResultsCommand() *cli.Command {
 					r.RequestType,
 					r.Status,
 					r.Hostname,
-					string(formattedResult),
+					string(r.Result),
 				})
 			}
 			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
-			printTableWithXML(c, columns, data)
+			printTable(c, columns, data)
 
 			return nil
 		},
@@ -1506,13 +1492,4 @@ func getMDMCommandsCommand() *cli.Command {
 			return nil
 		},
 	}
-}
-
-func formatXML(in []byte) ([]byte, error) {
-	doc := etree.NewDocument()
-	if err := doc.ReadFromBytes(in); err != nil {
-		return nil, err
-	}
-	doc.Indent(2)
-	return doc.WriteToBytes()
 }

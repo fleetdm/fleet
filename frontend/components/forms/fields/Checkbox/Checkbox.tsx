@@ -19,7 +19,7 @@ export interface ICheckboxProps {
   wrapperClassName?: string;
   indeterminate?: boolean;
   parseTarget?: boolean;
-  tooltipContent?: React.ReactNode;
+  tooltip?: string;
   isLeftLabel?: boolean;
 }
 
@@ -35,7 +35,7 @@ const Checkbox = (props: ICheckboxProps) => {
     wrapperClassName,
     indeterminate,
     parseTarget,
-    tooltipContent,
+    tooltip,
     isLeftLabel,
   } = props;
 
@@ -78,9 +78,9 @@ const Checkbox = (props: ICheckboxProps) => {
           type="checkbox"
         />
         <span className={checkBoxTickClass} />
-        {tooltipContent ? (
+        {tooltip ? (
           <span className={`${baseClass}__label-tooltip tooltip`}>
-            <TooltipWrapper tipContent={tooltipContent}>
+            <TooltipWrapper tipContent={tooltip}>
               {children as string}
             </TooltipWrapper>
           </span>

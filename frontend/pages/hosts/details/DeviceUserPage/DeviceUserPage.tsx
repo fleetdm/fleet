@@ -36,7 +36,7 @@ import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
-import OSSettingsModal from "../OSSettingsModal";
+import MacSettingsModal from "../MacSettingsModal";
 import ResetKeyModal from "./ResetKeyModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 
@@ -78,7 +78,7 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
-  const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
+  const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
@@ -264,9 +264,9 @@ const DeviceUserPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
-  const toggleOSSettingsModal = useCallback(() => {
-    setShowOSSettingsModal(!showOSSettingsModal);
-  }, [showOSSettingsModal, setShowOSSettingsModal]);
+  const toggleMacSettingsModal = useCallback(() => {
+    setShowMacSettingsModal(!showMacSettingsModal);
+  }, [showMacSettingsModal, setShowMacSettingsModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(!showPolicyDetailsModal);
@@ -411,7 +411,7 @@ const DeviceUserPage = ({
               diskEncryptionEnabled={host?.disk_encryption_enabled}
               bootstrapPackageData={bootstrapPackageData}
               isPremiumTier={isPremiumTier}
-              toggleOSSettingsModal={toggleOSSettingsModal}
+              toggleMacSettingsModal={toggleMacSettingsModal}
               hostMdmProfiles={host?.mdm.profiles ?? []}
               mdmName={deviceMacAdminsData?.mobile_device_management?.name}
               showRefetchSpinner={showRefetchSpinner}
@@ -444,6 +444,7 @@ const DeviceUserPage = ({
                     aboutData={aboutData}
                     deviceMapping={deviceMapping}
                     munki={deviceMacAdminsData?.munki}
+                    wrapFleetHelper={wrapFleetHelper}
                   />
                 </TabPanel>
                 <TabPanel>
@@ -487,11 +488,11 @@ const DeviceUserPage = ({
             policy={selectedPolicy}
           />
         )}
-        {showOSSettingsModal && (
-          <OSSettingsModal
+        {showMacSettingsModal && (
+          <MacSettingsModal
             platform={host?.platform}
             hostMDMData={host?.mdm}
-            onClose={toggleOSSettingsModal}
+            onClose={toggleMacSettingsModal}
           />
         )}
         {showBootstrapPackageModal &&

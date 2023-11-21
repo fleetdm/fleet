@@ -1,78 +1,52 @@
 import classnames from "classnames";
 import React from "react";
-import { Tooltip as ReactTooltip5, PlacesType } from "react-tooltip-5";
 
-import { uniqueId } from "lodash";
+import * as DOMPurify from "dompurify";
 
-interface ITooltipWrapper {
-  children: React.ReactNode;
-  // default is bottom-start
-  position?: PlacesType;
+interface ITooltipWrapperProps {
+  children: string | JSX.Element;
+  tipContent: string;
+  /** Default: bottom */
+  position?: "top" | "bottom";
   isDelayed?: boolean;
-  underline?: boolean;
-  // Below two props used here to maintain the API of the old TooltipWrapper
-  // A clearer system would be to use the 3 below commented props, which describe exactly where they
-  // will apply, `element` being the element this tooltip will wrap. Associated logic is commented
-  // out, but ready to be used.
   className?: string;
   tooltipClass?: string;
-  // wrapperCustomClass?: string;
-  // elementCustomClass?: string;
-  // tipCustomClass?: string;
-  clickable?: boolean;
-  tipContent: React.ReactNode;
 }
 
 const baseClass = "component__tooltip-wrapper";
 
 const TooltipWrapper = ({
-  // wrapperCustomClass,
-  // elementCustomClass,
-  // tipCustomClass,
   children,
   tipContent,
-  position = "bottom-start",
+  position = "bottom",
   isDelayed,
-  underline = true,
   className,
   tooltipClass,
-  clickable = true,
-}: ITooltipWrapper) => {
-  const wrapperClassNames = classnames(baseClass, className, {
-    // [`${baseClass}__${wrapperCustomClass}`]: !!wrapperCustomClass,
+}: ITooltipWrapperProps): JSX.Element => {
+  const classname = classnames(baseClass, className);
+  const tipClass = classnames(`${baseClass}__tip-text`, tooltipClass, {
+    "delayed-tip": isDelayed,
   });
 
-  const elementClassNames = classnames(`${baseClass}__element`, {
-    // [`${baseClass}__${elementCustomClass}`]: !!elementCustomClass,
-    [`${baseClass}__underline`]: underline,
-  });
-
-  const tipClassNames = classnames(`${baseClass}__tip-text`, tooltipClass, {
-    // [`${baseClass}__${tipCustomClass}`]: !!tipCustomClass,
-  });
-
-  const tipId = uniqueId();
+  const sanitizedTipContent = DOMPurify.sanitize(tipContent);
 
   return (
-    <span className={wrapperClassNames}>
-      <div className={elementClassNames} data-tooltip-id={tipId}>
+    <div className={classname} data-position={position}>
+      <div className={`${baseClass}__element`}>
         {children}
+        <div
+          className={`${baseClass}__element__underline`}
+          data-text={children}
+        />
       </div>
-      <ReactTooltip5
-        className={tipClassNames}
-        id={tipId}
-        delayShow={isDelayed ? 500 : undefined}
-        delayHide={isDelayed ? 500 : undefined}
-        noArrow
-        place={position}
-        opacity={1}
-        disableStyleInjection
-        clickable={clickable}
-        offset={5}
-      >
-        {tipContent}
-      </ReactTooltip5>
-    </span>
+      <div
+        className={tipClass}
+        dangerouslySetInnerHTML={{ __html: sanitizedTipContent }}
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
+      />
+    </div>
   );
 };
 

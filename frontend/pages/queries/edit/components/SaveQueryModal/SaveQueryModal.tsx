@@ -158,6 +158,7 @@ const SaveQueryModal = ({
           error={errors.name}
           inputClassName={`${baseClass}__name`}
           label="Name"
+          placeholder="What is your query called?"
           autofocus
           ignore1password
         />
@@ -168,7 +169,7 @@ const SaveQueryModal = ({
           inputClassName={`${baseClass}__description`}
           label="Description"
           type="textarea"
-          hint="What information does your query reveal? (optional)"
+          placeholder="What information does your query reveal? (optional)"
         />
         <Dropdown
           searchable={false}

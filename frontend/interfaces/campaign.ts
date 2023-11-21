@@ -18,8 +18,6 @@ export interface ICampaignError {
 }
 
 export interface ICampaign {
-  // upstream websocket and services methods return any
-  // so narrower typing at this level is not actually guaranteed
   Metrics?: {
     [key: string]: any;
   };

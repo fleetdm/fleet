@@ -10,8 +10,6 @@ spec:
       enable_disk_encryption: false
       macos_settings:
         custom_settings: null
-      windows_settings:
-        custom_settings: null
       macos_setup:
         bootstrap_package: %s
         enable_end_user_authentication: false
@@ -35,8 +33,6 @@ spec:
     mdm:
       enable_disk_encryption: false
       macos_settings:
-        custom_settings: null
-      windows_settings:
         custom_settings: null
       macos_setup:
         bootstrap_package: %s

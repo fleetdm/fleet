@@ -11,11 +11,14 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptoinfotable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firefox_preferences"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
+
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
 	"github.com/macadmins/osquery-extension/tables/puppet"
+
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
+
 	"github.com/rs/zerolog/log"
 )
 
@@ -94,7 +97,6 @@ func (r *Runner) Execute() error {
 
 		select {
 		case <-ticker.C:
-			log.Error().Err(err).Msg("NewExtensionManagerServer failed")
 		case <-ctx.Done():
 			ticker.Stop()
 			return ctx.Err()
@@ -140,7 +142,7 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 // Interrupt shuts down the osquery manager server.
 func (r *Runner) Interrupt(err error) {
-	log.Error().Err(err).Msg("interrupt osquery extension")
+	log.Debug().Err(err).Msg("interrupt osquery extension")
 	if cancel := r.getCancel(); cancel != nil {
 		cancel()
 	}

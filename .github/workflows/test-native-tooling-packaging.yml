@@ -41,7 +41,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        go-version: ['${{ vars.GO_VERSION }}']
+        go-version: ['^1.21.3']
     runs-on: ${{ matrix.os }}
 
     steps:

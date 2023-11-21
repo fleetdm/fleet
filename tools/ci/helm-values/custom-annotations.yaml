@@ -100,7 +100,7 @@ osquery:
 
 ## Section: MySQL
 # All of the connection settings for MySQL
-database:
+mysql:
   # Name of the Secret resource containing MySQL password and TLS secrets
   secretName: mysql
   address: 127.0.0.1:3306
@@ -120,7 +120,7 @@ database:
 
 ## Section: Redis
 # All of the connection settings for Redis
-cache:
+redis:
   address: 127.0.0.1:6379
   database: "0"
   usePassword: false

@@ -2,9 +2,9 @@ import React from "react";
 import classnames from "classnames";
 
 import { ColumnType, IQueryTableColumn } from "interfaces/osquery_table";
+import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 import TooltipWrapper from "components/TooltipWrapper";
 import { buildQueryStringFromParams } from "utilities/url";
-import { OsqueryPlatform } from "interfaces/platform";
 
 interface IColumnListItemProps {
   column: IQueryTableColumn;
@@ -24,11 +24,22 @@ const FOOTNOTES = {
  * current tooltip only supports strings. we can change this when it support ReactNodes
  * in the future.
  */
-const renderTooltip = (
+const createTooltipHtml = (
   column: IQueryTableColumn,
   selectedTableName: string
 ) => {
-  const renderUserContextFootnote = () => {
+  const toolTipHtml = [];
+
+  const descriptionHtml = `<span class="${baseClass}__column-description">${column.description}</span>`;
+  toolTipHtml.push(descriptionHtml);
+
+  if (column.required) {
+    toolTipHtml.push(
+      `<span class="${baseClass}__footnote">${FOOTNOTES.required}</span>`
+    );
+  }
+
+  if (column.requires_user_context) {
     const queryString = buildQueryStringFromParams({
       utm_source: "fleet-ui",
       utm_table: `table-${selectedTableName}`,
@@ -40,47 +51,37 @@ const renderTooltip = (
       `${baseClass}__footnote-link`
     );
 
-    return (
-      <a href={href} target="__blank" className={classNames}>
-        ${FOOTNOTES.requires_user_context}
-      </a>
+    toolTipHtml.push(
+      `<a href="${href}" target="__blank" class="${classNames}">${FOOTNOTES.requires_user_context}</a>`
     );
-  };
+  }
 
-  const renderPlatformFootnotes = (columnPlatforms: OsqueryPlatform[]) => {
-    let platformsCopy;
-    switch (columnPlatforms.length) {
-      case 1:
-        platformsCopy = columnPlatforms[0];
-        break;
-      case 2:
-        platformsCopy = `${columnPlatforms[0]} and ${columnPlatforms[1]}`;
-        break;
-      case 3:
-        platformsCopy = `${columnPlatforms[0]}, ${columnPlatforms[1]}, and ${columnPlatforms[2]}`;
-        break;
-      default:
-        platformsCopy = columnPlatforms.join(", ");
-    }
-    return (
-      <span className={`${baseClass}__footnote`}>
-        {FOOTNOTES.platform} {platformsCopy}
-      </span>
+  if (column.platforms?.length === 1) {
+    const platform = column.platforms[0];
+    toolTipHtml.push(
+      `<span class="${baseClass}__footnote">${FOOTNOTES.platform} ${platform}</span>`
     );
-  };
+  }
 
-  return (
-    <>
-      <span className={`${baseClass}__column-description`}>
-        {column.description}
-      </span>
-      {column.required && (
-        <span className={`${baseClass}__footnote`}>{FOOTNOTES.required}</span>
-      )}
-      {column.requires_user_context && renderUserContextFootnote()}
-      {column.platforms && renderPlatformFootnotes(column.platforms)}
-    </>
-  );
+  if (column.platforms?.length === 2) {
+    const platform1 = PLATFORM_DISPLAY_NAMES[column.platforms[0]];
+    const platform2 = PLATFORM_DISPLAY_NAMES[column.platforms[1]];
+    toolTipHtml.push(
+      `<span class="${baseClass}__footnote">${FOOTNOTES.platform} ${platform1} and ${platform2}.</span>`
+    );
+  }
+
+  if (column.platforms?.length === 3) {
+    const platform1 = PLATFORM_DISPLAY_NAMES[column.platforms[0]];
+    const platform2 = PLATFORM_DISPLAY_NAMES[column.platforms[1]];
+    const platform3 = PLATFORM_DISPLAY_NAMES[column.platforms[2]];
+    toolTipHtml.push(
+      `<span class="${baseClass}__footnote">${FOOTNOTES.platform} ${platform1}, ${platform2}, and ${platform3}.</span>`
+    );
+  }
+
+  const tooltip = toolTipHtml.join("");
+  return tooltip;
 };
 
 const hasFootnotes = (column: IQueryTableColumn) => {
@@ -112,7 +113,7 @@ const ColumnListItem = ({
       <div className={`${baseClass}__name-wrapper`}>
         <span className={columnNameClasses}>
           <TooltipWrapper
-            tipContent={renderTooltip(column, selectedTableName)}
+            tipContent={createTooltipHtml(column, selectedTableName)}
             className={`${baseClass}__tooltip`}
           >
             {column.name}

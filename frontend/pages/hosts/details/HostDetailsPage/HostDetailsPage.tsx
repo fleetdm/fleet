@@ -71,7 +71,7 @@ import DeleteHostModal from "../../components/DeleteHostModal";
 
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
-import OSSettingsModal from "../OSSettingsModal";
+import MacSettingsModal from "../MacSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
@@ -129,6 +129,8 @@ const HostDetailsPage = ({
     isSandboxMode,
     isOnlyObserver,
     filteredHostsPath,
+    availableTeams,
+    setCurrentTeam,
   } = useContext(AppContext);
   const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -139,7 +141,7 @@ const HostDetailsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
-  const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
+  const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
@@ -399,7 +401,6 @@ const HostDetailsPage = ({
       "geolocation",
       "batteries",
       "detail_updated_at",
-      "last_restarted_at",
     ])
   );
 
@@ -419,9 +420,9 @@ const HostDetailsPage = ({
     [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
   );
 
-  const toggleOSSettingsModal = useCallback(() => {
-    setShowOSSettingsModal(!showOSSettingsModal);
-  }, [showOSSettingsModal, setShowOSSettingsModal]);
+  const toggleMacSettingsModal = useCallback(() => {
+    setShowMacSettingsModal(!showMacSettingsModal);
+  }, [showMacSettingsModal, setShowMacSettingsModal]);
 
   const toggleBootstrapPackageModal = useCallback(() => {
     setShowBootstrapPackageModal(!showBootstrapPackageModal);
@@ -574,7 +575,6 @@ const HostDetailsPage = ({
       <HostActionDropdown
         hostTeamId={host.team_id}
         onSelect={onSelectHostAction}
-        hostPlatform={host.platform}
         hostStatus={host.status}
         hostMdmEnrollemntStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
@@ -623,16 +623,14 @@ const HostDetailsPage = ({
     },
   ];
 
-  // we want the scripts tabs on the list for only mac and windows hosts and premium tier atm.
+  // we want the scripts tabs on the list for only mac hosts and premium tier atm.
   // We filter it out for other platforms and non premium.
   // TODO: improve this code. We can pull the tab list component out
   // into its own component later.
-
-  const showScripts =
-    ["darwin", "windows"].includes(host?.platform ?? "") && isPremiumTier;
-  const filteredSubNavTabs = showScripts
-    ? hostDetailsSubNav
-    : hostDetailsSubNav.filter((navItem) => navItem.title !== "scripts");
+  const filteredSubNavTabs =
+    host?.platform === "darwin" && isPremiumTier
+      ? hostDetailsSubNav
+      : hostDetailsSubNav.filter((navItem) => navItem.title !== "scripts");
 
   const getTabIndex = (path: string): number => {
     return filteredSubNavTabs.findIndex((navItem) => {
@@ -692,7 +690,8 @@ const HostDetailsPage = ({
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
           isSandboxMode={isSandboxMode}
-          toggleOSSettingsModal={toggleOSSettingsModal}
+          isOnlyObserver={isOnlyObserver}
+          toggleMacSettingsModal={toggleMacSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
           hostMdmProfiles={host?.mdm.profiles ?? []}
           mdmName={mdm?.name}
@@ -719,6 +718,7 @@ const HostDetailsPage = ({
                 deviceMapping={deviceMapping}
                 munki={macadmins?.munki}
                 mdm={mdm}
+                wrapFleetHelper={wrapFleetHelper}
               />
               <div className="col-2">
                 <AgentOptionsCard
@@ -739,10 +739,13 @@ const HostDetailsPage = ({
                 hostUsersEnabled={featuresConfig?.enable_host_users}
               />
             </TabPanel>
-            {showScripts && (
+            {host?.platform === "darwin" && isPremiumTier && (
               <TabPanel>
                 <ScriptsCard
-                  {...{ currentUser, host, page, router }}
+                  hostId={host?.id}
+                  page={page}
+                  router={router}
+                  isHostOnline={host?.status === "online"}
                   onShowDetails={onShowScriptDetails}
                 />
               </TabPanel>
@@ -820,11 +823,11 @@ const HostDetailsPage = ({
             policy={selectedPolicy}
           />
         )}
-        {showOSSettingsModal && (
-          <OSSettingsModal
+        {showMacSettingsModal && (
+          <MacSettingsModal
             platform={host?.platform}
             hostMDMData={host?.mdm}
-            onClose={toggleOSSettingsModal}
+            onClose={toggleMacSettingsModal}
           />
         )}
         {showUnenrollMdmModal && !!host && (

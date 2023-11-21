@@ -832,9 +832,7 @@ func performRequiredPasswordResetEndpoint(ctx context.Context, request interface
 func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password string) (*fleet.User, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		// No user in the context -- authentication issue
-		svc.authz.SkipAuthorization(ctx)
-		return nil, authz.ForbiddenWithInternal("No user in the context", nil, nil, nil)
+		return nil, fleet.ErrNoContext
 	}
 	if !vc.CanPerformPasswordReset() {
 		svc.authz.SkipAuthorization(ctx)
