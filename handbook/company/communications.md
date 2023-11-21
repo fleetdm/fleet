@@ -1,6 +1,4 @@
 # Communications
-
-
 This page covers the things every team member needs to know to effectively contribute at Fleet.
 
 ## All hands

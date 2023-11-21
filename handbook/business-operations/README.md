@@ -6,18 +6,15 @@ This handbook page details processes specific to working [with](#what-we-do) and
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Business Operations   | [Joanne Stableford](https://www.linkedin.com/in/joanne-stableford/) _([@jostableford](https://github.com/JoStableford))_
 | Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_, [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
-| Head of Revenue Operations    | [Taylor Hughes](https://www.linkedin.com/in/taylorhughes834/) _([@hughestaylor](https://github.com/hughestaylor))_
-
 
 ## Contact us
-- To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#g-business-operations](https://fleetdm.slack.com/archives/C047N5L6EGH).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#g-business-operations](https://fleetdm.slack.com/archives/C047N5L6EGH).
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) for this department, including pending tasks and the status of new requests.
 
 
 ## Responsibilities
 The Business Operations department is directly responsible for the functions of all Finance, People, Legal, IT, and Revenue Operations (RevOps). 
-
 
 ### Run payroll
 Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
@@ -31,7 +28,6 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 | Performance bonus            | "Bonus" payroll              | Head of Business Operations     
 | Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Revenue Operations
 | [US contractor payroll](https://fleetdm.com/handbook/business-operations#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Business Operations
-
 
 ### Reconcile monthly recurring expenses
 Recurring monthly or annual expenses, such as the tools we use throughout Fleet, are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(¶confidential Google Sheet)_, along with their payment source. Reconciliation of recurring expenses happens monthly. <!-- TODO: Merge "🧮 The Numbers" and  ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing) -->

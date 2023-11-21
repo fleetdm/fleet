@@ -10,9 +10,9 @@ This handbook page details processes specific to working [with](#team) and [with
 | Developer                      | _See ["Current product groups"](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_
 
 ## Contact us
-- Any community member can file a 🦟 ["Bug report"](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) (If urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel).
+- Any community member can [**file a 🦟 "Bug report"**](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) (If urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel).
   - Any Fleet team member can view the 🪲 ["Bugs" kanban board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board) including the status on all reported bugs.
-  - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request. 
+  - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
 
 ## Responsibilities
 The 🚀 Engineering department at Fleet is directly responsible for writing and maintaining the [code](https://github.com/fleetdm/fleet) for Fleet's core product and infrastructure.
