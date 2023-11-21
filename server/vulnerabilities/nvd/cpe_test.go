@@ -1352,6 +1352,17 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			// DO NOT MATCH with Adobe Acrobat
 			cpe: "",
 		},
+		{
+			software: fleet.Software{
+				Name:             "UmbrellaMenu.app",
+				Source:           "apps",
+				Version:          "1.0",
+				Vendor:           "",
+				BundleIdentifier: "com.cisco.umbrella.menu.UmbrellaMenu",
+			},
+			// DO NOT MATCH with Cisco Umbrella
+			cpe: "",
+		},
 	}
 
 	tempDir := t.TempDir()
