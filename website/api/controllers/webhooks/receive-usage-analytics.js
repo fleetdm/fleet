@@ -282,7 +282,7 @@ module.exports = {
       }//∞
     }//ﬁ
 
-    // Break the metrics into smaller arrays to ensure we don't eexceed Datadog's 512 kb request body limit.
+    // Break the metrics into smaller arrays to ensure we don't exceed Datadog's 512 kb request body limit.
     let chunkedMetrics = _.chunk(metricsToSendToDatadog, 500);// Note: 500 stringified JSON metrics is ~410 kb.
     for(let chunkOfMetrics of chunkedMetrics) {
       await sails.helpers.http.post.with({
