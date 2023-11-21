@@ -14,8 +14,8 @@ func (c *Client) ApplyAppConfig(payload interface{}, opts fleet.ApplySpecOptions
 
 // ApplyNoTeamProfiles sends the list of profiles to be applied for the hosts
 // in no team.
-func (c *Client) ApplyNoTeamProfiles(profiles [][]byte, opts fleet.ApplySpecOptions) error {
-	verb, path := "POST", "/api/latest/fleet/mdm/apple/profiles/batch"
+func (c *Client) ApplyNoTeamProfiles(profiles map[string][]byte, opts fleet.ApplySpecOptions) error {
+	verb, path := "POST", "/api/latest/fleet/mdm/profiles/batch"
 	return c.authenticatedRequestWithQuery(map[string]interface{}{"profiles": profiles}, verb, path, nil, opts.RawQuery())
 }
 

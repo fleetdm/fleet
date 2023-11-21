@@ -45,7 +45,7 @@ class InputFieldWithIcon extends InputField {
         data-has-tooltip={!!tooltip}
       >
         {tooltip && !error ? (
-          <TooltipWrapper position="top" tipContent={tooltip}>
+          <TooltipWrapper position="top-start" tipContent={tooltip}>
             {label}
           </TooltipWrapper>
         ) : (

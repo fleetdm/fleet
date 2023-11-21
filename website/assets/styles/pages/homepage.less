@@ -320,11 +320,50 @@
       height: auto;
     }
   }
-  [purpose='platform-large-image'] {
-    width: 620px;
+  [purpose='platform-animated-image'] {
+    position: relative;
+    width: 617px;
+    height: 440px;
     img {
       width: 100%;
-      height: auto;
+      height: 100%;
+    }
+    div {
+      position: absolute;
+      top: 0;
+      right: 0;
+      height: 100%;
+      width: 100%;
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    [purpose='animated-image-layer-1'] {
+      background: url('/images/homepage-device-management-github-617x440@2x.png');
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      z-index: 1;
+      transform: translate(10px, 10px);
+    }
+    [purpose='animated-image-layer-2'] {
+      background: url('/images/homepage-device-management-fleet-ui-617x440@2x.png');
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      z-index: 2;
+      transform: translate(-10px, 10px);
+    }
+    [purpose='animated-image-layer-3'] {
+      background: url('/images/homepage-device-management-terminal-617x440@2x.png');
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      z-index: 3;
+      transform: translate(10px, -10px);
+    }
+    &.animate { // This class is added when the element is completly visible.
+      div {
+        transform: none;
+      }
     }
   }
   [purpose='bottom-gradient'] {
@@ -823,15 +862,16 @@
       margin-left: 80px;
     }
     [purpose='platform-small-text-block'] {
-      max-width: 357px;
-      margin-right: 80px;
+      min-width: 320px;
+      margin-right: 20px;
     }
 
-    [purpose='platform-large-image'] {
+    [purpose='platform-animated-image'] {
       width: 453px;
+      height: auto;
       img {
         width: 100%;
-        height: auto;
+        height: 100%;
       }
     }
 
@@ -936,13 +976,14 @@
     }
     [purpose='platform-small-text-block'] {
       max-width: 100%;
+      min-width: unset;
       margin-right: 0px;
       margin-bottom: 80px;
     }
     [purpose='platform-image'] {
       width: 100%;
     }
-    [purpose='platform-large-image'] {
+    [purpose='platform-animated-image'] {
       width: 100%;
       img {
         width: 100%;

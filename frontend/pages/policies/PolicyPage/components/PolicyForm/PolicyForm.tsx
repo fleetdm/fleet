@@ -460,9 +460,11 @@ const PolicyForm = ({
         >
           <TooltipWrapper
             tipContent={
-              "<p>If automations are turned on, this<br/> information is included.</p>"
+              <p>
+                If automations are turned on, this
+                <br /> information is included.
+              </p>
             }
-            isDelayed
           >
             Critical:
           </TooltipWrapper>

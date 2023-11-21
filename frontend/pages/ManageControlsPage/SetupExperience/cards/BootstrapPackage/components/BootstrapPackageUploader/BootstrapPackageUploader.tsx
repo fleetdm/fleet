@@ -6,7 +6,8 @@ import { NotificationContext } from "context/notification";
 import mdmAPI from "services/entities/mdm";
 
 import CustomLink from "components/CustomLink";
-import FileUploader from "pages/ManageControlsPage/components/FileUploader";
+import FileUploader from "components/FileUploader";
+
 import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
 
 const baseClass = "bootstrap-package-uploader";

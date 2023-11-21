@@ -38,9 +38,8 @@
     display: flex;
     gap: $pad-large;
     font-size: $x-small;
-    // TODO - remove once refactored tooltip wrapper is merged
-    .component__tooltip-wrapper__element__underline::after {
-      bottom: 0px;
+    .component__tooltip-wrapper__underline {
+      top: 0px;
     }
   }
 
