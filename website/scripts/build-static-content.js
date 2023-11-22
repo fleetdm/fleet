@@ -786,46 +786,34 @@ module.exports = {
         // Validate the pricing table yaml and add it to builtStaticContent.pricingTable.
         let RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO = 'handbook/company/pricing-features-table.yml';
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find pricing table features YAML file at "${RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
-        let pricingTableCategories = YAML.parse(yaml, {prettyErrors: true});
+        let pricingTableFeatures = YAML.parse(yaml, {prettyErrors: true});
 
-        for(let category of pricingTableCategories){
-          if(!category.categoryName){ // Throw an error if a category is missing a categoryName.
-            throw new Error('Could not build pricing table config from pricing-features-table.yml, a category in the pricing table configuration is missing a categoryName. To resolve, make sure every category in the pricing table YAML file has a categoryName');
+        for(let feature of pricingTableFeatures){
+          if(feature.name) {// Compatibility check
+            throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category has a "name" which is no longer supported. To resolve, add a "industryName" to this feature '+feature);
           }
-          if(!category.features){// Throw an error if a category is missing `features`.
-            throw new Error('Could not build pricing table config from pricing-features-table.yml, the "'+category.categoryName+'" category in the yaml file is missing features. To resolve, add an array of features to this category.');
+          if(feature.industryName !== undefined) {
+            if(!feature.industryName || typeof feature.industryName !== 'string') {
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category has a missing or invalid "industryName". To resolve, set an "industryName" as a valid, non-empty string for this feature '+feature);
+            }
+            feature.name = feature.industryName;//« This is just an alias. FUTURE: update code elsewhere to use the new property instead, and delete this aliasing.
           }
-          if(!_.isArray(category.features)){ // Throw an error if a category's `features`` is not an array.
-            throw new Error('Could not build pricing table config from pricing-features-table.yml, The value of the "'+category.categoryName+'" category is invalid, to resolve, change the features for this category to be an array of objects.');
+          if(!feature.tier) { // Throw an error if a feature is missing a `tier`.
+            throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.industryName+'" feature is missing a "tier". To resolve, add a "tier" (either "Free" or "Premium") to this feature.');
+          } else if(!_.contains(['Free', 'Premium'], feature.tier)){ // Throw an error if a feature's `tier` is not "Free" or "Premium".
+            throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.industryName+'" feature has an invalid "tier". to resolve, change the value of this features "tier" (currently set to '+feature.tier+') to be either "Free" or "Premium".');
           }
-          // Validate all features in a category.
-          for(let feature of category.features){
-            if(feature.name) {// Compatibility check
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category has a "name" which is no longer supported. To resolve, add a "industryName" to this feature '+feature);
-            }
-            if(feature.industryName !== undefined) {
-              if(!feature.industryName || typeof feature.industryName !== 'string') {
-                throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category has a missing or invalid "industryName". To resolve, set an "industryName" as a valid, non-empty string for this feature '+feature);
-              }
-              feature.name = feature.industryName;//« This is just an alias. FUTURE: update code elsewhere to use the new property instead, and delete this aliasing.
-            }
-            if(!feature.tier) { // Throw an error if a feature is missing a `tier`.
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.industryName+'" feature is missing a "tier". To resolve, add a "tier" (either "Free" or "Premium") to this feature.');
-            } else if(!_.contains(['Free', 'Premium'], feature.tier)){ // Throw an error if a feature's `tier` is not "Free" or "Premium".
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.industryName+'" feature has an invalid "tier". to resolve, change the value of this features "tier" (currently set to '+feature.tier+') to be either "Free" or "Premium".');
-            }
-            if(feature.comingSoon) {// Compatibility check
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category has "comingSoon", which is no longer supported. To resolve, remove "comingSoon" or add "comingSoonOn" (YYYY-MM-DD) to this feature '+feature);
-            }
-            if(feature.comingSoonOn !== undefined) {
-              if(typeof feature.comingSoonOn !== 'string'){
-                throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.industryName+'" feature has an invalid "comingSoonOn" value (currently set to '+feature.comingSoonOn+', but expecting a string like \'YYYY-MM-DD\'.)');
-              }
-              feature.comingSoon = true;//« This is just an alias. FUTURE: update code elsewhere to use the new property instead, and delete this aliasing.
-            }//ﬁ
+          if(feature.comingSoon) {// Compatibility check
+            throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category has "comingSoon", which is no longer supported. To resolve, remove "comingSoon" or add "comingSoonOn" (YYYY-MM-DD) to this feature '+feature);
           }
+          if(feature.comingSoonOn !== undefined) {
+            if(typeof feature.comingSoonOn !== 'string'){
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.industryName+'" feature has an invalid "comingSoonOn" value (currently set to '+feature.comingSoonOn+', but expecting a string like \'YYYY-MM-DD\'.)');
+            }
+            feature.comingSoon = true;//« This is just an alias. FUTURE: update code elsewhere to use the new property instead, and delete this aliasing.
+          }//ﬁ
         }
-        builtStaticContent.pricingTable = pricingTableCategories;
+        builtStaticContent.pricingTable = pricingTableFeatures;
       },
       async()=>{
         let rituals = {};
