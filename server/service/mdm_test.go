@@ -1093,7 +1093,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: id, Name: "team"}, nil
 	}
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
 		return nil
 	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -1379,7 +1379,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			defer func() { ds.BatchSetMDMProfilesFuncInvoked = false }()
+			defer func() { ds.BatchSetMDMAppleProfilesFuncInvoked = false }()
 
 			// prepare the context with the user and license
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
@@ -1392,12 +1392,12 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
-				require.True(t, ds.BatchSetMDMProfilesFuncInvoked)
+				require.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
 				return
 			}
 			require.Error(t, err)
 			require.ErrorContains(t, err, tt.wantErr)
-			require.False(t, ds.BatchSetMDMProfilesFuncInvoked)
+			require.False(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
 		})
 	}
 }
