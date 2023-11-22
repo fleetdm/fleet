@@ -3,6 +3,7 @@ package fleet
 import (
 	"testing"
 
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/stretchr/testify/require"
 )
 
@@ -65,6 +66,14 @@ func TestValidateUserProvided(t *testing.T) {
 			name: "XML with Mixed Replace and Add",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`<Replace><Target><LocURI>Custom/URI</LocURI></Target></Replace><Add><Target><LocURI>Another/URI</LocURI></Target></Add>`),
+			},
+			wantErr: true,
+		},
+		{
+			name: "Valid XML with reserved name",
+			profile: MDMWindowsConfigProfile{
+				Name:   microsoft_mdm.FleetWindowsOSUpdatesProfileName,
+				SyncML: []byte(`<Replace><Target><LocURI>Custom/URI</LocURI></Target></Replace>`),
 			},
 			wantErr: true,
 		},

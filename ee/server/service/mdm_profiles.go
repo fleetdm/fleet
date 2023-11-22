@@ -96,8 +96,6 @@ type windowsOSUpdatesProfileOptions struct {
 	GracePeriod int
 }
 
-const WindowsOSUpdatesProfileName = "Windows OS Updates"
-
 var windowsOSUpdatesProfileTemplate = template.Must(template.New("").Option("missingkey=error").Parse(`
 <Replace>
 	<Item>
