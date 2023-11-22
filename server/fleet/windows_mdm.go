@@ -68,7 +68,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 			return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
 		}
 
-		for _, locURI := range element.FindElements("//Target/LocURI") {
+		for _, locURI := range element.FindElements("//Item/Target/LocURI") {
 			if locURI != nil {
 				if err := validateFleetProvidedLocURI(locURI.Text()); err != nil {
 					return err

@@ -359,11 +359,46 @@ func checkWrappedSyncMLCmd(tag string, data string) error {
 	return nil
 }
 
+func TestBuildCommandFromProfileBytes(t *testing.T) {
+	cmd, err := buildCommandFromProfileBytes([]byte("<Replace></Add>"), "")
+	require.Nil(t, cmd)
+	require.ErrorContains(t, err, "unmarshalling profile")
+
+	rawSyncML := syncMLForTest("foo/bar")
+
+	// build and generate a command
+	cmd, err = buildCommandFromProfileBytes(rawSyncML, "uuid-1")
+	require.Nil(t, err)
+	require.Equal(t, "uuid-1", cmd.CommandUUID)
+	require.Empty(t, cmd.TargetLocURI)
+	syncOne := new(mdm_types.SyncMLCmd)
+	err = xml.Unmarshal(cmd.RawCommand, syncOne)
+	require.NoError(t, err)
+	require.Len(t, syncOne.ReplaceCommands, 1)
+	require.NotEmpty(t, syncOne.ReplaceCommands[0].CmdID)
+
+	// build and generate a second command with the same syncml
+	cmd, err = buildCommandFromProfileBytes(rawSyncML, "uuid-2")
+	require.Nil(t, err)
+	require.Equal(t, "uuid-2", cmd.CommandUUID)
+	require.Empty(t, cmd.TargetLocURI)
+	syncTwo := new(mdm_types.SyncMLCmd)
+	err = xml.Unmarshal(cmd.RawCommand, syncTwo)
+	require.NoError(t, err)
+	require.Len(t, syncTwo.ReplaceCommands, 1)
+	require.NotEmpty(t, syncTwo.ReplaceCommands[0].CmdID)
+
+	// uuids of replaces are different
+	require.NotEqual(t, syncOne.ReplaceCommands[0].CmdID, syncTwo.ReplaceCommands[0].CmdID)
+}
+
 func syncMLForTest(locURI string) []byte {
 	return []byte(fmt.Sprintf(`
 		<Replace>
-			<Target>
-				<LocURI>%s</LocURI>
-			</Target>
+			<Item>
+			  <Target>
+				  <LocURI>%s</LocURI>
+			  </Target>
+			</Item>
 		</Replace>`, locURI))
 }

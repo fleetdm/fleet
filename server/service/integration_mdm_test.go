@@ -9473,6 +9473,10 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			if c.Verb == "Atomic" {
 				atomicCmds = append(atomicCmds, c)
 				status = mdmResponseStatus
+				require.NotEmpty(t, c.Cmd.ReplaceCommands)
+				for _, rc := range c.Cmd.ReplaceCommands {
+					require.NotEmpty(t, rc.CmdID)
+				}
 			}
 			device.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: mdm_types.CmdStatus},
