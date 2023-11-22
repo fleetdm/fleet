@@ -120,78 +120,9 @@
       </div>
     </div>
     <%// Security-focused features %>
-    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-else-if="pricingMode === 'it'">
-      <div class="d-flex flex-column justify-content-center p-0">
-        <%// Desktop security-focused features tables %>
-        <div class="d-none d-md-block">
-          <% for(let category of pricingTableForIt) {%>
-            <table purpose="pricing-categories-table" class="table">
-             <thead>
-                <tr>
-                  <td><h4><%- category.categoryName %></h4></td>
-                  <%if(pricingTableForIt.indexOf(category) === 0) {%>
-                  <td class="text-center">
-                    <strong>Free</strong>
-                  </td>
-                  <%}else {%>
-                  <td ></td>
-                  <%}%>
-                  <%if(pricingTableForIt.indexOf(category) === 0) {%>
-                  <td class="text-center">
-                    <strong>Premium</strong>
-                  </td>
-                  <%}else {%>
-                  <td ></td>
-                  <%}%>
-                </tr>
-              </thead>
-              <tbody>
-                <% for( let feature of category.features){ %>
-                  <tr>
-                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
-                    <%if(feature.tier === 'Free') {%>
-                      <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
-                    <%} else {%>
-                      <td purpose="table-checkmark"></td>
-                    <%}%>
-                    <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
-                  </tr>
-                <% }%>
-              </tbody>
-            </table>
-          <% }%>
-          <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
-        </div>
-        <%// Mobile security-focused features tables %>
-        <% for(let category of pricingTableForIt) {%>
-          <div purpose="mobile-feature-table-section" class="d-block d-md-none">
-            <h4><%- category.categoryName %></h4>
-            <% for( let feature of category.features){ %>
-              <div purpose="mobile-features-table" class="d-flex flex-column">
-                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                  <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %></strong>
-                </div>
-                <div class="d-flex flex-row justify-content-between align-items-center">
-                  Free
-                <%if(feature.tier === 'Free') {%>
-                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <% } %>
-                </div>
-                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                  Premium
-                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                </div>
-              </div>
-            <% }%>
-          </div>
-        <% }%>
-          <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
-      </div>
-    </div>
-    <%// IT-focused features %>
     <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-else-if="pricingMode === 'security'">
       <div class="d-flex flex-column justify-content-center p-0">
-        <%// Desktop IT-focused features tables %>
+        <%// Desktop security-focused features tables %>
         <div class="d-none d-md-block">
           <% for(let category of pricingTableForSecurity) {%>
             <table purpose="pricing-categories-table" class="table">
@@ -231,8 +162,77 @@
           <% }%>
           <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
         </div>
-        <%// Mobile IT-focused features tables %>
+        <%// Mobile security-focused features tables %>
         <% for(let category of pricingTableForSecurity) {%>
+          <div purpose="mobile-feature-table-section" class="d-block d-md-none">
+            <h4><%- category.categoryName %></h4>
+            <% for( let feature of category.features){ %>
+              <div purpose="mobile-features-table" class="d-flex flex-column">
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
+                  <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %></strong>
+                </div>
+                <div class="d-flex flex-row justify-content-between align-items-center">
+                  Free
+                <%if(feature.tier === 'Free') {%>
+                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                <% } %>
+                </div>
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
+                  Premium
+                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                </div>
+              </div>
+            <% }%>
+          </div>
+        <% }%>
+          <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
+      </div>
+    </div>
+    <%// IT-focused features %>
+    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-else-if="pricingMode === 'it'">
+      <div class="d-flex flex-column justify-content-center p-0">
+        <%// Desktop IT-focused features tables %>
+        <div class="d-none d-md-block">
+          <% for(let category of pricingTableForIt) {%>
+            <table purpose="pricing-categories-table" class="table">
+             <thead>
+                <tr>
+                  <td><h4><%- category.categoryName %></h4></td>
+                  <%if(pricingTableForIt.indexOf(category) === 0) {%>
+                  <td class="text-center">
+                    <strong>Free</strong>
+                  </td>
+                  <%}else {%>
+                  <td ></td>
+                  <%}%>
+                  <%if(pricingTableForIt.indexOf(category) === 0) {%>
+                  <td class="text-center">
+                    <strong>Premium</strong>
+                  </td>
+                  <%}else {%>
+                  <td ></td>
+                  <%}%>
+                </tr>
+              </thead>
+              <tbody>
+                <% for( let feature of category.features){ %>
+                  <tr>
+                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
+                    <%if(feature.tier === 'Free') {%>
+                      <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                    <%} else {%>
+                      <td purpose="table-checkmark"></td>
+                    <%}%>
+                    <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                  </tr>
+                <% }%>
+              </tbody>
+            </table>
+          <% }%>
+          <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
+        </div>
+        <%// Mobile IT-focused features tables %>
+        <% for(let category of pricingTableForIt) {%>
           <div purpose="mobile-feature-table-section" class="d-block d-md-none">
             <h4><%- category.categoryName %></h4>
             <% for( let feature of category.features){ %>
