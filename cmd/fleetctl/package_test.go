@@ -47,72 +47,43 @@ func TestPackage(t *testing.T) {
 	t.Run("deb", func(t *testing.T) {
 		shorterEnrollSecret := "aa"
 		longerEnrollSecret := "aaaaaa"
-		runAppForTest(t, []string{"package", "--type=deb", "--insecure", "--disable-open-folder", "--enroll-secret=" + longerEnrollSecret, "--fleet-url=https://localhost:8080"})
-		info, err := os.Stat(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
-		require.NoError(t, err)
-		require.Greater(t, info.Size(), int64(0))
 
-		fd, err := os.Open(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
-		if err != nil {
-			panic(err)
-		}
+		checkEnrollSecret := func(t *testing.T, expectedEnrollSecret string, updatesData *packaging.UpdatesData) {
+			runAppForTest(t, []string{"package", "--type=deb", "--insecure", "--disable-open-folder", "--enroll-secret=" + expectedEnrollSecret, "--fleet-url=https://localhost:8080"})
+			info, err := os.Stat(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
+			require.NoError(t, err)
+			require.Greater(t, info.Size(), int64(0))
 
-		debFile, err := deb.Load(fd, fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
-		if err != nil {
-			panic(err)
-		}
-		for {
-			hdr, err := debFile.Data.Next()
-			if err == io.EOF {
-				break
-			}
+			fd, err := os.Open(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
 			require.NoError(t, err)
 
-			if hdr.Name != "./etc/default/orbit" {
-				continue
-			}
+			defer fd.Close()
 
-			data, err := io.ReadAll(debFile.Data)
+			debFile, err := deb.Load(fd, fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
 			require.NoError(t, err)
 
-			s := string(data)
-			require.Contains(t, s, fmt.Sprintf("ORBIT_ENROLL_SECRET=%s\n", longerEnrollSecret))
-		}
+			for {
+				hdr, err := debFile.Data.Next()
+				if err == io.EOF {
+					break
+				}
+				require.NoError(t, err)
 
-		fd.Close()
+				if hdr.Name != "./etc/default/orbit" {
+					continue
+				}
 
-		runAppForTest(t, []string{"package", "--type=deb", "--insecure", "--disable-open-folder", "--enroll-secret=" + shorterEnrollSecret, "--fleet-url=https://localhost:8080"})
-		info, err = os.Stat(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
-		require.NoError(t, err)
-		require.Greater(t, info.Size(), int64(0))
+				data, err := io.ReadAll(debFile.Data)
+				require.NoError(t, err)
 
-		fd, err = os.Open(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
-		if err != nil {
-			panic(err)
-		}
-		defer fd.Close()
-
-		debFile, err = deb.Load(fd, fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
-		if err != nil {
-			panic(err)
-		}
-		for {
-			hdr, err := debFile.Data.Next()
-			if err == io.EOF {
-				break
+				s := string(data)
+				require.Contains(t, s, fmt.Sprintf("ORBIT_ENROLL_SECRET=%s\n", expectedEnrollSecret))
+				t.Log("we did it")
 			}
-			require.NoError(t, err)
-
-			if hdr.Name != "./etc/default/orbit" {
-				continue
-			}
-
-			data, err := io.ReadAll(debFile.Data)
-			require.NoError(t, err)
-
-			s := string(data)
-			require.Contains(t, s, fmt.Sprintf("ORBIT_ENROLL_SECRET=%s\n", shorterEnrollSecret))
 		}
+
+		checkEnrollSecret(t, shorterEnrollSecret, updatesData)
+		checkEnrollSecret(t, longerEnrollSecret, updatesData)
 	})
 
 	t.Run("--use-sytem-configuration can't be used on installers that aren't pkg", func(t *testing.T) {
