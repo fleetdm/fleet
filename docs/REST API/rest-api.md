@@ -6534,7 +6534,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Add script](#add-script)
 - [Delete script](#delete-script)
 - [List scripts](#list-scripts)
-- [Get or download a script](#get-or-download-a-script)
+- [Get or download script](#get-or-download-script)
 - [Get script details by host](#get-script-details-by-host)
 
 ### Run script asynchronously
@@ -6766,7 +6766,7 @@ _Available in Fleet Premium_
 
 ```
 
-### Get or download a script
+### Get or download script
 
 _Available in Fleet Premium_
 
@@ -6779,7 +6779,7 @@ _Available in Fleet Premium_
 | id   | integer | path  | **Required.** The desired script's ID.                            |
 | alt  | string  | query | If specified and set to "media", downloads the script's contents. |
 
-#### Example (get a script)
+#### Example (get script metadata)
 
 `GET /api/v1/fleet/scripts/123`
 
@@ -7142,7 +7142,6 @@ Get a list of all software versions.
         "id": 1,
         "name": "glibc",
         "version": "2.12",
-        "uploaded": true,
         "source": "rpm_packages",
         "release": "1.212.el6",
         "vendor": "CentOS",
