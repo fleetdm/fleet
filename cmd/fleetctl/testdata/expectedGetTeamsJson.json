@@ -36,9 +36,6 @@
 					"bootstrap_package": null,
 					"enable_end_user_authentication": false,
 					"macos_setup_assistant": null
-				},
-				"windows_settings": {
-					"custom_settings": null
 				}
 			},
 			"scripts": null,
@@ -100,9 +97,6 @@
 					"bootstrap_package": null,
 					"enable_end_user_authentication": false,
 					"macos_setup_assistant": null
-				},
-				"windows_settings": {
-					"custom_settings": null
 				}
 			},
 			"scripts": null,

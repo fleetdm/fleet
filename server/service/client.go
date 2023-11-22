@@ -380,7 +380,8 @@ func (c *Client) ApplyGroup(
 	}
 
 	if specs.AppConfig != nil {
-		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
+		windowsCustomSettings := []string{}
+		// windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
 		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
 		allCustomSettings := append(macosCustomSettings, windowsCustomSettings...)
 
@@ -720,7 +721,7 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]str
 					CustomSettings json.RawMessage `json:"custom_settings"`
 				} `json:"macos_settings"`
 				WindowsSettings struct {
-					CustomSettings json.RawMessage `json:"custom_settings"`
+					CustomSettings json.RawMessage `json:"-"` // FIXME: allow unmarshalling
 				} `json:"windows_settings"`
 			} `json:"mdm"`
 		}

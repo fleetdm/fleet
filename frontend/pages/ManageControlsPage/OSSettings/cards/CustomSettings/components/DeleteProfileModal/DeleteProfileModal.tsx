@@ -43,7 +43,7 @@ const DeleteProfileModal = ({
         <p>
           This action will delete configuration profile{" "}
           <span className={`${baseClass}__profile-name`}>{profileName}</span>{" "}
-          from all hosts{messageSuffix}.
+          from all macOS hosts{messageSuffix}.
         </p>
         <div className="modal-cta-wrap">
           <Button
