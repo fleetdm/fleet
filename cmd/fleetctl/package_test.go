@@ -44,6 +44,8 @@ func TestPackage(t *testing.T) {
 		runAppCheckErr(t, []string{"package", "--type=msi", "--native-tooling"}, "native tooling is only available in Linux")
 	}
 
+	// In addition to testing basic `deb` installer creation functionality, this test verifies that
+	// creating an installer twice doesn't result in the second installer being corrupted. See #13260.
 	t.Run("deb", func(t *testing.T) {
 		shorterEnrollSecret := "aa"
 		longerEnrollSecret := "aaaaaa"
@@ -81,7 +83,11 @@ func TestPackage(t *testing.T) {
 			}
 		}
 
+		// Create first installer
 		checkEnrollSecret(t, longerEnrollSecret, updatesData)
+
+		// Create second installer. Since we first delete the existing installer before creating the
+		// new one, we should find the shorter enrollment secret without any issue.
 		checkEnrollSecret(t, shorterEnrollSecret, updatesData)
 	})
 
