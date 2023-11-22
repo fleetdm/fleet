@@ -280,12 +280,14 @@
   descrption: Keep agents and extensions up to date by loading code from Fleet's free update registry.
   tier: Free
   productCategories: [Endpoint operations]
+  usualDepartment: IT
 #  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╦═╗╔═╗
 #  ║║║║╚═╗ ║ ╠═╣║  ║  ║╣ ╠╦╝╚═╗
 #  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╚═╝╩╚═╚═╝
 - industryName: Installers (self-service)
   tier: Free
   productCategories: [Endpoint operations]
+  usualDepartment: IT
   waysToUse:
     - description: Build scripts for Ansible deployments
       moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
@@ -298,6 +300,7 @@
 #  ╚═╝╩ ╩ ╩ ╚═╝╩ ╩  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝
 - industryName: Batch installation (Chef, Ansible, Puppet, MDM)
   friendlyName: Install agents over the air
+  usualDepartment: IT
   tier: Free
   productCategories: [Endpoint operations]
 #  ╦═╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╔═╗╔╦╗╔╦╗╦╔╗╔╔═╗╔═╗
@@ -315,6 +318,7 @@
 - industryName: Variable enrollment
   description: Enroll hosts in different groups using different enrollment secrets and/or installers per-baseline.
   productCategories: [Endpoint operations,Device management]
+  usualDepartment: IT
   tier: Premium
 #  ╔═╗╦═╗╦╦  ╦╔═╗╔╦╗╔═╗  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╦═╗╔═╗╔═╗╦╔═╗╔╦╗╦═╗╦ ╦
 #  ╠═╝╠╦╝║╚╗╔╝╠═╣ ║ ║╣   ║ ║╠═╝ ║║╠═╣ ║ ║╣   ╠╦╝║╣ ║ ╦║╚═╗ ║ ╠╦╝╚╦╝
@@ -332,6 +336,7 @@
   friendlyName: Add tables to osquery with extensions
   description: Install osquery extensions over the air. #  (GitOptional)
   productCategories: [Endpoint operations]
+  usualDepartment: IT
   moreInfoUrl: https://github.com/trailofbits/osquery-extensions/blob/3df2b72ad78549e25344c79dbc9bce6808c4d92a/README.md#extensions
   tier: Premium
 #
@@ -342,6 +347,7 @@
   friendlyName: Automate any feature
   description: 
   productCategories: [Endpoint operations,Device management,Vulnerability management]
+  usualDepartment: IT
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api 
   screenshotSrc:
   tier: Free
@@ -352,12 +358,14 @@
 - industryName: Command line tool (CLI)
   friendlyName: fleetctl
   productCategories: [Endpoint operations,Device management]
+  usualDepartment: IT
   tier: Free
 #  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
 #  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
 #  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝
 - industryName: Webhooks
   productCategories: [Endpoint operations,Device management,Vulnerability management]
+  usualDepartment: IT
   friendlyName: 
   tier: Free
 #  ╔╦╗╔═╗╔═╗╔═╗  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -383,6 +391,7 @@
   description: Fork the best practices repo and use the GitHub Action to hook it up to your Fleet instance in minutes. Coming soon (2024-03-31)
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/13643
   productCategories: [Endpoint operations,Device management,Vulnerability management]
+  usualDepartment: IT
   tier: Free
   demos:
     description: A top savings and investment company wanted workflows and automation so that one bad actor can't brick their fleet.  This way, they have to make a pull request first.
@@ -394,6 +403,7 @@
 - industryName: Free integrations (Tines, Snowflake, Terraform, Chronicle, etc)
   friendlyName: Borrow off-the-shelf tactics from the community
   productCategories: [Endpoint operations,Device management,Vulnerability management]
+  usualDepartment: IT
   description:
   moreInfoUrl: https://fleetdm.com/integrations
   tier: Free
@@ -421,6 +431,7 @@
   friendlyName: Borrow off-the-shelf tactics from legendary brands
   description: Plug in to cutting edge frameworks from similar organizations.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
+  usualDepartment: IT
   moreInfoUrl: https://fleetdm.com/integrations
   tier: Premium
   buzzwords: [Vanta,Puppet,Jira,Zendesk,Custom IdP]
@@ -449,6 +460,7 @@
   tier: Free
   buzzwords: [Self-hosted]
 - industryName: Deployment tools (Terraform, Helm)
+  usualDepartment: IT
   tier: Free
   productCategories: [Endpoint operations]
 - industryName: Managed Cloud
@@ -540,6 +552,7 @@
       moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
 - industryName: Device inventory dashboard
   productCategories: [Endpoint operations,Device management]
+  usualDepartment: IT
   tier: Free
 - industryName: Browse installed software packages
   productCategories: [Endpoint operations,Device management,Vulnerability management]
@@ -550,6 +563,7 @@
 - industryName: Labels (SQL-driven)
   friendlyName: Filter hosts using SQL
   productCategories: [Endpoint operations,Device management,Vulnerability management]
+  usualDepartment: IT
   tier: Free
 - industryName: Custom device data for help desk
   description:
@@ -567,23 +581,27 @@
     - description: Automate remediation for different applications with different security postures (cloud security engineering)
 - industryName: Generate reports for groups of devices
   productCategories: [Endpoint operations,Device management,Vulnerability management]
+  usualDepartment: IT
   tier: Premium
 - industryName: Versionable queries and config (GitOps)
   tier: Free
   productCategories: [Endpoint operations,Device management,Vulnerability management]
+  usualDepartment: IT
   demos:
     - description: A top financial services company needed to set up rolling deployments for changes to osquery agents running on their production servers.
       moreInfoUrl: https://docs.google.com/document/d/1UdzZMyBLbs9SUXfSXN2x2wZQCbjZZUetYlNWH6-ryqQ/edit#heading=h.2lh6ehprpvl6
 - industryName: Scope transparency
   tier: Free
   documentationUrl: https://fleetdm.com/transparency
-  productCategories: [Endpoint operations,Device management]
+  productCategories: [Endpoint operations]
 - industryName: Single sign on (SSO, SAML)
   productCategories: [Endpoint operations,Device management,Vulnerability management]
+  usualDepartment: IT
   tier: Free
 - industryName: Disk encryption
   friendlyName: Ensure hard disks are encrypted
   productCategories: [Device management]
+  usualDepartment: Security
   description: Encrypt hard disks of macOS and Windows computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker).
   tier: Free
   waysToUse:
@@ -596,30 +614,35 @@
   tier: Free
   usualDepartment: Security
 - industryName: Grant API-only access
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  productCategories: [Endpoint operations]
   tier: Free
 - industryName: Programmable audit log
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  productCategories: [Endpoint operations]
   tier: Premium
   usualDepartment: Security
   waysToUse:
     - description: Export activity of Fleet admins to your SIEM or data lake
 - industryName: Just-in-time (JIT) provisioning
   productCategories: [Endpoint operations,Device management,Vulnerability management]
+  usualDepartment: IT
   tier: Premium
 - industryName: Automated user role sync via Okta, AD, or any IDP
   productCategories: [Endpoint operations,Device management,Vulnerability management]
+  usualDepartment: IT
   tier: Premium
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
 - industryName: Vanta integration
   productCategories: [Endpoint operations,Device management]
+  usualDepartment: IT
   tier: Premium
 - industryName: Trigger a workflow based on a failing policy
   productCategories: [Endpoint operations,Device management]
+  usualDepartment: IT
   tier: Premium
 - industryName: Role-based access control
   productCategories: [Endpoint operations,Device management,Vulnerability management]
+  usualDepartment: IT
   tier: Premium
 - industryName: Detect vulnerable software #TODO: find a better industryName and make this the friendly name. Maybe separate out export.
   tier: Free
@@ -646,6 +669,7 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/467
 - industryName: Detect and surface issues with devices (policies)
   productCategories: [Endpoint operations,Device management]
+  usualDepartment: IT
   tier: Free
 - industryName: Vulnerability dashboard
   productCategories: [Vulnerability management]
@@ -655,7 +679,8 @@
     - description: Only show vulnerabilities that you care about. Coming soon (2024-03-31) #Customer-faltona and customer-rialto
 - industryName: Policy scoring
   friendlyName: Mark policies as critical
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  productCategories: [Endpoint operations,Device management]
+  usualDepartment: IT
   tier: Premium
 - industryName: Vulnerability scores (EPSS and CVSS) #TODO: Incorporate this perspective: https://github.com/fleetdm/confidential/issues/4120#issuecomment-1802350614
   tier: Premium
