@@ -249,9 +249,6 @@ spec:
     scripts:
         - path/to/script1.sh
         - path/to/script2.sh
-    software:
-        - path/to/installer.pkg
-        - path/to/installer.msi
 ```
 
 ### Team agent options
@@ -350,23 +347,6 @@ List of saved scripts that can be run on hosts that are part of the team.
       scripts:
         - path/to/script1.sh
         - path/to/script2.sh
-  ```
-
-### Team sofware
-
-List of software that will be installed on hosts that are part of the team during enrollment.
-
-- Default value: none
-- Config file format:
-  ```yaml
-  apiVersion: v1
-  kind: team
-  spec:
-    team:
-      name: Client Platform Engineering
-      software:
-        - path/to/installer.pkg
-        - path/to/installer.msi
   ```
 
 ## Organization settings
@@ -1227,8 +1207,8 @@ List of the software that will be installed on macOS and Windows hosts during en
 - Config file format:
   ```yaml
   software:
-    - path/to/installer.pkg
-    - path/to/installer.msi
+    - https://github.com/organinzation/repository/bootstrap-package.pkg
+    - https://software.com/releases/windows/installer.msi
   ```
 
 #### Advanced configuration
