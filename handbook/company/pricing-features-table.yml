@@ -300,9 +300,9 @@
 #  ╚═╝╩ ╩ ╩ ╚═╝╩ ╩  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝
 - industryName: Batch installation (Chef, Ansible, Puppet, MDM)
   friendlyName: Install agents over the air
-  usualDepartment: IT
   tier: Free
   productCategories: [Endpoint operations]
+  usualDepartment: IT
 #  ╦═╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╔═╗╔╦╗╔╦╗╦╔╗╔╔═╗╔═╗
 #  ╠╦╝║╣ ║║║║ ║ ║ ║╣   ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
 #  ╩╚═╚═╝╩ ╩╚═╝ ╩ ╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
@@ -310,16 +310,16 @@
   description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.). Fleetd startup flags coming soon (2023-12-31) #customer-blanco
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/13825
   tier: Free
-  usualDepartment: Security
   productCategories: [Endpoint operations]
+  usualDepartment: Security
 #  ╦  ╦╔═╗╦═╗╦╔═╗╔╗ ╦  ╔═╗  ╔═╗╔╗╔╦═╗╔═╗╦  ╦  ╔╦╗╔═╗╔╗╔╔╦╗
 #  ╚╗╔╝╠═╣╠╦╝║╠═╣╠╩╗║  ║╣   ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║
 #   ╚╝ ╩ ╩╩╚═╩╩ ╩╚═╝╩═╝╚═╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩
 - industryName: Variable enrollment
   description: Enroll hosts in different groups using different enrollment secrets and/or installers per-baseline.
+  tier: Premium
   productCategories: [Endpoint operations,Device management]
   usualDepartment: IT
-  tier: Premium
 #  ╔═╗╦═╗╦╦  ╦╔═╗╔╦╗╔═╗  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╦═╗╔═╗╔═╗╦╔═╗╔╦╗╦═╗╦ ╦
 #  ╠═╝╠╦╝║╚╗╔╝╠═╣ ║ ║╣   ║ ║╠═╝ ║║╠═╣ ║ ║╣   ╠╦╝║╣ ║ ╦║╚═╗ ║ ╠╦╝╚╦╝
 #  ╩  ╩╚═╩ ╚╝ ╩ ╩ ╩ ╚═╝  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝  ╩╚═╚═╝╚═╝╩╚═╝ ╩ ╩╚═ ╩
@@ -327,18 +327,18 @@
   friendlyName: Update agents from a secret URL
   description: Load agent code from a secret URL that you manage.
   tier: Premium
-  usualDepartment: Security
   productCategories: [Endpoint operations]
+  usualDepartment: Security
 #  ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗  ╔╦╗╔═╗╔╗ ╦  ╔═╗╔═╗
 #  ║  ║ ║╚═╗ ║ ║ ║║║║   ║ ╠═╣╠╩╗║  ║╣ ╚═╗
 #  ╚═╝╚═╝╚═╝ ╩ ╚═╝╩ ╩   ╩ ╩ ╩╚═╝╩═╝╚═╝╚═╝
 - industryName: Custom tables
   friendlyName: Add tables to osquery with extensions
   description: Install osquery extensions over the air. #  (GitOptional)
-  productCategories: [Endpoint operations]
-  usualDepartment: IT
   moreInfoUrl: https://github.com/trailofbits/osquery-extensions/blob/3df2b72ad78549e25344c79dbc9bce6808c4d92a/README.md#extensions
   tier: Premium
+  productCategories: [Endpoint operations]
+  usualDepartment: IT
 #
 #  ╦═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╦
 #  ╠╦╝║╣ ╚═╗ ║   ╠═╣╠═╝║

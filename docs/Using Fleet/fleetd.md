@@ -43,31 +43,7 @@
 Fleetd is the bundle of agents that includes:
 
 - [osquery](https://osquery.io/)
-- [Orbit](#orbit)
 - [Fleet Desktop](./fleet-desktop.md)
-
-## Components
-
-```mermaid
-graph LR;
-    tuf["<a href=https://theupdateframework.io/>TUF</a> file server<br>(default: <a href=https://tuf.fleetctl.com>tuf.fleetctl.com</a>)"];
-    fleet_server[Fleet<br>Server];
-
-    subgraph Fleetd
-        orbit[orbit];
-        desktop[Fleet Desktop<br>Tray App];
-        osqueryd[osqueryd];
-
-        desktop_browser[Fleet Desktop<br> from Browser];
-    end
-
-    orbit -- "Fleet Orbit API (TLS)" --> fleet_server;
-    desktop -- "Fleet Desktop API (TLS)" --> fleet_server;
-    osqueryd -- "osquery<br>remote API (TLS)" --> fleet_server;
-    desktop_browser -- "My Device API (TLS)" --> fleet_server;
-
-    orbit -- "Auto Update (TLS)" --> tuf;
-```
 
 
 ## Capabilities

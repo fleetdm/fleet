@@ -1,0 +1,1 @@
+For endpoint fleet/hosts, filtering hosts with invalid team_id now returns 400 error.
