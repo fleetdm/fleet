@@ -1284,8 +1284,6 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		})
 	}
 
-	// TODO(mna) : prevent creating a profile with a Fleet-reserved name.
-
 	cp := fleet.MDMWindowsConfigProfile{
 		TeamID: &teamID,
 		Name:   profileName,
