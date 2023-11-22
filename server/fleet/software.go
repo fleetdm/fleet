@@ -41,7 +41,7 @@ type Software struct {
 	// Source is the source of the data (osquery table name).
 	Source string `json:"source" db:"source"`
 	// ExtensionId is the browser extension id (from osquery chrome_extensions)
-	ExtensionId string `json:"extension_id" db:"extension_id"`
+	ExtensionId string `json:"extension_id,omitempty" db:"extension_id"`
 
 	// Release is the version of the OS this software was released on
 	// (e.g. "30.el7" for a CentOS package).

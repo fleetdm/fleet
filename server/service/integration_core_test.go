@@ -697,8 +697,8 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.NotNil(t, host)
 
 	software := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "apps"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionId: "abc"},
+		{Name: "bar", Version: "0.0.3", Source: "apps", ExtensionId: "xyz"},
 		{Name: "baz", Version: "0.0.4", Source: "apps"},
 	}
 	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
@@ -737,6 +737,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	expectedJSONSoft2 := `"name": "bar",
         "version": "0.0.3",
         "source": "apps",
+        "extension_id": "xyz",
         "generated_cpe": "somecpe",
         "vulnerabilities": [
           {
@@ -747,6 +748,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	expectedJSONSoft1 := `"name": "foo",
         "version": "0.0.1",
         "source": "chrome_extensions",
+        "extension_id": "abc",
         "generated_cpe": "",
         "vulnerabilities": null`
 	// We are doing Contains instead of equals to test the output for software in particular
@@ -784,6 +786,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	require.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
+	assert.Equal(t, soft1.ExtensionId, lsResp.Software[0].ExtensionId)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
 	require.NotNil(t, lsResp.CountsUpdatedAt)
 	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)

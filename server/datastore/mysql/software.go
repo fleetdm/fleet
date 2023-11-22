@@ -399,8 +399,8 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 		if err := sqlx.GetContext(ctx, tx, &existingID,
 			"SELECT id FROM software "+
 				"WHERE name = ? AND version = ? AND source = ? AND `release` = ? AND "+
-				"vendor = ? AND arch = ? AND bundle_identifier = ? LIMIT 1",
-			s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier,
+				"vendor = ? AND arch = ? AND bundle_identifier = ? AND extension_id = ? LIMIT 1",
+			s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier, s.ExtensionId,
 		); err != nil {
 			return 0, err
 		}
@@ -418,10 +418,10 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 
 	_, err := tx.ExecContext(ctx,
 		"INSERT INTO software "+
-			"(name, version, source, `release`, vendor, arch, bundle_identifier) "+
-			"VALUES (?, ?, ?, ?, ?, ?, ?) "+
-			"ON DUPLICATE KEY UPDATE bundle_identifier=VALUES(bundle_identifier)",
-		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier,
+			"(name, version, source, `release`, vendor, arch, bundle_identifier, extension_id) "+
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?) "+
+			"ON DUPLICATE KEY UPDATE bundle_identifier=VALUES(bundle_identifier), extension_id=VALUES(extension_id)",
+		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier, s.ExtensionId,
 	)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "insert software")
@@ -636,6 +636,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.version",
 			"s.source",
 			"s.bundle_identifier",
+			"s.extension_id",
 			"s.release",
 			"s.vendor",
 			"s.arch",
@@ -748,6 +749,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		"s.version",
 		"s.source",
 		"s.bundle_identifier",
+		"s.extension_id",
 		"s.release",
 		"s.vendor",
 		"s.arch",
@@ -766,6 +768,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.version",
 			"s.source",
 			"s.bundle_identifier",
+			"s.extension_id",
 			"s.release",
 			"s.vendor",
 			"s.arch",
