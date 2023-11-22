@@ -99,11 +99,11 @@ const tableHeaders: IDataColumn[] = [
 ];
 
 const makeWindowsRows = ({ profiles, os_settings }: IHostMdmData) => {
-  if (!profiles) {
-    return null;
-  }
+  const rows: ITableRowOsSettings[] = [];
 
-  const rows: ITableRowOsSettings[] = profiles.map((p) => p);
+  if (profiles) {
+    rows.push(...profiles);
+  }
 
   if (
     os_settings?.disk_encryption?.status &&
@@ -115,6 +115,10 @@ const makeWindowsRows = ({ profiles, os_settings }: IHostMdmData) => {
         os_settings.disk_encryption.detail
       )
     );
+  }
+
+  if (rows.length === 0 && !profiles) {
+    return null;
   }
 
   return rows;
