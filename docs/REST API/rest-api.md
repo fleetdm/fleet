@@ -6531,8 +6531,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Run script asynchronously](#run-script-asynchronously)
 - [Run script synchronously](#run-script-synchronously)
 - [Get script result](#get-script-result)
-- [Upload a script](#upload-a-script)
-- [Delete a script](#delete-a-script)
+- [Add script](#add-script)
+- [Delete script](#delete-script)
 - [List scripts](#list-scripts)
 - [Get or download a script](#get-or-download-a-script)
 - [Get script details by host](#get-script-details-by-host)
@@ -6645,11 +6645,11 @@ Gets the result of a script that was executed.
 
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
 
-### Upload a script
+### Add script
 
 _Available in Fleet Premium_
 
-Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
+Add script to make it available to run on hosts assigned to the specified team (or no team).
 
 `POST /api/v1/fleet/scripts`
 
@@ -6697,7 +6697,7 @@ echo "hello"
 }
 ```
 
-### Delete a script
+### Delete script
 
 _Available in Fleet Premium_
 
@@ -6938,17 +6938,18 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
-- [Upload software](#upload-a-software)
-- [Delete software](#delete-a-software)
+- [Add software](#add-software)
+- [Download software](#download-software)
+- [Delete software](#delete-software)
 - [List software titles](#list-software-titles)
 - [List software versions](#list-software-versions)
 - [Count software](#count-software)
 - [Get software title](#get-software-title)
 - [Get software version](#get-software-version)
 
-### Upload software
+### Add software
 
-Upload software to install on macOS and Windows hosts during enrollment.
+Add software to install on macOS and Windows hosts during enrollment.
 
 `POST /api/v1/fleet/software`
 
@@ -6982,6 +6983,20 @@ Content-Type: application/octet-stream
 <BINARY_DATA>
 --------------------------d8c247122f594ba0
 ```
+
+### Download uploaded software
+
+Download uploaded software installer.
+
+`GET /api/v1/fleet/software/upload/{id}?alt=media`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| id              | integer | path | **Required**. The ID of uploaded software version to download.|
+| alt             | integer | path | **Required**. If specified and set to "media", downloads the specified software installer. |
+
 
 ### Delete software
 
@@ -7127,6 +7142,7 @@ Get a list of all software versions.
         "id": 1,
         "name": "glibc",
         "version": "2.12",
+        "uploaded": true,
         "source": "rpm_packages",
         "release": "1.212.el6",
         "vendor": "CentOS",
@@ -7245,6 +7261,7 @@ Returns the information of the specified software version.
     "name": "Firefox.app",
     "version": "117.0",
     "uploaded": true,
+    "uploaded_at": "2023-08-12T15:20:00Z"
     "bundle_identifier": "org.mozilla.firefox",
     "source": "apps",
     "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
