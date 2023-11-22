@@ -4028,7 +4028,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 | id                        | integer or string | url   | **Required** The ID of the profile to download. macOS profiles are identified by an integer ID, whereas Windows profiles use a string format(UUID) |
 | alt                       | string  | query | If specified and set to "media", downloads the profile. |
 
-#### Example (get a profile info)
+#### Example (get a profile metadata)
 
 `GET /api/v1/fleet/mdm/profiles/1337`
 
