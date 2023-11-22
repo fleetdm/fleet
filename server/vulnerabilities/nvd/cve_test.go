@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -134,7 +135,10 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 	// download the CVEs once for all sub-tests, and then disable syncing
 	err := nettest.RunWithNetRetry(t, func() error {
-		return DownloadNVDCVEFeed(tempDir, "")
+		// We use cveFeedPrefixURL="https://nvd.nist.gov/feeds/json/cve/1.1/" because a full sync
+		// with the NVD API 2.0 takes a long time (>15m). These feeds will be deprecated
+		// on December 15th and this test will start failing then.
+		return DownloadNVDCVEFeed(tempDir, "https://nvd.nist.gov/feeds/json/cve/1.1/", false, log.NewNopLogger())
 	})
 	require.NoError(t, err)
 
@@ -345,7 +349,7 @@ func TestSyncsCVEFromURL(t *testing.T) {
 
 	tempDir := t.TempDir()
 	cveFeedPrefixURL := ts.URL + "/feeds/json/cve/1.1/"
-	err := DownloadNVDCVEFeed(tempDir, cveFeedPrefixURL)
+	err := DownloadNVDCVEFeed(tempDir, cveFeedPrefixURL, false, log.NewNopLogger())
 	require.Error(t, err)
 	require.Contains(t,
 		err.Error(),

@@ -21,6 +21,7 @@ export interface ICheckboxProps {
   parseTarget?: boolean;
   tooltipContent?: React.ReactNode;
   isLeftLabel?: boolean;
+  helpText?: string;
 }
 
 const Checkbox = (props: ICheckboxProps) => {
@@ -37,6 +38,7 @@ const Checkbox = (props: ICheckboxProps) => {
     parseTarget,
     tooltipContent,
     isLeftLabel,
+    helpText,
   } = props;
 
   const handleChange = () => {
@@ -66,28 +68,33 @@ const Checkbox = (props: ICheckboxProps) => {
 
   return (
     <FormField {...formFieldProps}>
-      <label htmlFor={name} className={checkBoxClass}>
-        <input
-          checked={value}
-          className={`${baseClass}__input`}
-          disabled={disabled}
-          id={name}
-          name={name}
-          onChange={handleChange}
-          onBlur={onBlur}
-          type="checkbox"
-        />
-        <span className={checkBoxTickClass} />
-        {tooltipContent ? (
-          <span className={`${baseClass}__label-tooltip tooltip`}>
-            <TooltipWrapper tipContent={tooltipContent}>
-              {children as string}
-            </TooltipWrapper>
-          </span>
-        ) : (
-          <span className={`${baseClass}__label`}>{children} </span>
+      <>
+        <label htmlFor={name} className={checkBoxClass}>
+          <input
+            checked={value}
+            className={`${baseClass}__input`}
+            disabled={disabled}
+            id={name}
+            name={name}
+            onChange={handleChange}
+            onBlur={onBlur}
+            type="checkbox"
+          />
+          <span className={checkBoxTickClass} />
+          {tooltipContent ? (
+            <span className={`${baseClass}__label-tooltip tooltip`}>
+              <TooltipWrapper tipContent={tooltipContent}>
+                {children}
+              </TooltipWrapper>
+            </span>
+          ) : (
+            <span className={`${baseClass}__label`}>{children} </span>
+          )}
+        </label>
+        {helpText && (
+          <span className={`${baseClass}__help-text`}>{helpText}</span>
         )}
-      </label>
+      </>
     </FormField>
   );
 };

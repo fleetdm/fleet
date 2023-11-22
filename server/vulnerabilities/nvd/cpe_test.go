@@ -648,7 +648,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "5.11.6 (9890)",
 				Vendor:           "",
 				BundleIdentifier: "us.zoom.xos",
-			}, cpe: "cpe:2.3:a:zoom:meetings:5.11.6.9890:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:zoom:zoom:5.11.6.9890:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1125,7 +1125,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.12.4",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:golang:protobuf:3.12.4:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:google:protobuf:3.12.4:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1152,7 +1152,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "2.3.0+ubuntu2.1",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:debian:python-apt:2.3.0.ubuntu2.1:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:ubuntu:python-apt:2.3.0.ubuntu2.1:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1188,7 +1188,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "2.25.1",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:jenkins:requests:2.25.1:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:python:requests:2.25.1:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1350,6 +1350,17 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "com.adobe.Acrobat.Uninstaller",
 			},
 			// DO NOT MATCH with Adobe Acrobat
+			cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "UmbrellaMenu.app",
+				Source:           "apps",
+				Version:          "1.0",
+				Vendor:           "",
+				BundleIdentifier: "com.cisco.umbrella.menu.UmbrellaMenu",
+			},
+			// DO NOT MATCH with Cisco Umbrella
 			cpe: "",
 		},
 	}

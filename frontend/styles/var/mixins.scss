@@ -116,3 +116,8 @@ $max-width: 2560px;
   pointer-events: none;
   cursor: default;
 }
+
+@mixin help-text {
+  font-size: $xx-small;
+  color: $ui-fleet-black-75;
+}
