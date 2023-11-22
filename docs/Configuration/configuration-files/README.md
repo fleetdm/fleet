@@ -1207,7 +1207,7 @@ List of the software that will be installed on macOS and Windows hosts during en
 - Config file format:
   ```yaml
   software:
-    - https://github.com/organinzation/repository/bootstrap-package.pkg
+    - https://github.com/organinzation/repository/installer.pkg
     - https://software.com/releases/windows/installer.msi
   ```
 
