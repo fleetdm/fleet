@@ -3989,9 +3989,9 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 {
   "profiles": [
     {
-      "profile_id": 1337,
+      "profile_uuid": 39f6cbbc-fe7b-4adc-b7a9-542d1af89c63,
       "team_id": 0,
-      "name": "Example profile",
+      "name": "Example macOS profile",
       "platform": "darwin",
       "identifier": "com.example.profile",
       "created_at": "2023-03-31T00:00:00Z",
@@ -3999,7 +3999,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "checksum": "dGVzdAo="
     },
     {
-      "profile_id": 1338,
+      "profile_uuid": f5ad01cc-f416-4b5f-88f3-a26da3b56a19,
       "team_id": 0,
       "name": "Example Windows profile",
       "platform": "windows",
@@ -4019,18 +4019,18 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 > [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
-`GET /api/v1/fleet/mdm/profiles/{id}`
+`GET /api/v1/fleet/mdm/profiles/{profile_uuid}`
 
 #### Parameters
 
 | Name                      | Type    | In    | Description                                             |
 | ------------------------- | ------- | ----- | ------------------------------------------------------- |
-| id                        | integer or string | url   | **Required** The ID of the profile to download. macOS profiles are identified by an integer ID, whereas Windows profiles use a string format(UUID) |
+| profile_uuid              | string | url   | **Required** The UUID of the profile to download.  |
 | alt                       | string  | query | If specified and set to "media", downloads the profile. |
 
 #### Example (get a profile metadata)
 
-`GET /api/v1/fleet/mdm/profiles/1337`
+`GET /api/v1/fleet/mdm/profiles/f663713f-04ee-40f0-a95a-7af428c351a9`
 
 ##### Default response
 
@@ -4038,7 +4038,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 ```json
 {
-  "profile_id": 1337,
+  "profile_uuid": "f663713f-04ee-40f0-a95a-7af428c351a9",
   "team_id": 0,
   "name": "Example profile",
   "platform": "darwin",
@@ -4051,7 +4051,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 #### Example (download a profile)
 
-`GET /api/v1/fleet/mdm/profiles/1337?alt=media`
+`GET /api/v1/fleet/mdm/profiles/f663713f-04ee-40f0-a95a-7af428c351a9?alt=media`
 
 ##### Default response
 
@@ -4095,17 +4095,17 @@ solely on the response status code returned by this endpoint.
 
 > [Delete custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#delete-custom-macos-setting-configuration-profile) (`DELETE /api/v1/fleet/mdm/apple/profiles/{profile_id}`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
-`DELETE /api/v1/fleet/mdm/profiles/{id}`
+`DELETE /api/v1/fleet/mdm/profiles/{profile_uuid}`
 
 #### Parameters
 
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
-| id                | integer or string | url   | **Required** The ID of the profile to delete. macOS profiles are identified by an integer ID, whereas Windows profiles use a string format(UUID) |
+| profile_uuid              | string  | url   | **Required** The UUID of the profile to delete. |
 
 #### Example
 
-`DELETE /api/v1/fleet/mdm/profiles/42`
+`DELETE /api/v1/fleet/mdm/profiles/f663713f-04ee-40f0-a95a-7af428c351a9`
 
 ##### Default response
 
