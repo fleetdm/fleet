@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -12,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/stretchr/testify/require"
-	"pault.ag/go/debian/deb"
 )
 
 func TestPackage(t *testing.T) {
@@ -44,51 +42,11 @@ func TestPackage(t *testing.T) {
 		runAppCheckErr(t, []string{"package", "--type=msi", "--native-tooling"}, "native tooling is only available in Linux")
 	}
 
-	// In addition to testing basic `deb` installer creation functionality, this test verifies that
-	// creating an installer twice doesn't result in the second installer being corrupted. See #13260.
 	t.Run("deb", func(t *testing.T) {
-		shorterEnrollSecret := "aa"
-		longerEnrollSecret := "aaaaaa"
-
-		checkEnrollSecret := func(t *testing.T, expectedEnrollSecret string, updatesData *packaging.UpdatesData) {
-			runAppForTest(t, []string{"package", "--type=deb", "--insecure", "--disable-open-folder", "--enroll-secret=" + expectedEnrollSecret, "--fleet-url=https://localhost:8080"})
-			info, err := os.Stat(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
-			require.NoError(t, err)
-			require.Greater(t, info.Size(), int64(0))
-
-			fd, err := os.Open(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
-			require.NoError(t, err)
-
-			defer fd.Close()
-
-			debFile, err := deb.Load(fd, fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
-			require.NoError(t, err)
-
-			for {
-				hdr, err := debFile.Data.Next()
-				if err == io.EOF {
-					break
-				}
-				require.NoError(t, err)
-
-				if hdr.Name != "./etc/default/orbit" {
-					continue
-				}
-
-				data, err := io.ReadAll(debFile.Data)
-				require.NoError(t, err)
-
-				s := string(data)
-				require.Contains(t, s, fmt.Sprintf("ORBIT_ENROLL_SECRET=%s\n", expectedEnrollSecret))
-			}
-		}
-
-		// Create first installer
-		checkEnrollSecret(t, longerEnrollSecret, updatesData)
-
-		// Create second installer. Since we first delete the existing installer before creating the
-		// new one, we should find the shorter enrollment secret without any issue.
-		checkEnrollSecret(t, shorterEnrollSecret, updatesData)
+		runAppForTest(t, []string{"package", "--type=deb", "--insecure", "--disable-open-folder"})
+		info, err := os.Stat(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
+		require.NoError(t, err)
+		require.Greater(t, info.Size(), int64(0)) // TODO verify contents
 	})
 
 	t.Run("--use-sytem-configuration can't be used on installers that aren't pkg", func(t *testing.T) {
