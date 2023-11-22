@@ -806,7 +806,7 @@ module.exports = {
             } else {
               for(let category of feature.productCategories){
                 if(!_.contains(VALID_PRODUCT_CATEGORIES, category)){
-                  throw new Error(`Could not build pricing table config from pricing-features-table.yml. The '${feature.industryName}' feature has a 'productCategories' with an an invalid product category (${category}). Please change the values in this array to be one of: ${VALID_PRODUCT_CATEGORIES.join(', ')}`)
+                  throw new Error(`Could not build pricing table config from pricing-features-table.yml. The '${feature.industryName}' feature has a 'productCategories' with an an invalid product category (${category}). Please change the values in this array to be one of: ${VALID_PRODUCT_CATEGORIES.join(', ')}`);
                 }
               }
             }

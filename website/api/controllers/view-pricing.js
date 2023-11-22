@@ -30,7 +30,7 @@ module.exports = {
     let pricingTable = [];
 
     // Note: These product categories are hardcoded in to reduce complexity, an alternative way of building this from the pricingFeaturesTable is: let productCategories =  _.union(_.flatten(_.pluck(pricingTableFeatures, 'productCategories')));
-    let productCategories = ['Endpoint operations', 'Device management', 'Vulnerability management']
+    let productCategories = ['Endpoint operations', 'Device management', 'Vulnerability management'];
     for(let category of productCategories) {
       // Get all the features in that have a productCategories array that contains this category.
       let featuresInThisCategory = _.filter(pricingTableFeatures, (feature)=>{
@@ -49,7 +49,7 @@ module.exports = {
 
     // Respond with view.
     return {
-      pricingTable,
+      pricingTable
     };
 
   }
