@@ -80,6 +80,7 @@
       buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Anomaly detection,Configuration management,Attack Surface Monitoring,Policy assessment]
       waysToUse:
         - description: Monitor devices that don't meet your organization's custom security policies
+        - description: Understand your compliance posture so you can act accordingly
         - description: Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.
         - description: Keep your devices compliant with customizable baselines, or use common benchmarks like CIS.
         - description: Discover security misconfigurations that increase attack surface.
@@ -172,6 +173,7 @@
       buzzwords: [File integrity monitoring (FIM),Host-based intrusion detection system (HIDS),Anomaly detection]
       waysToUse:
         - description: Monitor critical files on production Debian servers
+        - description: Automate your response to malicious file events
         - description: Detect anomalous filesystem activity
           moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
         - description: Detect unintended changes
@@ -618,6 +620,7 @@
       waysToUse:
         - description: Email relevant, actually-installed vulnerabilities to responsible teams so they can fix them.
           moreInfoUrl: https://docs.google.com/document/d/1oeCmT077o_5nxzLhnxs7kcg_4Qn1Pn1F5zx10nQOAp8/edit
+        - description: Automate your response to new vulnerabilities
     - industryName: Query performance monitoring
       tier: Free
       demos:
