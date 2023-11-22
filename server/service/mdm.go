@@ -1119,7 +1119,7 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 
 	// prevent deleting Windows OS Updates profile (controlled by the OS Updates settings)
 	if _, ok := microsoft_mdm.FleetReservedProfileNames()[prof.Name]; ok {
-		err := &fleet.BadRequestError{Message: fmt.Sprintf("Profile name %q is reserved, it cannot be deleted.", prof.Name)}
+		err := &fleet.BadRequestError{Message: "Profiles managed by Fleet can't be deleted using this endpoint."}
 		return ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
