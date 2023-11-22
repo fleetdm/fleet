@@ -6956,7 +6956,7 @@ Upload software to install on macOS and Windows hosts during enrollment.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | **Required**. Installer file. PKG or DMG for macOS and MSI or EXE for Windows hosts.   |
+| software        | file    | form | **Required**. Installer file. PKG or DMG for macOS and MSI for Windows hosts.   |
 | team_id         | integer | form | The team ID. If specified, the software will only be available to hosts assigned to this team. If not specified, the software will only be available to hosts that are not assigned to any team (No team).  |
 
 #### Example
