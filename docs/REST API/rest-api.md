@@ -6938,8 +6938,8 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
-- [Upload a software](#upload-a-software)
-- [Delete a software](#delete-a-software)
+- [Upload software](#upload-a-software)
+- [Delete software](#delete-a-software)
 - [List software titles](#list-software-titles)
 - [List software versions](#list-software-versions)
 - [Count software](#count-software)
@@ -6979,15 +6979,13 @@ Content-Disposition: form-data; name="team_id"
 --------------------------d8c247122f594ba0
 Content-Disposition: form-data; name="software"; filename="ZoomInstallFull.pkg"
 Content-Type: application/octet-stream
-
-[binary content of PKG file]
-
+<BINARY_DATA>
 --------------------------d8c247122f594ba0
 ```
 
-### Delete a software
+### Delete software
 
-Delete an uploaded software.
+Delete uploaded software.
 
 `DELETE /api/v1/fleet/software/{id}`
 
