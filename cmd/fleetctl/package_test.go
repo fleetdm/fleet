@@ -78,12 +78,11 @@ func TestPackage(t *testing.T) {
 
 				s := string(data)
 				require.Contains(t, s, fmt.Sprintf("ORBIT_ENROLL_SECRET=%s\n", expectedEnrollSecret))
-				t.Log("we did it")
 			}
 		}
 
-		checkEnrollSecret(t, shorterEnrollSecret, updatesData)
 		checkEnrollSecret(t, longerEnrollSecret, updatesData)
+		checkEnrollSecret(t, shorterEnrollSecret, updatesData)
 	})
 
 	t.Run("--use-sytem-configuration can't be used on installers that aren't pkg", func(t *testing.T) {
