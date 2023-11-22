@@ -32,16 +32,18 @@ const PREMIUM_ACTIVITIES = new Set([
 
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
+  platform: "darwin" | "windows",
   teamName?: string | null
 ) => {
-  let messageSuffix = <>all macOS hosts</>;
+  const platformDisplayName = platform === "darwin" ? "macOS" : "Windows";
+  let messageSuffix = <>all {platformDisplayName} hosts</>;
   if (isPremiumTier) {
     messageSuffix = teamName ? (
       <>
-        macOS hosts assigned to the <b>{teamName}</b> team
+        {platformDisplayName} hosts assigned to the <b>{teamName}</b> team
       </>
     ) : (
-      <>macOS hosts with no team</>
+      <>{platformDisplayName} hosts with no team</>
     );
   }
   return messageSuffix;
@@ -318,7 +320,6 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-
   createMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
@@ -330,12 +331,16 @@ const TAGGED_TEMPLATES = {
         ) : (
           <>a configuration profile</>
         )}{" "}
-        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
         .
       </>
     );
   },
-
   deleteMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
@@ -348,11 +353,15 @@ const TAGGED_TEMPLATES = {
           <>a configuration profile</>
         )}{" "}
         from{" "}
-        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
       </>
     );
   },
-
   editMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     return (
       <>
@@ -360,6 +369,63 @@ const TAGGED_TEMPLATES = {
         edited configuration profiles for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+  createWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        added{" "}
+        {profileName ? (
+          <>configuration profile {profileName}</>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "windows",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  deleteWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        deleted{" "}
+        {profileName ? (
+          <>configuration profile {profileName}</>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        from{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "windows",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  editWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited configuration profiles for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "windows",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
@@ -712,6 +778,15 @@ const getDetail = (
     }
     case ActivityType.EditedMacOSProfile: {
       return TAGGED_TEMPLATES.editMacOSProfile(activity, isPremiumTier);
+    }
+    case ActivityType.CreatedWindowsProfile: {
+      return TAGGED_TEMPLATES.createWindowsProfile(activity, isPremiumTier);
+    }
+    case ActivityType.DeletedWindowsProfile: {
+      return TAGGED_TEMPLATES.deleteWindowsProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EditedWindowsProfile: {
+      return TAGGED_TEMPLATES.editWindowsProfile(activity, isPremiumTier);
     }
     case ActivityType.EnabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.enableMacDiskEncryption(activity);

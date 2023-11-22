@@ -1127,8 +1127,10 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO: integrate the call to bulk-update host profiles affected by this deletion (see Apple's implementation)
-	// (part of https://github.com/fleetdm/fleet/issues/14364)
+	// cannot use the profile ID as it is now deleted
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
 
 	var (
 		actTeamID   *uint

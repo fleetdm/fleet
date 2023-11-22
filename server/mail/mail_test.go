@@ -16,7 +16,7 @@ var testFunctions = [...]func(*testing.T, fleet.MailService){
 	testSMTPPlainAuth,
 	testSMTPPlainAuthInvalidCreds,
 	testSMTPSkipVerify,
-	testSMTPNoAuth,
+	testSMTPNoAuthWithTLS,
 	testMailTest,
 }
 
@@ -47,9 +47,9 @@ func testSMTPPlainAuth(t *testing.T, mailer fleet.MailService) {
 			SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
 			SMTPUserName:             "mailpit-username",
 			SMTPPassword:             "mailpit-password",
-			SMTPEnableTLS:            true,
-			SMTPVerifySSLCerts:       true,
-			SMTPEnableStartTLS:       true,
+			SMTPEnableTLS:            false,
+			SMTPVerifySSLCerts:       false,
+			SMTPEnableStartTLS:       false,
 			SMTPPort:                 1026,
 			SMTPServer:               "localhost",
 			SMTPSenderAddress:        "test@example.com",
@@ -73,9 +73,9 @@ func testSMTPPlainAuthInvalidCreds(t *testing.T, mailer fleet.MailService) {
 			SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
 			SMTPUserName:             "mailpit-username",
 			SMTPPassword:             "wrong",
-			SMTPEnableTLS:            true,
-			SMTPVerifySSLCerts:       true,
-			SMTPEnableStartTLS:       true,
+			SMTPEnableTLS:            false,
+			SMTPVerifySSLCerts:       false,
+			SMTPEnableStartTLS:       false,
 			SMTPPort:                 1026,
 			SMTPServer:               "localhost",
 			SMTPSenderAddress:        "test@example.com",
@@ -102,7 +102,7 @@ func testSMTPSkipVerify(t *testing.T, mailer fleet.MailService) {
 			SMTPEnableTLS:            true,
 			SMTPVerifySSLCerts:       false,
 			SMTPEnableStartTLS:       true,
-			SMTPPort:                 1025,
+			SMTPPort:                 1027,
 			SMTPServer:               "localhost",
 			SMTPSenderAddress:        "test@example.com",
 		},
@@ -115,7 +115,7 @@ func testSMTPSkipVerify(t *testing.T, mailer fleet.MailService) {
 	assert.Nil(t, err)
 }
 
-func testSMTPNoAuth(t *testing.T, mailer fleet.MailService) {
+func testSMTPNoAuthWithTLS(t *testing.T, mailer fleet.MailService) {
 	mail := fleet.Email{
 		Subject: "no auth",
 		To:      []string{"bob@foo.com"},
@@ -124,7 +124,8 @@ func testSMTPNoAuth(t *testing.T, mailer fleet.MailService) {
 			SMTPAuthenticationType: fleet.AuthTypeNameNone,
 			SMTPEnableTLS:          true,
 			SMTPVerifySSLCerts:     true,
-			SMTPPort:               1025,
+			SMTPEnableStartTLS:     true,
+			SMTPPort:               1027,
 			SMTPServer:             "localhost",
 			SMTPSenderAddress:      "test@example.com",
 		},
@@ -145,11 +146,12 @@ func testMailTest(t *testing.T, mailer fleet.MailService) {
 			SMTPConfigured:           true,
 			SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
 			SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
-			SMTPUserName:             "mailpit-username",
-			SMTPPassword:             "mailpit-password",
+			SMTPUserName:             "foo",
+			SMTPPassword:             "bar",
 			SMTPEnableTLS:            true,
 			SMTPVerifySSLCerts:       true,
-			SMTPPort:                 1026,
+			SMTPEnableStartTLS:       true,
+			SMTPPort:                 1027,
 			SMTPServer:               "localhost",
 			SMTPSenderAddress:        "test@example.com",
 		},

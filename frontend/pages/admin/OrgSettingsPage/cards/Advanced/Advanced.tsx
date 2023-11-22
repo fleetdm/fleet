@@ -221,18 +221,21 @@ const Advanced = ({
                   <>
                     <p>
                       Disabling query reports will decrease database usage,{" "}
-                      <br />\ but will prevent you from accessing query results
-                      in
-                      <br /> \ Fleet and will delete existing reports. This can
-                      also be
-                      <br />\ disabled on a per-query basis by enabling
-                      &quot;Discard <br />\ data&quot;.{" "}
+                      <br />
+                      but will prevent you from accessing query results in
+                      <br />
+                      Fleet and will delete existing reports. This can also be{" "}
+                      <br />
+                      disabled on a per-query basis by enabling &quot;Discard{" "}
+                      <br />
+                      data&quot;.{" "}
                       <em>
                         (Default: <b>Off</b>)
                       </em>
                     </p>
                   </>
                 }
+                helpText="Enabling this setting will delete all existing query reports in Fleet."
               >
                 Disable query reports
               </Checkbox>

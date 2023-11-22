@@ -396,8 +396,8 @@ const (
 )
 
 const (
-	FleetBitLockerTargetLocURI = "./Device/Vendor/MSFT/BitLocker"
-	FleetOSUpdateTargetLocURI  = "./Device/Vendor/MSFT/Policy/Config/Update"
+	FleetBitLockerTargetLocURI = "/Vendor/MSFT/BitLocker"
+	FleetOSUpdateTargetLocURI  = "/Vendor/MSFT/Policy/Config/Update"
 
 	FleetWindowsOSUpdatesProfileName = "Windows OS Updates"
 )

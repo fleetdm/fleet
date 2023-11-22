@@ -371,7 +371,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	// update their detail and status.
 	const updateHostProfilesStmt = `
 		INSERT INTO host_mdm_windows_profiles
-			(host_uuid, profile_uuid, detail, status)
+			(host_uuid, profile_uuid, detail, status, command_uuid)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 			detail = VALUES(detail),
@@ -402,11 +402,11 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	// find the matching entries for the given host_uuid, command_uuid combinations.
 	stmt, args, err := sqlx.In(getMatchingHostProfilesStmt, hostUUID, commandUUIDs)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "building sqlx.In query")
 	}
 	var matchingHostProfiles []fleet.MDMWindowsProfilePayload
 	if err := sqlx.SelectContext(ctx, tx, &matchingHostProfiles, stmt, args...); err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "running query to get matching profiles")
 	}
 
 	// batch-update the matching entries with the desired detail and status>
@@ -415,12 +415,12 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	for _, hp := range matchingHostProfiles {
 		payload := uuidsToPayloads[hp.CommandUUID]
 		args = append(args, hp.HostUUID, hp.ProfileUUID, payload.Detail, payload.Status)
-		sb.WriteString("(?, ?, ?, ?),")
+		sb.WriteString("(?, ?, ?, ?, command_uuid),")
 	}
 
 	stmt = fmt.Sprintf(updateHostProfilesStmt, strings.TrimSuffix(sb.String(), ","))
 	_, err = tx.ExecContext(ctx, stmt, args...)
-	return err
+	return ctxerr.Wrap(ctx, err, "updating host profiles")
 }
 
 func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
