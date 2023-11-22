@@ -798,7 +798,9 @@ module.exports = {
             }
             feature.name = feature.industryName;//« This is just an alias. FUTURE: update code elsewhere to use the new property instead, and delete this aliasing.
           }
-          if(feature.productCategories){
+          if(!feature.productCategories){
+            throw new Error(`Could not build pricing table config from pricing-features-table.yml. The '${feature.industryName}' feature is missing a 'productCategories' value. Please add an array of product categories to this feature and try running this script again`);
+          } else {
             if(!_.isArray(feature.productCategories)){
               throw new Error(`Could not build pricing table config from pricing-features-table.yml. The '${feature.industryName}' feature has an invalid 'productCategories' value. Please change the productCategories for this feature to be an array of product categories`);
             } else {
