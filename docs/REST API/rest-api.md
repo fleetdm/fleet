@@ -2357,7 +2357,7 @@ Returns the information of the specified host.
       },
       "profiles": [
         {
-          "profile_id": 998,
+          "profile_uuid": 954ec5ea-a334-4825-87b3-937e7e381f24,
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
@@ -2557,7 +2557,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
       },
       "profiles": [
         {
-          "profile_id": 998,
+          "profile_uuid": 954ec5ea-a334-4825-87b3-937e7e381f24,
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
@@ -2745,7 +2745,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
       },
       "profiles": [
         {
-          "profile_id": 998,
+          "profile_uuid": 954ec5ea-a334-4825-87b3-937e7e381f24,
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
@@ -3392,7 +3392,7 @@ Retrieves a list of the configuration profiles assigned to a host.
   "host_id": 8,
   "profiles": [
     {
-      "profile_id": 1337,
+      "profile_uuid": bc84dae7-396c-4e10-9d45-5768bce8b8bd,
       "team_id": 0,
       "name": "Example profile",
       "identifier": "com.example.profile",
@@ -3946,7 +3946,7 @@ Content-Type: application/octet-stream
 
 ```json
 {
-  "profile_id": 42
+  "profile_uuid": 954ec5ea-a334-4825-87b3-937e7e381f24
 }
 ```
 
