@@ -58,8 +58,8 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 
 ## Responsibilities
 
-### Onboard as a new sales team member
-Once the standard Fleetie onboarding issue is complete, Sales team members should open a new issue from the Sales team member onboaring issue template and complete it.
+### Onboard a new sales team member
+Once the standard Fleetie onboarding issue is complete, create a new ["Sales team onboarding"](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=sales-team-onboarding.md&title=Sales%20onboarding%3A_____________) issue and complete it.
 [Fleet values training](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training)
 
 ### Send a quote
