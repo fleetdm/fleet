@@ -25,41 +25,31 @@ module.exports = {
     if(!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.pricingTable)) {
       throw {badConfig: 'builtStaticContent.pricingTable'};
     }
-    let pricingTable = sails.config.builtStaticContent.pricingTable;
+    let pricingTableFeatures = sails.config.builtStaticContent.pricingTable;
 
-    // Create a filtered version of the pricing table array that does not have the "Device management" category that will be used for the security-focused pricing table.
-    let pricingTableForSecurity = pricingTable.filter((category)=>{
-      return category.categoryName !== 'Device management';
-    });
+    let pricingTable = [];
 
-    // Create an array used to sort the pricing table for secuirty focused buyers
-    // To change the order of the pricing table for the security focused buyers, rearrange the values in the array below.
-    // Note: The category names must match existing categories in the pricing-features-table.yml file.
-    let categoryOrderForSecurityPricingTable = [
-      'Security and compliance',
-      'Monitoring',
-      'Inventory management',
-      'Collaboration',
-      'Support',
-      'Data outputs',
-      'Deployment'
-    ];
-
-    // Sort the security-focused pricing table from the order of the elements in the categoryOrderForSecurityPricingTable array.
-    pricingTableForSecurity.sort((a, b)=>{
-      // If there is a category that is not in the list above, sort it to the end of the list.
-      if(categoryOrderForSecurityPricingTable.indexOf(a.categoryName) === -1){
-        return 1;
-      } else if(categoryOrderForSecurityPricingTable.indexOf(b.categoryName) === -1) {
-        return -1;
-      }
-      return categoryOrderForSecurityPricingTable.indexOf(a.categoryName) - categoryOrderForSecurityPricingTable.indexOf(b.categoryName);
-    });
+    // Note: These product categories are hardcoded in to reduce complexity, an alternative way of building this from the pricingFeaturesTable is: let productCategories =  _.union(_.flatten(_.pluck(pricingTableFeatures, 'productCategories')));
+    let productCategories = ['Endpoint operations', 'Device management', 'Vulnerability management'];
+    for(let category of productCategories) {
+      // Get all the features in that have a productCategories array that contains this category.
+      let featuresInThisCategory = _.filter(pricingTableFeatures, (feature)=>{
+        return _.contains(feature.productCategories, category);
+      });
+      // Build a dictionary containing the category name, and all features in the category, sorting premium features to the bottom of the list.
+      let allFeaturesInThisCategory = {
+        categoryName: category,
+        features: _.sortBy(featuresInThisCategory, (feature)=>{
+          return feature.tier !== 'Free';
+        })
+      };
+      // Add the dictionaries to the arrays that we'll use to build the features table.
+      pricingTable.push(allFeaturesInThisCategory);
+    }
 
     // Respond with view.
     return {
-      pricingTable,
-      pricingTableForSecurity,
+      pricingTable
     };
 
   }
