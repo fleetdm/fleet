@@ -2978,7 +2978,7 @@ Request (`filters` is specified and empty, to delete all hosts):
 
 ### Get host's user profiles
 
-Retrieves a host's IdP email and Google Chrome profile email which can be used to link a host to a specific user by email.
+Retrieves a host's IdP email and Google Chrome profile information which can be used to link a host to a specific user by email.
 
 Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
