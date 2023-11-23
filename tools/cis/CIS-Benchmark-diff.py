@@ -1,5 +1,7 @@
 # This script takes two CIS Benchmark PDFs as input and diffs them
 # For example: It will generate a diff of the Win10 & W11 benchmarks
+# Requires installation of the PyMuPDF dep (pip3 install PyMuPDF).
+# cmd line example: Python3 ./CIS-Benchmark-diff.py File1.pdf File2.pdf 
 
 import fitz  # PyMuPDF
 import re
