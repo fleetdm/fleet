@@ -152,8 +152,8 @@
         <%// Mobile filtered features tables %>
           <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTable">
             <h4>{{category.categoryName}}</h4>
-              <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
-                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" v-if="_.contains([pricingMode], feature.usualDepartment)">
+              <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features" v-if="_.contains([pricingMode], feature.usualDepartment)">
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" >
                   <strong>{{feature.name}}{{ feature.comingSoon ? '*' : ''}}</strong>
                 </div>
                 <div class="d-flex flex-row justify-content-between align-items-center">
