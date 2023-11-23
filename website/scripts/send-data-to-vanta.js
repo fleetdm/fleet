@@ -351,12 +351,9 @@ module.exports = {
             'content-type': 'application/json',
           },
         })
-        .retry()
-        .tolerate((err)=>{// If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
-          errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/user_account/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
-        });
+        .retry();
       } catch(error) {
-        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/user_account/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${error}`);
+        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/user_account/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${error.stack}`);
       }
 
       if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll bail early for this connection.
@@ -382,12 +379,9 @@ module.exports = {
             'content-type': 'application/json',
           },
         })
-        .retry()
-        .tolerate((err)=>{// If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
-          errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
-        });
+        .retry();
       } catch (error) {
-        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${error}`)
+        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${error.stack}`);
       }
 
       if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll bail early for this connection.
@@ -413,12 +407,9 @@ module.exports = {
             'content-type': 'application/json',
           },
         })
-        .retry()
-        .tolerate((err)=>{// If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
-          errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
-        });
+        .retry();
       } catch (error) {
-        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${error}`);
+        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${error.stack}`);
       }
 
       if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll bail early for this connection.
