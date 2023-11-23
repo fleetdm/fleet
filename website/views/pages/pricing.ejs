@@ -139,7 +139,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="feature in category.features" v-if="_.contains([pricingMode], feature.usualDepartment)">
+              <tr v-for="feature in category.features" v-if="feature.usualDepartment === pricingMode">
                 <td purpose="feature-name">{{feature.name}}{{feature.comingSoon ? '*' : ''}}</td>
                   <td purpose="table-checkmark" v-if="feature.tier === 'Free'"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
                   <td purpose="table-checkmark" v-else></td>
@@ -152,7 +152,7 @@
         <%// Mobile filtered features tables %>
           <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTable">
             <h4>{{category.categoryName}}</h4>
-              <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features" v-if="_.contains([pricingMode], feature.usualDepartment)">
+              <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features" v-if="feature.usualDepartment === pricingMode">
                 <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" >
                   <strong>{{feature.name}}{{ feature.comingSoon ? '*' : ''}}</strong>
                 </div>
