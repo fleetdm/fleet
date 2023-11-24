@@ -94,11 +94,20 @@ export default class TableOSVersion extends Table {
       });
     }
 
-    // Note we can actually get the platform of Chrome running on non-ChromeOS devices, but instead
-    // we just hardcode to "chrome" so that Fleet always sees this Chrome extension as a Chrome
-    // device even when we are doing local dev on a non-ChromeOS machine.
-    const platformInfo = await chrome.runtime.getPlatformInfo();
-    const { arch } = platformInfo;
+    let arch;
+    try {
+      // Note we can actually get the platform of Chrome running on non-ChromeOS devices, but instead
+      // we just hardcode to "chrome" so that Fleet always sees this Chrome extension as a Chrome
+      // device even when we are doing local dev on a non-ChromeOS machine.
+      const platformInfo = await chrome.runtime.getPlatformInfo();
+      arch = platformInfo;
+    } catch (err) {
+      console.warn("get cpu info:", err);
+      warningsArray.push({
+        column: "arch",
+        error_message: err.message.toString(),
+      });
+    }
 
     // Some of these values won't actually be correct on a non-chromeOS machine.
     return {
