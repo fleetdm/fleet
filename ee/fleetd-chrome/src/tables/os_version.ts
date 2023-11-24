@@ -24,36 +24,74 @@ export default class TableOSVersion extends Table {
   }
 
   async generate() {
-    // @ts-expect-error Typescript doesn't include the userAgentData API yet.
-    const data = await navigator.userAgentData.getHighEntropyValues([
-      "fullVersionList",
-      "platform",
-      "platformVersion",
-    ]);
+    let warningsArray = [];
 
-    let version = "";
-    for (let entry of data.fullVersionList) {
-      if (entry.brand === "Google Chrome") {
-        version = entry.version;
-        break;
+    let _version = "";
+    let name = "";
+    let codename = "";
+    let major = "";
+    let minor = "";
+    let build = "";
+    let patch = "";
+    try {
+      // @ts-expect-error Typescript doesn't include the userAgentData API yet.
+      const data = await navigator.userAgentData.getHighEntropyValues([
+        "fullVersionList",
+        "platform",
+        "platformVersion",
+      ]);
+
+      for (let entry of data.fullVersionList) {
+        if (entry.brand === "Google Chrome") {
+          _version = entry.version;
+          break;
+        }
       }
-    }
-    if (version === "") {
-      throw new Error("environment does not look like Chrome");
-    }
+      if (_version === "") {
+        throw new Error("environment does not look like Chrome");
+      }
+      name = this.getName(data.platform);
+      codename = this.getCodename(data.platformVersion);
 
-    // Note MAJOR.MINOR.BUILD.PATCH (see https://www.chromium.org/developers/version-numbers/)
-    const splits = version.split(".");
-    let major = "",
-      minor = "",
-      build = "",
-      patch = "";
-    if (splits.length !== 4) {
-      console.warn(
-        `Chrome version ${version} does not have expected 4 segments`
-      );
-    } else {
-      [major, minor, build, patch] = splits;
+      // Note MAJOR.MINOR.BUILD.PATCH (see https://www.chromium.org/developers/version-numbers/)
+      const splits = _version.split(".");
+      if (splits.length !== 4) {
+        console.warn(
+          `Chrome version ${_version} does not have expected 4 segments`
+        );
+      } else {
+        [major, minor, build, patch] = splits;
+      }
+    } catch (err) {
+      console.warn("getHighEntropyValues:", err);
+      warningsArray.push({
+        column: "version",
+        error_message: err.message.toString(),
+      });
+      warningsArray.push({
+        column: "major",
+        error_message: err.message.toString(),
+      });
+      warningsArray.push({
+        column: "minor",
+        error_message: err.message.toString(),
+      });
+      warningsArray.push({
+        column: "build",
+        error_message: err.message.toString(),
+      });
+      warningsArray.push({
+        column: "patch",
+        error_message: err.message.toString(),
+      });
+      warningsArray.push({
+        column: "codename",
+        error_message: err.message.toString(),
+      });
+      warningsArray.push({
+        column: "platform_like",
+        error_message: err.message.toString(),
+      });
     }
 
     // Note we can actually get the platform of Chrome running on non-ChromeOS devices, but instead
@@ -66,19 +104,20 @@ export default class TableOSVersion extends Table {
     return {
       data: [
         {
-          name: this.getName(data.platform),
+          name: name,
           platform: "chrome",
           platform_like: "chrome",
-          version,
+          version: _version,
           major,
           minor,
           build,
           patch,
-          codename: this.getCodename(data.platformVersion),
+          codename: codename,
           // https://developer.chrome.com/docs/extensions/reference/runtime/#type-PlatformArch
           arch: arch,
         },
       ],
+      warnings: warningsArray,
     };
   }
 }
