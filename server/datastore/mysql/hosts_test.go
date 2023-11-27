@@ -758,9 +758,10 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID}, 4)
 
 	// test team filter in combination with macos settings filter
+	profUUID := "a" + uuid.NewString()
 	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
-			ProfileID:         1,
+			ProfileUUID:       profUUID,
 			ProfileIdentifier: "identifier",
 			HostUUID:          hosts[0].UUID, // hosts[0] is assgined to team 1
 			CommandUUID:       "command-uuid-1",
@@ -778,7 +779,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
-			ProfileID:         1,
+			ProfileUUID:       profUUID,
 			ProfileIdentifier: "identifier",
 			HostUUID:          hosts[9].UUID, // hosts[9] is assgined to no team
 			CommandUUID:       "command-uuid-2",
@@ -805,7 +806,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	// test team filter in combination with os settings disk encryptionfilter
 	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
-			ProfileID:         1,
+			ProfileUUID:       profUUID,
 			ProfileIdentifier: mobileconfig.FleetFileVaultPayloadIdentifier,
 			HostUUID:          hosts[8].UUID, // hosts[8] is assgined to no team
 			CommandUUID:       "command-uuid-3",
@@ -5822,7 +5823,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	prof, err := ds.NewMDMAppleConfigProfile(context.Background(), *configProfileForTest(t, "N1", "I1", "U1"))
 	require.NoError(t, err)
 	err = ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
-		{ProfileID: prof.ProfileID, ProfileIdentifier: prof.Identifier, ProfileName: prof.Name, HostUUID: host.UUID, OperationType: fleet.MDMOperationTypeInstall, Checksum: []byte("csum")},
+		{ProfileUUID: prof.ProfileUUID, ProfileIdentifier: prof.Identifier, ProfileName: prof.Name, HostUUID: host.UUID, OperationType: fleet.MDMOperationTypeInstall, Checksum: []byte("csum")},
 	})
 	require.NoError(t, err)
 
