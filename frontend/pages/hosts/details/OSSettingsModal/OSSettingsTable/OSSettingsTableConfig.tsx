@@ -98,28 +98,21 @@ const tableHeaders: IDataColumn[] = [
   },
 ];
 
-const makeWindowsRows = ({ profiles, os_settings }: IHostMdmData) => {
-  const rows: ITableRowOsSettings[] = [];
-
-  if (profiles) {
-    rows.push(...profiles);
-  }
-
+const makeWindowsRows = ({ os_settings }: IHostMdmData) => {
   if (
-    os_settings?.disk_encryption?.status &&
-    isWindowsDiskEncryptionStatus(os_settings.disk_encryption.status)
+    !os_settings?.disk_encryption?.status ||
+    !isWindowsDiskEncryptionStatus(os_settings.disk_encryption.status)
   ) {
-    rows.push(
-      generateWinDiskEncryptionProfile(
-        os_settings.disk_encryption.status,
-        os_settings.disk_encryption.detail
-      )
-    );
-  }
-
-  if (rows.length === 0 && !profiles) {
     return null;
   }
+
+  const rows: ITableRowOsSettings[] = [];
+  rows.push(
+    generateWinDiskEncryptionProfile(
+      os_settings.disk_encryption.status,
+      os_settings.disk_encryption.detail
+    )
+  );
 
   return rows;
 };
