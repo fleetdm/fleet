@@ -53,7 +53,7 @@ module "free" {
     cluster_name = local.customer_free
   }
   fleet_config = {
-    image               = var.fleet_image
+    image               = local.fleet_image
     family              = local.customer_free
     security_group_name = local.customer_free
     awslogs = {
