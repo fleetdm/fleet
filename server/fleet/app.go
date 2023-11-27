@@ -161,7 +161,7 @@ type MDM struct {
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
-	WindowsSettings WindowsSettings `json:"windows_settings"`
+	// WindowsSettings WindowsSettings `json:"windows_settings"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -502,11 +502,11 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.Scripts = optjson.SetSlice(scripts)
 	}
 
-	if c.MDM.WindowsSettings.CustomSettings.Set {
-		windowsSettings := make([]string, len(c.MDM.WindowsSettings.CustomSettings.Value))
-		copy(windowsSettings, c.MDM.WindowsSettings.CustomSettings.Value)
-		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
-	}
+	//	if c.MDM.WindowsSettings.CustomSettings.Set {
+	//		windowsSettings := make([]string, len(c.MDM.WindowsSettings.CustomSettings.Value))
+	//		copy(windowsSettings, c.MDM.WindowsSettings.CustomSettings.Value)
+	//		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
+	//	}
 
 	return &clone
 }

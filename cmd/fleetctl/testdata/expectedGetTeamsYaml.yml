@@ -13,8 +13,6 @@ spec:
         deadline: null
       macos_settings:
         custom_settings:
-      windows_settings:
-        custom_settings:
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
@@ -44,8 +42,6 @@ spec:
         minimum_version: "12.3.1"
         deadline: "2021-12-14"
       macos_settings:
-        custom_settings:
-      windows_settings:
         custom_settings:
       macos_setup:
         bootstrap_package:
