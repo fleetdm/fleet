@@ -174,7 +174,12 @@ func (e MDMAppleCommandTimeoutError) StatusCode() int {
 // Configuration profiles are used to configure Apple devices .
 // See also https://developer.apple.com/documentation/devicemanagement/configuring_multiple_devices_using_profiles.
 type MDMAppleConfigProfile struct {
-	// ProfileID is the unique id of the configuration profile in Fleet
+	// ProfileUUID is the unique identifier of the configuration profile in
+	// Fleet. For Apple profiles, it is the letter "a" followed by a uuid.
+	ProfileUUID string `db:"profile_uuid" json:"profile_uuid"`
+	// Deprecated: ProfileID is the old unique id of the configuration profile in
+	// Fleet. It is still maintained and generated for new profiles, but only
+	// used in legacy API endpoints.
 	ProfileID uint `db:"profile_id" json:"profile_id"`
 	// TeamID is the id of the team with which the configuration is associated. A nil team id
 	// represents a configuration profile that is not associated with any team.

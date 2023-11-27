@@ -84,18 +84,25 @@ func testNewMDMAppleConfigProfileDuplicateName(t *testing.T, ds *Datastore) {
 	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 0))
 	require.NoError(t, err)
 	require.NotZero(t, profA.ProfileID)
+	require.NotEmpty(t, profA.ProfileUUID)
+	require.Equal(t, "a", string(profA.ProfileUUID[0]))
 	profB, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 0))
 	require.NoError(t, err)
 	require.NotZero(t, profB.ProfileID)
+	require.NotEmpty(t, profB.ProfileUUID)
+	require.Equal(t, "a", string(profB.ProfileUUID[0]))
 	// create a Windows profile for no-team
 	profC, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "c", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
 	require.NoError(t, err)
 	require.NotEmpty(t, profC.ProfileUUID)
+	require.Equal(t, "w", string(profC.ProfileUUID[0]))
 
 	// create the same name for team 1 as Apple profile
 	profATm, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 1))
 	require.NoError(t, err)
 	require.NotZero(t, profATm.ProfileID)
+	require.NotEmpty(t, profATm.ProfileUUID)
+	require.Equal(t, "a", string(profATm.ProfileUUID[0]))
 	require.NotNil(t, profATm.TeamID)
 	require.Equal(t, uint(1), *profATm.TeamID)
 	// create the same B profile for team 1 as Windows profile
@@ -860,11 +867,13 @@ func expectAppleProfiles(
 	// profile identifier as key to profile ID as value
 	m := make(map[string]uint)
 	for _, gotp := range got {
+		// TODO(mna): switch test to use uuid?
 		m[gotp.Identifier] = gotp.ProfileID
 		if gotp.TeamID != nil && *gotp.TeamID == 0 {
 			gotp.TeamID = nil
 		}
 		gotp.ProfileID = 0
+		gotp.ProfileUUID = ""
 		gotp.CreatedAt = time.Time{}
 		gotp.UpdatedAt = time.Time{}
 	}
@@ -3579,6 +3588,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 
 	// simulate expired grace period by setting updated_at timestamp of profiles back by 24 hours
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		// TODO(mna): switch to uuid?
 		_, err := tx.ExecContext(ctx,
 			`UPDATE mdm_apple_configuration_profiles SET updated_at = ? WHERE profile_id IN(?, ?, ?)`,
 			time.Now().Add(-24*time.Hour),
@@ -4100,6 +4110,7 @@ func testMDMAppleConfigProfileHash(t *testing.T, ds *Datastore) {
 			require.NotEmpty(t, goHash)
 
 			var id uint
+			// TODO(mna): switch test to use uuid?
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				return sqlx.GetContext(ctx, q, &id, `SELECT profile_id FROM mdm_apple_configuration_profiles WHERE checksum = UNHEX(?)`, goHash)
 			})
@@ -4268,6 +4279,7 @@ func TestMDMProfileVerification(t *testing.T) {
 	}
 
 	setProfileUpdatedAt := func(t *testing.T, cp *fleet.MDMAppleConfigProfile, ua time.Time) {
+		// TODO(mna): switch test to use uuid?
 		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			_, err := tx.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles SET updated_at = ? WHERE profile_id = ?`, ua, cp.ProfileID)
 			return err

@@ -8186,9 +8186,10 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		// create it directly in the DB to test deletion
 		var id int64
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			// TODO(mna): switch test to use uuid
 			mc := mcBytesForTest(p, p, uuid.New().String())
 			res, err := q.ExecContext(ctx,
-				"INSERT INTO mdm_apple_configuration_profiles (identifier, name, mobileconfig, checksum, team_id) VALUES (?, ?, ?, ?, ?)",
+				"INSERT INTO mdm_apple_configuration_profiles (profile_uuid, identifier, name, mobileconfig, checksum, team_id) VALUES (CONCAT('a', uuid()), ?, ?, ?, ?, ?)",
 				p, p, mc, "1234", 0)
 			if err != nil {
 				return err
@@ -8200,6 +8201,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		var deleteResp deleteMDMConfigProfileResponse
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", id), nil, http.StatusBadRequest, &deleteResp)
 
+		// TODO(mna): switch test to use uuid
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
 				"DELETE FROM mdm_apple_configuration_profiles WHERE profile_id = ?",

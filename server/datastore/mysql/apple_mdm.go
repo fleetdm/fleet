@@ -23,10 +23,11 @@ import (
 )
 
 func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+	profUUID := "a" + uuid.New().String()
 	stmt := `
 INSERT INTO
-    mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig, checksum)
-(SELECT ?, ?, ?, ?, UNHEX(MD5(?)) FROM DUAL WHERE
+    mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum)
+(SELECT ?, ?, ?, ?, ?, UNHEX(MD5(?)) FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
 	)
@@ -37,7 +38,8 @@ INSERT INTO
 		teamID = *cp.TeamID
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.Name, teamID)
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		profUUID, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.Name, teamID)
 	if err != nil {
 		switch {
 		case isDuplicate(err):
@@ -59,6 +61,7 @@ INSERT INTO
 	id, _ := res.LastInsertId()
 
 	return &fleet.MDMAppleConfigProfile{
+		ProfileUUID:  profUUID,
 		ProfileID:    uint(id),
 		Identifier:   cp.Identifier,
 		Name:         cp.Name,
@@ -89,6 +92,7 @@ func formatErrorDuplicateConfigProfile(err error, cp *fleet.MDMAppleConfigProfil
 func (ds *Datastore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
 	stmt := `
 SELECT
+	profile_uuid,
 	profile_id,
 	team_id,
 	name,
@@ -123,9 +127,11 @@ ORDER BY name`
 	return res, nil
 }
 
+// TODO(mna): get by UUID?
 func (ds *Datastore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
 	stmt := `
 SELECT
+	profile_uuid,
 	profile_id,
 	team_id,
 	name,
@@ -151,6 +157,7 @@ WHERE
 	return &res, nil
 }
 
+// TODO(mna): delete by UUID?
 func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error {
 	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE profile_id=?`, profileID)
 	if err != nil {
@@ -1128,10 +1135,10 @@ WHERE
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_apple_configuration_profiles (
-    team_id, identifier, name, mobileconfig, checksum
+    profile_uuid, team_id, identifier, name, mobileconfig, checksum
   )
 VALUES
-  ( ?, ?, ?, ?, UNHEX(MD5(mobileconfig)) )
+  ( CONCAT('a', uuid()), ?, ?, ?, ?, UNHEX(MD5(mobileconfig)) )
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   mobileconfig = VALUES(mobileconfig),
@@ -1608,6 +1615,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	return profiles, err
 }
 
+// TODO(mna): by uuids?
 func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, ids []uint) (map[uint]mobileconfig.Mobileconfig, error) {
 	if len(ids) == 0 {
 		return nil, nil
@@ -2360,12 +2368,12 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
 		}
 
 		args = append(args, teamID, cp.Identifier, cp.Name, cp.Mobileconfig)
-		sb.WriteString("(?, ?, ?, ?, UNHEX(MD5(mobileconfig))),")
+		sb.WriteString("(CONCAT('a', uuid()), ?, ?, ?, ?, UNHEX(MD5(mobileconfig))),")
 	}
 
 	stmt := fmt.Sprintf(`
           INSERT INTO
-              mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig, checksum)
+              mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum)
           VALUES %s
           ON DUPLICATE KEY UPDATE
             mobileconfig = VALUES(mobileconfig),
@@ -2599,6 +2607,7 @@ func getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx context.Context, tx sqlx.
 
 	stmt := `
 SELECT
+	profile_uuid,
 	profile_id,
 	team_id,
 	name,

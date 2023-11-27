@@ -104,7 +104,7 @@ func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, op
 
 	const selectStmt = `
 SELECT
-	profile_id,
+	profile_uuid,
 	team_id,
 	name,
 	platform,
@@ -114,7 +114,7 @@ SELECT
 	updated_at
 FROM (
 	SELECT
-		CONVERT(profile_id, CHAR) as profile_id,
+		profile_uuid,
 		team_id,
 		name,
 		'darwin' as platform,
@@ -131,7 +131,7 @@ FROM (
 	UNION
 
 	SELECT
-		profile_uuid as profile_id,
+		profile_uuid,
 		team_id,
 		name,
 		'windows' as platform,
