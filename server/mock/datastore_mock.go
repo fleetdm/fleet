@@ -548,11 +548,15 @@ type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConf
 
 type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error
 
-type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
+type GetMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
+
+type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error)
 
 type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
 
-type DeleteMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) error
+type DeleteMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) error
+
+type DeleteMDMAppleConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
 type BulkDeleteMDMAppleHostsConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error
 
@@ -620,7 +624,7 @@ type BulkUpsertMDMAppleHostProfilesFunc func(ctx context.Context, payload []*fle
 
 type BulkSetPendingMDMHostProfilesFunc func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileIDs []uint, profileUUIDs []string, hostUUIDs []string) error
 
-type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error)
+type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error)
 
 type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error
 
@@ -1550,11 +1554,17 @@ type DataStore struct {
 	BulkUpsertMDMAppleConfigProfilesFunc        BulkUpsertMDMAppleConfigProfilesFunc
 	BulkUpsertMDMAppleConfigProfilesFuncInvoked bool
 
+	GetMDMAppleConfigProfileByDeprecatedIDFunc        GetMDMAppleConfigProfileByDeprecatedIDFunc
+	GetMDMAppleConfigProfileByDeprecatedIDFuncInvoked bool
+
 	GetMDMAppleConfigProfileFunc        GetMDMAppleConfigProfileFunc
 	GetMDMAppleConfigProfileFuncInvoked bool
 
 	ListMDMAppleConfigProfilesFunc        ListMDMAppleConfigProfilesFunc
 	ListMDMAppleConfigProfilesFuncInvoked bool
+
+	DeleteMDMAppleConfigProfileByDeprecatedIDFunc        DeleteMDMAppleConfigProfileByDeprecatedIDFunc
+	DeleteMDMAppleConfigProfileByDeprecatedIDFuncInvoked bool
 
 	DeleteMDMAppleConfigProfileFunc        DeleteMDMAppleConfigProfileFunc
 	DeleteMDMAppleConfigProfileFuncInvoked bool
@@ -3717,11 +3727,18 @@ func (s *DataStore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payloa
 	return s.BulkUpsertMDMAppleConfigProfilesFunc(ctx, payload)
 }
 
-func (s *DataStore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
+func (s *DataStore) GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
+	s.mu.Lock()
+	s.GetMDMAppleConfigProfileByDeprecatedIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleConfigProfileByDeprecatedIDFunc(ctx, profileID)
+}
+
+func (s *DataStore) GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error) {
 	s.mu.Lock()
 	s.GetMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMAppleConfigProfileFunc(ctx, profileID)
+	return s.GetMDMAppleConfigProfileFunc(ctx, profileUUID)
 }
 
 func (s *DataStore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
@@ -3731,11 +3748,18 @@ func (s *DataStore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint
 	return s.ListMDMAppleConfigProfilesFunc(ctx, teamID)
 }
 
-func (s *DataStore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error {
+func (s *DataStore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error {
+	s.mu.Lock()
+	s.DeleteMDMAppleConfigProfileByDeprecatedIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMAppleConfigProfileByDeprecatedIDFunc(ctx, profileID)
+}
+
+func (s *DataStore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
 	s.mu.Lock()
 	s.DeleteMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteMDMAppleConfigProfileFunc(ctx, profileID)
+	return s.DeleteMDMAppleConfigProfileFunc(ctx, profileUUID)
 }
 
 func (s *DataStore) BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
@@ -3969,11 +3993,11 @@ func (s *DataStore) BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs [
 	return s.BulkSetPendingMDMHostProfilesFunc(ctx, hostIDs, teamIDs, profileIDs, profileUUIDs, hostUUIDs)
 }
 
-func (s *DataStore) GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error) {
+func (s *DataStore) GetMDMAppleProfilesContents(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error) {
 	s.mu.Lock()
 	s.GetMDMAppleProfilesContentsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMAppleProfilesContentsFunc(ctx, profileIDs)
+	return s.GetMDMAppleProfilesContentsFunc(ctx, profileUUIDs)
 }
 
 func (s *DataStore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {

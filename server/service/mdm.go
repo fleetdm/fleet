@@ -978,12 +978,12 @@ func (svc *Service) authorizeAllHostsTeams(ctx context.Context, hostUUIDs []stri
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/profiles/{id_or_uuid}
+// GET /mdm/profiles/{uuid}
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMConfigProfileRequest struct {
-	ProfileIDOrUUID string `url:"profile_id_or_uuid"`
-	Alt             string `query:"alt,optional"`
+	ProfileUUID string `url:"profile_uuid"`
+	Alt         string `query:"alt,optional"`
 }
 
 type getMDMConfigProfileResponse struct {
@@ -997,11 +997,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	req := request.(*getMDMConfigProfileRequest)
 
 	downloadRequested := req.Alt == "media"
-	appleID, isApple := isAppleProfileID(req.ProfileIDOrUUID)
 	var err error
-	if isApple {
+	if isAppleProfileUUID(req.ProfileUUID) {
 		// Apple config profile
-		cp, err := svc.GetMDMAppleConfigProfile(ctx, appleID)
+		cp, err := svc.GetMDMAppleConfigProfile(ctx, req.ProfileUUID)
 		if err != nil {
 			return &getMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1019,7 +1018,7 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	// Windows config profile
-	cp, err := svc.GetMDMWindowsConfigProfile(ctx, req.ProfileIDOrUUID)
+	cp, err := svc.GetMDMWindowsConfigProfile(ctx, req.ProfileUUID)
 	if err != nil {
 		return &getMDMConfigProfileResponse{Err: err}, nil
 	}
@@ -1057,11 +1056,11 @@ func (svc *Service) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// DELETE /mdm/profiles/{id_or_uuid}
+// DELETE /mdm/profiles/{uuid}
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMConfigProfileRequest struct {
-	ProfileIDOrUUID string `url:"profile_id_or_uuid"`
+	ProfileUUID string `url:"profile_uuid"`
 }
 
 type deleteMDMConfigProfileResponse struct {
@@ -1073,12 +1072,11 @@ func (r deleteMDMConfigProfileResponse) error() error { return r.Err }
 func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteMDMConfigProfileRequest)
 
-	appleID, isApple := isAppleProfileID(req.ProfileIDOrUUID)
 	var err error
-	if isApple {
-		err = svc.DeleteMDMAppleConfigProfile(ctx, appleID)
+	if isAppleProfileUUID(req.ProfileUUID) {
+		err = svc.DeleteMDMAppleConfigProfile(ctx, req.ProfileUUID)
 	} else {
-		err = svc.DeleteMDMWindowsConfigProfile(ctx, req.ProfileIDOrUUID)
+		err = svc.DeleteMDMWindowsConfigProfile(ctx, req.ProfileUUID)
 	}
 	return &deleteMDMConfigProfileResponse{Err: err}, nil
 }
@@ -1146,14 +1144,11 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 
 // returns the numeric Apple profile ID and true if it is an Apple identifier,
 // or 0 and false otherwise.
-func isAppleProfileID(profileIDOrUUID string) (uint, bool) {
-	// parsing as 32 bits as that's the maximum value of the DB column (and can
-	// be safely converted to uint).
-	id, err := strconv.ParseUint(profileIDOrUUID, 10, 32)
-	if err != nil {
-		return 0, false
+func isAppleProfileUUID(profileUUID string) bool {
+	if strings.HasPrefix(profileUUID, "a") {
+		return true
 	}
-	return uint(id), true
+	return false
 }
 
 ////////////////////////////////////////////////////////////////////////////////
