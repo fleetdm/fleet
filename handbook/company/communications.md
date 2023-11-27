@@ -526,7 +526,7 @@ Variable compensation (i.e. commission) is reviewed and submitted for processing
 ### Workiversaries
 We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The  team will post in Slack to highlight your dedication and contribution to Fleet, giving an opportunity for teammates to share their appreciation of your contribution!
 
-Fleet also [evaluates and (if necessary) updates compensation decisions yearly](#compensation-changes), shortly after the anniversary of a team member's start date.
+Fleet also [evaluates and (if necessary) updates compensation decisions yearly](https://fleetdm.com/handbook/business-operations#compensation-changes), shortly after the anniversary of a team member's start date.
 
 ### Relocating
 When Fleeties relocate, there are vendors that need to be notified of the change. 
