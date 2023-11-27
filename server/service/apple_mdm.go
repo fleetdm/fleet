@@ -460,7 +460,7 @@ func (r getMDMAppleConfigProfileResponse) hijackRender(ctx context.Context, w ht
 func getMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMAppleConfigProfileRequest)
 
-	cp, err := svc.GetMDMAppleConfigProfile(ctx, req.ProfileID)
+	cp, err := svc.GetMDMAppleConfigProfileByDeprecatedID(ctx, req.ProfileID)
 	if err != nil {
 		return getMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -470,13 +470,31 @@ func getMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	return getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: fileName}, nil
 }
 
-func (svc *Service) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
 	// first we perform a perform basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	cp, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileID)
+	cp, err := svc.ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, profileID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// call the standard service method with a profile UUID that will not be
+			// found, just to ensure the same sequence of validations are applied.
+			return svc.GetMDMAppleConfigProfile(ctx, "-")
+		}
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	return svc.GetMDMAppleConfigProfile(ctx, cp.ProfileUUID)
+}
+
+func (svc *Service) GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error) {
+	// first we perform a perform basic authz check
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	cp, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -502,14 +520,33 @@ func (r deleteMDMAppleConfigProfileResponse) error() error { return r.Err }
 func deleteMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteMDMAppleConfigProfileRequest)
 
-	if err := svc.DeleteMDMAppleConfigProfile(ctx, req.ProfileID); err != nil {
+	if err := svc.DeleteMDMAppleConfigProfileByDeprecatedID(ctx, req.ProfileID); err != nil {
 		return &deleteMDMAppleConfigProfileResponse{Err: err}, nil
 	}
 
 	return &deleteMDMAppleConfigProfileResponse{}, nil
 }
 
-func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error {
+func (svc *Service) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error {
+	// first we perform a perform basic authz check
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// get the profile by ID and call the standard delete function
+	cp, err := svc.ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, profileID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// call the standard service method with a profile UUID that will not be
+			// found, just to ensure the same sequence of validations are applied.
+			return svc.DeleteMDMAppleConfigProfile(ctx, "-")
+		}
+		return ctxerr.Wrap(ctx, err)
+	}
+	return svc.DeleteMDMAppleConfigProfile(ctx, cp.ProfileUUID)
+}
+
+func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
 	// first we perform a perform basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -522,7 +559,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 		return ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
 	}
 
-	cp, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileID)
+	cp, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -550,7 +587,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 		}
 	}
 
-	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, profileID); err != nil {
+	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, profileUUID); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 	// cannot use the profile ID as it is now deleted
@@ -2433,11 +2470,11 @@ func ReconcileAppleProfiles(
 
 	// Perform aggregations to support all the operations we need to do
 
-	// toGetContents contains the IDs of all the profiles from which we
+	// toGetContents contains the UUIDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
 	// per host, it would be too expensive to retrieve the profile contents
 	// there, so we make another request. Using a map to deduplicate.
-	toGetContents := make(map[uint]bool)
+	toGetContents := make(map[string]bool)
 
 	// hostProfiles tracks each host_mdm_apple_profile we need to upsert
 	// with the new status, operation_type, etc.
@@ -2459,7 +2496,7 @@ func ReconcileAppleProfiles(
 	// command.
 	hostProfilesToCleanup := []*fleet.MDMAppleProfilePayload{}
 
-	// install/removeTargets are maps from profileID -> command uuid and host
+	// install/removeTargets are maps from profileUUID -> command uuid and host
 	// UUIDs as the underlying MDM services are optimized to send one command to
 	// multiple hosts at the same time. Note that the same command uuid is used
 	// for all hosts in a given install/remove target operation.
@@ -2468,7 +2505,7 @@ func ReconcileAppleProfiles(
 		profIdent string
 		hostUUIDs []string
 	}
-	installTargets, removeTargets := make(map[uint]*cmdTarget), make(map[uint]*cmdTarget)
+	installTargets, removeTargets := make(map[string]*cmdTarget), make(map[string]*cmdTarget)
 	for _, p := range toInstall {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
 			// if the profile was in any other status than `failed`
@@ -2477,7 +2514,7 @@ func ReconcileAppleProfiles(
 			// command.
 			if pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
 				hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
-					ProfileID:         p.ProfileID,
+					ProfileUUID:       p.ProfileUUID,
 					HostUUID:          p.HostUUID,
 					ProfileIdentifier: p.ProfileIdentifier,
 					ProfileName:       p.ProfileName,
@@ -2490,20 +2527,20 @@ func ReconcileAppleProfiles(
 				continue
 			}
 		}
-		toGetContents[p.ProfileID] = true
+		toGetContents[p.ProfileUUID] = true
 
-		target := installTargets[p.ProfileID]
+		target := installTargets[p.ProfileUUID]
 		if target == nil {
 			target = &cmdTarget{
 				cmdUUID:   uuid.New().String(),
 				profIdent: p.ProfileIdentifier,
 			}
-			installTargets[p.ProfileID] = target
+			installTargets[p.ProfileUUID] = target
 		}
 		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
 
 		hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
-			ProfileID:         p.ProfileID,
+			ProfileUUID:       p.ProfileUUID,
 			HostUUID:          p.HostUUID,
 			OperationType:     fleet.MDMOperationTypeInstall,
 			Status:            &fleet.MDMDeliveryPending,
@@ -2520,18 +2557,18 @@ func ReconcileAppleProfiles(
 			continue
 		}
 
-		target := removeTargets[p.ProfileID]
+		target := removeTargets[p.ProfileUUID]
 		if target == nil {
 			target = &cmdTarget{
 				cmdUUID:   uuid.New().String(),
 				profIdent: p.ProfileIdentifier,
 			}
-			removeTargets[p.ProfileID] = target
+			removeTargets[p.ProfileUUID] = target
 		}
 		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
 
 		hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
-			ProfileID:         p.ProfileID,
+			ProfileUUID:       p.ProfileUUID,
 			HostUUID:          p.HostUUID,
 			OperationType:     fleet.MDMOperationTypeRemove,
 			Status:            &fleet.MDMDeliveryPending,
@@ -2562,11 +2599,11 @@ func ReconcileAppleProfiles(
 	}
 
 	// Grab the contents of all the profiles we need to install
-	profileIDs := make([]uint, 0, len(toGetContents))
-	for pid := range toGetContents {
-		profileIDs = append(profileIDs, pid)
+	profileUUIDs := make([]string, 0, len(toGetContents))
+	for pUUID := range toGetContents {
+		profileUUIDs = append(profileUUIDs, pUUID)
 	}
-	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, profileIDs)
+	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, profileUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
@@ -2580,13 +2617,13 @@ func ReconcileAppleProfiles(
 	var wgProd, wgCons sync.WaitGroup
 	ch := make(chan remoteResult)
 
-	execCmd := func(profID uint, target *cmdTarget, op fleet.MDMOperationType) {
+	execCmd := func(profUUID string, target *cmdTarget, op fleet.MDMOperationType) {
 		defer wgProd.Done()
 
 		var err error
 		switch op {
 		case fleet.MDMOperationTypeInstall:
-			err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profID], target.cmdUUID)
+			err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
 		case fleet.MDMOperationTypeRemove:
 			err = commander.RemoveProfile(ctx, target.hostUUIDs, target.profIdent, target.cmdUUID)
 		}
@@ -2600,13 +2637,13 @@ func ReconcileAppleProfiles(
 			ch <- remoteResult{err, target.cmdUUID}
 		}
 	}
-	for profID, target := range installTargets {
+	for profUUID, target := range installTargets {
 		wgProd.Add(1)
-		go execCmd(profID, target, fleet.MDMOperationTypeInstall)
+		go execCmd(profUUID, target, fleet.MDMOperationTypeInstall)
 	}
-	for profID, target := range removeTargets {
+	for profUUID, target := range removeTargets {
 		wgProd.Add(1)
-		go execCmd(profID, target, fleet.MDMOperationTypeRemove)
+		go execCmd(profUUID, target, fleet.MDMOperationTypeRemove)
 	}
 
 	// index the host profiles by cmdUUID, for ease of error processing in the

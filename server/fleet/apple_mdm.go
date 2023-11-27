@@ -278,7 +278,7 @@ func (d HostMDMProfileDetail) Message() string {
 }
 
 type MDMAppleProfilePayload struct {
-	ProfileID         uint               `db:"profile_id"`
+	ProfileUUID       string             `db:"profile_uuid"`
 	ProfileIdentifier string             `db:"profile_identifier"`
 	ProfileName       string             `db:"profile_name"`
 	HostUUID          string             `db:"host_uuid"`
@@ -290,7 +290,7 @@ type MDMAppleProfilePayload struct {
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
-	ProfileID         uint
+	ProfileUUID       string
 	ProfileIdentifier string
 	ProfileName       string
 	HostUUID          string

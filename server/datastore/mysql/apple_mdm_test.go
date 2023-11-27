@@ -1414,24 +1414,24 @@ func testGetMDMAppleProfilesContents(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	cases := []struct {
-		ids  []uint
-		want map[uint]mobileconfig.Mobileconfig
+		uuids []string
+		want  map[string]mobileconfig.Mobileconfig
 	}{
-		{[]uint{}, nil},
+		{[]string{}, nil},
 		{nil, nil},
-		{[]uint{profiles[0].ProfileID}, map[uint]mobileconfig.Mobileconfig{profiles[0].ProfileID: profiles[0].Mobileconfig}},
+		{[]string{profiles[0].ProfileUUID}, map[string]mobileconfig.Mobileconfig{profiles[0].ProfileUUID: profiles[0].Mobileconfig}},
 		{
-			[]uint{profiles[0].ProfileID, profiles[1].ProfileID, profiles[2].ProfileID},
-			map[uint]mobileconfig.Mobileconfig{
-				profiles[0].ProfileID: profiles[0].Mobileconfig,
-				profiles[1].ProfileID: profiles[1].Mobileconfig,
-				profiles[2].ProfileID: profiles[2].Mobileconfig,
+			[]string{profiles[0].ProfileUUID, profiles[1].ProfileUUID, profiles[2].ProfileUUID},
+			map[string]mobileconfig.Mobileconfig{
+				profiles[0].ProfileUUID: profiles[0].Mobileconfig,
+				profiles[1].ProfileUUID: profiles[1].Mobileconfig,
+				profiles[2].ProfileUUID: profiles[2].Mobileconfig,
 			},
 		},
 	}
 
 	for _, c := range cases {
-		out, err := ds.GetMDMAppleProfilesContents(ctx, c.ids)
+		out, err := ds.GetMDMAppleProfilesContents(ctx, c.uuids)
 		require.NoError(t, err)
 		require.Equal(t, c.want, out)
 	}

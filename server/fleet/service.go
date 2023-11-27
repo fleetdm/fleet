@@ -598,10 +598,18 @@ type Service interface {
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader) (*MDMAppleConfigProfile, error)
+	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
+	// configuration profile via its numeric ID. This method is deprecated and
+	// should not be used for new endpoints.
+	GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile retrieves the specified configuration profile.
-	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
+	GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*MDMAppleConfigProfile, error)
+	// DeleteMDMAppleConfigProfileByDeprecatedID deletes the specified Apple
+	// configuration profile via its numeric ID. This method is deprecated and
+	// should not be used for new endpoints.
+	DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error
 	// DeleteMDMAppleConfigProfile deletes the specified configuration profile.
-	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error
+	DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error
 	// ListMDMAppleConfigProfiles returns the list of all the configuration profiles for the
 	// specified team.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
