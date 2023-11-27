@@ -8,31 +8,40 @@ $shadow-transition-width: 10px;
 
   .data-table {
     &__wrapper {
+      box-sizing: border-box;
       position: relative;
       border: 1px solid $ui-fleet-black-10;
       border-radius: 6px;
       margin-top: $pad-small;
       flex-grow: 1;
       width: 100%;
-
-      // Shadow
+    }
+    &__shadow_wrapper {
+      position: relative;
+    }
+    &__shadow {
+      border-radius: 6px;
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      z-index: 2;
+      pointer-events: none;
       background-image:
-      /* Shadows */ linear-gradient(
-          to right,
-          white,
-          $transparent
-        ),
-        linear-gradient(to left, white, $transparent),
+        /* Shadows */
+        linear-gradient(to right,
+          transparent,
+          $transparent ),
+        linear-gradient(to left, transparent, $transparent),
         /* Shadow covers */
-          linear-gradient(to right, $ui-shadow, white $shadow-transition-width),
-        linear-gradient(to left, $ui-shadow, white $shadow-transition-width);
-
+        linear-gradient(to right, $ui-shadow, transparent $shadow-transition-width),
+        linear-gradient(to left, $ui-shadow, transparent $shadow-transition-width);
+    
       background-position: left center, right center, left center, right center;
       background-repeat: no-repeat;
-      background-color: white;
+      background-color: transparent;
       background-size: $shadow-width 100%, $shadow-width 100%, 50% 100%,
         50% 100%;
-
+    
       /* Opera doesn't support this in the shorthand */
       background-attachment: local, local, scroll, scroll;
       // End shadow

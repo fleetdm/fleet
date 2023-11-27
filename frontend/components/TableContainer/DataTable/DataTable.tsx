@@ -450,103 +450,109 @@ const DataTable = ({
           <Spinner />
         </div>
       )}
-      <div className={"data-table data-table__wrapper"}>
-        <table className={tableStyles}>
-          {Object.keys(selectedRowIds).length !== 0 && (
-            <thead className={"active-selection"}>
-              <tr {...headerGroups[0].getHeaderGroupProps()}>
-                <th
-                  className={"active-selection__checkbox"}
-                  {...headerGroups[0].headers[0].getHeaderProps(
-                    headerGroups[0].headers[0].getSortByToggleProps()
-                  )}
-                >
-                  {headerGroups[0].headers[0].render("Header")}
-                </th>
-                <th className={"active-selection__container"}>
-                  <div className={"active-selection__inner"}>
-                    {renderSelectedCount()}
-                    <div className={"active-selection__inner-left"}>
-                      {secondarySelectActions && renderSecondarySelectActions()}
-                    </div>
-                    <div className={"active-selection__inner-right"}>
-                      {primarySelectAction && renderPrimarySelectAction()}
-                    </div>
-                    {toggleAllPagesSelected && renderAreAllSelected()}
-                    {shouldRenderToggleAllPages && (
-                      <Button
-                        onClick={onToggleAllPagesClick}
-                        variant={"text-link"}
-                        className={"light-text"}
-                      >
-                        <>Select all matching {resultsTitle}</>
-                      </Button>
+      <div className="data-table__shadow_wrapper">
+        <div className="data-table__shadow" />
+        <div className={"data-table data-table__wrapper"}>
+          <table className={tableStyles}>
+            {Object.keys(selectedRowIds).length !== 0 && (
+              <thead className={"active-selection"}>
+                <tr {...headerGroups[0].getHeaderGroupProps()}>
+                  <th
+                    className={"active-selection__checkbox"}
+                    {...headerGroups[0].headers[0].getHeaderProps(
+                      headerGroups[0].headers[0].getSortByToggleProps()
                     )}
-                    <Button
-                      onClick={onClearSelectionClick}
-                      variant={"text-link"}
-                    >
-                      Clear selection
-                    </Button>
-                  </div>
-                </th>
-              </tr>
-            </thead>
-          )}
-          <thead>
-            {headerGroups.map((headerGroup) => (
-              <tr {...headerGroup.getHeaderGroupProps()}>
-                {headerGroup.headers.map((column) => {
-                  return (
-                    <th
-                      className={column.id ? `${column.id}__header` : ""}
-                      {...column.getHeaderProps(column.getSortByToggleProps())}
-                    >
-                      {renderColumnHeader(column)}
-                    </th>
-                  );
-                })}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {pageOrRows.map((row: Row) => {
-              prepareRow(row);
-
-              const rowStyles = classnames({
-                "single-row": disableMultiRowSelect,
-                "disable-highlight": disableHighlightOnHover,
-              });
-              return (
-                <tr
-                  className={rowStyles}
-                  {...row.getRowProps({
-                    // @ts-ignore // TS complains about prop not existing
-                    onClick: () => {
-                      onSingleRowClick &&
-                        disableMultiRowSelect &&
-                        onSingleRowClick(row);
-                    },
-                  })}
-                >
-                  {row.cells.map((cell: any) => {
-                    return (
-                      <td
-                        key={cell.column.id}
-                        className={
-                          cell.column.id ? `${cell.column.id}__cell` : ""
-                        }
-                        {...cell.getCellProps()}
+                  >
+                    {headerGroups[0].headers[0].render("Header")}
+                  </th>
+                  <th className={"active-selection__container"}>
+                    <div className={"active-selection__inner"}>
+                      {renderSelectedCount()}
+                      <div className={"active-selection__inner-left"}>
+                        {secondarySelectActions &&
+                          renderSecondarySelectActions()}
+                      </div>
+                      <div className={"active-selection__inner-right"}>
+                        {primarySelectAction && renderPrimarySelectAction()}
+                      </div>
+                      {toggleAllPagesSelected && renderAreAllSelected()}
+                      {shouldRenderToggleAllPages && (
+                        <Button
+                          onClick={onToggleAllPagesClick}
+                          variant={"text-link"}
+                          className={"light-text"}
+                        >
+                          <>Select all matching {resultsTitle}</>
+                        </Button>
+                      )}
+                      <Button
+                        onClick={onClearSelectionClick}
+                        variant={"text-link"}
                       >
-                        {cell.render("Cell")}
-                      </td>
+                        Clear selection
+                      </Button>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+            )}
+            <thead>
+              {headerGroups.map((headerGroup) => (
+                <tr {...headerGroup.getHeaderGroupProps()}>
+                  {headerGroup.headers.map((column) => {
+                    return (
+                      <th
+                        className={column.id ? `${column.id}__header` : ""}
+                        {...column.getHeaderProps(
+                          column.getSortByToggleProps()
+                        )}
+                      >
+                        {renderColumnHeader(column)}
+                      </th>
                     );
                   })}
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ))}
+            </thead>
+            <tbody>
+              {pageOrRows.map((row: Row) => {
+                prepareRow(row);
+
+                const rowStyles = classnames({
+                  "single-row": disableMultiRowSelect,
+                  "disable-highlight": disableHighlightOnHover,
+                });
+                return (
+                  <tr
+                    className={rowStyles}
+                    {...row.getRowProps({
+                      // @ts-ignore // TS complains about prop not existing
+                      onClick: () => {
+                        onSingleRowClick &&
+                          disableMultiRowSelect &&
+                          onSingleRowClick(row);
+                      },
+                    })}
+                  >
+                    {row.cells.map((cell: any) => {
+                      return (
+                        <td
+                          key={cell.column.id}
+                          className={
+                            cell.column.id ? `${cell.column.id}__cell` : ""
+                          }
+                          {...cell.getCellProps()}
+                        >
+                          {cell.render("Cell")}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
       <div className={`${baseClass}__footer`}>
         {renderFooter && (
