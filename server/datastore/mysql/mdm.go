@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -184,32 +185,45 @@ FROM (
 // (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
 // slice arguments can have values.
 func (ds *Datastore) BulkSetPendingMDMHostProfiles(
-	// TODO(mna): switch to all uuids, distinguish using uuid prefix?
 	ctx context.Context,
-	hostIDs, teamIDs, profileIDs []uint,
+	hostIDs, teamIDs []uint,
 	profileUUIDs, hostUUIDs []string,
 ) error {
-	var countArgs int
+	var (
+		countArgs    int
+		macProfUUIDs []string
+		winProfUUIDs []string
+	)
+
 	if len(hostIDs) > 0 {
 		countArgs++
 	}
 	if len(teamIDs) > 0 {
 		countArgs++
 	}
-	if len(profileIDs) > 0 {
-		countArgs++
-	}
 	if len(profileUUIDs) > 0 {
 		countArgs++
+
+		// split into mac and win profiles
+		for _, puid := range profileUUIDs {
+			if strings.HasPrefix(puid, "a") {
+				macProfUUIDs = append(macProfUUIDs, puid)
+			} else {
+				winProfUUIDs = append(winProfUUIDs, puid)
+			}
+		}
 	}
 	if len(hostUUIDs) > 0 {
 		countArgs++
 	}
 	if countArgs > 1 {
-		return errors.New("only one of hostIDs, teamIDs, profileIDs, profileUUIDs or hostUUIDs can be provided")
+		return errors.New("only one of hostIDs, teamIDs, profileUUIDs or hostUUIDs can be provided")
 	}
 	if countArgs == 0 {
 		return nil
+	}
+	if len(macProfUUIDs) > 0 && len(winProfUUIDs) > 0 {
+		return errors.New("profile uuids must all be Apple or Windows profiles")
 	}
 
 	var (
@@ -248,8 +262,8 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 			}
 		}
 
-	case len(profileIDs) > 0:
-		// TODO: if a very large number (~65K) of profile IDs was provided, could
+	case len(macProfUUIDs) > 0:
+		// TODO: if a very large number (~65K) of profile UUIDs was provided, could
 		// result in too many placeholders (not an immediate concern).
 		uuidStmt = `
 SELECT DISTINCT h.uuid, h.platform
@@ -257,10 +271,10 @@ FROM hosts h
 JOIN mdm_apple_configuration_profiles macp
 	ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
 WHERE
-	macp.profile_id IN (?) AND h.platform = 'darwin'`
-		args = append(args, profileIDs)
+	macp.profile_uuid IN (?) AND h.platform = 'darwin'`
+		args = append(args, macProfUUIDs)
 
-	case len(profileUUIDs) > 0:
+	case len(winProfUUIDs) > 0:
 		// TODO: if a very large number (~65K) of profile IDs was provided, could
 		// result in too many placeholders (not an immediate concern).
 		uuidStmt = `
@@ -270,7 +284,7 @@ JOIN mdm_windows_configuration_profiles mawp
 	ON h.team_id = mawp.team_id OR (h.team_id IS NULL AND mawp.team_id = 0)
 WHERE
 	mawp.profile_uuid IN (?) AND h.platform = 'windows'`
-		args = append(args, profileUUIDs)
+		args = append(args, winProfUUIDs)
 
 	}
 

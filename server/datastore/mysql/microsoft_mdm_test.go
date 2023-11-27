@@ -525,7 +525,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 					HostUUID:          hosts[5].UUID,
 					ProfileIdentifier: mobileconfig.FleetFileVaultPayloadIdentifier,
 					ProfileName:       "Disk encryption",
-					ProfileID:         1,
+					ProfileUUID:       "a" + uuid.NewString(),
 					CommandUUID:       uuid.New().String(),
 					OperationType:     fleet.MDMOperationTypeInstall,
 					Status:            &fleet.MDMDeliveryFailed,
@@ -1740,6 +1740,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	profC, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("c", "c", 0))
 	require.NoError(t, err)
 	require.NotZero(t, profC.ProfileID)
+	require.NotEmpty(t, profC.ProfileUUID)
 
 	// create the same name for team 1 as Windows profile
 	profATm, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
@@ -1751,6 +1752,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	profBTm, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 1))
 	require.NoError(t, err)
 	require.NotZero(t, profBTm.ProfileID)
+	require.NotEmpty(t, profBTm.ProfileUUID)
 
 	var existsErr *existsError
 	// create a duplicate of Windows for no-team

@@ -1119,7 +1119,7 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 	}
 
 	// cannot use the profile ID as it is now deleted
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -1300,7 +1300,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -1388,16 +1388,16 @@ func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName 
 	for _, p := range windowsProfiles {
 		winProfUUIDs = append(winProfUUIDs, p.ProfileUUID)
 	}
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, nil, winProfUUIDs, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, winProfUUIDs, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
 	}
 
 	// set pending status for apple profiles
-	appleProfIDs := []uint{}
+	appleProfUUIDs := []string{}
 	for _, p := range appleProfiles {
-		appleProfIDs = append(appleProfIDs, p.ProfileID)
+		appleProfUUIDs = append(appleProfUUIDs, p.ProfileUUID)
 	}
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, appleProfIDs, nil, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, appleProfUUIDs, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 	}
 
