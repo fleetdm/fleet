@@ -14,6 +14,7 @@ import DataError from "components/DataError";
 
 import OSVersionTable from "../OSVersionTable";
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
+import OSVersionsEmptyState from "../OSVersionsEmptyState";
 
 /** This overrides the `platform` attribute on IOperatingSystemVersion so that only our filtered platforms (currently
  * "darwin" and "windows") values are included */
@@ -62,6 +63,10 @@ const CurrentVersionSection = ({
           excludeIssueLink
         />
       );
+    }
+
+    if (!data.os_versions) {
+      return <OSVersionsEmptyState />;
     }
 
     // We only want to show windows and mac versions atm.
