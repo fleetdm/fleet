@@ -207,7 +207,7 @@ func testPoliciesNewGlobalPolicyProprietary(t *testing.T, ds *Datastore) {
 func testPoliciesListOptions(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	ctx := context.Background()
-	
+
 	_, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
 		Name:        "apple",
 		Query:       "select 1;",
