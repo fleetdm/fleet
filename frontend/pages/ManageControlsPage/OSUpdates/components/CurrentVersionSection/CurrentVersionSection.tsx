@@ -11,6 +11,7 @@ import {
 import LastUpdatedText from "components/LastUpdatedText";
 import SectionHeader from "components/SectionHeader";
 import DataError from "components/DataError";
+import EmptyTable from "components/EmptyTable";
 
 import OSVersionTable from "../OSVersionTable";
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
@@ -60,6 +61,15 @@ const CurrentVersionSection = ({
         <DataError
           description="Refresh the page to try again."
           excludeIssueLink
+        />
+      );
+    }
+
+    if (!data.os_versions || data.os_versions.length === 0) {
+      return (
+        <EmptyTable
+          header="No Data"
+          info="There are no operating systems to display"
         />
       );
     }
