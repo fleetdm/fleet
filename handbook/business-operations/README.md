@@ -29,6 +29,17 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 | Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Revenue Operations
 | [US contractor payroll](https://fleetdm.com/handbook/business-operations#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Business Operations
 
+### Compensation changes
+Fleet evaluates and (if necessary) updates compensation decisions yearly, shortly after the anniversary of a team member's start date (see [Workiversaries](https://fleetdm.com/handbook/company/communications#workiversaries). The process for that evaluation and update is:
+- On the first Friday of the month, the Head of BizOps posts in the `#help-classified` channel with the list of teammates celebrating anniversaries over the next month.
+- On the day of the fleetiversary, the Head of BizOps or executive team member will post in `#random` celebrating the tenure of the teammate.
+- The Head of BizOps confers with manager or head of department and prepares compensation benchmarking data and schedules time with the CEO and CTO over an existing 1:1 to discuss if an adjustment needs to be made to compensation.
+- During the 1:1 call, founders review benchmarking for role and geography, and decide if there will be an adjustment.
+- Head of BizOps posts to slack in `#help-classified` with the decision on compensation changes and effective date, if any.
+- If a change is to be made, the Head of BizOps communicates decision to the teammate's people manager, who then communicates to their teammate.
+- Head of BizOps updates the respective payroll platform (Gusto or Plane) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
+- If an additional equity grant is part of this compensation change, the previous equity and new situation is noted in detail in the "Notes" column of the equity plan, and the "Grant started?" column is set back to "todo" to add it to the queue for the next time grants are processed (quarterly).
+
 ### Reconcile monthly recurring expenses
 Recurring monthly or annual expenses, such as the tools we use throughout Fleet, are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(¶confidential Google Sheet)_, along with their payment source. Reconciliation of recurring expenses happens monthly. <!-- TODO: Merge "🧮 The Numbers" and  ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing) -->
 
