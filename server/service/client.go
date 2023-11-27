@@ -644,42 +644,42 @@ func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
 	return csStrings
 }
 
-func extractAppCfgWindowsCustomSettings(appCfg interface{}) []string {
-	asMap, ok := appCfg.(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	mmdm, ok := asMap["mdm"].(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	mos, ok := mmdm["windows_settings"].(map[string]interface{})
-	if !ok || mos == nil {
-		return nil
-	}
-
-	cs, ok := mos["custom_settings"]
-	if !ok {
-		// custom settings is not present
-		return nil
-	}
-
-	csAny, ok := cs.([]interface{})
-	if !ok || csAny == nil {
-		// return a non-nil, empty slice instead, so the caller knows that the
-		// custom_settings key was actually provided.
-		return []string{}
-	}
-
-	csStrings := make([]string, 0, len(csAny))
-	for _, v := range csAny {
-		s, _ := v.(string)
-		if s != "" {
-			csStrings = append(csStrings, s)
-		}
-	}
-	return csStrings
-}
+//func extractAppCfgWindowsCustomSettings(appCfg interface{}) []string {
+//	asMap, ok := appCfg.(map[string]interface{})
+//	if !ok {
+//		return nil
+//	}
+//	mmdm, ok := asMap["mdm"].(map[string]interface{})
+//	if !ok {
+//		return nil
+//	}
+//	mos, ok := mmdm["windows_settings"].(map[string]interface{})
+//	if !ok || mos == nil {
+//		return nil
+//	}
+//
+//	cs, ok := mos["custom_settings"]
+//	if !ok {
+//		// custom settings is not present
+//		return nil
+//	}
+//
+//	csAny, ok := cs.([]interface{})
+//	if !ok || csAny == nil {
+//		// return a non-nil, empty slice instead, so the caller knows that the
+//		// custom_settings key was actually provided.
+//		return []string{}
+//	}
+//
+//	csStrings := make([]string, 0, len(csAny))
+//	for _, v := range csAny {
+//		s, _ := v.(string)
+//		if s != "" {
+//			csStrings = append(csStrings, s)
+//		}
+//	}
+//	return csStrings
+//}
 
 func extractAppCfgScripts(appCfg interface{}) []string {
 	asMap, ok := appCfg.(map[string]interface{})
