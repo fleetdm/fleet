@@ -1,9 +1,21 @@
 locals {
   customer_free = "${local.customer}-free"
+  extra_environment_variables_free = {
+    FLEET_LOGGING_DEBUG                        = "true"
+    FLEET_LOGGING_JSON                         = "true"
+    FLEET_LOGGING_TRACING_ENABLED              = "true"
+    FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
+    FLEET_MYSQL_MAX_OPEN_CONNS                 = "25"
+    FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
+    FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
+    ELASTIC_APM_SERVER_URL                     = var.elastic_url
+    ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
+    ELASTIC_APM_SERVICE_NAME                   = "dogfood-free"
+  }
 }
 
 module "free" {
-  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.7.0"
+  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.7.1"
   vpc_config = {
     name   = local.customer_free
     vpc_id = module.main.vpc.vpc_id
@@ -41,8 +53,9 @@ module "free" {
     cluster_name = local.customer_free
   }
   fleet_config = {
-    image  = local.fleet_image
-    family = local.customer_free
+    image               = "fleetdm/fleet:v4.40.0"
+    family              = local.customer_free
+    security_group_name = local.customer_free
     awslogs = {
       name      = local.customer_free
       retention = 365
@@ -57,20 +70,13 @@ module "free" {
         policy_name = "${local.customer_free}-iam-policy-execution"
       }
     }
-    #    extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
-    #    extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn]) #, module.saml_auth_proxy.fleet_extra_execution_policies)
-    #    extra_environment_variables  = merge(module.mdm.extra_environment_variables, module.firehose-logging.fleet_extra_environment_variables, module.osquery-carve.fleet_extra_environment_variables, module.ses.fleet_extra_environment_variables, local.extra_environment_variables)
-    #    extra_secrets                = merge(module.mdm.extra_secrets, local.sentry_secrets)
-    # extra_load_balancers         = [{
-    #   target_group_arn = module.saml_auth_proxy.lb_target_group_arn
-    #   container_name   = "fleet"
-    #   container_port   = 8080
-    # }]
+    extra_iam_policies          = module.ses-free.fleet_extra_iam_policies
+    extra_environment_variables = merge(module.ses-free.fleet_extra_environment_variables, local.extra_environment_variables_free)
   }
   alb_config = {
     name            = local.customer_free
     certificate_arn = module.acm-free.acm_certificate_arn
-    subnets         = module.main.vpc.private_subnets
+    subnets         = module.main.vpc.public_subnets
     access_logs = {
       bucket  = module.logging_alb.log_s3_bucket_id
       prefix  = local.customer_free
@@ -117,11 +123,11 @@ module "waf-free" {
   lb_arn = module.free.byo-db.alb.lb_arn
 }
 
-#module "migrations" {
-#  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v1.0.0"
-#  ecs_cluster              = module.free.byo-db.byo-ecs.service.cluster
-#  task_definition          = module.free.byo-db.byo-ecs.task_definition.family
-#  task_definition_revision = module.free.byo-db.byo-ecs.task_definition.revision
-#  subnets                  = module.free.byo-db.byo-ecs.service.network_configuration[0].subnets
-#  security_groups          = module.free.byo-db.byo-ecs.service.network_configuration[0].security_groups
-#}
+module "migrations_free" {
+  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v1.0.0"
+  ecs_cluster              = module.free.byo-db.byo-ecs.service.cluster
+  task_definition          = module.free.byo-db.byo-ecs.task_definition.family
+  task_definition_revision = module.free.byo-db.byo-ecs.task_definition.revision
+  subnets                  = module.free.byo-db.byo-ecs.service.network_configuration[0].subnets
+  security_groups          = module.free.byo-db.byo-ecs.service.network_configuration[0].security_groups
+}
