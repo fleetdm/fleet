@@ -184,6 +184,7 @@ FROM (
 // (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
 // slice arguments can have values.
 func (ds *Datastore) BulkSetPendingMDMHostProfiles(
+	// TODO(mna): switch to all uuids, distinguish using uuid prefix?
 	ctx context.Context,
 	hostIDs, teamIDs, profileIDs []uint,
 	profileUUIDs, hostUUIDs []string,
