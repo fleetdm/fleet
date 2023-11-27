@@ -11,10 +11,10 @@ import {
 import LastUpdatedText from "components/LastUpdatedText";
 import SectionHeader from "components/SectionHeader";
 import DataError from "components/DataError";
-import EmptyTable from "components/EmptyTable";
 
 import OSVersionTable from "../OSVersionTable";
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
+import OSVersionsEmptyState from "../OSVersionsEmptyState";
 
 /** This overrides the `platform` attribute on IOperatingSystemVersion so that only our filtered platforms (currently
  * "darwin" and "windows") values are included */
@@ -65,13 +65,8 @@ const CurrentVersionSection = ({
       );
     }
 
-    if (!data.os_versions || data.os_versions.length === 0) {
-      return (
-        <EmptyTable
-          header="No Data"
-          info="There are no operating systems to display"
-        />
-      );
+    if (!data.os_versions) {
+      return <OSVersionsEmptyState />;
     }
 
     // We only want to show windows and mac versions atm.
