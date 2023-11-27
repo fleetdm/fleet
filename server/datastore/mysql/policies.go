@@ -133,7 +133,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	}
 
 	if shouldRemoveAllPolicyMemberships {
-		return cleanupPolicyMembership(ctx, ds.writer(ctx), p.ID)
+		return ds.cleanupPolicyMembershipForPolicy(ctx, p.ID)
 	}
 	return cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer(ctx), p.ID, p.Platform)
 }
@@ -759,8 +759,8 @@ func cleanupPolicyMembershipOnPolicyUpdate(ctx context.Context, db sqlx.ExecerCo
 
 // cleanupPolicyMembership is similar to cleanupPolicyMembershipOnPolicyUpdate but without the platform constraints.
 // Used when we want to remove all policy membership.
-func cleanupPolicyMembership(ctx context.Context, db sqlx.ExecerContext, policyID uint) error {
-	// delete all policy membership for the policy
+func (ds *Datastore) cleanupPolicyMembershipForPolicy(ctx context.Context, policyID uint) error {
+	// delete all policy memberships for the policy
 	delStmt := `
 		DELETE
 			pm
@@ -774,15 +774,17 @@ func cleanupPolicyMembership(ctx context.Context, db sqlx.ExecerContext, policyI
 			pm.policy_id = ?
 	`
 
-	_, err := db.ExecContext(ctx, delStmt, policyID)
+	_, err := ds.writer(ctx).ExecContext(ctx, delStmt, policyID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleanup policy membership")
 	}
 
 	// delete all policy stats for the policy
-	delCacheStmt := `DELETE FROM policy_stats WHERE policy_id = ?`
-
-	_, err = db.ExecContext(ctx, delCacheStmt, policyID)
+	// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `DELETE FROM policy_stats WHERE policy_id = ?`, policyID)
+		return err
+	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleanup policy stats")
 	}
