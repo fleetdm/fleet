@@ -104,6 +104,7 @@ type MDMWindowsProfilePayload struct {
 	OperationType MDMOperationType   `db:"operation_type"`
 	Detail        string             `db:"detail"`
 	CommandUUID   string             `db:"command_uuid"`
+	Retries       int                `db:"retries"`
 }
 
 type MDMWindowsBulkUpsertHostProfilePayload struct {

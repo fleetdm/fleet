@@ -1,5 +1,10 @@
 package syncml
 
+import (
+	"bytes"
+	"fmt"
+)
+
 // XML Namespaces and type URLs used by the Microsoft Device Enrollment v2 protocol (MS-MDE2)
 const (
 	DiscoverNS                 = "http://schemas.microsoft.com/windows/management/2012/01/enrollment"
@@ -330,3 +335,19 @@ const (
 	// SyncML ver protocol version
 	SyncMLVerProto = "DM/" + SyncMLSupportedVersion
 )
+
+func ForTestWithData(locURIs map[string]string) []byte {
+	var syncMLBuf bytes.Buffer
+	for locURI, data := range locURIs {
+		syncMLBuf.WriteString(fmt.Sprintf(`
+<Replace>
+  <Item>
+    <Target>
+      <LocURI>%s</LocURI>
+    </Target>
+    <Data>%s</Data>
+  </Item>
+</Replace>`, locURI, data))
+	}
+	return syncMLBuf.Bytes()
+}

@@ -1242,13 +1242,13 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 				require.Equal(t, c.want, profile)
 				return nil
 			}
-			ds.GetHostMDMProfileRetryCountByCommandUUIDFunc = func(ctx context.Context, hstUUID, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
-				require.Equal(t, hostUUID, hstUUID)
+			ds.GetHostMDMProfileRetryCountByCommandUUIDFunc = func(ctx context.Context, host *fleet.Host, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
+				require.Equal(t, hostUUID, host.UUID)
 				require.Equal(t, commandUUID, cmdUUID)
 				return fleet.HostMDMProfileRetryCount{ProfileIdentifier: profileIdentifier, Retries: c.prevRetries}, nil
 			}
-			ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, hostUUID string, toVerify, toFail, toRetry []string) error {
-				require.Equal(t, hostUUID, hostUUID)
+			ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, host *fleet.Host, toVerify, toFail, toRetry []string) error {
+				require.Equal(t, hostUUID, host.UUID)
 				require.Nil(t, toVerify)
 				require.Nil(t, toFail)
 				require.ElementsMatch(t, toRetry, []string{profileIdentifier})
@@ -2199,6 +2199,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		appCfg := &fleet.AppConfig{}
 		appCfg.ServerSettings.ServerURL = "https://test.example.com"
+		appCfg.MDM.EnabledAndConfigured = true
 		return appCfg, nil
 	}
 

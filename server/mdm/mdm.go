@@ -9,6 +9,11 @@ import (
 	"go.mozilla.org/pkcs7"
 )
 
+// MaxProfileRetries is the maximum times an install profile command may be
+// retried, after which marked as failed and no further attempts will be made
+// to install the profile.
+const MaxProfileRetries = 1
+
 // DecryptBase64CMS decrypts a base64 encoded pkcs7-encrypted value using the
 // provided certificate and private key.
 func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.PrivateKey) ([]byte, error) {

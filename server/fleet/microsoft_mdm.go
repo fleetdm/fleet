@@ -920,13 +920,19 @@ type ProtoCmdOperation struct {
 
 // Protocol Command
 type SyncMLCmd struct {
-	XMLName         xml.Name    `xml:",omitempty"`
-	CmdID           string      `xml:"CmdID"`
-	MsgRef          *string     `xml:"MsgRef,omitempty"`
-	CmdRef          *string     `xml:"CmdRef,omitempty"`
-	Cmd             *string     `xml:"Cmd,omitempty"`
-	Data            *string     `xml:"Data,omitempty"`
-	Items           []CmdItem   `xml:"Item,omitempty"`
+	XMLName xml.Name  `xml:",omitempty"`
+	CmdID   string    `xml:"CmdID"`
+	MsgRef  *string   `xml:"MsgRef,omitempty"`
+	CmdRef  *string   `xml:"CmdRef,omitempty"`
+	Cmd     *string   `xml:"Cmd,omitempty"`
+	Data    *string   `xml:"Data,omitempty"`
+	Items   []CmdItem `xml:"Item,omitempty"`
+
+	// ReplaceCommands is a catch-all for any nested <Replace> commands,
+	// which can be found under <Atomic> elements.
+	//
+	// NOTE: in theory Atomics can have anything except Get verbs, but
+	// for the moment we're not allowing anything besides Replaces
 	ReplaceCommands []SyncMLCmd `xml:"Replace,omitempty"`
 }
 
@@ -1303,11 +1309,7 @@ func (cmd *SyncMLCmd) IsValid() bool {
 
 // IsEmpty checks if there are not items in the command
 func (cmd *SyncMLCmd) IsEmpty() bool {
-	if len(cmd.Items) == 0 {
-		return true
-	}
-
-	return false
+	return len(cmd.Items) == 0
 }
 
 // GetTargetURI returns the first protocol commands target URI from the items list
