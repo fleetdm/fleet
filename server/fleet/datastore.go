@@ -1119,7 +1119,7 @@ type Datastore interface {
 
 	// ListMDMWindowsProfilesToRemove returns all the profiles that should
 	// be removed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`
+	// registered in `host_mdm_windows_profiles`
 	ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
 
 	// BulkUpsertMDMWindowsHostProfiles bulk-adds/updates records to track the

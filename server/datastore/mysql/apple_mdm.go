@@ -196,7 +196,7 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 func (ds *Datastore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 	stmt := fmt.Sprintf(`
 SELECT
-profile_id,
+profile_uuid,
 profile_name AS name,
 profile_identifier AS identifier,
 -- internally, a NULL status implies that the cron needs to pick up

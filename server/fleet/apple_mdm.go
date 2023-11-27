@@ -225,7 +225,7 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 type HostMDMAppleProfile struct {
 	HostUUID      string             `db:"host_uuid" json:"-"`
 	CommandUUID   string             `db:"command_uuid" json:"-"`
-	ProfileID     uint               `db:"profile_id" json:"profile_id"`
+	ProfileUUID   string             `db:"profile_uuid" json:"profile_uuid"`
 	Name          string             `db:"name" json:"name"`
 	Identifier    string             `db:"identifier" json:"-"`
 	Status        *MDMDeliveryStatus `db:"status" json:"status"`
@@ -237,7 +237,7 @@ type HostMDMAppleProfile struct {
 func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
 	return HostMDMProfile{
 		HostUUID:      p.HostUUID,
-		ProfileID:     p.ProfileID,
+		ProfileUUID:   p.ProfileUUID,
 		Name:          p.Name,
 		Identifier:    p.Identifier,
 		Status:        p.Status,
