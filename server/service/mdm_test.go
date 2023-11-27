@@ -1109,7 +1109,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		premium  bool
 		teamID   *uint
 		teamName *string
-		profiles map[string][]byte
+		profiles [][]byte
 		wantErr  string
 	}{
 		{
@@ -1271,11 +1271,11 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			true,
 			ptr.Uint(1),
 			nil,
-			map[string][]byte{
-				"N1": mobileconfigForTest("N1", "I1"),
-				"N2": mobileconfigForTest("N1", "I2"),
+			[][]byte{
+				mobileconfigForTest("N1", "I1"),
+				mobileconfigForTest("N1", "I2"),
 			},
-			`The name provided for the profile must match the profile PayloadDisplayName: "N1"`,
+			`More than one configuration profile have the same name `,
 		},
 		{
 			"duplicate macOS profile identifier",
@@ -1283,12 +1283,12 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			true,
 			ptr.Uint(1),
 			nil,
-			map[string][]byte{
-				"N1": mobileconfigForTest("N1", "I1"),
-				"N2": mobileconfigForTest("N2", "I2"),
-				"N3": mobileconfigForTest("N3", "I1"),
+			[][]byte{
+				mobileconfigForTest("N1", "I1"),
+				mobileconfigForTest("N2", "I2"),
+				mobileconfigForTest("N3", "I1"),
 			},
-			`More than one configuration profile have the same identifier (PayloadIdentifier): "I1"`,
+			`More than one configuration profile have the same identifier `,
 		},
 		{
 			"only macOS",
@@ -1296,50 +1296,50 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			false,
 			nil,
 			nil,
-			map[string][]byte{
-				"N1": mobileconfigForTest("N1", "I1"),
-				"N2": mobileconfigForTest("N2", "I2"),
-				"N3": mobileconfigForTest("N3", "I3"),
+			[][]byte{
+				mobileconfigForTest("N1", "I1"),
+				mobileconfigForTest("N2", "I2"),
+				mobileconfigForTest("N3", "I3"),
 			},
 			``,
 		},
-		{
-			"mixed profiles",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			false,
-			nil,
-			nil,
-			map[string][]byte{
-				"N1": syncMLForTest("./foo/bar"),
-				"N2": syncMLForTest("./baz"),
-				"N3": syncMLForTest("./zab"),
-				"N4": mobileconfigForTest("N4", "I1"),
-				"N5": mobileconfigForTest("N5", "I2"),
-				"N6": mobileconfigForTest("N6", "I3"),
-			},
-			``,
-		},
-		{
-			"only windows",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			false,
-			nil,
-			nil,
-			map[string][]byte{
-				"N1": syncMLForTest("./foo/bar"),
-				"N2": syncMLForTest("./baz"),
-				"N3": syncMLForTest("./zab"),
-			},
-			``,
-		},
+		//		{
+		//			"mixed profiles",
+		//			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+		//			false,
+		//			nil,
+		//			nil,
+		//			[][]byte{
+		//				syncMLForTest("./foo/bar"),
+		//				syncMLForTest("./baz"),
+		//				syncMLForTest("./zab"),
+		//				mobileconfigForTest("N4", "I1"),
+		//				mobileconfigForTest("N5", "I2"),
+		//				mobileconfigForTest("N6", "I3"),
+		//			},
+		//			``,
+		//		},
+		//		{
+		//			"only windows",
+		//			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+		//			false,
+		//			nil,
+		//			nil,
+		//			[][]byte{
+		//				syncMLForTest("./foo/bar"),
+		//				syncMLForTest("./baz"),
+		//				syncMLForTest("./zab"),
+		//			},
+		//			``,
+		//		},
 		{
 			"unsupported payload type",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			false,
 			nil,
 			nil,
-			map[string][]byte{
-				"foo": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+			[][]byte{
+				[]byte(`<?xml version="1.0" encoding="UTF-8"?>
 			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 			<plist version="1.0">
 			<dict>
@@ -1389,7 +1389,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false)
+			err := svc.BatchSetMDMAppleProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)

@@ -99,94 +99,94 @@ spec:
 	}
 }
 
-func TestExtractAppConfigWindowsCustomSettings(t *testing.T) {
-	cases := []struct {
-		desc string
-		yaml string
-		want []string
-	}{
-		{
-			"no settings",
-			`
-apiVersion: v1
-kind: config
-spec:
-`,
-			nil,
-		},
-		{
-			"no custom settings",
-			`
-apiVersion: v1
-kind: config
-spec:
-  org_info:
-    org_name: "Fleet"
-  mdm:
-    windows_settings:
-`,
-			nil,
-		},
-		{
-			"empty custom settings",
-			`
-apiVersion: v1
-kind: config
-spec:
-  org_info:
-    org_name: "Fleet"
-  mdm:
-    windows_settings:
-      custom_settings:
-`,
-			[]string{},
-		},
-		{
-			"custom settings specified",
-			`
-apiVersion: v1
-kind: config
-spec:
-  org_info:
-    org_name: "Fleet"
-  mdm:
-    windows_settings:
-      custom_settings:
-        - "a"
-        - "b"
-`,
-			[]string{"a", "b"},
-		},
-		{
-			"empty and invalid custom settings",
-			`
-apiVersion: v1
-kind: config
-spec:
-  org_info:
-    org_name: "Fleet"
-  mdm:
-    windows_settings:
-      custom_settings:
-        - "a"
-        - ""
-        - 4
-        - "c"
-`,
-			[]string{"a", "c"},
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.desc, func(t *testing.T) {
-			specs, err := spec.GroupFromBytes([]byte(c.yaml))
-			require.NoError(t, err)
-			if specs.AppConfig != nil {
-				got := extractAppCfgWindowsCustomSettings(specs.AppConfig)
-				require.Equal(t, c.want, got)
-			}
-		})
-	}
-}
+//func TestExtractAppConfigWindowsCustomSettings(t *testing.T) {
+//	cases := []struct {
+//		desc string
+//		yaml string
+//		want []string
+//	}{
+//		{
+//			"no settings",
+//			`
+//apiVersion: v1
+//kind: config
+//spec:
+//`,
+//			nil,
+//		},
+//		{
+//			"no custom settings",
+//			`
+//apiVersion: v1
+//kind: config
+//spec:
+//  org_info:
+//    org_name: "Fleet"
+//  mdm:
+//    windows_settings:
+//`,
+//			nil,
+//		},
+//		{
+//			"empty custom settings",
+//			`
+//apiVersion: v1
+//kind: config
+//spec:
+//  org_info:
+//    org_name: "Fleet"
+//  mdm:
+//    windows_settings:
+//      custom_settings:
+//`,
+//			[]string{},
+//		},
+//		{
+//			"custom settings specified",
+//			`
+//apiVersion: v1
+//kind: config
+//spec:
+//  org_info:
+//    org_name: "Fleet"
+//  mdm:
+//    windows_settings:
+//      custom_settings:
+//        - "a"
+//        - "b"
+//`,
+//			[]string{"a", "b"},
+//		},
+//		{
+//			"empty and invalid custom settings",
+//			`
+//apiVersion: v1
+//kind: config
+//spec:
+//  org_info:
+//    org_name: "Fleet"
+//  mdm:
+//    windows_settings:
+//      custom_settings:
+//        - "a"
+//        - ""
+//        - 4
+//        - "c"
+//`,
+//			[]string{"a", "c"},
+//		},
+//	}
+//	for _, c := range cases {
+//		t.Run(c.desc, func(t *testing.T) {
+//			specs, err := spec.GroupFromBytes([]byte(c.yaml))
+//			require.NoError(t, err)
+//			if specs.AppConfig != nil {
+//				got := extractAppCfgWindowsCustomSettings(specs.AppConfig)
+//				require.Equal(t, c.want, got)
+//			}
+//		})
+//	}
+//}
 
 func TestExtractTeamSpecsMDMCustomSettings(t *testing.T) {
 	cases := []struct {
@@ -214,7 +214,6 @@ spec:
     name: Fleet
     mdm:
       macos_settings:
-      windows_settings:
 ---
 apiVersion: v1
 kind: team
@@ -223,7 +222,6 @@ spec:
     name: Fleet2
     mdm:
       macos_settings:
-      windows_settings:
 `,
 			nil,
 		},
@@ -238,8 +236,6 @@ spec:
     mdm:
       macos_settings:
         custom_settings:
-      windows_settings:
-        custom_settings:
 ---
 apiVersion: v1
 kind: team
@@ -248,8 +244,6 @@ spec:
     name: "Fleet2"
     mdm:
       macos_settings:
-        custom_settings:
-      windows_settings:
         custom_settings:
 `,
 			map[string][]string{"Fleet": {}, "Fleet2": {}},
@@ -267,12 +261,8 @@ spec:
         custom_settings:
           - "a"
           - "b"
-      windows_settings:
-        custom_settings:
-          - "c"
-          - "d"
 `,
-			map[string][]string{"Fleet": {"a", "b", "c", "d"}},
+			map[string][]string{"Fleet": {"a", "b"}},
 		},
 		{
 			"invalid custom settings",
@@ -289,12 +279,6 @@ spec:
           - ""
           - 42
           - "c"
-      windows_settings:
-        custom_settings:
-          - "x"
-          - ""
-          - 24
-          - "y"
 `,
 			map[string][]string{},
 		},
