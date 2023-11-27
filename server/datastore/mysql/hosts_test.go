@@ -6798,6 +6798,16 @@ func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "ghi", "", ptr.Bool(false))
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host3.ID, "ghi", ptr.Bool(false))
+
+	// set an empty key (backfill for issue #15068)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "", "", nil)
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host3.ID, "", nil)
+
+	// setting the decryptable value works even if the key is still empty
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "", "", ptr.Bool(false))
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host3.ID, "", ptr.Bool(false))
 }
 
 func testHostsSetDiskEncryptionKeyStatus(t *testing.T, ds *Datastore) {
