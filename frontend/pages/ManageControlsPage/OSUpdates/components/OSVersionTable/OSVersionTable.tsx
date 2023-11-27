@@ -3,9 +3,9 @@ import React from "react";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
 
 import { generateTableHeaders } from "./OSVersionTableConfig";
+import OSVersionsEmptyState from "../OSVersionsEmptyState";
 
 const baseClass = "os-version-table";
 
@@ -17,21 +17,6 @@ interface IOSVersionTableProps {
 
 const DEFAULT_SORT_HEADER = "hosts_count";
 const DEFAULT_SORT_DIRECTION = "desc";
-
-const OSVersionEmptyState = () => {
-  return (
-    <EmptyTable
-      className={`${baseClass}__empty-table`}
-      header="No OS versions detected."
-      info={
-        <span>
-          This report is updated every hour to protect
-          <br /> the performance of your devices.
-        </span>
-      }
-    />
-  );
-};
 
 const OSVersionTable = ({
   osVersionData,
@@ -47,7 +32,7 @@ const OSVersionTable = ({
         data={osVersionData}
         isLoading={isLoading}
         resultsTitle=""
-        emptyComponent={OSVersionEmptyState}
+        emptyComponent={OSVersionsEmptyState}
         showMarkAllPages={false}
         isAllPagesSelected={false}
         defaultSortHeader={DEFAULT_SORT_HEADER}
