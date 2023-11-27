@@ -3004,7 +3004,7 @@ Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery mana
   "device_mapping": [
     {
       "email": "user@example.com",
-      "source": "idp"
+      "source": "identity_provider"
     },
     {
       "email": "user@example.com",
