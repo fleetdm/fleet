@@ -19,7 +19,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "4.57.0"
+      version = "~> 5.0"
     }
   }
 }
@@ -57,7 +57,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.1.0"
+  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.6.1"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -248,7 +248,7 @@ module "mdm" {
 }
 
 module "firehose-logging" {
-  source = "github.com/fleetdm/fleet//terraform/addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.0.0"
+  source = "github.com/fleetdm/fleet//terraform/addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.1.0"
   osquery_results_s3_bucket = {
     name = "${local.customer}-osquery-results-archive"
   }
@@ -265,7 +265,7 @@ module "osquery-carve" {
 }
 
 module "monitoring" {
-  source                      = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=tf-mod-addon-monitoring-v1.1.1"
+  source                      = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=tf-mod-addon-monitoring-v1.1.3"
   customer_prefix             = local.customer
   fleet_ecs_service_name      = module.main.byo-vpc.byo-db.byo-ecs.service.name
   fleet_min_containers        = module.main.byo-vpc.byo-db.byo-ecs.service.desired_count
@@ -297,7 +297,7 @@ module "monitoring" {
 }
 
 module "logging_alb" {
-  source        = "github.com/fleetdm/fleet//terraform/addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.0.0"
+  source        = "github.com/fleetdm/fleet//terraform/addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.2.0"
   prefix        = local.customer
   enable_athena = true
 }
