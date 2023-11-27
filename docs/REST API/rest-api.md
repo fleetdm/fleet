@@ -2976,7 +2976,7 @@ Request (`filters` is specified and empty, to delete all hosts):
 
 `Status: 200`
 
-### Get host's user profiles
+### Get human-host mapping
 
 Retrieves the end user's email(s) they use to log in to their Identity Provider (IdP) and Google Chrome profile.
 
