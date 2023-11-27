@@ -2,7 +2,7 @@ package service
 
 import (
 	"bytes"
-	"context" // nolint:gosec // used only for tests
+	"context"
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
