@@ -6,11 +6,9 @@ import FleetIcon from "components/icons/FleetIcon";
 
 const baseClass = "pagination";
 
-/**
- * WARNING: DEPRICATED:
- * This pagination component is DEPRICATED. It is being kept around until we replace its
- * use. For now use the Pagination component in the pages/ManageControlsPage/components.
- */
+// TODO: Refactor to typescript
+// Already seeing issues with prop types (currentPage passed through as string instead of number)
+
 class Pagination extends PureComponent {
   static propTypes = {
     currentPage: PropTypes.number,

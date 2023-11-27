@@ -7,9 +7,9 @@ import Button from "components/buttons/Button";
 
 interface DeleteProfileModalProps {
   profileName: string;
-  profileId: number | string;
+  profileId: number;
   onCancel: () => void;
-  onDelete: (profileId: number | string) => void;
+  onDelete: (profileId: number) => void;
 }
 
 const baseClass = "delete-profile-modal";

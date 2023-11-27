@@ -1,9 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import {
-  DiskEncryptionStatus,
-  IMdmProfile,
-  MdmProfileStatus,
-} from "interfaces/mdm";
+import { DiskEncryptionStatus, MdmProfileStatus } from "interfaces/mdm";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -26,19 +23,37 @@ export type IDiskEncryptionSummaryResponse = Record<
   IDiskEncryptionStatusAggregate
 >;
 
-export interface IGetProfilesApiParams {
-  page?: number;
-  per_page?: number;
-  team_id?: number;
-}
+// This function combines the profile status summary and the disk encryption summary
+// to generate the aggregate profile status summary. We are doing this as a temporary
+// solution until we have the API that will return the aggregate profile status summary
+// from one call.
+// TODO: API INTEGRATION: remove when API is implemented that returns windows
+// data in the aggregate profile status summary.
+const generateCombinedProfileStatusSummary = (
+  profileStatuses: ProfileStatusSummaryResponse,
+  diskEncryptionSummary: IDiskEncryptionSummaryResponse
+): ProfileStatusSummaryResponse => {
+  const { verified, verifying, failed, pending } = profileStatuses;
+  const {
+    verified: verifiedDiskEncryption,
+    verifying: verifyingDiskEncryption,
+    failed: failedDiskEncryption,
+    action_required: actionRequiredDiskEncryption,
+    enforcing: enforcingDiskEncryption,
+    removing_enforcement: removingEnforcementDiskEncryption,
+  } = diskEncryptionSummary;
 
-export interface IMdmProfilesResponse {
-  profiles: IMdmProfile[] | null;
-  meta: {
-    has_next_results: boolean;
-    has_previous_results: boolean;
+  return {
+    verified: verified + verifiedDiskEncryption.windows,
+    verifying: verifying + verifyingDiskEncryption.windows,
+    failed: failed + failedDiskEncryption.windows,
+    pending:
+      pending +
+      actionRequiredDiskEncryption.windows +
+      enforcingDiskEncryption.windows +
+      removingEnforcementDiskEncryption.windows,
   };
-}
+};
 
 const mdmService = {
   downloadDeviceUserEnrollmentProfile: (token: string) => {
@@ -68,12 +83,9 @@ const mdmService = {
     });
   },
 
-  getProfiles: (
-    params: IGetProfilesApiParams
-  ): Promise<IMdmProfilesResponse> => {
-    const { MDM_PROFILES } = endpoints;
-    const path = `${MDM_PROFILES}?${buildQueryStringFromParams({
-      ...params,
+  getProfiles: (teamId = APP_CONTEXT_NO_TEAM_ID) => {
+    const path = `${endpoints.MDM_PROFILES}?${buildQueryStringFromParams({
+      team_id: teamId,
     })}`;
 
     return sendRequest("GET", path);
@@ -92,26 +104,47 @@ const mdmService = {
     return sendRequest("POST", MDM_PROFILES, formData);
   },
 
-  downloadProfile: (profileId: number | string) => {
+  downloadProfile: (profileId: number) => {
     const { MDM_PROFILE } = endpoints;
-    const path = `${MDM_PROFILE(profileId)}?${buildQueryStringFromParams({
-      alt: "media",
-    })}`;
-    return sendRequest("GET", path);
+    return sendRequest("GET", MDM_PROFILE(profileId));
   },
 
-  deleteProfile: (profileId: number | string) => {
+  deleteProfile: (profileId: number) => {
     const { MDM_PROFILE } = endpoints;
     return sendRequest("DELETE", MDM_PROFILE(profileId));
   },
 
-  getProfilesStatusSummary: (teamId: number) => {
-    let { MDM_PROFILES_STATUS_SUMMARY: path } = endpoints;
-
-    if (teamId) {
-      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
+  // TODO: API INTEGRATION: we need to rework this when we create API call that
+  // will return the aggregate statuses for windows included in the response.
+  // Currently to get windows data included we will need to make a separate call.
+  // We will likely change this to go back to single "getProfileStatusSummary" API call.
+  getAggregateProfileStatuses: async (
+    teamId = APP_CONTEXT_NO_TEAM_ID,
+    // TODO: WINDOWS FEATURE FLAG: remove when we windows feature is released.
+    includeWindows: boolean
+  ) => {
+    // if we are not including windows we can just call the existing profile summary API
+    if (!includeWindows) {
+      return mdmService.getProfileStatusSummary(teamId);
     }
 
+    // otherwise we have to make two calls and combine the results.
+    return mdmService
+      .getAggregateProfileStatusesWithWindows(teamId)
+      .then((res) => generateCombinedProfileStatusSummary(...res));
+  },
+
+  getAggregateProfileStatusesWithWindows: async (teamId: number) => {
+    return Promise.all([
+      mdmService.getProfileStatusSummary(teamId),
+      mdmService.getDiskEncryptionSummary(teamId),
+    ]);
+  },
+
+  getProfileStatusSummary: (teamId = APP_CONTEXT_NO_TEAM_ID) => {
+    const path = `${
+      endpoints.MDM_PROFILES_AGGREGATE_STATUSES
+    }?${buildQueryStringFromParams({ team_id: teamId })}`;
     return sendRequest("GET", path);
   },
 

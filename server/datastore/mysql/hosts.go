@@ -917,7 +917,10 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 }
 
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
-func (ds *Datastore) applyHostFilters(ctx context.Context, opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}, leftJoinFailingPolicies bool) (string, []interface{}, error) {
+func (ds *Datastore) applyHostFilters(
+	ctx context.Context, opt fleet.HostListOptions, sqlStmt string, filter fleet.TeamFilter, params []interface{},
+	leftJoinFailingPolicies bool,
+) (string, []interface{}, error) {
 	opt.OrderKey = defaultHostColumnTableAlias(opt.OrderKey)
 
 	deviceMappingJoin := `LEFT JOIN (
@@ -977,7 +980,8 @@ func (ds *Datastore) applyHostFilters(ctx context.Context, opt fleet.HostListOpt
 		params = append(params, *opt.LowDiskSpaceFilter)
 	}
 
-	sql += fmt.Sprintf(`FROM hosts h
+	sqlStmt += fmt.Sprintf(
+		`FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
@@ -1009,26 +1013,34 @@ func (ds *Datastore) applyHostFilters(ctx context.Context, opt fleet.HostListOpt
 	)
 
 	now := ds.clock.Now()
-	sql, params = filterHostsByStatus(now, sql, opt, params)
-	sql, params = filterHostsByTeam(sql, opt, params)
-	sql, params = filterHostsByPolicy(sql, opt, params)
-	sql, params = filterHostsByMDM(sql, opt, params)
-	sql, params = filterHostsByMacOSSettingsStatus(sql, opt, params)
-	sql, params = filterHostsByMacOSDiskEncryptionStatus(sql, opt, params)
+	sqlStmt, params = filterHostsByStatus(now, sqlStmt, opt, params)
+	sqlStmt, params = filterHostsByTeam(sqlStmt, opt, params)
+	sqlStmt, params = filterHostsByPolicy(sqlStmt, opt, params)
+	sqlStmt, params = filterHostsByMDM(sqlStmt, opt, params)
+	sqlStmt, params = filterHostsByMacOSSettingsStatus(sqlStmt, opt, params)
+	sqlStmt, params = filterHostsByMacOSDiskEncryptionStatus(sqlStmt, opt, params)
 	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil, ctxerr.Wrap(
+				ctx, &fleet.BadRequestError{
+					Message:     fmt.Sprintf("team is invalid"),
+					InternalErr: err,
+				},
+			)
+		}
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		sql, params = ds.filterHostsByOSSettingsStatus(sql, opt, params, enableDiskEncryption)
+		sqlStmt, params = ds.filterHostsByOSSettingsStatus(sqlStmt, opt, params, enableDiskEncryption)
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
-		sql, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(sql, opt, params, enableDiskEncryption)
+		sqlStmt, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(sqlStmt, opt, params, enableDiskEncryption)
 	}
 
-	sql, params = filterHostsByMDMBootstrapPackageStatus(sql, opt, params)
-	sql, params = filterHostsByOS(sql, opt, params)
-	sql, params, _ = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
-	sql, params = appendListOptionsWithCursorToSQL(sql, params, &opt.ListOptions)
+	sqlStmt, params = filterHostsByMDMBootstrapPackageStatus(sqlStmt, opt, params)
+	sqlStmt, params = filterHostsByOS(sqlStmt, opt, params)
+	sqlStmt, params, _ = hostSearchLike(sqlStmt, params, opt.MatchQuery, hostSearchColumns...)
+	sqlStmt, params = appendListOptionsWithCursorToSQL(sqlStmt, params, &opt.ListOptions)
 
-	return sql, params, nil
+	return sqlStmt, params, nil
 }
 
 func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
