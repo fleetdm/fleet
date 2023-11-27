@@ -1730,15 +1730,15 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	return err
 }
 
-func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, hostUUID string, toVerify, toFail, toRetry []string) error {
+func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, toVerify, toFail, toRetry []string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := setMDMProfilesVerifiedDB(ctx, tx, hostUUID, toVerify); err != nil {
+		if err := setMDMProfilesVerifiedDB(ctx, tx, host, toVerify); err != nil {
 			return err
 		}
-		if err := setMDMProfilesFailedDB(ctx, tx, hostUUID, toFail); err != nil {
+		if err := setMDMProfilesFailedDB(ctx, tx, host, toFail); err != nil {
 			return err
 		}
-		if err := setMDMProfilesRetryDB(ctx, tx, hostUUID, toRetry); err != nil {
+		if err := setMDMProfilesRetryDB(ctx, tx, host, toRetry); err != nil {
 			return err
 		}
 		return nil

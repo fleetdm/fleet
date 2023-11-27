@@ -39,6 +39,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -6864,7 +6865,7 @@ func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 	resBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
 	var xmlType interface{}
@@ -6915,7 +6916,7 @@ func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
 	resBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if response can be unmarshalled to an golang type
 	var xmlType interface{}
@@ -6967,7 +6968,7 @@ func (s *integrationMDMTestSuite) TestNoEmailDiscoveryRequest() {
 	resBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
 	var xmlType interface{}
@@ -7002,7 +7003,7 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithDeviceToken() {
 	resBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
 	var xmlType interface{}
@@ -7032,7 +7033,7 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithAzureToken() {
 	resBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
 	var xmlType interface{}
@@ -7075,7 +7076,7 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithInvalidUUID() {
 	resBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
 	var xmlType interface{}
@@ -7108,7 +7109,7 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
 	resBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
 	var xmlType interface{}
@@ -7142,7 +7143,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	resBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
 	var xmlType interface{}
@@ -7193,7 +7194,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 	resBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
 	var xmlType interface{}
@@ -7245,7 +7246,7 @@ func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMiss
 	resBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SoapContentType)
+	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
 	var xmlType interface{}
@@ -7305,7 +7306,7 @@ func (s *integrationMDMTestSuite) TestValidGetTOC() {
 	resBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.WebContainerContentType)
+	require.Contains(t, resp.Header["Content-Type"], syncml.WebContainerContentType)
 
 	resTOCcontent := string(resBytes)
 	require.Contains(t, resTOCcontent, "Microsoft.AAD.BrokerPlugin")
@@ -7547,8 +7548,8 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 			fleetdExecCmd = c
 		}
 	}
-	require.Equal(t, microsoft_mdm.FleetdWindowsInstallerGUID, fleetdAddCmd.Cmd.GetTargetURI())
-	require.Equal(t, microsoft_mdm.FleetdWindowsInstallerGUID, fleetdExecCmd.Cmd.GetTargetURI())
+	require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdAddCmd.Cmd.GetTargetURI())
+	require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdExecCmd.Cmd.GetTargetURI())
 }
 
 func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
@@ -7590,7 +7591,7 @@ func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
 	// Checking that Command error code was updated
 
 	// Checking response headers
-	require.Contains(t, resp.Header["Content-Type"], microsoft_mdm.SyncMLContentType)
+	require.Contains(t, resp.Header["Content-Type"], syncml.SyncMLContentType)
 
 	// Read response data
 	resBytes, err := io.ReadAll(resp.Body)
@@ -8107,8 +8108,8 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleProfile("foo.txt", "foo", "foo-ident", 0, http.StatusBadRequest, "Couldn't upload. The file should be a .mobileconfig or .xml file.")
 
 	// Windows-reserved LocURI
-	assertWindowsProfile("bitlocker.xml", "bitlocker", microsoft_mdm.FleetBitLockerTargetLocURI, 0, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include BitLocker settings.")
-	assertWindowsProfile("updates.xml", "updates", microsoft_mdm.FleetOSUpdateTargetLocURI, testTeam.ID, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include Windows updates settings.")
+	assertWindowsProfile("bitlocker.xml", "bitlocker", syncml.FleetBitLockerTargetLocURI, 0, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include BitLocker settings.")
+	assertWindowsProfile("updates.xml", "updates", syncml.FleetOSUpdateTargetLocURI, testTeam.ID, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include Windows updates settings.")
 
 	// Windows invalid content
 	body, headers := generateNewProfileMultipartRequest(t, nil, "win.xml", []byte("\x00\x01\x02"), s.token)
@@ -9178,9 +9179,9 @@ func (s *integrationMDMTestSuite) newGetPoliciesMsg(deviceToken bool, encodedBin
 	}
 
 	// JWT token by default
-	tokType := microsoft_mdm.BinarySecurityAzureEnroll
+	tokType := syncml.BinarySecurityAzureEnroll
 	if deviceToken {
-		tokType = microsoft_mdm.BinarySecurityDeviceEnroll
+		tokType = syncml.BinarySecurityDeviceEnroll
 	}
 
 	return []byte(`
@@ -9222,9 +9223,9 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 	}
 
 	// JWT token by default
-	tokType := microsoft_mdm.BinarySecurityAzureEnroll
+	tokType := syncml.BinarySecurityAzureEnroll
 	if deviceToken {
-		tokType = microsoft_mdm.BinarySecurityDeviceEnroll
+		tokType = syncml.BinarySecurityDeviceEnroll
 	}
 
 	// Preparing the RequestSecurityToken Request message
@@ -9454,9 +9455,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	}
 
 	verifyProfiles := func(device *mdmtest.TestWindowsMDMClient, n int, fail bool) {
-		mdmResponseStatus := microsoft_mdm.CmdStatusOK
+		mdmResponseStatus := syncml.CmdStatusOK
 		if fail {
-			mdmResponseStatus = microsoft_mdm.CmdStatusAtomicFailed
+			mdmResponseStatus = syncml.CmdStatusAtomicFailed
 		}
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err := device.StartManagementSession()
@@ -9469,7 +9470,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		require.NoError(t, err)
 		for _, c := range cmds {
 			cmdID := c.Cmd.CmdID
-			status := microsoft_mdm.CmdStatusOK
+			status := syncml.CmdStatusOK
 			if c.Verb == "Atomic" {
 				atomicCmds = append(atomicCmds, c)
 				status = mdmResponseStatus
@@ -9761,18 +9762,18 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	// profiles with reserved Windows location URIs
 	// bitlocker
 	res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: map[string][]byte{
-		"N1":                                     mobileconfigForTest("N1", "I1"),
-		microsoft_mdm.FleetBitLockerTargetLocURI: syncMLForTest(fmt.Sprintf("%s/Foo", microsoft_mdm.FleetBitLockerTargetLocURI)),
-		"N3":                                     syncMLForTest("./Foo/Bar"),
+		"N1":                              mobileconfigForTest("N1", "I1"),
+		syncml.FleetBitLockerTargetLocURI: syncMLForTest(fmt.Sprintf("%s/Foo", syncml.FleetBitLockerTargetLocURI)),
+		"N3":                              syncMLForTest("./Foo/Bar"),
 	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Custom configuration profiles can't include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
 
 	// os updates
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: map[string][]byte{
-		"N1":                                    mobileconfigForTest("N1", "I1"),
-		microsoft_mdm.FleetOSUpdateTargetLocURI: syncMLForTest(fmt.Sprintf("%s/Foo", microsoft_mdm.FleetOSUpdateTargetLocURI)),
-		"N3":                                    syncMLForTest("./Foo/Bar"),
+		"N1":                             mobileconfigForTest("N1", "I1"),
+		syncml.FleetOSUpdateTargetLocURI: syncMLForTest(fmt.Sprintf("%s/Foo", syncml.FleetOSUpdateTargetLocURI)),
+		"N3":                             syncMLForTest("./Foo/Bar"),
 	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Custom configuration profiles can't include Windows updates settings. To control these settings, use the mdm.windows_updates option.")

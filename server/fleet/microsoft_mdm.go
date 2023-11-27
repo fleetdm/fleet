@@ -12,8 +12,7 @@ import (
 	"strings"
 	"time"
 
-	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 )
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -62,11 +61,11 @@ func (req *SoapRequest) GetHeaderBinarySecurityToken() (*HeaderBinarySecurityTok
 		return nil, errors.New("binarySecurityToken is empty")
 	}
 
-	if req.Header.Security.Security.Encoding != mdm.EnrollEncode {
+	if req.Header.Security.Security.Encoding != syncml.EnrollEncode {
 		return nil, errors.New("binarySecurityToken encoding is invalid")
 	}
 
-	if req.Header.Security.Security.Value != mdm.BinarySecurityDeviceEnroll && req.Header.Security.Security.Value != mdm.BinarySecurityAzureEnroll {
+	if req.Header.Security.Security.Value != syncml.BinarySecurityDeviceEnroll && req.Header.Security.Security.Value != syncml.BinarySecurityAzureEnroll {
 		return nil, errors.New("binarySecurityToken type is invalid")
 	}
 
@@ -149,15 +148,15 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 	}
 
 	// Ensure that only valid versions are supported
-	if req.Body.Discover.Request.RequestVersion != mdm.EnrollmentVersionV4 &&
-		req.Body.Discover.Request.RequestVersion != mdm.EnrollmentVersionV5 {
+	if req.Body.Discover.Request.RequestVersion != syncml.EnrollmentVersionV4 &&
+		req.Body.Discover.Request.RequestVersion != syncml.EnrollmentVersionV5 {
 		return errors.New("invalid discover message: Request.RequestVersion")
 	}
 
 	// Traverse the AuthPolicies slice and check for valid values
 	isInvalidAuth := true
 	for _, authPolicy := range req.Body.Discover.Request.AuthPolicies.AuthPolicy {
-		if authPolicy == mdm.AuthOnPremise {
+		if authPolicy == syncml.AuthOnPremise {
 			isInvalidAuth = false
 			break
 		}
@@ -217,8 +216,8 @@ func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.ValueType")
 	}
 
-	if req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != mdm.EnrollReqTypePKCS10 &&
-		req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != mdm.EnrollReqTypePKCS7 {
+	if req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != syncml.EnrollReqTypePKCS10 &&
+		req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != syncml.EnrollReqTypePKCS7 {
 		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.EncodingType not supported")
 	}
 
@@ -230,29 +229,29 @@ func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 		return errors.New("invalid requestsecuritytoken message: AdditionalContext.ContextItems missing")
 	}
 
-	reqEnrollType, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemEnrollmentType)
-	if err != nil || (reqEnrollType != mdm.ReqSecTokenEnrollTypeDevice && reqEnrollType != mdm.ReqSecTokenEnrollTypeFull) {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemEnrollmentType, reqEnrollType, err)
+	reqEnrollType, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemEnrollmentType)
+	if err != nil || (reqEnrollType != syncml.ReqSecTokenEnrollTypeDevice && reqEnrollType != syncml.ReqSecTokenEnrollTypeFull) {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemEnrollmentType, reqEnrollType, err)
 	}
 
-	reqDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemDeviceID)
+	reqDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemDeviceID)
 	if err != nil || len(reqDeviceID) == 0 {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemDeviceID, reqDeviceID, err)
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemDeviceID, reqDeviceID, err)
 	}
 
-	reqHwDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemHWDevID)
+	reqHwDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil || len(reqHwDeviceID) == 0 {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemHWDevID, reqHwDeviceID, err)
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemHWDevID, reqHwDeviceID, err)
 	}
 
-	reqOSEdition, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemOSEdition)
+	reqOSEdition, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemOSEdition)
 	if err != nil || len(reqOSEdition) == 0 {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemOSEdition, reqOSEdition, err)
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemOSEdition, reqOSEdition, err)
 	}
 
-	reqOSVersion, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemOSVersion)
+	reqOSVersion, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemOSVersion)
 	if err != nil || len(reqOSVersion) == 0 {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemOSVersion, reqOSVersion, err)
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemOSVersion, reqOSVersion, err)
 	}
 
 	return nil
@@ -360,7 +359,7 @@ func (token *HeaderBinarySecurityToken) IsValidToken() error {
 		return errors.New("binary security token is empty")
 	}
 
-	if token.Value != microsoft_mdm.BinarySecurityDeviceEnroll && token.Value != microsoft_mdm.BinarySecurityAzureEnroll {
+	if token.Value != syncml.BinarySecurityDeviceEnroll && token.Value != syncml.BinarySecurityAzureEnroll {
 		return errors.New("binary security token is invalid")
 	}
 
@@ -373,7 +372,7 @@ func (token *HeaderBinarySecurityToken) IsAzureJWTToken() bool {
 		return false
 	}
 
-	if token.Value == microsoft_mdm.BinarySecurityAzureEnroll {
+	if token.Value == syncml.BinarySecurityAzureEnroll {
 		return true
 	}
 
@@ -386,7 +385,7 @@ func (token *HeaderBinarySecurityToken) IsDeviceToken() bool {
 		return false
 	}
 
-	if token.Value == microsoft_mdm.BinarySecurityDeviceEnroll {
+	if token.Value == syncml.BinarySecurityDeviceEnroll {
 		return true
 	}
 
@@ -503,8 +502,8 @@ func (msg RequestSecurityToken) GetBinarySecurityTokenData() (string, error) {
 
 // Get Binary Security Token Type
 func (msg RequestSecurityToken) GetBinarySecurityTokenType() (string, error) {
-	if msg.BinarySecurityToken.ValueType == mdm.EnrollReqTypePKCS10 ||
-		msg.BinarySecurityToken.ValueType == mdm.EnrollReqTypePKCS7 {
+	if msg.BinarySecurityToken.ValueType == syncml.EnrollReqTypePKCS10 ||
+		msg.BinarySecurityToken.ValueType == syncml.EnrollReqTypePKCS7 {
 		return msg.BinarySecurityToken.ValueType, nil
 	}
 
@@ -1022,12 +1021,12 @@ func (msg *SyncML) IsValidHeader() error {
 	}
 
 	// SyncML DTD version check
-	if msg.SyncHdr.VerDTD != mdm.SyncMLSupportedVersion {
+	if msg.SyncHdr.VerDTD != syncml.SyncMLSupportedVersion {
 		return errors.New("unsupported DTD version")
 	}
 
 	// SyncML Proto version check
-	if msg.SyncHdr.VerProto != mdm.SyncMLVerProto {
+	if msg.SyncHdr.VerProto != syncml.SyncMLVerProto {
 		return errors.New("unsupported proto version")
 	}
 

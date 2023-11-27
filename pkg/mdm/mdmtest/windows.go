@@ -220,10 +220,10 @@ func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperatio
 	}
 
 	var msg fleet.SyncML
-	msg.Xmlns = microsoft_mdm.SyncCmdNamespace
+	msg.Xmlns = syncml.SyncCmdNamespace
 	msg.SyncHdr = fleet.SyncHdr{
-		VerDTD:    microsoft_mdm.SyncMLSupportedVersion,
-		VerProto:  microsoft_mdm.SyncMLVerProto,
+		VerDTD:    syncml.SyncMLSupportedVersion,
+		VerProto:  syncml.SyncMLVerProto,
 		SessionID: sessionID,
 		MsgID:     fmt.Sprint(messageIDInt + 1),
 		Source:    &fleet.LocURI{LocURI: &c.DeviceID},
@@ -498,11 +498,11 @@ func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType
 			return "", "", err
 		}
 
-		tokenValueType = microsoft_mdm.BinarySecurityAzureEnroll
+		tokenValueType = syncml.BinarySecurityAzureEnroll
 		binarySecToken = base64.URLEncoding.EncodeToString([]byte(tokenString))
 	case fleet.WindowsMDMProgrammaticEnrollmentType:
 		var err error
-		tokenValueType = microsoft_mdm.BinarySecurityDeviceEnroll
+		tokenValueType = syncml.BinarySecurityDeviceEnroll
 		binarySecToken, err = fleet.GetEncodedBinarySecurityToken(c.enrollmentType, c.tokenIdentifier)
 		if err != nil {
 			return "", "", fmt.Errorf("generating encoded security token: %w", err)

@@ -9,8 +9,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
-	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,7 +34,7 @@ func NewSoapRequest(request []byte) (fleet.SoapRequest, error) {
 
 func TestValidSoapResponse(t *testing.T) {
 	relatesTo := "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749"
-	soapFaultMsg := NewSoapFault(mdm.SoapErrorAuthentication, mdm_types.MDEDiscovery, errors.New("test"))
+	soapFaultMsg := NewSoapFault(syncml.SoapErrorAuthentication, mdm_types.MDEDiscovery, errors.New("test"))
 	sres, err := NewSoapResponse(&soapFaultMsg, relatesTo)
 	require.NoError(t, err)
 	outXML, err := xml.MarshalIndent(sres, "", "  ")
@@ -51,7 +51,7 @@ func TestInvalidSoapResponse(t *testing.T) {
 
 func TestFaultMessageSoapResponse(t *testing.T) {
 	targetErrorString := "invalid input request"
-	soapFaultMsg := NewSoapFault(mdm.SoapErrorAuthentication, mdm_types.MDEDiscovery, errors.New(targetErrorString))
+	soapFaultMsg := NewSoapFault(syncml.SoapErrorAuthentication, mdm_types.MDEDiscovery, errors.New(targetErrorString))
 	sres, err := NewSoapResponse(&soapFaultMsg, "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749")
 	require.NoError(t, err)
 	outXML, err := xml.MarshalIndent(sres, "", "  ")
