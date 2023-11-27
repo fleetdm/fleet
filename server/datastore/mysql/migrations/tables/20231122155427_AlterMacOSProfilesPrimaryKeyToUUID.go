@@ -11,7 +11,7 @@ func init() {
 
 func Up_20231122155427(tx *sql.Tx) error {
 	// update the windows profiles tables to use a 37-char uuid column for
-	// the 'W' prefix.
+	// the 'w' prefix.
 	_, err := tx.Exec(`
 ALTER TABLE host_mdm_windows_profiles
 	CHANGE COLUMN profile_uuid profile_uuid VARCHAR(37) NOT NULL DEFAULT ''
@@ -26,11 +26,13 @@ ALTER TABLE mdm_windows_configuration_profiles
 	if err != nil {
 		return fmt.Errorf("failed to alter mdm_windows_configuration_profiles table: %w", err)
 	}
+
+	// add the 'w' prefix to the windows profiles table
 	_, err = tx.Exec(`
 UPDATE
 	mdm_windows_configuration_profiles
 SET
-	profile_uuid = CONCAT('W', profile_uuid)
+	profile_uuid = CONCAT('w', profile_uuid)
 `)
 	if err != nil {
 		return fmt.Errorf("failed to update mdm_windows_configuration_profiles table: %w", err)
@@ -39,7 +41,7 @@ SET
 UPDATE
 	host_mdm_windows_profiles
 SET
-	profile_uuid = CONCAT('W', profile_uuid)
+	profile_uuid = CONCAT('w', profile_uuid)
 `)
 	if err != nil {
 		return fmt.Errorf("failed to update host_mdm_windows_profiles table: %w", err)
@@ -49,7 +51,7 @@ SET
 	// temporarily drop the primary key until we fill those uuids.
 	_, err = tx.Exec(`
 ALTER TABLE mdm_apple_configuration_profiles
-	-- 37 and not 36 because the UUID will be prefixed with 'A' to indicate
+	-- 37 and not 36 because the UUID will be prefixed with 'a' to indicate
 	-- that it's an Apple profile.
 	ADD COLUMN profile_uuid VARCHAR(37) NOT NULL DEFAULT '',
 	-- auto-increment column must have an index, so we create one before
@@ -66,7 +68,7 @@ ALTER TABLE mdm_apple_configuration_profiles
 UPDATE
 	mdm_apple_configuration_profiles
 SET
-	profile_uuid = CONCAT('A', uuid())
+	profile_uuid = CONCAT('a', uuid())
 `)
 	if err != nil {
 		return fmt.Errorf("failed to update mdm_apple_configuration_profiles table: %w", err)
@@ -104,7 +106,7 @@ SET
 			mdm_apple_configuration_profiles macp
 		WHERE
 			host_mdm_apple_profiles.profile_id = macp.profile_id
-	), CONCAT('A', uuid()))
+	), CONCAT('a', uuid()))
 `)
 	if err != nil {
 		return fmt.Errorf("failed to update host_mdm_apple_profiles table: %w", err)
