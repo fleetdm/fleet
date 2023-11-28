@@ -4016,7 +4016,8 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "created_at": "2023-04-31T00:00:00Z",
       "updated_at": "2023-04-31T00:00:00Z",
       "checksum": "aCLemVr)",
-      "labels": ["Label name 1", "Label name 3"]
+      "labels": ["Label name 1", "Label name 3"],
+      "broken": true
     }
   ],
   "meta": {
