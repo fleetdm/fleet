@@ -5676,10 +5676,10 @@ Returns the query report specified by ID.
 
 #### Parameters
 
-| Name      | Type    | In   | Description                                |
-| --------- | ------- | ---- | ------------------------------------------ |
-| id        | integer | path | **Required**. The ID of the desired query. |
-| host_id   | integer | path | If provided, filters to only include results for the specified host. |
+| Name      | Type    | In    | Description                                |
+| --------- | ------- | ----- | ------------------------------------------ |
+| id        | integer | path  | **Required**. The ID of the desired query. |
+| host_id   | integer | query | If provided, filters to only include results for the specified host. |
 
 #### Example
 
