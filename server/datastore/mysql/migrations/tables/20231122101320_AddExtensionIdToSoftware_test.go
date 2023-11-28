@@ -41,11 +41,20 @@ func TestUp_20231122101320(t *testing.T) {
 	}
 	require.Equal(t, 1, count)
 
-	extension := "abc"
+	extensions := []string{"abc", "def"}
 	stmt = fmt.Sprintf(`
 		INSERT INTO software (id, name, version, source, extension_id) VALUES
 			(2,'%s','version','source', '%s');
-	`, softwareNames[1], extension,
+	`, softwareNames[1], extensions[0],
+	)
+	_, err = db.Exec(stmt)
+	require.NoError(t, err)
+
+	stmt = fmt.Sprintf(
+		`
+		INSERT INTO software (id, name, version, source, extension_id) VALUES
+			(3,'%s','version','source', '%s');
+	`, softwareNames[1], extensions[1],
 	)
 	_, err = db.Exec(stmt)
 	require.NoError(t, err)
@@ -65,7 +74,7 @@ func TestUp_20231122101320(t *testing.T) {
 		err := rows.Scan(&name, &extensionId)
 		require.NoError(t, err)
 		require.Equal(t, softwareNames[1], name)
-		require.Equal(t, extension, extensionId)
+		require.Equal(t, extensions[0], extensionId)
 	}
 	require.Equal(t, 1, count)
 

@@ -670,6 +670,7 @@ SELECT
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
+  '' AS extension_id,
   'apps' AS source,
   last_opened_time AS last_opened_at,
   path AS installed_path
@@ -680,6 +681,7 @@ SELECT
   version AS version,
   'Package (Python)' AS type,
   '' AS bundle_identifier,
+  '' AS extension_id,
   'python_packages' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -690,6 +692,7 @@ SELECT
   version AS version,
   'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
+  identifier AS extension_id,
   'chrome_extensions' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -700,6 +703,7 @@ SELECT
   version AS version,
   'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
+  identifier AS extension_id,
   'firefox_addons' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -710,6 +714,7 @@ SELECT
   version AS version,
   'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
+  '' AS extension_id,
   'safari_extensions' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -720,6 +725,7 @@ SELECT
   version AS version,
   'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
+  '' AS extension_id,
   'homebrew_packages' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -743,6 +749,7 @@ SELECT
   name AS name,
   version AS version,
   'Package (deb)' AS type,
+  '' AS extension_id,
   'deb_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -755,6 +762,7 @@ SELECT
   package AS name,
   version AS version,
   'Package (Portage)' AS type,
+  '' AS extension_id,
   'portage_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -766,6 +774,7 @@ SELECT
   name AS name,
   version AS version,
   'Package (RPM)' AS type,
+  '' AS extension_id,
   'rpm_packages' AS source,
   release AS release,
   vendor AS vendor,
@@ -777,6 +786,7 @@ SELECT
   name AS name,
   version AS version,
   'Package (NPM)' AS type,
+  '' AS extension_id,
   'npm_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -788,6 +798,7 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
+  identifier AS extension_id,
   'chrome_extensions' AS source,
   '' AS release,
   '' AS vendor,
@@ -799,6 +810,7 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
+  identifier AS extension_id,
   'firefox_addons' AS source,
   '' AS release,
   '' AS vendor,
@@ -810,6 +822,7 @@ SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
+  '' AS extension_id,
   'python_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -827,6 +840,7 @@ SELECT
   name AS name,
   version AS version,
   'Program (Windows)' AS type,
+  '' AS extension_id,
   'programs' AS source,
   publisher AS vendor,
   install_location AS installed_path
@@ -836,6 +850,7 @@ SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
+  '' AS extension_id,
   'python_packages' AS source,
   '' AS vendor,
   path AS installed_path
@@ -845,6 +860,7 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (IE)' AS type,
+  '' AS extension_id,
   'ie_extensions' AS source,
   '' AS vendor,
   path AS installed_path
@@ -854,6 +870,7 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
+  identifier AS extension_id,
   'chrome_extensions' AS source,
   '' AS vendor,
   path AS installed_path
@@ -863,6 +880,7 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
+  identifier AS extension_id,
   'firefox_addons' AS source,
   '' AS vendor,
   path AS installed_path
@@ -872,6 +890,7 @@ SELECT
   name AS name,
   version AS version,
   'Package (Chocolatey)' AS type,
+  '' AS extension_id,
   'chocolatey_packages' AS source,
   '' AS vendor,
   path AS installed_path
@@ -885,6 +904,7 @@ var softwareChrome = DetailQuery{
 	Query: `SELECT
   name AS name,
   version AS version,
+  identifier AS extension_id,
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
   '' AS vendor,
@@ -1164,6 +1184,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			row["release"],
 			row["arch"],
 			row["bundle_identifier"],
+			row["extension_id"],
 			row["last_opened_at"],
 		)
 		if err != nil {

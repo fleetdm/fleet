@@ -21,6 +21,7 @@ const (
 	SoftwareVersionMaxLength          = 255
 	SoftwareSourceMaxLength           = 64
 	SoftwareBundleIdentifierMaxLength = 255
+	SoftwareExtensionIdMaxLength      = 255
 
 	SoftwareReleaseMaxLength = 64
 	SoftwareVendorMaxLength  = 114
@@ -85,6 +86,11 @@ func (s Software) ToUniqueStr() string {
 	// thus we only include them in the string if at least one of them is defined.
 	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
 		ss = append(ss, s.Release, s.Vendor, s.Arch)
+	}
+	// ExtensionId was added on a migration, so it is only included if it exists.
+	// This way a blank ExtensionId matches the pre-migration unique string.
+	if s.ExtensionId != "" {
+		ss = append(ss, s.ExtensionId)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
@@ -214,7 +220,9 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 //
 // All fields are trimmed to fit on Fleet's database.
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
-func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, release, arch, bundleIdentifier, lastOpenedAt string) (*Software, error) {
+func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, release, arch, bundleIdentifier, extensionId, lastOpenedAt string) (
+	*Software, error,
+) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
 	}
@@ -243,6 +251,7 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 		Version:          truncateString(version, SoftwareVersionMaxLength),
 		Source:           truncateString(source, SoftwareSourceMaxLength),
 		BundleIdentifier: truncateString(bundleIdentifier, SoftwareBundleIdentifierMaxLength),
+		ExtensionId:      truncateString(extensionId, SoftwareExtensionIdMaxLength),
 
 		Release: truncateString(release, SoftwareReleaseMaxLength),
 		Vendor:  vendor,
