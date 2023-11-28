@@ -21,7 +21,7 @@ const policyCols = `
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical
 `
 
-var policySearchColumns = []string{"name"}
+var policySearchColumns = []string{"p.name"}
 
 func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	if args.QueryID != nil {
@@ -380,9 +380,9 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 	)
 
 	if teamID == nil {
-		query = `SELECT count(*) FROM policies WHERE team_id IS NULL`
+		query = `SELECT count(*) FROM policies p WHERE team_id IS NULL`
 	} else {
-		query = `SELECT count(*) FROM policies WHERE team_id = ?`
+		query = `SELECT count(*) FROM policies p WHERE team_id = ?`
 		args = append(args, *teamID)
 	}
 

@@ -55,6 +55,7 @@ func TestPolicies(t *testing.T) {
 		{"TestCountPolicies", testCountPolicies},
 		{"TestUpdatePolicyHostCounts", testUpdatePolicyHostCounts},
 		{"TestCachedPolicyCountDeletesOnPolicyChange", testCachedPolicyCountDeletesOnPolicyChange},
+		{"TestPoliciesListOptions", testPoliciesListOptions},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -202,6 +203,58 @@ func testPoliciesNewGlobalPolicyProprietary(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "query1 other resolution", *p3.Resolution)
 	require.NotNil(t, p3.AuthorID)
 	assert.Equal(t, user1.ID, *p3.AuthorID)
+}
+
+func testPoliciesListOptions(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	ctx := context.Background()
+
+	_, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "apple",
+		Query:       "select 1;",
+		Description: "query1 desc",
+		Resolution:  "query1 resolution",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "banana",
+		Query:       "select 1;",
+		Description: "query2 desc",
+		Resolution:  "query2 resolution",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "cherry",
+		Query:       "select 1;",
+		Description: "query3 desc",
+		Resolution:  "query3 resolution",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "apple pie",
+		Query:       "select 1;",
+		Description: "query4 desc",
+		Resolution:  "query4 resolution",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "rotten apple",
+		Query:       "select 1;",
+		Description: "query5 desc",
+		Resolution:  "query5 resolution",
+	})
+	require.NoError(t, err)
+
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{MatchQuery: "apple", OrderKey: "name", OrderDirection: fleet.OrderAscending})
+	require.NoError(t, err)
+	require.Len(t, policies, 3)
+	assert.Equal(t, "apple", policies[0].Name)
+	assert.Equal(t, "apple pie", policies[1].Name)
+	assert.Equal(t, "rotten apple", policies[2].Name)
 }
 
 func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
