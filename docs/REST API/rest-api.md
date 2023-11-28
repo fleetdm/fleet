@@ -6989,7 +6989,6 @@ Deletes the session specified by ID. When the user associated with the session n
         "name": "glibc",
         "version": "2.12",
         "source": "rpm_packages",
-        "extension_id": "",
         "release": "1.212.el6",
         "vendor": "CentOS",
         "arch": "x86_64",
