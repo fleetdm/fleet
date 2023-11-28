@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useContext } from "react";
+import React, { useState, useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import memoize from "memoize-one";
@@ -150,21 +150,6 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const goToUserSettingsPage = () => {
     const { USER_SETTINGS } = paths;
     router.push(USER_SETTINGS);
-  };
-
-  // NOTE: this is called once on the initial rendering. The initial render of
-  // the TableContainer child component calls this handler.
-  const onTableQueryChange = (queryData: ITableQueryData) => {
-    const { searchQuery, sortHeader, sortDirection } = queryData;
-    let sortBy: any = []; // TODO
-    if (sortHeader !== "") {
-      sortBy = [{ id: sortHeader, direction: sortDirection }];
-    }
-
-    setQuerySearchText(searchQuery);
-
-    refetchUsers();
-    refetchInvites();
   };
 
   const onActionSelect = (value: string, user: IUser | IInvite) => {
@@ -514,44 +499,74 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const tableDataError =
     loadingUsersError || loadingInvitesError || loadingTeamsError;
 
-  let tableData: unknown = [];
-  if (!loadingTableData && !tableDataError) {
-    tableData = combineUsersAndInvites(users, invites, currentUser?.id);
-  }
+  const tableData = useMemo(
+    () =>
+      !loadingTableData && !tableDataError
+        ? combineUsersAndInvites(users, invites, currentUser?.id)
+        : [],
+    [
+      loadingTableData,
+      tableDataError,
+      combineUsersAndInvites,
+      users,
+      invites,
+      currentUser?.id,
+    ]
+  );
 
-  const emptyState = {
-    header: "No users match the current criteria.",
-    info:
-      "Expecting to see users? Try again in a few seconds as the system catches up.",
-  };
+  const renderTable = useCallback(() => {
+    // NOTE: this is called once on the initial rendering. The initial render of
+    // the TableContainer child component calls this handler.
+    const onTableQueryChange = (queryData: ITableQueryData) => {
+      const { searchQuery } = queryData;
+
+      setQuerySearchText(searchQuery);
+
+      refetchUsers();
+      refetchInvites();
+    };
+
+    const emptyState = {
+      header: "No users match the current criteria.",
+      info:
+        "Expecting to see users? Try again in a few seconds as the system catches up.",
+    };
+
+    return (
+      <TableContainer
+        columns={tableHeaders}
+        data={tableData}
+        isLoading={loadingTableData}
+        defaultSortHeader={"name"}
+        defaultSortDirection={"asc"}
+        inputPlaceHolder={"Search by name or email"}
+        actionButton={{
+          name: "create user",
+          buttonText: "Create user",
+          onActionButtonClick: toggleCreateUserModal,
+        }}
+        onQueryChange={onTableQueryChange}
+        resultsTitle={"users"}
+        emptyComponent={() => EmptyTable(emptyState)}
+        searchable
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        isClientSidePagination
+      />
+    );
+  }, [
+    tableHeaders,
+    tableData,
+    loadingTableData,
+    toggleCreateUserModal,
+    refetchUsers,
+    refetchInvites,
+  ]);
 
   return (
     <>
       {/* TODO: find a way to move these controls into the table component */}
-      {tableDataError ? (
-        <TableDataError />
-      ) : (
-        <TableContainer
-          columns={tableHeaders}
-          data={tableData}
-          isLoading={loadingTableData}
-          defaultSortHeader={"name"}
-          defaultSortDirection={"asc"}
-          inputPlaceHolder={"Search by name or email"}
-          actionButton={{
-            name: "create user",
-            buttonText: "Create user",
-            onActionButtonClick: toggleCreateUserModal,
-          }}
-          onQueryChange={onTableQueryChange}
-          resultsTitle={"users"}
-          emptyComponent={() => EmptyTable(emptyState)}
-          searchable
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          isClientSidePagination
-        />
-      )}
+      {tableDataError ? <TableDataError /> : renderTable()}
       {showCreateUserModal && renderCreateUserModal()}
       {showEditUserModal && renderEditUserModal()}
       {showDeleteUserModal && renderDeleteUserModal()}
