@@ -29,6 +29,12 @@
     margin: 0;
   }
 
+  &__pagination-controls {
+    display: flex;
+    justify-content: flex-end;
+    margin: $pad-large 0;
+  }
+
   &__file-uploader {
     margin-top: $pad-xxlarge;
   }

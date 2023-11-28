@@ -18,9 +18,11 @@ const DEFAULT_MDM_PROFILE_DATA: IMdmProfile = {
   profile_id: 1,
   team_id: 0,
   name: "Test Profile",
+  platform: "darwin",
   identifier: "com.test.profile",
   created_at: "2021-01-01T00:00:00Z",
   updated_at: "2021-01-01T00:00:00Z",
+  checksum: "123abc",
 };
 
 export const createMockMdmProfile = (
