@@ -313,7 +313,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Insert macos software
+	// Insert macOS software
 	macSoftware, err := readCSVFile("./tools/seed_data/software-macos.csv")
 	if err != nil {
 		log.Fatal(err)
