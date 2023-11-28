@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -77,15 +78,14 @@ func readCSVFile(filePath string) ([]Software, error) {
 	defer file.Close()
 
 	reader := csv.NewReader(file)
-	reader.Comma = ',' // Set the delimiter to comma
 	lines, err := reader.ReadAll()
 	if err != nil {
 		return nil, err
 	}
 
-	var softwares []Software
+	var software []Software
 	for _, line := range lines[1:] { // Skip header line
-		softwares = append(softwares, Software{
+		software = append(software, Software{
 			Name:             line[0],
 			Version:          line[1],
 			Source:           line[2],
@@ -96,7 +96,7 @@ func readCSVFile(filePath string) ([]Software, error) {
 			Vendor:           line[7],
 		})
 	}
-	return softwares, nil
+	return software, nil
 }
 
 func insertOrUpdateSoftware(db *sqlx.DB, hostID int, software Software) error {
@@ -104,7 +104,7 @@ func insertOrUpdateSoftware(db *sqlx.DB, hostID int, software Software) error {
 	var existingID int64
 	query := `SELECT id FROM software WHERE name = ? AND version = ? AND source = ?`
 	err := db.Get(&existingID, query, software.Name, software.Version, software.Source)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("select software: %w", err)
 	}
 	software.ID = existingID
