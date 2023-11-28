@@ -2137,23 +2137,13 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		p, ok := profileContents[profID]
 		if !ok {
 			// this should never happen
-			level.Info(logger).Log("warn", "missing profile contents", "profile_id", profID)
-			continue
+			return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
 		}
 
-		// TODO(roberto): I think this should live separately in the
-		// Windows equivalent of Apple's Commander struct, but I'd like
-		// to keep it simpler for now until we understand more.
-		command := &fleet.MDMWindowsCommand{
-			CommandUUID: target.cmdUUID,
-			RawCommand: []byte(fmt.Sprintf(`
-				<Atomic>
-					<CmdID>%s</CmdID>
-					%s
-				</Atomic>
-			`, target.cmdUUID, p)),
-			// Atomic commands don't have a Target element.
-			TargetLocURI: "",
+		command, err := buildCommandFromProfileBytes(p, target.cmdUUID)
+		if err != nil {
+			level.Info(logger).Log("err", err, "profile_id", profID)
+			continue
 		}
 		if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
@@ -2172,4 +2162,35 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	}
 
 	return nil
+}
+
+// TODO(roberto): I think this should live separately in the
+// Windows equivalent of Apple's Commander struct, but I'd like
+// to keep it simpler for now until we understand more.
+func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fleet.MDMWindowsCommand, error) {
+	rawCommand := []byte(fmt.Sprintf(`<Atomic>%s</Atomic>`, profileBytes))
+	cmd := new(mdm_types.SyncMLCmd)
+	if err := xml.Unmarshal(rawCommand, cmd); err != nil {
+		return nil, fmt.Errorf("unmarshalling profile: %w", err)
+	}
+	// set the CmdID for the <Atomic> command
+	cmd.CmdID = commandUUID
+	// generate a CmdID for any nested <Replace>
+	for i := range cmd.ReplaceCommands {
+		cmd.ReplaceCommands[i].CmdID = uuid.NewString()
+	}
+
+	rawCommand, err := xml.Marshal(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling command: %w", err)
+	}
+
+	command := &fleet.MDMWindowsCommand{
+		CommandUUID: commandUUID,
+		RawCommand:  rawCommand,
+		// Atomic commands don't have a Target element.
+		TargetLocURI: "",
+	}
+
+	return command, nil
 }
