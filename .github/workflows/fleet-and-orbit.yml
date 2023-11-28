@@ -75,6 +75,7 @@ jobs:
       env:
         CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
       run: |
+        #!/bin/bash
         # Increase maximum receive buffer size to roughly 2.5 MB.
         # Cloudflared uses quic-go. This buffer holds packets that have been received by the kernel,
         # but not yet read by the application (quic-go in this case). Once this buffer fills up, the

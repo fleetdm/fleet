@@ -32,11 +32,11 @@ type TeamPayload struct {
 // need to be able which part of the MDM config was provided in the request,
 // so the fields are pointers to structs.
 type TeamPayloadMDM struct {
-	EnableDiskEncryption optjson.Bool     `json:"enable_disk_encryption"`
-	MacOSUpdates         *MacOSUpdates    `json:"macos_updates"`
-	MacOSSettings        *MacOSSettings   `json:"macos_settings"`
-	MacOSSetup           *MacOSSetup      `json:"macos_setup"`
-	WindowsSettings      *WindowsSettings `json:"windows_settings"`
+	EnableDiskEncryption optjson.Bool   `json:"enable_disk_encryption"`
+	MacOSUpdates         *MacOSUpdates  `json:"macos_updates"`
+	MacOSSettings        *MacOSSettings `json:"macos_settings"`
+	MacOSSetup           *MacOSSetup    `json:"macos_setup"`
+	// WindowsSettings      *WindowsSettings `json:"windows_settings"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -154,7 +154,7 @@ type TeamMDM struct {
 	MacOSSettings        MacOSSettings `json:"macos_settings"`
 	MacOSSetup           MacOSSetup    `json:"macos_setup"`
 
-	WindowsSettings WindowsSettings `json:"windows_settings"`
+	// WindowsSettings WindowsSettings `json:"windows_settings"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
 
 	/////////////////////////////////////////////////////////////////
@@ -188,11 +188,11 @@ func (t *TeamMDM) Copy() *TeamMDM {
 	if t.MacOSSettings.DeprecatedEnableDiskEncryption != nil {
 		clone.MacOSSettings.DeprecatedEnableDiskEncryption = ptr.Bool(*t.MacOSSettings.DeprecatedEnableDiskEncryption)
 	}
-	if t.WindowsSettings.CustomSettings.Set {
-		windowsSettings := make([]string, len(t.WindowsSettings.CustomSettings.Value))
-		copy(windowsSettings, t.WindowsSettings.CustomSettings.Value)
-		clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
-	}
+	//if t.WindowsSettings.CustomSettings.Set {
+	//	windowsSettings := make([]string, len(t.WindowsSettings.CustomSettings.Value))
+	//	copy(windowsSettings, t.WindowsSettings.CustomSettings.Value)
+	//	clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
+	//}
 	return &clone
 }
 
@@ -209,7 +209,7 @@ type TeamSpecMDM struct {
 	MacOSSettings map[string]interface{} `json:"macos_settings"`
 	MacOSSetup    MacOSSetup             `json:"macos_setup"`
 
-	WindowsSettings WindowsSettings `json:"windows_settings"`
+	// WindowsSettings WindowsSettings `json:"windows_settings"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
 }
@@ -419,7 +419,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
-	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
+	// mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
 	return &TeamSpec{
 		Name:         t.Name,
 		AgentOptions: agentOptions,

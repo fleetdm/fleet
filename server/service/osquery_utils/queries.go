@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -1505,9 +1506,16 @@ func directIngestDiskEncryptionKeyFileDarwin(
 		return nil
 	}
 
-	// it's okay if the key comes empty, this can happen and if the disk is
-	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"], "", nil)
+	// at this point we know that the disk is encrypted, if the key is
+	// empty then the disk is not decryptable. For example an user might
+	// have removed the `/var/db/FileVaultPRK.dat` or the computer might
+	// have been encrypted without FV escrow enabled.
+	var decryptable *bool
+	base64Key := rows[0]["filevault_key"]
+	if base64Key == "" {
+		decryptable = ptr.Bool(false)
+	}
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64Key, "", decryptable)
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -1556,9 +1564,17 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 		return ctxerr.Wrap(ctx, err, "decoding hex string")
 	}
 
-	// it's okay if the key comes empty, this can happen and if the disk is
-	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b), "", nil)
+	// at this point we know that the disk is encrypted, if the key is
+	// empty then the disk is not decryptable. For example an user might
+	// have removed the `/var/db/FileVaultPRK.dat` or the computer might
+	// have been encrypted without FV escrow enabled.
+	var decryptable *bool
+	base64Key := base64.StdEncoding.EncodeToString(b)
+	if base64Key == "" {
+		decryptable = ptr.Bool(false)
+	}
+
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64Key, "", decryptable)
 }
 
 func directIngestMacOSProfiles(

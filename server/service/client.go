@@ -380,7 +380,8 @@ func (c *Client) ApplyGroup(
 	}
 
 	if specs.AppConfig != nil {
-		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
+		windowsCustomSettings := []string{}
+		// windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
 		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
 		allCustomSettings := append(macosCustomSettings, windowsCustomSettings...)
 
@@ -643,42 +644,42 @@ func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
 	return csStrings
 }
 
-func extractAppCfgWindowsCustomSettings(appCfg interface{}) []string {
-	asMap, ok := appCfg.(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	mmdm, ok := asMap["mdm"].(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	mos, ok := mmdm["windows_settings"].(map[string]interface{})
-	if !ok || mos == nil {
-		return nil
-	}
-
-	cs, ok := mos["custom_settings"]
-	if !ok {
-		// custom settings is not present
-		return nil
-	}
-
-	csAny, ok := cs.([]interface{})
-	if !ok || csAny == nil {
-		// return a non-nil, empty slice instead, so the caller knows that the
-		// custom_settings key was actually provided.
-		return []string{}
-	}
-
-	csStrings := make([]string, 0, len(csAny))
-	for _, v := range csAny {
-		s, _ := v.(string)
-		if s != "" {
-			csStrings = append(csStrings, s)
-		}
-	}
-	return csStrings
-}
+//func extractAppCfgWindowsCustomSettings(appCfg interface{}) []string {
+//	asMap, ok := appCfg.(map[string]interface{})
+//	if !ok {
+//		return nil
+//	}
+//	mmdm, ok := asMap["mdm"].(map[string]interface{})
+//	if !ok {
+//		return nil
+//	}
+//	mos, ok := mmdm["windows_settings"].(map[string]interface{})
+//	if !ok || mos == nil {
+//		return nil
+//	}
+//
+//	cs, ok := mos["custom_settings"]
+//	if !ok {
+//		// custom settings is not present
+//		return nil
+//	}
+//
+//	csAny, ok := cs.([]interface{})
+//	if !ok || csAny == nil {
+//		// return a non-nil, empty slice instead, so the caller knows that the
+//		// custom_settings key was actually provided.
+//		return []string{}
+//	}
+//
+//	csStrings := make([]string, 0, len(csAny))
+//	for _, v := range csAny {
+//		s, _ := v.(string)
+//		if s != "" {
+//			csStrings = append(csStrings, s)
+//		}
+//	}
+//	return csStrings
+//}
 
 func extractAppCfgScripts(appCfg interface{}) []string {
 	asMap, ok := appCfg.(map[string]interface{})
@@ -720,7 +721,7 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]str
 					CustomSettings json.RawMessage `json:"custom_settings"`
 				} `json:"macos_settings"`
 				WindowsSettings struct {
-					CustomSettings json.RawMessage `json:"custom_settings"`
+					CustomSettings json.RawMessage `json:"-"` // FIXME: allow unmarshalling
 				} `json:"windows_settings"`
 			} `json:"mdm"`
 		}
