@@ -8,7 +8,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,6 +23,143 @@ import (
 	"github.com/micromdm/nanodep/godep"
 	"github.com/stretchr/testify/require"
 )
+
+func TestDEPScreenSerial(t *testing.T) {
+	ctx := context.Background()
+	ds := mysql.CreateMySQLDS(t)
+
+	hosts := make([]*fleet.Host, 6)
+	for i := 0; i < len(hosts); i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       fmt.Sprintf("test-host%d-name", i),
+			OsqueryHostID:  ptr.String(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:        ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			UUID:           fmt.Sprintf("test-uuid-%d", i),
+			Platform:       "darwin",
+			HardwareSerial: fmt.Sprintf("serial-%d", i),
+		})
+		require.NoError(t, err)
+		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	testBMToken := nanodep_client.OAuth1Tokens{
+		ConsumerKey:       "test_consumer",
+		ConsumerSecret:    "test_secret",
+		AccessToken:       "test_access_token",
+		AccessSecret:      "test_access_secret",
+		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	logger := kitlog.NewNopLogger()
+	depStorage, err := ds.NewMDMAppleDEPStorage(testBMToken)
+	require.NoError(t, err)
+	depService := apple_mdm.NewDEPService(ds, depStorage, logger)
+	macosJob := &MacosSetupAssistant{
+		Datastore:  ds,
+		Log:        logger,
+		DEPService: depService,
+		DEPClient:  apple_mdm.NewDEPClient(depStorage, ds, logger),
+	}
+
+	var shouldScreen atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "auth123"})
+			require.NoError(t, err)
+
+		case "/profile":
+			var reqProf godep.Profile
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			err = json.Unmarshal(b, &reqProf)
+			require.NoError(t, err)
+
+			// use the profile name as profile uuid, and append "+sso" if it was
+			// registered with the sso url (end-user auth enabled).
+			profUUID := reqProf.ProfileName
+			if strings.HasSuffix(reqProf.ConfigurationWebURL, "/mdm/sso") {
+				profUUID += "+sso"
+			}
+			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: profUUID})
+			require.NoError(t, err)
+
+		case "/profile/devices":
+			var reqProf godep.Profile
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			err = json.Unmarshal(b, &reqProf)
+			require.NoError(t, err)
+
+			for _, d := range reqProf.Devices {
+				if shouldScreen.Load() {
+					require.NotEqual(t, "serial-0", d)
+				}
+			}
+			_, _ = w.Write([]byte(`{}`))
+
+		default:
+			t.Errorf("unexpected request: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+	err = depStorage.StoreConfig(ctx, apple_mdm.DEPName, &nanodep_client.Config{BaseURL: srv.URL})
+	require.NoError(t, err)
+
+	w := NewWorker(ds, logger)
+	w.Register(macosJob)
+
+	checkJob := func() {
+		// enqueue a regenerate all and process the jobs
+		err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateAllProfiles, nil)
+		require.NoError(t, err)
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+		// no remaining jobs to process
+		pending, err := ds.GetQueuedJobs(ctx, 10)
+		for _, p := range pending {
+			t.Logf("pending job: %s", p.Name)
+			var args macosSetupAssistantArgs
+			err := json.Unmarshal(*p.Args, &args)
+			require.NoError(t, err)
+			t.Logf("  args: %v", args)
+		}
+
+		require.NoError(t, err)
+		require.Empty(t, pending)
+	}
+
+	for _, tc := range []struct {
+		name         string
+		serial       string
+		expiry       string
+		shouldScreen bool
+	}{
+		{"no env vars", "", "", false},
+		{"valid serial and future expiry ", "serial-0", time.Now().Add(time.Hour).Format(time.RFC3339), true},
+		{"valid serial and past expiry", "serial-0", time.Now().Add(-time.Hour).Format(time.RFC3339), false},
+		{"valid serial and empty expiry", "serial-0", "", false},
+		{"valid serial and invalid expiry", "serial-0", "invalid", false},
+		{"empty serial and future expiry", "", time.Now().Add(time.Hour).Format(time.RFC3339), false},
+		{"unknown serial and future expiry", "unknown", time.Now().Add(time.Hour).Format(time.RFC3339), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			os.Setenv("FLEET_DEP_SCREEN_SERIAL", tc.serial)
+			os.Setenv("FLEET_DEP_SCREEN_EXPIRY", tc.expiry)
+			defer func() {
+				os.Unsetenv("FLEET_DEP_SCREEN_SERIAL")
+				os.Unsetenv("FLEET_DEP_SCREEN_EXPIRY")
+			}()
+
+			shouldScreen.Store(tc.shouldScreen)
+			checkJob()
+		})
+	}
+}
 
 func TestMacosSetupAssistant(t *testing.T) {
 	ctx := context.Background()
@@ -58,7 +197,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	err = ds.AddHostsToTeam(ctx, &tm2.ID, []uint{hosts[4].ID, hosts[5].ID})
 	require.NoError(t, err)
 
-	var testBMToken = nanodep_client.OAuth1Tokens{
+	testBMToken := nanodep_client.OAuth1Tokens{
 		ConsumerKey:       "test_consumer",
 		ConsumerSecret:    "test_secret",
 		AccessToken:       "test_access_token",

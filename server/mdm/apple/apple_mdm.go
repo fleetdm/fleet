@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"os"
 	"strings"
 	"text/template"
 	"time"
@@ -503,7 +504,10 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 	for profUUID, serials := range profileToSerials {
 		logger := kitlog.With(d.logger, "profile_uuid", profUUID)
 		level.Info(logger).Log("msg", "calling DEP client to assign profile", "profile_uuid", profUUID)
-		apiResp, err := depClient.AssignProfile(ctx, DEPName, profUUID, serials...)
+
+		screenedSerials := ApplyDEPScreenToSerials(ctx, logger, profUUID, serials...)
+
+		apiResp, err := depClient.AssignProfile(ctx, DEPName, profUUID, screenedSerials...)
 		if err != nil {
 			level.Info(logger).Log(
 				"msg", "assign profile",
@@ -522,6 +526,42 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 	}
 
 	return nil
+}
+
+func ApplyDEPScreenToSerials(ctx context.Context, logger kitlog.Logger, profUUID string, serials ...string) []string {
+	if len(serials) == 0 {
+		return serials
+	}
+
+	envExpiry := os.Getenv("FLEET_DEP_SCREEN_EXPIRY")
+	if envExpiry == "" {
+		return serials
+	}
+	t, err := time.Parse(time.RFC3339, envExpiry)
+	if err != nil {
+		level.Error(logger).Log("msg", "parsing dep screen expiry", "err", err)
+		return serials
+	}
+	if time.Now().After(t) {
+		level.Debug(logger).Log("msg", "dep screen expired", "expiry", t)
+		return serials
+	}
+
+	envSerial := os.Getenv("FLEET_DEP_SCREEN_SERIAL")
+	if envSerial == "" {
+		return serials
+	}
+
+	var filteredSerials []string
+	for _, serial := range serials {
+		if serial == envSerial {
+			level.Info(logger).Log("msg", "applying dep screen", "serial", serial, "profile_uuid", profUUID)
+			continue
+		}
+		filteredSerials = append(filteredSerials, serial)
+	}
+
+	return filteredSerials
 }
 
 func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, tmID *uint) (string, error) {

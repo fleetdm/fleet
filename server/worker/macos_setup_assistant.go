@@ -112,8 +112,9 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in team")
 	}
-	if len(serials) > 0 {
-		if _, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, serials...); err != nil {
+	screenedSerials := apple_mdm.ApplyDEPScreenToSerials(ctx, m.Log, profUUID, serials...)
+	if len(screenedSerials) > 0 {
+		if _, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, screenedSerials...); err != nil {
 			return ctxerr.Wrap(ctx, err, "assign profile")
 		}
 	}
@@ -162,8 +163,9 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in team")
 	}
-	if len(serials) > 0 {
-		if _, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, serials...); err != nil {
+	screenedSerials := apple_mdm.ApplyDEPScreenToSerials(ctx, m.Log, profUUID, serials...)
+	if len(screenedSerials) > 0 {
+		if _, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, screenedSerials...); err != nil {
 			return ctxerr.Wrap(ctx, err, "assign profile")
 		}
 	}
@@ -205,9 +207,11 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 		}
 	}
 
-	_, err = m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, args.HostSerialNumbers...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "assign profile")
+	screenedSerials := apple_mdm.ApplyDEPScreenToSerials(ctx, m.Log, profUUID, args.HostSerialNumbers...)
+	if len(screenedSerials) > 0 {
+		if _, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, screenedSerials...); err != nil {
+			return ctxerr.Wrap(ctx, err, "assign profile")
+		}
 	}
 	return nil
 }
