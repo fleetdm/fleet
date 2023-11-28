@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -262,12 +263,20 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
-	// we need the config from the datastore because API tokens are obfuscated at the service layer
-	// we will retrieve the obfuscated config before we return
+	// we need the config from the datastore because API tokens are obfuscated at
+	// the service layer we will retrieve the obfuscated config before we return.
+	// We bypass the mysql cache because this is a read that will be followed by
+	// modifications and a save, so we need up-to-date data.
+	ctx = ctxdb.BypassCachedMysql(ctx, true)
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
+	// the rest of the calls can use the cache safely (we read the AppConfig
+	// again before returning, either after a dry-run or after saving the
+	// AppConfig, in which case the cache will be up-to-date and safe to use).
+	ctx = ctxdb.BypassCachedMysql(ctx, false)
+
 	oldAppConfig := appConfig.Copy()
 
 	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
