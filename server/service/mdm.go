@@ -1193,8 +1193,8 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 }
 
 type newMDMConfigProfileResponse struct {
-	ProfileID string `json:"profile_id"`
-	Err       error  `json:"error,omitempty"`
+	ProfileUUID string `json:"profile_uuid"`
+	Err         error  `json:"error,omitempty"`
 }
 
 func (r newMDMConfigProfileResponse) error() error { return r.Err }
@@ -1215,7 +1215,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
 		return &newMDMConfigProfileResponse{
-			ProfileID: fmt.Sprint(cp.ProfileID),
+			ProfileUUID: cp.ProfileUUID,
 		}, nil
 	}
 
@@ -1226,7 +1226,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
 		return &newMDMConfigProfileResponse{
-			ProfileID: cp.ProfileUUID,
+			ProfileUUID: cp.ProfileUUID,
 		}, nil
 	}
 
