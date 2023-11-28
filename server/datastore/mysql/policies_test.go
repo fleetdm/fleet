@@ -54,6 +54,7 @@ func TestPolicies(t *testing.T) {
 		{"TestListTeamPoliciesCanPaginate", testListTeamPoliciesCanPaginate},
 		{"TestCountPolicies", testCountPolicies},
 		{"TestUpdatePolicyHostCounts", testUpdatePolicyHostCounts},
+		{"TestCachedPolicyCountDeletesOnPolicyChange", testCachedPolicyCountDeletesOnPolicyChange},
 		{"TestPoliciesListOptions", testPoliciesListOptions},
 	}
 	for _, c := range cases {
@@ -1461,6 +1462,99 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	err = ds.writer(context.Background()).SelectContext(context.Background(), &rows, loadMembershipStmt, args...)
 	require.NoError(t, err)
 	require.Len(t, rows, 0)
+}
+
+func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	teamHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("test-1"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("test-1"),
+		UUID:            "test-1",
+		Hostname:        "foo.local",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{teamHost.ID}))
+
+	globalHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("test-2"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("test-2"),
+		UUID:            "test-2",
+		Hostname:        "foo.local",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	globalPolicy, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "global query",
+		Query:       "select 1;",
+		Description: "global query desc",
+		Resolution:  "global query resolution",
+	})
+	require.NoError(t, err)
+
+	teamPolicy, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:        "team query",
+		Query:       "select 1;",
+		Description: "team query desc",
+		Resolution:  "team query resolution",
+	})
+	require.NoError(t, err)
+
+	// teamHost and globalHost pass all policies
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, teamHost, map[uint]*bool{globalPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, teamHost, map[uint]*bool{teamPolicy.ID: ptr.Bool(true), teamPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, globalHost, map[uint]*bool{globalPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+
+	err = ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+
+	globalPolicy, err = ds.Policy(ctx, globalPolicy.ID)
+	require.NoError(t, err)
+	assert.Equal(t, uint(2), globalPolicy.PassingHostCount)
+	teamPolicies, inheritedPolicies, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, teamPolicies, 1)
+	require.Len(t, inheritedPolicies, 1)
+	assert.Equal(t, uint(1), teamPolicies[0].PassingHostCount)
+	assert.Equal(t, uint(1), inheritedPolicies[0].PassingHostCount)
+
+	// Update the global policy sql to trigger a cache invalidation
+	err = ds.SavePolicy(ctx, globalPolicy, true)
+	require.NoError(t, err)
+
+	globalPolicy, err = ds.Policy(ctx, globalPolicy.ID)
+	require.NoError(t, err)
+	assert.Equal(t, uint(0), globalPolicy.PassingHostCount)
+	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, teamPolicies, 1)
+	require.Len(t, inheritedPolicies, 1)
+	assert.Equal(t, uint(1), teamPolicies[0].PassingHostCount)
+	assert.Equal(t, uint(0), inheritedPolicies[0].PassingHostCount)
+
+	// Update the team policy sql to trigger a cache invalidation
+	err = ds.SavePolicy(ctx, teamPolicy, true)
+	require.NoError(t, err)
+
+	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, teamPolicies, 1)
+	require.Len(t, inheritedPolicies, 1)
+	assert.Equal(t, uint(0), teamPolicies[0].PassingHostCount)
+	assert.Equal(t, uint(0), inheritedPolicies[0].PassingHostCount)
 }
 
 func testPoliciesDelUser(t *testing.T, ds *Datastore) {
