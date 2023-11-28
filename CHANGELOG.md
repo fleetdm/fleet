@@ -12,10 +12,6 @@
 
 * **Device management (MDM)**:
   - Added database tables for Windows profiles support.
-  - Introduced `POST /mdm/profiles` for uploading Windows or macOS custom profiles.
-  - New endpoints for managing MDM profiles: `DELETE /mdm/profiles/{id}`, `GET /mdm/profiles/{id}`, `GET /mdm/profiles` (paginated list), `GET /mdm/profiles/summary`.
-  - Updated `GET /api/v1/hosts/:id` to include Windows MDM profiles.
-  - Fleetctl now supports configuration of Windows MDM profiles.
   - Added validation for WSTEP certificate and key pair before enabling Windows MDM.
 
 * **Vulnerability management**:
