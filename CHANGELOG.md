@@ -10,7 +10,7 @@
   - Increased frequency of metrics reporting from Fleet servers to daily.
   - Added caching for policy results in MySQL for faster operations.
 
-* **MDM**:
+* **Device management (MDM)**:
   - Added database tables for Windows profiles support.
   - Introduced `POST /mdm/profiles` for uploading Windows or macOS custom profiles.
   - New endpoints for managing MDM profiles: `DELETE /mdm/profiles/{id}`, `GET /mdm/profiles/{id}`, `GET /mdm/profiles` (paginated list), `GET /mdm/profiles/summary`.
