@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -289,5 +291,73 @@ func TestDEPService_RunAssigner(t *testing.T) {
 			require.Equal(t, tm.ID, *h.TeamID, h.HardwareSerial)
 		}
 		require.ElementsMatch(t, []string{"a", "c"}, serials)
+	})
+
+	t.Run("screened device", func(t *testing.T) {
+		devices := []godep.Device{
+			{SerialNumber: "screened-serial", OpType: "added"},
+			{SerialNumber: "unscreened-serial", OpType: "added"},
+		}
+
+		var assignCalled bool
+		var shouldScreen atomic.Bool
+		svc := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			encoder := json.NewEncoder(w)
+			switch r.URL.Path {
+			case "/session":
+				_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+			case "/account":
+				_, _ = w.Write([]byte(`{"admin_id": "admin123", "org_name": "test_org"}`))
+			case "/profile":
+				err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"})
+				require.NoError(t, err)
+			case "/server/devices":
+				err := encoder.Encode(godep.DeviceResponse{Devices: devices})
+				require.NoError(t, err)
+			case "/devices/sync":
+				err := encoder.Encode(godep.DeviceResponse{Devices: devices})
+				require.NoError(t, err)
+			case "/profile/devices":
+				assignCalled = true
+
+				reqBody, err := io.ReadAll(r.Body)
+				require.NoError(t, err)
+
+				var assignReq godep.Profile
+				err = json.Unmarshal(reqBody, &assignReq)
+				require.NoError(t, err)
+				require.Equal(t, assignReq.ProfileUUID, "profile123")
+				if shouldScreen.Load() {
+					require.ElementsMatch(t, []string{"unscreened-serial"}, assignReq.Devices)
+				} else {
+					require.ElementsMatch(t, []string{"screened-serial", "unscreened-serial"}, assignReq.Devices)
+				}
+
+				_, _ = w.Write([]byte(`{}`))
+			default:
+				t.Errorf("unexpected request to %s", r.URL.Path)
+			}
+		})
+
+		// no screening
+		os.Unsetenv("FLEET_DEP_SCREEN_SERIAL")
+		os.Unsetenv("FLEET_DEP_SCREEN_EXPIRY")
+		shouldScreen.Store(false)
+		err := svc.RunAssigner(ctx)
+		require.NoError(t, err)
+		require.True(t, assignCalled)
+
+		// screening
+		os.Setenv("FLEET_DEP_SCREEN_SERIAL", "screened-serial")
+		os.Setenv("FLEET_DEP_SCREEN_EXPIRY", time.Now().Add(time.Hour).Format(time.RFC3339))
+		defer func() {
+			os.Unsetenv("FLEET_DEP_SCREEN_SERIAL")
+			os.Unsetenv("FLEET_DEP_SCREEN_EXPIRY")
+		}()
+		shouldScreen.Store(true)
+		err = svc.RunAssigner(ctx)
+		require.NoError(t, err)
+		require.True(t, assignCalled)
 	})
 }
