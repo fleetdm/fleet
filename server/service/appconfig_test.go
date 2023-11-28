@@ -813,7 +813,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
 				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				EnableDiskEncryption: optjson.Bool{Set: true, Valid: false},
-				// WindowsSettings:      fleet.WindowsSettings{CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}}},
+				WindowsSettings:      fleet.WindowsSettings{CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}}},
 			},
 		}, {
 			name:          "newDefaultTeamNoLicense",
@@ -841,7 +841,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
 				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				EnableDiskEncryption: optjson.Bool{Set: true, Valid: false},
-				// WindowsSettings:      fleet.WindowsSettings{CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}}},
+				WindowsSettings:      fleet.WindowsSettings{CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}}},
 			},
 		}, {
 			name:        "foundEdit",
@@ -854,7 +854,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
 				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				EnableDiskEncryption: optjson.Bool{Set: true, Valid: false},
-				// WindowsSettings:      fleet.WindowsSettings{CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}}},
+				WindowsSettings:      fleet.WindowsSettings{CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}}},
 			},
 		}, {
 			name:          "ssoFree",
@@ -873,7 +873,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
 				MacOSUpdates:          fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				EnableDiskEncryption:  optjson.Bool{Set: true, Valid: false},
-				// WindowsSettings:       fleet.WindowsSettings{CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}}},
+				WindowsSettings:       fleet.WindowsSettings{CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}}},
 			},
 		}, {
 			name:        "ssoAllFields",
@@ -895,7 +895,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
 				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				EnableDiskEncryption: optjson.Bool{Set: true, Valid: false},
-				// WindowsSettings:      fleet.WindowsSettings{CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}}},
+				WindowsSettings:      fleet.WindowsSettings{CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}}},
 			},
 		}, {
 			name:        "ssoShortEntityID",
