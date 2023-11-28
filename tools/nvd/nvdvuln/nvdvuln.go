@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/watcher"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -17,7 +18,6 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/go-cmp/cmp"
-	"github.com/shirou/gopsutil/v3/process"
 )
 
 func main() {
@@ -76,32 +76,13 @@ func main() {
 	if *debug {
 		// Sample the process CPU and memory usage every second
 		// and store it on a file under the dbDir.
-		process, err := process.NewProcess(int32(os.Getpid()))
-		if err != nil {
-			panic(err)
-		}
 		cpuAndMemFile, err := os.Create(filepath.Join(*dbDir, "cpu_and_mem.dat"))
 		if err != nil {
 			panic(err)
 		}
 		defer cpuAndMemFile.Close()
-		go func() {
-			for {
-				select {
-				case <-time.After(1 * time.Second):
-					cpuPercent, err := process.CPUPercent()
-					if err != nil {
-						panic(err)
-					}
-					memInfo, err := process.MemoryInfo()
-					if err != nil {
-						panic(err)
-					}
-					now := time.Now().UTC().Format("15:04:05")
-					fmt.Fprintf(cpuAndMemFile, "%s %.2f %.2f\n", now, cpuPercent, float64(memInfo.RSS)/1024.0/1024.0)
-				}
-			}
-		}()
+		done := watcher.Start(int32(os.Getpid()), cpuAndMemFile, 1*time.Second)
+		defer close(done)
 	}
 
 	logger := log.NewJSONLogger(os.Stdout)

@@ -41,7 +41,7 @@ by an exit code of zero.`,
 			}
 
 			logger := initLogger(cfg)
-			logger = kitlog.With(logger, fleet.CronVulnerabilities)
+			logger = kitlog.With(logger, "cron", fleet.CronVulnerabilities)
 
 			licenseInfo, err := initLicense(cfg, devLicense, devExpiredLicense)
 			if err != nil {
