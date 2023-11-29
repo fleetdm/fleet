@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -183,8 +184,8 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 		ctx := context.Background()
 		err := ds.BatchSetMDMProfiles(ctx, tmID, newAppleSet, newWindowsSet)
 		require.NoError(t, err)
-		expectAppleProfiles(t, ds, newAppleSet, tmID, wantApple)
-		expectWindowsProfiles(t, ds, newWindowsSet, tmID, wantWindows)
+		expectAppleProfiles(t, ds, tmID, wantApple)
+		expectWindowsProfiles(t, ds, tmID, wantWindows)
 	}
 
 	withTeamIDApple := func(p *fleet.MDMAppleConfigProfile, tmID uint) *fleet.MDMAppleConfigProfile {
@@ -305,11 +306,30 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Len(t, profs, 0)
 	require.Equal(t, *meta, fleet.PaginationMetadata{})
 
-	// add fleet-managed profiles for the team and globally
+	// add fleet-managed Apple profiles for the team and globally
 	for idf := range mobileconfig.FleetPayloadIdentifiers() {
 		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("name_"+idf, idf, team.ID))
 		require.NoError(t, err)
 		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("name_"+idf, idf, 0))
+		require.NoError(t, err)
+	}
+
+	// still returns no result
+	profs, meta, err = ds.ListMDMConfigProfiles(ctx, nil, opts)
+	require.NoError(t, err)
+	require.Len(t, profs, 0)
+	require.Equal(t, *meta, fleet.PaginationMetadata{})
+
+	profs, meta, err = ds.ListMDMConfigProfiles(ctx, &team.ID, opts)
+	require.NoError(t, err)
+	require.Len(t, profs, 0)
+	require.Equal(t, *meta, fleet.PaginationMetadata{})
+
+	// add fleet-managed Windows profiles for the team and globally
+	for name := range microsoft_mdm.FleetReservedProfileNames() {
+		_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: name, TeamID: &team.ID, SyncML: winProf})
+		require.NoError(t, err)
+		_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: name, TeamID: nil, SyncML: winProf})
 		require.NoError(t, err)
 	}
 

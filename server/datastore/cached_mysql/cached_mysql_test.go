@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -202,6 +203,82 @@ func TestCachedAppConfig(t *testing.T) {
 		require.NotNil(t, ac.Features.AdditionalQueries)
 		assert.Equal(t, json.RawMessage(`"SavedSomewhereElse"`), *ac.Features.AdditionalQueries)
 	})
+}
+
+func TestBypassAppConfig(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithAppConfigExpiration(time.Minute))
+
+	var appConfigSet *fleet.AppConfig
+	mockedDS.NewAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error) {
+		appConfigSet = info
+		return info, nil
+	}
+	mockedDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appConfigSet, nil
+	}
+	mockedDS.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
+		appConfigSet = info
+		return nil
+	}
+
+	// calling NewAppConfig initializes the cache
+	_, err := ds.NewAppConfig(context.Background(), &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{
+			OrgName: "A",
+		},
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+
+	// used the cached value
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "A", ac.OrgInfo.OrgName)
+	require.False(t, mockedDS.AppConfigFuncInvoked)
+
+	// update and save it, calls the DB
+	ac.OrgInfo.OrgName = "B"
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+	require.True(t, mockedDS.SaveAppConfigFuncInvoked)
+	mockedDS.SaveAppConfigFuncInvoked = false
+
+	// read it back, uses the cache
+	ac, err = ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "B", ac.OrgInfo.OrgName)
+	require.False(t, mockedDS.AppConfigFuncInvoked)
+
+	// simulate a database change from another process, not via the cached_mysql store
+	ac.OrgInfo.OrgName = "C"
+	err = mockedDS.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+
+	// reading it via the store uses the old cached value
+	ac, err = ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "B", ac.OrgInfo.OrgName)
+	require.False(t, mockedDS.AppConfigFuncInvoked)
+
+	// force-bypassing the cache gets the updated value
+	ctx = ctxdb.BypassCachedMysql(ctx, true)
+	ac, err = ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "C", ac.OrgInfo.OrgName)
+	require.True(t, mockedDS.AppConfigFuncInvoked)
+	mockedDS.AppConfigFuncInvoked = false
+
+	// bypassing the cache to read AppConfig did update the cache, so if we don't
+	// bypass it anymore, it now gets the updated value from the cache
+	ctx = ctxdb.BypassCachedMysql(ctx, false)
+	ac, err = ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "C", ac.OrgInfo.OrgName)
+	require.False(t, mockedDS.AppConfigFuncInvoked)
 }
 
 func TestCachedPacksforHost(t *testing.T) {

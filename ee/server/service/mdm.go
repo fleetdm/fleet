@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
@@ -1020,4 +1021,31 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 			Windows: windows.RemovingEnforcement,
 		},
 	}, nil
+}
+
+func (svc *Service) mdmWindowsEnableOSUpdates(ctx context.Context, teamID *uint, updates fleet.WindowsUpdates) error {
+	var contents bytes.Buffer
+	params := windowsOSUpdatesProfileOptions{
+		Deadline:    updates.DeadlineDays.Value,
+		GracePeriod: updates.GracePeriodDays.Value,
+	}
+	if err := windowsOSUpdatesProfileTemplate.Execute(&contents, params); err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling Windows OS updates")
+	}
+
+	err := svc.ds.SetOrUpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		TeamID: teamID,
+		Name:   microsoft_mdm.FleetWindowsOSUpdatesProfileName,
+		SyncML: contents.Bytes(),
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "create Windows OS updates profile")
+	}
+
+	return nil
+}
+
+func (svc *Service) mdmWindowsDisableOSUpdates(ctx context.Context, teamID *uint) error {
+	err := svc.ds.DeleteMDMWindowsConfigProfileByTeamAndName(ctx, teamID, microsoft_mdm.FleetWindowsOSUpdatesProfileName)
+	return ctxerr.Wrap(ctx, err, "delete Windows OS updates profile")
 }

@@ -8,6 +8,7 @@ import { NotificationContext } from "context/notification";
 import PATHS from "router/paths";
 
 import CustomLink from "components/CustomLink";
+import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 
@@ -152,7 +153,7 @@ const CustomSettings = ({
 
   return (
     <div className={baseClass}>
-      <h2>Custom settings</h2>
+      <SectionHeader title="Custom settings" />
       <p className={`${baseClass}__description`}>
         Create and upload configuration profiles to apply custom settings.{" "}
         <CustomLink

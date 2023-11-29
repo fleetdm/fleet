@@ -91,3 +91,83 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 	<integer>1</integer>
 </dict>
 </plist>`))
+
+type windowsOSUpdatesProfileOptions struct {
+	Deadline    int
+	GracePeriod int
+}
+
+var windowsOSUpdatesProfileTemplate = template.Must(template.New("").Option("missingkey=error").Parse(`
+<Replace>
+	<Item>
+		<Target>
+			<LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineForFeatureUpdates</LocURI>
+		</Target>
+		<Meta>
+			<Type xmlns="syncml:metinf">text/plain</Type>
+			<Format xmlns="syncml:metinf">int</Format>
+		</Meta>
+		<Data>{{ .Deadline }}</Data>
+	</Item>
+</Replace>
+<Replace>
+	<Item>
+		<Target>
+			<LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineForQualityUpdates</LocURI>
+		</Target>
+		<Meta>
+			<Type xmlns="syncml:metinf">text/plain</Type>
+			<Format xmlns="syncml:metinf">int</Format>
+		</Meta>
+		<Data>{{ .Deadline }}</Data>
+	</Item>
+</Replace>
+<Replace>
+	<Item>
+		<Target>
+			<LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineGracePeriod</LocURI>
+		</Target>
+		<Meta>
+			<Type xmlns="syncml:metinf">text/plain</Type>
+			<Format xmlns="syncml:metinf">int</Format>
+		</Meta>
+		<Data>{{ .GracePeriod }}</Data>
+	</Item>
+</Replace>
+<Replace>
+	<Item>
+		<Target>
+			<LocURI>./Device/Vendor/MSFT/Policy/Config/Update/AllowAutoUpdate</LocURI>
+		</Target>
+		<Meta>
+			<Type xmlns="syncml:metinf">text/plain</Type>
+			<Format xmlns="syncml:metinf">int</Format>
+		</Meta>
+		<Data>1</Data>
+	</Item>
+</Replace>
+<Replace>
+	<Item>
+		<Target>
+			<LocURI>./Device/Vendor/MSFT/Policy/Config/Update/SetDisablePauseUXAccess</LocURI>
+		</Target>
+		<Meta>
+			<Type xmlns="syncml:metinf">text/plain</Type>
+			<Format xmlns="syncml:metinf">int</Format>
+		</Meta>
+		<Data>1</Data>
+	</Item>
+</Replace>
+<Replace>
+	<Item>
+		<Target>
+			<LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoReboot</LocURI>
+		</Target>
+		<Meta>
+			<Type xmlns="syncml:metinf">text/plain</Type>
+			<Format xmlns="syncml:metinf">int</Format>
+		</Meta>
+		<Data>1</Data>
+	</Item>
+</Replace>
+`))

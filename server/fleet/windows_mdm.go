@@ -2,12 +2,12 @@ package fleet
 
 import (
 	"bytes"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/beevik/etree"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
@@ -45,34 +45,50 @@ type MDMWindowsConfigProfile struct {
 //
 // Returns an error if these conditions are not met.
 func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
-	if mdm.GetRawProfilePlatform(m.SyncML) != "windows" {
-		// it doesn't start with <Replace>, check if it is still valid XML.
-		if len(bytes.TrimSpace(m.SyncML)) == 0 {
-			return errors.New("The file should include valid XML.")
-		}
-		doc := etree.NewDocument()
-		if err := doc.ReadFromBytes(m.SyncML); err != nil {
-			return fmt.Errorf("The file should include valid XML: %w", err)
-		}
-		// valid xml, but does not start with <Replace>
-		return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
+	if len(bytes.TrimSpace(m.SyncML)) == 0 {
+		return errors.New("The file should include valid XML.")
 	}
 
-	doc := etree.NewDocument()
-	if err := doc.ReadFromBytes(m.SyncML); err != nil {
+	if _, ok := microsoft_mdm.FleetReservedProfileNames()[m.Name]; ok {
+		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
+	}
+
+	var validator struct {
+		SyncBody
+		NonProtocolElements []interface{} `xml:",any,omitempty"`
+	}
+	wrappedProfile := fmt.Sprintf("<SyncBody>%s</SyncBody>", m.SyncML)
+	if err := xml.Unmarshal([]byte(wrappedProfile), &validator); err != nil {
 		return fmt.Errorf("The file should include valid XML: %w", err)
 	}
 
-	for _, element := range doc.ChildElements() {
-		if element.Tag != CmdReplace {
-			return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
-		}
+	// might be valid XML, but start with something other than <Replace>
+	if mdm.GetRawProfilePlatform(m.SyncML) != "windows" {
+		return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
+	}
 
-		for _, locURI := range element.FindElements("//Item/Target/LocURI") {
-			if locURI != nil {
-				if err := validateFleetProvidedLocURI(locURI.Text()); err != nil {
-					return err
-				}
+	if len(validator.Add) != 0 ||
+		len(validator.Alert) != 0 ||
+		len(validator.Atomic) != 0 ||
+		len(validator.Delete) != 0 ||
+		len(validator.Exec) != 0 ||
+		len(validator.Get) != 0 ||
+		len(validator.Results) != 0 ||
+		len(validator.Status) != 0 ||
+		len(validator.NonProtocolElements) != 0 {
+		return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
+	}
+
+	for _, cmd := range validator.Replace {
+		for _, item := range cmd.Items {
+			// intentionally skipping any further validation if we
+			// don't get a target per product decision.
+			if item.Target == nil {
+				continue
+			}
+
+			if err := validateFleetProvidedLocURI(*item.Target); err != nil {
+				return err
 			}
 		}
 	}
