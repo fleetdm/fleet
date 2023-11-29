@@ -1,2 +1,0 @@
-* Fixed a bug causing the disk encryption key banner to not appear if the host
-  had disk encryption turned on manually without FV escrow.

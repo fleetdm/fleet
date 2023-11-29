@@ -1,2 +1,0 @@
-- Bug fix: creating 2 .deb installers one after the other with different enrollment keys no longer
-  results in the last installer failing at install time.
