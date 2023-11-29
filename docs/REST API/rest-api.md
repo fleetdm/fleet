@@ -4016,8 +4016,15 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "created_at": "2023-04-31T00:00:00Z",
       "updated_at": "2023-04-31T00:00:00Z",
       "checksum": "aCLemVr)",
-      "labels": ["Label name 1", "Label name 3"],
-      "broken": true
+      "labels": [
+       {
+        "name": "Label name 1",
+        "broken": true
+       },
+       {
+        "name": "Label name 2"
+       }
+      ]
     }
   ],
   "meta": {
@@ -4026,6 +4033,9 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
   }
 }
 ```
+
+If one or more assigned labels are deleted profile is broken (`broken: true`). It won’t be applied to new hosts.
+
 
 ### Get or download custom OS setting (configuration profile)
 
