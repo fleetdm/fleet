@@ -700,6 +700,18 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 	return nil
 }
 
+func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Context, teamID *uint, profileName string) error {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE team_id=? AND name=?`, globalOrTeamID, profileName)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	return nil
+}
+
 func subqueryHostsMDMWindowsOSSettingsStatusFailed() (string, []interface{}) {
 	sql := `
             SELECT
@@ -1356,6 +1368,51 @@ INSERT INTO
 		SyncML:      cp.SyncML,
 		TeamID:      cp.TeamID,
 	}, nil
+}
+
+func (ds *Datastore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+	profileUUID := uuid.New().String()
+	stmt := `
+INSERT INTO
+	mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml)
+(SELECT ?, ?, ?, ? FROM DUAL WHERE
+	NOT EXISTS (
+		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
+	)
+)
+ON DUPLICATE KEY UPDATE
+	syncml = VALUES(syncml)
+`
+
+	var teamID uint
+	if cp.TeamID != nil {
+		teamID = *cp.TeamID
+	}
+
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID)
+	if err != nil {
+		switch {
+		case isDuplicate(err):
+			return &existsError{
+				ResourceType: "MDMWindowsConfigProfile.Name",
+				Identifier:   cp.Name,
+				TeamID:       cp.TeamID,
+			}
+		default:
+			return ctxerr.Wrap(ctx, err, "creating new windows mdm config profile")
+		}
+	}
+
+	aff, _ := res.RowsAffected()
+	if aff == 0 {
+		return &existsError{
+			ResourceType: "MDMWindowsConfigProfile.Name",
+			Identifier:   cp.Name,
+			TeamID:       cp.TeamID,
+		}
+	}
+
+	return nil
 }
 
 func (ds *Datastore) batchSetMDMWindowsProfilesDB(

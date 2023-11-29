@@ -1184,6 +1184,9 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		if host.ID != hostID {
 			return errors.New("host ID mismatch")
 		}
+		if encryptedBase64Key == "" && (decryptable == nil || *decryptable == true) {
+			return errors.New("decryptable should be false if the key is empty")
+		}
 		return nil
 	}
 

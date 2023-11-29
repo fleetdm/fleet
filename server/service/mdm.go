@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -1112,6 +1113,12 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 	// now we can do a specific authz check based on team id of profile before we delete the profile
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: prof.TeamID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
+	}
+
+	// prevent deleting Windows OS Updates profile (controlled by the OS Updates settings)
+	if _, ok := microsoft_mdm.FleetReservedProfileNames()[prof.Name]; ok {
+		err := &fleet.BadRequestError{Message: "Profiles managed by Fleet can't be deleted using this endpoint."}
+		return ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
 	if err := svc.ds.DeleteMDMWindowsConfigProfile(ctx, profileUUID); err != nil {

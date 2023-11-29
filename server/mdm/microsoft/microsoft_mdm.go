@@ -398,7 +398,15 @@ const (
 const (
 	FleetBitLockerTargetLocURI = "/Vendor/MSFT/BitLocker"
 	FleetOSUpdateTargetLocURI  = "/Vendor/MSFT/Policy/Config/Update"
+
+	FleetWindowsOSUpdatesProfileName = "Windows OS Updates"
 )
+
+func FleetReservedProfileNames() map[string]struct{} {
+	return map[string]struct{}{
+		FleetWindowsOSUpdatesProfileName: {},
+	}
+}
 
 func ResolveWindowsMDMDiscovery(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2DiscoveryPath, false)

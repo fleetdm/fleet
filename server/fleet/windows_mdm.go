@@ -47,6 +47,10 @@ type MDMWindowsConfigProfile struct {
 //
 // Returns an error if these conditions are not met.
 func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
+	if _, ok := microsoft_mdm.FleetReservedProfileNames()[m.Name]; ok {
+		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
+	}
+
 	if mdm.GetRawProfilePlatform(m.SyncML) != "windows" {
 		// it doesn't start with <Replace>, check if it is still valid XML.
 		if len(bytes.TrimSpace(m.SyncML)) == 0 {
@@ -70,7 +74,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 			return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
 		}
 
-		for _, locURI := range element.FindElements("//Target/LocURI") {
+		for _, locURI := range element.FindElements("//Item/Target/LocURI") {
 			if locURI != nil {
 				if err := validateFleetProvidedLocURI(locURI.Text()); err != nil {
 					return err

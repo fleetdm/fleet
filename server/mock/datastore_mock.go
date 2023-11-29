@@ -708,6 +708,8 @@ type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string
 
 type DeleteMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
+type DeleteMDMWindowsConfigProfileByTeamAndNameFunc func(ctx context.Context, teamID *uint, profileName string) error
+
 type GetHostMDMWindowsProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error)
 
 type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
@@ -733,6 +735,8 @@ type GetMDMWindowsProfilesContentsFunc func(ctx context.Context, profileUUIDs []
 type BulkDeleteMDMWindowsHostsConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error
 
 type NewMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error)
+
+type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error
 
 type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error
 
@@ -1794,6 +1798,9 @@ type DataStore struct {
 	DeleteMDMWindowsConfigProfileFunc        DeleteMDMWindowsConfigProfileFunc
 	DeleteMDMWindowsConfigProfileFuncInvoked bool
 
+	DeleteMDMWindowsConfigProfileByTeamAndNameFunc        DeleteMDMWindowsConfigProfileByTeamAndNameFunc
+	DeleteMDMWindowsConfigProfileByTeamAndNameFuncInvoked bool
+
 	GetHostMDMWindowsProfilesFunc        GetHostMDMWindowsProfilesFunc
 	GetHostMDMWindowsProfilesFuncInvoked bool
 
@@ -1832,6 +1839,9 @@ type DataStore struct {
 
 	NewMDMWindowsConfigProfileFunc        NewMDMWindowsConfigProfileFunc
 	NewMDMWindowsConfigProfileFuncInvoked bool
+
+	SetOrUpdateMDMWindowsConfigProfileFunc        SetOrUpdateMDMWindowsConfigProfileFunc
+	SetOrUpdateMDMWindowsConfigProfileFuncInvoked bool
 
 	BatchSetMDMProfilesFunc        BatchSetMDMProfilesFunc
 	BatchSetMDMProfilesFuncInvoked bool
@@ -4287,6 +4297,13 @@ func (s *DataStore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 	return s.DeleteMDMWindowsConfigProfileFunc(ctx, profileUUID)
 }
 
+func (s *DataStore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Context, teamID *uint, profileName string) error {
+	s.mu.Lock()
+	s.DeleteMDMWindowsConfigProfileByTeamAndNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMWindowsConfigProfileByTeamAndNameFunc(ctx, teamID, profileName)
+}
+
 func (s *DataStore) GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
 	s.mu.Lock()
 	s.GetHostMDMWindowsProfilesFuncInvoked = true
@@ -4376,6 +4393,13 @@ func (s *DataStore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDM
 	s.NewMDMWindowsConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewMDMWindowsConfigProfileFunc(ctx, cp)
+}
+
+func (s *DataStore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+	s.mu.Lock()
+	s.SetOrUpdateMDMWindowsConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateMDMWindowsConfigProfileFunc(ctx, cp)
 }
 
 func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {

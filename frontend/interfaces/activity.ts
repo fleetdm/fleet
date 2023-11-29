@@ -56,6 +56,7 @@ export enum ActivityType {
   AddedScript = "added_script",
   DeletedScript = "deleted_script",
   EditedScript = "edited_script",
+  EditedWindowsUpdates = "edited_windows_updates",
 }
 export interface IActivity {
   created_at: string;
@@ -101,4 +102,6 @@ export interface IActivityDetails {
   name?: string;
   script_execution_id?: string;
   script_name?: string;
+  deadline_days?: number;
+  grace_period_days?: number;
 }
