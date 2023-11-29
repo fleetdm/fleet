@@ -5,6 +5,8 @@ This document is a walkthrough guide for:
 - A Fleet member to delete targets from [Fleet's TUF service](tuf.fleetctl.com). See [Removing unused targets](#removing-unused-targets).
 - A Fleet member to become a publisher of updates for [Fleet's TUF service](tuf.fleetctl.com). See [Becoming a new Fleet publisher](#becoming-a-new-fleet-publisher).
 
+Video walkthrough related to this process for additional [context](https://drive.google.com/file/d/1c_iukFEMne12Cxx9WVTt_j1Wp0sC1kQU/view?usp=drive_link).
+
 ## Security
 
 - The TUF keys for `targets`, `snapshot` and `timestamp` should be stored on a USB stick (used solely for this purpose). Whenever you need to push updates to Fleet's TUF repository you can temporarily copy the encrypted keys to your workstation (under the `keys/` folder, more on this below).
