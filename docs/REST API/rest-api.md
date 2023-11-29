@@ -2401,7 +2401,7 @@ Returns the information of the specified host.
 
 ### Get host by identifier
 
-Returns the information of the host specified using the `uuid`, `osquery_host_id`, `hostname`, or
+Returns the information of the host specified using the `uuid`, `hardware_serial`, `osquery_host_id`, `hostname`, or
 `node_key` as an identifier
 
 `GET /api/v1/fleet/hosts/identifier/{identifier}`
