@@ -26,6 +26,7 @@ module.exports = {
     let builtStaticContent = {};
     let rootRelativeUrlPathsSeen = [];
     let baseHeadersForGithubRequests;
+    let osqueryTables = [];
     if(!skipGithubRequests){
       baseHeadersForGithubRequests = {
         'User-Agent': 'Fleet-Standard-Query-Library',
@@ -665,6 +666,7 @@ module.exports = {
           let keywordsForSyntaxHighlighting = [];
           keywordsForSyntaxHighlighting.push(table.name);
           if(!table.hidden) { // If a table has `"hidden": true` the table won't be shown in the final schema, and we'll ignore it
+            let tableInfo = { name: table.name,columns: [],};
             // Start building the markdown string for this table.
             let tableMdString = '\n## '+table.name;
             if(table.evented){
@@ -673,13 +675,27 @@ module.exports = {
             }
             // Add the tables description to the markdown string and start building the table in the markdown string
             tableMdString += '\n\n'+table.description+'\n\n|Column | Type | Description |\n|-|-|-|\n';
+            if(table.description !== ''){
+              let tableDescriptionForQueryReports = table.description;
+              if(table.notes){
+                tableDescriptionForQueryReports += '\n\n**Notes:**\n'+table.notes;
+              }
+              let htmlDescriptionForTableInfo = await sails.helpers.strings.toHtml.with({mdString: tableDescriptionForQueryReports, addIdsToHeadings: false});
+              tableInfo.description = htmlDescriptionForTableInfo;
+            }
 
             // Iterate through the columns of the table, we'll add a row to the markdown table element for each column in this schema table
             for(let column of table.columns) {
+              let columnInfo = {
+                name: column.name
+              };
+
               if(!column.hidden) { // If te column is hidden, we won't add it to the final table.
                 let columnDescriptionForTable = '';// Set the initial value of the description that will be added to the table for this column.
                 if(column.description) {
                   columnDescriptionForTable = column.description;
+                  columnInfo.description = await sails.helpers.strings.toHtml.with({mdString: column.description, addIdsToHeadings: false});
+                  tableInfo.columns.push(columnInfo);
                 }
                 // Replacing pipe characters and newlines with html entities in column descriptions to keep it from breaking markdown tables.
                 columnDescriptionForTable = columnDescriptionForTable.replace(/\|/g, '&#124;').replace(/\n/gm, '&#10;');
@@ -763,6 +779,8 @@ module.exports = {
             } else {
               await sails.helpers.fs.write(htmlOutputPath, htmlString);
             }
+            tableInfo.platforms = table.platforms
+            osqueryTables.push(tableInfo);
             // Add this table to the array of schemaTables in builtStaticContent.
             builtStaticContent.markdownPages.push({
               url: '/tables/'+encodeURIComponent(table.name),
@@ -936,7 +954,7 @@ module.exports = {
       },
 
     ]);
-
+    builtStaticContent.osqueryTables = osqueryTables;
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
     //  ██╔══██╗██╔════╝██╔══██╗██║     ██╔══██╗██╔════╝██╔════╝       ██╔════╝██╔══██╗██║██║     ██╔════╝██╔══██╗██╔════╝██╗
     //  ██████╔╝█████╗  ██████╔╝██║     ███████║██║     █████╗         ███████╗███████║██║██║     ███████╗██████╔╝██║     ╚═╝
