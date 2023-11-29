@@ -38,7 +38,7 @@ Fleet evaluates and (if necessary) updates compensation decisions yearly, shortl
 - Head of BizOps posts to slack in `#help-classified` with the decision on compensation changes and effective date, if any.
 - If a change is to be made, the Head of BizOps communicates decision to the teammate's people manager, who then communicates to their teammate.
 - Head of BizOps updates the respective payroll platform (Gusto or Plane) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
-- If an additional equity grant is part of this compensation change, the previous equity and new situation is noted in detail in the "Notes" column of the equity plan, and the "Grant started?" column is set back to "todo" to add it to the queue for the next time grants are processed (quarterly).
+- If an additional equity grant is part of this compensation change, note the previous equity (number of shares) in the "Notes" column of the equity plan and set the "Grant started?" column back to "todo" to add it to the queue for the next time grants are processed.
 
 ### Reconcile monthly recurring expenses
 Recurring monthly or annual expenses, such as the tools we use throughout Fleet, are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(¶confidential Google Sheet)_, along with their payment source. Reconciliation of recurring expenses happens monthly. <!-- TODO: Merge "🧮 The Numbers" and  ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing) -->
