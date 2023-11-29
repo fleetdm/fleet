@@ -1235,8 +1235,8 @@ CREATE TABLE `software` (
   `arch` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `vendor` varchar(114) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `extension_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `browser` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unq_name` (`name`,`version`,`source`,`release`,`vendor`,`arch`),
   KEY `software_listing_idx` (`name`,`id`),
   KEY `software_source_vendor_idx` (`source`,`vendor_old`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

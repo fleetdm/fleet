@@ -12,6 +12,7 @@ func init() {
 func Up_20231122101320(tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE software
+		ADD COLUMN browser varchar(255) NOT NULL DEFAULT '',
 		ADD COLUMN extension_id varchar(255) NOT NULL DEFAULT '';
 	`
 	if _, err := tx.Exec(stmt); err != nil {
@@ -34,6 +35,7 @@ func Up_20231122101320(tx *sql.Tx) error {
 func Down_20231122101320(tx *sql.Tx) error {
 	/*
 		ALTER TABLE software DROP COLUMN extension_id;
+		ALTER TABLE software DROP COLUMN browser;
 		ALTER TABLE software ADD UNIQUE KEY `unq_name` (`name`,`version`,`source`,`release`,`vendor`,`arch`);
 	*/
 	return nil

@@ -22,6 +22,7 @@ const (
 	SoftwareSourceMaxLength           = 64
 	SoftwareBundleIdentifierMaxLength = 255
 	SoftwareExtensionIdMaxLength      = 255
+	SoftwareBrowserMaxLength          = 255
 
 	SoftwareReleaseMaxLength = 64
 	SoftwareVendorMaxLength  = 114
@@ -43,6 +44,8 @@ type Software struct {
 	Source string `json:"source" db:"source"`
 	// ExtensionId is the browser extension id (from osquery chrome_extensions)
 	ExtensionId string `json:"extension_id,omitempty" db:"extension_id"`
+	// Browser is the browser type (from osquery chrome_extensions)
+	Browser string `json:"browser,omitempty" db:"browser"`
 
 	// Release is the version of the OS this software was released on
 	// (e.g. "30.el7" for a CentOS package).
@@ -87,10 +90,10 @@ func (s Software) ToUniqueStr() string {
 	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
 		ss = append(ss, s.Release, s.Vendor, s.Arch)
 	}
-	// ExtensionId was added on a migration, so it is only included if it exists.
-	// This way a blank ExtensionId matches the pre-migration unique string.
-	if s.ExtensionId != "" {
-		ss = append(ss, s.ExtensionId)
+	// ExtensionId and Browser were added in a single migration, so they are only included if they exist.
+	// This way a blank ExtensionId/Browser matches the pre-migration unique string.
+	if s.ExtensionId != "" || s.Browser != "" {
+		ss = append(ss, s.ExtensionId, s.Browser)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
@@ -220,7 +223,7 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 //
 // All fields are trimmed to fit on Fleet's database.
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
-func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, release, arch, bundleIdentifier, extensionId, lastOpenedAt string) (
+func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, release, arch, bundleIdentifier, extensionId, browser, lastOpenedAt string) (
 	*Software, error,
 ) {
 	if name == "" {
@@ -252,6 +255,7 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 		Source:           truncateString(source, SoftwareSourceMaxLength),
 		BundleIdentifier: truncateString(bundleIdentifier, SoftwareBundleIdentifierMaxLength),
 		ExtensionId:      truncateString(extensionId, SoftwareExtensionIdMaxLength),
+		Browser:          truncateString(browser, SoftwareBrowserMaxLength),
 
 		Release: truncateString(release, SoftwareReleaseMaxLength),
 		Vendor:  vendor,
