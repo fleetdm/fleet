@@ -6962,7 +6962,7 @@ Add software to install on macOS and Windows hosts during enrollment.
 
 #### Example
 
-`POST /api/v1/fleet/software`
+`POST /api/v1/fleet/software/upload`
 
 ##### Request header
 
@@ -6997,6 +6997,17 @@ Download uploaded software installer.
 | id              | integer | path | **Required**. The ID of uploaded software version to download.|
 | alt             | integer | path | **Required**. If specified and set to "media", downloads the specified software installer. |
 
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
 
 ### Delete software
 
@@ -7012,7 +7023,7 @@ Delete uploaded software.
 
 #### Example
 
-`DELETE /api/v1/fleet/software/24`
+`DELETE /api/v1/fleet/software/upload/24`
 
 ##### Default response
 
