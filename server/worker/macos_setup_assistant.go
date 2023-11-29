@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -195,6 +196,7 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 		return ctxerr.Wrap(ctx, err, "ensure custom setup assistant")
 	}
 	if profUUID == "" {
+		level.Info(m.Log).Log("msg", "empty profile UUID, getting default setup assistant")
 		// get the default setup assistant.
 		defProfUUID, _, err := m.DEPService.EnsureDefaultSetupAssistant(ctx, team)
 		if err != nil {
@@ -209,7 +211,9 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 
 	screenedSerials := apple_mdm.ApplyDEPScreenToSerials(ctx, m.Log, profUUID, args.HostSerialNumbers...)
 	if len(screenedSerials) > 0 {
-		if _, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, screenedSerials...); err != nil {
+		resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, screenedSerials...)
+		level.Info(m.Log).Log("assign profile call", fmt.Sprintf("%+v", resp), "serials_targeted", fmt.Sprintf("%+v", args.HostSerialNumbers), "err", err)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "assign profile")
 		}
 	}

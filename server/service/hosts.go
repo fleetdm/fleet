@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/worker"
+	"github.com/go-kit/kit/log/level"
 	"github.com/gocarina/gocsv"
 )
 
@@ -701,6 +702,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
+	level.Info(svc.logger).Log("msg", "add hosts to team called", "team_id", teamID, "host_ids", fmt.Sprintf("%+v", hostIDs))
 
 	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
 		return err
@@ -711,10 +713,12 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		}
 	}
 	serials, err := svc.ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
+	level.Info(svc.logger).Log("msg", "list DEP serials in host ids", "host_ids", fmt.Sprintf("%+v", hostIDs), "serials", fmt.Sprintf("%+v", serials))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in host ids")
 	}
 	if len(serials) > 0 {
+		level.Info(svc.logger).Log("msg", "queuing assistant job", "team_id", teamID, "serials", fmt.Sprintf("%+v", serials))
 		if err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
