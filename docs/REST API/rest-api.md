@@ -4006,7 +4006,11 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
       "checksum": "dGVzdAo=",
-      "labels": ["Label name 1"]
+      "labels": [
+       {
+        "name": "Label name 1"
+       }
+      ]
     },
     {
       "profile_id": 1338,
