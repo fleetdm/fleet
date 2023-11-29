@@ -6938,7 +6938,6 @@ Deletes the session specified by ID. When the user associated with the session n
 
 - [List software titles](#list-software-titles)
 - [List software versions](#list-software-versions)
-- [Count software](#count-software)
 - [Get software title](#get-software-title)
 - [Get software version](#get-software-version)
 
@@ -7085,34 +7084,6 @@ Get a list of all software versions.
         "hosts_count": 1
       }
     ]
-}
-```
-
-### Count software
-
-> The count software API endpoint is deprecated as of Fleet 4.41. Please use the `GET /api/v1/fleet/software/versions` or `GET /api/v1/fleet/software/titles` above, which include a count in the response.
-
-`GET /api/v1/fleet/software/count`
-
-#### Parameters
-
-| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
-| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                                                                                                                                                                                               |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                              |
-| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities.                                                                                                                                                                                                                                                                         |
-
-#### Example
-
-`GET /api/v1/fleet/software/count`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "count": 43
 }
 ```
 
