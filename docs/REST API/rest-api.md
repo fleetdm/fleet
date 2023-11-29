@@ -6951,7 +6951,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 Add software to install on macOS and Windows hosts during enrollment.
 
-`POST /api/v1/fleet/software`
+`POST /api/v1/fleet/software/upload`
 
 #### Parameters
 
