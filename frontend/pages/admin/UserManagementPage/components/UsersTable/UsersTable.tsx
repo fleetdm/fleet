@@ -141,10 +141,11 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
   // FUNCTIONS
 
-  const combineUsersAndInvites = memoize(
+  const combineUsersAndInvites = useCallback(
     (usersData, invitesData, currentUserId) => {
       return combineDataSets(usersData, invitesData, currentUserId);
-    }
+    },
+    []
   );
 
   const goToUserSettingsPage = () => {
@@ -507,10 +508,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     [
       loadingTableData,
       tableDataError,
-      combineUsersAndInvites,
       users,
       invites,
       currentUser?.id,
+      combineUsersAndInvites,
     ]
   );
 
