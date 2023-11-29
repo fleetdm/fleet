@@ -1914,9 +1914,11 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string) *fleet.MDMWi
 		Name: name,
 		SyncML: []byte(fmt.Sprintf(`
 			<Replace>
-				<Target>
-					<LocURI>%s</LocURI>
-				</Target>
+				<Item>
+				  <Target>
+					  <LocURI>%s</LocURI>
+				  </Target>
+				</Item>
 			</Replace>
 		`, locURI)),
 	}
