@@ -5491,6 +5491,7 @@ Either `query` or `query_id` must be provided.
 - [List queries](#list-queries)
 - [Get query](#get-query)
 - [Get query report](#get-query-report)
+- [Get query report for one host](#get-query-report-for-one-host)
 - [Create query](#create-query)
 - [Modify query](#modify-query)
 - [Delete query by name](#delete-query-by-name)
@@ -5679,7 +5680,6 @@ Returns the query report specified by ID.
 | Name      | Type    | In    | Description                                |
 | --------- | ------- | ----- | ------------------------------------------ |
 | id        | integer | path  | **Required**. The ID of the desired query. |
-| host_id   | integer | query | If provided, filters to only include results for the specified host. |
 
 #### Example
 
@@ -5747,6 +5747,72 @@ If a query has no results stored, then `results` will be an empty array:
 ```json
 {
   "query_id": 32,
+  "results": []
+}
+```
+
+> Note: osquery scheduled queries do not return errors, so only non-error results are included in the report. If you suspect a query may be running into errors, you can use the [live query](#run-live-query) endpoint to get diagnostics.
+
+### Get query report for one host
+
+Returns a query report for a single host.
+
+`GET /api/v1/fleet/hosts/{id}/query_report/{query_id}`
+
+#### Parameters
+
+| Name      | Type    | In    | Description                                |
+| --------- | ------- | ----- | ------------------------------------------ |
+| id        | integer | path  | **Required**. The ID of the desired host.          |
+| query_id  | integer | path  | **Required**. The ID of the desired query.         |
+
+#### Example
+
+`GET /api/v1/fleet/queries/31/report`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "query_id": 31,
+  "host_id": 1,
+  "host_name": "foo",
+  "last_fetched": "2021-01-19T17:08:31Z",
+  "report_clipped": false,
+  "results": [
+    {
+      "columns": {
+        "model": "USB 2.0 Hub",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "columns": {
+        "model": "USB Keyboard",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "columns": {
+        "model": "USB Reciever",
+        "vendor": "Logitech"
+      }
+    }
+  ]
+}
+```
+
+If a query has no results stored for the specified host, then `results` will be an empty array:
+
+```json
+{
+ "query_id": 31,
+  "host_id": 1,
+  "host_name": "foo",
+  "last_fetched": "2021-01-19T17:08:31Z",
+  "report_clipped": false,
   "results": []
 }
 ```
