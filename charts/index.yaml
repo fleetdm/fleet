@@ -2,6 +2,21 @@ apiVersion: v1
 entries:
   fleet:
   - apiVersion: v1
+    appVersion: v4.41.0
+    created: "2023-11-29T01:34:06.527375378Z"
+    description: A Helm chart for Fleet
+    digest: 1a5a7094755cb900a149df4f315ccd352cebab74451199f336fca8b7d71ba1cd
+    home: https://github.com/fleetdm/fleet
+    keywords:
+    - fleet
+    - osquery
+    name: fleet
+    sources:
+    - https://github.com/fleetdm/fleet.git
+    urls:
+    - https://fleetdm.github.io/fleet/charts/fleet-v6.0.1.tgz
+    version: v6.0.1
+  - apiVersion: v1
     appVersion: v4.40.0
     created: "2023-11-07T00:21:59.844544252Z"
     description: A Helm chart for Fleet
@@ -784,12 +799,12 @@ entries:
   tuf:
   - apiVersion: v2
     appVersion: 1.16.0
-    created: "2023-11-07T00:21:59.845145365Z"
+    created: "2023-11-29T01:34:06.527735854Z"
     description: A Helm chart for Kubernetes
-    digest: b22fbf526ba19c98b5b29423e3f50f26bd22e45c1d049df7bddf76784e359742
+    digest: b4a66a71b7e7e01a8bd794c0af731edb19603a0b39af3845bffb23c275d0827d
     name: tuf
     type: application
     urls:
     - https://fleetdm.github.io/fleet/charts/tuf-0.1.0.tgz
     version: 0.1.0
-generated: "2023-11-07T00:21:59.841847795Z"
+generated: "2023-11-29T01:34:06.51785164Z"
