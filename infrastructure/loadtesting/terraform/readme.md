@@ -3,6 +3,21 @@
 The interface into this code is designed to be minimal.
 If you require changes beyond whats described here, contact #g-infra.
 
+### Deployment sizing
+
+When loadtesting, it is important to size your load test for the number of hosts you plan to use.  Please see https://fleetdm.com/docs/deploy/reference-architectures for some examples.
+
+These are set via [variables](https://github.com/fleetdm/fleet/blob/main/infrastructure/loadtesting/terraform/variables.tf) and should be applied to every terraform operation.  Below is an example for a modest (~5k) number of hosts:
+
+```sh
+# When first applying.  Assuming tag exists
+terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_type=db.t4g.medium -var redis_instance_type=cache.t4g.small
+
+# When adding loadtest containers. 
+terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_type=db.t4g.medium -var redis_instance_type=cache.t4g.small -var -var loadtest_containers=10 
+
+```
+
 ### Deploying your code to the loadtesting environment
 
 > IMPORTANT:
