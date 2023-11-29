@@ -38,7 +38,7 @@ Fleet evaluates and (if necessary) updates compensation decisions yearly, shortl
 - Schedule 30m with the CEO and CTO over an existing 1:1 to discuss if an adjustment will be made to compensation.
 - During the 1:1 call, founders review benchmarking for role and geography, and decide if there will be an adjustment.
 - Head of BizOps posts to slack in `#help-classified` with the decision on compensation changes and effective date, if any.
-- If a change is to be made, the Head of BizOps communicates decision to the teammate's people manager, who then communicates to their teammate.
+- Ask the team member's manager to communicate the decision about compensation to their teammate.
 - Head of BizOps updates the respective payroll platform (Gusto or Plane) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
 - If an additional equity grant is part of this compensation change, note the previous equity (number of shares) in the "Notes" column of the equity plan and set the "Grant started?" column back to "todo" to add it to the queue for the next time grants are processed.
 
