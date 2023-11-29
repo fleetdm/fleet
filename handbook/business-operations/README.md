@@ -29,7 +29,7 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 | Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Revenue Operations
 | [US contractor payroll](https://fleetdm.com/handbook/business-operations#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Business Operations
 
-### Compensation changes
+### Change a team member's compensation
 Fleet evaluates and (if necessary) updates compensation decisions yearly, shortly after the anniversary of a team member's start date (see [Workiversaries](https://fleetdm.com/handbook/company/communications#workiversaries). The process for that evaluation and update is:
 - On the first Friday of the month, the Head of BizOps posts in the `#help-classified` channel with the list of teammates celebrating anniversaries over the next month.
 - On the day of the fleetiversary, the Head of BizOps or executive team member will post in `#random` celebrating the tenure of the teammate.
