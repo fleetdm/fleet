@@ -1,6 +1,6 @@
 # Commands
 
-In Fleet you can run MDM commands to take some action on your macOS hosts, like restart the host, remotely.
+In Fleet you can run MDM commands to take some action on your macOS and Windows hosts, like restart the host, remotely.
 
 If a host is offline when you run a command, the host will run the command the next time it comes online.
 
@@ -16,13 +16,15 @@ To run a custom command, we will do the following steps:
 
 ### Step 1: create a `.xml` file
 
-You can run any command supported by Apple's MDM protocol as a custom command in Fleet. To see the list of possible commands, head to [Apple's Commands and Queries documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries).
+You can run any command supported by [Apple's MDM protocol](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) or [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/).
 
-> The "Erase a device" and "Lock a device" commands are only available in Fleet Premium
+> The lock and wipe commands are only available in Fleet Premium
 
-Each command has example request payloads in XML format. For example, if we want to restart a host, we'll use the "Restart a Device" request payload documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/restart_a_device#3384428).
+Each command must be in the correct XML format. 
 
-To run the "Restart a device" command, we'll need to create a `restart-device.xml` file locally and copy and paste the request payload into this `.xml` file:
+For example, to restart a macOS host, we'll use the "Restart a Device" command documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/restart_a_device#3384428). 
+
+First, we'll need to create a `restart-device.xml` file locally with these contents:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -34,10 +36,27 @@ To run the "Restart a device" command, we'll need to create a `restart-device.xm
         <key>RequestType</key>
         <string>RestartDevice</string>
     </dict>
-    <key>CommandUUID</key>
-    <string>0001_RestartDevice</string>
 </dict>
 </plist>
+```
+
+To restart a Windows host, we'll use the "Reboot" command documented by Windows [here](https://learn.microsoft.com/en-us/windows/client-management/mdm/reboot-csp).
+
+Our `restart-device.xml` file will have these contents instead:
+
+```xml
+<Exec>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">null</Format>
+      <Type>text/plain</Type>
+    </Meta>
+    <Data></Data>
+  </Item>
+</Exec>
 ```
 
 ### Step 2: choose a target host
@@ -110,14 +129,18 @@ $ fleetctl get mdm-commands
 +--------------------------------------+----------------------+--------------------------+--------------+------------------------+
 ```
 
-The command ID can be used to view command results as documented in [step 4 of the previous section](#step-4-view-the-commands-results). The possible status values are:
+The command ID can be used to view command results as documented in [step 4 of the previous section](#step-4-view-the-commands-results). 
+
+The possible statuses for macOS hosts are:
 * Pending: the command has yet to run on the host. The host will run the command the next time it comes online.
 * NotNow: the host responded with "NotNow" status via the MDM protocol: the host received the command, but couldn’t execute it. The host will try to run the command the next time it comes online.
 * Acknowledged: the host responded with "Acknowledged" status via the MDM protocol: the host processed the command successfully.
 * Error: the host responded with "Error" status via the MDM protocol: an error occurred. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
 * CommandFormatError: the host responded with "CommandFormatError" status via the MDM protocol: a protocol error occurred, which can result from a malformed command. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
 
+The possible statuses for Windows hosts are documented in Microsoft's docs [here]().
+
 <meta name="pageOrderInSection" value="1507">
 <meta name="title" value="Commands">
-<meta name="description" value="Learn how to run custom MDM commands on macOS hosts using Fleet.">
+<meta name="description" value="Learn how to run custom MDM commands on hosts using Fleet.">
 <meta name="navSection" value="Device management">
