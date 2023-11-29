@@ -8049,7 +8049,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 			tmPtr = &teamID
 		}
 		body, headers := generateNewProfileMultipartRequest(t, tmPtr,
-			filename, []byte(fmt.Sprintf(`<Replace><Target><LocURI>%s</LocURI></Target></Replace>`, locURI)), s.token)
+			filename, []byte(fmt.Sprintf(`<Replace><Item><Target><LocURI>%s</LocURI></Target></Item></Replace>`, locURI)), s.token)
 		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/profiles", body.Bytes(), wantStatus, headers)
 
 		if wantErrMsg != "" {
@@ -9485,6 +9485,10 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			if c.Verb == "Atomic" {
 				atomicCmds = append(atomicCmds, c)
 				status = mdmResponseStatus
+				require.NotEmpty(t, c.Cmd.ReplaceCommands)
+				for _, rc := range c.Cmd.ReplaceCommands {
+					require.NotEmpty(t, rc.CmdID)
+				}
 			}
 			device.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: mdm_types.CmdStatus},

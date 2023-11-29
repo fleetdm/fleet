@@ -1029,8 +1029,8 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},
 		{"multiple Replace", 0, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
 		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Only <Replace> supported as a top level element."},
-		{"BitLocker profile", 0, `<Replace><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
-		{"Windows updates profile", 0, `<Replace><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
+		{"BitLocker profile", 0, `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
+		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
 		{"team empty profile", 1, "", true, "The file should include valid XML."},
 		{"team plist data", 1, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "Only <Replace> supported as a top level element."},
@@ -1040,8 +1040,8 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"team duplicate profile name", 1, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},
 		{"team multiple Replace", 1, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
 		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Only <Replace> supported as a top level element."},
-		{"team BitLocker profile", 1, `<Replace><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
-		{"team Windows updates profile", 1, `<Replace><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
+		{"team BitLocker profile", 1, `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
+		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
 	}
