@@ -56,6 +56,10 @@ module "free" {
     image               = local.fleet_image
     family              = local.customer_free
     security_group_name = local.customer_free
+    autoscaling = {
+      min_capacity = 2
+      max_capacity = 5
+    }
     awslogs = {
       name      = local.customer_free
       retention = 365

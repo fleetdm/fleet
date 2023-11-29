@@ -87,6 +87,10 @@ module "main" {
   fleet_config = {
     image  = local.fleet_image
     family = local.customer
+    autoscaling = {
+      min_capacity = 2
+      max_capacity = 5
+    }
     awslogs = {
       name      = local.customer
       retention = 365
