@@ -1453,7 +1453,7 @@ INSERT INTO
     profile_uuid, team_id, name, syncml
   )
 VALUES
-  ( CONCAT('w', UUID()), ?, ?, ? )
+  ( CONCAT('w', CONVERT(UUID() USING utf8mb4)), ?, ?, ? )
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   syncml = VALUES(syncml)

@@ -123,7 +123,7 @@ func TestUp_20231122155427(t *testing.T) {
 	require.Equal(t, "a", string(nonExistingProfUUIDs[0][0]))
 
 	// creating a new Apple profile still generates a unique numerical id
-	idaD := execNoErrLastID(t, db, `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum) VALUES (CONCAT('a', uuid()), 0, 'ID', 'ND', '<plist></plist>', '')`)
+	idaD := execNoErrLastID(t, db, `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum) VALUES (CONCAT('a', CONVERT(uuid() USING utf8mb4)), 0, 'ID', 'ND', '<plist></plist>', '')`)
 	require.NotZero(t, idaD)
 	require.Greater(t, idaD, idaC)
 
@@ -131,9 +131,9 @@ func TestUp_20231122155427(t *testing.T) {
 	execNoErr(t, db, `INSERT INTO mdm_apple_configuration_profiles
 		(profile_uuid, team_id, identifier, name, mobileconfig, checksum)
 	VALUES
-		(CONCAT('a', uuid()), 0, 'IE', 'NE', '<plist></plist>', ''),
-		(CONCAT('a', uuid()), 0, 'IF', 'NF', '<plist></plist>', ''),
-		(CONCAT('a', uuid()), 0, 'IG', 'NG', '<plist></plist>', '')
+		(CONCAT('a', CONVERT(uuid() USING utf8mb4), 0, 'IE', 'NE', '<plist></plist>', ''),
+		(CONCAT('a', CONVERT(uuid() USING utf8mb4), 0, 'IF', 'NF', '<plist></plist>', ''),
+		(CONCAT('a', CONVERT(uuid() USING utf8mb4), 0, 'IG', 'NG', '<plist></plist>', '')
 `)
 	var profIDs []int64
 	err = sqlx.Select(db, &profIDs, `SELECT profile_id FROM mdm_apple_configuration_profiles ORDER BY name`)

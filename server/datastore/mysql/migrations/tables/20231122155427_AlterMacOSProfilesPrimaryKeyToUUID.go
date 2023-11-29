@@ -68,7 +68,8 @@ ALTER TABLE mdm_apple_configuration_profiles
 UPDATE
 	mdm_apple_configuration_profiles
 SET
-	profile_uuid = CONCAT('a', uuid())
+	-- see https://stackoverflow.com/a/51393124/1094941
+	profile_uuid = CONCAT('a', CONVERT(uuid() USING utf8mb4))
 `)
 	if err != nil {
 		return fmt.Errorf("failed to update mdm_apple_configuration_profiles table: %w", err)
@@ -106,7 +107,8 @@ SET
 			mdm_apple_configuration_profiles macp
 		WHERE
 			host_mdm_apple_profiles.profile_id = macp.profile_id
-	), CONCAT('a', uuid()))
+	-- see https://stackoverflow.com/a/51393124/1094941
+	), CONCAT('a', CONVERT(uuid() USING utf8mb4)))
 `)
 	if err != nil {
 		return fmt.Errorf("failed to update host_mdm_apple_profiles table: %w", err)
