@@ -1234,8 +1234,8 @@ CREATE TABLE `software` (
   `vendor_old` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `arch` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `vendor` varchar(114) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `extension_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `browser` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `extension_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `software_listing_idx` (`name`,`id`),
   KEY `software_source_vendor_idx` (`source`,`vendor_old`)
