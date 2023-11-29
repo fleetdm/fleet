@@ -21,7 +21,6 @@ import NotSupported from "components/NotSupported";
 
 import {
   humanHostMemory,
-  humanHostLastRestart,
   humanHostLastSeen,
   hostTeamName,
 } from "utilities/helpers";
@@ -568,9 +567,9 @@ const allHostTableHeaders: IDataColumn[] = [
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    accessor: "uptime",
+    accessor: "last_restarted_at",
     Cell: (cellProps: ICellProps) => {
-      const { uptime, detail_updated_at, platform } = cellProps.row.original;
+      const { platform, last_restarted_at } = cellProps.row.original;
 
       if (platform === "chrome") {
         return NotSupported;
@@ -578,7 +577,7 @@ const allHostTableHeaders: IDataColumn[] = [
       return (
         <TextCell
           value={{
-            timeString: humanHostLastRestart(detail_updated_at, uptime),
+            timeString: last_restarted_at,
           }}
           formatter={HumanTimeDiffWithFleetLaunchCutoff}
         />

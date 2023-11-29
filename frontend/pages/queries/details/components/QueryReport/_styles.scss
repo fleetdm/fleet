@@ -9,6 +9,10 @@
         margin-bottom: 44px; // Fills space where filter is removed
       }
     }
+
+    .data-table__wrapper {
+      overflow-x: scroll;
+    }
   }
 
   &__results-cta {

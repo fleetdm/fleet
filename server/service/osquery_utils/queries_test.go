@@ -1184,6 +1184,9 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		if host.ID != hostID {
 			return errors.New("host ID mismatch")
 		}
+		if encryptedBase64Key == "" && (decryptable == nil || *decryptable == true) {
+			return errors.New("decryptable should be false if the key is empty")
+		}
 		return nil
 	}
 
@@ -1483,6 +1486,48 @@ func TestSanitizeSoftware(t *testing.T) {
 			sanitized: &fleet.Software{
 				Name:    "Other",
 				Version: "1.2.3",
+			},
+		},
+		{
+			name: "Citrix Workspace on Windows",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "23.9.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "2309.1.104",
+			},
+		},
+		{
+			name: "Citrix Workspace on Mac",
+			h: &fleet.Host{
+				Platform: "darwin",
+			},
+			s: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "23.9.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2309.1.104",
+			},
+		},
+		{
+			name: "Citrix Workspace with correct versioning",
+			h: &fleet.Host{
+				Platform: "darwin",
+			},
+			s: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2400.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2400.1.104",
 			},
 		},
 	} {

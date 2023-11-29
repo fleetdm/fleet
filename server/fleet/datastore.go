@@ -529,6 +529,7 @@ type Datastore interface {
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error)
+	UpdateHostPolicyCounts(ctx context.Context) error
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
@@ -820,8 +821,8 @@ type Datastore interface {
 	// profile using the unique key defined by `team_id` and `identifier`
 	DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) error
 
-	// GetHostMDMProfiles returns the MDM profile information for the specified host UUID.
-	GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
+	// GetHostMDMAppleProfiles returns the MDM profile information for the specified host UUID.
+	GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
 
 	CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error
 
@@ -928,11 +929,11 @@ type Datastore interface {
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
 
-	// BulkSetPendingMDMAppleHostProfiles sets the status of profiles to install
+	// BulkSetPendingMDMHostProfiles sets the status of profiles to install
 	// or to remove for each affected host to pending for the provided criteria,
 	// which may be either a list of hostIDs, teamIDs, profileIDs or hostUUIDs
 	// (only one of those ID types can be provided).
-	BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error
+	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, profileUUIDs, hostUUIDs []string) error
 
 	// GetMDMAppleProfilesContents retrieves the XML contents of the
 	// profiles requested.
@@ -946,10 +947,10 @@ type Datastore interface {
 	// GetMDMAppleCommandRequest type returns the request type for the given command
 	GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error)
 
-	// GetMDMAppleHostsProfilesSummary summarizes the current state of MDM configuration profiles on
+	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
 	// each host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
-	GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleConfigProfilesSummary, error)
+	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
@@ -1076,6 +1077,17 @@ type Datastore interface {
 	// the specified profile uuid.
 	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
 
+	// DeleteMDMWindowsConfigProfileByTeamAndName deletes the Windows MDM profile corresponding to
+	// the specified team ID (or no team if nil) and profile name.
+	DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Context, teamID *uint, profileName string) error
+
+	// GetHostMDMWindowsProfiles returns the MDM profile information for the specified Windows host UUID.
+	GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]HostMDMWindowsProfile, error)
+
+	// ListMDMConfigProfiles returns a paginated list of configuration profiles
+	// corresponding to the criteria.
+	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// MDM Commands
 
@@ -1095,6 +1107,11 @@ type Datastore interface {
 	// Note that the returned status will be nil if the host is reported to be a Windows
 	// server or if disk encryption is disabled for the host's team (or no team, as applicable).
 	GetMDMWindowsBitLockerStatus(ctx context.Context, host *Host) (*HostMDMDiskEncryption, error)
+
+	// GetMDMWindowsProfilesSummary summarizes the current state of Windows profiles on
+	// each Windows host in the specified team (or, if no team is specified, each host that is not
+	// assigned to any team).
+	GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM Profiles
@@ -1120,6 +1137,18 @@ type Datastore interface {
 	// BulkDeleteMDMWindowsHostsConfigProfiles deletes entries from
 	// host_mdm_windows_profiles that match the given payload.
 	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error
+
+	// NewMDMWindowsConfigProfile creates and returns a new configuration profile.
+	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile) (*MDMWindowsConfigProfile, error)
+
+	// SetOrUpdateMDMWindowsConfigProfile creates or replaces a Windows profile.
+	// The profile gets replaced if it already exists for the same team and name
+	// combination.
+	SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile) error
+
+	// BatchSetMDMProfiles sets the MDM Apple or Windows profiles for the given team or
+	// no team in a single transaction.
+	BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*MDMAppleConfigProfile, winProfiles []*MDMWindowsConfigProfile) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
@@ -1159,7 +1188,7 @@ type Datastore interface {
 
 	// GetHostScriptDetails returns the list of host script details for saved scripts applicable to
 	// a given host.
-	GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts ListOptions) ([]*HostScriptDetail, *PaginationMetadata, error)
+	GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts ListOptions, hostPlatform string) ([]*HostScriptDetail, *PaginationMetadata, error)
 
 	// BatchSetScripts sets the scripts for the given team or no team.
 	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) error

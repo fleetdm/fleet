@@ -47,10 +47,14 @@ export default {
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
-  MDM_PROFILES: `/${API_VERSION}/fleet/mdm/apple/profiles`,
-  MDM_PROFILE: (id: number) => `/${API_VERSION}/fleet/mdm/apple/profiles/${id}`,
+
+  // MDM profile endpoints
+  MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
+  MDM_PROFILE: (id: number | string) =>
+    `/${API_VERSION}/fleet/mdm/profiles/${id}`,
+
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
-  MDM_PROFILES_AGGREGATE_STATUSES: `/${API_VERSION}/fleet/mdm/apple/profiles/summary`,
+  MDM_PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/mdm/profiles/summary`,
   MDM_DISK_ENCRYPTION_SUMMARY: `/${API_VERSION}/fleet/mdm/disk_encryption/summary`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
   MDM_APPLE_ENROLLMENT_PROFILE: (token: string, ref?: string) => {

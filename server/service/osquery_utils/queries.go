@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -718,16 +719,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Atom)' AS type,
-  '' AS bundle_identifier,
-  'atom_packages' AS source,
-  0 AS last_opened_at,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
   'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
   'homebrew_packages' AS source,
@@ -819,17 +810,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Atom)' AS type,
-  'atom_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
   'Package (Python)' AS type,
   'python_packages' AS source,
   '' AS release,
@@ -897,15 +877,6 @@ SELECT
   '' AS vendor,
   path AS installed_path
 FROM chocolatey_packages
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (Atom)' AS type,
-  'atom_packages' AS source,
-  '' AS vendor,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid);
 `),
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
@@ -1232,7 +1203,10 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	return nil
 }
 
-var macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+var (
+	macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+	citrixName          = regexp.MustCompile(`Citrix Workspace [0-9]+`)
+)
 
 // sanitizeSoftware performs any sanitization required to the ingested software fields.
 //
@@ -1279,6 +1253,41 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 					return
 				}
 				s.Version = "20" + s.Version // Cloudflare WARP was released on 2019.
+			},
+		},
+		{
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return citrixName.Match([]byte(s.Name)) || s.Name == "Citrix Workspace.app"
+			},
+			mutateSoftware: func(s *fleet.Software) {
+				parts := strings.Split(s.Version, ".")
+				if len(parts) <= 1 {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
+					return
+				}
+
+				if len(parts[0]) > 2 {
+					// then the versioning is correct, so no need to change
+					return
+				}
+
+				part1, err := strconv.Atoi(parts[0])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+
+				part2, err := strconv.Atoi(parts[1])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+
+				newFirstPart := part1*100 + part2
+				newFirstStr := strconv.Itoa(newFirstPart)
+				newParts := []string{newFirstStr}
+				newParts = append(newParts, parts[2:]...)
+				s.Version = strings.Join(newParts, ".")
 			},
 		},
 	}
@@ -1428,8 +1437,8 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 
 func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
-		// assume the extension is not there
-		return nil
+		// munki is not there, and we need to mark it deleted if it was there before
+		return ds.SetOrUpdateMunkiInfo(ctx, host.ID, "", []string{}, []string{})
 	}
 	if len(rows) > 1 {
 		logger.Log("component", "service", "method", "ingestMunkiInfo", "warn",
@@ -1497,9 +1506,16 @@ func directIngestDiskEncryptionKeyFileDarwin(
 		return nil
 	}
 
-	// it's okay if the key comes empty, this can happen and if the disk is
-	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"], "", nil)
+	// at this point we know that the disk is encrypted, if the key is
+	// empty then the disk is not decryptable. For example an user might
+	// have removed the `/var/db/FileVaultPRK.dat` or the computer might
+	// have been encrypted without FV escrow enabled.
+	var decryptable *bool
+	base64Key := rows[0]["filevault_key"]
+	if base64Key == "" {
+		decryptable = ptr.Bool(false)
+	}
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64Key, "", decryptable)
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -1548,9 +1564,17 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 		return ctxerr.Wrap(ctx, err, "decoding hex string")
 	}
 
-	// it's okay if the key comes empty, this can happen and if the disk is
-	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b), "", nil)
+	// at this point we know that the disk is encrypted, if the key is
+	// empty then the disk is not decryptable. For example an user might
+	// have removed the `/var/db/FileVaultPRK.dat` or the computer might
+	// have been encrypted without FV escrow enabled.
+	var decryptable *bool
+	base64Key := base64.StdEncoding.EncodeToString(b)
+	if base64Key == "" {
+		decryptable = ptr.Bool(false)
+	}
+
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64Key, "", decryptable)
 }
 
 func directIngestMacOSProfiles(

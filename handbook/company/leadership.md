@@ -41,19 +41,15 @@ If you have any questions or feedback, please make a pull request.
 
 Departmental page structure:
 - `# Name of department`
-  - "This handbook page details processes specific to working `[with](#contact-us)` and `[within](#responsibilities)` this department."  
+  - "This handbook page details processes specific to working `[with](#contact-us)` and `[within](#responsibilities)` this department." 
 
   - `## Team`
     - Table that displays each position and the team member(s) that fill that position, linking each Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/ceo#team](https://fleetdm.com/handbook/ceo#team) for example.
 
-
   - `## Contact us`
-    - "To make a request of this department, `[create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23{DEPARTMENTAL-GITHUB-LABEL}&projects=&template=custom-request.md&title=Request%3A+_______________________)` and a team member will get back to you within one business day."
-      - "Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request."
+    - "To make a request of this department, `[create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23{DEPARTMENTAL-GITHUB-LABEL}&projects=&template=custom-request.md&title=Request%3A+_______________________)` and a team member will get back to you within one business day (If urgent, mention a `[team member](#team)` in `[#g-DEPARTMENTAL-SLACK-CHANNEL]({DEPARTMENTAL-SLACK-CHANNEL-LINK})`)."
+      - "Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request."
       - "Any Fleet team member can `[view the kanban board](https://app.zenhub.com/workspaces/{DEPARTMENTAL-KANBAN-BOARD-LINK}/board?sprints=none)` for this department, including pending tasks and the status of new requests."
-    - Other common issue links or call to action
-    - "If urgent, or if you need help submitting your request, mention a `[team member](#team)` in the [#g-`DEPARTMENT`]`(DEPARTMENTAL-SLACK-CHANNEL-LINK)` Slack channel."
-      - More specific Slack info if needed.
 
 - `## Responsibilities`
   - The "Responsibilities" section consists of a flat list of H3 sub-headings written in the imperative mood (e.g. "Process CEO inbox") and designed to be the internal "How-to" of each department.  

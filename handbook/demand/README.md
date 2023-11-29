@@ -1,9 +1,6 @@
 # Demand
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
-## What we do
-The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other [programs](https://fleetdm.com/handbook/demand#programs).
-
 ## Team
 | Role                            | Contributor(s)
 |:--------------------------------|:------------------------------------------------------------------------------------------------------------------------|
@@ -14,48 +11,14 @@ The Demand department is directly responsible for growing awareness of Fleet and
 
 
 ## Contact us
-
-> To make a request related to product marketing, press, brandfronts, pitchfronts, featurefronts, ideal customer profiles (ICPs), personas, or targeting [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Aproduct-marketing&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________).
->
-> If urgent, or if you need help submitting your request, at-mention the [Head of Product Marketing](#team) in the [help-pmm-2023](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel.
-
-- To make a request of the Demand department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-demand&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
-  - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
+- To **make a request** of the Demand department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-demand&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, at-mention a [team member](#team) in the [#g-demand](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
+  - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
-- To suggest an idea for social media, an advertisement, an article, a video, or an event, [create an issue (#g-demand)](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-demand&projects=&template=custom-request.md&title=Request%3A+_______________________) and concisely suggest why you think it might be a good idea.  The more advanced notice you can provide for the event, the better, in case we can provide swag or other support.
-- If urgent, or if you need help submitting your request, mention a [team member](#team) in the [#g-demand](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel:
-  - For all urgent events, videos, or social media questions, mention the Field Marketer.
-  - For all urgent questions related to articles or the Fleet community, mention the Community Advocate.
 
-
-## Programs
-Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through events, community support, [social media](#social-media), conversation-starting, [ads](#ads), video, and articles.
-
-### Social media
-Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
-
-Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/demand#engage-with-the-community).
-
-Here are some topics for social media posts:
-- Fleet the product
-- Internal progress
-- Highlighting community contributions
-- Highlighting Fleet and osquery accomplishments
-- Industry news about osquery
-- Industry news about device management
-- Upcoming events, interviews, and podcasts
-
-### Ads
-Fleet uses advertising to spread awareness through a broader audience and foster greater engagement within user communities. The more people actively using Fleet, or contributing, the better Fleet will be.
-
-
-### Events
-It's important for Fleet to engage at events. This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
-
-### Video
-Fleet's utilization of YouTube is an essential component of our commitment to nurturing a strong and informed user community. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it.
+> To **make a request** related to **product marketing**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Aproduct-marketing,%23g-ceo&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [Head of Product Marketing](#team) in the [help-pmm-2023](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
 
 ## Responsibilities
+The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 
 ### Begin or modify an advertising campaign
 Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-website)"](https://app.zenhub.com/workspaces/g-website-6451748b4eb15200131d4bab/board?sprints=none).
@@ -188,6 +151,28 @@ Fleet regularly uploads a variety of content to YouTube such as podcast episodes
 
 <!-- TODO: Explore the stubs from this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
 <!-- TODO: Slightly later, in another PR, finish processing this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
+
+#### Stubs
+The following stubs are included only to make links backward compatible
+
+##### Programs
+Please see [handbook/company/communications#product-marketing-programs](https://fleetdm.com/handbook/company/communications#product-marketing-programs)
+
+##### Social media
+Please see [handbook/company/communications#social-media](https://fleetdm.com/handbook/company/communications#social-media)
+
+##### Ads
+Please see [handbook/company/communications#ads](https://fleetdm.com/handbook/company/communications#ads)
+
+##### Events
+Please see [handbook/company/communications#events](https://fleetdm.com/handbook/company/communications#events)
+
+##### Video
+Please see [handbook/company/communications#video](https://fleetdm.com/handbook/company/communications#video)
+
+
+
+
 
 <meta name="maintainedBy" value="3kindsoffish">
 <meta name="title" value="🫧 Demand">

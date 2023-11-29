@@ -2,18 +2,16 @@ package mysql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
-
-// for tests, set to override the default batch size.
-var testDeleteMDMProfilesBatchSize int
-
-// for tests, set to override the default batch size.
-var testUpsertMDMDesiredProfilesBatchSize int
 
 func (ds *Datastore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
 	stmt := `
@@ -85,4 +83,244 @@ INNER JOIN hosts h ON h.uuid = mwe.host_uuid
 		return nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
 	return results, nil
+}
+
+func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
+		}
+
+		if err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+
+	// this lists custom profiles, it explicitly filters out the fleet-reserved
+	// ones (reserved identifiers for Apple profiles, reserved names for Windows).
+
+	var profs []*fleet.MDMConfigProfilePayload
+
+	const selectStmt = `
+SELECT
+	profile_id,
+	team_id,
+	name,
+	platform,
+	identifier,
+	checksum,
+	created_at,
+	updated_at
+FROM (
+	SELECT
+		CONVERT(profile_id, CHAR) as profile_id,
+		team_id,
+		name,
+		'darwin' as platform,
+		identifier,
+		checksum,
+		created_at,
+		updated_at
+	FROM
+		mdm_apple_configuration_profiles
+	WHERE
+		team_id = ? AND
+		identifier NOT IN (?)
+
+	UNION
+
+	SELECT
+		profile_uuid as profile_id,
+		team_id,
+		name,
+		'windows' as platform,
+		'' as identifier,
+		'' as checksum,
+		created_at,
+		updated_at
+	FROM
+		mdm_windows_configuration_profiles
+	WHERE
+		team_id = ? AND
+		name NOT IN (?)
+) as combined_profiles
+`
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	fleetIdentsMap := mobileconfig.FleetPayloadIdentifiers()
+	fleetIdentifiers := make([]string, 0, len(fleetIdentsMap))
+	for k := range fleetIdentsMap {
+		fleetIdentifiers = append(fleetIdentifiers, k)
+	}
+	fleetNamesMap := microsoft_mdm.FleetReservedProfileNames()
+	fleetNames := make([]string, 0, len(fleetNamesMap))
+	for k := range fleetNamesMap {
+		fleetNames = append(fleetNames, k)
+	}
+
+	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames}
+	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
+
+	stmt, args, err := sqlx.In(stmt, args...)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "sqlx.In ListMDMConfigProfiles")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profs, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select profiles")
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(profs) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			profs = profs[:len(profs)-1]
+		}
+	}
+	return profs, metaData, nil
+}
+
+// Note that team ID 0 is used for profiles that apply to hosts in no team
+// (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
+// slice arguments can have values.
+func (ds *Datastore) BulkSetPendingMDMHostProfiles(
+	ctx context.Context,
+	hostIDs, teamIDs, profileIDs []uint,
+	profileUUIDs, hostUUIDs []string,
+) error {
+	var countArgs int
+	if len(hostIDs) > 0 {
+		countArgs++
+	}
+	if len(teamIDs) > 0 {
+		countArgs++
+	}
+	if len(profileIDs) > 0 {
+		countArgs++
+	}
+	if len(profileUUIDs) > 0 {
+		countArgs++
+	}
+	if len(hostUUIDs) > 0 {
+		countArgs++
+	}
+	if countArgs > 1 {
+		return errors.New("only one of hostIDs, teamIDs, profileIDs, profileUUIDs or hostUUIDs can be provided")
+	}
+	if countArgs == 0 {
+		return nil
+	}
+
+	var (
+		hosts    []fleet.Host
+		args     []any
+		uuidStmt string
+	)
+
+	switch {
+	case len(hostUUIDs) > 0:
+		// TODO: if a very large number (~65K) of uuids was provided, could
+		// result in too many placeholders (not an immediate concern).
+		uuidStmt = `SELECT uuid, platform FROM hosts WHERE uuid IN (?)`
+		args = append(args, hostUUIDs)
+
+	case len(hostIDs) > 0:
+		// TODO: if a very large number (~65K) of uuids was provided, could
+		// result in too many placeholders (not an immediate concern).
+		uuidStmt = `SELECT uuid, platform FROM hosts WHERE id IN (?)`
+		args = append(args, hostIDs)
+
+	case len(teamIDs) > 0:
+		// TODO: if a very large number (~65K) of team IDs was provided, could
+		// result in too many placeholders (not an immediate concern).
+		uuidStmt = `SELECT uuid, platform FROM hosts WHERE `
+		if len(teamIDs) == 1 && teamIDs[0] == 0 {
+			uuidStmt += `team_id IS NULL`
+		} else {
+			uuidStmt += `team_id IN (?)`
+			args = append(args, teamIDs)
+			for _, tmID := range teamIDs {
+				if tmID == 0 {
+					uuidStmt += ` OR team_id IS NULL`
+					break
+				}
+			}
+		}
+
+	case len(profileIDs) > 0:
+		// TODO: if a very large number (~65K) of profile IDs was provided, could
+		// result in too many placeholders (not an immediate concern).
+		uuidStmt = `
+SELECT DISTINCT h.uuid, h.platform
+FROM hosts h
+JOIN mdm_apple_configuration_profiles macp
+	ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+WHERE
+	macp.profile_id IN (?) AND h.platform = 'darwin'`
+		args = append(args, profileIDs)
+
+	case len(profileUUIDs) > 0:
+		// TODO: if a very large number (~65K) of profile IDs was provided, could
+		// result in too many placeholders (not an immediate concern).
+		uuidStmt = `
+SELECT DISTINCT h.uuid, h.platform
+FROM hosts h
+JOIN mdm_windows_configuration_profiles mawp
+	ON h.team_id = mawp.team_id OR (h.team_id IS NULL AND mawp.team_id = 0)
+WHERE
+	mawp.profile_uuid IN (?) AND h.platform = 'windows'`
+		args = append(args, profileUUIDs)
+
+	}
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// TODO: this could be optimized to avoid querying for platform when
+		// profileIDs or profileUUIDs are provided.
+		if len(hosts) == 0 {
+			uuidStmt, args, err := sqlx.In(uuidStmt, args...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
+			}
+			if err := sqlx.SelectContext(ctx, tx, &hosts, uuidStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+			}
+		}
+
+		var macHosts []string
+		var winHosts []string
+		for _, h := range hosts {
+			switch h.Platform {
+			case "darwin":
+				macHosts = append(macHosts, h.UUID)
+			case "windows":
+				winHosts = append(winHosts, h.UUID)
+			default:
+				level.Debug(ds.logger).Log(
+					"msg", "tried to set profile status for a host with unsupported platform",
+					"platform", h.Platform,
+					"host_uuid", h.UUID,
+				)
+			}
+		}
+
+		if err := ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, macHosts); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
+		}
+
+		if err := ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
+		}
+
+		return nil
+	})
 }

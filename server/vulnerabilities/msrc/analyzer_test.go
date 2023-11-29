@@ -106,7 +106,7 @@ func TestAnalyzer(t *testing.T) {
 			require.Nil(t, bulletin)
 		})
 
-		t.Run("returns the lastest bulletin", func(t *testing.T) {
+		t.Run("returns the latest bulletin", func(t *testing.T) {
 			d := time.Now()
 			dir := t.TempDir()
 

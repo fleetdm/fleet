@@ -23,7 +23,7 @@ module.exports = {
     softwareInventoryEnabled: { required: true, type: 'boolean' },
     vulnDetectionEnabled: { required: true, type: 'boolean' },
     systemUsersEnabled: { required: true, type: 'boolean' },
-    hostStatusWebhookEnabled: { required: true, type: 'boolean' },
+    hostsStatusWebHookEnabled: { required: true, type: 'boolean', columnName: 'hostStatusWebhookEnabled'},// Note: We are specifying a columnName for this attribute to avoid migrating the exsiting records when the name of this attribute was changed. FUTURE: Next time we add attributes to this model, change the column name in the database and remove the columnName from this attribute.
     numWeeklyActiveUsers: { required: true, type: 'number' },
     numWeeklyPolicyViolationDaysActual: { required: true, type: 'number' },
     numWeeklyPolicyViolationDaysPossible: { required: true, type: 'number'},

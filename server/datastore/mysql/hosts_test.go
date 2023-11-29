@@ -154,6 +154,7 @@ func TestHosts(t *testing.T) {
 		{"GetMatchingHostSerials", testGetMatchingHostSerials},
 		{"ListHostsLiteByIDs", testHostsListHostsLiteByIDs},
 		{"ListHostsWithPagination", testListHostsWithPagination},
+		{"LastRestarted", testLastRestarted},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -714,6 +715,7 @@ func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, o
 func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	var teamIDFilterNil *uint                // "All teams" option should include all hosts regardless of team assignment
 	var teamIDFilterZero *uint = ptr.Uint(0) // "No team" option should include only hosts that are not assigned to any team
+	teamIDFilterBad := ptr.Uint(9999)
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -819,6 +821,11 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1) // hosts[8]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)  // hosts[8]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)                               // hosts[8]
+
+	// Bad team filter
+	_, err = ds.ListHosts(context.Background(), userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterBad})
+	require.Error(t, err)
+	require.True(t, strings.Contains(err.Error(), "team is invalid"), err)
 }
 
 func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
@@ -2417,6 +2424,7 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 			NodeKey:         ptr.String(fmt.Sprintf("node_key_%d", i)),
 			UUID:            fmt.Sprintf("uuid_%d", i),
 			Hostname:        fmt.Sprintf("hostname_%d", i),
+			HardwareSerial:  fmt.Sprintf("serial_%d", i),
 		})
 		require.NoError(t, err)
 	}
@@ -2443,6 +2451,11 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	h, err = ds.HostByIdentifier(context.Background(), "hostname_7")
 	require.NoError(t, err)
 	assert.Equal(t, uint(7), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	h, err = ds.HostByIdentifier(context.Background(), "serial_9")
+	require.NoError(t, err)
+	assert.Equal(t, uint(9), h.ID)
 	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostByIdentifier(context.Background(), "foobar")
@@ -6791,6 +6804,16 @@ func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "ghi", "", ptr.Bool(false))
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host3.ID, "ghi", ptr.Bool(false))
+
+	// set an empty key (backfill for issue #15068)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "", "", nil)
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host3.ID, "", nil)
+
+	// setting the decryptable value works even if the key is still empty
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "", "", ptr.Bool(false))
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host3.ID, "", ptr.Bool(false))
 }
 
 func testHostsSetDiskEncryptionKeyStatus(t *testing.T, ds *Datastore) {
@@ -7529,4 +7552,73 @@ func testListHostsWithPagination(t *testing.T, ds *Datastore) {
 	count, err := ds.CountHosts(ctx, filter, fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Equal(t, hostCount, count)
+}
+
+func testLastRestarted(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Arbitrary value
+	const uptimeVal = 16691000000000
+	now := time.Now()
+	newHostFunc := func(name string, uptimeZero bool) (*fleet.Host, time.Time) {
+		newHost := &fleet.Host{
+			DetailUpdatedAt: now,
+			LabelUpdatedAt:  now,
+			PolicyUpdatedAt: now,
+			SeenTime:        now,
+			NodeKey:         ptr.String(name),
+			UUID:            name,
+			Hostname:        "foo.local." + name,
+		}
+
+		var expectedLastRestartedAt time.Time
+
+		if uptimeZero {
+			newHost.Uptime = 0
+		} else {
+			newHost.Uptime = uptimeVal
+			// Rounding to nearest second because the SQL query does integer division.
+			expectedLastRestartedAt = newHost.DetailUpdatedAt.Add(-newHost.Uptime).Round(time.Second).UTC()
+		}
+
+		host, err := ds.NewHost(ctx, newHost)
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		return host, expectedLastRestartedAt
+	}
+
+	hostCount := 10
+	hosts := make([]*fleet.Host, 0, hostCount)
+	hostsToVals := make(map[uint]time.Time, 0)
+	for i := 0; i < hostCount; i++ {
+		nh, expectedVal := newHostFunc(fmt.Sprintf("h%d", i), i%2 == 0)
+		hosts = append(hosts, nh)
+		hostsToVals[nh.ID] = expectedVal
+	}
+
+	opts := fleet.HostListOptions{}
+
+	userFilter := fleet.TeamFilter{User: test.UserAdmin}
+
+	returnedHosts := listHostsCheckCount(t, ds, userFilter, opts, len(hosts))
+
+	for i, h := range returnedHosts {
+		require.Equal(t, hosts[i].Uptime, h.Uptime)
+		require.Equal(t, hostsToVals[h.ID], h.LastRestartedAt)
+	}
+
+	h1 := hosts[0] // has Uptime == 0
+	h2 := hosts[1] // has Uptime == uptimeVal
+
+	host, err := ds.Host(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Equal(t, h1.ID, host.ID)
+	require.Equal(t, time.Duration(0), host.Uptime)
+	require.Equal(t, hostsToVals[host.ID], host.LastRestartedAt)
+
+	host, err = ds.Host(ctx, h2.ID)
+	require.NoError(t, err)
+	require.Equal(t, h2.ID, host.ID)
+	require.Equal(t, time.Duration(uptimeVal), host.Uptime)
+	require.Equal(t, hostsToVals[host.ID], host.LastRestartedAt)
 }
