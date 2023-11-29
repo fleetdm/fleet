@@ -7002,7 +7002,7 @@ Download uploaded software installer.
 
 Delete uploaded software.
 
-`DELETE /api/v1/fleet/software/{id}`
+`DELETE /api/v1/fleet/software/upload/{id}`
 
 #### Parameters
 
