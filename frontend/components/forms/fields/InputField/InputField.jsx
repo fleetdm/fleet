@@ -60,6 +60,13 @@ class InputField extends Component {
     ignore1password: false,
   };
 
+  constructor() {
+    super();
+    this.state = {
+      copied: false,
+    };
+  }
+
   componentDidMount() {
     const { autofocus } = this.props;
     const { input } = this;
@@ -121,8 +128,12 @@ class InputField extends Component {
 
     const copyValue = (e) => {
       e.preventDefault();
-
-      stringToClipboard(value);
+      stringToClipboard(value).then(() => {
+        this.setState({ copied: true });
+        setTimeout(() => {
+          this.setState({ copied: false });
+        }, 2000);
+      });
     };
 
     if (type === "textarea") {
@@ -175,8 +186,8 @@ class InputField extends Component {
             autoComplete={blockAutoComplete ? "new-password" : ""}
             data-1p-ignore={ignore1password}
           />
-          <div className={`${baseClass}__copy-wrapper`}>
-            {this.props.enableCopy && (
+          {this.props.enableCopy && (
+            <div className={`${baseClass}__copy-wrapper`}>
               <Button
                 variant="text-icon"
                 onClick={copyValue}
@@ -184,8 +195,13 @@ class InputField extends Component {
               >
                 <Icon name="copy" /> Copy
               </Button>
-            )}
-          </div>
+              {this.state.copied && (
+                <span className={`${baseClass}__copied-confirmation`}>
+                  Copied!
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </FormField>
     );
