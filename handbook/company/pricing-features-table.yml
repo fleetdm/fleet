@@ -474,7 +474,7 @@
   tier: Free
   usualDepartment: IT
   waysToUse:
-    - description: Deploy configuration profiles on macOS and verify that they're installed. Windows coming soon (2023-12-31).
+    - description: Deploy configuration profiles on macOS and verify that they're installed. Windows coming soon (2023-12-31). #Customer-preston
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/13281
     - description: Deploy custom declaration (DDM) profiles on macOS. Coming soon (2024-03-31).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14550
