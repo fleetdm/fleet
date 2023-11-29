@@ -2557,7 +2557,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
 	` + hostMDMJoin + `
-    WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
+    WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)
     LIMIT 1
 	`
 	host := &fleet.Host{}

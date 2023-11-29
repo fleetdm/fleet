@@ -654,14 +654,14 @@ func (svc *Service) validateMDM(
 		}
 	}
 
-	//	if !mdm.WindowsEnabledAndConfigured {
-	//		if mdm.WindowsSettings.CustomSettings.Set &&
-	//			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
-	//			!server.SliceStringsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
-	//			invalid.Append("windows_settings.custom_settings",
-	//				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
-	//		}
-	//	}
+	if !mdm.WindowsEnabledAndConfigured {
+		if mdm.WindowsSettings.CustomSettings.Set &&
+			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
+			!server.SliceStringsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
+			invalid.Append("windows_settings.custom_settings",
+				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
+		}
+	}
 
 	if name := mdm.AppleBMDefaultTeam; name != "" && name != oldMdm.AppleBMDefaultTeam {
 		if !license.IsPremium() {
