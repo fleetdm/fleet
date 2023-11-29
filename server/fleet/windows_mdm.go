@@ -81,9 +81,9 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 
 	for _, cmd := range validator.Replace {
 		for _, item := range cmd.Items {
-			fmt.Println(item.Target)
+			// intentionally skipping any further validation if we
+			// don't get a target per product decision.
 			if item.Target == nil {
-				// TODO: validate with Marko the desired behavior
 				continue
 			}
 
