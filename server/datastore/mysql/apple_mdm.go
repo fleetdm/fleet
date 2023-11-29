@@ -1172,6 +1172,7 @@ INSERT INTO
     profile_uuid, team_id, identifier, name, mobileconfig, checksum
   )
 VALUES
+	-- see https://stackoverflow.com/a/51393124/1094941
   ( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig)) )
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
@@ -2401,6 +2402,7 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
 		}
 
 		args = append(args, teamID, cp.Identifier, cp.Name, cp.Mobileconfig)
+		// see https://stackoverflow.com/a/51393124/1094941
 		sb.WriteString("(CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig))),")
 	}
 
