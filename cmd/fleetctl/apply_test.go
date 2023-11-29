@@ -426,6 +426,12 @@ func TestApplyAppConfig(t *testing.T) {
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return &fleet.Team{ID: 123}, nil
 	}
+	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+		return nil
+	}
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		return nil
+	}
 
 	defaultAgentOpts := json.RawMessage(`{"config":{"foo":"bar"}}`)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1001,6 +1007,12 @@ func TestApplyAsGitOps(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+		return nil
+	}
+	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+		return nil
+	}
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
 		return nil
 	}
 
@@ -2296,6 +2308,12 @@ func TestApplySpecs(t *testing.T) {
 		}
 
 		ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+			return nil
+		}
+		ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+			return nil
+		}
+		ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
 			return nil
 		}
 	}

@@ -554,6 +554,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if appConfig.MDM.WindowsUpdates.GracePeriodDays.Valid {
 			grace = &appConfig.MDM.WindowsUpdates.GracePeriodDays.Value
 		}
+
+		if deadline != nil {
+			if err := svc.EnterpriseOverrides.MDMWindowsEnableOSUpdates(ctx, nil, appConfig.MDM.WindowsUpdates); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "enable no-team windows OS updates")
+			}
+		} else if err := svc.EnterpriseOverrides.MDMWindowsDisableOSUpdates(ctx, nil); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "disable no-team windows OS updates")
+		}
+
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),

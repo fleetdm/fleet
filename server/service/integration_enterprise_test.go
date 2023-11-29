@@ -3,8 +3,10 @@ package service
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/log"
@@ -1811,6 +1814,8 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	require.Equal(t, team.Name, tmResp.Team.Name)
 	team.ID = tmResp.Team.ID
 
+	checkWindowsOSUpdatesProfile(t, s.ds, &team.ID, nil)
+
 	// modify the team's config
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
@@ -1823,6 +1828,11 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	require.Equal(t, 5, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
 	require.Equal(t, 2, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
 	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "deadline_days": 5, "grace_period_days": 2}`, team.ID, team.Name), 0)
+
+	checkWindowsOSUpdatesProfile(t, s.ds, &team.ID, &fleet.WindowsUpdates{
+		DeadlineDays:    optjson.SetInt(5),
+		GracePeriodDays: optjson.SetInt(2),
+	})
 
 	// get the team via the GET endpoint, check that it properly returns the mdm
 	// settings.
@@ -1859,6 +1869,11 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	require.Equal(t, 2, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
 	lastActivity := s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "deadline_days": 6, "grace_period_days": 2}`, team.ID, team.Name), 0)
 
+	checkWindowsOSUpdatesProfile(t, s.ds, &team.ID, &fleet.WindowsUpdates{
+		DeadlineDays:    optjson.SetInt(6),
+		GracePeriodDays: optjson.SetInt(2),
+	})
+
 	// setting the macos updates doesn't alter the windows updates
 	tmResp = teamResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
@@ -1877,6 +1892,11 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), "", lastActivity)
 	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), ``, 0)
 
+	checkWindowsOSUpdatesProfile(t, s.ds, &team.ID, &fleet.WindowsUpdates{
+		DeadlineDays:    optjson.SetInt(6),
+		GracePeriodDays: optjson.SetInt(2),
+	})
+
 	// sending a nil MDM or WindowsUpdates config doesn't modify anything
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": nil,
@@ -1893,6 +1913,11 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	// no new activity is created
 	s.lastActivityMatches("", "", lastActivity)
 
+	checkWindowsOSUpdatesProfile(t, s.ds, &team.ID, &fleet.WindowsUpdates{
+		DeadlineDays:    optjson.SetInt(6),
+		GracePeriodDays: optjson.SetInt(2),
+	})
+
 	// sending empty WindowsUpdates fields empties both fields
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"mdm": map[string]any{
@@ -1905,6 +1930,8 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	require.False(t, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Valid)
 	require.False(t, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Valid)
 	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "deadline_days": null, "grace_period_days": null}`, team.ID, team.Name), 0)
+
+	checkWindowsOSUpdatesProfile(t, s.ds, &team.ID, nil)
 
 	// error checks:
 
@@ -2381,6 +2408,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 		}
 	}}`)
 
+	checkWindowsOSUpdatesProfile(t, s.ds, nil, nil)
+
 	// valid config
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -2393,6 +2422,11 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 		}`), http.StatusOK, &acResp)
 	require.Equal(t, 5, acResp.MDM.WindowsUpdates.DeadlineDays.Value)
 	require.Equal(t, 1, acResp.MDM.WindowsUpdates.GracePeriodDays.Value)
+
+	checkWindowsOSUpdatesProfile(t, s.ds, nil, &fleet.WindowsUpdates{
+		DeadlineDays:    optjson.SetInt(5),
+		GracePeriodDays: optjson.SetInt(1),
+	})
 
 	// edited windows updates activity got created
 	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":5, "grace_period_days":1, "team_id": null, "team_name": null}`, 0)
@@ -2416,6 +2450,11 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 	require.Equal(t, 6, acResp.MDM.WindowsUpdates.DeadlineDays.Value)
 	require.Equal(t, 1, acResp.MDM.WindowsUpdates.GracePeriodDays.Value)
 
+	checkWindowsOSUpdatesProfile(t, s.ds, nil, &fleet.WindowsUpdates{
+		DeadlineDays:    optjson.SetInt(6),
+		GracePeriodDays: optjson.SetInt(1),
+	})
+
 	// another edited windows updates activity got created
 	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":6, "grace_period_days":1, "team_id": null, "team_name": null}`, 0)
 
@@ -2427,6 +2466,11 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 
 	// no activity got created
 	s.lastActivityMatches("", ``, lastActivity)
+
+	checkWindowsOSUpdatesProfile(t, s.ds, nil, &fleet.WindowsUpdates{
+		DeadlineDays:    optjson.SetInt(6),
+		GracePeriodDays: optjson.SetInt(1),
+	})
 
 	// clear the Windows requirement
 	acResp = appConfigResponse{}
@@ -2443,6 +2487,8 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 
 	// edited windows updates activity got created with empty requirement
 	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":null, "grace_period_days":null, "team_id": null, "team_name": null}`, 0)
+
+	checkWindowsOSUpdatesProfile(t, s.ds, nil, nil)
 
 	// update again with empty windows requirement
 	acResp = appConfigResponse{}
@@ -5613,4 +5659,34 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_disk_encryption_linux")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_linux")
 	require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_distributed_query_%s", t.Name()))
+}
+
+// checks that the specified team/no-team has the Windows OS Updates profile with
+// the specified deadline/grace settings (or checks that it doesn't have the
+// profile if wantSettings is nil). It returns the profile_uuid if it exists,
+// empty string otherwise.
+func checkWindowsOSUpdatesProfile(t *testing.T, ds *mysql.Datastore, teamID *uint, wantSettings *fleet.WindowsUpdates) string {
+	ctx := context.Background()
+
+	var prof fleet.MDMWindowsConfigProfile
+	mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		var globalOrTeamID uint
+		if teamID != nil {
+			globalOrTeamID = *teamID
+		}
+		err := sqlx.GetContext(ctx, tx, &prof, `SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name = ?`, globalOrTeamID, microsoft_mdm.FleetWindowsOSUpdatesProfileName)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return err
+	})
+	if wantSettings == nil {
+		require.Empty(t, prof.ProfileUUID)
+	} else {
+		require.NotEmpty(t, prof.ProfileUUID)
+		require.Contains(t, string(prof.SyncML), fmt.Sprintf(`<Data>%d</Data>`, wantSettings.DeadlineDays.Value))
+		require.Contains(t, string(prof.SyncML), fmt.Sprintf(`<Data>%d</Data>`, wantSettings.GracePeriodDays.Value))
+	}
+
+	return prof.ProfileUUID
 }

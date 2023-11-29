@@ -241,6 +241,15 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if team.Config.MDM.WindowsUpdates.GracePeriodDays.Valid {
 			grace = &team.Config.MDM.WindowsUpdates.GracePeriodDays.Value
 		}
+
+		if deadline != nil {
+			if err := svc.mdmWindowsEnableOSUpdates(ctx, &team.ID, team.Config.MDM.WindowsUpdates); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "enable team windows OS updates")
+			}
+		} else if err := svc.mdmWindowsDisableOSUpdates(ctx, &team.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "disable team windows OS updates")
+		}
+
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),

@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -100,6 +101,9 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 
 func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 
+	// this lists custom profiles, it explicitly filters out the fleet-reserved
+	// ones (reserved identifiers for Apple profiles, reserved names for Windows).
+
 	var profs []*fleet.MDMConfigProfilePayload
 
 	const selectStmt = `
@@ -142,7 +146,8 @@ FROM (
 	FROM
 		mdm_windows_configuration_profiles
 	WHERE
-		team_id = ?
+		team_id = ? AND
+		name NOT IN (?)
 ) as combined_profiles
 `
 
@@ -156,8 +161,13 @@ FROM (
 	for k := range fleetIdentsMap {
 		fleetIdentifiers = append(fleetIdentifiers, k)
 	}
+	fleetNamesMap := microsoft_mdm.FleetReservedProfileNames()
+	fleetNames := make([]string, 0, len(fleetNamesMap))
+	for k := range fleetNamesMap {
+		fleetNames = append(fleetNames, k)
+	}
 
-	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID}
+	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames}
 	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
 
 	stmt, args, err := sqlx.In(stmt, args...)
