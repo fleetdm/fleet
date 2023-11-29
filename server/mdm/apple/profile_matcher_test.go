@@ -304,6 +304,15 @@ func TestPreassignProfileValidation(t *testing.T) {
 			"payload identifier com.fleetdm.fleet.mdm.filevault is not allowed",
 		},
 		{
+			"invalid payload name",
+			fleet.MDMApplePreassignProfilePayload{
+				ExternalHostIdentifier: "abcd",
+				HostUUID:               "1234",
+				Profile:                generateProfile(mobileconfig.FleetFileVaultProfileName, "p1", "Configuration", "p1"),
+			},
+			"payload display name Disk encryption is not allowed",
+		},
+		{
 			"valid",
 			fleet.MDMApplePreassignProfilePayload{
 				ExternalHostIdentifier: "abcd",

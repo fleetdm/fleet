@@ -180,6 +180,7 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 	var contents bytes.Buffer
 	params := fileVaultProfileOptions{
 		PayloadIdentifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
+		PayloadName:          mobileconfig.FleetFileVaultProfileName,
 		Base64DerCertificate: base64.StdEncoding.EncodeToString(cert.Leaf.Raw),
 	}
 	if err := fileVaultProfileTemplate.Execute(&contents, params); err != nil {

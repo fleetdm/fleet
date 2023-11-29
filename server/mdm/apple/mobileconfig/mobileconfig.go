@@ -18,7 +18,24 @@ const (
 	// FleetdConfigPayloadIdentifier is the value for the PayloadIdentifier used
 	// by fleetd to read configuration values from the system.
 	FleetdConfigPayloadIdentifier = "com.fleetdm.fleetd.config"
+
+	// FleetdConfigProfileName is the value for the PayloadDisplayName used by
+	// fleetd to read configuration values from the system.
+	FleetdConfigProfileName = "Fleetd configuration"
+
+	// FleetdFileVaultProfileName is the value for the PayloadDisplayName used
+	// by Fleet to configure FileVault and FileVault Escrow.
+	FleetFileVaultProfileName = "Disk encryption"
 )
+
+// FleetReservedProfileNames returns a map of PayloadDisplayName strings
+// that are reserved by Fleet.
+func FleetReservedProfileNames() map[string]struct{} {
+	return map[string]struct{}{
+		FleetdConfigProfileName:   {},
+		FleetFileVaultProfileName: {},
+	}
+}
 
 // FleetPayloadIdentifiers returns a map of PayloadIdentifier strings
 // that are handled and delivered by Fleet.
@@ -99,6 +116,7 @@ func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 type payloadSummary struct {
 	Type       string
 	Identifier string
+	Name       string
 }
 
 // payloadSummary attempts to parse the PayloadContent list of the Mobileconfig's TopLevel object.
@@ -161,7 +179,14 @@ func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 			}
 		}
 
-		if summary.Type != "" || summary.Identifier != "" {
+		pdn, ok := payloadDict["PayloadDisplayName"]
+		if ok {
+			if s, ok := pdn.(string); ok {
+				summary.Name = s
+			}
+		}
+
+		if summary.Type != "" || summary.Identifier != "" || summary.Name != "" {
 			result = append(result, summary)
 		}
 
@@ -179,16 +204,21 @@ func (mc *Mobileconfig) ScreenPayloads() error {
 		}
 	}
 
+	fleetNames := FleetReservedProfileNames()
 	fleetIdentifiers := FleetPayloadIdentifiers()
 	fleetTypes := FleetPayloadTypes()
 	screenedTypes := []string{}
 	screenedIdentifiers := []string{}
+	screenedNames := []string{}
 	for _, t := range pct {
 		if _, ok := fleetTypes[t.Type]; ok {
 			screenedTypes = append(screenedTypes, t.Type)
 		}
 		if _, ok := fleetIdentifiers[t.Identifier]; ok {
 			screenedIdentifiers = append(screenedIdentifiers, t.Identifier)
+		}
+		if _, ok := fleetNames[t.Name]; ok {
+			screenedNames = append(screenedNames, t.Name)
 		}
 	}
 
@@ -198,6 +228,10 @@ func (mc *Mobileconfig) ScreenPayloads() error {
 
 	if len(screenedIdentifiers) > 0 {
 		return fmt.Errorf("unsupported PayloadIdentifier(s): %s", strings.Join(screenedIdentifiers, ", "))
+	}
+
+	if len(screenedNames) > 0 {
+		return fmt.Errorf("unsupported PayloadDisplayName(s): %s", strings.Join(screenedNames, ", "))
 	}
 
 	return nil

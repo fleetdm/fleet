@@ -2389,6 +2389,7 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 			EnrollSecret: es.Secret,
 			ServerURL:    appCfg.ServerSettings.ServerURL,
 			PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
+			PayloadName:  mobileconfig.FleetdConfigProfileName,
 		}
 
 		if err := mobileconfig.FleetdProfileTemplate.Execute(&contents, params); err != nil {
