@@ -45,6 +45,10 @@ type MDMWindowsConfigProfile struct {
 //
 // Returns an error if these conditions are not met.
 func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
+	if _, ok := microsoft_mdm.FleetReservedProfileNames()[m.Name]; ok {
+		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
+	}
+
 	if mdm.GetRawProfilePlatform(m.SyncML) != "windows" {
 		// it doesn't start with <Replace>, check if it is still valid XML.
 		if len(bytes.TrimSpace(m.SyncML)) == 0 {
