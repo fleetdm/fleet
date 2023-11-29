@@ -33,7 +33,9 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 Fleet evaluates and (if necessary) updates compensation decisions yearly, shortly after the anniversary of a team member's start date (see [Workiversaries](https://fleetdm.com/handbook/company/communications#workiversaries). The process for that evaluation and update is:
 - On the first Friday of the month, the Head of BizOps posts in the `#help-classified` channel with the list of teammates celebrating anniversaries over the next month.
 - On the day of the fleetiversary, the Head of BizOps or executive team member will post in `#random` celebrating the tenure of the teammate.
-- The Head of BizOps confers with manager or head of department and prepares compensation benchmarking data and schedules time with the CEO and CTO over an existing 1:1 to discuss if an adjustment needs to be made to compensation.
+- Schedule 30m to meet with the team member's manager
+- Prepare latest compensation benchmarking data in ["Compensation decisions"](TODO: link)
+- Schedule 30m with the CEO and CTO over an existing 1:1 to discuss if an adjustment will be made to compensation.
 - During the 1:1 call, founders review benchmarking for role and geography, and decide if there will be an adjustment.
 - Head of BizOps posts to slack in `#help-classified` with the decision on compensation changes and effective date, if any.
 - If a change is to be made, the Head of BizOps communicates decision to the teammate's people manager, who then communicates to their teammate.
