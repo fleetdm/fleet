@@ -49,6 +49,10 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 		return errors.New("The file should include valid XML.")
 	}
 
+	if _, ok := microsoft_mdm.FleetReservedProfileNames()[m.Name]; ok {
+		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
+	}
+
 	var validator struct {
 		SyncBody
 		NonProtocolElements []interface{} `xml:",any,omitempty"`
