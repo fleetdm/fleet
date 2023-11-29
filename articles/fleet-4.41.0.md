@@ -13,7 +13,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ### NVD API 2.0
 
-The National Vulnerability Database (NVD) is transitioning to its new 2.0 API, a change that significantly impacts all users of vulnerability management services, including Fleet. Effective December 15th, 2023, the NVD will exclusively support the more advanced, flexible, and user-friendly 2.0 API, rendering previous versions of Fleet incompatible. This update mandates an essential upgrade to Fleet v4.41.0 (or later) to maintain access to the latest vulnerability data and ensure continuous monitoring and security compliance. Dive into the details and prepare for a seamless transition by reading our full article at [Fleet's NVD API 2.0 Update](https://fleetdm.com/announcements/nvd-api-update).
+The National Vulnerability Database (NVD) is transitioning to its new 2.0 API, a change that significantly impacts all users of vulnerability management services, including Fleet. Effective December 15th, 2023, the NVD will exclusively support the more advanced, flexible, and user-friendly 2.0 API, rendering previous versions of Fleet incompatible. This update mandates an essential upgrade to Fleet v4.41.0 (or later) to maintain access to the latest vulnerability data and ensure continuous monitoring and security compliance. Dive into the details and prepare for a seamless transition by reading our full article at [Fleet's NVD API 2.0 Update](https://fleetdm.com/announcements/nvd-api-2.0).
 
 
 ### Windows script library
