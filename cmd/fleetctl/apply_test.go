@@ -387,15 +387,15 @@ func TestApplyAppConfig(t *testing.T) {
 	}
 
 	defaultAgentOpts := json.RawMessage(`{"config":{"foo":"bar"}}`)
+	savedAppConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Fleet"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		AgentOptions:   &defaultAgentOpts,
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			OrgInfo:        fleet.OrgInfo{OrgName: "Fleet"},
-			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
-			AgentOptions:   &defaultAgentOpts,
-		}, nil
+		return savedAppConfig, nil
 	}
 
-	var savedAppConfig *fleet.AppConfig
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
 		return nil
