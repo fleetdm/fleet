@@ -5768,7 +5768,7 @@ Returns a query report for a single host.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/123/query_report/31`
+`GET /api/v1/fleet/hosts/123/queries/31`
 
 ##### Default response
 
