@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"go.mozilla.org/pkcs7"
 	"howett.net/plist"
 )
@@ -205,6 +206,9 @@ func (mc *Mobileconfig) ScreenPayloads() error {
 	}
 
 	fleetNames := FleetReservedProfileNames()
+	for name := range syncml.FleetReservedProfileNames() {
+		fleetNames[name] = struct{}{}
+	}
 	fleetIdentifiers := FleetPayloadIdentifiers()
 	fleetTypes := FleetPayloadTypes()
 	screenedTypes := []string{}

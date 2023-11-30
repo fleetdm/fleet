@@ -101,7 +101,6 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 }
 
 func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
-
 	// this lists custom profiles, it explicitly filters out the fleet-reserved
 	// ones (reserved identifiers for Apple profiles, reserved names for Windows).
 
@@ -163,6 +162,9 @@ FROM (
 		fleetIdentifiers = append(fleetIdentifiers, k)
 	}
 	fleetNamesMap := syncml.FleetReservedProfileNames()
+	for name := range mobileconfig.FleetReservedProfileNames() {
+		fleetNamesMap[name] = struct{}{}
+	}
 	fleetNames := make([]string, 0, len(fleetNamesMap))
 	for k := range fleetNamesMap {
 		fleetNames = append(fleetNames, k)

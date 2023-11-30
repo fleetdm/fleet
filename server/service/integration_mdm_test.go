@@ -1159,7 +1159,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	t.Run("retry count does not reset", func(t *testing.T) {
 		// add another profile
 		testProfiles["N5"] = syncml.ForTestWithData(map[string]string{"L5": "D5"})
-		//hostProfsByIdent["N5"] = &fleet.HostMacOSProfile{Identifier: "N5", DisplayName: "N5", InstallDate: time.Now()}
+		// hostProfsByIdent["N5"] = &fleet.HostMacOSProfile{Identifier: "N5", DisplayName: "N5", InstallDate: time.Now()}
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		// trigger a profile sync and confirm that the install profile
 		// command for N5 was sent and simulate a device error
@@ -3406,11 +3406,15 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	}
 
 	// trying to add profiles with names reserved by Fleet fails
-	for reservedName := range mobileconfig.FleetReservedProfileNames() {
+	fleetNames := mobileconfig.FleetReservedProfileNames()
+	for name := range syncml.FleetReservedProfileNames() {
+		fleetNames[name] = struct{}{}
+	}
+	for name := range fleetNames {
 		cp := &fleet.MDMAppleConfigProfile{
-			Name:         reservedName,
+			Name:         name,
 			Identifier:   "valid.identifier",
-			Mobileconfig: mcBytesForTest(reservedName, "valid.identifier", "some-uuid"),
+			Mobileconfig: mcBytesForTest(name, "valid.identifier", "some-uuid"),
 		}
 		body, headers := generateNewProfileMultipartRequest(t, nil, "some_filename", cp.Mobileconfig, s.token)
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
@@ -3423,7 +3427,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 			"valid.outer.identifier",
 			"valid.inner.identifer",
 			"some-uuid",
-			reservedName,
+			name,
 		), nil)
 		require.NoError(t, err)
 		body, headers = generateNewProfileMultipartRequest(t, nil, "some_filename", cp.Mobileconfig, s.token)
@@ -8421,8 +8425,16 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	// Windows-reserved LocURI
 	assertWindowsProfile("bitlocker.xml", syncml.FleetBitLockerTargetLocURI, 0, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include BitLocker settings.")
 	assertWindowsProfile("updates.xml", syncml.FleetOSUpdateTargetLocURI, testTeam.ID, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include Windows updates settings.")
-	// Windows-reserved profile name
-	assertWindowsProfile(syncml.FleetWindowsOSUpdatesProfileName+".xml", "./Test", 0, http.StatusBadRequest, `Couldn't upload. Profile name "Windows OS Updates" is not allowed.`)
+
+	// Fleet-reserved profiles
+	fleetNames := mobileconfig.FleetReservedProfileNames()
+	for name := range syncml.FleetReservedProfileNames() {
+		fleetNames[name] = struct{}{}
+	}
+	for name := range fleetNames {
+		assertAppleProfile(name+".mobileconfig", name, name+"-ident", 0, http.StatusBadRequest, fmt.Sprintf(`name %s is not allowed`, name))
+		assertWindowsProfile(name+".xml", "./Test", 0, http.StatusBadRequest, fmt.Sprintf(`Couldn't upload. Profile name %q is not allowed.`, name))
+	}
 
 	// Windows invalid content
 	body, headers := generateNewProfileMultipartRequest(t, nil, "win.xml", []byte("\x00\x01\x02"), s.token)

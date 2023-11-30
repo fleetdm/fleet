@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 )
 
@@ -48,8 +49,11 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	if len(bytes.TrimSpace(m.SyncML)) == 0 {
 		return errors.New("The file should include valid XML.")
 	}
-
-	if _, ok := syncml.FleetReservedProfileNames()[m.Name]; ok {
+	fleetNames := syncml.FleetReservedProfileNames()
+	for name := range mobileconfig.FleetReservedProfileNames() {
+		fleetNames[name] = struct{}{}
+	}
+	if _, ok := fleetNames[m.Name]; ok {
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
 

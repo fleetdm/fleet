@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -221,7 +222,11 @@ func TestMDMAppleConfigProfileScreenReservedNames(t *testing.T) {
 	cases := []testcase{
 		{"unreserved name", "unreserved name", false},
 	}
-	for name := range mobileconfig.FleetReservedProfileNames() {
+	fleetNames := mobileconfig.FleetReservedProfileNames()
+	for name := range syncml.FleetReservedProfileNames() {
+		fleetNames[name] = struct{}{}
+	}
+	for name := range fleetNames {
 		cases = append(cases, testcase{name, "unreserved name", true})
 		cases = append(cases, testcase{"unreserved name", name, true})
 	}
