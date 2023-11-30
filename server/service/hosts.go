@@ -1726,7 +1726,7 @@ func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	fmt.Println("JVE_LOG: hello from get host health ", req.ID)
 	hh, err := svc.GetHostHealth(ctx)
 	if err != nil {
-		// TODO
+		return getHostHealthResponse{Err: err}, nil
 	}
 
 	return getHostHealthResponse{HostID: req.ID, HostHealth: *hh}, nil
