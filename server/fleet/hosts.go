@@ -321,6 +321,12 @@ type Host struct {
 	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at" csv:"last_restarted_at"`
 }
 
+type HostHealth struct {
+	UpdatedAt             time.Time `json:"updated_at"`
+	OsVersion             string    `json:"os_version"`
+	DiskEncryptionEnabled bool      `json:"disk_encryption_enabled"`
+}
+
 type MDMHostData struct {
 	// For CSV columns, since the CSV is flattened, we keep the "mdm." prefix
 	// along with the column name.

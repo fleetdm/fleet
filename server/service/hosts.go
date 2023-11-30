@@ -1704,3 +1704,47 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 
 	return key, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Host Health
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostHealthRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostHealthResponse struct {
+	Err        error            `json:"error,omitempty"`
+	HostID     uint             `json:"host_id,omitempty"`
+	HostHealth fleet.HostHealth `json:"health,omitempty"`
+}
+
+func (r getHostHealthResponse) error() error { return r.Err }
+
+func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getHostHealthRequest)
+	fmt.Println("JVE_LOG: hello from get host health ", req.ID)
+	hh, err := svc.GetHostHealth(ctx)
+	if err != nil {
+		// TODO
+	}
+
+	return getHostHealthResponse{HostID: req.ID, HostHealth: *hh}, nil
+}
+
+func (svc *Service) GetHostHealth(ctx context.Context) (*fleet.HostHealth, error) {
+	fmt.Println("JVE_LOG: hello from svc layer ")
+
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
+	if !alreadyAuthd {
+		// First ensure the user has access to list hosts, then check the specific
+		// host once team_id is loaded.
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return nil, err
+		}
+	}
+
+	// TODO: figure out how to validate that this user has access to hosts in this host's team
+
+	return &fleet.HostHealth{}, nil
+}
