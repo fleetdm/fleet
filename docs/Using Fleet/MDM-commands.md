@@ -38,7 +38,7 @@ First, we'll need to create a `restart-device.xml` file locally tis payload:
 </plist>
 ```
 
-To restart a Windows host, we'll use the "Reboot" command documented by Windows [here](https://learn.microsoft.com/en-us/windows/client-management/mdm/reboot-csp).
+To restart a Windows host, we'll use the "Reboot" command documented by Microsoft [here](https://learn.microsoft.com/en-us/windows/client-management/mdm/reboot-csp).
 
 The `restart-device.xml` file will have this payload instead:
 
