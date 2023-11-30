@@ -73,9 +73,10 @@ export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
 export type ProfileOperationType = "remove" | "install";
 
 export interface IHostMdmProfile {
-  profile_id: number;
+  profile_uuid: string;
   name: string;
   operation_type: ProfileOperationType | null;
+  platform: ProfilePlatform;
   status: MdmProfileStatus;
   detail: string;
 }
