@@ -463,6 +463,14 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		}
 		hopt.LowDiskSpaceFilter = &v
 	}
+	populateSoftware := r.URL.Query().Get("populate_software")
+	if populateSoftware != "" {
+		ps, err := strconv.ParseBool(populateSoftware)
+		if err != nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid populate_software: %s", populateSoftware)))
+		}
+		hopt.PopulateSoftware = ps
+	}
 
 	return hopt, nil
 }

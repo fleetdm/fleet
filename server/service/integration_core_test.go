@@ -1510,6 +1510,24 @@ func (s *integrationTestSuite) TestListHosts() {
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID+1337))
 	require.Len(t, resp.Hosts, 0)
+
+	// populate software for hosts
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "true")
+	require.Len(t, resp.Hosts, 4)
+	for _, h := range resp.Hosts {
+		if h.ID == hosts[2].ID {
+			require.NotEmpty(t, h.Software)
+		}
+	}
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "false")
+	require.Len(t, resp.Hosts, 4)
+	for _, h := range resp.Hosts {
+		require.Empty(t, h.Software)
+	}
 }
 
 func (s *integrationTestSuite) TestInvites() {

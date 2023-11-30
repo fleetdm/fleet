@@ -167,6 +167,8 @@ type HostListOptions struct {
 	// Premium feature, Fleet Free ignores the setting (it forces it to nil to
 	// disable it).
 	LowDiskSpaceFilter *int
+
+	PopulateSoftware bool
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
