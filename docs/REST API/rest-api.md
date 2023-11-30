@@ -6951,7 +6951,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 Add software to install on macOS and Windows hosts during enrollment.
 
-`POST /api/v1/fleet/software/upload`
+`POST /api/v1/fleet/software/manage`
 
 #### Parameters
 
@@ -6962,7 +6962,7 @@ Add software to install on macOS and Windows hosts during enrollment.
 
 #### Example
 
-`POST /api/v1/fleet/software/upload`
+`POST /api/v1/fleet/software/manage`
 
 ##### Request header
 
@@ -6988,7 +6988,7 @@ Content-Type: application/octet-stream
 
 Download uploaded software installer.
 
-`GET /api/v1/fleet/software/upload/{id}?alt=media`
+`GET /api/v1/fleet/software/manage/{id}?alt=media`
 
 #### Parameters
 
@@ -7013,17 +7013,17 @@ Body: <blob>
 
 Delete uploaded software.
 
-`DELETE /api/v1/fleet/software/upload/{id}`
+`DELETE /api/v1/fleet/software/manage/{id}`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| id              | integer | path | **Required**. The ID of uploaded software version to delete.|
+| id              | integer | path | **Required**. The ID of managed software version to delete.|
 
 #### Example
 
-`DELETE /api/v1/fleet/software/upload/24`
+`DELETE /api/v1/fleet/software/manage/24`
 
 ##### Default response
 
