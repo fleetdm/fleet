@@ -92,8 +92,8 @@ export default {
   HOST_SOFTWARE: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/software`;
   },
-  HOST_SCHEDULE: (id: number): string => {
-    return `${URL_PREFIX}/hosts/${id}/schedule`;
+  HOST_QUERIES: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/queries`;
   },
   HOST_POLICIES: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/policies`;

@@ -182,7 +182,9 @@ const routes = (
               <Route path=":host_id" component={HostDetailsPage}>
                 <Route path="scripts" component={HostDetailsPage} />
                 <Route path="software" component={HostDetailsPage} />
-                <Route path="schedule" component={HostDetailsPage} />
+                <Route path="queries" component={HostDetailsPage} />
+                {/* legacy route */}
+                <Redirect from="schedule" to="queries" />
                 <Route path="policies" component={HostDetailsPage} />
               </Route>
             </Route>

@@ -5,25 +5,27 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 
-import { generateTableHeaders, generateDataSet } from "./ScheduleTableConfig";
+import {
+  generateTableHeaders,
+  generateDataSet,
+} from "./HostQueriesTableConfig";
 
-const baseClass = "schedule";
+const baseClass = "host-queries";
 
-interface IScheduleProps {
+interface IHostQueriesProps {
   schedule?: IQueryStats[];
   isChromeOSHost: boolean;
   isLoading: boolean;
 }
 
-const Schedule = ({
+const HostQueries = ({
   schedule,
   isChromeOSHost,
   isLoading,
-}: IScheduleProps): JSX.Element => {
-  const wrapperClassName = `${baseClass}__pack-table`;
+}: IHostQueriesProps): JSX.Element => {
   const tableHeaders = generateTableHeaders();
 
-  const renderEmptyScheduleTab = () => {
+  const renderEmptyQueriesTab = () => {
     if (isChromeOSHost) {
       return (
         <EmptyTable
@@ -51,12 +53,12 @@ const Schedule = ({
   };
 
   return (
-    <div className="section section--schedule">
-      <p className="section__header">Schedule</p>
+    <div className="section section--host-queries">
+      <p className="section__header">Queries</p>
       {!schedule || !schedule.length || isChromeOSHost ? (
-        renderEmptyScheduleTab()
+        renderEmptyQueriesTab()
       ) : (
-        <div className={`${wrapperClassName}`}>
+        <div className={`${baseClass}__pack-table`}>
           <TableContainer
             columns={tableHeaders}
             data={generateDataSet(schedule)}
@@ -77,4 +79,4 @@ const Schedule = ({
   );
 };
 
-export default Schedule;
+export default HostQueries;
