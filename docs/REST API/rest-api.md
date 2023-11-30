@@ -5757,7 +5757,7 @@ If a query has no results stored, then `results` will be an empty array:
 
 Returns a query report for a single host.
 
-`GET /api/v1/fleet/hosts/{id}/query_report/{query_id}`
+`GET /api/v1/fleet/hosts/{id}/queries/{query_id}`
 
 #### Parameters
 
