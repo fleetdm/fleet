@@ -97,7 +97,8 @@ module.exports = {
       return new Error(`When sending an API request to ${sails.config.custom.fleetBaseUrlForQueryReports}/api/v1/fleet/hosts?team_id=${sails.config.custom.teamApidForQueryReports} to get information about hosts on the query report team, an error occured: ${error}`);
     });
     if(hostsOnQueryReportTeamApiResponse.hosts || hostsOnQueryReportTeamApiResponse.hosts.legnth > 1){
-
+      // TODO: is there a better way of handling this error?
+      throw new Error(`Error! When view-query-report sent a request to ${sails.config.custom.fleetBaseUrlForQueryReports} to get information about the hosts on the query reports team, the API response contained no hosts.`);
     }
 
     let hostsOnTheQueryReportTeam = hostsOnQueryReportTeamApiResponse.hosts;
