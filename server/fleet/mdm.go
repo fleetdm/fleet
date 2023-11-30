@@ -103,7 +103,10 @@ func (e MDMAppleEULA) AuthzType() string {
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
 type ExpectedMDMProfile struct {
+	// Identifier is the unique identifier used by macOS profiles
 	Identifier string `db:"identifier"`
+	// Name is the unique name used by Windows profiles
+	Name string `db:"name"`
 	// EarliestInstallDate is the earliest updated_at of all team profiles with the same checksum.
 	// It is used to assess the case where a host has installed a profile with the identifier
 	// expected by the host's current team, but the host's install_date is earlier than the
@@ -113,6 +116,8 @@ type ExpectedMDMProfile struct {
 	// Ideally, we would simply compare the checksums of the installed and expected profiles, but
 	// the checksums are not available in the osquery profiles table.
 	EarliestInstallDate time.Time `db:"earliest_install_date"`
+	// RawProfile contains the raw profile contents
+	RawProfile []byte `db:"raw_profile"`
 }
 
 // IsWithinGracePeriod returns true if the host is within the grace period for the profile.
@@ -133,8 +138,11 @@ func (ep ExpectedMDMProfile) IsWithinGracePeriod(hostDetailUpdatedAt time.Time) 
 // HostMDMProfileRetryCount represents the number of times Fleet has attempted to install
 // the identified profile on a host.
 type HostMDMProfileRetryCount struct {
+	// Identifier is the unique identifier used by macOS profiles
 	ProfileIdentifier string `db:"profile_identifier"`
-	Retries           uint   `db:"retries"`
+	// ProfileName is the unique name used by Windows profiles
+	ProfileName string `db:"profile_name"`
+	Retries     uint   `db:"retries"`
 }
 
 // TeamIDSetter defines the method to set a TeamID value on a struct,

@@ -23,7 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
@@ -1034,7 +1034,7 @@ func (svc *Service) mdmWindowsEnableOSUpdates(ctx context.Context, teamID *uint,
 
 	err := svc.ds.SetOrUpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		TeamID: teamID,
-		Name:   microsoft_mdm.FleetWindowsOSUpdatesProfileName,
+		Name:   syncml.FleetWindowsOSUpdatesProfileName,
 		SyncML: contents.Bytes(),
 	})
 	if err != nil {
@@ -1045,6 +1045,6 @@ func (svc *Service) mdmWindowsEnableOSUpdates(ctx context.Context, teamID *uint,
 }
 
 func (svc *Service) mdmWindowsDisableOSUpdates(ctx context.Context, teamID *uint) error {
-	err := svc.ds.DeleteMDMWindowsConfigProfileByTeamAndName(ctx, teamID, microsoft_mdm.FleetWindowsOSUpdatesProfileName)
+	err := svc.ds.DeleteMDMWindowsConfigProfileByTeamAndName(ctx, teamID, syncml.FleetWindowsOSUpdatesProfileName)
 	return ctxerr.Wrap(ctx, err, "delete Windows OS updates profile")
 }
