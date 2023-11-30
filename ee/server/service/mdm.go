@@ -21,9 +21,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
@@ -181,6 +181,7 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 	var contents bytes.Buffer
 	params := fileVaultProfileOptions{
 		PayloadIdentifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
+		PayloadName:          mdm.FleetFileVaultProfileName,
 		Base64DerCertificate: base64.StdEncoding.EncodeToString(cert.Leaf.Raw),
 	}
 	if err := fileVaultProfileTemplate.Execute(&contents, params); err != nil {
@@ -1034,7 +1035,7 @@ func (svc *Service) mdmWindowsEnableOSUpdates(ctx context.Context, teamID *uint,
 
 	err := svc.ds.SetOrUpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		TeamID: teamID,
-		Name:   syncml.FleetWindowsOSUpdatesProfileName,
+		Name:   mdm.FleetWindowsOSUpdatesProfileName,
 		SyncML: contents.Bytes(),
 	})
 	if err != nil {
@@ -1045,6 +1046,6 @@ func (svc *Service) mdmWindowsEnableOSUpdates(ctx context.Context, teamID *uint,
 }
 
 func (svc *Service) mdmWindowsDisableOSUpdates(ctx context.Context, teamID *uint) error {
-	err := svc.ds.DeleteMDMWindowsConfigProfileByTeamAndName(ctx, teamID, syncml.FleetWindowsOSUpdatesProfileName)
+	err := svc.ds.DeleteMDMWindowsConfigProfileByTeamAndName(ctx, teamID, mdm.FleetWindowsOSUpdatesProfileName)
 	return ctxerr.Wrap(ctx, err, "delete Windows OS updates profile")
 }

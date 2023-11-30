@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -1303,7 +1304,7 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 		return nil
 	}
 
-	testCases := []struct {
+	type testCase struct {
 		name     string
 		user     *fleet.User
 		premium  bool
@@ -1311,7 +1312,9 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 		teamName *string
 		profiles [][]byte
 		wantErr  string
-	}{
+	}
+
+	testCases := []testCase{
 		{
 			"global admin",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
@@ -1544,6 +1547,28 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			</plist>`)},
 			"unsupported PayloadType(s)",
 		},
+	}
+	for name := range fleetmdm.FleetReservedProfileNames() {
+		testCases = append(testCases,
+			testCase{
+				"reserved payload outer name " + name,
+				&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				true,
+				nil,
+				nil,
+				[][]byte{mobileconfigForTest(name, "I1")},
+				name,
+			},
+			testCase{
+				"reserved payload inner name " + name,
+				&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				true,
+				nil,
+				nil,
+				[][]byte{mobileconfigForTestWithContent("N1", "I1", "I1", "PayloadType", name)},
+				name,
+			},
+		)
 	}
 
 	for _, tt := range testCases {
@@ -2661,7 +2686,11 @@ func mobileconfigForTest(name, identifier string) []byte {
 `, name, identifier, uuid.New().String()))
 }
 
-func mobileconfigForTestWithContent(name, identifier, inneridentifier, innertype string) []byte {
+func mobileconfigForTestWithContent(outerName, outerIdentifier, innerIdentifier, innerType, innerName string) []byte {
+	if innerName == "" {
+		innerName = outerName + ".inner"
+	}
+
 	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -2695,5 +2724,5 @@ func mobileconfigForTestWithContent(name, identifier, inneridentifier, innertype
 	<integer>1</integer>
 </dict>
 </plist>
-`, name+".inner", inneridentifier, innertype, name, identifier, uuid.New().String()))
+`, innerName, innerIdentifier, innerType, outerName, outerIdentifier, uuid.New().String()))
 }
