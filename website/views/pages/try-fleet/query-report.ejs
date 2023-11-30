@@ -9,10 +9,10 @@
         </div>
         <div class="d-flex" purpose="host-selector-container">
           <div purpose="host-selector" class="d-flex flex-row justify-content-between align-items-center"
-            id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            id="hostDropdownMenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             {{hostInfo.name}} <img class="d-flex align-self-end" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
           </div>
-          <div purpose="host-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
+          <div purpose="host-selector-dropwdown" class="dropdown-menu" aria-labelledby="hostDropdownMenu">
             <div class="dropdown-item d-block" @click="hostToDisplayResultsFor = host.platform" v-for="host in hostsAvailableToQuery">{{host.name}}</div>
           </div>
         </div>
@@ -47,10 +47,10 @@
       <p style="font-size: 16px;"><strong>Available data</strong></p>
       <div class="d-flex">
         <div purpose="table-selector" class="d-flex flex-row justify-content-between align-items-center"
-          id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          id="tableSelectorDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           {{selectedTable}} <img class="d-flex align-self-end" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
         </div>
-        <div purpose="table-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
+        <div purpose="table-selector-dropwdown" class="dropdown-menu" aria-labelledby="tableSelectorDropdown">
           <div class="dropdown-item d-block" v-for="table in osqueryTables" @click="selectedTable = table.name">{{table.name}}</div>
         </div>
       </div>
@@ -81,7 +81,7 @@
         <%// Page indicator %>
         <div purpose="page-indicator">
           <div class="d-flex flex-row justify-content-end align-items-center" v-if="numberOfPages > 5">
-            <a @click="clickChangePage(pageToDisplay)" :class="[pageToDisplay > 0 ? '' : 'disabled']"><img purpose="previous-chevron" src="/images/chevron-left-6x10@2x.png">Previous</a>
+            <a @click="clickChangePage(pageToDisplay)" :class="[pageToDisplay > 0 ? '' : 'disabled']"><img purpose="previous-chevron" alt="A small purple chevron pointing right" src="/images/chevron-left-6x10@2x.png">Previous</a>
             <div class="d-none d-sm-block">
             <a class="font-weight-normal" :class="[pageToDisplay === (page - 1) ? 'font-weight-bold' : '']" v-for="page in numberOfPages" @click="clickChangePage(page)" v-if="page < 6">{{page}}</a>
             <span class="font-weight-normal" v-if="pageToDisplay >= 6">...</span>
@@ -91,13 +91,13 @@
             <span class="font-weight-normal" v-if="pageToDisplay <= numberOfPages - 3">...</span>
             <a :class="[pageToDisplay >= numberOfPages - 1 ? 'font-weight-bold' : '']" class="font-weight-normal" @click="clickChangePage(numberOfPages)">{{numberOfPages}}</a>
             </div>
-            <a @click="clickChangePage(pageToDisplay + 2)" :class="[pageToDisplay !== numberOfPages - 1 ? '' : 'disabled' ]">Next<img purpose="next-chevron" src="/images/chevron-right-6x10@2x.png"></a>
+            <a @click="clickChangePage(pageToDisplay + 2)" :class="[pageToDisplay !== numberOfPages - 1 ? '' : 'disabled' ]">Next<img purpose="next-chevron" alt="A small purple chevron pointing left" src="/images/chevron-right-6x10@2x.png"></a>
           </div>
           <%// page indicator for < 5 pages %>
           <div class="d-flex flex-row justify-content-end align-items-center" v-else-if="numberOfPages > 1">
-            <a @click="clickChangePage(pageToDisplay)" v-if="pageToDisplay > 0"><img purpose="previous-chevron" src="/images/chevron-left-6x10@2x.png">Previous</a>
+            <a @click="clickChangePage(pageToDisplay)" v-if="pageToDisplay > 0"><img purpose="previous-chevron" alt="A small purple chevron pointing right" src="/images/chevron-left-6x10@2x.png">Previous</a>
             <a class="font-weight-normal" :class="[pageToDisplay === (page - 1) ? 'font-weight-bold' : '']" v-for="page in numberOfPages" @click="clickChangePage(page)" v-if="page < 6">{{page}}</a>
-            <a @click="clickChangePage(pageToDisplay + 2)" v-if="pageToDisplay !== numberOfPages - 1">Next<img purpose="next-chevron" src="/images/chevron-right-6x10@2x.png"></a>
+            <a @click="clickChangePage(pageToDisplay + 2)" v-if="pageToDisplay !== numberOfPages - 1">Next<img alt="A small purple chevron pointing left" purpose="next-chevron" src="/images/chevron-right-6x10@2x.png"></a>
           </div>
         </div>
       </div>

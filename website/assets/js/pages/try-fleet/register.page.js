@@ -46,7 +46,7 @@ parasails.registerPage('register', {
       // If the provided platform matches a key in the userFriendlyPlatformNames array, we'll set this.selectedPlatform.
       if(posibleRedirect && this.redirectSlugsByTargetPlatform[posibleRedirect] !== undefined){
         this.loginSlug +=`?targetPlatform=${posibleRedirect}`;
-        this.exploreDataRedirectSlug = `/try-fleet/explore-data/${this.redirectSlugsByTargetPlatform[posibleRedirect]}`
+        this.exploreDataRedirectSlug = `/try-fleet/explore-data/${this.redirectSlugsByTargetPlatform[posibleRedirect]}`;
       }
       window.history.replaceState({}, document.title, '/try-fleet/register' );
     }

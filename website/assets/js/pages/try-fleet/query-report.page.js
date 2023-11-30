@@ -48,9 +48,7 @@ parasails.registerPage('query-report', {
   mounted: async function() {
     if(this.numberOfPages > 0){
       this.addTableEdgeShadow();
-      $(function () {
-        $('[data-toggle="tooltip"]').tooltip()
-      })
+      $('[data-toggle="tooltip"]').tooltip();
     }
   },
 
@@ -63,11 +61,11 @@ parasails.registerPage('query-report', {
     hostToDisplayResultsFor: function(val){
       if(val !== this.selectedHost){
         if(val === 'linux'){
-          window.location = `/try-fleet/explore-data/linux/apparmor_events`
+          window.location = `/try-fleet/explore-data/linux/apparmor_events`;
         } else if(val === 'windows'){
-          window.location = `/try-fleet/explore-data/windows/appcompat_shims`
+          window.location = `/try-fleet/explore-data/windows/appcompat_shims`;
         } else {
-          window.location = `/try-fleet/explore-data/macos/account_policy_data`
+          window.location = `/try-fleet/explore-data/macos/account_policy_data`;
         }
       }
     }

@@ -97,7 +97,7 @@ module.exports = {
       return new Error(`When sending an API request to ${sails.config.custom.fleetBaseUrlForQueryReports}/api/v1/fleet/hosts?team_id=${sails.config.custom.teamApidForQueryReports} to get information about hosts on the query report team, an error occured: ${error}`);
     });
     if(hostsOnQueryReportTeamApiResponse.hosts || hostsOnQueryReportTeamApiResponse.hosts.legnth > 1){
-      //TODO error for no hosts.
+
     }
 
     let hostsOnTheQueryReportTeam = hostsOnQueryReportTeamApiResponse.hosts;
@@ -136,7 +136,7 @@ module.exports = {
       processor: hostToGetReportFor.cpu_type,
       osqueryVersion: hostToGetReportFor.osquery_version,
       name: hostToGetReportFor.hostname,
-    }
+    };
 
     //  ┌─┐┌─┐┌─┐ ┬ ┬┌─┐┬─┐┬ ┬  ┌┬┐┌─┐┌┐ ┬  ┌─┐┌─┐
     //  │ │└─┐│─┼┐│ │├┤ ├┬┘└┬┘   │ ├─┤├┴┐│  ├┤ └─┐
@@ -152,15 +152,15 @@ module.exports = {
     if(hostPlatform === 'macos'){
       osqueryTablesToDisplay = _.filter(sails.config.builtStaticContent.osqueryTables, (table)=>{
         return _.contains(table.platforms, 'darwin') && queryIdsByTableName[`${table.name}`] !== undefined;
-      })
+      });
     } else if(hostPlatform === 'linux'){
       osqueryTablesToDisplay = _.filter(sails.config.builtStaticContent.osqueryTables, (table)=>{
         return _.contains(table.platforms, 'linux') && queryIdsByTableName[`${table.name}`] !== undefined;
-      })
+      });
     } else if(hostPlatform === 'windows'){
       osqueryTablesToDisplay = _.filter(sails.config.builtStaticContent.osqueryTables, (table)=>{
         return _.contains(table.platforms, 'windows') && queryIdsByTableName[`${table.name}`] !== undefined;
-      })
+      });
     }
 
     // If the specified table does not exist, or is not compatible with the selected host
@@ -205,11 +205,11 @@ module.exports = {
       // Iterate through the results to sort the columns by their order in the osquery schema.
       for(let result of unsortedReportForThisHost) {
         let sortedColumns = {};
-        // Reoder the results by the order of the columns in hte osquery schema, and add the new sorted dictionary to the reportWithSortedColumns array.
+        // Reorder the results by the order of the columns in hte osquery schema, and add the new sorted dictionary to the reportWithSortedColumns array.
         specifiedOsqueryTable.columns.forEach(column => {
-          let key = column.name;
-          if (result[key] !== undefined) {
-            sortedColumns[key] = result[key];
+
+          if (result[column.name] !== undefined) {
+            sortedColumns[column.name] = result[column.name];
           }
         });
         reportWithSortedColumns.push(sortedColumns);
@@ -223,7 +223,7 @@ module.exports = {
     }
     // Set the meta title and description.
     let pageTitleForMeta = `Explore ${tableName} | Fleet for osquery`;
-    let pageDescriptionForMeta=  `See live data collected from the ${tableName} table on a ${userFriendlyPlatformNameForDescription} host running Fleet.`
+    let pageDescriptionForMeta=  `See live data collected from the ${tableName} table on a ${userFriendlyPlatformNameForDescription} host running Fleet.`;
 
 
     // Respond with view.
