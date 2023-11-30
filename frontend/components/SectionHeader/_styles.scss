@@ -1,8 +1,14 @@
 .section-header {
-  margin: 0 0 $pad-large;
-  padding-bottom: $pad-small;
-  font-size: $medium;
-  font-weight: $regular;
-  color: $core-fleet-black;
-  border-bottom: solid 1px $ui-fleet-black-10;
+  display: flex;
+  align-items: center;
+  gap: $pad-small;
+  padding-bottom: $pad-medium;
+  border-bottom: 1px solid $ui-fleet-black-10;
+  margin-bottom: $pad-xxlarge;
+
+  h2 {
+    margin: 0;
+    font-weight: normal;
+    font-size: 18px; // TODO: update font variables to include 18px;
+  }
 }

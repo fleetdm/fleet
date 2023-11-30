@@ -8309,7 +8309,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		return id
 	}
 
-	assertWindowsProfile := func(filename, name, locURI string, teamID uint, wantStatus int, wantErrMsg string) string {
+	assertWindowsProfile := func(filename, locURI string, teamID uint, wantStatus int, wantErrMsg string) string {
 		var tmPtr *uint
 		if teamID > 0 {
 			tmPtr = &teamID
@@ -8331,7 +8331,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		return resp.ProfileID
 	}
 	createWindowsProfile := func(name string, teamID uint) string {
-		id := assertWindowsProfile(name+".xml", name, "./Test", teamID, http.StatusOK, "")
+		id := assertWindowsProfile(name+".xml", "./Test", teamID, http.StatusOK, "")
 
 		var wantJSON string
 		if teamID == 0 {
@@ -8352,29 +8352,31 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	teamWinProfID := createWindowsProfile("win-team-profile", testTeam.ID)
 
 	// Windows profile name conflicts with Apple's for no team
-	assertWindowsProfile("apple-global-profile.xml", "apple-global-profile", "./Test", 0, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	assertWindowsProfile("apple-global-profile.xml", "./Test", 0, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 	// but no conflict for team 1
-	assertWindowsProfile("apple-global-profile.xml", "apple-global-profile", "./Test", testTeam.ID, http.StatusOK, "")
+	assertWindowsProfile("apple-global-profile.xml", "./Test", testTeam.ID, http.StatusOK, "")
 	// Apple profile name conflicts with Windows' for no team
 	assertAppleProfile("win-global-profile.mobileconfig", "win-global-profile", "test-global-ident-2", 0, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 	// but no conflict for team 1
 	assertAppleProfile("win-global-profile.mobileconfig", "win-global-profile", "test-global-ident-2", testTeam.ID, http.StatusOK, "")
 	// Windows profile name conflicts with Apple's for team 1
-	assertWindowsProfile("apple-team-profile.xml", "apple-team-profile", "./Test", testTeam.ID, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	assertWindowsProfile("apple-team-profile.xml", "./Test", testTeam.ID, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 	// but no conflict for no-team
-	assertWindowsProfile("apple-team-profile.xml", "apple-team-profile", "./Test", 0, http.StatusOK, "")
+	assertWindowsProfile("apple-team-profile.xml", "./Test", 0, http.StatusOK, "")
 	// Apple profile name conflicts with Windows' for team 1
 	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", testTeam.ID, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 	// but no conflict for no-team
 	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", 0, http.StatusOK, "")
 
 	// not an xml nor mobileconfig file
-	assertWindowsProfile("foo.txt", "foo", "./Test", 0, http.StatusBadRequest, "Couldn't upload. The file should be a .mobileconfig or .xml file.")
+	assertWindowsProfile("foo.txt", "./Test", 0, http.StatusBadRequest, "Couldn't upload. The file should be a .mobileconfig or .xml file.")
 	assertAppleProfile("foo.txt", "foo", "foo-ident", 0, http.StatusBadRequest, "Couldn't upload. The file should be a .mobileconfig or .xml file.")
 
 	// Windows-reserved LocURI
-	assertWindowsProfile("bitlocker.xml", "bitlocker", syncml.FleetBitLockerTargetLocURI, 0, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include BitLocker settings.")
-	assertWindowsProfile("updates.xml", "updates", syncml.FleetOSUpdateTargetLocURI, testTeam.ID, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include Windows updates settings.")
+	assertWindowsProfile("bitlocker.xml", syncml.FleetBitLockerTargetLocURI, 0, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include BitLocker settings.")
+	assertWindowsProfile("updates.xml", syncml.FleetOSUpdateTargetLocURI, testTeam.ID, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include Windows updates settings.")
+	// Windows-reserved profile name
+	assertWindowsProfile(syncml.FleetWindowsOSUpdatesProfileName+".xml", "./Test", 0, http.StatusBadRequest, `Couldn't upload. Profile name "Windows OS Updates" is not allowed.`)
 
 	// Windows invalid content
 	body, headers := generateNewProfileMultipartRequest(t, nil, "win.xml", []byte("\x00\x01\x02"), s.token)
@@ -8484,6 +8486,16 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// try to delete the profile
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%d", profile.ProfileID), nil, http.StatusBadRequest, &deleteResp)
+
+	// make fleet add a Windows OS Updates profile
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_updates": {"deadline_days": 1, "grace_period_days": 1} }
+  }`), http.StatusOK, &acResp)
+	profUUID := checkWindowsOSUpdatesProfile(t, s.ds, nil, &fleet.WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(1)})
+
+	// try to delete the profile
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", profUUID), nil, http.StatusBadRequest, &deleteResp)
 }
 
 func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {

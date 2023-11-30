@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -262,12 +263,20 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
-	// we need the config from the datastore because API tokens are obfuscated at the service layer
-	// we will retrieve the obfuscated config before we return
+	// we need the config from the datastore because API tokens are obfuscated at
+	// the service layer we will retrieve the obfuscated config before we return.
+	// We bypass the mysql cache because this is a read that will be followed by
+	// modifications and a save, so we need up-to-date data.
+	ctx = ctxdb.BypassCachedMysql(ctx, true)
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
+	// the rest of the calls can use the cache safely (we read the AppConfig
+	// again before returning, either after a dry-run or after saving the
+	// AppConfig, in which case the cache will be up-to-date and safe to use).
+	ctx = ctxdb.BypassCachedMysql(ctx, false)
+
 	oldAppConfig := appConfig.Copy()
 
 	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
@@ -544,6 +553,37 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// if the Windows updates requirements changed, create the corresponding
+	// activity.
+	if !oldAppConfig.MDM.WindowsUpdates.Equal(appConfig.MDM.WindowsUpdates) {
+		var deadline, grace *int
+		if appConfig.MDM.WindowsUpdates.DeadlineDays.Valid {
+			deadline = &appConfig.MDM.WindowsUpdates.DeadlineDays.Value
+		}
+		if appConfig.MDM.WindowsUpdates.GracePeriodDays.Valid {
+			grace = &appConfig.MDM.WindowsUpdates.GracePeriodDays.Value
+		}
+
+		if deadline != nil {
+			if err := svc.EnterpriseOverrides.MDMWindowsEnableOSUpdates(ctx, nil, appConfig.MDM.WindowsUpdates); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "enable no-team windows OS updates")
+			}
+		} else if err := svc.EnterpriseOverrides.MDMWindowsDisableOSUpdates(ctx, nil); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "disable no-team windows OS updates")
+		}
+
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedWindowsUpdates{
+				DeadlineDays:    deadline,
+				GracePeriodDays: grace,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos min version modification")
+		}
+	}
+
 	if appConfig.MDM.EnableDiskEncryption.Valid && oldAppConfig.MDM.EnableDiskEncryption.Value != appConfig.MDM.EnableDiskEncryption.Value {
 		if oldAppConfig.MDM.EnabledAndConfigured {
 			var act fleet.ActivityDetails
@@ -680,6 +720,20 @@ func (svc *Service) validateMDM(
 	}
 	if err := mdm.MacOSUpdates.Validate(); err != nil {
 		invalid.Append("macos_updates", err.Error())
+	}
+
+	// WindowsUpdates
+	updatingWindowsUpdates := !mdm.WindowsUpdates.Equal(oldMdm.WindowsUpdates)
+	if updatingWindowsUpdates {
+		// TODO: Should we validate MDM configured on here too?
+
+		if !license.IsPremium() {
+			invalid.Append("windows_updates.deadline_days", ErrMissingLicense.Error())
+			return
+		}
+	}
+	if err := mdm.WindowsUpdates.Validate(); err != nil {
+		invalid.Append("windows_updates", err.Error())
 	}
 
 	// EndUserAuthentication

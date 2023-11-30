@@ -1,6 +1,7 @@
 package cached_mysql
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -39,14 +40,15 @@ func BenchmarkCacheGetCustomClone(b *testing.B) {
 }
 
 func benchmarkCacheGet(b *testing.B, v any) {
+	ctx := context.Background()
 	c := &cloneCache{cache.New(time.Minute, time.Minute)}
-	c.Set("k", v, cache.DefaultExpiration)
+	c.Set(ctx, "k", v, cache.DefaultExpiration)
 
 	b.ResetTimer()
 
 	var ok bool
 	for i := 0; i < b.N; i++ {
-		Result, ok = c.Get("k")
+		Result, ok = c.Get(ctx, "k")
 		if !ok {
 			b.Fatal("expected ok")
 		}

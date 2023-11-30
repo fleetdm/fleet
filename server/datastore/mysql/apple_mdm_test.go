@@ -841,7 +841,6 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 func expectAppleProfiles(
 	t *testing.T,
 	ds *Datastore,
-	newSet []*fleet.MDMAppleConfigProfile,
 	tmID *uint,
 	want []*fleet.MDMAppleConfigProfile,
 ) map[string]uint {
@@ -878,7 +877,7 @@ func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
 		ctx := context.Background()
 		err := ds.BatchSetMDMAppleProfiles(ctx, tmID, newSet)
 		require.NoError(t, err)
-		return expectAppleProfiles(t, ds, newSet, tmID, want)
+		return expectAppleProfiles(t, ds, tmID, want)
 	}
 
 	withTeamID := func(p *fleet.MDMAppleConfigProfile, tmID uint) *fleet.MDMAppleConfigProfile {

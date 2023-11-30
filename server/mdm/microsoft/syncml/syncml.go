@@ -171,7 +171,15 @@ const (
 const (
 	FleetBitLockerTargetLocURI = "/Vendor/MSFT/BitLocker"
 	FleetOSUpdateTargetLocURI  = "/Vendor/MSFT/Policy/Config/Update"
+
+	FleetWindowsOSUpdatesProfileName = "Windows OS Updates"
 )
+
+func FleetReservedProfileNames() map[string]struct{} {
+	return map[string]struct{}{
+		FleetWindowsOSUpdatesProfileName: {},
+	}
+}
 
 // MS-MDE2 Message constants
 const (

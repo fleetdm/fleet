@@ -1077,6 +1077,10 @@ type Datastore interface {
 	// the specified profile uuid.
 	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
 
+	// DeleteMDMWindowsConfigProfileByTeamAndName deletes the Windows MDM profile corresponding to
+	// the specified team ID (or no team if nil) and profile name.
+	DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Context, teamID *uint, profileName string) error
+
 	// GetHostMDMWindowsProfiles returns the MDM profile information for the specified Windows host UUID.
 	GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]HostMDMWindowsProfile, error)
 
@@ -1136,6 +1140,11 @@ type Datastore interface {
 
 	// NewMDMWindowsConfigProfile creates and returns a new configuration profile.
 	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile) (*MDMWindowsConfigProfile, error)
+
+	// SetOrUpdateMDMWindowsConfigProfile creates or replaces a Windows profile.
+	// The profile gets replaced if it already exists for the same team and name
+	// combination.
+	SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile) error
 
 	// BatchSetMDMProfiles sets the MDM Apple or Windows profiles for the given team or
 	// no team in a single transaction.
