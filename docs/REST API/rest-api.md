@@ -6984,9 +6984,9 @@ Content-Type: application/octet-stream
 --------------------------d8c247122f594ba0
 ```
 
-### Download uploaded software
+### Download managed software
 
-Download uploaded software installer.
+Download the uploaded software installer.
 
 `GET /api/v1/fleet/software/manage/{id}?alt=media`
 
@@ -7011,7 +7011,7 @@ Body: <blob>
 
 ### Delete software
 
-Delete uploaded software.
+Delete managed software.
 
 `DELETE /api/v1/fleet/software/manage/{id}`
 
@@ -7019,7 +7019,7 @@ Delete uploaded software.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| id              | integer | path | **Required**. The ID of managed software version to delete.|
+| id              | integer | path | **Required**. The ID of the managed software version to delete.|
 
 #### Example
 
@@ -7231,7 +7231,7 @@ Returns the information of the specified software title. By default `versions` a
         "version": "117.0",
         "vulnerabilities": ["CVE-2023-1234"],
         "hosts_count": 37
-        "uploaded": true
+        "managed": true
       },
       {
         "id": 124,
@@ -7270,7 +7270,7 @@ Returns the information of the specified software version.
     "id": 425224,
     "name": "Firefox.app",
     "version": "117.0",
-    "uploaded": true,
+    "managed": true,
     "uploaded_at": "2023-08-12T15:20:00Z"
     "bundle_identifier": "org.mozilla.firefox",
     "source": "apps",
