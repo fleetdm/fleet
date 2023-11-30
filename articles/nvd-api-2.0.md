@@ -1,4 +1,4 @@
-![NVD API 2.0: An important update for Fleet users](../website/assets/images/articles/nvd-api-2.0-1600x900@2x.png)
+![NVD API 2.0: An important update for Fleet users](../website/assets/images/articles/nvd-api-2.0-1600x900@2x.jpg)
 
 In the ever-evolving cybersecurity landscape, staying ahead isn't just an advantage – it's anecessity. That's why the upcoming transition in the National Vulnerability Database (NVD) is more than just news; it's a pivotal change for everyone in the field of vulnerability management. Come December 15th, 2023, NIST will move exclusively to their new [NVD 2.0 API](https://nvd.nist.gov/general/news/api-20-announcements). This advancement marks a step and a giant stride forward, offering a more robust, flexible, and user-friendly way to access crucial vulnerability data.
 
@@ -67,4 +67,4 @@ Delaying this update could result in your service no longer receiving new vulner
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="publishedOn" value="2023-11-28">
 <meta name="articleTitle" value="NVD API 2.0: An important update for Fleet users">
-<meta name="articleImageUrl" value="../website/assets/images/articles/nvd-api-2.0-1600x900@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/nvd-api-2.0-1600x900@2x.jpg">
