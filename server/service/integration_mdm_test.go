@@ -1241,7 +1241,7 @@ func setupExpectedFleetdProfile(t *testing.T, serverURL string, enrollSecret str
 		EnrollSecret: enrollSecret,
 		ServerURL:    serverURL,
 		PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
-		PayloadName:  mobileconfig.FleetdConfigProfileName,
+		PayloadName:  servermdm.FleetdConfigProfileName,
 	}
 	err := mobileconfig.FleetdProfileTemplate.Execute(&b, params)
 	require.NoError(t, err)
@@ -3406,11 +3406,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	}
 
 	// trying to add profiles with names reserved by Fleet fails
-	fleetNames := mobileconfig.FleetReservedProfileNames()
-	for name := range syncml.FleetReservedProfileNames() {
-		fleetNames[name] = struct{}{}
-	}
-	for name := range fleetNames {
+	for name := range servermdm.FleetReservedProfileNames() {
 		cp := &fleet.MDMAppleConfigProfile{
 			Name:         name,
 			Identifier:   "valid.identifier",
@@ -8427,11 +8423,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertWindowsProfile("updates.xml", syncml.FleetOSUpdateTargetLocURI, testTeam.ID, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include Windows updates settings.")
 
 	// Fleet-reserved profiles
-	fleetNames := mobileconfig.FleetReservedProfileNames()
-	for name := range syncml.FleetReservedProfileNames() {
-		fleetNames[name] = struct{}{}
-	}
-	for name := range fleetNames {
+	for name := range servermdm.FleetReservedProfileNames() {
 		assertAppleProfile(name+".mobileconfig", name, name+"-ident", 0, http.StatusBadRequest, fmt.Sprintf(`name %s is not allowed`, name))
 		assertWindowsProfile(name+".xml", "./Test", 0, http.StatusBadRequest, fmt.Sprintf(`Couldn't upload. Profile name %q is not allowed.`, name))
 	}

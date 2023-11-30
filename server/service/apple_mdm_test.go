@@ -20,9 +20,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	nanomdm_mock "github.com/fleetdm/fleet/v4/server/mock/nanomdm"
@@ -1548,12 +1548,7 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			"unsupported PayloadType(s)",
 		},
 	}
-	fleetNames := mobileconfig.FleetReservedProfileNames()
-	for name := range syncml.FleetReservedProfileNames() {
-		fleetNames[name] = struct{}{}
-	}
-
-	for name := range fleetNames {
+	for name := range fleetmdm.FleetReservedProfileNames() {
 		testCases = append(testCases,
 			testCase{
 				"reserved payload outer name " + name,

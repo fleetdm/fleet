@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"go.mozilla.org/pkcs7"
 	"howett.net/plist"
 )
@@ -19,24 +19,7 @@ const (
 	// FleetdConfigPayloadIdentifier is the value for the PayloadIdentifier used
 	// by fleetd to read configuration values from the system.
 	FleetdConfigPayloadIdentifier = "com.fleetdm.fleetd.config"
-
-	// FleetdConfigProfileName is the value for the PayloadDisplayName used by
-	// fleetd to read configuration values from the system.
-	FleetdConfigProfileName = "Fleetd configuration"
-
-	// FleetdFileVaultProfileName is the value for the PayloadDisplayName used
-	// by Fleet to configure FileVault and FileVault Escrow.
-	FleetFileVaultProfileName = "Disk encryption"
 )
-
-// FleetReservedProfileNames returns a map of PayloadDisplayName strings
-// that are reserved by Fleet.
-func FleetReservedProfileNames() map[string]struct{} {
-	return map[string]struct{}{
-		FleetdConfigProfileName:   {},
-		FleetFileVaultProfileName: {},
-	}
-}
 
 // FleetPayloadIdentifiers returns a map of PayloadIdentifier strings
 // that are handled and delivered by Fleet.
@@ -205,10 +188,7 @@ func (mc *Mobileconfig) ScreenPayloads() error {
 		}
 	}
 
-	fleetNames := FleetReservedProfileNames()
-	for name := range syncml.FleetReservedProfileNames() {
-		fleetNames[name] = struct{}{}
-	}
+	fleetNames := mdm.FleetReservedProfileNames()
 	fleetIdentifiers := FleetPayloadIdentifiers()
 	fleetTypes := FleetPayloadTypes()
 	screenedTypes := []string{}
