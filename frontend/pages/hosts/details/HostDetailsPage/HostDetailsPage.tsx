@@ -16,6 +16,7 @@ import { pick } from "lodash";
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
+import configAPI from "services/entities/config";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
@@ -238,6 +239,75 @@ const HostDetailsPage = ({
     mdm?.enrollment_status !== null && refetchMdm();
   };
 
+  // TODO - remove dummy schedule
+  const dummySchedule: IQueryStats[] = [
+    {
+      scheduled_query_name: "cached query 1 - Never reported",
+      query_name: "query 1",
+      description: "should render 'Never' ",
+      discard_data: false,
+      last_fetched: null,
+      automations_enabled: false,
+      interval: 1000,
+      scheduled_query_id: 2,
+
+      pack_id: 1,
+      pack_name: "Team: 💻 Workstations",
+      average_memory: 435814,
+      denylisted: false,
+      executions: 5,
+      last_executed: "2023-11-29T15:20:02Z",
+      output_size: 1204,
+      system_time: 9,
+      user_time: 3,
+      wall_time: 0,
+    },
+    {
+      scheduled_query_name:
+        "cached query 2 - stored results, but no current interval",
+      description: "should render with row clickable to its report",
+      discard_data: false,
+      query_name: "query 2",
+      last_fetched: "2023-11-29T15:20:02Z",
+      automations_enabled: false,
+      interval: 1000,
+      scheduled_query_id: 2,
+
+      pack_id: 1,
+      pack_name: "Team: 💻 Workstations",
+      average_memory: 435814,
+      denylisted: false,
+      executions: 5,
+      last_executed: "2023-11-29T15:20:02Z",
+      output_size: 1204,
+      system_time: 9,
+      user_time: 3,
+      wall_time: 0,
+    },
+    {
+      scheduled_query_name:
+        "cached query 3 - sending results to a log destination, not storing in Fleet",
+      description: "should render '---' ",
+      interval: 1000,
+      discard_data: true,
+      automations_enabled: true,
+      query_name: "query 3",
+      last_fetched: "2023-11-29T15:20:02Z",
+      scheduled_query_id: 2,
+
+      pack_id: 1,
+      pack_name: "Team: 💻 Workstations",
+      average_memory: 435814,
+      denylisted: false,
+      executions: 5,
+      last_executed: "2023-11-29T15:20:02Z",
+      output_size: 1204,
+      system_time: 9,
+      user_time: 3,
+      wall_time: 0,
+    },
+  ];
+
   const {
     isLoading: isLoadingHost,
     data: host,
@@ -300,6 +370,8 @@ const HostDetailsPage = ({
         }
         setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
+        // TODO – remove dummy data
+        setSchedule(dummySchedule);
         if (returnedHost.pack_stats) {
           const packStatsByType = returnedHost.pack_stats.reduce(
             (
@@ -318,7 +390,8 @@ const HostDetailsPage = ({
             },
             { packs: [], schedule: [] }
           );
-          setSchedule(packStatsByType.schedule);
+          // TODO - restore real data
+          // setSchedule(packStatsByType.schedule);
           setPacksState(packStatsByType.packs);
         }
       },
@@ -772,6 +845,9 @@ const HostDetailsPage = ({
                 isChromeOSHost={host?.platform === "chrome"}
                 schedule={schedule}
                 isLoading={isLoadingHost}
+                queryReportsDisabled={
+                  config?.server_settings?.query_reports_disabled
+                }
               />
               {canViewPacks && (
                 <PacksCard packsState={packsState} isLoading={isLoadingHost} />

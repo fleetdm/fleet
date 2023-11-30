@@ -6,7 +6,7 @@ import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 
 import {
-  generateTableHeaders,
+  generateColumnConfigs,
   generateDataSet,
 } from "./HostQueriesTableConfig";
 
@@ -16,15 +16,15 @@ interface IHostQueriesProps {
   schedule?: IQueryStats[];
   isChromeOSHost: boolean;
   isLoading: boolean;
+  queryReportsDisabled?: boolean;
 }
 
 const HostQueries = ({
   schedule,
   isChromeOSHost,
   isLoading,
+  queryReportsDisabled,
 }: IHostQueriesProps): JSX.Element => {
-  const tableHeaders = generateTableHeaders();
-
   const renderEmptyQueriesTab = () => {
     if (isChromeOSHost) {
       return (
@@ -64,7 +64,7 @@ const HostQueries = ({
       ) : (
         <div className={`${baseClass}__pack-table`}>
           <TableContainer
-            columns={tableHeaders}
+            columns={generateColumnConfigs(queryReportsDisabled)}
             data={generateDataSet(schedule)}
             isLoading={isLoading}
             onQueryChange={() => null}
