@@ -48,7 +48,7 @@ const PlatformsAccordion = ({
         onSelectAccordionItem(selected[0] as OSUpdatesSupportedPlatform)
       }
     >
-      <AccordionItem uuid="mac">
+      <AccordionItem uuid="darwin">
         <AccordionItemHeading>
           <AccordionItemButton className={`${baseClass}__accordion-button`}>
             <span>macOS</span>
