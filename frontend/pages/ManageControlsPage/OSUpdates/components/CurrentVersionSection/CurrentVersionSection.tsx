@@ -37,10 +37,14 @@ const CurrentVersionSection = ({
   const { data, isError, isLoading: isLoadingOsVersions } = useQuery<
     IOSVersionsResponse,
     AxiosError
-  >(["os_versions", currentTeamId], () => getOSVersions(), {
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+  >(
+    ["os_versions", currentTeamId],
+    () => getOSVersions({ teamId: currentTeamId }),
+    {
+      retry: false,
+      refetchOnWindowFocus: false,
+    }
+  );
 
   const generateSubTitleText = () => {
     return (
