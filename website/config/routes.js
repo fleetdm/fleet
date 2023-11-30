@@ -490,7 +490,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
-  'GET /get-started':            '/try-fleet/fleetctl-preview',
+  'GET /get-started':            '/try-fleet/explore-data',
   'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
   'GET /test-fleet-sandbox':     '/try-fleet/register',
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
