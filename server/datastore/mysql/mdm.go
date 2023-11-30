@@ -8,8 +8,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -161,10 +161,7 @@ FROM (
 	for k := range fleetIdentsMap {
 		fleetIdentifiers = append(fleetIdentifiers, k)
 	}
-	fleetNamesMap := syncml.FleetReservedProfileNames()
-	for name := range mobileconfig.FleetReservedProfileNames() {
-		fleetNamesMap[name] = struct{}{}
-	}
+	fleetNamesMap := mdm.FleetReservedProfileNames()
 	fleetNames := make([]string, 0, len(fleetNamesMap))
 	for k := range fleetNamesMap {
 		fleetNames = append(fleetNames, k)

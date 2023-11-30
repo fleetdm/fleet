@@ -58,3 +58,25 @@ func GetRawProfilePlatform(profile []byte) string {
 
 	return ""
 }
+
+const (
+
+	// FleetdConfigProfileName is the value for the PayloadDisplayName used by
+	// fleetd to read configuration values from the system.
+	FleetdConfigProfileName = "Fleetd configuration"
+
+	// FleetdFileVaultProfileName is the value for the PayloadDisplayName used
+	// by Fleet to configure FileVault and FileVault Escrow.
+	FleetFileVaultProfileName        = "Disk encryption"
+	FleetWindowsOSUpdatesProfileName = "Windows OS Updates"
+)
+
+// FleetReservedProfileNames returns a map of PayloadDisplayName strings
+// that are reserved by Fleet.
+func FleetReservedProfileNames() map[string]struct{} {
+	return map[string]struct{}{
+		FleetdConfigProfileName:          {},
+		FleetFileVaultProfileName:        {},
+		FleetWindowsOSUpdatesProfileName: {},
+	}
+}

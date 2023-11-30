@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/micromdm/nanodep/godep"
 )
 
@@ -214,10 +214,7 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
 		return fmt.Errorf("payload identifier %s is not allowed", cp.Identifier)
 	}
-	fleetNames := mobileconfig.FleetReservedProfileNames()
-	for name := range syncml.FleetReservedProfileNames() {
-		fleetNames[name] = struct{}{}
-	}
+	fleetNames := mdm.FleetReservedProfileNames()
 	if _, ok := fleetNames[cp.Name]; ok {
 		return fmt.Errorf("payload display name %s is not allowed", cp.Name)
 	}

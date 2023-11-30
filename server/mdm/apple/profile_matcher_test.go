@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/require"
@@ -308,7 +309,7 @@ func TestPreassignProfileValidation(t *testing.T) {
 			fleet.MDMApplePreassignProfilePayload{
 				ExternalHostIdentifier: "abcd",
 				HostUUID:               "1234",
-				Profile:                generateProfile(mobileconfig.FleetFileVaultProfileName, "p1", "Configuration", "p1"),
+				Profile:                generateProfile(mdm.FleetFileVaultProfileName, "p1", "Configuration", "p1"),
 			},
 			"payload display name Disk encryption is not allowed",
 		},
