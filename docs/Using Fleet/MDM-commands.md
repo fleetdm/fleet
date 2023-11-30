@@ -22,7 +22,7 @@ You can run any command supported by [Apple's MDM protocol](https://developer.ap
 
 For example, to restart a macOS host, we'll use the "Restart a Device" command documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/restart_a_device#3384428). 
 
-First, we'll need to create a `restart-device.xml` file locally with these contents:
+First, we'll need to create a `restart-device.xml` file locally tis payload:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -40,7 +40,7 @@ First, we'll need to create a `restart-device.xml` file locally with these conte
 
 To restart a Windows host, we'll use the "Reboot" command documented by Windows [here](https://learn.microsoft.com/en-us/windows/client-management/mdm/reboot-csp).
 
-Our `restart-device.xml` file will have these contents instead:
+The `restart-device.xml` file will have this payload instead:
 
 ```xml
 <Exec>
