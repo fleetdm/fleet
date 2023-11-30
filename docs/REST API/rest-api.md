@@ -7271,7 +7271,14 @@ Returns the information of the specified software version.
     "name": "Firefox.app",
     "version": "117.0",
     "managed": true,
-    "uploaded_at": "2023-08-12T15:20:00Z"
+    "installer": {
+      "file_name": "Firefox 120.0.dmg"
+      "file_size": {
+        "value": 123,
+        "unit": "MB" // Unit can be MB or GB depending on the size, if larger than 1024 MB returns GB
+      }
+      "uploaded_at": "2023-08-12T15:20:00Z"
+    }
     "bundle_identifier": "org.mozilla.firefox",
     "source": "apps",
     "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
