@@ -21,7 +21,7 @@ const (
 	SoftwareVersionMaxLength          = 255
 	SoftwareSourceMaxLength           = 64
 	SoftwareBundleIdentifierMaxLength = 255
-	SoftwareExtensionIdMaxLength      = 255
+	SoftwareExtensionIDMaxLength      = 255
 	SoftwareBrowserMaxLength          = 255
 
 	SoftwareReleaseMaxLength = 64
@@ -42,8 +42,8 @@ type Software struct {
 	BundleIdentifier string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	// Source is the source of the data (osquery table name).
 	Source string `json:"source" db:"source"`
-	// ExtensionId is the browser extension id (from osquery chrome_extensions)
-	ExtensionId string `json:"extension_id,omitempty" db:"extension_id"`
+	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons)
+	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// Browser is the browser type (from osquery chrome_extensions)
 	Browser string `json:"browser,omitempty" db:"browser"`
 
@@ -90,10 +90,10 @@ func (s Software) ToUniqueStr() string {
 	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
 		ss = append(ss, s.Release, s.Vendor, s.Arch)
 	}
-	// ExtensionId and Browser were added in a single migration, so they are only included if they exist.
-	// This way a blank ExtensionId/Browser matches the pre-migration unique string.
-	if s.ExtensionId != "" || s.Browser != "" {
-		ss = append(ss, s.ExtensionId, s.Browser)
+	// ExtensionID and Browser were added in a single migration, so they are only included if they exist.
+	// This way a blank ExtensionID/Browser matches the pre-migration unique string.
+	if s.ExtensionID != "" || s.Browser != "" {
+		ss = append(ss, s.ExtensionID, s.Browser)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
@@ -254,7 +254,7 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 		Version:          truncateString(version, SoftwareVersionMaxLength),
 		Source:           truncateString(source, SoftwareSourceMaxLength),
 		BundleIdentifier: truncateString(bundleIdentifier, SoftwareBundleIdentifierMaxLength),
-		ExtensionId:      truncateString(extensionId, SoftwareExtensionIdMaxLength),
+		ExtensionID:      truncateString(extensionId, SoftwareExtensionIDMaxLength),
 		Browser:          truncateString(browser, SoftwareBrowserMaxLength),
 
 		Release: truncateString(release, SoftwareReleaseMaxLength),

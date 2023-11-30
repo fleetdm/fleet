@@ -400,7 +400,7 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 			"SELECT id FROM software "+
 				"WHERE name = ? AND version = ? AND source = ? AND `release` = ? AND "+
 				"vendor = ? AND arch = ? AND bundle_identifier = ? AND extension_id = ? AND browser = ? LIMIT 1",
-			s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier, s.ExtensionId, s.Browser,
+			s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier, s.ExtensionID, s.Browser,
 		); err != nil {
 			return 0, err
 		}
@@ -420,7 +420,7 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 		"INSERT INTO software "+
 			"(name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser) "+
 			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier, s.ExtensionId, s.Browser,
+		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier, s.ExtensionID, s.Browser,
 	)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "insert software")

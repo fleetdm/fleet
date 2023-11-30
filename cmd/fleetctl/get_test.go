@@ -602,7 +602,7 @@ func TestGetSoftware(t *testing.T) {
 			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
 		},
 	}
-	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", ExtensionId: "xyz", Browser: "edge"}
+	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", ExtensionID: "xyz", Browser: "edge"}
 	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
 	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle"}
 

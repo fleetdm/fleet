@@ -16,7 +16,7 @@ func Up_20231122101320(tx *sql.Tx) error {
 		ADD COLUMN extension_id varchar(255) NOT NULL DEFAULT '';
 	`
 	if _, err := tx.Exec(stmt); err != nil {
-		return fmt.Errorf("add extension_id to software: %w", err)
+		return fmt.Errorf("add browser and extension_id to software: %w", err)
 	}
 
 	// We cannot add `extension_id` to the unq_name constraint because it is already at its 3072 byte limit, so we will drop it.
