@@ -136,7 +136,7 @@ The possible statuses for macOS hosts are:
 * Error: the host responded with "Error" status via the MDM protocol: an error occurred. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
 * CommandFormatError: the host responded with "CommandFormatError" status via the MDM protocol: a protocol error occurred, which can result from a malformed command. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
 
-The possible statuses for Windows hosts are documented in Microsoft's docs [here]().
+The possible statuses for Windows hosts are documented in Microsoft's docs [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 
 <meta name="pageOrderInSection" value="1507">
 <meta name="title" value="Commands">
