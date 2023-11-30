@@ -678,7 +678,7 @@ module.exports = {
             if(table.description !== ''){
               let tableDescriptionForQueryReports = table.description;
               if(table.notes){
-                tableDescriptionForQueryReports += '\n\n**Notes:**\n'+table.notes;
+                tableDescriptionForQueryReports += '\n\n**Notes:**\n\n'+table.notes;
               }
               let htmlDescriptionForTableInfo = await sails.helpers.strings.toHtml.with({mdString: tableDescriptionForQueryReports, addIdsToHeadings: false});
               tableInfo.description = htmlDescriptionForTableInfo;
