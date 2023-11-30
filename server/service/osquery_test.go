@@ -594,16 +594,16 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			require.Len(t, rows, 1)
 			require.Equal(t, uint(999), rows[0].HostID)
 			require.NotZero(t, rows[0].LastFetched)
-			require.JSONEq(t, `{"hour":"20","minutes":"8"}`, string(rows[0].Data))
+			require.JSONEq(t, `{"hour":"20","minutes":"8"}`, string(*rows[0].Data))
 		case rows[0].QueryID == 444:
 			require.Len(t, rows, 2)
 			require.Equal(t, uint(999), rows[0].HostID)
 			require.NotZero(t, rows[0].LastFetched)
-			require.JSONEq(t, `{"hour":"20","minutes":"8"}`, string(rows[0].Data))
+			require.JSONEq(t, `{"hour":"20","minutes":"8"}`, string(*rows[0].Data))
 			require.Equal(t, uint(999), rows[1].HostID)
 			require.Equal(t, uint(444), rows[1].QueryID)
 			require.NotZero(t, rows[1].LastFetched)
-			require.JSONEq(t, `{"hour":"21","minutes":"9"}`, string(rows[1].Data))
+			require.JSONEq(t, `{"hour":"21","minutes":"9"}`, string(*rows[1].Data))
 		}
 		return nil
 	}
@@ -690,8 +690,8 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 		{
 			QueryName:     "pack/Global/Uptime",
 			OsqueryHostID: "1379f59d98f4",
-			Snapshot: []json.RawMessage{
-				json.RawMessage(`{"hour":"20","minutes":"8"}`),
+			Snapshot: []*json.RawMessage{
+				ptr.RawMessage(json.RawMessage(`{"hour":"20","minutes":"8"}`)),
 			},
 			UnixTime: 1484078931,
 		},

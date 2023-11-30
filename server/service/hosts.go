@@ -1042,6 +1042,93 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}, nil
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Get Host Query Report
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostQueryReportRequest struct {
+	ID      uint `url:"id"`
+	QueryID uint `url:"query_id"`
+}
+
+type getHostQueryReportResponse struct {
+	QueryID       uint                          `json:"query_id"`
+	HostID        uint                          `json:"host_id"`
+	HostName      string                        `json:"host_name"`
+	LastFetched   *time.Time                    `json:"last_fetched"`
+	ReportClipped bool                          `json:"report_clipped"`
+	Results       []fleet.HostQueryReportResult `json:"results"`
+	Err           error                         `json:"error,omitempty"`
+}
+
+func (r getHostQueryReportResponse) error() error { return r.Err }
+
+func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getHostQueryReportRequest)
+
+	// Need to return hostname in response even if there are no report results
+	host, err := svc.GetHost(ctx, req.ID, fleet.HostDetailOptions{})
+	if err != nil {
+		return getHostQueryReportResponse{Err: err}, nil
+	}
+
+	reportResults, lastFetched, err := svc.GetHostQueryReportResults(ctx, req.ID, req.QueryID)
+	if err != nil {
+		return getHostQueryReportResponse{Err: err}, nil
+	}
+
+	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID)
+	if err != nil {
+		return getHostQueryReportResponse{Err: err}, nil
+	}
+
+	return getHostQueryReportResponse{
+		QueryID:       req.QueryID,
+		HostID:        host.ID,
+		HostName:      host.DisplayName(),
+		LastFetched:   lastFetched,
+		ReportClipped: isClipped,
+		Results:       reportResults,
+	}, nil
+}
+
+func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, queryID uint) ([]fleet.HostQueryReportResult, *time.Time, error) {
+	query, err := svc.ds.Query(ctx, queryID)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, nil, ctxerr.Wrap(ctx, err, "get query from datastore")
+	}
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	rows, err := svc.ds.QueryResultRowsForHost(ctx, queryID, hostID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get query result rows for host")
+	}
+
+	if len(rows) == 0 {
+		return []fleet.HostQueryReportResult{}, nil, nil
+	}
+
+	var lastFetched *time.Time
+	result := make([]fleet.HostQueryReportResult, 0, len(rows))
+	for _, row := range rows {
+		fetched := row.LastFetched // copy to avoid loop reuse issue
+		lastFetched = &fetched     // need to return value even if data is nil
+
+		columns := map[string]string{}
+		if row.Data != nil {
+			if err := json.Unmarshal(*row.Data, &columns); err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal query result row data")
+			}
+			result = append(result, fleet.HostQueryReportResult{Columns: columns})
+		}
+	}
+
+	return result, lastFetched, nil
+}
+
 func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, []string, error) {
 	filter, err := processHostFilters(ctx, opt, lid)
 	if err != nil {

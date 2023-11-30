@@ -87,6 +87,8 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 
 // TODO(lucas): Any chance we can store hostname in the query_results table?
 // (to avoid having to left join hosts).
+// QueryResultRows returns the query result rows for a given query
+// excluding rows with null data
 func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint) ([]*fleet.ScheduledQueryResultRow, error) {
 	selectStmt := `
 		SELECT qr.query_id, qr.host_id, qr.last_fetched, qr.data,
@@ -104,6 +106,8 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint) ([]*flee
 	return results, nil
 }
 
+// QueryResultRowsForHost counts the query report rows for a given query
+// excluding rows with null data
 func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
 	var count int
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND data IS NOT NULL`, queryID)
@@ -114,6 +118,8 @@ func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int
 	return count, nil
 }
 
+// QueryResultRowsForHost counts the query report rows for a given query and host
+// excluding rows with null data
 func (ds *Datastore) ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error) {
 	var count int
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND host_id = ? AND data IS NOT NULL`, queryID, hostID)
@@ -122,4 +128,20 @@ func (ds *Datastore) ResultCountForQueryAndHost(ctx context.Context, queryID, ho
 	}
 
 	return count, nil
+}
+
+// QueryResultRowsForHost returns the query result rows for a given query and host
+// including rows with null data
+func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
+	selectStmt := `
+               SELECT query_id, host_id, last_fetched, data FROM query_results
+                       WHERE query_id = ? AND host_id = ?
+               `
+	results := []*fleet.ScheduledQueryResultRow{}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting query result rows for host")
+	}
+
+	return results, nil
 }
