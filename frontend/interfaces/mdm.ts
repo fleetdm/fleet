@@ -58,7 +58,7 @@ export interface IMdmSummaryResponse {
 type ProfilePlatform = "darwin" | "windows";
 
 export interface IMdmProfile {
-  profile_id: number | string; // string for windows profiles
+  profile_uuid: string;
   team_id: number;
   name: string;
   platform: ProfilePlatform;
