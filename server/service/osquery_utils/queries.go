@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
@@ -29,6 +30,8 @@ import (
 type DetailQuery struct {
 	// Query is the SQL query string.
 	Query string
+	// QueryFunc is optionally used to dynamically build a query.
+	QueryFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) string
 	// Discovery is the SQL query that defines whether the query will run on the host or not.
 	// If not set, Fleet makes sure the query will always run.
 	Discovery string
@@ -585,6 +588,12 @@ var mdmQueries = map[string]DetailQuery{
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestMacOSProfiles,
 		Discovery:        discoveryTable("macos_profiles"),
+	},
+	"mdm_config_profiles_windows": {
+		QueryFunc:        buildConfigProfilesWindowsQuery,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestWindowsProfiles,
+		Discovery:        discoveryTable("mdm_bridge"),
 	},
 	// There are two mutually-exclusive queries used to read the FileVaultPRK depending on which
 	// extension tables are discovered on the agent. The preferred query uses the newer custom
@@ -1677,7 +1686,7 @@ func GetDetailQueries(
 		generatedMap["scheduled_query_stats"] = scheduledQueryStats
 	}
 
-	if appConfig != nil && appConfig.MDM.EnabledAndConfigured {
+	if appConfig != nil && (appConfig.MDM.EnabledAndConfigured || appConfig.MDM.WindowsEnabledAndConfigured) {
 		for key, query := range mdmQueries {
 			if slices.Equal(query.Platforms, []string{"windows"}) && !appConfig.MDM.WindowsEnabledAndConfigured {
 				continue
@@ -1721,4 +1730,70 @@ func splitCleanSemicolonSeparated(s string) []string {
 		}
 	}
 	return cleaned
+}
+
+func buildConfigProfilesWindowsQuery(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+) string {
+	var sb strings.Builder
+	sb.WriteString("<SyncBody>")
+	gotProfiles := false
+	err := microsoft_mdm.LoopHostMDMLocURIs(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+		// Per the [docs][1], to `<Get>` configurations you must
+		// replace `/Policy/Config` with `Policy/Result`
+		// [1]: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider
+		locURI = strings.Replace(locURI, "/Policy/Config", "/Policy/Result", 1)
+		sb.WriteString(
+			// NOTE: intentionally building the xml as a one-liner
+			// to prevent any errors in the query.
+			fmt.Sprintf(
+				"<Get><CmdID>%s</CmdID><Item><Target><LocURI>%s</LocURI></Target></Item></Get>",
+				hash,
+				locURI,
+			))
+		gotProfiles = true
+	})
+	if err != nil {
+		logger.Log(
+			"component", "service",
+			"method", "QueryFunc - windows config profiles",
+			"err", err,
+		)
+		return ""
+	}
+	if !gotProfiles {
+		logger.Log(
+			"component", "service",
+			"method", "QueryFunc - windows config profiles",
+			"info", "host doesn't have profiles to check",
+		)
+		return ""
+	}
+	sb.WriteString("</SyncBody>")
+	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", sb.String())
+}
+
+func directIngestWindowsProfiles(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	if len(rows) > 1 {
+		return ctxerr.Errorf(ctx, "directIngestWindowsProfiles invalid number of rows: %d", len(rows))
+	}
+
+	rawResponse := []byte(rows[0]["raw_mdm_command_output"])
+	if len(rawResponse) == 0 {
+		return ctxerr.Errorf(ctx, "directIngestWindowsProfiles host %s got an empty SyncML response", host.UUID)
+	}
+	return microsoft_mdm.VerifyHostMDMProfiles(ctx, ds, host, rawResponse)
 }
