@@ -2591,6 +2591,43 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	require.ElementsMatch(t, ids, []uint{hosts[1].ID, hosts[2].ID})
 }
 
+func (s *integrationTestSuite) TestGetHostByIdentifier() {
+	t := s.T()
+	ctx := context.Background()
+
+	hosts := make([]*fleet.Host, 6)
+	for i := 0; i < len(hosts); i++ {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			Hostname:       fmt.Sprintf("test-host%d-name", i),
+			OsqueryHostID:  ptr.String(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:        ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			UUID:           fmt.Sprintf("test-uuid-%d", i),
+			Platform:       "darwin",
+			HardwareSerial: fmt.Sprintf("serial-%d", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	var resp getHostResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/osquery-1", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[1].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/serial-2", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[2].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/nodekey-3", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[3].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/test-uuid-4", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[4].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/test-host5-name", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[5].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/no-such-host", nil, http.StatusNotFound, &resp)
+}
+
 func (s *integrationTestSuite) TestScheduledQueries() {
 	t := s.T()
 
@@ -5232,6 +5269,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "apple_bm_default_team": "xyz" }
   }`), http.StatusUnprocessableEntity, &acResp)
+
+	// try to set the windows updates, which is premium only
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_updates": {"deadline_days": 1, "grace_period_days": 0} }
+  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "missing or invalid license")
 
 	// try to enable Windows MDM, impossible without the feature flag
 	// (only set in mdm integrations tests)

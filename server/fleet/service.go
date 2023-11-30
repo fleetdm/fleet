@@ -32,6 +32,8 @@ type EnterpriseOverrides struct {
 	DeleteMDMAppleSetupAssistant      func(ctx context.Context, teamID *uint) error
 	MDMAppleSyncDEPProfiles           func(ctx context.Context) error
 	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
+	MDMWindowsEnableOSUpdates         func(ctx context.Context, teamID *uint, updates WindowsUpdates) error
+	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
 }
 
 type OsqueryService interface {

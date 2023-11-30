@@ -13,6 +13,7 @@ import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
+import SectionHeader from "components/SectionHeader";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
 
@@ -114,7 +115,7 @@ const DiskEncryption = ({
 
   return (
     <div className={baseClass}>
-      <h2>Disk encryption</h2>
+      <SectionHeader title="Disk encryption" />
       {!isPremiumTier ? (
         <PremiumFeatureMessage
           className={`${baseClass}__premium-feature-message`}

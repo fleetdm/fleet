@@ -2557,7 +2557,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
 	` + hostMDMJoin + `
-    WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
+    WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)
     LIMIT 1
 	`
 	host := &fleet.Host{}
@@ -3294,7 +3294,11 @@ VALUES
   (?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
   /* if the key has changed, set decrypted to its initial value so it can be calculated again if necessary (if null) */
-  decryptable = IF(base64_encrypted = VALUES(base64_encrypted), decryptable, VALUES(decryptable)),
+  decryptable = IF(
+    base64_encrypted = VALUES(base64_encrypted) AND base64_encrypted != '',
+    decryptable,
+    VALUES(decryptable)
+  ),
   base64_encrypted = VALUES(base64_encrypted),
   client_error = VALUES(client_error)
 `, hostID, encryptedBase64Key, clientError, decryptable)

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 )
 
 // Profile verification is a set of related processes that run on the Fleet server to ensure that
@@ -36,39 +37,10 @@ import (
 //   if the profile should be retried (in which case, a new install profile command will be enqueued by the server)
 //   or marked as "failed" and updates the datastore accordingly.
 
-// maxRetries is the maximum times an install profile command may be retried, after which marked as failed and no further
-// attempts will be made to install the profile.
-const maxRetries = 1
-
-// ProfileVerificationStore is the minimal interface required to get and update the verification
-// status of a host's MDM profiles. The Fleet Datastore satisfies this interface.
-type ProfileVerificationStore interface {
-	// GetHostMDMProfilesExpectedForVerification returns the expected MDM profiles for a given host. The map is
-	// keyed by the profile identifier.
-	GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error)
-	// GetHostMDMProfilesRetryCounts returns the retry counts for the specified host.
-	GetHostMDMProfilesRetryCounts(ctx context.Context, hostUUID string) ([]fleet.HostMDMProfileRetryCount, error)
-	// GetHostMDMProfileRetryCountByCommandUUID returns the retry count for the specified
-	// host UUID and command UUID.
-	GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, hostUUID, commandUUID string) (fleet.HostMDMProfileRetryCount, error)
-	// UpdateHostMDMProfilesVerification updates status of macOS profiles installed on a given
-	// host. The toVerify, toFail, and toRetry slices contain the identifiers of the profiles that
-	// should be verified, failed, and retried, respectively. For each profile in the toRetry slice,
-	// the retries count is incremented by 1 and the status is set to null so that an install
-	// profile command is enqueued the next time the profile manager cron runs.
-	UpdateHostMDMProfilesVerification(ctx context.Context, hostUUID string, toVerify, toFail, toRetry []string) error
-	// UpdateOrDeleteHostMDMAppleProfile updates information about a single
-	// profile status. It deletes the row if the profile operation is "remove"
-	// and the status is "verifying" (i.e. successfully removed).
-	UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error
-}
-
-var _ ProfileVerificationStore = (fleet.Datastore)(nil)
-
 // VerifyHostMDMProfiles performs the verification of the MDM profiles installed on a host and
 // updates the verification status in the datastore. It is intended to be called by Fleet osquery
 // service when the Fleet server ingests host details.
-func VerifyHostMDMProfiles(ctx context.Context, ds ProfileVerificationStore, host *fleet.Host, installed map[string]*fleet.HostMacOSProfile) error {
+func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host, installed map[string]*fleet.HostMacOSProfile) error {
 	expected, err := ds.GetHostMDMProfilesExpectedForVerification(ctx, host)
 	if err != nil {
 		return err
@@ -99,7 +71,7 @@ func VerifyHostMDMProfiles(ctx context.Context, ds ProfileVerificationStore, hos
 	toFail := make([]string, 0, len(missing))
 	toRetry := make([]string, 0, len(missing))
 	if len(missing) > 0 {
-		counts, err := ds.GetHostMDMProfilesRetryCounts(ctx, host.UUID)
+		counts, err := ds.GetHostMDMProfilesRetryCounts(ctx, host)
 		if err != nil {
 			return err
 		}
@@ -108,7 +80,7 @@ func VerifyHostMDMProfiles(ctx context.Context, ds ProfileVerificationStore, hos
 			retriesByProfileIdentifier[r.ProfileIdentifier] = r.Retries
 		}
 		for _, key := range missing {
-			if retriesByProfileIdentifier[key] < maxRetries {
+			if retriesByProfileIdentifier[key] < mdm.MaxProfileRetries {
 				// if we haven't hit the max retries, we set the host profile status to nil (which
 				// causes an install profile command to be enqueued the next time the profile
 				// manager cron runs) and increment the retry count
@@ -120,24 +92,25 @@ func VerifyHostMDMProfiles(ctx context.Context, ds ProfileVerificationStore, hos
 		}
 	}
 
-	return ds.UpdateHostMDMProfilesVerification(ctx, host.UUID, verified, toFail, toRetry)
+	return ds.UpdateHostMDMProfilesVerification(ctx, host, verified, toFail, toRetry)
 }
 
 // HandleHostMDMProfileInstallResult ingests the result of an install profile command reported via
 // the MDM protocol and updates the verification status in the datastore. It is intended to be
 // called by the Fleet MDM checkin and command service install profile request handler.
-func HandleHostMDMProfileInstallResult(ctx context.Context, ds ProfileVerificationStore, hostUUID string, cmdUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
+func HandleHostMDMProfileInstallResult(ctx context.Context, ds fleet.ProfileVerificationStore, hostUUID string, cmdUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
+	host := &fleet.Host{UUID: hostUUID, Platform: "darwin"}
 	if status != nil && *status == fleet.MDMDeliveryFailed {
-		m, err := ds.GetHostMDMProfileRetryCountByCommandUUID(ctx, hostUUID, cmdUUID)
+		m, err := ds.GetHostMDMProfileRetryCountByCommandUUID(ctx, host, cmdUUID)
 		if err != nil {
 			return err
 		}
 
-		if m.Retries < maxRetries {
+		if m.Retries < mdm.MaxProfileRetries {
 			// if we haven't hit the max retries, we set the host profile status to nil (which
 			// causes an install profile command to be enqueued the next time the profile
 			// manager cron runs) and increment the retry count
-			return ds.UpdateHostMDMProfilesVerification(ctx, hostUUID, nil, nil, []string{m.ProfileIdentifier})
+			return ds.UpdateHostMDMProfilesVerification(ctx, host, nil, nil, []string{m.ProfileIdentifier})
 		}
 	}
 
