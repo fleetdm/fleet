@@ -45,9 +45,13 @@ const HostQueries = ({
     }
     return (
       <EmptyTable
-        header="No queries are scheduled for this host"
-        info="Expecting to see queries? Try selecting “Refetch” to ask this host
-            to report new vitals."
+        header="No queries are scheduled to run on this host"
+        info={
+          <>
+            Expecting to see queries? Try selecting <b>Refetch</b> to ask this
+            host to report fresh vitals.
+          </>
+        }
       />
     );
   };
