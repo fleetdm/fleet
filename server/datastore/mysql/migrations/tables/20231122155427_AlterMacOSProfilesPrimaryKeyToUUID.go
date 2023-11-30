@@ -14,14 +14,14 @@ func Up_20231122155427(tx *sql.Tx) error {
 	// the 'w' prefix.
 	_, err := tx.Exec(`
 ALTER TABLE host_mdm_windows_profiles
-	CHANGE COLUMN profile_uuid profile_uuid VARCHAR(37) NOT NULL DEFAULT ''
+	CHANGE COLUMN profile_uuid profile_uuid VARCHAR(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''
 `)
 	if err != nil {
 		return fmt.Errorf("failed to alter host_mdm_windows_profiles table: %w", err)
 	}
 	_, err = tx.Exec(`
 ALTER TABLE mdm_windows_configuration_profiles
-	CHANGE COLUMN profile_uuid profile_uuid VARCHAR(37) NOT NULL DEFAULT ''
+	CHANGE COLUMN profile_uuid profile_uuid VARCHAR(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''
 `)
 	if err != nil {
 		return fmt.Errorf("failed to alter mdm_windows_configuration_profiles table: %w", err)
@@ -53,7 +53,7 @@ SET
 ALTER TABLE mdm_apple_configuration_profiles
 	-- 37 and not 36 because the UUID will be prefixed with 'a' to indicate
 	-- that it's an Apple profile.
-	ADD COLUMN profile_uuid VARCHAR(37) NOT NULL DEFAULT '',
+	ADD COLUMN profile_uuid VARCHAR(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 	-- auto-increment column must have an index, so we create one before
 	-- dropping the primary key to make it profile_uuid later.
 	ADD UNIQUE KEY idx_mdm_apple_config_prof_id (profile_id),
@@ -89,7 +89,7 @@ ALTER TABLE mdm_apple_configuration_profiles
 	_, err = tx.Exec(`
 ALTER TABLE host_mdm_apple_profiles
 	DROP PRIMARY KEY,
-	ADD COLUMN profile_uuid VARCHAR(37) NOT NULL DEFAULT ''
+	ADD COLUMN profile_uuid VARCHAR(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''
 `)
 	if err != nil {
 		return fmt.Errorf("failed to alter host_mdm_apple_profiles table: %w", err)
