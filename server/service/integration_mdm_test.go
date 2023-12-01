@@ -2196,6 +2196,31 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.NoError(t, mdmDevice.Enroll())
 	checkPostEnrollmentCommands(mdmDevice, true)
 
+	// unenroll de the device
+	err = mdmDevice.Checkout()
+	require.NoError(t, err)
+
+	// simulate a refetch where we clean up the MDM data since the host is not enrolled anymore
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm WHERE host_id = ?`, mdmDeviceID)
+		return err
+	})
+
+	// enroll the device again
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// last activity should include the right device information
+	// TODO: currently fails as installed_from_dep = false
+	s.lastActivityMatches(
+		"mdm_enrolled",
+		fmt.Sprintf(
+			`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple"}`,
+			mdmDevice.SerialNumber, mdmDevice.Model, mdmDevice.SerialNumber,
+		),
+		0,
+	)
+
 	// enroll a host into Fleet
 	eHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		ID:             1,
