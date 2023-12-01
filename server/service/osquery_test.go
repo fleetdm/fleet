@@ -786,7 +786,8 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 		return nil
 	}
 
-	svc.SubmitResultLogs(ctx, results)
+	err = svc.SubmitResultLogs(ctx, results)
+	require.NoError(t, err)
 	assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
 
@@ -836,11 +837,10 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 		return nil
 	}
 
-	svc.SubmitResultLogs(ctx, results)
+	err = svc.SubmitResultLogs(ctx, results)
+	require.NoError(t, err)
 	assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
-
-
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 	tests := []struct {
