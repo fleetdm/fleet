@@ -115,6 +115,7 @@ func TestHosts(t *testing.T) {
 		{"HostsListByDiskEncryptionStatus", testHostsListMacOSSettingsDiskEncryptionStatus},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
+		{"HostsIncludesScheduledQueriesInPackStats", testHostsIncludesScheduledQueriesInPackStats},
 		{"HostsAllPackStats", testHostsAllPackStats},
 		{"HostsPackStatsMultipleHosts", testHostsPackStatsMultipleHosts},
 		{"HostsPackStatsForPlatform", testHostsPackStatsForPlatform},
@@ -3734,10 +3735,7 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 5)
 }
 
-func TestHostsIncludesScheduledQueriesInPackStats(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer TruncateTables(t, ds)
-
+func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -3849,7 +3847,6 @@ func TestHostsIncludesScheduledQueriesInPackStats(t *testing.T) {
 	}
 	_, err = ds.NewQuery(context.Background(), query6)
 	require.NoError(t, err)
-	
 
 	hostResult, err := ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
@@ -3860,13 +3857,32 @@ func TestHostsIncludesScheduledQueriesInPackStats(t *testing.T) {
 	require.Equal(t, query1.Name, globalQueryStats[0].ScheduledQueryName)
 	require.Equal(t, query2.Name, globalQueryStats[1].ScheduledQueryName)
 
-	// only automations listed when disabled globally
-
-	// queries that have query results
-
-	// add team queries
+	// team query stats
 	teamQueryStats := hostResult.PackStats[1].QueryStats
 	require.Equal(t, query6.Name, teamQueryStats[0].ScheduledQueryName)
+
+	// queries that have query results
+	// Add row to query results
+	queryResultRow := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID: query4.ID, // no interval
+			HostID:  host.ID,
+			Data:    nil,
+		},
+	}
+	ds.OverwriteQueryResultRows(context.Background(), queryResultRow)
+
+	hostResult, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, hostResult)
+
+	globalQueryStats = hostResult.PackStats[0].QueryStats
+	require.Equal(t, 3, len(globalQueryStats))
+	require.Equal(t, query1.Name, globalQueryStats[0].ScheduledQueryName)
+	require.Equal(t, query2.Name, globalQueryStats[1].ScheduledQueryName)
+	require.Equal(t, query4.Name, globalQueryStats[2].ScheduledQueryName)
+
+	// only automations listed when disabled globally
 }
 
 func testHostsAllPackStats(t *testing.T, ds *Datastore) {
