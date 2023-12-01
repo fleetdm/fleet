@@ -80,23 +80,24 @@ parasails.registerPage('query-report', {
       if(tableContainer) {
         let isEdgeOfResultsTableVisible = tableContainer.scrollWidth - tableContainer.scrollLeft === tableContainer.clientWidth;
         if (!isEdgeOfResultsTableVisible) {
-          tableContainer.classList.add('shadow-right');
+          tableContainer.classList.add('right-edge-shadow');
         }
 
         tableContainer.addEventListener('scroll', (event)=>{
           let container = event.target;
+          console.log(container);
           let isScrolledFullyToLeft = container.scrollLeft === 0;
           let isScrolledFullyToRight = (container.scrollWidth - container.scrollLeft <= container.clientWidth + 1);
           // Update the class on the table container based on how much the table is scrolled.
           if (isScrolledFullyToLeft) {
-            container.classList.remove('shadow-both', 'shadow-left');
-            container.classList.add('shadow-right');
+            container.classList.remove('edge-shadow', 'left-edge-shadow');
+            container.classList.add('right-edge-shadow');
           } else if (isScrolledFullyToRight) {
-            container.classList.remove('shadow-both', 'shadow-right');
-            container.classList.add('shadow-left');
+            container.classList.remove('edge-shadow', 'right-edge-shadow');
+            container.classList.add('left-edge-shadow');
           } else if(!isScrolledFullyToRight && !isScrolledFullyToLeft) {
-            container.classList.remove('shadow-left', 'shadow-right');
-            container.classList.add('shadow-both');
+            container.classList.remove('left-edge-shadow', 'right-edge-shadow');
+            container.classList.add('edge-shadow');
           }
         });
       }
