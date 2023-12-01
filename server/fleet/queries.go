@@ -368,6 +368,7 @@ type QueryStats struct {
 	AutomationsEnabled bool       `json:"automations_enabled" db:"automations_enabled"`
 	LastExecuted       time.Time  `json:"last_executed" db:"last_executed"`
 	OutputSize         int        `json:"output_size" db:"output_size"`
+	SystemTime         int        `json:"system_time" db:"system_time"`
 	UserTime           int        `json:"user_time" db:"user_time"`
 	WallTime           int        `json:"wall_time" db:"wall_time"`
 }
