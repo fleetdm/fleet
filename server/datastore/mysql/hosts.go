@@ -4514,10 +4514,25 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 		WHERE id = ?
 	`
 
-	var hh []fleet.HostHealth
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hh, sql, id); err != nil {
+	var results []fleet.HostHealth
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, id); err != nil {
 		return nil, err
 	}
 
-	return &hh[0], nil
+	// TODO(JVE): check that we got exactly 1 result
+
+	hh := &results[0]
+
+	host := &fleet.Host{ID: id}
+	if err := ds.LoadHostSoftware(ctx, host, true); err != nil {
+		return nil, err
+	}
+
+	for _, s := range host.Software {
+		if len(s.Vulnerabilities) > 0 {
+			hh.VulnerableSoftware = append(hh.VulnerableSoftware, s)
+		}
+	}
+
+	return hh, nil
 }

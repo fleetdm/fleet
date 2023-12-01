@@ -692,6 +692,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
+		OSVersion:       "Mac OS X 10.14.6",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
@@ -729,6 +730,15 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	)
 	require.NoError(t, err)
 	require.True(t, inserted)
+
+	// Get host health
+	hh := getHostHealthResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host.ID), nil, http.StatusOK, &hh)
+	// TODO(JVE): setup for host to have disk encryption set to true
+	assert.Equal(t, host.ID, hh.HostID)
+	assert.NotNil(t, hh.HostHealth)
+	assert.Equal(t, host.OSVersion, hh.HostHealth.OsVersion)
+	assert.Len(t, hh.HostHealth.VulnerableSoftware, 1)
 
 	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK)
 	bodyBytes, err := io.ReadAll(resp.Body)
@@ -8620,4 +8630,7 @@ func results(num int, hostID string) string {
 	}
 
 	return b.String()
+}
+
+func (s *integrationTestSuite) TestHostHealth() {
 }
