@@ -183,13 +183,17 @@ module.exports.routes = {
   'GET /try-fleet/explore-data': {
     action: 'try-fleet/view-explore-data',
     locals: {
-      pageTitleForMeta: 'Explore data | Fleet for osquery',
+      pageTitleForMeta: 'Explore real data | Fleet for osquery',
       pageDescriptionForMeta: 'See live data collected from a real device enrolled in Fleet.',
     }
   },
 
   'GET /try-fleet/explore-data/:hostPlatform/:tableName': {
     action: 'try-fleet/view-query-report',
+    locals: {
+      pageTitleForMeta: 'Explore real data | Fleet for osquery',
+      pageDescriptionForMeta: 'See live data collected from a real device enrolled in Fleet.',
+    }
   },
 
   'GET /admin/email-preview': {
