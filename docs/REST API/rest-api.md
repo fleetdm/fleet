@@ -1957,7 +1957,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
             "discard_data": false,
             "last_fetched": null,
             "automations_enabled": false,
-            "description": "Returns a record every time a usb device is plugged in or removed",
+            "description": "Returns a record every time a USB device is plugged in or removed",
             "pack_name": "Global",
             "average_memory": 434176,
             "denylisted": false,
