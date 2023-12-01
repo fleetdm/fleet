@@ -2169,7 +2169,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
 		HostSerial:       info.HardwareSerial,
 		HostDisplayName:  info.DisplayName,
-		InstalledFromDEP: info.InstalledFromDEP,
+		InstalledFromDEP: info.DEPAssignedToFleet,
 		MDMPlatform:      fleet.MDMPlatformApple,
 	})
 }
