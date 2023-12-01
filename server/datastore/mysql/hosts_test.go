@@ -3770,6 +3770,7 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 	}
 
 	_, err = ds.NewQuery(context.Background(), query1)
+	require.NoError(t, err)
 
 	query2 := &fleet.Query{
 		Name:               "Logged In Report and Log Destination",
@@ -3784,6 +3785,7 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 		AutomationsEnabled: true,
 	}
 	_, err = ds.NewQuery(context.Background(), query2)
+	require.NoError(t, err)
 
 	// This query should not be included in the pack stats
 	query3 := &fleet.Query{
@@ -3870,7 +3872,8 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 			Data:    nil,
 		},
 	}
-	ds.OverwriteQueryResultRows(context.Background(), queryResultRow)
+	err = ds.OverwriteQueryResultRows(context.Background(), queryResultRow)
+	require.NoError(t, err)
 
 	hostResult, err = ds.Host(context.Background(), host.ID)
 	require.NoError(t, err)
