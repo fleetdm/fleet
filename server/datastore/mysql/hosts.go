@@ -403,7 +403,13 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 				goqu.L("FIND_IN_SET(?, q.platform)", fleet.PlatformFromHost(hostPlatform)).Neq(0),
 			),
 			goqu.I("q.schedule_interval").Gt(0),
-			goqu.I("q.automations_enabled").IsTrue(),
+			goqu.Or(
+				goqu.I("q.automations_enabled").IsTrue(),
+				goqu.And(
+					goqu.I("q.discard_data").IsFalse(),
+					goqu.I("q.logging_type").Eq(fleet.LoggingSnapshot),
+				),
+			),
 			goqu.Or(
 				goqu.I("q.team_id").IsNull(),
 				goqu.I("q.team_id").Eq(teamID_),
@@ -414,6 +420,9 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sql build")
 	}
+
+	fmt.Println("SQL: ", sql)
+	
 	var stats []fleet.QueryStats
 	if err := sqlx.SelectContext(ctx, db, &stats, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load query stats")
