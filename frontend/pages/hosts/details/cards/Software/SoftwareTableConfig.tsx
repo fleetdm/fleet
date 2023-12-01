@@ -75,7 +75,6 @@ const TYPE_CONVERSION: Record<string, string> = {
   rpm_packages: "Package (RPM)",
   yum_sources: "Package (YUM)",
   npm_packages: "Package (NPM)",
-  atom_packages: "Package (Atom)",
   python_packages: "Package (Python)",
   apps: "Application (macOS)",
   chrome_extensions: "Browser plugin (Chrome)",
