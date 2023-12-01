@@ -21,6 +21,8 @@ const (
 	SoftwareVersionMaxLength          = 255
 	SoftwareSourceMaxLength           = 64
 	SoftwareBundleIdentifierMaxLength = 255
+	SoftwareExtensionIDMaxLength      = 255
+	SoftwareBrowserMaxLength          = 255
 
 	SoftwareReleaseMaxLength = 64
 	SoftwareVendorMaxLength  = 114
@@ -40,6 +42,10 @@ type Software struct {
 	BundleIdentifier string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	// Source is the source of the data (osquery table name).
 	Source string `json:"source" db:"source"`
+	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons)
+	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
+	// Browser is the browser type (from osquery chrome_extensions)
+	Browser string `json:"browser,omitempty" db:"browser"`
 
 	// Release is the version of the OS this software was released on
 	// (e.g. "30.el7" for a CentOS package).
@@ -87,6 +93,11 @@ func (s Software) ToUniqueStr() string {
 	// thus we only include them in the string if at least one of them is defined.
 	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
 		ss = append(ss, s.Release, s.Vendor, s.Arch)
+	}
+	// ExtensionID and Browser were added in a single migration, so they are only included if they exist.
+	// This way a blank ExtensionID/Browser matches the pre-migration unique string.
+	if s.ExtensionID != "" || s.Browser != "" {
+		ss = append(ss, s.ExtensionID, s.Browser)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
@@ -216,7 +227,9 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 //
 // All fields are trimmed to fit on Fleet's database.
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
-func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, release, arch, bundleIdentifier, lastOpenedAt string) (*Software, error) {
+func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, release, arch, bundleIdentifier, extensionId, browser, lastOpenedAt string) (
+	*Software, error,
+) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
 	}
@@ -245,6 +258,8 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 		Version:          truncateString(version, SoftwareVersionMaxLength),
 		Source:           truncateString(source, SoftwareSourceMaxLength),
 		BundleIdentifier: truncateString(bundleIdentifier, SoftwareBundleIdentifierMaxLength),
+		ExtensionID:      truncateString(extensionId, SoftwareExtensionIDMaxLength),
+		Browser:          truncateString(browser, SoftwareBrowserMaxLength),
 
 		Release: truncateString(release, SoftwareReleaseMaxLength),
 		Vendor:  vendor,
