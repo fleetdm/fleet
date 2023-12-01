@@ -380,6 +380,9 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 			q.description,
 			q.team_id,
 			q.schedule_interval AS schedule_interval,
+			q.discard_data,
+			q.automations_enabled,
+			qr.last_fetched,
 			COALESCE(sqs.average_memory, 0) AS average_memory,
 			COALESCE(sqs.denylisted, false) AS denylisted,
 			COALESCE(sqs.executions, 0) AS executions,
@@ -391,6 +394,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		FROM
 			queries q
 		LEFT JOIN scheduled_query_stats sqs ON (q.id = sqs.scheduled_query_id AND sqs.host_id = ?)
+		LEFT JOIN query_results qr ON (q.id = qr.query_id AND qr.host_id = ?)
 		WHERE
 			(q.platform = '' OR q.platform IS NULL OR FIND_IN_SET(?, q.platform) != 0)
 			AND q.schedule_interval > 0
@@ -405,6 +409,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 
 	args := []interface{}{
 		pastDate,
+		hid,
 		hid,
 		fleet.PlatformFromHost(hostPlatform),
 		fleet.LoggingSnapshot,
@@ -688,6 +693,9 @@ func queryStatsToScheduledQueryStats(queriesStats []fleet.QueryStats, packName s
 			Denylisted:         queryStats.Denylisted,
 			Executions:         queryStats.Executions,
 			Interval:           queryStats.Interval,
+			DiscardData:        queryStats.DiscardData,
+			AutomationsEnabled: queryStats.AutomationsEnabled,
+			LastFetched:        queryStats.LastFetched,
 			LastExecuted:       queryStats.LastExecuted,
 			OutputSize:         queryStats.OutputSize,
 			SystemTime:         queryStats.SystemTime,

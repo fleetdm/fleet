@@ -123,12 +123,15 @@ type ScheduledQueryStats struct {
 	Denylisted    bool `json:"denylisted" db:"denylisted"`
 	Executions    int  `json:"executions" db:"executions"`
 	// Note schedule_interval is used for DB since "interval" is a reserved word in MySQL
-	Interval     int       `json:"interval" db:"schedule_interval"`
-	LastExecuted time.Time `json:"last_executed" db:"last_executed"`
-	OutputSize   int       `json:"output_size" db:"output_size"`
-	SystemTime   int       `json:"system_time" db:"system_time"`
-	UserTime     int       `json:"user_time" db:"user_time"`
-	WallTime     int       `json:"wall_time" db:"wall_time"`
+	Interval           int        `json:"interval" db:"schedule_interval"`
+	DiscardData        bool       `json:"discard_data" db:"discard_data"`
+	LastFetched        *time.Time `json:"last_fetched" db:"last_fetched"`
+	AutomationsEnabled bool       `json:"automations_enabled" db:"automations_enabled"`
+	LastExecuted       time.Time  `json:"last_executed" db:"last_executed"`
+	OutputSize         int        `json:"output_size" db:"output_size"`
+	SystemTime         int        `json:"system_time" db:"system_time"`
+	UserTime           int        `json:"user_time" db:"user_time"`
+	WallTime           int        `json:"wall_time" db:"wall_time"`
 }
 
 // TeamID returns the team id if the stat is for a team query stat result

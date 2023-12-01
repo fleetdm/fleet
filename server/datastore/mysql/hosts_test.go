@@ -3881,9 +3881,12 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 
 	globalQueryStats = hostResult.PackStats[0].QueryStats
 	require.Equal(t, 3, len(globalQueryStats))
-	require.Equal(t, query1.Name, globalQueryStats[0].ScheduledQueryName)
-	require.Equal(t, query2.Name, globalQueryStats[1].ScheduledQueryName)
-	require.Equal(t, query4.Name, globalQueryStats[2].ScheduledQueryName)
+	for _, queryStat := range globalQueryStats {
+		fmt.Println(queryStat.ScheduledQueryName)
+	}
+	require.Equal(t, query4.Name, globalQueryStats[0].ScheduledQueryName)
+	require.Equal(t, query1.Name, globalQueryStats[1].ScheduledQueryName)
+	require.Equal(t, query2.Name, globalQueryStats[2].ScheduledQueryName)
 
 	// only automations listed when disabled globally
 }
