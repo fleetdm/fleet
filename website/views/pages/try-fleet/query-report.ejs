@@ -81,17 +81,15 @@
         <%// Page indicator %>
         <div purpose="page-indicator">
           <div class="d-flex flex-row justify-content-end align-items-center" v-if="numberOfPages > 5">
-            <a @click="clickChangePage(pageToDisplay)" :class="[pageToDisplay > 0 ? '' : 'disabled']"><img purpose="previous-chevron" alt="A small purple chevron pointing right" src="/images/chevron-left-6x10@2x.png">Previous</a>
-            <div class="d-none d-sm-block">
-            <a class="font-weight-normal" :class="[pageToDisplay === (page - 1) ? 'font-weight-bold' : '']" v-for="page in numberOfPages" @click="clickChangePage(page)" v-if="page < 6">{{page}}</a>
-            <span class="font-weight-normal" v-if="pageToDisplay >= 6">...</span>
+            <a @click="clickChangePage(pageToDisplay)" v-if="pageToDisplay > 0"><img purpose="previous-chevron" alt="A small purple chevron pointing right" src="/images/chevron-left-6x10@2x.png">Previous</a>
+            <a class="font-weight-normal d-none d-sm-block" :class="[pageToDisplay === (page - 1) ? 'font-weight-bold' : '']" v-for="page in numberOfPages" @click="clickChangePage(page)" v-if="page < 6">{{page}}</a>
+            <span class="font-weight-normal d-none d-sm-block" v-if="pageToDisplay >= 6">...</span>
 
             <a class="font-weight-normal" :class="[pageToDisplay >= 5 ? 'font-weight-bold' : '']" v-if="pageToDisplay >= 5 && pageToDisplay <= numberOfPages - 2">{{pageToDisplay + 1}}</a>
 
-            <span class="font-weight-normal" v-if="pageToDisplay <= numberOfPages - 3">...</span>
-            <a :class="[pageToDisplay >= numberOfPages - 1 ? 'font-weight-bold' : '']" class="font-weight-normal" @click="clickChangePage(numberOfPages)">{{numberOfPages}}</a>
-            </div>
-            <a @click="clickChangePage(pageToDisplay + 2)" :class="[pageToDisplay !== numberOfPages - 1 ? '' : 'disabled' ]">Next<img purpose="next-chevron" alt="A small purple chevron pointing left" src="/images/chevron-right-6x10@2x.png"></a>
+            <span class="font-weight-normal d-none d-sm-block" v-if="pageToDisplay <= numberOfPages - 3" >...</span>
+            <a :class="[pageToDisplay >= numberOfPages - 1 ? 'font-weight-bold' : '']" class="font-weight-normal d-none d-sm-block" @click="clickChangePage(numberOfPages)" class="d-none d-sm-block">{{numberOfPages}}</a>
+            <a @click="clickChangePage(pageToDisplay + 2)" v-if="pageToDisplay !== numberOfPages - 1">Next<img purpose="next-chevron" alt="A small purple chevron pointing left" src="/images/chevron-right-6x10@2x.png"></a>
           </div>
           <%// page indicator for < 5 pages %>
           <div class="d-flex flex-row justify-content-end align-items-center" v-else-if="numberOfPages > 1">
