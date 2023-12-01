@@ -22,7 +22,7 @@ You can run any command supported by [Apple's MDM protocol](https://developer.ap
 
 For example, to restart a macOS host, we'll use the "Restart a Device" command documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/restart_a_device#3384428). 
 
-First, we'll need to create a `restart-device.xml` file locally tis payload:
+First, we'll need to create a `restart-device.xml` file locally with this payload:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
