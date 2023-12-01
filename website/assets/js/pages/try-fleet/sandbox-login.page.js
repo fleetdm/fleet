@@ -31,7 +31,7 @@ parasails.registerPage('sandbox-login', {
     registrationSlug: '/try-fleet/register',
     // Possible /try-fleet/explore-data/ redirects
     redirectSlugsByTargetPlatform: {
-      'macos': 'macos/apps',
+      'macos': 'macos/account_policy_data',
       'windows': 'windows/appcompat_shims',
       'linux': 'linux/apparmor_events',
     },
