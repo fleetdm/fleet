@@ -22,12 +22,6 @@ If you don't use MDM features, to enable scripts, we'll deploy a fleetd agent wi
 
 Learn more about generating a fleetd agent and deploying it [here](./enroll-hosts.md).
 
-### Security considerations
-
-Script execution can only be enabled by someone with root access to the host.
-
-Turning MDM on for a macOS host or pushing a new fleetd agent qualify as root access.
-
 ## Execute a script
 
 You can execute a script in the Fleet UI, with Fleet API, or with the fleetctl command-line interface (CLI).
@@ -36,9 +30,9 @@ Fleet UI:
 
 1. In Fleet, head to the **Controls > Scripts** tab and upload your script.
 
-2. Head to the Hosts page and select the host you want to run the script on.
+2. Head to the **Hosts** page and select the host you want to run the script on.
 
-3. On your target host's host details page, select the Scripts tab and select Actions to run the script.
+3. On your target host's host details page, select the **Scripts** tab and select **Actions** to run the script.
 
 > Currently, you can only run scripts on macOS and Windows hosts in the Fleet UI. To run a script on a Linux host, use the Fleet API or fleetctl CLI.
 
