@@ -76,6 +76,10 @@ type Software struct {
 	// corresponding host. Only filled when the software list is requested for
 	// a specific host (host_id is provided).
 	LastOpenedAt *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
+
+	// TitleID is the ID of the associated software title, representing a unique combination of name
+	// and source.
+	TitleID *uint `json:"-" db:"title_id"`
 }
 
 func (Software) AuthzType() string {
