@@ -4506,3 +4506,18 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 
 	return result, nil
 }
+
+func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
+	sql := `
+		SELECT h.os_version, h.updated_at, hd.encrypted as disk_encryption_enabled FROM hosts h
+		LEFT JOIN host_disks hd ON hd.host_id = h.id
+		WHERE id = ?
+	`
+
+	var hh []fleet.HostHealth
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hh, sql, id); err != nil {
+		return nil, err
+	}
+
+	return &hh[0], nil
+}

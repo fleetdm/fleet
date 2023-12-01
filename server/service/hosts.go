@@ -1714,9 +1714,9 @@ type getHostHealthRequest struct {
 }
 
 type getHostHealthResponse struct {
-	Err        error            `json:"error,omitempty"`
-	HostID     uint             `json:"host_id,omitempty"`
-	HostHealth fleet.HostHealth `json:"health,omitempty"`
+	Err        error             `json:"error,omitempty"`
+	HostID     uint              `json:"host_id,omitempty"`
+	HostHealth *fleet.HostHealth `json:"health,omitempty"`
 }
 
 func (r getHostHealthResponse) error() error { return r.Err }
@@ -1724,15 +1724,15 @@ func (r getHostHealthResponse) error() error { return r.Err }
 func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostHealthRequest)
 	fmt.Println("JVE_LOG: hello from get host health ", req.ID)
-	hh, err := svc.GetHostHealth(ctx)
+	hh, err := svc.GetHostHealth(ctx, req.ID)
 	if err != nil {
 		return getHostHealthResponse{Err: err}, nil
 	}
 
-	return getHostHealthResponse{HostID: req.ID, HostHealth: *hh}, nil
+	return getHostHealthResponse{HostID: req.ID, HostHealth: hh}, nil
 }
 
-func (svc *Service) GetHostHealth(ctx context.Context) (*fleet.HostHealth, error) {
+func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
 	fmt.Println("JVE_LOG: hello from svc layer ")
 
 	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
@@ -1746,5 +1746,10 @@ func (svc *Service) GetHostHealth(ctx context.Context) (*fleet.HostHealth, error
 
 	// TODO: figure out how to validate that this user has access to hosts in this host's team
 
-	return &fleet.HostHealth{}, nil
+	hh, err := svc.ds.GetHostHealth(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return hh, nil
 }
