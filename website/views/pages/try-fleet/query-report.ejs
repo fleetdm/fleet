@@ -88,7 +88,7 @@
             <a class="font-weight-normal" :class="[pageToDisplay >= 5 ? 'font-weight-bold' : '']" v-if="pageToDisplay >= 5 && pageToDisplay <= numberOfPages - 2">{{pageToDisplay + 1}}</a>
 
             <span class="font-weight-normal d-none d-sm-block" v-if="pageToDisplay <= numberOfPages - 3" >...</span>
-            <a :class="[pageToDisplay >= numberOfPages - 1 ? 'font-weight-bold' : '']" class="font-weight-normal d-none d-sm-block" @click="clickChangePage(numberOfPages)" class="d-none d-sm-block">{{numberOfPages}}</a>
+            <a :class="[pageToDisplay >= numberOfPages - 1 ? 'font-weight-bold' : '']" class="font-weight-normal d-none d-sm-block" @click="clickChangePage(numberOfPages)">{{numberOfPages}}</a>
             <a @click="clickChangePage(pageToDisplay + 2)" v-if="pageToDisplay !== numberOfPages - 1">Next<img purpose="next-chevron" alt="A small purple chevron pointing left" src="/images/chevron-right-6x10@2x.png"></a>
           </div>
           <%// page indicator for < 5 pages %>
