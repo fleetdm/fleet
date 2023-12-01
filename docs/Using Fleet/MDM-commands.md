@@ -14,7 +14,7 @@ To run a custom command, we will do the following steps:
 3. Run the command using `fleetctl`
 4. View our command's results using `fleetctl`
 
-### Step 1: create a `.xml` file
+### Step 1: create a XML file
 
 You can run any command supported by [Apple's MDM protocol](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) or [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/).
 
