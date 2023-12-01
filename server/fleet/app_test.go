@@ -117,6 +117,88 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 	})
 }
 
+func TestWindowsUpdatesValidate(t *testing.T) {
+	cases := []struct {
+		name    string
+		w       WindowsUpdates
+		wantErr string
+	}{
+		{"empty", WindowsUpdates{}, ""},
+		{"explicitly unset", WindowsUpdates{DeadlineDays: optjson.Int{Set: false}, GracePeriodDays: optjson.Int{Set: false}}, ""},
+		{"explicitly null", WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: false}, GracePeriodDays: optjson.Int{Set: true, Valid: false}}, ""},
+		{"explicitly set to 0", WindowsUpdates{DeadlineDays: optjson.SetInt(0), GracePeriodDays: optjson.SetInt(0)}, ""},
+		{"set to valid values", WindowsUpdates{DeadlineDays: optjson.SetInt(20), GracePeriodDays: optjson.SetInt(4)}, ""},
+		{"deadline null grace set", WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: false}, GracePeriodDays: optjson.SetInt(2)}, "deadline_days is required when grace_period_days is provided"},
+		{"grace null deadline set", WindowsUpdates{DeadlineDays: optjson.SetInt(10), GracePeriodDays: optjson.Int{Set: true, Valid: false}}, "grace_period_days is required when deadline_days is provided"},
+		{"negative deadline", WindowsUpdates{DeadlineDays: optjson.SetInt(-1), GracePeriodDays: optjson.SetInt(2)}, "deadline_days must be an integer between 0 and 30"},
+		{"negative grace", WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(-2)}, "grace_period_days must be an integer between 0 and 7"},
+		{"deadline out of range", WindowsUpdates{DeadlineDays: optjson.SetInt(1000), GracePeriodDays: optjson.SetInt(2)}, "deadline_days must be an integer between 0 and 30"},
+		{"grace out of range", WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(1000)}, "grace_period_days must be an integer between 0 and 7"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.w.Validate()
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestWindowsUpdatesEqual(t *testing.T) {
+	cases := []struct {
+		name   string
+		w1, w2 WindowsUpdates
+		want   bool
+	}{
+		{"both empty", WindowsUpdates{}, WindowsUpdates{}, true},
+		{"both all set", WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(2)}, WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(2)}, true},
+		{"both all null", WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}}, WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}}, true},
+		{"both all set to 0", WindowsUpdates{DeadlineDays: optjson.SetInt(0), GracePeriodDays: optjson.SetInt(0)}, WindowsUpdates{DeadlineDays: optjson.SetInt(0), GracePeriodDays: optjson.SetInt(0)}, true},
+		{"different all set", WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(2)}, WindowsUpdates{DeadlineDays: optjson.SetInt(3), GracePeriodDays: optjson.SetInt(4)}, false},
+		{"different set deadline", WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(2)}, WindowsUpdates{DeadlineDays: optjson.SetInt(3), GracePeriodDays: optjson.SetInt(2)}, false},
+		{"different set grace", WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(2)}, WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(3)}, false},
+		{"different null deadline", WindowsUpdates{DeadlineDays: optjson.SetInt(0), GracePeriodDays: optjson.SetInt(2)}, WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: false}, GracePeriodDays: optjson.SetInt(2)}, false},
+		{"different null grace", WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(0)}, WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.Int{Set: true, Valid: false}}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.w1.Equal(tc.w2)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestWIndowsUpdatesEnabledForHost(t *testing.T) {
+	hostWithRequirements := &Host{
+		OsqueryHostID: ptr.String("notempty"),
+		Platform:      "windows",
+		MDMInfo: &HostMDM{
+			IsServer: false,
+			Enrolled: true,
+			Name:     WellKnownMDMFleet,
+		},
+	}
+	cases := []struct {
+		w    WindowsUpdates
+		host *Host
+		want bool
+	}{
+		{WindowsUpdates{}, &Host{}, false},
+		{WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: false}, GracePeriodDays: optjson.Int{Set: true, Valid: false}}, hostWithRequirements, false},
+		{WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: true}, GracePeriodDays: optjson.Int{Set: true, Valid: false}}, hostWithRequirements, false},
+		{WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: true}, GracePeriodDays: optjson.Int{Set: true, Valid: true}}, hostWithRequirements, true},
+		{WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(2)}, &Host{}, false},
+		{WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(2)}, hostWithRequirements, true},
+	}
+
+	for _, tc := range cases {
+		require.Equal(t, tc.want, tc.w.EnabledForHost(tc.host))
+	}
+}
+
 func TestMacOSUpdatesEnabledForHost(t *testing.T) {
 	hostWithRequirements := &Host{
 		OsqueryHostID: ptr.String("notempty"),

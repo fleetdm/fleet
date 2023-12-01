@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -220,6 +221,8 @@ WHERE
 	return commands, nil
 }
 
+// TODO(roberto): much of this logic should be living in the service layer,
+// would be nice to get the time to properly plan and implement.
 func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, fullResponse *fleet.SyncML) error {
 	if len(fullResponse.Raw) == 0 {
 		return ctxerr.New(ctx, "empty raw response")
@@ -356,6 +359,8 @@ ON DUPLICATE KEY UPDATE
 // updateMDMWindowsHostProfileStatusFromResponseDB takes a slice of potential
 // profile payloads and updates the corresponding `status` and `detail` columns
 // in `host_mdm_windows_profiles`
+// TODO(roberto): much of this logic should be living in the service layer,
+// would be nice to get the time to properly plan and implement.
 func updateMDMWindowsHostProfileStatusFromResponseDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -371,16 +376,17 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	// update their detail and status.
 	const updateHostProfilesStmt = `
 		INSERT INTO host_mdm_windows_profiles
-			(host_uuid, profile_uuid, detail, status, command_uuid)
+			(host_uuid, profile_uuid, detail, status, retries, command_uuid)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 			detail = VALUES(detail),
-			status = VALUES(status)`
+			status = VALUES(status),
+			retries = VALUES(retries)`
 
 	// MySQL will use the `host_uuid` part of the primary key as a first
 	// pass, and then filter that subset by `command_uuid`.
 	const getMatchingHostProfilesStmt = `
-		SELECT host_uuid, profile_uuid, command_uuid
+		SELECT host_uuid, profile_uuid, command_uuid, retries
 		FROM host_mdm_windows_profiles
 		WHERE host_uuid = ? AND command_uuid IN (?)`
 
@@ -409,13 +415,24 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		return ctxerr.Wrap(ctx, err, "running query to get matching profiles")
 	}
 
-	// batch-update the matching entries with the desired detail and status>
+	// batch-update the matching entries with the desired detail and status
 	var sb strings.Builder
 	args = args[:0]
 	for _, hp := range matchingHostProfiles {
 		payload := uuidsToPayloads[hp.CommandUUID]
-		args = append(args, hp.HostUUID, hp.ProfileUUID, payload.Detail, payload.Status)
-		sb.WriteString("(?, ?, ?, ?, command_uuid),")
+		if payload.Status != nil && *payload.Status == fleet.MDMDeliveryFailed {
+			if hp.Retries < mdm.MaxProfileRetries {
+				// if we haven't hit the max retries, we set
+				// the host profile status to nil (which causes
+				// an install profile command to be enqueued
+				// the next time the profile manager cron runs)
+				// and increment the retry count
+				payload.Status = nil
+				hp.Retries++
+			}
+		}
+		args = append(args, hp.HostUUID, hp.ProfileUUID, payload.Detail, payload.Status, hp.Retries)
+		sb.WriteString("(?, ?, ?, ?, ?, command_uuid),")
 	}
 
 	stmt = fmt.Sprintf(updateHostProfilesStmt, strings.TrimSuffix(sb.String(), ","))
@@ -696,6 +713,18 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 	deleted, _ := res.RowsAffected() // cannot fail for mysql
 	if deleted != 1 {
 		return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(profileUUID))
+	}
+	return nil
+}
+
+func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Context, teamID *uint, profileName string) error {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE team_id=? AND name=?`, globalOrTeamID, profileName)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
 	}
 	return nil
 }
@@ -1356,6 +1385,51 @@ INSERT INTO
 		SyncML:      cp.SyncML,
 		TeamID:      cp.TeamID,
 	}, nil
+}
+
+func (ds *Datastore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+	profileUUID := uuid.New().String()
+	stmt := `
+INSERT INTO
+	mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml)
+(SELECT ?, ?, ?, ? FROM DUAL WHERE
+	NOT EXISTS (
+		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
+	)
+)
+ON DUPLICATE KEY UPDATE
+	syncml = VALUES(syncml)
+`
+
+	var teamID uint
+	if cp.TeamID != nil {
+		teamID = *cp.TeamID
+	}
+
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID)
+	if err != nil {
+		switch {
+		case isDuplicate(err):
+			return &existsError{
+				ResourceType: "MDMWindowsConfigProfile.Name",
+				Identifier:   cp.Name,
+				TeamID:       cp.TeamID,
+			}
+		default:
+			return ctxerr.Wrap(ctx, err, "creating new windows mdm config profile")
+		}
+	}
+
+	aff, _ := res.RowsAffected()
+	if aff == 0 {
+		return &existsError{
+			ResourceType: "MDMWindowsConfigProfile.Name",
+			Identifier:   cp.Name,
+			TeamID:       cp.TeamID,
+		}
+	}
+
+	return nil
 }
 
 func (ds *Datastore) batchSetMDMWindowsProfilesDB(

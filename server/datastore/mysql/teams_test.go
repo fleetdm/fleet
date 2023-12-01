@@ -586,13 +586,17 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 						MinimumVersion: optjson.SetString("10.15.0"),
 						Deadline:       optjson.SetString("2025-10-01"),
 					},
+					WindowsUpdates: fleet.WindowsUpdates{
+						DeadlineDays:    optjson.SetInt(7),
+						GracePeriodDays: optjson.SetInt(3),
+					},
 					MacOSSetup: fleet.MacOSSetup{
 						BootstrapPackage:    optjson.SetString("bootstrap"),
 						MacOSSetupAssistant: optjson.SetString("assistant"),
 					},
-					//WindowsSettings: fleet.WindowsSettings{
-					//	CustomSettings: optjson.SetSlice([]string{"foo", "bar"}),
-					//},
+					WindowsSettings: fleet.WindowsSettings{
+						CustomSettings: optjson.SetSlice([]string{"foo", "bar"}),
+					},
 				},
 			},
 		})
@@ -605,13 +609,17 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				MinimumVersion: optjson.SetString("10.15.0"),
 				Deadline:       optjson.SetString("2025-10-01"),
 			},
+			WindowsUpdates: fleet.WindowsUpdates{
+				DeadlineDays:    optjson.SetInt(7),
+				GracePeriodDays: optjson.SetInt(3),
+			},
 			MacOSSetup: fleet.MacOSSetup{
 				BootstrapPackage:    optjson.SetString("bootstrap"),
 				MacOSSetupAssistant: optjson.SetString("assistant"),
 			},
-			//WindowsSettings: fleet.WindowsSettings{
-			//	CustomSettings: optjson.SetSlice([]string{"foo", "bar"}),
-			//},
+			WindowsSettings: fleet.WindowsSettings{
+				CustomSettings: optjson.SetSlice([]string{"foo", "bar"}),
+			},
 		}, mdm)
 	})
 }

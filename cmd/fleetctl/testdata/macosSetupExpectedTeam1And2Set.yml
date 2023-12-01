@@ -10,6 +10,8 @@ spec:
       enable_disk_encryption: false
       macos_settings:
         custom_settings: null
+      windows_settings:
+        custom_settings: null
       macos_setup:
         bootstrap_package: %s
         enable_end_user_authentication: false
@@ -17,6 +19,9 @@ spec:
       macos_updates:
         deadline: null
         minimum_version: null
+      windows_updates:
+        deadline_days: null
+        grace_period_days: null
     scripts: null
     name: tm1
 ---
@@ -31,11 +36,16 @@ spec:
       enable_disk_encryption: false
       macos_settings:
         custom_settings: null
+      windows_settings:
+        custom_settings: null
       macos_setup:
         bootstrap_package: %s
         macos_setup_assistant: %s
       macos_updates:
         deadline: null
         minimum_version: null
+      windows_updates:
+        deadline_days: null
+        grace_period_days: null
     scripts: null
     name: tm2

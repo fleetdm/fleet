@@ -156,8 +156,8 @@ module "jitprovisioner-lambda-warmer" {
   version       = "3.0.1"
   function_name = aws_lambda_function.jitprovisioner.function_name
   function_arn  = aws_lambda_function.jitprovisioner.arn
-# This just needs to have a request to parse.
-  input         = <<EOINPUT
+  # This just needs to have a request to parse.
+  input = <<EOINPUT
 {
     "requestContext": {
         "elb": {
@@ -206,7 +206,7 @@ resource "random_uuid" "jitprovisioner" {
 
 # Use the local to make the trigger work.
 locals {
-  fleet_tag = "v4.40.0"
+  fleet_tag = "v4.41.0"
 }
 
 resource "null_resource" "standard-query-library" {
