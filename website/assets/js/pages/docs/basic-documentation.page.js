@@ -108,11 +108,23 @@ parasails.registerPage('basic-documentation', {
 
     // Handle hashes in urls when coming from an external page.
     if(window.location.hash){
+      // If a hash was provided, we'll remove the # and any query parameters from it. (e.g., #create-an-api-only-user?utm_medium=fleetui&utm_campaign=get-api-token » create-an-api-only-user)
       let possibleHashToScrollTo = _.trimLeft(window.location.hash, '#');
-      let hashToScrollTo = document.getElementById(possibleHashToScrollTo);
+      // find any query parameters after the hash link and remove them.
+      let possibleHashToScrollToContainQueryParameters = possibleHashToScrollTo.match(/\?.*=.*$/);
+      if(possibleHashToScrollToContainQueryParameters){
+        possibleHashToScrollTo = possibleHashToScrollTo.replace(/\?.*=.*$/, '');
+      }
+      // Look for an element that matches the provided hash.
+      let elementWithMatchingId = document.getElementById(possibleHashToScrollTo);
       // If the hash matches a header's ID, we'll scroll to that section.
-      if(hashToScrollTo){
-        hashToScrollTo.scrollIntoView();
+      if(elementWithMatchingId){
+        // Get the distance of the specified element, and reduce it by 90 so the section is not hidden by the page header.
+        let amountToScroll = elementWithMatchingId.offsetTop - 90;
+        window.scrollTo({
+          top: amountToScroll,
+          left: 0,
+        });
       }
     }
 
