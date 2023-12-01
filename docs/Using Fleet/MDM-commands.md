@@ -1,14 +1,13 @@
 # Commands
 
-In Fleet you can run MDM commands to take some action on your macOS and Windows hosts, like restart the host, remotely.
-
-If a host is offline when you run a command, the host will run the command the next time it comes online.
+In Fleet you can run MDM commands to take action on your macOS and Windows hosts, like restart the host, remotely.
 
 ## Custom commands
 
 You can run custom commands and view a specific command's results using the `fleetctl` command-line interface.
 
 To run a custom command, we will do the following steps:
+
 1. Create a `.xml` with the request payload
 2. Choose a target host
 3. Run the command using `fleetctl`
@@ -59,57 +58,27 @@ The `restart-device.xml` file will have this payload instead:
 
 ### Step 2: choose a target host
 
-To run a command, we need to specify a target host by hostname. Commands can only be run on a single host in Fleet.
-
-To find a host's hostname, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
-
-Fleet UI:
-
-1. Head to the **Hosts** page in Fleet and find your target host.
-2. Make sure the **Hostname** column is visible (select **Edit columns** if not) and find your host's hostname. You'll need this hostname to run the command.
-
-> A host must be enrolled to Fleet and have MDM turned on to run a command against it.
-
-`fleetctl` CLI:
+To run a command, we need to specify a target host by hostname.
 
 1. Run the `fleetctl get hosts --mdm` command to get a list of hosts that are enrolled to Fleet and have MDM turned on.
-2. Find your host's hostname. You'll need this hostname to run the command.
+2. Find your target host's hostname. You'll need this hostname to run the command.
 
 ### Step 3: run the command
 
 1. Run the `fleetctl mdm run-command --payload=restart-device.xml --host=hostname ` command.
-> Replace the --payload and --host flags with your `.xml` file and hostname respectively.
 
-2. Look at the on-screen information. In the output you'll see the command required to see results. Be sure to copy this command. If you don't, it will be difficult to view command results later.
+> Replace the --payload and --host flags with your XML file and hostname respectively.
+
+2. Look at the on-screen information. In the output you'll see the command to see results.
 
 ### Step 4: View the command's results
 
 1. Run the `fleetctl get mdm-command-results --id=<insert-command-id>`
-
 2. Look at the on-screen information.
-
-Example output:
-
-```sh
-$ fleetctl get mdm-command-results -id 333af7f8-b9a4-4f62-bfb2-f7488fbade21
-+--------------------------------------+----------------------+----------------+--------------+---------------------+---------------------------------------------------------+
-|                  ID                  |         TIME         |      TYPE      |    STATUS    |      HOSTNAME       |                         RESULTS                         |
-+--------------------------------------+----------------------+----------------+--------------+---------------------+---------------------------------------------------------+
-| 333af7f8-b9a4-4f62-bfb2-f7488fbade21 | 2023-04-04T21:29:29Z | RestartDevice  | Acknowledged | xyz-macbook-air.lan | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE        |
-|                                      |                      |                |              |                     | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"              |
-|                                      |                      |                |              |                     | "http://www.apple.com/DTDs/PropertyList-1.0.dtd">       |
-|                                      |                      |                |              |                     | <plist version="1.0"> <dict> <key>CommandUUID</key>     |
-|                                      |                      |                |              |                     | 	<string>333af7f8-b9a4-4f62-bfb2-f7488fbade21</string> |
-|                                      |                      |                |              |                     | 	<key>Status</key>                                     |
-|                                      |                      |                |              |                     | 	<string>Acknowledged</string> <key>UDID</key>         |
-|                                      |                      |                |              |                     | 	<string>3A529CD6-2154-55EA-9AB7-EB13A43D9F5E</string> |
-|                                      |                      |                |              |                     | </dict> </plist>                                        |
-+--------------------------------------+----------------------+----------------+--------------+---------------------+---------------------------------------------------------+
-```
 
 ## List recent commands
 
-You can view the list of the 1,000 latest commands using "fleetctl":
+You can view the list of the 1,000 latest commands:
 
 1. Run `fleetctl get mdm-commands`
 2. View the list of latest commands, most recent first, along with the timestamp, targeted hostname, command type, execution status and command ID.
@@ -129,14 +98,15 @@ $ fleetctl get mdm-commands
 
 The command ID can be used to view command results as documented in [step 4 of the previous section](#step-4-view-the-commands-results). 
 
-The possible statuses for macOS hosts are:
+The possible statuses for macOS hosts are the following:
+
 * Pending: the command has yet to run on the host. The host will run the command the next time it comes online.
 * NotNow: the host responded with "NotNow" status via the MDM protocol: the host received the command, but couldn’t execute it. The host will try to run the command the next time it comes online.
 * Acknowledged: the host responded with "Acknowledged" status via the MDM protocol: the host processed the command successfully.
 * Error: the host responded with "Error" status via the MDM protocol: an error occurred. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
 * CommandFormatError: the host responded with "CommandFormatError" status via the MDM protocol: a protocol error occurred, which can result from a malformed command. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
 
-The possible statuses for Windows hosts are documented in Microsoft's docs [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
+The possible statuses for Windows hosts are documented in Microsoft's documentation [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 
 <meta name="pageOrderInSection" value="1507">
 <meta name="title" value="Commands">
