@@ -790,6 +790,56 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 	assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
 
+func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	host := fleet.Host{
+		ID: 999,
+	}
+	ctx = hostctx.NewContext(ctx, &host)
+
+	logs := []string{
+		`{"snapshot":[],"action":"snapshot","name":"pack/Global/query_no_rows","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+	}
+
+	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
+	var results []json.RawMessage
+	err := json.Unmarshal([]byte(logJSON), &results)
+	require.NoError(t, err)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{
+				QueryReportsDisabled: false,
+			},
+		}, nil
+	}
+
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return &fleet.Query{
+			ID:          1,
+			DiscardData: false,
+			Logging:     fleet.LoggingSnapshot,
+		}, nil
+	}
+
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
+	}
+
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+		require.Len(t, rows, 1)
+		require.Equal(t, uint(999), rows[0].HostID)
+		require.NotZero(t, rows[0].LastFetched)
+		require.Nil(t, rows[0].Data)
+		return nil
+	}
+
+	svc.SubmitResultLogs(ctx, results)
+	assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
 
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
