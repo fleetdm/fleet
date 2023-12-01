@@ -4509,21 +4509,18 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 
 func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
 	sql := `
-		SELECT h.os_version, h.updated_at, hd.encrypted as disk_encryption_enabled FROM hosts h
+		SELECT h.os_version, h.updated_at, h.platform, h.team_id, hd.encrypted as disk_encryption_enabled FROM hosts h
 		LEFT JOIN host_disks hd ON hd.host_id = h.id
 		WHERE id = ?
 	`
 
 	var results []fleet.HostHealth
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, id); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "loading host health")
 	}
 
-	// TODO(JVE): check that we got exactly 1 result
-
 	hh := &results[0]
-
-	host := &fleet.Host{ID: id}
+	host := &fleet.Host{ID: id, Platform: hh.Platform}
 	if err := ds.LoadHostSoftware(ctx, host, true); err != nil {
 		return nil, err
 	}
@@ -4531,6 +4528,17 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 	for _, s := range host.Software {
 		if len(s.Vulnerabilities) > 0 {
 			hh.VulnerableSoftware = append(hh.VulnerableSoftware, s)
+		}
+	}
+
+	policies, err := ds.ListPoliciesForHost(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, p := range policies {
+		if p.Response == "fail" {
+			hh.FailingPolicies = append(hh.FailingPolicies, p)
 		}
 	}
 

@@ -1723,7 +1723,6 @@ func (r getHostHealthResponse) error() error { return r.Err }
 
 func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostHealthRequest)
-	fmt.Println("JVE_LOG: hello from get host health ", req.ID)
 	hh, err := svc.GetHostHealth(ctx, req.ID)
 	if err != nil {
 		return getHostHealthResponse{Err: err}, nil
@@ -1733,8 +1732,6 @@ func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
-	fmt.Println("JVE_LOG: hello from svc layer ")
-
 	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
 	if !alreadyAuthd {
 		// First ensure the user has access to list hosts, then check the specific
@@ -1744,11 +1741,16 @@ func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHeal
 		}
 	}
 
-	// TODO: figure out how to validate that this user has access to hosts in this host's team
-
 	hh, err := svc.ds.GetHostHealth(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+
+	if !alreadyAuthd {
+		// Authorize again with team loaded now that we have team_id
+		if err := svc.authz.Authorize(ctx, &fleet.Host{ID: id, TeamID: hh.TeamID}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	return hh, nil

@@ -326,6 +326,9 @@ type HostHealth struct {
 	OsVersion             string              `json:"os_version" db:"os_version"`
 	DiskEncryptionEnabled *bool               `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
 	VulnerableSoftware    []HostSoftwareEntry `json:"vulnerable_software,omitempty"`
+	FailingPolicies       []*HostPolicy       `json:"failing_policies,omitempty"`
+	Platform              string              `json:"-" db:"platform"` // Needed to fetch failing policies. Not returned in responses.
+	TeamID                *uint               `json:"-" db:"team_id"`  // Needed to verify that user can access this those. Not returned in responses.
 }
 
 type MDMHostData struct {
