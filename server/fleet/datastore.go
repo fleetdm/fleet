@@ -461,6 +461,13 @@ type Datastore interface {
 	// After aggregation, it cleans up unused software (e.g. software installed
 	// on removed hosts, software uninstalled on hosts, etc.)
 	SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error
+
+	// ReconcileSoftwareTitles ensures the software_titles and software tables are in sync.
+	// It inserts new software titles and updates the software table with the title_id.
+	// It also cleans up any software titles that are no longer associated with any software.
+	// It is intended to be run after SyncHostsSoftware.
+	ReconcileSoftwareTitles(ctx context.Context) error
+
 	// HostVulnSummariesBySoftwareIDs returns a list of all hosts that have at least one of the
 	// specified Software installed. Includes the path were the software was installed.
 	HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]HostVulnerabilitySummary, error)
