@@ -182,8 +182,6 @@ Please see [handbook/company/communications#events](https://fleetdm.com/handbook
 ##### Video
 Please see [handbook/company/communications#video](https://fleetdm.com/handbook/company/communications#video)
 
-##### Podcast
-Please see [handbook/company/communications#video](https://fleetdm.com/handbook/company/communications#podcast)
 
 
 
