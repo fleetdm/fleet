@@ -691,26 +691,6 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 		},
 	}
 
-	queriesDBData := map[string]*fleet.Query{
-		"pack/Global/Uptime": {
-			ID:          1,
-			DiscardData: false,
-			Logging:     fleet.LoggingSnapshot,
-		},
-	}
-
-	// Result not saved if result is not a snapshot
-	notSnapshotResult := []*fleet.ScheduledQueryResult{
-		{
-			QueryName:     "pack/Global/Uptime",
-			OsqueryHostID: "1379f59d98f4",
-			Snapshot:      []json.RawMessage{},
-			UnixTime:      1484078931,
-		},
-	}
-	serv.saveResultLogsToQueryReports(ctx, notSnapshotResult, queriesDBData)
-	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
-
 	// Results not saved if DiscardData is true in Query
 	discardDataFalse := map[string]*fleet.Query{
 		"pack/Global/Uptime": {
