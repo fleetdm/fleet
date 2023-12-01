@@ -29,12 +29,7 @@ func TestUp_20231130132931(t *testing.T) {
 	// Apply current migration.
 	applyNext(t, db)
 
-	// check that the title_id column was added.
-	type softwareWithTitleID struct {
-		fleet.Software
-		TitleID *uint `db:"title_id"`
-	}
-
+	// Check that the title_id column was added.
 	selectStmt := `
 SELECT
 	id,
@@ -45,7 +40,7 @@ SELECT
 FROM software
 WHERE name IN ('test-name', 'test-name2') AND title_id IS NULL`
 
-	var rows []softwareWithTitleID
+	var rows []fleet.Software
 	err = sqlx.SelectContext(context.Background(), db, &rows, selectStmt)
 	require.NoError(t, err)
 	require.Len(t, rows, 4)
@@ -76,7 +71,7 @@ SELECT
 FROM software
 WHERE title_id = ?`
 
-	rows = []softwareWithTitleID{}
+	rows = []fleet.Software{}
 	err = sqlx.SelectContext(context.Background(), db, &rows, selectStmt, 1)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
@@ -86,12 +81,13 @@ WHERE title_id = ?`
 	_, err = db.Exec(updateStmt, 1, "test-name", "test-source")
 	require.NoError(t, err)
 
-	rows = []softwareWithTitleID{}
+	rows = []fleet.Software{}
 	err = sqlx.SelectContext(context.Background(), db, &rows, selectStmt, 1)
 	require.NoError(t, err)
 	require.Len(t, rows, 4)
 
 	for _, row := range rows {
+		require.NotNil(t, row.TitleID)
 		require.Equal(t, uint(1), *row.TitleID)
 		require.Equal(t, "test-name", row.Name)
 		require.Equal(t, "test-source", row.Source)
