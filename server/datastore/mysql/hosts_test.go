@@ -3859,12 +3859,11 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 	require.Equal(t, query1.Name, globalQueryStats[0].ScheduledQueryName)
 	require.Equal(t, query2.Name, globalQueryStats[1].ScheduledQueryName)
 
-	// team query stats
 	teamQueryStats := hostResult.PackStats[1].QueryStats
 	require.Equal(t, query6.Name, teamQueryStats[0].ScheduledQueryName)
 
-	// queries that have query results
-	// Add row to query results
+	// Queries with Query Results should be included in the pack stats
+	// regardless of the query interval
 	queryResultRow := []*fleet.ScheduledQueryResultRow{
 		{
 			QueryID: query4.ID, // no interval
@@ -3884,11 +3883,9 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 	for _, queryStat := range globalQueryStats {
 		fmt.Println(queryStat.ScheduledQueryName)
 	}
-	require.Equal(t, query4.Name, globalQueryStats[0].ScheduledQueryName)
+	require.Equal(t, query4.Name, globalQueryStats[0].ScheduledQueryName) // no interval, but has a query result
 	require.Equal(t, query1.Name, globalQueryStats[1].ScheduledQueryName)
 	require.Equal(t, query2.Name, globalQueryStats[2].ScheduledQueryName)
-
-	// only automations listed when disabled globally
 }
 
 func testHostsAllPackStats(t *testing.T, ds *Datastore) {
