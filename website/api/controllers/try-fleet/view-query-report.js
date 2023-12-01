@@ -96,7 +96,7 @@ module.exports = {
     .intercept((error)=>{
       return new Error(`When sending an API request to ${sails.config.custom.fleetBaseUrlForQueryReports}/api/v1/fleet/hosts?team_id=${sails.config.custom.teamApidForQueryReports} to get information about hosts on the query report team, an error occured: ${error}`);
     });
-    if(hostsOnQueryReportTeamApiResponse.hosts || hostsOnQueryReportTeamApiResponse.hosts.legnth > 1){
+    if(!hostsOnQueryReportTeamApiResponse.hosts || hostsOnQueryReportTeamApiResponse.hosts.legnth < 1){
       // TODO: is there a better way of handling this error?
       throw new Error(`Error! When view-query-report sent a request to ${sails.config.custom.fleetBaseUrlForQueryReports} to get information about the hosts on the query reports team, the API response contained no hosts.`);
     }
@@ -218,13 +218,6 @@ module.exports = {
       // Break the results into smaller arrays with 20 values each for table pagination
       reportForThisHost = _.chunk(reportWithSortedColumns, 20);
     }
-    let userFriendlyPlatformNameForDescription = _.capitalize(hostPlatform);
-    if(hostPlatform === 'macos'){
-      userFriendlyPlatformNameForDescription = 'macOS';
-    }
-    // Set the meta title and description.
-    let pageTitleForMeta = `Explore ${tableName} | Fleet for osquery`;
-    let pageDescriptionForMeta=  `See live data collected from the ${tableName} table on a ${userFriendlyPlatformNameForDescription} host running Fleet.`;
 
 
     // Respond with view.
@@ -236,8 +229,6 @@ module.exports = {
       tableName,
       osqueryTableInfo: specifiedOsqueryTable,
       hostDetails, hostsAvailableToQuery,
-      pageTitleForMeta,
-      pageDescriptionForMeta,
     };
 
   }
