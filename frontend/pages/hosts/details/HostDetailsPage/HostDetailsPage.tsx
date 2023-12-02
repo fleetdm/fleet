@@ -16,7 +16,6 @@ import { pick } from "lodash";
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
-import configAPI from "services/entities/config";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";

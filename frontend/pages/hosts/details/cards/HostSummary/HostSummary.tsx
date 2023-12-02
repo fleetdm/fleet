@@ -340,10 +340,10 @@ const HostSummary = ({
                 : titleData.display_name || DEFAULT_EMPTY_CELL_VALUE}
             </h1>
 
-            <p className="last-fetched">
+            <div className="last-fetched">
               {"Last fetched"} {lastFetched}
               &nbsp;
-            </p>
+            </div>
             {renderRefetch()}
           </div>
         </div>
