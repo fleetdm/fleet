@@ -7923,6 +7923,24 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Configures LSASS to run as a protected process' is set to 'Enabled: Enabled with UEFI Lock' 
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether the Local Security Authority Subservice Service (LSASS) runs in protected mode and also has the option to lock in protected mode with Unified Extensible Firmware Interface (UEFI). The Local Security Authority (LSA), which includes the LSASS process, validates users for local and remote sign-ins and enforces local security policies.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: Enabled with UEFI Lock:
+    'Computer Configuration\Policies\Administrative Templates\System\Local Security Authority\Configures LSASS to run as a protected process'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\Control\LSA\RunAsPPL' and data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Application: Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
   platforms: win11
   platform: windows
