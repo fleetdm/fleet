@@ -616,17 +616,20 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 			PackName:           pack1.Name,
 			ScheduledQueryName: squery1.Name,
 
-			QueryName:     query1.Name,
-			PackID:        pack1.ID,
-			AverageMemory: 8000,
-			Denylisted:    false,
-			Executions:    164,
-			Interval:      30,
-			LastExecuted:  time.Unix(1620325191, 0).UTC(),
-			OutputSize:    1337,
-			SystemTime:    150,
-			UserTime:      180,
-			WallTime:      0,
+			QueryName:          query1.Name,
+			PackID:             pack1.ID,
+			DiscardData:        false,
+			AutomationsEnabled: false,
+			LastFetched:        nil,
+			AverageMemory:      8000,
+			Denylisted:         false,
+			Executions:         164,
+			Interval:           30,
+			LastExecuted:       time.Unix(1620325191, 0).UTC(),
+			OutputSize:         1337,
+			SystemTime:         150,
+			UserTime:           180,
+			WallTime:           0,
 		},
 	}
 	stats2 := []fleet.ScheduledQueryStats{
@@ -634,17 +637,20 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 			PackName:           fmt.Sprintf("team-%d", team.ID),
 			ScheduledQueryName: tpQuery.Name,
 
-			QueryName:     tpQuery.Name,
-			PackID:        0, // pack_id will be 0 for stats of queries not in packs.
-			AverageMemory: 8000,
-			Denylisted:    false,
-			Executions:    164,
-			Interval:      30,
-			LastExecuted:  time.Unix(1620325191, 0).UTC(),
-			OutputSize:    1337,
-			SystemTime:    150,
-			UserTime:      180,
-			WallTime:      0,
+			QueryName:          tpQuery.Name,
+			PackID:             0, // pack_id will be 0 for stats of queries not in packs.
+			LastFetched:        nil,
+			DiscardData:        tpQuery.DiscardData,
+			AutomationsEnabled: tpQuery.AutomationsEnabled,
+			AverageMemory:      8000,
+			Denylisted:         false,
+			Executions:         164,
+			Interval:           30,
+			LastExecuted:       time.Unix(1620325191, 0).UTC(),
+			OutputSize:         1337,
+			SystemTime:         150,
+			UserTime:           180,
+			WallTime:           0,
 		},
 	}
 
@@ -3880,9 +3886,6 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 
 	globalQueryStats = hostResult.PackStats[0].QueryStats
 	require.Equal(t, 3, len(globalQueryStats))
-	for _, queryStat := range globalQueryStats {
-		fmt.Println(queryStat.ScheduledQueryName)
-	}
 	require.Equal(t, query4.Name, globalQueryStats[0].ScheduledQueryName) // no interval, but has a query result
 	require.Equal(t, query1.Name, globalQueryStats[1].ScheduledQueryName)
 	require.Equal(t, query2.Name, globalQueryStats[2].ScheduledQueryName)
