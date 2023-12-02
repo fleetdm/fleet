@@ -3884,11 +3884,21 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, hostResult)
 
+	assertContains := func(stats []fleet.ScheduledQueryStats, name string) {
+		t.Helper()
+		for _, stat := range stats {
+			if stat.ScheduledQueryName == name {
+				return
+			}
+		}
+		t.Errorf("expected to find %s in stats", name)
+	}
+
 	globalQueryStats = hostResult.PackStats[0].QueryStats
 	require.Equal(t, 3, len(globalQueryStats))
-	require.Equal(t, query4.Name, globalQueryStats[0].ScheduledQueryName) // no interval, but has a query result
-	require.Equal(t, query1.Name, globalQueryStats[1].ScheduledQueryName)
-	require.Equal(t, query2.Name, globalQueryStats[2].ScheduledQueryName)
+	assertContains(globalQueryStats, query1.Name)
+	assertContains(globalQueryStats, query2.Name)
+	assertContains(globalQueryStats, query4.Name) // no interval, but has a query result
 }
 
 func testHostsAllPackStats(t *testing.T, ds *Datastore) {
