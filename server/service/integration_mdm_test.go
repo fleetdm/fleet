@@ -1159,7 +1159,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	t.Run("retry count does not reset", func(t *testing.T) {
 		// add another profile
 		testProfiles["N5"] = syncml.ForTestWithData(map[string]string{"L5": "D5"})
-		//hostProfsByIdent["N5"] = &fleet.HostMacOSProfile{Identifier: "N5", DisplayName: "N5", InstallDate: time.Now()}
+		// hostProfsByIdent["N5"] = &fleet.HostMacOSProfile{Identifier: "N5", DisplayName: "N5", InstallDate: time.Now()}
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		// trigger a profile sync and confirm that the install profile
 		// command for N5 was sent and simulate a device error
@@ -1241,6 +1241,7 @@ func setupExpectedFleetdProfile(t *testing.T, serverURL string, enrollSecret str
 		EnrollSecret: enrollSecret,
 		ServerURL:    serverURL,
 		PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
+		PayloadName:  servermdm.FleetdConfigProfileName,
 	}
 	err := mobileconfig.FleetdProfileTemplate.Execute(&b, params)
 	require.NoError(t, err)
@@ -3372,7 +3373,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
 	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
 
-	// trying to add/delete profiles managed by Fleet fails
+	// trying to add/delete profiles with identifiers managed by Fleet fails
 	for p := range mobileconfig.FleetPayloadIdentifiers() {
 		generateTestProfile("TestNoTeam", p)
 		body, headers := generateNewReq("TestNoTeam", nil)
@@ -3381,10 +3382,55 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 		generateTestProfile("TestWithTeamID", p)
 		body, headers = generateNewReq("TestWithTeamID", nil)
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
-		cp, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTestWithContent("N1", "I1", p, "random"), nil)
+		cp, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTestWithContent("N1", "I1", p, "random", ""), nil)
 		require.NoError(t, err)
 		testProfiles["WithContent"] = *cp
 		body, headers = generateNewReq("WithContent", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+	}
+
+	// trying to add profiles with identifiers managed by Fleet fails
+	for p := range mobileconfig.FleetPayloadIdentifiers() {
+		generateTestProfile("TestNoTeam", p)
+		body, headers := generateNewReq("TestNoTeam", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+
+		generateTestProfile("TestWithTeamID", p)
+		body, headers = generateNewReq("TestWithTeamID", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+		cp, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTestWithContent("N1", "I1", p, "random", ""), nil)
+		require.NoError(t, err)
+		testProfiles["WithContent"] = *cp
+		body, headers = generateNewReq("WithContent", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+	}
+
+	// trying to add profiles with names reserved by Fleet fails
+	for name := range servermdm.FleetReservedProfileNames() {
+		cp := &fleet.MDMAppleConfigProfile{
+			Name:         name,
+			Identifier:   "valid.identifier",
+			Mobileconfig: mcBytesForTest(name, "valid.identifier", "some-uuid"),
+		}
+		body, headers := generateNewProfileMultipartRequest(t, nil, "some_filename", cp.Mobileconfig, s.token)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+
+		body, headers = generateNewProfileMultipartRequest(t, &testTeam.ID, "some_filename", cp.Mobileconfig, s.token)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+
+		cp, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTestWithContent(
+			"valid outer name",
+			"valid.outer.identifier",
+			"valid.inner.identifer",
+			"some-uuid",
+			name,
+		), nil)
+		require.NoError(t, err)
+		body, headers = generateNewProfileMultipartRequest(t, nil, "some_filename", cp.Mobileconfig, s.token)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+
+		cp.TeamID = &testTeam.ID
+		body, headers = generateNewProfileMultipartRequest(t, &testTeam.ID, "some_filename", cp.Mobileconfig, s.token)
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
 	}
 
@@ -3980,7 +4026,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	// payloads with reserved types
 	for p := range mobileconfig.FleetPayloadTypes() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
-			mobileconfigForTestWithContent("N1", "I1", "II1", p),
+			mobileconfigForTestWithContent("N1", "I1", "II1", p, ""),
 		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
@@ -3989,7 +4035,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	// payloads with reserved identifiers
 	for p := range mobileconfig.FleetPayloadIdentifiers() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
-			mobileconfigForTestWithContent("N1", "I1", p, "random"),
+			mobileconfigForTestWithContent("N1", "I1", p, "random", ""),
 		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadIdentifier(s): %s", p))
@@ -8375,8 +8421,12 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	// Windows-reserved LocURI
 	assertWindowsProfile("bitlocker.xml", syncml.FleetBitLockerTargetLocURI, 0, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include BitLocker settings.")
 	assertWindowsProfile("updates.xml", syncml.FleetOSUpdateTargetLocURI, testTeam.ID, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include Windows updates settings.")
-	// Windows-reserved profile name
-	assertWindowsProfile(syncml.FleetWindowsOSUpdatesProfileName+".xml", "./Test", 0, http.StatusBadRequest, `Couldn't upload. Profile name "Windows OS Updates" is not allowed.`)
+
+	// Fleet-reserved profiles
+	for name := range servermdm.FleetReservedProfileNames() {
+		assertAppleProfile(name+".mobileconfig", name, name+"-ident", 0, http.StatusBadRequest, fmt.Sprintf(`name %s is not allowed`, name))
+		assertWindowsProfile(name+".xml", "./Test", 0, http.StatusBadRequest, fmt.Sprintf(`Couldn't upload. Profile name %q is not allowed.`, name))
+	}
 
 	// Windows invalid content
 	body, headers := generateNewProfileMultipartRequest(t, nil, "win.xml", []byte("\x00\x01\x02"), s.token)
@@ -10035,7 +10085,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	// payloads with reserved types
 	for p := range mobileconfig.FleetPayloadTypes() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: map[string][]byte{
-			"N1": mobileconfigForTestWithContent("N1", "I1", "II1", p),
+			"N1": mobileconfigForTestWithContent("N1", "I1", "II1", p, ""),
 			"N3": syncMLForTest("./Foo/Bar"),
 		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 		errMsg := extractServerErrorText(res.Body)
@@ -10045,7 +10095,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	// payloads with reserved identifiers
 	for p := range mobileconfig.FleetPayloadIdentifiers() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: map[string][]byte{
-			"N1": mobileconfigForTestWithContent("N1", "I1", p, "random"),
+			"N1": mobileconfigForTestWithContent("N1", "I1", p, "random", ""),
 			"N3": syncMLForTest("./Foo/Bar"),
 		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
 		errMsg := extractServerErrorText(res.Body)

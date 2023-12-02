@@ -48,8 +48,8 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	if len(bytes.TrimSpace(m.SyncML)) == 0 {
 		return errors.New("The file should include valid XML.")
 	}
-
-	if _, ok := syncml.FleetReservedProfileNames()[m.Name]; ok {
+	fleetNames := mdm.FleetReservedProfileNames()
+	if _, ok := fleetNames[m.Name]; ok {
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
 
