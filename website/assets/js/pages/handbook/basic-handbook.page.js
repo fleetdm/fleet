@@ -53,13 +53,8 @@ parasails.registerPage('basic-handbook', {
     // Handle hashes in urls when coming from an external page.
     if(window.location.hash){
       // If a hash was provided, we'll remove the # and any query parameters from it. (e.g., #create-an-api-only-user?utm_medium=fleetui&utm_campaign=get-api-token » create-an-api-only-user)
-      let possibleHashToScrollTo = _.trimLeft(window.location.hash, '#');
-      // find any query parameters after the hash link and remove them.
-      let possibleHashToScrollToContainQueryParameters = possibleHashToScrollTo.match(/\?.*=.*$/);
-      if(possibleHashToScrollToContainQueryParameters){
-        possibleHashToScrollTo = possibleHashToScrollTo.replace(/\?.*=.*$/, '');
-      }
-      // Look for an element that matches the provided hash.
+      // Note: Hash links for headings in markdown content will never have a '?' beacause they are removed when convereted to kebab-case, so we can safely strip everything after one if a url contains a query parameter.
+      let possibleHashToScrollTo = _.trimLeft(window.location.hash.split('?')[0], '#');
       let elementWithMatchingId = document.getElementById(possibleHashToScrollTo);
       // If the hash matches a header's ID, we'll scroll to that section.
       if(elementWithMatchingId){
