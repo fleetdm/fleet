@@ -249,7 +249,7 @@ const HostDetailsPage = ({
       last_fetched: null,
       automations_enabled: false,
       interval: 1000,
-      scheduled_query_id: 2,
+      scheduled_query_id: 1,
 
       pack_id: 1,
       pack_name: "Team: 💻 Workstations",
@@ -293,7 +293,7 @@ const HostDetailsPage = ({
       automations_enabled: true,
       query_name: "query 3",
       last_fetched: "2023-11-29T15:20:02Z",
-      scheduled_query_id: 2,
+      scheduled_query_id: 3,
 
       pack_id: 1,
       pack_name: "Team: 💻 Workstations",
@@ -842,6 +842,8 @@ const HostDetailsPage = ({
             </TabPanel>
             <TabPanel>
               <QueriesCard
+                hostId={host?.id}
+                router={router}
                 isChromeOSHost={host?.platform === "chrome"}
                 schedule={schedule}
                 isLoading={isLoadingHost}

@@ -193,6 +193,7 @@ const enhanceScheduleData = (
     };
     return {
       query_name,
+      id: scheduled_query_id,
       performance: {
         indicator: performanceIndicator(scheduledQueryPerformance),
         id: scheduled_query_id,

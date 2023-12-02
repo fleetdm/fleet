@@ -98,6 +98,8 @@ export default {
   HOST_POLICIES: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/policies`;
   },
+  HOST_QUERY_REPORT: (hostId: number, queryId: number): string =>
+    `${URL_PREFIX}/hosts/${hostId}/queries/${queryId}`,
   DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },
