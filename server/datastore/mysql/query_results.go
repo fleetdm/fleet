@@ -125,3 +125,17 @@ func (ds *Datastore) ResultCountForQueryAndHost(ctx context.Context, queryID, ho
 
 	return count, nil
 }
+
+func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
+	selectStmt := `
+               SELECT query_id, host_id, last_fetched, data FROM query_results
+                       WHERE query_id = ? AND host_id = ?
+               `
+	results := []*fleet.ScheduledQueryResultRow{}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting query result rows for host")
+	}
+
+	return results, nil
+}

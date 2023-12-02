@@ -8,10 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,7 +21,8 @@ func TestQueryResults(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"Save", saveQueryResultRows},
-		{"Get", getQueryResultRows},
+		{"Get", testGetQueryResultRows},
+		{"GetForHost", testGetQueryResultRowsForHost},
 		{"CountForQuery", testCountResultsForQuery},
 		{"CountForQueryAndHost", testCountResultsForQueryAndHost},
 		{"Overwrite", testOverwriteQueryResultRows},
@@ -68,7 +67,7 @@ func saveQueryResultRows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 }
 
-func getQueryResultRows(t *testing.T, ds *Datastore) {
+func testGetQueryResultRows(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
 	query := test.NewQuery(t, ds, nil, "New Query", "SELECT 1", user.ID, true)
 	host := test.NewHost(t, ds, "hostname123", "192.168.1.100", "1234", "UI8XB1223", time.Now())
@@ -140,6 +139,73 @@ func getQueryResultRows(t *testing.T, ds *Datastore) {
 	results, err = ds.QueryResultRowsForHost(context.Background(), 999, 999)
 	require.NoError(t, err)
 	require.Len(t, results, 0)
+}
+
+func testGetQueryResultRowsForHost(t *testing.T, ds *Datastore) {
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	query := test.NewQuery(t, ds, nil, "New Query", "SELECT 1", user.ID, true)
+	host1 := test.NewHost(t, ds, "hostname1", "192.168.1.100", "1111", "UI8XB1223", time.Now())
+	host2 := test.NewHost(t, ds, "hostname2", "192.168.1.100", "2222", "UI8XB1223", time.Now())
+
+	mockTime := time.Now().UTC().Truncate(time.Second)
+
+	// Insert 2 Result Rows for Query1 Host1
+	host1ResultRows := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     query.ID,
+			HostID:      host1.ID,
+			LastFetched: mockTime,
+			Data: json.RawMessage(
+				`{"model": "USB Keyboard", "vendor": "Apple Inc."}`,
+			),
+		},
+		{
+			QueryID:     query.ID,
+			HostID:      host1.ID,
+			LastFetched: mockTime,
+			Data: json.RawMessage(
+				`{"model": "USB Mouse", "vendor": "Logitech"}`,
+			),
+		},
+	}
+	err := ds.OverwriteQueryResultRows(context.Background(), host1ResultRows)
+	require.NoError(t, err)
+
+	// Insert 1 Result Row for Query1 Host2
+	host2ResultRows := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     query.ID,
+			HostID:      host2.ID,
+			LastFetched: mockTime,
+			Data: json.RawMessage(
+				`{"model": "USB Hub","vendor": "Logitech"}`,
+			),
+		},
+	}
+	err = ds.OverwriteQueryResultRows(context.Background(), host2ResultRows)
+	require.NoError(t, err)
+
+	// Assert that Query1 returns 2 results for Host1
+	results, err := ds.QueryResultRowsForHost(context.Background(), query.ID, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	require.Equal(t, host1ResultRows[0].QueryID, results[0].QueryID)
+	require.Equal(t, host1ResultRows[0].HostID, results[0].HostID)
+	require.Equal(t, host1ResultRows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
+	require.JSONEq(t, string(host1ResultRows[0].Data), string(results[0].Data))
+	require.Equal(t, host1ResultRows[1].QueryID, results[1].QueryID)
+	require.Equal(t, host1ResultRows[1].HostID, results[1].HostID)
+	require.Equal(t, host1ResultRows[1].LastFetched.Unix(), results[1].LastFetched.Unix())
+	require.JSONEq(t, string(host1ResultRows[1].Data), string(results[1].Data))
+
+	// Assert that Query1 returns 1 result for Host2
+	results, err = ds.QueryResultRowsForHost(context.Background(), query.ID, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, host2ResultRows[0].QueryID, results[0].QueryID)
+	require.Equal(t, host2ResultRows[0].HostID, results[0].HostID)
+	require.Equal(t, host2ResultRows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
+	require.JSONEq(t, string(host2ResultRows[0].Data), string(results[0].Data))
 }
 
 func testCountResultsForQuery(t *testing.T, ds *Datastore) {
@@ -425,18 +491,4 @@ func (ds *Datastore) SaveQueryResultRows(ctx context.Context, rows []*fleet.Sche
 	}
 
 	return nil
-}
-
-func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
-	selectStmt := `
-               SELECT query_id, host_id, last_fetched, data FROM query_results
-                       WHERE query_id = ? AND host_id = ?
-               `
-	results := []*fleet.ScheduledQueryResultRow{}
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID, hostID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "selecting query result rows for host")
-	}
-
-	return results, nil
 }
