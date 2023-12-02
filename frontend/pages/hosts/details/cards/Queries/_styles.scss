@@ -12,16 +12,28 @@
         .query_name__header {
           width: $col-lg;
         }
-        .frequency__header {
-          width: $col-md;
+        .last_fetched__header {
+          display: table-cell;
+        }
+        @media (max-width: $break-xs) {
+          .last_fetched__header {
+            display: none;
+            width: 0;
+          }
         }
       }
       tbody {
         .query_name__cell {
           width: $col-lg;
         }
-        .frequency__cell {
-          width: $col-md;
+        .last_fetched__cell {
+          display: table-cell;
+        }
+        @media (max-width: $break-xs) {
+          .last_fetched__cell {
+            display: none;
+            width: 0;
+          }
         }
       }
     }
