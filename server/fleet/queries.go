@@ -403,6 +403,12 @@ type HostQueryResultRow struct {
 	Columns map[string]string `json:"columns"`
 }
 
+type HostQueryReportResult struct {
+	// Columns contains the key-value pairs of a result row.
+	// The map key is the name of the column, and the map value is the value.
+	Columns map[string]string `json:"columns"`
+}
+
 // ScheduledQueryResult holds results of a scheduled query received from a osquery agent.
 type ScheduledQueryResult struct {
 	// QueryName is the name of the query.
