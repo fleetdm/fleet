@@ -9323,6 +9323,85 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Notify Malicious' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether Enhanced Phishing Protection in Microsoft Defender SmartScreen warns users if they type their work or school password into one of the following malicious scenarios: into a reported phishing site, into a Microsoft login URL with an invalid certificate, or into an application connecting to either a reported phishing site or a Microsoft login URL with an invalid certificate. The recommended state for this setting is: Enabled.
+    Note: This setting only applies to Microsoft Accounts (computer or browser login) while using Microsoft Windows 11 and not on prem domain-joined accounts.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Enhanced Phishing Protection\Notify Malicious'
+  query: |
+     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WTDS\\Components\\NotifyMalicious' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Notify Password Reuse' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether Enhanced Phishing Protection in Microsoft Defender SmartScreen warns users if they reuse their work or school password.
+    The recommended state for this setting is: Enabled.
+    Note: This setting only applies to Microsoft Accounts (computer or browser login) while using Microsoft Windows 11 and not on prem domain-joined accounts.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Enhanced Phishing Protection\Notify Password Reuse'
+  query: |
+     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WTDS\\Components\\NotifyPasswordReuse' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Notify Unsafe App' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether Enhanced Phishing Protection in Microsoft Defender SmartScreen warns users if they type their work or school passwords in Notepad, WordPad, or M365 Office apps like OneNote, Word, Excel, etc.
+    The recommended state for this setting is: Enabled.
+    Note: This setting only applies to Microsoft Accounts (computer or browser login) while using Microsoft Windows 11 and not on prem domain-joined accounts.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Enhanced Phishing Protection\Notify Unsafe App'
+  query: |
+     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WTDS\\Components\\NotifyUnsafeApp' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Service Enabled' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether Enhanced Phishing Protection is in audit mode. This allows notifications to be sent to users regarding unsafe password events. Additionally, Enhanced Phishing Protection captures unsafe password entry events and sends diagnostic data through Microsoft Defender.
+    The recommended state for this setting is: Enabled.
+    Note: This setting only applies to Microsoft accounts (computer or browser login) while using Microsoft Windows 11 and not on-prem domain-joined accounts
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Enhanced Phishing Protection\Service Enabled'
+  query: |
+     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WTDS\\Components\\ServiceEnabled' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Configure Windows Defender SmartScreen' is set to 'Enabled: Warn and prevent bypass'
   platforms: win11
   platform: windows
