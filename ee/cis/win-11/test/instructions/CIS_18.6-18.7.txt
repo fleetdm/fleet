@@ -1,3 +1,0 @@
-This page is intentionally left blank.
-
-Please see policy queries' description and resolution to properly set and remediate group policy.
