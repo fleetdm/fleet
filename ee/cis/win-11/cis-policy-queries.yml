@@ -9920,25 +9920,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Disable Internet Explorer 11 as a standalone browser' is set to 'Enabled: Always'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting restricts the launching of Internet Explorer as a standalone browser.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Always':
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Internet Explorer\Disable Internet Explorer 11 as a standalone browser'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template InetRes.admx/adml that is included with the Microsoft Windows 10 Release 21H1 Administrative Templates (or newer).
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Internet Explorer\\Main\\NotifyDisableIEOptions' AND (data = 1));
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
-  contributors: defensivedepth
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Do not allow WebAuthn redirection' is set to 'Enabled'
   platforms: win11
   platform: windows
