@@ -8602,7 +8602,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\AuditApplicationGuard' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_NG
+  tags: compliance, CIS, CIS_LEVEL1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -8621,7 +8621,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\AllowCameraMicrophoneRedirection' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_NG
+  tags: compliance, CIS, CIS_LEVEL1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -8640,7 +8640,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\AllowPersistence' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_NG
+  tags: compliance, CIS, CIS_LEVEL1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -8659,7 +8659,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\SaveFilesToHost' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_NG
+  tags: compliance, CIS, CIS_LEVEL1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -8678,7 +8678,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\AppHVSIClipboardSettings' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_NG
+  tags: compliance, CIS, CIS_LEVEL1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -8702,7 +8702,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\AppHVSI\AllowAppHVSI_ProviderSet' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_NG
+  tags: compliance, CIS, CIS_LEVEL1
   contributors: rachelelysia
 ---
 apiVersion: v1
