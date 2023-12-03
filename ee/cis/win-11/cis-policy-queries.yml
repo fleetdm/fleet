@@ -9402,6 +9402,24 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Enable ESS with Supported Peripherals' is set to 'Enabled: 1' 
+  platforms: win11
+  platform: windows
+  description: |
+    Enhanced Sign-in Security isolates Windows Hello biometric (face and fingerprint) template data and matching operations to trusted hardware or specified memory regions.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: 1 (Enhanced Sign-in Security Enabled):
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Hello for Business\Enable ESS with Supported Peripherals'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Policies\\PassportForWork\\Biometrics\\EnableESSwithSupportedPeripherals' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Allow suggested apps in Windows Ink Workspace' is set to 'Disabled'
   platforms: win11
   platform: windows
