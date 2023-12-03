@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -2389,6 +2390,7 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 			EnrollSecret: es.Secret,
 			ServerURL:    appCfg.ServerSettings.ServerURL,
 			PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
+			PayloadName:  mdm_types.FleetdConfigProfileName,
 		}
 
 		if err := mobileconfig.FleetdProfileTemplate.Execute(&contents, params); err != nil {
@@ -2417,6 +2419,13 @@ func ReconcileAppleProfiles(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("reading app config: %w", err)
+	}
+	if !appConfig.MDM.EnabledAndConfigured {
+		return nil
+	}
 	if err := ensureFleetdConfig(ctx, ds, logger); err != nil {
 		logger.Log("err", "unable to ensure a fleetd configuration profiles are in place", "details", err)
 	}

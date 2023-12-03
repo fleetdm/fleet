@@ -211,7 +211,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	longName := strings.Repeat("a", fleet.SoftwareNameMaxLength+5)
 
 	incoming := make(map[string]fleet.Software)
-	sw, err := fleet.SoftwareFromOsqueryRow(longName+"b", "0.0.1", "chrome_extension", "", "", "", "", "", "")
+	sw, err := fleet.SoftwareFromOsqueryRow(longName+"b", "0.0.1", "chrome_extension", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
 	soft2Key := sw.ToUniqueStr()
 	incoming[soft2Key] = *sw
@@ -234,7 +234,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	require.Equal(t, strings.Repeat("a", fleet.SoftwareNameMaxLength), software[0].Name)
 
 	incoming = make(map[string]fleet.Software)
-	sw, err = fleet.SoftwareFromOsqueryRow(longName+"c", "0.0.1", "chrome_extension", "", "", "", "", "", "")
+	sw, err = fleet.SoftwareFromOsqueryRow(longName+"c", "0.0.1", "chrome_extension", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
 	soft3Key := sw.ToUniqueStr()
 	incoming[soft3Key] = *sw

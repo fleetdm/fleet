@@ -85,6 +85,9 @@
         overflow: hidden;
         text-overflow: ellipsis;
         display: block;
+        // this width makes the dropdown option truncation consistant regardless
+        // if the scrollbar is showing or not.
+        width: 225px;
       }
     }
   }

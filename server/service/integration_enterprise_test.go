@@ -24,7 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/log"
@@ -5674,7 +5674,7 @@ func checkWindowsOSUpdatesProfile(t *testing.T, ds *mysql.Datastore, teamID *uin
 		if teamID != nil {
 			globalOrTeamID = *teamID
 		}
-		err := sqlx.GetContext(ctx, tx, &prof, `SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name = ?`, globalOrTeamID, microsoft_mdm.FleetWindowsOSUpdatesProfileName)
+		err := sqlx.GetContext(ctx, tx, &prof, `SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name = ?`, globalOrTeamID, mdm.FleetWindowsOSUpdatesProfileName)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
