@@ -7,6 +7,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ReportUpdatedCell from "pages/hosts/details/cards/Queries/ReportUpdatedCell";
+import Icon from "components/Icon";
 
 interface IHostQueriesTable extends Partial<IQueryStats> {
   performance: { indicator: string; id: number };
@@ -83,13 +84,26 @@ const generateColumnConfigs = (
       },
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps: IPillCellProps) => (
-        <PillCell
-          value={cellProps.cell.value}
-          customIdPrefix="query-perf-pill"
-          hostDetails
-        />
-      ),
+      Cell: (cellProps: IPillCellProps) => {
+        const baseClass = "performance-cell";
+        return (
+          <span className={baseClass}>
+            <PillCell
+              value={cellProps.cell.value}
+              customIdPrefix="query-perf-pill"
+              hostDetails
+            />
+            {!queryReportsDisabled &&
+              cellProps.row.original.should_link_to_hqr && (
+                <Icon
+                  name="chevron-right"
+                  className={`${baseClass}__link-icon`}
+                  color="core-fleet-blue"
+                />
+              )}
+          </span>
+        );
+      },
     },
   ];
 

@@ -143,3 +143,10 @@ $max-width: 2560px;
   white-space: nowrap;
   @include link;
 }
+
+@mixin cell-with-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
