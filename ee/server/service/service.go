@@ -74,6 +74,8 @@ func NewService(
 		DeleteMDMAppleSetupAssistant:      eeservice.DeleteMDMAppleSetupAssistant,
 		MDMAppleSyncDEPProfiles:           eeservice.mdmAppleSyncDEPProfiles,
 		DeleteMDMAppleBootstrapPackage:    eeservice.DeleteMDMAppleBootstrapPackage,
+		MDMWindowsEnableOSUpdates:         eeservice.mdmWindowsEnableOSUpdates,
+		MDMWindowsDisableOSUpdates:        eeservice.mdmWindowsDisableOSUpdates,
 	})
 
 	return eeservice, nil

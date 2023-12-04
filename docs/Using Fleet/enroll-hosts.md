@@ -102,7 +102,15 @@ In the Google Admin console:
 5. Enter the **Extension ID** and **Installation URL** using the data provided in the modal.
 6. Under **Installation Policy**, select **Block**.
 
-## Grant full disk access to osquery on macOS
+## Advanced
+
+- [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
+- [Signing fleetd installer](#signing-fleetd-installer)
+- [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
+- [fleetd configuration options](#fleetd-configuration-options)
+- [Enroll hosts with plain osquery](#enroll-hosts-with-plain-osquery)
+
+### Grant full disk access to osquery on macOS
 
 macOS does not allow applications to access all system files by default. If you are using MDM, which
 is required to deploy these profiles, you
@@ -111,8 +119,9 @@ access. This is necessary to query for files located in protected paths as well 
 tables that require access to the [EndpointSecurity
 API](https://developer.apple.com/documentation/endpointsecurity#overview), such as *es_process_events*.
 
-### Creating the configuration profile
-#### Obtaining identifiers
+#### Creating the configuration profile
+
+##### Obtaining identifiers
 If you use plain osquery, instructions are [available here](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/).
 
 On a system with osquery installed via the Fleet osquery installer (fleetd), obtain the
@@ -136,7 +145,7 @@ Note down the **executable path** and the entire **identifier**.
 
 Osqueryd will inherit the privileges from Orbit and does not need explicit permissions.
 
-#### Creating the profile
+##### Creating the profile
 Depending on your MDM, this might be possible in the UI or require a custom profile. If your MDM has a feature to configure *Policy Preferences*, follow these steps:
 
 1. Configure the identifier type to “path.”
@@ -148,7 +157,7 @@ If your MDM does not have built-in support for privacy preferences profiles, you
 [PPPC-Utility](https://github.com/jamf/PPPC-Utility) to create a profile with those values, then upload it to
 your MDM as a custom profile.
 
-#### Test the profile
+##### Test the profile
 Link the profile to a test group that contains at least one Mac.
 Once the computer has received the profile, which you can verify by looking at *Profiles* in *System
 Preferences*, run this query from Fleet:
@@ -169,13 +178,6 @@ See the last hour of logs related to TCC permissions with this command:
 `log show --predicate 'subsystem == "com.apple.TCC"' --info --last 1h`
 
 You can then look for `orbit` or `osquery` to narrow down results.
-
-## Advanced
-
-- [Signing fleetd installer](#signing-fleetd-installer)
-- [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
-- [fleetd configuration options](#fleetd-configuration-options)
-- [Enroll hosts with plain osquery](#enroll-hosts-with-plain-osquery)
 
 ### Signing fleetd installers
 

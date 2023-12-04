@@ -697,8 +697,8 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.NotNil(t, host)
 
 	software := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "apps"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionID: "abc", Browser: "edge"},
+		{Name: "bar", Version: "0.0.3", Source: "apps", ExtensionID: "xyz", Browser: "chrome"},
 		{Name: "baz", Version: "0.0.4", Source: "apps"},
 	}
 	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
@@ -737,6 +737,8 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	expectedJSONSoft2 := `"name": "bar",
         "version": "0.0.3",
         "source": "apps",
+        "extension_id": "xyz",
+        "browser": "chrome",
         "generated_cpe": "somecpe",
         "vulnerabilities": [
           {
@@ -747,6 +749,8 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	expectedJSONSoft1 := `"name": "foo",
         "version": "0.0.1",
         "source": "chrome_extensions",
+        "extension_id": "abc",
+        "browser": "edge",
         "generated_cpe": "",
         "vulnerabilities": null`
 	// We are doing Contains instead of equals to test the output for software in particular
@@ -784,6 +788,8 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	require.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
+	assert.Equal(t, soft1.ExtensionID, lsResp.Software[0].ExtensionID)
+	assert.Equal(t, soft1.Browser, lsResp.Software[0].Browser)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
 	require.NotNil(t, lsResp.CountsUpdatedAt)
 	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
@@ -1445,6 +1451,10 @@ func (s *integrationTestSuite) TestListHosts() {
 	// Filter by inexistent software.
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_id", fmt.Sprint(9999))
+
+	// Filter by non-existent team.
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "team_id", fmt.Sprint(9999))
 
 	// set munki information on a host
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "1.2.3", []string{"err"}, []string{"warn"}))
@@ -2585,6 +2595,43 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	require.Len(t, listResp.Hosts, 2)
 	ids := []uint{listResp.Hosts[0].ID, listResp.Hosts[1].ID}
 	require.ElementsMatch(t, ids, []uint{hosts[1].ID, hosts[2].ID})
+}
+
+func (s *integrationTestSuite) TestGetHostByIdentifier() {
+	t := s.T()
+	ctx := context.Background()
+
+	hosts := make([]*fleet.Host, 6)
+	for i := 0; i < len(hosts); i++ {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			Hostname:       fmt.Sprintf("test-host%d-name", i),
+			OsqueryHostID:  ptr.String(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:        ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			UUID:           fmt.Sprintf("test-uuid-%d", i),
+			Platform:       "darwin",
+			HardwareSerial: fmt.Sprintf("serial-%d", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	var resp getHostResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/osquery-1", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[1].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/serial-2", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[2].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/nodekey-3", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[3].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/test-uuid-4", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[4].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/test-host5-name", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[5].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/no-such-host", nil, http.StatusNotFound, &resp)
 }
 
 func (s *integrationTestSuite) TestScheduledQueries() {
@@ -5228,6 +5275,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "apple_bm_default_team": "xyz" }
   }`), http.StatusUnprocessableEntity, &acResp)
+
+	// try to set the windows updates, which is premium only
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_updates": {"deadline_days": 1, "grace_period_days": 0} }
+  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "missing or invalid license")
 
 	// try to enable Windows MDM, impossible without the feature flag
 	// (only set in mdm integrations tests)

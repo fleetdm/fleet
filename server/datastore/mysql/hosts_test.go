@@ -715,6 +715,7 @@ func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, o
 func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	var teamIDFilterNil *uint                // "All teams" option should include all hosts regardless of team assignment
 	var teamIDFilterZero *uint = ptr.Uint(0) // "No team" option should include only hosts that are not assigned to any team
+	teamIDFilterBad := ptr.Uint(9999)
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -758,9 +759,10 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID}, 4)
 
 	// test team filter in combination with macos settings filter
+	profUUID := "a" + uuid.NewString()
 	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
-			ProfileID:         1,
+			ProfileUUID:       profUUID,
 			ProfileIdentifier: "identifier",
 			HostUUID:          hosts[0].UUID, // hosts[0] is assgined to team 1
 			CommandUUID:       "command-uuid-1",
@@ -778,7 +780,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
-			ProfileID:         1,
+			ProfileUUID:       profUUID,
 			ProfileIdentifier: "identifier",
 			HostUUID:          hosts[9].UUID, // hosts[9] is assgined to no team
 			CommandUUID:       "command-uuid-2",
@@ -805,7 +807,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	// test team filter in combination with os settings disk encryptionfilter
 	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
-			ProfileID:         1,
+			ProfileUUID:       profUUID,
 			ProfileIdentifier: mobileconfig.FleetFileVaultPayloadIdentifier,
 			HostUUID:          hosts[8].UUID, // hosts[8] is assgined to no team
 			CommandUUID:       "command-uuid-3",
@@ -820,6 +822,11 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1) // hosts[8]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)  // hosts[8]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)                               // hosts[8]
+
+	// Bad team filter
+	_, err = ds.ListHosts(context.Background(), userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterBad})
+	require.Error(t, err)
+	require.True(t, strings.Contains(err.Error(), "team is invalid"), err)
 }
 
 func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
@@ -2418,6 +2425,7 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 			NodeKey:         ptr.String(fmt.Sprintf("node_key_%d", i)),
 			UUID:            fmt.Sprintf("uuid_%d", i),
 			Hostname:        fmt.Sprintf("hostname_%d", i),
+			HardwareSerial:  fmt.Sprintf("serial_%d", i),
 		})
 		require.NoError(t, err)
 	}
@@ -2444,6 +2452,11 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	h, err = ds.HostByIdentifier(context.Background(), "hostname_7")
 	require.NoError(t, err)
 	assert.Equal(t, uint(7), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	h, err = ds.HostByIdentifier(context.Background(), "serial_9")
+	require.NoError(t, err)
+	assert.Equal(t, uint(9), h.ID)
 	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostByIdentifier(context.Background(), "foobar")
@@ -5822,7 +5835,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	prof, err := ds.NewMDMAppleConfigProfile(context.Background(), *configProfileForTest(t, "N1", "I1", "U1"))
 	require.NoError(t, err)
 	err = ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
-		{ProfileID: prof.ProfileID, ProfileIdentifier: prof.Identifier, ProfileName: prof.Name, HostUUID: host.UUID, OperationType: fleet.MDMOperationTypeInstall, Checksum: []byte("csum")},
+		{ProfileUUID: prof.ProfileUUID, ProfileIdentifier: prof.Identifier, ProfileName: prof.Name, HostUUID: host.UUID, OperationType: fleet.MDMOperationTypeInstall, Checksum: []byte("csum")},
 	})
 	require.NoError(t, err)
 
@@ -6792,6 +6805,16 @@ func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "ghi", "", ptr.Bool(false))
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host3.ID, "ghi", ptr.Bool(false))
+
+	// set an empty key (backfill for issue #15068)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "", "", nil)
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host3.ID, "", nil)
+
+	// setting the decryptable value works even if the key is still empty
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "", "", ptr.Bool(false))
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host3.ID, "", ptr.Bool(false))
 }
 
 func testHostsSetDiskEncryptionKeyStatus(t *testing.T, ds *Datastore) {

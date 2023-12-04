@@ -27,7 +27,7 @@ func runScriptCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:     "host",
-				Usage:    "A host, specified by hostname, UUID, osquery host ID, or node key.",
+				Usage:    "A host, specified by hostname, serial number, UUID, osquery host ID, or node key.",
 				Required: true,
 			},
 			configFlag(),
