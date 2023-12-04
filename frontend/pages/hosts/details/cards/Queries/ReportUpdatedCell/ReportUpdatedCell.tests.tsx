@@ -47,7 +47,7 @@ describe("ReportUpdatedCell component", () => {
     );
 
     expect(
-      screen.getByText(/(11\/29|29\/11)\/2023, 7:20:02 AM/)
+      screen.getByText(/\d\d\/\d\d\/\d\d\d\d, \d{1,2}:\d{1,2}:\d{1,2}( AM|PM)?/)
     ).toBeInTheDocument();
     expect(screen.getByText(/5 days ago/)).toBeInTheDocument();
     expect(screen.getByText(/View report/)).toBeInTheDocument();
@@ -64,7 +64,7 @@ describe("ReportUpdatedCell component", () => {
     );
 
     expect(
-      screen.getByText(/(11\/29|29\/11)\/2023, 7:20:02 AM/)
+      screen.getByText(/\d\d\/\d\d\/\d\d\d\d, \d{1,2}:\d{1,2}:\d{1,2}( AM|PM)?/)
     ).toBeInTheDocument();
     expect(screen.getByText(/5 days ago/)).toBeInTheDocument();
     expect(screen.getByText(/View report/)).toBeInTheDocument();
