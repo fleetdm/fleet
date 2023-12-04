@@ -8254,6 +8254,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		PrimaryMac:      "30-65-EC-6F-C4-59",
 		Platform:        "ubuntu",
 	})
+	require.NoError(t, err)
 
 	host2Team1, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -8547,8 +8548,6 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"vendor_id":   "05ac",
 		"version":     "9.33",
 	}, ghqrr.Results[1].Columns)
-	
-
 
 	gqrr = getQueryReportResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
@@ -8705,7 +8704,6 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.NoError(t, ghqrr.Err)
 	require.True(t, ghqrr.ReportClipped)
 	require.Len(t, ghqrr.Results, 1000)
-
 
 	slreq.Data = json.RawMessage(`[{
   "snapshot": [` + results(1, host1Global.UUID) + `

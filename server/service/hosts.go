@@ -1114,7 +1114,9 @@ func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, 
 	var lastFetched *time.Time
 	result := make([]fleet.HostQueryReportResult, 0, len(rows))
 	for _, row := range rows {
-		lastFetched = &row.LastFetched // return value even if data is nil
+		fetched := row.LastFetched // copy to avoid loop reuse issue
+		lastFetched = &fetched     // need to return value even if data is nil
+
 		columns := map[string]string{}
 		if row.Data != nil {
 			if err := json.Unmarshal(*row.Data, &columns); err != nil {
