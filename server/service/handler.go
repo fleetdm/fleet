@@ -540,8 +540,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	mdmAnyMW.GET("/api/_version_/fleet/mdm/profiles/summary", getMDMProfilesSummaryEndpoint, getMDMProfilesSummaryRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/mdm/profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
-	mdmAnyMW.GET("/api/_version_/fleet/mdm/profiles/{profile_id_or_uuid}", getMDMConfigProfileEndpoint, getMDMConfigProfileRequest{})
-	mdmAnyMW.DELETE("/api/_version_/fleet/mdm/profiles/{profile_id_or_uuid}", deleteMDMConfigProfileEndpoint, deleteMDMConfigProfileRequest{})
+	mdmAnyMW.GET("/api/_version_/fleet/mdm/profiles/{profile_uuid}", getMDMConfigProfileEndpoint, getMDMConfigProfileRequest{})
+	mdmAnyMW.DELETE("/api/_version_/fleet/mdm/profiles/{profile_uuid}", deleteMDMConfigProfileEndpoint, deleteMDMConfigProfileRequest{})
 	mdmAnyMW.GET("/api/_version_/fleet/mdm/profiles", listMDMConfigProfilesEndpoint, listMDMConfigProfilesRequest{})
 
 	// the following set of mdm endpoints must always be accessible (even

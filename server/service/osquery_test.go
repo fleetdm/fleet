@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -533,7 +534,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 
 func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Logger: log.NewJSONLogger(os.Stdout)})
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -614,60 +615,65 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	serv.osqueryLogWriter = &OsqueryLogger{Result: testLogger}
 
 	validLogResults := []string{
-		`{"name":"pack/Global/system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":"1475258115","decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
+		`{"name":"pack/Global/system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":1475258115,"decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
 
-		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:15 2016 UTC","unixTime":"1475270355","decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
-		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:14 2016 UTC","unixTime":"1475270354","decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
+		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:15 2016 UTC","unixTime":1475270355,"decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
+		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:14 2016 UTC","unixTime":1475270354,"decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
 
 		// These results belong to the same query but have 1 second difference.
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:50 2017 UTC","unixTime":1484078930,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:52 2017 UTC","unixTime":1484078932,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 
-		`{"diffResults":{"removed":[{"address":"127.0.0.1","hostnames":"kl.groob.io"}],"added":""},"name":"pack\/team-1/hosts","hostIdentifier":"FA01680E-98CA-5557-8F59-7716ECFEE964","calendarTime":"Sun Nov 19 00:02:08 2017 UTC","unixTime":"1511049728","epoch":"0","counter":"10","decorations":{"host_uuid":"FA01680E-98CA-5557-8F59-7716ECFEE964","hostname":"kl.groob.io"}}`,
+		`{"diffResults":{"removed":[{"address":"127.0.0.1","hostnames":"kl.groob.io"}],"added":""},"name":"pack\/team-1/hosts","hostIdentifier":"FA01680E-98CA-5557-8F59-7716ECFEE964","calendarTime":"Sun Nov 19 00:02:08 2017 UTC","unixTime":1511049728,"epoch":"0","counter":"10","decorations":{"host_uuid":"FA01680E-98CA-5557-8F59-7716ECFEE964","hostname":"kl.groob.io"}}`,
 
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/query_should_be_saved_and_submitted","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 
-		//`{"snapshot":[],"action":"snapshot","name":"pack/Global/query_no_rows","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		// Fleet doesn't know of this query, so this result should be streamed as is (This is to support streaming results for osquery nodes that are configured outside of Fleet, e.g. `--config_plugin=filesystem`).
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/doesntexist","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+
+		// The "name" field has invalid format, so this result will be streamed as is (This is to support streaming results for osquery nodes that are configured outside of Fleet, e.g. `--config_plugin=filesystem`).
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"some_name","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-foo/bar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/PackName","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 	}
 	logJSON := fmt.Sprintf("[%s]", strings.Join(validLogResults, ","))
 
 	resultWithInvalidJSON := []byte("foobar:\n\t123")
+	resultWithInvalidJSONLong := []byte("foobar:\n\t1233333333333333333333333333333333333333333333333333333333")
 	// The "name" field will be empty, so this result will be ignored.
 	resultWithoutName := []byte(`{"unknown":{"foo": [] }}`)
-	// The "name" field has invalid format, so this result will be ignored.
-	resultWithInvalidNameFmt1 := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-foo/bar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
-	resultWithInvalidNameFmt2 := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
-	resultWithInvalidNameFmt3 := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/PackName","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
-	// The query doesn't exist, so this result will be ignored.
-	resultWithQueryDoesNotExist := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/doesntexist","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
 	// The query was configured with automations disabled, so this result will be ignored.
-	resultWithQueryNotAutomated := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/query_not_automated","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
+	resultWithQueryNotAutomated := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/query_not_automated","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
 	// The query is supposed to be saved but with automations disabled (and has two columns).
 	resultWithQuerySavedNotAutomated := []byte(`{"snapshot":[{"hour":"20","minutes":"8"},{"hour":"21","minutes":"9"}],"action":"snapshot","name":"pack/Global/query_should_be_saved_but_not_submitted","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
 
-	var results []json.RawMessage
-	err := json.Unmarshal([]byte(logJSON), &results)
+	var validResults []json.RawMessage
+	err := json.Unmarshal([]byte(logJSON), &validResults)
 	require.NoError(t, err)
 
 	host := fleet.Host{
 		ID: 999,
 	}
 	ctx = hostctx.NewContext(ctx, &host)
-	// Submit valid and invalid log results mixed.
-	err = serv.SubmitResultLogs(ctx, append(append(results[:3],
-		resultWithInvalidJSON,
-		resultWithoutName,
-		resultWithInvalidNameFmt1,
-		resultWithInvalidNameFmt2,
-		resultWithInvalidNameFmt3,
-		resultWithQueryDoesNotExist,
-		resultWithQueryNotAutomated,
-		resultWithQuerySavedNotAutomated,
-	), results[3:]...))
+
+	// Submit valid, invalid and to-be-ignored log results mixed.
+	validAndInvalidResults := make([]json.RawMessage, 0, len(validResults)+5)
+	for i, result := range validResults {
+		validAndInvalidResults = append(validAndInvalidResults, result)
+		if i == 2 {
+			validAndInvalidResults = append(validAndInvalidResults,
+				resultWithInvalidJSON, resultWithInvalidJSONLong,
+				resultWithoutName, resultWithQueryNotAutomated,
+				resultWithQuerySavedNotAutomated,
+			)
+		}
+	}
+	err = serv.SubmitResultLogs(ctx, validAndInvalidResults)
 	require.NoError(t, err)
 
-	assert.Equal(t, results, testLogger.logs)
+	assert.Equal(t, validResults, testLogger.logs)
 }
 
 func TestSaveResultLogsToQueryReports(t *testing.T) {
