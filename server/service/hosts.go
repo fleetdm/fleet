@@ -75,12 +75,22 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	req := request.(*listHostsRequest)
 
 	var software *fleet.Software
-	if req.Opts.SoftwareIDFilter != nil {
+	if req.Opts.SoftwareVersionIDFilter != nil || req.Opts.SoftwareIDFilter != nil {
 		var err error
-		software, err = svc.SoftwareByID(ctx, *req.Opts.SoftwareIDFilter, false)
+
+		id := req.Opts.SoftwareVersionIDFilter
+		if id == nil {
+			id = req.Opts.SoftwareIDFilter
+		}
+		software, err = svc.SoftwareByID(ctx, *id, false)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
+	}
+
+	if req.Opts.SoftwareTitleIDFilter != nil {
+		// TODO(mna): add a software title top-level object
+		// Integrate once this is merged: https://github.com/fleetdm/fleet/issues/15229
 	}
 
 	var mdmSolution *fleet.MDMSolution

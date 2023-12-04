@@ -2776,6 +2776,11 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: &host1.Software[0].ID}, 2)
 	require.Len(t, hosts, 2)
+	got := []uint{hosts[0].ID, hosts[1].ID}
+	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, got)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: ptr.Uint(host1.Software[0].ID + 100)}, 0)
+	require.Len(t, hosts, 0)
 }
 
 func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
