@@ -606,3 +606,21 @@ func (ds *Datastore) CleanupGlobalDiscardQueryResults(ctx context.Context) error
 
 	return nil
 }
+
+// IsSavedQuery returns true if the given query is a saved query.
+func (ds *Datastore) IsSavedQuery(ctx context.Context, queryID uint) (bool, error) {
+	stmt := `
+		SELECT saved
+		FROM queries
+		WHERE q.id = ?;
+	`
+	args := []interface{}{queryID}
+	results := []bool{}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, args...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "is saved query")
+	}
+	if len(results) == 0 {
+		return false, sql.ErrNoRows
+	}
+	return results[0], nil
+}

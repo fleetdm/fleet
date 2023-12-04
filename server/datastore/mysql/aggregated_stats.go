@@ -35,7 +35,7 @@ FROM (
 	SELECT (@rownum := @rownum + 1) AS row_number_value, mm.* FROM (
 		SELECT d.scheduled_query_id, d.%s, d.executions
 		FROM scheduled_query_stats d
-		WHERE d.scheduled_query_id=?
+		WHERE d.scheduled_query_id=? AND d.executions > 0
 		ORDER BY (d.%s / d.executions) ASC
 	) AS mm
 ) AS t1,
@@ -43,7 +43,7 @@ FROM (
 (
 	SELECT count(*) AS total_rows
 	FROM scheduled_query_stats d
-	WHERE d.scheduled_query_id=?
+	WHERE d.scheduled_query_id=? AND d.executions > 0
 ) AS t2
 WHERE t1.row_number_value = floor(total_rows * %s) + 1;`
 
