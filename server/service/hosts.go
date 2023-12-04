@@ -1077,12 +1077,17 @@ func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fl
 		return geHostQueryReportResponse{Err: err}, nil
 	}
 
+	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID)
+	if err != nil {
+		return geHostQueryReportResponse{Err: err}, nil
+	}
+
 	return geHostQueryReportResponse{
 		QueryID:       req.QueryID,
 		HostID:        host.ID,
 		HostName:      host.DisplayName(),
 		LastFetched:   lastFetched,
-		ReportClipped: false,
+		ReportClipped: isClipped,
 		Results:       reportResults,
 	}, nil
 }

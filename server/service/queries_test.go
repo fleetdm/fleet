@@ -682,3 +682,24 @@ func TestQueryAuth(t *testing.T) {
 		})
 	}
 }
+
+func TestQueryReportIsClipped(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
+	}
+
+	isClipped, err := svc.QueryReportIsClipped(ctx, 1)
+	require.NoError(t, err)
+	require.False(t, isClipped)
+
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return fleet.MaxQueryReportRows, nil
+	}
+
+	isClipped, err = svc.QueryReportIsClipped(ctx, 1)
+	require.NoError(t, err)
+	require.True(t, isClipped)
+}

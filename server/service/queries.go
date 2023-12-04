@@ -123,7 +123,7 @@ func onlyShowObserverCanRunQueries(user *fleet.User, teamID *uint) bool {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get query report
+// Query Reports
 ////////////////////////////////////////////////////////////////////////////////
 
 type getQueryReportRequest struct {
@@ -175,6 +175,15 @@ func (svc *Service) GetQueryReportResults(ctx context.Context, id uint) ([]fleet
 		return nil, ctxerr.Wrap(ctx, err, "map db rows to results")
 	}
 	return queryReportResults, nil
+}
+
+
+func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error) {
+	count, err := svc.ds.ResultCountForQuery(ctx, queryID)
+	if err != nil {
+		return false, err
+	}
+	return count >= fleet.MaxQueryReportRows, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
