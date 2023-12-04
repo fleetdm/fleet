@@ -159,7 +159,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				"&os_name=osName&os_version=osVersion&disable_failing_policies=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
-				"&munki_issue_id=7&low_disk_space=99&software_version_id=8&software_title_id=9",
+				"&munki_issue_id=7&low_disk_space=99",
 			hostListOptions: fleet.HostListOptions{
 				ListOptions: fleet.ListOptions{
 					OrderKey:       "foo",
@@ -174,8 +174,6 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				PolicyIDFilter:                    ptr.Uint(3),
 				PolicyResponseFilter:              ptr.Bool(true),
 				SoftwareIDFilter:                  ptr.Uint(4),
-				SoftwareVersionIDFilter:           ptr.Uint(8),
-				SoftwareTitleIDFilter:             ptr.Uint(9),
 				OSIDFilter:                        ptr.Uint(5),
 				OSNameFilter:                      ptr.String("osName"),
 				OSVersionFilter:                   ptr.String("osVersion"),
@@ -317,6 +315,26 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				SoftwareVersionIDFilter: ptr.Uint(1 << 33),
 			},
 		},
+		"good software_version_id": {
+			url: "/foo?software_version_id=1",
+			hostListOptions: fleet.HostListOptions{
+				SoftwareVersionIDFilter: ptr.Uint(1),
+			},
+		},
+		"good software_title_id": {
+			url: "/foo?software_title_id=1",
+			hostListOptions: fleet.HostListOptions{
+				SoftwareTitleIDFilter: ptr.Uint(1),
+			},
+		},
+		"invalid combination software_title_id and software_version_id": {
+			url:          "/foo?software_title_id=1&software_version_id=2",
+			errorMessage: "cannot combine software_version_id and software_title_id",
+		},
+		"invalid combination software_id and software_version_id": {
+			url:          "/foo?software_id=1&software_version_id=2",
+			errorMessage: "cannot combine software_id and software_version_id",
+		},
 	}
 
 	for name, tt := range hostListOptionsTests {
@@ -330,10 +348,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 					assert.NotNil(t, err)
 					var be *fleet.BadRequestError
 					require.ErrorAs(t, err, &be)
-					assert.True(
-						t, strings.Contains(err.Error(), tt.errorMessage),
-						"error message '%v' should contain '%v'", err.Error(), tt.errorMessage,
-					)
+					require.Contains(t, err.Error(), tt.errorMessage)
 					return
 				}
 				assert.Nil(t, err)

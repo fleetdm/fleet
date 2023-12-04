@@ -484,6 +484,21 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.LowDiskSpaceFilter = &v
 	}
 
+	// cannot combine software_id, software_version_id, and software_title_id
+	var softwareErrorLabel []string
+	if hopt.SoftwareIDFilter != nil {
+		softwareErrorLabel = append(softwareErrorLabel, "software_id")
+	}
+	if hopt.SoftwareVersionIDFilter != nil {
+		softwareErrorLabel = append(softwareErrorLabel, "software_version_id")
+	}
+	if hopt.SoftwareTitleIDFilter != nil {
+		softwareErrorLabel = append(softwareErrorLabel, "software_title_id")
+	}
+	if len(softwareErrorLabel) > 1 {
+		return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid parameters, cannot combine %s", strings.Join(softwareErrorLabel, " and "))))
+	}
+
 	return hopt, nil
 }
 
