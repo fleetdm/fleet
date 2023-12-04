@@ -13,3 +13,7 @@ output "firehose_results" {
 output "firehose_status" {
   value = aws_kinesis_firehose_delivery_stream.osquery_status.name
 }
+
+output "firehose_audit" {
+  value = aws_kinesis_firehose_delivery_stream.fleet_audit.name
+}
