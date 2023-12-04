@@ -2272,8 +2272,8 @@ Returns the information of the specified host.
     "team_name": null,
     "additional": {},
     "gigs_disk_space_available": 46.1,
-    "percent_disk_space_available": 92,
-    "gigs_total_disk_space": 50,
+    "percent_disk_space_available": 74,
+    "gigs_total_disk_space": 160,
     "disk_encryption_enabled": true,
     "users": [
       {
@@ -2517,7 +2517,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "team_name": null,
     "gigs_disk_space_available": 19.29,
     "percent_disk_space_available": 74,
-    "gigs_total_disk_space": 26,
+    "gigs_total_disk_space": 192,
     "issues": {
         "total_issues_count": 0,
         "failing_policies_count": 0
@@ -2717,8 +2717,8 @@ This is the API route used by the **My device** page in Fleet desktop to display
     "team_name": null,
     "additional": {},
     "gigs_disk_space_available": 46.1,
-    "percent_disk_space_available": 92,
-    "gigs_total_disk_space": 50,
+    "percent_disk_space_available": 74,
+    "gigs_total_disk_space": 160,
     "disk_encryption_enabled": true,
     "dep_assigned_to_fleet": false,
     "users": [
