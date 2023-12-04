@@ -1102,23 +1102,22 @@ func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, 
 		return nil, nil, err
 	}
 
-	hostReportResultRows, err := svc.ds.QueryResultRowsForHost(ctx, queryID, hostID)
+	rows, err := svc.ds.QueryResultRowsForHost(ctx, queryID, hostID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get query result rows for host")
 	}
 
-	if len(hostReportResultRows) == 0 {
+	if len(rows) == 0 {
 		return []fleet.HostQueryReportResult{}, nil, nil
 	}
 
 	var lastFetched *time.Time
-	result := make([]fleet.HostQueryReportResult, 0, len(hostReportResultRows))
-	for _, hostReportResultRow := range hostReportResultRows {
+	result := make([]fleet.HostQueryReportResult, 0, len(rows))
+	for _, row := range rows {
+		lastFetched = &row.LastFetched // return value even if data is nil
 		columns := map[string]string{}
-		lastFetched = &hostReportResultRow.LastFetched
-		data := hostReportResultRow.Data
-		if data != nil {
-			if err := json.Unmarshal(*data, &columns); err != nil {
+		if row.Data != nil {
+			if err := json.Unmarshal(*row.Data, &columns); err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal query result row data")
 			}
 			result = append(result, fleet.HostQueryReportResult{Columns: columns})
