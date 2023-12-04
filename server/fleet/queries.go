@@ -417,7 +417,7 @@ type ScheduledQueryResult struct {
 	OsqueryHostID string `json:"hostIdentifier"`
 	// Snapshot holds the result rows. It's an array of maps, where the map keys
 	// are column names and map values are the values.
-	Snapshot []json.RawMessage `json:"snapshot"`
+	Snapshot []*json.RawMessage `json:"snapshot"`
 	// LastFetched is the time this result was received.
 	UnixTime uint `json:"unixTime"`
 }
