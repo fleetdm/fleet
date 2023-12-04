@@ -7225,13 +7225,23 @@ Returns the information of the specified software title. By default `versions` a
     "title": "Firefox.app",
     "source": "apps",
     "hosts_count": 48,
+    "managed": true,
+    "installer": {
+      "file_name": "Firefox 120.0.dmg",
+      "version": "120.0",
+      "uploaded_at": "2023-08-12T15:20:00Z",
+      "status": {
+        "installed": 3,
+        "pending": 2,
+        "failed": 3
+      }
+    }
     "versions": [ 
       {
         "id": 123,
         "version": "117.0",
         "vulnerabilities": ["CVE-2023-1234"],
         "hosts_count": 37
-        "managed": true
       },
       {
         "id": 124,
@@ -7270,15 +7280,6 @@ Returns the information of the specified software version.
     "id": 425224,
     "name": "Firefox.app",
     "version": "117.0",
-    "managed": true,
-    "installer": {
-      "file_name": "Firefox 120.0.dmg"
-      "file_size": {
-        "value": 123,
-        "unit": "MB" // Unit can be MB or GB depending on the size, if larger than 1024 MB returns GB
-      }
-      "uploaded_at": "2023-08-12T15:20:00Z"
-    }
     "bundle_identifier": "org.mozilla.firefox",
     "source": "apps",
     "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
