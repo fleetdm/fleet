@@ -1732,25 +1732,13 @@ func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
-	if !alreadyAuthd {
-		// First ensure the user has access to list hosts, then check the specific
-		// host once team_id is loaded.
-		if err := svc.authz.Authorize(ctx, &fleet.HostHealth{}, fleet.ActionRead); err != nil {
-			return nil, err
-		}
-	}
-
 	hh, err := svc.ds.GetHostHealth(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if !alreadyAuthd {
-		// Authorize again with team loaded now that we have team_id
-		if err := svc.authz.Authorize(ctx, hh, fleet.ActionRead); err != nil {
-			return nil, err
-		}
+	if err := svc.authz.Authorize(ctx, hh, fleet.ActionRead); err != nil {
+		return nil, err
 	}
 
 	return hh, nil
