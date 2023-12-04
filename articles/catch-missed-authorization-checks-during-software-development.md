@@ -42,5 +42,4 @@ This additional check is useful during our development and QA process, to ensure
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2023-04-12">
-<meta name="articleImageUrl" value="../website/assets/images/articles/building-an-effective-dashboard-with-fleet-rest-api-flask-and-plotly@2x.jpg">
 <meta name="description" value="How to perform authorization checks in a golang codebase for cybersecurity">
