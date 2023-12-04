@@ -322,13 +322,17 @@ type Host struct {
 }
 
 type HostHealth struct {
-	UpdatedAt             time.Time           `json:"updated_at" db:"updated_at"`
-	OsVersion             string              `json:"os_version" db:"os_version"`
+	UpdatedAt             time.Time           `json:"updated_at,omitempty" db:"updated_at"`
+	OsVersion             string              `json:"os_version,omitempty" db:"os_version"`
 	DiskEncryptionEnabled *bool               `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
 	VulnerableSoftware    []HostSoftwareEntry `json:"vulnerable_software,omitempty"`
 	FailingPolicies       []*HostPolicy       `json:"failing_policies,omitempty"`
-	Platform              string              `json:"-" db:"platform"` // Needed to fetch failing policies. Not returned in responses.
-	TeamID                *uint               `json:"-" db:"team_id"`  // Needed to verify that user can access this those. Not returned in responses.
+	Platform              string              `json:"-" db:"platform"`      // Needed to fetch failing policies. Not returned in responses.
+	TeamID                *uint               `json:"team_id" db:"team_id"` // Needed to verify that user can access this host's health data.
+}
+
+func (hh HostHealth) AuthzType() string {
+	return "host_health"
 }
 
 type MDMHostData struct {

@@ -1736,7 +1736,7 @@ func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHeal
 	if !alreadyAuthd {
 		// First ensure the user has access to list hosts, then check the specific
 		// host once team_id is loaded.
-		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		if err := svc.authz.Authorize(ctx, &fleet.HostHealth{}, fleet.ActionRead); err != nil {
 			return nil, err
 		}
 	}
@@ -1748,7 +1748,7 @@ func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHeal
 
 	if !alreadyAuthd {
 		// Authorize again with team loaded now that we have team_id
-		if err := svc.authz.Authorize(ctx, &fleet.Host{ID: id, TeamID: hh.TeamID}, fleet.ActionRead); err != nil {
+		if err := svc.authz.Authorize(ctx, hh, fleet.ActionRead); err != nil {
 			return nil, err
 		}
 	}

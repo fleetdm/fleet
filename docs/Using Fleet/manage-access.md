@@ -37,6 +37,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | ------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ---------- | ---------- | ----- | ------- |
 | View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                              | ✅       | ✅         | ✅         | ✅    |         |
 | View all hosts                                                                                                                             | ✅       | ✅         | ✅         | ✅    |         |
+| View host health                                                                                                                           | ✅       | ✅         | ✅         | ✅    |  ✅     |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                          | ✅       | ✅         | ✅         | ✅    |         |
 | Target hosts using labels                                                                                                                  | ✅       | ✅         | ✅         | ✅    |         |
 | Add and delete hosts                                                                                                                       |          |            | ✅         | ✅    |         |
@@ -119,6 +120,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | **Action**                                                                                                                       | Team observer | Team observer+ | Team maintainer | Team admin | Team GitOps |
 | -------------------------------------------------------------------------------------------------------------------------------- | ------------- | -------------- | --------------- | ---------- | ----------- |
 | View hosts                                                                                                                       | ✅            | ✅             | ✅              | ✅         |             |
+| View host health                                                                                                                 | ✅            | ✅             | ✅              | ✅         | ✅          |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅            | ✅             | ✅              | ✅         |             |
 | Target hosts using labels                                                                                                        | ✅            | ✅             | ✅              | ✅         |             |
 | Add and delete hosts                                                                                                             |               |                | ✅              | ✅         |             |

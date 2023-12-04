@@ -261,6 +261,21 @@ allow {
 	action == write
 }
 
+# Allow read for host health for global admin/maintainer, team admins, observer, gitops.
+allow {
+	object.type == "host_health"
+  subject.global_role == [admin, maintainer, observer, gitops][_]
+	action == read
+}
+
+
+# Allow read for host health for team admin/maintainer, team admins, observer, gitops.
+allow {
+  object.type == "host_health"
+  team_role(subject, object.team_id) == [admin, maintainer, observer, gitops][_]
+  action == read
+}
+
 ##
 # Labels
 ##
