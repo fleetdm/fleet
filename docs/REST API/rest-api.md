@@ -1961,7 +1961,34 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "display_text": "2ceca32fe484",
       "team_id": null,
       "team_name": null,
-      "pack_stats": null,
+      "pack_stats": [
+        {
+          "pack_id": 0,
+          "pack_name": "Global",
+          "type": "global",
+          "query_stats": [
+            {
+            "scheduled_query_name": "Get recently added or removed USB drives",
+            "scheduled_query_id": 5535,
+            "query_name": "Get recently added or removed USB drives",
+            "discard_data": false,
+            "last_fetched": null,
+            "automations_enabled": false,
+            "description": "Returns a record every time a USB device is plugged in or removed",
+            "pack_name": "Global",
+            "average_memory": 434176,
+            "denylisted": false,
+            "executions": 2,
+            "interval": 86400,
+            "last_executed": "2023-11-28T00:02:07Z",
+            "output_size": 891,
+            "system_time": 10,
+            "user_time": 6,
+            "wall_time": 0
+            }
+          ]
+        }
+      ],
       "issues": {
         "failing_policies_count": 2,
         "total_issues_count": 2
