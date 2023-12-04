@@ -27,6 +27,7 @@ interface IHostQueriesProps {
 interface IHostQueriesRowProps extends Row {
   original: {
     id?: number;
+    should_link_to_hqr?: boolean;
   };
 }
 const HostQueries = ({
@@ -70,10 +71,12 @@ const HostQueries = ({
 
   const onSelectSingleRow = useCallback(
     (row: IHostQueriesRowProps) => {
-      if (!hostId || !row.original.id) {
+      const { id: queryId, should_link_to_hqr } = row.original;
+
+      if (!hostId || !queryId || !should_link_to_hqr) {
         return;
       }
-      router.push(`${PATHS.HOST_QUERY_REPORT(hostId, row.original.id)}`);
+      router.push(`${PATHS.HOST_QUERY_REPORT(hostId, queryId)}`);
     },
     [hostId, router]
   );

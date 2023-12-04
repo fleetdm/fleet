@@ -286,12 +286,12 @@ const HostDetailsPage = ({
     {
       scheduled_query_name:
         "cached query 3 - sending results to a log destination, not storing in Fleet",
-      description: "should render '---' ",
+      description: "should render '---', not link to report",
       interval: 1000,
       discard_data: true,
       automations_enabled: true,
       query_name: "query 3",
-      last_fetched: "2023-11-29T15:20:02Z",
+      last_fetched: null,
       scheduled_query_id: 3,
 
       pack_id: 1,

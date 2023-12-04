@@ -52,6 +52,7 @@ interface IDataColumn {
 
 interface IHostQueriesTable extends Partial<IQueryStats> {
   performance: { indicator: string; id: number };
+  should_link_to_hqr: boolean;
 }
 
 // NOTE: cellProps come from react-table
@@ -202,6 +203,7 @@ const enhanceScheduleData = (
       interval,
       discard_data,
       automations_enabled,
+      should_link_to_hqr: !!last_fetched || (!!interval && !discard_data),
     };
   });
 };
