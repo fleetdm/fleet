@@ -984,7 +984,7 @@ func (ds *Datastore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid str
 			return ctxerr.Wrap(ctx, err, "getting host id from UUID")
 		}
 
-		// NOTE: set installed_from_dep = 0 so DEP host will not be counted as pending after it unrolls
+		// NOTE: set installed_from_dep = 0 so DEP host will not be counted as pending after it unenrolls.
 		_, err = tx.ExecContext(ctx, `
 			UPDATE host_mdm SET enrolled = 0, installed_from_dep = 0, server_url = '', mdm_id = NULL WHERE host_id = ?`, hostID)
 		if err != nil {
