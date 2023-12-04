@@ -803,17 +803,25 @@ type Datastore interface {
 	// this is mainly aimed to internal usage within the Fleet server.
 	BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*MDMAppleConfigProfile) error
 
+	// GetMDMAppleConfigProfileByDeprecatedID returns the mdm config profile
+	// corresponding to the specified numeric profile id. This is deprecated and
+	// should not be used for new endpoints.
+	GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile returns the mdm config profile corresponding to the specified
-	// profile id.
-	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
+	// profile uuid.
+	GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*MDMAppleConfigProfile, error)
 
 	// ListMDMAppleConfigProfiles lists mdm config profiles associated with the specified team id.
 	// For global config profiles, specify nil as the team id.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
 
+	// DeleteMDMAppleConfigProfileByDeprecatedID deletes the mdm config profile
+	// corresponding to the specified numeric profile id. This is deprecated and
+	// should not be used for new endpoints.
+	DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error
 	// DeleteMDMAppleConfigProfile deletes the mdm config profile corresponding
-	// to the specified profile id.
-	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error
+	// to the specified profile uuid.
+	DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error
 
 	BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, payload []*MDMAppleProfilePayload) error
 
@@ -929,15 +937,15 @@ type Datastore interface {
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
 
-	// BulkSetPendingMDMHostProfiles sets the status of profiles to install
-	// or to remove for each affected host to pending for the provided criteria,
-	// which may be either a list of hostIDs, teamIDs, profileIDs or hostUUIDs
-	// (only one of those ID types can be provided).
-	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, profileUUIDs, hostUUIDs []string) error
+	// BulkSetPendingMDMHostProfiles sets the status of profiles to install or to
+	// remove for each affected host to pending for the provided criteria, which
+	// may be either a list of hostIDs, teamIDs, profileUUIDs or hostUUIDs (only
+	// one of those ID types can be provided).
+	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error
 
 	// GetMDMAppleProfilesContents retrieves the XML contents of the
 	// profiles requested.
-	GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error)
+	GetMDMAppleProfilesContents(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error)
 
 	// UpdateOrDeleteHostMDMAppleProfile updates information about a single
 	// profile status. It deletes the row if the profile operation is "remove"
@@ -1123,7 +1131,7 @@ type Datastore interface {
 
 	// ListMDMWindowsProfilesToRemove returns all the profiles that should
 	// be removed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`
+	// registered in `host_mdm_windows_profiles`
 	ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
 
 	// BulkUpsertMDMWindowsHostProfiles bulk-adds/updates records to track the
