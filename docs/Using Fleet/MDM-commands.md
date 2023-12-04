@@ -1,6 +1,6 @@
 # Commands
 
-In Fleet you can run MDM commands to take action on your macOS and Windows hosts, like restart the host, remotely.
+In Fleet you can run MDM commands to take action on your macOS and Windows hosts, like restarting the host, remotely.
 
 ## Custom commands
 
@@ -13,7 +13,7 @@ To run a custom command, we will do the following steps:
 3. Run the command using `fleetctl`
 4. View our command's results using `fleetctl`
 
-### Step 1: create a XML file
+### Step 1: Create an XML file
 
 You can run any command supported by [Apple's MDM protocol](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) or [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/).
 
@@ -56,14 +56,14 @@ The `restart-device.xml` file will have this payload instead:
 </Exec>
 ```
 
-### Step 2: choose a target host
+### Step 2: Choose a target host
 
 To run a command, we need to specify a target host by hostname.
 
 1. Run the `fleetctl get hosts --mdm` command to get a list of hosts that are enrolled to Fleet and have MDM turned on.
 2. Find your target host's hostname. You'll need this hostname to run the command.
 
-### Step 3: run the command
+### Step 3: Run the command
 
 1. Run the `fleetctl mdm run-command --payload=restart-device.xml --host=hostname ` command.
 
@@ -78,7 +78,7 @@ To run a command, we need to specify a target host by hostname.
 
 ## List recent commands
 
-You can view the list of the 1,000 latest commands:
+You can view a list of the 1,000 latest commands:
 
 1. Run `fleetctl get mdm-commands`
 2. View the list of latest commands, most recent first, along with the timestamp, targeted hostname, command type, execution status and command ID.
