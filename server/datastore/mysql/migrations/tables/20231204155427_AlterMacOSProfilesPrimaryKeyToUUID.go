@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20231122155427, Down_20231122155427)
+	MigrationClient.AddMigration(Up_20231204155427, Down_20231204155427)
 }
 
-func Up_20231122155427(tx *sql.Tx) error {
+func Up_20231204155427(tx *sql.Tx) error {
 	// update the windows profiles tables to use a 37-char uuid column for
 	// the 'w' prefix.
 	_, err := tx.Exec(`
@@ -125,6 +125,6 @@ SET
 	return nil
 }
 
-func Down_20231122155427(tx *sql.Tx) error {
+func Down_20231204155427(tx *sql.Tx) error {
 	return nil
 }
