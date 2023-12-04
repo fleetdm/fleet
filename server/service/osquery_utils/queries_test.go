@@ -588,10 +588,12 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		{
 			name: "off empty server URL",
 			data: []map[string]string{
-				{"key": "discovery_service_url", "value": ""},
-				{"key": "is_federated", "value": "1"},
-				{"key": "provider_id", "value": "Some_ID"},
-				{"key": "installation_type", "value": "Client"},
+				{
+					"discovery_service_url": "",
+					"is_federated":          "1",
+					"provider_id":           "Some_ID",
+					"installation_type":     "Client",
+				},
 			},
 			wantEnrolled:         false,
 			wantInstalledFromDep: false,
@@ -601,8 +603,10 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		{
 			name: "off missing is_federated and server url",
 			data: []map[string]string{
-				{"key": "provider_id", "value": "Some_ID"},
-				{"key": "installation_type", "value": "Client"},
+				{
+					"provider_id":       "Some_ID",
+					"installation_type": "Client",
+				},
 			},
 			wantEnrolled:         false,
 			wantInstalledFromDep: false,
@@ -612,10 +616,12 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		{
 			name: "on automatic",
 			data: []map[string]string{
-				{"key": "discovery_service_url", "value": "https://example.com"},
-				{"key": "is_federated", "value": "1"},
-				{"key": "provider_id", "value": "Some_ID"},
-				{"key": "installation_type", "value": "Client"},
+				{
+					"discovery_service_url": "https://example.com",
+					"is_federated":          "1",
+					"provider_id":           "Some_ID",
+					"installation_type":     "Client",
+				},
 			},
 			wantEnrolled:         true,
 			wantInstalledFromDep: true,
@@ -625,10 +631,12 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		{
 			name: "on manual",
 			data: []map[string]string{
-				{"key": "discovery_service_url", "value": "https://example.com"},
-				{"key": "is_federated", "value": "0"},
-				{"key": "provider_id", "value": "Local_Management"},
-				{"key": "installation_type", "value": "Client"},
+				{
+					"discovery_service_url": "https://example.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
 			},
 			wantEnrolled:         true,
 			wantInstalledFromDep: false,
@@ -638,9 +646,11 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		{
 			name: "on manual missing is_federated",
 			data: []map[string]string{
-				{"key": "discovery_service_url", "value": "https://example.com"},
-				{"key": "provider_id", "value": "Some_ID"},
-				{"key": "installation_type", "value": "Client"},
+				{
+					"discovery_service_url": "https://example.com",
+					"provider_id":           "Some_ID",
+					"installation_type":     "Client",
+				},
 			},
 			wantEnrolled:         true,
 			wantInstalledFromDep: false,
@@ -650,10 +660,11 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		{
 			name: "is_server",
 			data: []map[string]string{
-				{"key": "discovery_service_url", "value": "https://example.com"},
-				{"key": "is_federated", "value": "1"},
-				{"key": "provider_id", "value": "Some_ID"},
-				{"key": "installation_type", "value": "Windows SeRvEr 99.9"},
+				{
+					"discovery_service_url": "https://example.com",
+					"is_federated":          "1",
+					"provider_id":           "Some_ID",
+					"installation_type":     "Windows SeRvEr 99.9"},
 			},
 			wantEnrolled:         true,
 			wantInstalledFromDep: true,
