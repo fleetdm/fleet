@@ -272,6 +272,10 @@ type Service interface {
 	GetQuery(ctx context.Context, id uint) (*Query, error)
 	// GetQueryReportResults returns all the stored results of a query.
 	GetQueryReportResults(ctx context.Context, id uint) ([]HostQueryResultRow, error)
+	// GetHostQueryReportResults returns all stored results of a query for a specific host
+	GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []HostQueryReportResult, lastFetched *time.Time, err error)
+	// QueryReportIsClipped returns true if the number of query report rows exceeds the maximum
+	QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
 	DeleteQuery(ctx context.Context, teamID *uint, name string) error
