@@ -602,7 +602,9 @@ func TestGetConfig(t *testing.T) {
 	})
 }
 
-func TestGetSoftware(t *testing.T) {
+// TODO(mna): TestGetSoftwareTitles
+
+func TestGetSoftwareVersions(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	foo001 := fleet.Software{
@@ -623,17 +625,17 @@ func TestGetSoftware(t *testing.T) {
 		return []fleet.Software{foo001, foo002, foo003, bar003}, nil
 	}
 
-	expected := `+------+---------+-------------------+--------------------------+-----------+
-| NAME | VERSION |      SOURCE       |           CPE            | # OF CVES |
-+------+---------+-------------------+--------------------------+-----------+
-| foo  | 0.0.1   | chrome_extensions | somecpe                  |         2 |
-+------+---------+-------------------+--------------------------+-----------+
-| foo  | 0.0.2   | chrome_extensions |                          |         0 |
-+------+---------+-------------------+--------------------------+-----------+
-| foo  | 0.0.3   | chrome_extensions | someothercpewithoutvulns |         0 |
-+------+---------+-------------------+--------------------------+-----------+
-| bar  | 0.0.3   | deb_packages      |                          |         0 |
-+------+---------+-------------------+--------------------------+-----------+
+	expected := `+------+---------+-------------------+-------------------+-------+
+| NAME | VERSION |       TYPE        |  VULNERABILITIES  | HOSTS |
++------+---------+-------------------+-------------------+-------+
+| foo  | 0.0.1   | chrome_extensions | 2 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
+| foo  | 0.0.2   | chrome_extensions | 0 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
+| foo  | 0.0.3   | chrome_extensions | 0 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
+| bar  | 0.0.3   | deb_packages      | 0 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
 `
 
 	expectedYaml := `---
@@ -726,11 +728,11 @@ spec:
 }
 `
 
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--json"}))
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software", "--versions"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--versions", "--yaml"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--versions", "--json"}))
 
-	runAppForTest(t, []string{"get", "software", "--json", "--team", "999"})
+	runAppForTest(t, []string{"get", "software", "--versions", "--json", "--team", "999"})
 	require.NotNil(t, gotTeamID)
 	assert.Equal(t, uint(999), *gotTeamID)
 }
