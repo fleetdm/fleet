@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/micromdm/nanodep/godep"
 )
@@ -209,10 +210,16 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 }
 
 func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
+	// first screen the top-level object for reserved identifiers and names
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
 		return fmt.Errorf("payload identifier %s is not allowed", cp.Identifier)
 	}
+	fleetNames := mdm.FleetReservedProfileNames()
+	if _, ok := fleetNames[cp.Name]; ok {
+		return fmt.Errorf("payload display name %s is not allowed", cp.Name)
+	}
 
+	// then screen the payload content for reserved identifiers, names, and types
 	return cp.Mobileconfig.ScreenPayloads()
 }
 

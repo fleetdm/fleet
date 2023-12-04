@@ -531,7 +531,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 	assert.Equal(t, status, testLogger.logs)
 }
 
-func TestSubmitResultLogs(t *testing.T) {
+func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -691,26 +691,6 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 		},
 	}
 
-	queriesDBData := map[string]*fleet.Query{
-		"pack/Global/Uptime": {
-			ID:          1,
-			DiscardData: false,
-			Logging:     fleet.LoggingSnapshot,
-		},
-	}
-
-	// Result not saved if result is not a snapshot
-	notSnapshotResult := []*fleet.ScheduledQueryResult{
-		{
-			QueryName:     "pack/Global/Uptime",
-			OsqueryHostID: "1379f59d98f4",
-			Snapshot:      []json.RawMessage{},
-			UnixTime:      1484078931,
-		},
-	}
-	serv.saveResultLogsToQueryReports(ctx, notSnapshotResult, queriesDBData)
-	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
-
 	// Results not saved if DiscardData is true in Query
 	discardDataFalse := map[string]*fleet.Query{
 		"pack/Global/Uptime": {
@@ -738,6 +718,108 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	}
 	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue)
 	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	host := fleet.Host{
+		ID: 999,
+	}
+	ctx = hostctx.NewContext(ctx, &host)
+
+	logs := []string{
+		`{"snapshot":[],"action":"snapshot","name":"pack/Global/query_no_rows","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+	}
+
+	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
+	var results []json.RawMessage
+	err := json.Unmarshal([]byte(logJSON), &results)
+	require.NoError(t, err)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{
+				QueryReportsDisabled: false,
+			},
+		}, nil
+	}
+
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return &fleet.Query{
+			ID:          1,
+			DiscardData: false,
+			Logging:     fleet.LoggingSnapshot,
+		}, nil
+	}
+
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
+	}
+
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+		require.Len(t, rows, 1)
+		require.Equal(t, uint(999), rows[0].HostID)
+		require.NotZero(t, rows[0].LastFetched)
+		require.Nil(t, rows[0].Data)
+		return nil
+	}
+
+	err = svc.SubmitResultLogs(ctx, results)
+	require.NoError(t, err)
+	assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	host := fleet.Host{
+		ID: 999,
+	}
+	ctx = hostctx.NewContext(ctx, &host)
+
+	logs := []string{
+		`{"snapshot":[],"action":"snapshot","name":"pack/Global/query_no_rows","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+	}
+
+	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
+	var results []json.RawMessage
+	err := json.Unmarshal([]byte(logJSON), &results)
+	require.NoError(t, err)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{
+				QueryReportsDisabled: false,
+			},
+		}, nil
+	}
+
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return &fleet.Query{
+			ID:          1,
+			DiscardData: false,
+			Logging:     fleet.LoggingSnapshot,
+		}, nil
+	}
+
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
+	}
+
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+		require.Len(t, rows, 1)
+		require.Equal(t, uint(999), rows[0].HostID)
+		require.NotZero(t, rows[0].LastFetched)
+		require.Nil(t, rows[0].Data)
+		return nil
+	}
+
+	err = svc.SubmitResultLogs(ctx, results)
+	require.NoError(t, err)
+	assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {

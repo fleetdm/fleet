@@ -709,6 +709,9 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		if query.RunsForPlatform(host.Platform) {
 			queryName := hostDetailQueryPrefix + name
 			queries[queryName] = query.Query
+			if query.QueryFunc != nil && query.Query == "" {
+				queries[queryName] = query.QueryFunc(ctx, svc.logger, host, svc.ds)
+			}
 			discoveryQuery := query.Discovery
 			if discoveryQuery == "" {
 				discoveryQuery = alwaysTrueQuery
@@ -1540,11 +1543,6 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 	filtered := getMostRecentResults(unmarshaledResults)
 
 	for _, result := range filtered {
-		// Discard result if there is no snapshot
-		if len(result.Snapshot) == 0 {
-			continue
-		}
-
 		dbQuery, ok := queriesDBData[result.QueryName]
 		if !ok {
 			// Means the query does not exist with such name anymore. Thus we ignore its result.
@@ -1583,6 +1581,18 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 	fetchTime := time.Now()
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
+
+	// If the snapshot is empty, we still want to save a row with a null value
+	// to capture LastFetched.
+	if len(result.Snapshot) == 0 {
+		rows = append(rows, &fleet.ScheduledQueryResultRow{
+			QueryID:     queryID,
+			HostID:      hostID,
+			Data:        nil,
+			LastFetched: fetchTime,
+		})
+	}
+
 	for _, snapshotItem := range result.Snapshot {
 		row := &fleet.ScheduledQueryResultRow{
 			QueryID:     queryID,

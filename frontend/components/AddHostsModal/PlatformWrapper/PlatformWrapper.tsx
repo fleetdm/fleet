@@ -218,9 +218,7 @@ const PlatformWrapper = ({
 
   const renderInstallerString = (packageType: string) => {
     return packageType === "advanced"
-      ? `fleetctl package --type=YOUR_TYPE --fleet-url=${config?.server_settings.server_url}
---enroll-secret=${enrollSecret}
---fleet-certificate=PATH_TO_YOUR_CERTIFICATE/fleet.pem`
+      ? `fleetctl package --type=YOUR_TYPE --fleet-url=${config?.server_settings.server_url} --enroll-secret=${enrollSecret} --fleet-certificate=PATH_TO_YOUR_CERTIFICATE/fleet.pem`
       : `fleetctl package --type=${packageType} ${
           includeFleetDesktop ? "--fleet-desktop " : ""
         }--fleet-url=${

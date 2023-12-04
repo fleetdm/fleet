@@ -24,9 +24,7 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 
 		// Count how many rows are already in the database for the given queryID
 		var countExisting int
-		countStmt := `
-		SELECT COUNT(*) FROM query_results WHERE query_id = ?
-	`
+		countStmt := `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND data IS NOT NULL`
 		err = sqlx.GetContext(ctx, tx, &countExisting, countStmt, queryID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "counting existing query results")
@@ -95,7 +93,7 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint) ([]*flee
 			h.hostname, h.computer_name, h.hardware_model, h.hardware_serial
 			FROM query_results qr
 			LEFT JOIN hosts h ON (qr.host_id=h.id)
-			WHERE query_id = ?
+			WHERE query_id = ? AND data IS NOT NULL
 		`
 	results := []*fleet.ScheduledQueryResultRow{}
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID)
@@ -108,7 +106,7 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint) ([]*flee
 
 func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
 	var count int
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ?`, queryID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND data IS NOT NULL`, queryID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "counting query results for query")
 	}
@@ -118,7 +116,7 @@ func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int
 
 func (ds *Datastore) ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error) {
 	var count int
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND host_id = ?`, queryID, hostID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND host_id = ? AND data IS NOT NULL`, queryID, hostID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "counting query results for query and host")
 	}

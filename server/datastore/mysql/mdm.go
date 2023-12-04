@@ -2,13 +2,14 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -100,7 +101,6 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 }
 
 func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
-
 	// this lists custom profiles, it explicitly filters out the fleet-reserved
 	// ones (reserved identifiers for Apple profiles, reserved names for Windows).
 
@@ -161,7 +161,7 @@ FROM (
 	for k := range fleetIdentsMap {
 		fleetIdentifiers = append(fleetIdentifiers, k)
 	}
-	fleetNamesMap := microsoft_mdm.FleetReservedProfileNames()
+	fleetNamesMap := mdm.FleetReservedProfileNames()
 	fleetNames := make([]string, 0, len(fleetNamesMap))
 	for k := range fleetNamesMap {
 		fleetNames = append(fleetNames, k)
@@ -323,4 +323,307 @@ WHERE
 
 		return nil
 	})
+}
+
+func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, toVerify, toFail, toRetry []string) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := setMDMProfilesVerifiedDB(ctx, tx, host, toVerify); err != nil {
+			return err
+		}
+		if err := setMDMProfilesFailedDB(ctx, tx, host, toFail); err != nil {
+			return err
+		}
+		if err := setMDMProfilesRetryDB(ctx, tx, host, toRetry); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// setMDMProfilesRetryDB sets the status of the given identifiers to retry (nil) and increments the retry count
+func setMDMProfilesRetryDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host, identifiersOrNames []string) error {
+	if len(identifiersOrNames) == 0 {
+		return nil
+	}
+
+	const baseStmt = `
+UPDATE
+	%s
+SET
+	status = NULL,
+	detail = '',
+	retries = retries + 1
+WHERE
+	host_uuid = ?
+	AND operation_type = ?
+	AND %s IN(?)`
+
+	args := []interface{}{
+		host.UUID,
+		fleet.MDMOperationTypeInstall,
+		identifiersOrNames,
+	}
+
+	var stmt string
+	switch host.Platform {
+	case "darwin":
+		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
+	case "windows":
+		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
+	default:
+		return fmt.Errorf("unsupported platform %s", host.Platform)
+	}
+	stmt, args, err := sqlx.In(stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building sql statement to set retry host profiles")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting retry host profiles")
+	}
+	return nil
+}
+
+// setMDMProfilesFailedDB sets the status of the given identifiers to failed if the current status
+// is verifying or verified. It also sets the detail to a message indicating that the profile was
+// either verifying or verified. Only profiles with the install operation type are updated.
+func setMDMProfilesFailedDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host, identifiersOrNames []string) error {
+	if len(identifiersOrNames) == 0 {
+		return nil
+	}
+
+	const baseStmt = `
+UPDATE
+	%s
+SET
+	detail = if(status = ?, ?, ?),
+	status = ?
+WHERE
+	host_uuid = ?
+	AND status IN(?)
+	AND operation_type = ?
+	AND %s IN(?)`
+
+	var stmt string
+	switch host.Platform {
+	case "darwin":
+		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
+	case "windows":
+		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
+	default:
+		return fmt.Errorf("unsupported platform %s", host.Platform)
+	}
+
+	args := []interface{}{
+		fleet.MDMDeliveryVerifying,
+		fleet.HostMDMProfileDetailFailedWasVerifying,
+		fleet.HostMDMProfileDetailFailedWasVerified,
+		fleet.MDMDeliveryFailed,
+		host.UUID,
+		[]interface{}{fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified},
+		fleet.MDMOperationTypeInstall,
+		identifiersOrNames,
+	}
+	stmt, args, err := sqlx.In(stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building sql statement to set failed host profiles")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting failed host profiles")
+	}
+	return nil
+}
+
+// setMDMProfilesVerifiedDB sets the status of the given identifiers to verified if the current
+// status is verifying. Only profiles with the install operation type are updated.
+func setMDMProfilesVerifiedDB(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host, identifiersOrNames []string) error {
+	if len(identifiersOrNames) == 0 {
+		return nil
+	}
+
+	const baseStmt = `
+UPDATE
+	%s
+SET
+	detail = '',
+	status = ?
+WHERE
+	host_uuid = ?
+	AND status IN(?)
+	AND operation_type = ?
+	AND %s IN(?)`
+
+	var stmt string
+	switch host.Platform {
+	case "darwin":
+		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
+	case "windows":
+		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
+	default:
+		return fmt.Errorf("unsupported platform %s", host.Platform)
+	}
+
+	args := []interface{}{
+		fleet.MDMDeliveryVerified,
+		host.UUID,
+		[]interface{}{fleet.MDMDeliveryVerifying, fleet.MDMDeliveryFailed},
+		fleet.MDMOperationTypeInstall,
+		identifiersOrNames,
+	}
+	stmt, args, err := sqlx.In(stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building sql statement to set verified host macOS profiles")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting verified host profiles")
+	}
+	return nil
+}
+
+func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
+	var teamID uint
+	if host.TeamID != nil {
+		teamID = *host.TeamID
+	}
+
+	switch host.Platform {
+	case "darwin":
+		return ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID)
+	case "windows":
+		return ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID)
+	default:
+		return nil, fmt.Errorf("unsupported platform: %s", host.Platform)
+	}
+}
+
+func (ds *Datastore) getHostMDMWindowsProfilesExpectedForVerification(ctx context.Context, teamID uint) (map[string]*fleet.ExpectedMDMProfile, error) {
+	stmt := `
+  SELECT name, syncml as raw_profile, updated_at as earliest_install_date
+  FROM mdm_windows_configuration_profiles mwcp
+  WHERE mwcp.team_id = ?
+  `
+
+	var profiles []*fleet.ExpectedMDMProfile
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	byName := make(map[string]*fleet.ExpectedMDMProfile, len(profiles))
+	for _, r := range profiles {
+		byName[r.Name] = r
+	}
+
+	return byName, nil
+}
+
+func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.Context, teamID uint) (map[string]*fleet.ExpectedMDMProfile, error) {
+	stmt := `
+SELECT
+	identifier,
+	earliest_install_date
+FROM
+	mdm_apple_configuration_profiles macp
+	JOIN (
+		SELECT
+			checksum,
+			min(updated_at) AS earliest_install_date
+		FROM
+			mdm_apple_configuration_profiles
+		GROUP BY
+			checksum) cs
+	ON macp.checksum = cs.checksum
+WHERE
+	macp.team_id = ?`
+
+	var rows []*fleet.ExpectedMDMProfile
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
+	}
+
+	byIdentifier := make(map[string]*fleet.ExpectedMDMProfile, len(rows))
+	for _, r := range rows {
+		byIdentifier[r.Identifier] = r
+	}
+
+	return byIdentifier, nil
+}
+
+func (ds *Datastore) GetHostMDMProfilesRetryCounts(ctx context.Context, host *fleet.Host) ([]fleet.HostMDMProfileRetryCount, error) {
+	const darwinStmt = `
+SELECT
+	profile_identifier,
+	retries
+FROM
+	host_mdm_apple_profiles hmap
+WHERE
+	hmap.host_uuid = ?`
+
+	const windowsStmt = `
+SELECT
+	profile_name,
+	retries
+FROM
+	host_mdm_windows_profiles hmwp
+WHERE
+	hmwp.host_uuid = ?`
+
+	var stmt string
+	switch host.Platform {
+	case "darwin":
+		stmt = darwinStmt
+	case "windows":
+		stmt = windowsStmt
+	default:
+		return nil, fmt.Errorf("unsupported platform %s", host.Platform)
+	}
+
+	var dest []fleet.HostMDMProfileRetryCount
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, host.UUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting retry counts for host %s", host.UUID))
+	}
+
+	return dest, nil
+}
+
+func (ds *Datastore) GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, host *fleet.Host, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
+	const darwinStmt = `
+SELECT
+	profile_identifier, retries
+FROM
+	host_mdm_apple_profiles hmap
+WHERE
+	hmap.host_uuid = ?
+	AND hmap.command_uuid = ?`
+
+	const windowsStmt = `
+SELECT
+	profile_uuid, retries
+FROM
+	host_mdm_windows_profiles hmwp
+WHERE
+	hmwp.host_uuid = ?
+	AND hmwp.command_uuid = ?`
+
+	var stmt string
+	switch host.Platform {
+	case "darwin":
+		stmt = darwinStmt
+	case "windows":
+		stmt = windowsStmt
+	default:
+		return fleet.HostMDMProfileRetryCount{}, fmt.Errorf("unsupported platform %s", host.Platform)
+	}
+
+	var dest fleet.HostMDMProfileRetryCount
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, host.UUID, cmdUUID); err != nil {
+		if err == sql.ErrNoRows {
+			return dest, notFound("HostMDMCommand").WithMessage(fmt.Sprintf("command uuid %s not found for host uuid %s", cmdUUID, host.UUID))
+		}
+		return dest, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting retry count for host %s command uuid %s", host.UUID, cmdUUID))
+	}
+
+	return dest, nil
 }

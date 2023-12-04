@@ -24,7 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -1117,8 +1116,9 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// prevent deleting Windows OS Updates profile (controlled by the OS Updates settings)
-	if _, ok := microsoft_mdm.FleetReservedProfileNames()[prof.Name]; ok {
+	// prevent deleting Fleet-managed profiles (e.g., Windows OS Updates profile controlled by the OS Updates settings)
+	fleetNames := mdm.FleetReservedProfileNames()
+	if _, ok := fleetNames[prof.Name]; ok {
 		err := &fleet.BadRequestError{Message: "Profiles managed by Fleet can't be deleted using this endpoint."}
 		return ctxerr.Wrap(ctx, err, "validate profile")
 	}
