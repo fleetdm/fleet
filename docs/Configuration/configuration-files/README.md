@@ -1199,7 +1199,9 @@ List of saved scripts that can be run on all hosts.
 
 #### Software
 
-List of the software that will be installed on macOS and Windows hosts during enrollment.
+List of the software that will be installed on macOS and Windows hosts during enrollment.  
+
+`url` must be an absolute URL to the software installer.
 
 > If you want to add scripts to hosts on a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](#teams).
 
@@ -1207,8 +1209,8 @@ List of the software that will be installed on macOS and Windows hosts during en
 - Config file format:
   ```yaml
   software:
-    - https://github.com/organinzation/repository/installer.pkg
-    - https://software.com/releases/windows/installer.msi
+    - url: https://github.com/organinzation/repository/installer.pkg
+    - url: https://software.com/releases/windows/installer.msi
   ```
 
 #### Advanced configuration
