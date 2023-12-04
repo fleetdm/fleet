@@ -1114,7 +1114,7 @@ func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, 
 	var result []fleet.HostQueryReportResult
 	for _, hostReportResultRow := range hostReportResultRows {
 		columns := map[string]string{}
-		if err := json.Unmarshal(hostReportResultRow.Data, &columns); err != nil {
+		if err := json.Unmarshal(*hostReportResultRow.Data, &columns); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal query result row data")
 		}
 		result = append(result, fleet.HostQueryReportResult{Columns: columns})

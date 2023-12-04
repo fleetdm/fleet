@@ -376,7 +376,7 @@ func MapQueryReportResultsToRows(rows []*ScheduledQueryResultRow) ([]HostQueryRe
 	var results []HostQueryResultRow
 	for _, row := range rows {
 		var columns map[string]string
-		if err := json.Unmarshal(row.Data, &columns); err != nil {
+		if err := json.Unmarshal(*row.Data, &columns); err != nil {
 			return nil, err
 		}
 		results = append(results, HostQueryResultRow{
@@ -438,7 +438,7 @@ type ScheduledQueryResultRow struct {
 	HardwareSerial sql.NullString `db:"hardware_serial"`
 	// Data holds a single result row. It holds a map where the map keys
 	// are column names and map values are the values.
-	Data json.RawMessage `db:"data"`
+	Data *json.RawMessage `db:"data"`
 	// LastFetched is the time this result was received.
 	LastFetched time.Time `db:"last_fetched"`
 }

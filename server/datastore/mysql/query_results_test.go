@@ -2,13 +2,13 @@ package mysql
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +20,6 @@ func TestQueryResults(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"Save", saveQueryResultRows},
 		{"Get", testGetQueryResultRows},
 		{"GetForHost", testGetQueryResultRowsForHost},
 		{"CountForQuery", testCountResultsForQuery},
@@ -44,87 +43,57 @@ func testGetQueryResultRows(t *testing.T, ds *Datastore) {
 
 	mockTime := time.Now().UTC().Truncate(time.Second)
 
-	// Insert 2 Result Rows for Query1 and 1 empty data row
-	resultRows := []*fleet.ScheduledQueryResultRow{
-		{
-			QueryID:     query.ID,
-			HostID:      host.ID,
-			LastFetched: mockTime,
-			Data: json.RawMessage(
-				`{"model": "USB Keyboard", "vendor": "Apple Inc."}`,
-			),
-		},
-		{
-			QueryID:     query.ID,
-			HostID:      host.ID,
-			LastFetched: mockTime,
-			Data: json.RawMessage(
-				`{"model": "USB Mouse", "vendor": "Logitech"}`,
-			),
-		},
-	}
-
-	err := ds.SaveQueryResultRows(context.Background(), resultRows)
-	require.NoError(t, err)
-}
-
-func testGetQueryResultRows(t *testing.T, ds *Datastore) {
-	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
-	query := test.NewQuery(t, ds, nil, "New Query", "SELECT 1", user.ID, true)
-	host := test.NewHost(t, ds, "hostname123", "192.168.1.100", "1234", "UI8XB1223", time.Now())
-
-	mockTime := time.Now().UTC().Truncate(time.Second)
-
-	// Insert 2 Result Rows for Query1
-	resultRows := []*fleet.ScheduledQueryResultRow{
+	// Insert Result Rows for Query1
+	query1Rows := []*fleet.ScheduledQueryResultRow{
 		{
 			QueryID:     query.ID,
 			HostID:      host.ID,
 			LastFetched: mockTime,
 			Data:        nil,
 		},
+		{
+			QueryID:     query.ID,
+			HostID:      host.ID,
+			LastFetched: mockTime,
+			Data: ptr.RawMessage([]byte(`{
+				"model": "USB Keyboard",
+				"vendor": "Apple Inc."
+			}`)),
+		},
 	}
-
-	err := ds.SaveQueryResultRows(context.Background(), resultRows)
+	err := ds.SaveQueryResultRows(context.Background(), query1Rows)
 	require.NoError(t, err)
 
 	// Insert Result Row for different Scheduled Query
 	query2 := test.NewQuery(t, ds, nil, "New Query 2", "SELECT 1", user.ID, true)
-	resultRow3 := []*fleet.ScheduledQueryResultRow{
+	query2Rows := []*fleet.ScheduledQueryResultRow{
 		{
 			QueryID:     query2.ID,
 			HostID:      host.ID,
 			LastFetched: mockTime,
-			Data: json.RawMessage(
-				`{"model": "USB Hub","vendor": "Logitech"}`,
-			),
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Hub","vendor": "Logitech"}`)),
 		},
 	}
 
-	err = ds.SaveQueryResultRows(context.Background(), resultRow3)
+	err = ds.SaveQueryResultRows(context.Background(), query2Rows)
 	require.NoError(t, err)
 
-	// Assert that Query1 returns 2 results
-	results, err := ds.QueryResultRowsForHost(context.Background(), resultRows[0].QueryID, resultRows[0].HostID)
+	results, err := ds.QueryResultRows(context.Background(), query.ID)
 	require.NoError(t, err)
-	require.Len(t, results, 2)
-	require.Equal(t, resultRows[0].QueryID, results[0].QueryID)
-	require.Equal(t, resultRows[0].HostID, results[0].HostID)
-	require.Equal(t, resultRows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
-	require.JSONEq(t, string(resultRows[0].Data), string(results[0].Data))
-	require.Equal(t, resultRows[1].QueryID, results[1].QueryID)
-	require.Equal(t, resultRows[1].HostID, results[1].HostID)
-	require.Equal(t, resultRows[1].LastFetched.Unix(), results[1].LastFetched.Unix())
-	require.JSONEq(t, string(resultRows[1].Data), string(results[1].Data))
+	require.Len(t, results, 1) // Should not return rows with nil data
+	require.Equal(t, query1Rows[1].QueryID, results[0].QueryID)
+	require.Equal(t, query1Rows[1].HostID, results[0].HostID)
+	require.Equal(t, query1Rows[1].LastFetched.Unix(), results[0].LastFetched.Unix())
+	require.JSONEq(t, string(*query1Rows[1].Data), string(*results[0].Data))
 
 	// Assert that Query2 returns 1 result
-	results, err = ds.QueryResultRowsForHost(context.Background(), resultRow3[0].QueryID, resultRow3[0].HostID)
+	results, err = ds.QueryResultRows(context.Background(), query2.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
-	require.Equal(t, resultRow3[0].QueryID, results[0].QueryID)
-	require.Equal(t, resultRow3[0].HostID, results[0].HostID)
-	require.Equal(t, resultRow3[0].LastFetched.Unix(), results[0].LastFetched.Unix())
-	require.JSONEq(t, string(resultRow3[0].Data), string(results[0].Data))
+	require.Equal(t, query2Rows[0].QueryID, results[0].QueryID)
+	require.Equal(t, query2Rows[0].HostID, results[0].HostID)
+	require.Equal(t, query2Rows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
+	require.JSONEq(t, string(*query2Rows[0].Data), string(*results[0].Data))
 
 	// Assert that QueryResultRowsForHost returns empty slice when no results are found
 	results, err = ds.QueryResultRowsForHost(context.Background(), 999, 999)
@@ -146,17 +115,13 @@ func testGetQueryResultRowsForHost(t *testing.T, ds *Datastore) {
 			QueryID:     query.ID,
 			HostID:      host1.ID,
 			LastFetched: mockTime,
-			Data: json.RawMessage(
-				`{"model": "USB Keyboard", "vendor": "Apple Inc."}`,
-			),
+			Data:        nil,
 		},
 		{
 			QueryID:     query.ID,
 			HostID:      host1.ID,
 			LastFetched: mockTime,
-			Data: json.RawMessage(
-				`{"model": "USB Mouse", "vendor": "Logitech"}`,
-			),
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		},
 	}
 	err := ds.OverwriteQueryResultRows(context.Background(), host1ResultRows)
@@ -168,9 +133,7 @@ func testGetQueryResultRowsForHost(t *testing.T, ds *Datastore) {
 			QueryID:     query.ID,
 			HostID:      host2.ID,
 			LastFetched: mockTime,
-			Data: json.RawMessage(
-				`{"model": "USB Hub","vendor": "Logitech"}`,
-			),
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		},
 	}
 	err = ds.OverwriteQueryResultRows(context.Background(), host2ResultRows)
@@ -179,15 +142,15 @@ func testGetQueryResultRowsForHost(t *testing.T, ds *Datastore) {
 	// Assert that Query1 returns 2 results for Host1
 	results, err := ds.QueryResultRowsForHost(context.Background(), query.ID, host1.ID)
 	require.NoError(t, err)
-	require.Len(t, results, 2)
+	require.Len(t, results, 2) // should return rows with nil data
 	require.Equal(t, host1ResultRows[0].QueryID, results[0].QueryID)
 	require.Equal(t, host1ResultRows[0].HostID, results[0].HostID)
 	require.Equal(t, host1ResultRows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
-	require.JSONEq(t, string(host1ResultRows[0].Data), string(results[0].Data))
+	require.Nil(t, results[0].Data)
 	require.Equal(t, host1ResultRows[1].QueryID, results[1].QueryID)
 	require.Equal(t, host1ResultRows[1].HostID, results[1].HostID)
 	require.Equal(t, host1ResultRows[1].LastFetched.Unix(), results[1].LastFetched.Unix())
-	require.JSONEq(t, string(host1ResultRows[1].Data), string(results[1].Data))
+	require.JSONEq(t, string(*host1ResultRows[1].Data), string(*results[1].Data))
 
 	// Assert that Query1 returns 1 result for Host2
 	results, err = ds.QueryResultRowsForHost(context.Background(), query.ID, host2.ID)
@@ -196,7 +159,7 @@ func testGetQueryResultRowsForHost(t *testing.T, ds *Datastore) {
 	require.Equal(t, host2ResultRows[0].QueryID, results[0].QueryID)
 	require.Equal(t, host2ResultRows[0].HostID, results[0].HostID)
 	require.Equal(t, host2ResultRows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
-	require.JSONEq(t, string(host2ResultRows[0].Data), string(results[0].Data))
+	require.JSONEq(t, string(*host2ResultRows[0].Data), string(*results[0].Data))
 }
 
 func testCountResultsForQuery(t *testing.T, ds *Datastore) {
@@ -213,10 +176,10 @@ func testCountResultsForQuery(t *testing.T, ds *Datastore) {
 			QueryID:     query1.ID,
 			HostID:      host.ID,
 			LastFetched: mockTime,
-			Data: json.RawMessage(`{
+			Data: ptr.RawMessage([]byte(`{
 				"model": "USB Keyboard",
 				"vendor": "Apple Inc."
-			}`),
+			}`)),
 		},
 	}
 	err := ds.SaveQueryResultRows(context.Background(), resultRow)
@@ -241,10 +204,10 @@ func testCountResultsForQuery(t *testing.T, ds *Datastore) {
 			QueryID:     query2.ID,
 			HostID:      host.ID,
 			LastFetched: mockTime,
-			Data: json.RawMessage(`{
+			Data: ptr.RawMessage([]byte(`{
 				"model": "USB Mouse",
 				"vendor": "Apple Inc."
-			}`),
+			}`)),
 		},
 	}
 	for i := 0; i < 5; i++ {
@@ -282,36 +245,37 @@ func testCountResultsForQueryAndHost(t *testing.T, ds *Datastore) {
 			QueryID:     query1.ID,
 			HostID:      host.ID,
 			LastFetched: mockTime,
-			Data: json.RawMessage(`{
+			Data: ptr.RawMessage([]byte(`{
 				"model": "USB Keyboard",
 				"vendor": "Apple Inc."
-			}`),
+			}`)),
 		},
 		{
 			QueryID:     query1.ID,
 			HostID:      host.ID,
 			LastFetched: mockTime,
-			Data: json.RawMessage(`{
+			Data: ptr.RawMessage([]byte(`{
 				"model": "USB Mouse",
 				"vendor": "Logitech"
-			}`),
+			}`)),
 		},
 		{
 			QueryID:     query1.ID,
 			HostID:      host2.ID,
 			LastFetched: mockTime,
-			Data: json.RawMessage(`{
+			Data: ptr.RawMessage([]byte(`{
 				"model": "USB Mouse",
 				"vendor": "Logitech"
-			}`),
+			}`)),
 		},
 		{
 			QueryID:     query2.ID,
 			HostID:      host.ID,
 			LastFetched: mockTime,
-			Data: json.RawMessage(`{
-				"foo": "bar"
-			}`),
+			Data: ptr.RawMessage([]byte(`{
+				"model": "USB Mouse",
+				"vendor": "Logitech"
+			}`)),
 		},
 		{
 			QueryID:     query2.ID, // This row should not be counted
@@ -353,9 +317,7 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 			QueryID:     query.ID,
 			HostID:      host.ID,
 			LastFetched: mockTime,
-			Data: json.RawMessage(
-				`{"model": "USB Keyboard", "vendor": "Apple Inc."}`,
-			),
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Keyboard", "vendor": "Apple Inc."}`)),
 		},
 	}
 
@@ -369,9 +331,7 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 			QueryID:     query.ID,
 			HostID:      host.ID,
 			LastFetched: newMockTime,
-			Data: json.RawMessage(
-				`{"model": "USB Mouse", "vendor": "Logitech"}`,
-			),
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		},
 	}
 
@@ -385,7 +345,7 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	require.Equal(t, overwriteRows[0].QueryID, results[0].QueryID)
 	require.Equal(t, overwriteRows[0].HostID, results[0].HostID)
 	require.Equal(t, overwriteRows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
-	require.JSONEq(t, string(overwriteRows[0].Data), string(results[0].Data))
+	require.JSONEq(t, string(*overwriteRows[0].Data), string(*results[0].Data))
 
 	// Test calling OverwriteQueryResultRows with a query that doesn't exist (e.g. a deleted query).
 	overwriteRows = []*fleet.ScheduledQueryResultRow{
@@ -393,9 +353,7 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 			QueryID:     9999,
 			HostID:      host.ID,
 			LastFetched: newMockTime,
-			Data: json.RawMessage(
-				`{"model": "USB Mouse", "vendor": "Logitech"}`,
-			),
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		},
 	}
 	err = ds.OverwriteQueryResultRows(context.Background(), overwriteRows)
@@ -408,7 +366,7 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	require.Equal(t, overwriteRows[0].QueryID, results[0].QueryID)
 	require.Equal(t, overwriteRows[0].HostID, results[0].HostID)
 	require.Equal(t, overwriteRows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
-	require.JSONEq(t, string(overwriteRows[0].Data), string(results[0].Data))
+	require.JSONEq(t, string(*overwriteRows[0].Data), string(*results[0].Data))
 }
 
 func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
@@ -430,7 +388,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 			QueryID:     query.ID,
 			HostID:      host1.ID,
 			LastFetched: mockTime,
-			Data:        json.RawMessage(`{"model": "Bulk Mouse", "vendor": "BulkTech"}`),
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		}
 	}
 	err := ds.OverwriteQueryResultRows(context.Background(), maxMinusOneRows)
@@ -453,7 +411,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 			QueryID:     query.ID,
 			HostID:      host3.ID,
 			LastFetched: mockTime,
-			Data:        json.RawMessage(`{"model": "USB Mouse", "vendor": "Logitech"}`),
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		},
 	})
 	require.NoError(t, err)
@@ -469,7 +427,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 			QueryID:     query.ID,
 			HostID:      host4.ID,
 			LastFetched: mockTime,
-			Data:        json.RawMessage(`{"model": "USB Mouse", "vendor": "Logitech"}`),
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		},
 	})
 	require.NoError(t, err)
@@ -487,7 +445,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 			QueryID:     query2.ID,
 			HostID:      host1.ID,
 			LastFetched: mockTime,
-			Data:        json.RawMessage(`{"model": "Bulk Mouse", "vendor": "BulkTech"}`),
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		}
 	}
 	err = ds.OverwriteQueryResultRows(context.Background(), largeBatchRows)
@@ -505,9 +463,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 			QueryID:     query2.ID,
 			HostID:      host2.ID,
 			LastFetched: newMockTime,
-			Data: json.RawMessage(
-				`{"model": "USB Mouse", "vendor": "Logitech"}`,
-			),
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		},
 	}
 
@@ -530,9 +486,7 @@ func testQueryResultRows(t *testing.T, ds *Datastore) {
 			QueryID:     query.ID,
 			HostID:      9999,
 			LastFetched: mockTime,
-			Data: json.RawMessage(
-				`{"model": "USB Mouse", "vendor": "Logitech"}`,
-			),
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		},
 	}
 	err := ds.OverwriteQueryResultRows(context.Background(), overwriteRows)
