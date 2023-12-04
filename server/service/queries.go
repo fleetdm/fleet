@@ -177,7 +177,6 @@ func (svc *Service) GetQueryReportResults(ctx context.Context, id uint) ([]fleet
 	return queryReportResults, nil
 }
 
-
 func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error) {
 	count, err := svc.ds.ResultCountForQuery(ctx, queryID)
 	if err != nil {

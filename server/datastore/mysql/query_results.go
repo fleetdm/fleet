@@ -139,22 +139,3 @@ func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID
 
 	return results, nil
 }
-
-func (ds *Datastore) QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error) {
-	var isClipped bool
-	var count int
-
-	countStmt := `
-		SELECT COUNT(*) FROM query_results WHERE query_id = ?
-	`
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt, queryID)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "counting query results")
-	}
-
-	if count >= fleet.MaxQueryReportRows {
-		isClipped = true
-	}
-
-	return isClipped, nil
-}
