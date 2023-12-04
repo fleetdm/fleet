@@ -7251,7 +7251,7 @@ Returns the information of the specified software title. By default `versions` a
       },
       {
         "id": 127,
-        "version": "115.5",
+        "version": "120.0",
         "vulnerabilities": ["CVE-2023-7654"],
         "hosts_count": 4
       }
