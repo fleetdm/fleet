@@ -92,7 +92,7 @@ const mdmService = {
     return sendRequest("POST", MDM_PROFILES, formData);
   },
 
-  downloadProfile: (profileId: number | string) => {
+  downloadProfile: (profileId: string) => {
     const { MDM_PROFILE } = endpoints;
     const path = `${MDM_PROFILE(profileId)}?${buildQueryStringFromParams({
       alt: "media",
@@ -100,7 +100,7 @@ const mdmService = {
     return sendRequest("GET", path);
   },
 
-  deleteProfile: (profileId: number | string) => {
+  deleteProfile: (profileId: string) => {
     const { MDM_PROFILE } = endpoints;
     return sendRequest("DELETE", MDM_PROFILE(profileId));
   },

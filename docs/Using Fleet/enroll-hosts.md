@@ -6,13 +6,9 @@ Fleet gathers information from an [osquery](https://github.com/osquery/osquery) 
 
 You can enroll macOS, Windows or Linux hosts via the [CLI](#cli) or [UI](#ui). To learn how to enroll Chromebooks, see [Enroll Chromebooks](#enroll-chromebooks).
 
-
 ### Supported osquery versions
 
 Fleet supports the [latest version of osquery](https://github.com/osquery/osquery/tags). 
-
-
-
 
 ## CLI
 
@@ -35,6 +31,8 @@ Generate macOS installer (.pkg)
 fleetctl package --type pkg --fleet-url=example.fleetinstance.com --enroll-secret=85O6XRG8'!l~P&zWt_'f&$QK(sM8_D4x
 ```
 
+Tip: To see all options for `fleetctl package` command, run `fleetctl package -h` in your Terminal.
+
 ## UI
 
 To generate an installer in Fleet UI:
@@ -47,10 +45,6 @@ To generate an installer in Fleet UI:
 With hosts segmented into teams, you can apply unique queries and give users access to only the hosts in specific teams. [Learn more about teams](https://fleetdm.com/docs/using-fleet/segment-hosts).
 
 To generate an installer that enrolls to a specific team: from the **Hosts** page, select the desired team from the menu at the top of the screen, then follow the instructions above for generating an installer. The team's enroll secret will be included in the generated command.
-
-
-
-
 
 ### Enroll multiple hosts
 
@@ -108,7 +102,15 @@ In the Google Admin console:
 5. Enter the **Extension ID** and **Installation URL** using the data provided in the modal.
 6. Under **Installation Policy**, select **Block**.
 
-## Grant full disk access to osquery on macOS
+## Advanced
+
+- [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
+- [Signing fleetd installer](#signing-fleetd-installer)
+- [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
+- [fleetd configuration options](#fleetd-configuration-options)
+- [Enroll hosts with plain osquery](#enroll-hosts-with-plain-osquery)
+
+### Grant full disk access to osquery on macOS
 
 macOS does not allow applications to access all system files by default. If you are using MDM, which
 is required to deploy these profiles, you
@@ -117,8 +119,9 @@ access. This is necessary to query for files located in protected paths as well 
 tables that require access to the [EndpointSecurity
 API](https://developer.apple.com/documentation/endpointsecurity#overview), such as *es_process_events*.
 
-### Creating the configuration profile
-#### Obtaining identifiers
+#### Creating the configuration profile
+
+##### Obtaining identifiers
 If you use plain osquery, instructions are [available here](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/).
 
 On a system with osquery installed via the Fleet osquery installer (fleetd), obtain the
@@ -142,7 +145,7 @@ Note down the **executable path** and the entire **identifier**.
 
 Osqueryd will inherit the privileges from Orbit and does not need explicit permissions.
 
-#### Creating the profile
+##### Creating the profile
 Depending on your MDM, this might be possible in the UI or require a custom profile. If your MDM has a feature to configure *Policy Preferences*, follow these steps:
 
 1. Configure the identifier type to “path.”
@@ -154,7 +157,7 @@ If your MDM does not have built-in support for privacy preferences profiles, you
 [PPPC-Utility](https://github.com/jamf/PPPC-Utility) to create a profile with those values, then upload it to
 your MDM as a custom profile.
 
-#### Test the profile
+##### Test the profile
 Link the profile to a test group that contains at least one Mac.
 Once the computer has received the profile, which you can verify by looking at *Profiles* in *System
 Preferences*, run this query from Fleet:
@@ -175,13 +178,6 @@ See the last hour of logs related to TCC permissions with this command:
 `log show --predicate 'subsystem == "com.apple.TCC"' --info --last 1h`
 
 You can then look for `orbit` or `osquery` to narrow down results.
-
-## Advanced
-
-- [Signing fleetd installer](#signing-fleetd-installer)
-- [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
-- [fleetd configuration options](#fleetd-configuration-options)
-- [Enroll hosts with plain osquery](#enroll-hosts-with-plain-osquery)
 
 ### Signing fleetd installers
 
@@ -217,45 +213,6 @@ so:
       fleetctl package --type msi --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET] --local-wix-dir "\Users\me\AppData\Local\Temp\wix311-binaries"
      ```
      If the provided path doesn't contain all 3 binaries, the command will fail.
-
-### Fleetd configuration options
-
-The following command-line flags to `fleetctl package` allow you to configure an osquery installer further to communicate with a specific Fleet instance.
-
-| Flag                       | Options                                                                                                                                 |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| --type                     | **Required** - Type of package to build.<br> Options: `pkg`(macOS),`msi`(Windows), `deb`(Debian based Linux), `rpm`(RHEL, CentOS, etc.) |
-| --fleet-desktop            | Include Fleet Desktop.                                                                                                                  |
-| --enroll-secret            | Enroll secret for authenticating to Fleet server                                                                                        |
-| --fleet-url                | URL (`host:port`) of Fleet server                                                                                                       |
-| --fleet-certificate        | Path to server certificate bundle                                                                                                       |
-| --identifier               | Identifier for package product (default: `com.fleetdm.orbit`)                                                                           |
-| --version                  | Version for package product (default: `0.0.3`)                                                                                          |
-| --insecure                 | Disable TLS certificate verification (default: `false`)                                                                                 |
-| --service                  | Install osquery with a persistence service (launchd, systemd, etc.) (default: `true`)                                                   |
-| --sign-identity            | Identity to use for macOS codesigning                                                                                                   |
-| --notarize                 | Whether to notarize macOS packages (default: `false`)                                                                                   |
-| --disable-updates          | Disable auto updates on the generated package (default: false)                                                                          |
-| --osqueryd-channel         | Update channel of osqueryd to use (default: `stable`)                                                                                   |
-| --orbit-channel            | Update channel of Orbit to use (default: `stable`)                                                                                      |
-| --desktop-channel          | Update channel of desktop to use (default: `stable`)                                                                                    |
-| --update-url               | URL for update server (default: `https://tuf.fleetctl.com`)                                                                             |
-| --update-roots             | Root key JSON metadata for update server (from fleetctl updates roots)                                                                  |
-| --use-system-configuration | Try to read --fleet-url and --enroll-secret using configuration in the host (currently only macOS profiles are supported)               |
-| --enable-scripts           | Enable script execution (default: `false`)                                                                                              |
-| --debug                    | Enable debug logging (default: `false`)                                                                                                 |
-| --verbose                  | Log detailed information when building the package (default: false)                                                                     |
-| --local-wix-dir            | Use local installations of the 3 WiX v3 binaries this command uses (`heat.exe`, `candle.exe`, and `light.exe`) instead of installations in a pre-configered Docker Hub (only available on Windows w/ WiX v3)                                                    |
-| --help, -h                 | show help (default: `false`)                                                                                                            |
-
-Fleet supports other methods for adding your hosts to Fleet, such as the plain osquery
-binaries or [Kolide Osquery
-Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
-
-### Enroll hosts with plain osquery
-
-Osquery's [TLS API](http://osquery.readthedocs.io/en/stable/deployment/remote/) plugin lets you use
-the native osqueryd binaries to connect to Fleet. Learn more [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Enroll-hosts-with-plain-osquery.md).
 
 
 <meta name="pageOrderInSection" value="500">
