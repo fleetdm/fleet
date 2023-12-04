@@ -4508,18 +4508,21 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 }
 
 func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
-	sql := `
+	sqlStmt := `
 		SELECT h.os_version, h.updated_at, h.platform, h.team_id, hd.encrypted as disk_encryption_enabled FROM hosts h
 		LEFT JOIN host_disks hd ON hd.host_id = h.id
 		WHERE id = ?
 	`
 
-	var results []fleet.HostHealth
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, id); err != nil {
+	var hh fleet.HostHealth
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hh, sqlStmt, id); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Host Health").WithID(id))
+		}
+
 		return nil, ctxerr.Wrap(ctx, err, "loading host health")
 	}
 
-	hh := &results[0]
 	host := &fleet.Host{ID: id, Platform: hh.Platform}
 	if err := ds.LoadHostSoftware(ctx, host, true); err != nil {
 		return nil, err
@@ -4542,5 +4545,5 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 		}
 	}
 
-	return hh, nil
+	return &hh, nil
 }
