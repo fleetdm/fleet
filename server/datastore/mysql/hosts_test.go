@@ -7713,7 +7713,6 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	require.Equal(t, h.UpdatedAt, hh.UpdatedAt)
 	require.Len(t, hh.FailingPolicies, 1)
 	require.Equal(t, failingPolicy.ID, hh.FailingPolicies[0].ID)
-	// TODO(JVE): verify vulnerable software list
 	require.Len(t, hh.VulnerableSoftware, 1)
 	require.Equal(t, soft1.ID, hh.VulnerableSoftware[0].ID)
 }
