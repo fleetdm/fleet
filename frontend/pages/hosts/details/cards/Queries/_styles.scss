@@ -23,16 +23,29 @@
         }
       }
       tbody {
-        .query_name__cell {
-          width: $col-lg;
-        }
-        .last_fetched__cell {
-          display: table-cell;
-        }
-        @media (max-width: $break-xs) {
+        tr {
+          .query_name__cell {
+            width: $col-lg;
+          }
           .last_fetched__cell {
-            display: none;
-            width: 0;
+            display: table-cell;
+          }
+          &:hover {
+            .report-updated-cell__link-text {
+              opacity: 1;
+            }
+          }
+          @media (max-width: $break-md) {
+            .report-updated-cell__link-text {
+              display: none;
+              width: 0;
+            }
+          }
+          @media (max-width: $break-xs) {
+            .last_fetched__cell {
+              display: none;
+              width: 0;
+            }
           }
         }
       }

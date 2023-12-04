@@ -6,11 +6,12 @@ import { performanceIndicator } from "utilities/helpers";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import { uniqueId } from "lodash";
-import ReactTooltip from "react-tooltip";
-import { COLORS } from "styles/var/colors";
+import ReportUpdatedCell from "pages/hosts/details/cards/Queries/ReportUpdatedCell";
 
+interface IHostQueriesTable extends Partial<IQueryStats> {
+  performance: { indicator: string; id: number };
+  should_link_to_hqr: boolean;
+}
 interface IHeaderProps {
   column: {
     title: string;
@@ -20,7 +21,7 @@ interface IHeaderProps {
 
 interface IRowProps {
   row: {
-    original: IQueryStats;
+    original: IHostQueriesTable;
   };
 }
 
@@ -48,11 +49,6 @@ interface IDataColumn {
     | ((props: IPillCellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
-}
-
-interface IHostQueriesTable extends Partial<IQueryStats> {
-  performance: { indicator: string; id: number };
-  should_link_to_hqr: boolean;
 }
 
 // NOTE: cellProps come from react-table
@@ -103,70 +99,9 @@ const generateColumnConfigs = (
       Header: "Report updated",
       disableSortBy: true,
       accessor: "last_fetched", // tbd - may change
-      Cell: (cellProps: ICellProps) => {
-        const {
-          last_fetched,
-          interval,
-          discard_data,
-          automations_enabled,
-        } = cellProps.row.original;
-
-        // if this query doesn't have an interval, it either has a stored report from previous runs
-        // and will link to that report, or won't be included in this data in the first place.
-        if (interval) {
-          if (discard_data && automations_enabled) {
-            // TODO: this is the only case where the row is NOT clickable with a link to the host's HQR
-            // query runs, sends results to a logging dest, doesn't cache
-            return (
-              <TextCell
-                greyed
-                emptyCellTooltipText={
-                  <>
-                    Results from this query are not reported in Fleet.
-                    <br />
-                    Data is being sent to your log destination.
-                  </>
-                }
-              />
-            );
-          }
-
-          // Query is scheduled to run on host, but hasn't yet
-          if (!last_fetched) {
-            const tipId = uniqueId();
-            return (
-              <TextCell
-                value="Never"
-                formatter={(val) => (
-                  <>
-                    <span data-tip data-for={tipId}>
-                      {val}
-                    </span>
-                    <ReactTooltip
-                      id={tipId}
-                      effect="solid"
-                      backgroundColor={COLORS["tooltip-bg"]}
-                      place="top"
-                    >
-                      This query has not run on this host.
-                    </ReactTooltip>
-                  </>
-                )}
-                greyed
-              />
-            );
-          }
-        }
-
-        // render with link to cached results
-        return (
-          <TextCell
-            // last_fetched will be truthy at this point
-            value={{ timeString: last_fetched ?? "" }}
-            formatter={HumanTimeDiffWithFleetLaunchCutoff}
-          />
-        );
-      },
+      Cell: (cellProps: ICellProps) => (
+        <ReportUpdatedCell {...cellProps.row.original} />
+      ),
     });
   }
   return cols;

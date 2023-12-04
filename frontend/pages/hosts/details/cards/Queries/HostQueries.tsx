@@ -73,12 +73,12 @@ const HostQueries = ({
     (row: IHostQueriesRowProps) => {
       const { id: queryId, should_link_to_hqr } = row.original;
 
-      if (!hostId || !queryId || !should_link_to_hqr) {
+      if (!hostId || !queryId || !should_link_to_hqr || queryReportsDisabled) {
         return;
       }
       router.push(`${PATHS.HOST_QUERY_REPORT(hostId, queryId)}`);
     },
-    [hostId, router]
+    [hostId, queryReportsDisabled, router]
   );
 
   return (
