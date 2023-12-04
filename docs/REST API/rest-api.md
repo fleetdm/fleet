@@ -2215,7 +2215,8 @@ Returns the information of the specified host.
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
         "vulnerabilities": null,
-        "installed_paths": ["/usr/lib/some-path-2"]
+        "installed_paths": ["/usr/lib/some-path-2"],
+        "status": "installed"
       }
     ],
     "id": 1,
@@ -2660,7 +2661,8 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
-        "vulnerabilities": null
+        "vulnerabilities": null,
+        "status": "installed"
       }
     ],
     "id": 1,
