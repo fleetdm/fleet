@@ -2271,9 +2271,9 @@ Returns the information of the specified host.
     "pack_stats": null,
     "team_name": null,
     "additional": {},
-    "gigs_disk_space_available": 73,
-    "percent_disk_space_available": 73,
-    "gigs_total_disk_space": 100,
+    "gigs_disk_space_available": 46.1,
+    "percent_disk_space_available": 92,
+    "gigs_total_disk_space": 50,
     "disk_encryption_enabled": true,
     "users": [
       {
