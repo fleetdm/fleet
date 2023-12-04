@@ -28,6 +28,7 @@ func TestQueryResults(t *testing.T) {
 		{"Overwrite", testOverwriteQueryResultRows},
 		{"MaxRows", testQueryResultRowsDoNotExceedMaxRows},
 		{"QueryResultRows", testQueryResultRows},
+		{"ReportIsClipped", testReportIsClipped},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -491,4 +492,46 @@ func (ds *Datastore) SaveQueryResultRows(ctx context.Context, rows []*fleet.Sche
 	}
 
 	return nil
+}
+
+func testReportIsClipped(t *testing.T, ds *Datastore) {
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	query := test.NewQuery(t, ds, nil, "Overwrite Test Query", "SELECT 1", user.ID, true)
+	host := test.NewHost(t, ds, "hostname1", "192.168.1.101", "11111", "UI8XB1224", time.Now())
+	host2 := test.NewHost(t, ds, "hostname2", "192.168.1.101", "22222", "UI8XB1224", time.Now())
+
+	mockTime := time.Now().UTC().Truncate(time.Second)
+
+	// Generate more than max rows
+	rows := fleet.MaxQueryReportRows - 1
+	largeBatchRows := make([]*fleet.ScheduledQueryResultRow, rows)
+	for i := 0; i < rows; i++ {
+		largeBatchRows[i] = &fleet.ScheduledQueryResultRow{
+			QueryID:     query.ID,
+			HostID:      host.ID,
+			LastFetched: mockTime,
+			Data:        json.RawMessage(`{"model": "Bulk Mouse", "vendor": "BulkTech"}`),
+		}
+	}
+	err := ds.OverwriteQueryResultRows(context.Background(), largeBatchRows)
+	require.NoError(t, err)
+
+	isClipped, err := ds.QueryReportIsClipped(context.Background(), query.ID)
+	require.NoError(t, err)
+	require.False(t, isClipped)
+
+	// add one more row
+	err = ds.OverwriteQueryResultRows(context.Background(), []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     query.ID,
+			HostID:      host2.ID,
+			LastFetched: mockTime,
+			Data:        json.RawMessage(`{"model": "Bulk Mouse", "vendor": "BulkTech"}`),
+		},
+	})
+	require.NoError(t, err)
+
+	isClipped, err = ds.QueryReportIsClipped(context.Background(), query.ID)
+	require.NoError(t, err)
+	require.True(t, isClipped)
 }
