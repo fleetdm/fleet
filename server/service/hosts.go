@@ -1051,7 +1051,7 @@ type getHostQueryReportRequest struct {
 	QueryID uint `url:"query_id"`
 }
 
-type geHostQueryReportResponse struct {
+type getHostQueryReportResponse struct {
 	QueryID       uint                          `json:"query_id"`
 	HostID        uint                          `json:"host_id"`
 	HostName      string                        `json:"host_name"`
@@ -1061,7 +1061,7 @@ type geHostQueryReportResponse struct {
 	Err           error                         `json:"error,omitempty"`
 }
 
-func (r geHostQueryReportResponse) error() error { return r.Err }
+func (r getHostQueryReportResponse) error() error { return r.Err }
 
 func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostQueryReportRequest)
@@ -1069,20 +1069,20 @@ func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fl
 	// Need to return hostname in response even if there are no report results
 	host, err := svc.GetHost(ctx, req.ID, fleet.HostDetailOptions{})
 	if err != nil {
-		return geHostQueryReportResponse{Err: err}, nil
+		return getHostQueryReportResponse{Err: err}, nil
 	}
 
 	reportResults, lastFetched, err := svc.GetHostQueryReportResults(ctx, req.ID, req.QueryID)
 	if err != nil {
-		return geHostQueryReportResponse{Err: err}, nil
+		return getHostQueryReportResponse{Err: err}, nil
 	}
 
 	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID)
 	if err != nil {
-		return geHostQueryReportResponse{Err: err}, nil
+		return getHostQueryReportResponse{Err: err}, nil
 	}
 
-	return geHostQueryReportResponse{
+	return getHostQueryReportResponse{
 		QueryID:       req.QueryID,
 		HostID:        host.ID,
 		HostName:      host.DisplayName(),
@@ -1111,16 +1111,21 @@ func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, 
 		return []fleet.HostQueryReportResult{}, nil, nil
 	}
 
-	var result []fleet.HostQueryReportResult
+	var lastFetched *time.Time
+	result := make([]fleet.HostQueryReportResult, 0, len(hostReportResultRows))
 	for _, hostReportResultRow := range hostReportResultRows {
 		columns := map[string]string{}
-		if err := json.Unmarshal(*hostReportResultRow.Data, &columns); err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal query result row data")
+		lastFetched = &hostReportResultRow.LastFetched
+		data := hostReportResultRow.Data
+		if data != nil {
+			if err := json.Unmarshal(*data, &columns); err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal query result row data")
+			}
+			result = append(result, fleet.HostQueryReportResult{Columns: columns})
 		}
-		result = append(result, fleet.HostQueryReportResult{Columns: columns})
 	}
 
-	return result, &hostReportResultRows[0].LastFetched, nil
+	return result, lastFetched, nil
 }
 
 func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, []string, error) {
