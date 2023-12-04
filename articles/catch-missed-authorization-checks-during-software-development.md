@@ -1,3 +1,9 @@
+#Catch missed authorization checks during software development
+
+<div class="video-container" style="position: relative; width: 100%; padding-bottom: 56.25%; margin-top: 24px; margin-bottom: 40px;">
+	<iframe class="video" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" src="https://www.youtube.com/embed/jbkPLQpzPtc?si=k1BUb98QWRT1V8fZ" allowfullscreen></iframe>
+</div>
+
 Authorization is giving permission to a user to do an action on the server. As developers, we must ensure that users are only allowed to do what they are authorized.
 
 One way to ensure that authorization has happened is to loudly flag when it hasn’t. This is how we do it at [Fleet Device Management](https://www.linkedin.com/company/fleetdm/?lipi=urn%3Ali%3Apage%3Ad_flagship3_pulse_read%3BCaXkx0wxSNeQ8WfF5SZ17g%3D%3D).
@@ -15,6 +21,8 @@ Every endpoint calls **kithttp.NewServer** and wraps the endpoint with our **Aut
 e = authzcheck.NewMiddleware().AuthzCheck()(e)
 return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 ```
+![Example check](../website/assets/images/articles/catch-missed-authorization-checks-during-software-development-720x179@2x.jpg
+"Example check")
 
 This means that after the business logic is processed, the AuthzCheck is called. This check ensures that authorization was checked. Otherwise, an error is returned. From [authzcheck.go](https://github.com/fleetdm/fleet/blob/36421bd5055d37a4c39a04e0f9bd96ad47951131/server/service/middleware/authzcheck/authzcheck.go#L51):
 ```
@@ -31,7 +39,7 @@ This additional check is useful during our development and QA process, to ensure
 
 <meta name="articleTitle" value="Building an effective dashboard with Fleet's REST API, Flask, and Plotly: A step-by-step guide">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
-<meta name="authorGitHubUsername" value="dherder">
+<meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2023-04-12">
 <meta name="articleImageUrl" value="../website/assets/images/articles/building-an-effective-dashboard-with-fleet-rest-api-flask-and-plotly@2x.jpg">
