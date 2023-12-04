@@ -1,11 +1,13 @@
 package service
 
 import (
-	"github.com/fleetdm/fleet/v4/server/ptr"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -157,7 +159,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				"&os_name=osName&os_version=osVersion&disable_failing_policies=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
-				"&munki_issue_id=7&low_disk_space=99",
+				"&munki_issue_id=7&low_disk_space=99&software_version_id=8&software_title_id=9",
 			hostListOptions: fleet.HostListOptions{
 				ListOptions: fleet.ListOptions{
 					OrderKey:       "foo",
@@ -172,6 +174,8 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				PolicyIDFilter:                    ptr.Uint(3),
 				PolicyResponseFilter:              ptr.Bool(true),
 				SoftwareIDFilter:                  ptr.Uint(4),
+				SoftwareVersionIDFilter:           ptr.Uint(8),
+				SoftwareTitleIDFilter:             ptr.Uint(9),
 				OSIDFilter:                        ptr.Uint(5),
 				OSNameFilter:                      ptr.String("osName"),
 				OSVersionFilter:                   ptr.String("osVersion"),
@@ -290,6 +294,28 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"error in os_name/os_version (os_version missing)": {
 			url:          "/foo?os_name=foo",
 			errorMessage: "Invalid os_version",
+		},
+		"negative software_id": {
+			url:          "/foo?software_id=-10",
+			errorMessage: "Invalid software_id",
+		},
+		"negative software_version_id": {
+			url:          "/foo?software_version_id=-10",
+			errorMessage: "Invalid software_version_id",
+		},
+		"negative software_title_id": {
+			url:          "/foo?software_title_id=-10",
+			errorMessage: "Invalid software_title_id",
+		},
+		"software_title_id too big": {
+			url:          "/foo?software_title_id=" + fmt.Sprint(1<<33),
+			errorMessage: "Invalid software_title_id",
+		},
+		"software_version_id can be > 32bits": {
+			url: "/foo?software_version_id=" + fmt.Sprint(1<<33),
+			hostListOptions: fleet.HostListOptions{
+				SoftwareVersionIDFilter: ptr.Uint(1 << 33),
+			},
 		},
 	}
 
