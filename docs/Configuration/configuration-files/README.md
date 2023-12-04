@@ -403,6 +403,7 @@ spec:
     enable_analytics: true
     live_query_disabled: false
     query_reports_disabled: false
+    scripts_disabled: false
     server_url: ""
   smtp_settings:
     authentication_method: authmethod_plain
