@@ -404,6 +404,7 @@ type Datastore interface {
 	ResultCountForQuery(ctx context.Context, queryID uint) (int, error)
 	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
 	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow) error
+	QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
