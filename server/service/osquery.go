@@ -1416,14 +1416,18 @@ func (svc *Service) preProcessOsqueryResults(
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
+	lograw := func(raw json.RawMessage) string {
+		logr := raw
+		if len(raw) >= 64 {
+			logr = raw[:64]
+		}
+		return string(logr)
+	}
+
 	for _, raw := range osqueryResults {
 		var result *fleet.ScheduledQueryResult
-		lograw := raw
-		if len(raw) >= 64 {
-			lograw = raw[:64]
-		}
 		if err := json.Unmarshal(raw, &result); err != nil {
-			level.Error(svc.logger).Log("msg", "unmarshalling result", "err", err, "result", string(lograw))
+			level.Debug(svc.logger).Log("msg", "unmarshalling result", "err", err, "result", lograw(raw))
 			// Note that if err != nil we have two scenarios:
 			// 	- result == nil: which means the result could not be unmarshalled, e.g. not JSON.
 			//	- result != nil: which means that the result was (partially) unmarshalled but some specific
@@ -1433,7 +1437,7 @@ func (svc *Service) preProcessOsqueryResults(
 		} else {
 			// If the unmarshaled result doesn't have a "name" field then we ignore the result.
 			if result != nil && result.QueryName == "" {
-				level.Error(svc.logger).Log("msg", "missing name field", "result", string(lograw))
+				level.Debug(svc.logger).Log("msg", "missing name field", "result", lograw(raw))
 				result = nil
 			}
 		}
@@ -1452,7 +1456,7 @@ func (svc *Service) preProcessOsqueryResults(
 		}
 		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
+			level.Debug(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
 			continue
 		}
 		if _, ok := queriesDBData[queryResult.QueryName]; ok {
