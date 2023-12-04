@@ -262,8 +262,7 @@ const HostDetailsPage = ({
       wall_time: 0,
     },
     {
-      scheduled_query_name:
-        "cached query 2 - stored results, but no current interval",
+      scheduled_query_name: "cached query 2 - stored results",
       description: "should render with row clickable to its report",
       discard_data: false,
       query_name: "query 2",
@@ -293,6 +292,28 @@ const HostDetailsPage = ({
       query_name: "query 3",
       last_fetched: null,
       scheduled_query_id: 3,
+
+      pack_id: 1,
+      pack_name: "Team: 💻 Workstations",
+      average_memory: 435814,
+      denylisted: false,
+      executions: 5,
+      last_executed: "2023-11-29T15:20:02Z",
+      output_size: 1204,
+      system_time: 9,
+      user_time: 3,
+      wall_time: 0,
+    },
+    {
+      scheduled_query_name:
+        "cached query 4 - stored results, but no current interval",
+      description: "should render with row clickable to its report",
+      discard_data: false,
+      query_name: "query 4",
+      last_fetched: "2023-11-29T15:20:02Z",
+      automations_enabled: false,
+      interval: 0,
+      scheduled_query_id: 4,
 
       pack_id: 1,
       pack_name: "Team: 💻 Workstations",
