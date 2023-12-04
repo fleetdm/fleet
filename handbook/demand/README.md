@@ -146,6 +146,18 @@ Fleet regularly uploads a variety of content to YouTube such as podcast episodes
 - Set the visibility to "Public"
 - Share video link on social media
 
+### Create a podcast episode
+Fleet invites guests to discuss the future of IT and security on the [ExpedITioners podcast](https://expeditioners.podbean.com/) to be shared with the community,
+
+- Find the new episode in the [Fleet drive](https://drive.google.com/drive/folders/1v2sBswrqaayxRTfqoDDZBhz0xViqoNbC?usp=drive_link).
+- Combine audio from the guest and speaker together in Garageband with the [jingle and introduction](https://drive.google.com/drive/u/0/folders/1Av8yAgkKo22nYOeFJyXXEHtpyX9tETIH).
+- Listen to the episode and note talking points, title, and links mentioned in the [show notes doc](https://docs.google.com/document/d/1quyiYWm7rZSGTobJbE4vFlZwT3nlutZG5e5u6fZ3Y_4/edit?usp=sharing).
+- Upload the audio file to the [episode folder](https://drive.google.com/drive/folders/1v2sBswrqaayxRTfqoDDZBhz0xViqoNbC) 
+- Create episode cover and sharable image in [Figma](https://www.figma.com/file/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?type=design&node-id=1711-84364&mode=design&t=mm5L76TMiRV4yUIA-0)
+- Log in to [Podbean](https://www.podbean.com/user-z61jYLi85TV2) to manage the podcast and click new episode.
+- Use the show notes to complete the Podbean description and [create a new article](https://github.com/fleetdm/fleet/tree/main/articles) on Fleet's website.
+- Publish on social media
+
 ## Rituals
 <rituals :rituals="rituals['handbook/demand/demand.rituals.yml']"></rituals>
 

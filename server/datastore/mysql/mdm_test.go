@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -325,7 +325,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Equal(t, *meta, fleet.PaginationMetadata{})
 
 	// add fleet-managed Windows profiles for the team and globally
-	for name := range microsoft_mdm.FleetReservedProfileNames() {
+	for name := range mdm_types.FleetReservedProfileNames() {
 		_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: name, TeamID: &team.ID, SyncML: winProf})
 		require.NoError(t, err)
 		_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: name, TeamID: nil, SyncML: winProf})

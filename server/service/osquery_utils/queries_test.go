@@ -7,8 +7,10 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -19,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -1292,8 +1295,8 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 		}
 		return expected, nil
 	}
-	ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, hostUUID string, toVerify, toFailed, toRetry []string) error {
-		require.Equal(t, h.UUID, hostUUID)
+	ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, host *fleet.Host, toVerify, toFailed, toRetry []string) error {
+		require.Equal(t, h.UUID, host.UUID)
 		require.Equal(t, len(installedProfiles), len(toVerify))
 		require.Len(t, toFailed, 0)
 		require.Len(t, toRetry, 0)
@@ -1535,5 +1538,68 @@ func TestSanitizeSoftware(t *testing.T) {
 			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())
 			require.Equal(t, tc.sanitized, tc.s)
 		})
+	}
+}
+
+func TestDirectIngestWindowsProfiles(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	ds := new(mock.Store)
+
+	for _, tc := range []struct {
+		hostProfiles []*fleet.ExpectedMDMProfile
+		want         string
+	}{
+		{nil, ""},
+		{
+			[]*fleet.ExpectedMDMProfile{
+				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{})},
+			},
+			"",
+		},
+		{
+			[]*fleet.ExpectedMDMProfile{
+				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
+			},
+			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get></SyncBody>';",
+		},
+		{
+			[]*fleet.ExpectedMDMProfile{
+				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
+				{Name: "N2", RawProfile: syncml.ForTestWithData(map[string]string{"L2": "D2"})},
+				{Name: "N3", RawProfile: syncml.ForTestWithData(map[string]string{"L3": "D3", "L3.1": "D3.1"})},
+			},
+			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get><Get><CmdID>2736786183</CmdID><Item><Target><LocURI>L2</LocURI></Target></Item></Get><Get><CmdID>894211447</CmdID><Item><Target><LocURI>L3</LocURI></Target></Item></Get><Get><CmdID>3410477854</CmdID><Item><Target><LocURI>L3.1</LocURI></Target></Item></Get></SyncBody>';",
+		},
+	} {
+
+		ds.GetHostMDMProfilesExpectedForVerificationFunc = func(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
+			result := map[string]*fleet.ExpectedMDMProfile{}
+			for _, p := range tc.hostProfiles {
+				result[p.Name] = p
+			}
+			return result, nil
+		}
+
+		gotQuery := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)
+		if tc.want != "" {
+			require.Contains(t, gotQuery, "SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input =")
+			re := regexp.MustCompile(`'<(.*?)>'`)
+			gotMatches := re.FindStringSubmatch(gotQuery)
+			require.NotEmpty(t, gotMatches)
+			wantMatches := re.FindStringSubmatch(tc.want)
+			require.NotEmpty(t, wantMatches)
+
+			var extractedStruct, expectedStruct fleet.SyncBody
+			err := xml.Unmarshal([]byte(gotMatches[0]), &extractedStruct)
+			require.NoError(t, err)
+
+			err = xml.Unmarshal([]byte(wantMatches[0]), &expectedStruct)
+			require.NoError(t, err)
+
+			require.ElementsMatch(t, expectedStruct.Get, extractedStruct.Get)
+		} else {
+			require.Equal(t, gotQuery, tc.want)
+		}
 	}
 }

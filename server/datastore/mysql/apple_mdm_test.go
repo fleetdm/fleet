@@ -15,6 +15,7 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -1724,7 +1725,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 		teamCPs = append(teamCPs, cp)
 	}
 	// add filevault profile for team
-	fvTeam, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault", mobileconfig.FleetFileVaultPayloadIdentifier, team.ID))
+	fvTeam, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, team.ID))
 	require.NoError(t, err)
 
 	upsertHostCPs(hosts[9:10], append(teamCPs, fvTeam), fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
@@ -2290,7 +2291,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	}
 
 	// no teams tests =====
-	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0))
+	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, 0))
 	require.NoError(t, err)
 
 	// verifying status
@@ -2477,7 +2478,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	verifyingTeam1Host := hosts[6]
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
 	require.NoError(t, err)
-	team1FVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-team-1", "com.fleetdm.fleet.mdm.filevault", tm.ID))
+	team1FVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, tm.ID))
 	require.NoError(t, err)
 	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{verifyingTeam1Host.ID})
 	require.NoError(t, err)
@@ -4264,7 +4265,7 @@ func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 	}
 }
 
-func TestMDMProfileVerification(t *testing.T) {
+func TestMDMAppleProfileVerification(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	ctx := context.Background()
 
