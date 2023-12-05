@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"reflect"
 	"testing"
 	"time"
 
@@ -17,34 +16,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestClone(t *testing.T) {
-	var nilRawMessage *json.RawMessage
+type nilCloner struct{}
 
+func (n *nilCloner) Clone() (fleet.Cloner, error) {
+	var nn *nilCloner
+	return nn, nil
+}
+
+func TestClone(t *testing.T) {
 	tests := []struct {
 		name string
-		src  interface{}
-		want interface{}
+		src  fleet.Cloner
+		want fleet.Cloner
 	}{
 		{
-			name: "string",
-			src:  "foo",
-			want: "foo",
-		},
-		{
-			name: "struct",
-			src: fleet.AppConfig{
-				ServerSettings: fleet.ServerSettings{
-					EnableAnalytics: true,
-				},
-			},
-			want: fleet.AppConfig{
-				ServerSettings: fleet.ServerSettings{
-					EnableAnalytics: true,
-				},
-			},
-		},
-		{
-			name: "pointer to struct",
+			name: "appconfig",
 			src: &fleet.AppConfig{
 				ServerSettings: fleet.ServerSettings{
 					EnableAnalytics: true,
@@ -57,27 +43,12 @@ func TestClone(t *testing.T) {
 			},
 		},
 		{
-			name: "slice",
-			src:  []string{"foo", "bar"},
-			want: []string{"foo", "bar"},
-		},
-		{
-			name: "pointer to slice",
-			src:  &[]string{"foo", "bar"},
-			want: &[]string{"foo", "bar"},
-		},
-		{
 			name: "nil",
-			src:  nil,
-			want: nil,
+			src:  (*nilCloner)(nil),
+			want: (*nilCloner)(nil),
 		},
 		{
-			name: "nil pointer",
-			src:  nilRawMessage,
-			want: nil,
-		},
-		{
-			name: "pointer to struct with nested slice",
+			name: "appconfig with nested slice",
 			src: &fleet.AppConfig{
 				ServerSettings: fleet.ServerSettings{
 					DebugHostIDs: []uint{1, 2, 3},
@@ -93,33 +64,13 @@ func TestClone(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			clone, err := clone(tc.src)
+			clone, err := tc.src.Clone()
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, clone)
-
-			v1, v2 := reflect.ValueOf(tc.src), reflect.ValueOf(clone)
-			if k := v1.Kind(); k == reflect.Pointer || k == reflect.Slice || k == reflect.Map || k == reflect.Chan || k == reflect.Func || k == reflect.UnsafePointer {
-				if clone == nil {
-					assert.True(t, v1.IsNil())
-					return
-				}
-				require.Equal(t, v1.Kind(), v2.Kind())
-				assert.NotEqual(t, v1.Pointer(), v2.Pointer())
-			}
 
 			// ensure that writing to src does not alter the cloned value (i.e. that
 			// the nested fields are deeply cloned too).
 			switch src := tc.src.(type) {
-			case []string:
-				if len(src) > 0 {
-					src[0] = "modified"
-					assert.NotEqual(t, src, clone)
-				}
-			case *[]string:
-				if len(*src) > 0 {
-					(*src)[0] = "modified"
-					assert.NotEqual(t, src, clone)
-				}
 			case *fleet.AppConfig:
 				if len(src.ServerSettings.DebugHostIDs) > 0 {
 					src.ServerSettings.DebugHostIDs[0] = 999

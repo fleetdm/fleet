@@ -4,15 +4,29 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/jinzhu/copier"
 	"github.com/patrickmn/go-cache"
 )
 
+// NOTE: To add a new cached item, make sure you know how/when to invalidate it
+// and how long it can safely be cached. Consider the case where it is read to
+// be updated - those cases need to bypass the cache and read directly from the
+// DB to always use fresh data (see the ctxdb.BypassCachedMysql method). Follow
+// all of these steps:
+//
+//  1. Add a unique key name and a default expiration duration, which will be
+//     used in production.
+//  2. Define an expiration duration field in the cachedMysql struct,
+//     initialize it with the default expiration duration in New, and add a
+//     WithXXXExpiration option to customize it.
+//  3. Implement the cloner interface for the type of the cached item. If the
+//     type is a struct, you will need to define a type for the struct (see
+//     fleet.ScheduledQueryList for an example).
+//  4. Add the required Datastore methods to get the cached item and to set it,
+//     and add tests in cached_mysql_test.go to ensure it works as expected.
 const (
 	appConfigKey                       = "AppConfig:%s"
 	defaultAppConfigExpiration         = 1 * time.Second
@@ -32,60 +46,12 @@ const (
 	defaultQueryResultsCountExpiration = 1 * time.Second
 )
 
-// cloner represents any type that can clone itself. Used by types to provide a more efficient clone method.
-type cloner interface {
-	Clone() (interface{}, error)
-}
-
-func clone(v interface{}) (interface{}, error) {
-	if cloner, ok := v.(cloner); ok {
-		return cloner.Clone()
-	}
-
-	// TODO(mna): consider making implementation of the cloner interface
-	// mandatory, and panic/fail loudly if not implemented. Reflection-based deep
-	// cloning has significant performance issues at scale (better yet - make the
-	// cache accept/return cloner types instead of interface{}).
-
-	if v == nil {
-		return nil, nil
-	}
-
-	// Use reflection to initialize a clone of v of the same type.
-	vv := reflect.ValueOf(v)
-
-	// If the value is a pointer, then calling reflect.New on it will result in a double pointer.
-	// Instead, dereference the pointer first.
-	isPtr := false
-	if vv.Kind() == reflect.Ptr {
-		isPtr = true
-		if vv.IsNil() {
-			return nil, nil
-		}
-		vv = vv.Elem()
-	}
-
-	clone := reflect.New(vv.Type())
-
-	err := copier.CopyWithOption(clone.Interface(), v, copier.Option{DeepCopy: true, IgnoreEmpty: true})
-	if err != nil {
-		return nil, err
-	}
-
-	if isPtr {
-		return clone.Interface(), nil
-	}
-
-	// The value was not a pointer. Need to dereference it before returning.
-	return clone.Elem().Interface(), nil
-}
-
 // cloneCache wraps the in memory cache with one that clones items before returning them.
 type cloneCache struct {
 	*cache.Cache
 }
 
-func (c *cloneCache) Get(ctx context.Context, k string) (interface{}, bool) {
+func (c *cloneCache) Get(ctx context.Context, k string) (fleet.Cloner, bool) {
 	if ctxdb.IsCachedMysqlBypassed(ctx) {
 		// cache miss if the caller explicitly asked to bypass the cache
 		return nil, false
@@ -95,8 +61,13 @@ func (c *cloneCache) Get(ctx context.Context, k string) (interface{}, bool) {
 	if !found {
 		return nil, false
 	}
+	xc, ok := x.(fleet.Cloner)
+	if !ok {
+		// should never happen, cached item is not a cloner
+		return nil, false
+	}
 
-	clone, err := clone(x)
+	clone, err := xc.Clone()
 	if err != nil {
 		// Unfortunely, we can't return an error here. Return a cache miss instead of panic'ing.
 		return nil, false
@@ -104,8 +75,8 @@ func (c *cloneCache) Get(ctx context.Context, k string) (interface{}, bool) {
 	return clone, true
 }
 
-func (c *cloneCache) Set(ctx context.Context, k string, x interface{}, d time.Duration) {
-	clone, err := clone(x)
+func (c *cloneCache) Set(ctx context.Context, k string, x fleet.Cloner, d time.Duration) {
+	clone, err := x.Clone()
 	if err != nil {
 		// Unfortunately, we can't return an error here. Skip caching it if clone
 		// fails, but ensure that we clear any existing cached item for this key,
@@ -232,7 +203,7 @@ func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig)
 func (ds *cachedMysql) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 	key := fmt.Sprintf(packsHostKey, hid)
 	if x, found := ds.c.Get(ctx, key); found {
-		cachedPacks, ok := x.([]*fleet.Pack)
+		cachedPacks, ok := x.(packsList)
 		if ok {
 			return cachedPacks, nil
 		}
@@ -243,7 +214,7 @@ func (ds *cachedMysql) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet
 		return nil, err
 	}
 
-	ds.c.Set(ctx, key, packs, ds.packsExp)
+	ds.c.Set(ctx, key, packsList(packs), ds.packsExp)
 
 	return packs, nil
 }
@@ -270,8 +241,8 @@ func (ds *cachedMysql) ListScheduledQueriesInPack(ctx context.Context, packID ui
 func (ds *cachedMysql) TeamAgentOptions(ctx context.Context, teamID uint) (*json.RawMessage, error) {
 	key := fmt.Sprintf(teamAgentOptionsKey, teamID)
 	if x, found := ds.c.Get(ctx, key); found {
-		if agentOptions, ok := x.(*json.RawMessage); ok {
-			return agentOptions, nil
+		if agentOptions, ok := x.(*rawJSONMessage); ok {
+			return (*json.RawMessage)(agentOptions), nil
 		}
 	}
 
@@ -280,7 +251,7 @@ func (ds *cachedMysql) TeamAgentOptions(ctx context.Context, teamID uint) (*json
 		return nil, err
 	}
 
-	ds.c.Set(ctx, key, agentOptions, ds.teamAgentOptionsExp)
+	ds.c.Set(ctx, key, (*rawJSONMessage)(agentOptions), ds.teamAgentOptionsExp)
 
 	return agentOptions, nil
 }
@@ -331,7 +302,7 @@ func (ds *cachedMysql) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.T
 	featuresKey := fmt.Sprintf(teamFeaturesKey, team.ID)
 	mdmConfigKey := fmt.Sprintf(teamMDMConfigKey, team.ID)
 
-	ds.c.Set(ctx, agentOptionsKey, team.Config.AgentOptions, ds.teamAgentOptionsExp)
+	ds.c.Set(ctx, agentOptionsKey, (*rawJSONMessage)(team.Config.AgentOptions), ds.teamAgentOptionsExp)
 	ds.c.Set(ctx, featuresKey, &team.Config.Features, ds.teamFeaturesExp)
 	ds.c.Set(ctx, mdmConfigKey, &team.Config.MDM, ds.teamMDMConfigExp)
 
@@ -382,8 +353,8 @@ func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (i
 	key := fmt.Sprintf(queryResultsCountKey, queryID)
 
 	if x, found := ds.c.Get(ctx, key); found {
-		if count, ok := x.(int); ok {
-			return count, nil
+		if count, ok := x.(integer); ok {
+			return int(count), nil
 		}
 	}
 
@@ -392,7 +363,7 @@ func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (i
 		return 0, err
 	}
 
-	ds.c.Set(ctx, key, count, ds.queryResultsCountExp)
+	ds.c.Set(ctx, key, integer(count), ds.queryResultsCountExp)
 
 	return count, nil
 }

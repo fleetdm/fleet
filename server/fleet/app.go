@@ -477,7 +477,7 @@ func (c *AppConfig) Obfuscate() {
 }
 
 // Clone implements cloner.
-func (c *AppConfig) Clone() (interface{}, error) {
+func (c *AppConfig) Clone() (Cloner, error) {
 	return c.Copy(), nil
 }
 
@@ -876,7 +876,7 @@ func (f *Features) ApplyDefaults() {
 }
 
 // Clone implements cloner for Features.
-func (f *Features) Clone() (interface{}, error) {
+func (f *Features) Clone() (Cloner, error) {
 	return f.Copy(), nil
 }
 

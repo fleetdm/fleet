@@ -61,7 +61,7 @@ type ScheduledQuery struct {
 
 type ScheduledQueryList []*ScheduledQuery
 
-func (sql ScheduledQueryList) Clone() (interface{}, error) {
+func (sql ScheduledQueryList) Clone() (Cloner, error) {
 	var cloned ScheduledQueryList
 	for _, sq := range sql {
 		newSq := *sq
