@@ -59,6 +59,7 @@ import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/Windo
 import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
+import HostQueryReport from "pages/hosts/details/HostQueryReport";
 
 import PATHS from "router/paths";
 
@@ -182,10 +183,12 @@ const routes = (
               <Route path=":host_id" component={HostDetailsPage}>
                 <Route path="scripts" component={HostDetailsPage} />
                 <Route path="software" component={HostDetailsPage} />
-                <Route path="queries" component={HostDetailsPage} />
+                <Route path="queries" component={HostDetailsPage}>
+                  <Route path=":query_id" component={HostQueryReport} />
+                </Route>
+                <Route path="policies" component={HostDetailsPage} />
                 {/* legacy route */}
                 <Redirect from="schedule" to="queries" />
-                <Route path="policies" component={HostDetailsPage} />
               </Route>
             </Route>
           </Route>
