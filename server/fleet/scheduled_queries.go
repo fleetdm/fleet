@@ -55,8 +55,59 @@ type ScheduledQuery struct {
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
-	// account in the ScheduledQueryList Clone implementation!
+	// account in the ScheduledQuery Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// Clone implements cloner for ScheduledQuery.
+func (q *ScheduledQuery) Clone() (Cloner, error) {
+	return q.Copy(), nil
+}
+
+// Copy returns a deep copy of the ScheduledQuery.
+func (q *ScheduledQuery) Copy() *ScheduledQuery {
+	if q == nil {
+		return nil
+	}
+
+	var clone ScheduledQuery
+	clone = *q
+
+	if q.Snapshot != nil {
+		clone.Snapshot = ptr.Bool(*q.Snapshot)
+	}
+	if q.Removed != nil {
+		clone.Removed = ptr.Bool(*q.Removed)
+	}
+	if q.Platform != nil {
+		clone.Platform = ptr.String(*q.Platform)
+	}
+	if q.Version != nil {
+		clone.Version = ptr.String(*q.Version)
+	}
+	if q.Shard != nil {
+		clone.Shard = ptr.Uint(*q.Shard)
+	}
+	if q.Denylist != nil {
+		clone.Denylist = ptr.Bool(*q.Denylist)
+	}
+
+	if q.AggregatedStats.SystemTimeP50 != nil {
+		clone.AggregatedStats.SystemTimeP50 = ptr.Float64(*q.AggregatedStats.SystemTimeP50)
+	}
+	if q.AggregatedStats.SystemTimeP95 != nil {
+		clone.AggregatedStats.SystemTimeP95 = ptr.Float64(*q.AggregatedStats.SystemTimeP95)
+	}
+	if q.AggregatedStats.UserTimeP50 != nil {
+		clone.AggregatedStats.UserTimeP50 = ptr.Float64(*q.AggregatedStats.UserTimeP50)
+	}
+	if q.AggregatedStats.UserTimeP95 != nil {
+		clone.AggregatedStats.UserTimeP95 = ptr.Float64(*q.AggregatedStats.UserTimeP95)
+	}
+	if q.AggregatedStats.TotalExecutions != nil {
+		clone.AggregatedStats.TotalExecutions = ptr.Float64(*q.AggregatedStats.TotalExecutions)
+	}
+	return &clone
 }
 
 type ScheduledQueryList []*ScheduledQuery
@@ -64,26 +115,7 @@ type ScheduledQueryList []*ScheduledQuery
 func (sql ScheduledQueryList) Clone() (Cloner, error) {
 	var cloned ScheduledQueryList
 	for _, sq := range sql {
-		newSq := *sq
-		if sq.Snapshot != nil {
-			newSq.Snapshot = ptr.Bool(*sq.Snapshot)
-		}
-		if sq.Removed != nil {
-			newSq.Removed = ptr.Bool(*sq.Removed)
-		}
-		if sq.Platform != nil {
-			newSq.Platform = ptr.String(*sq.Platform)
-		}
-		if sq.Version != nil {
-			newSq.Version = ptr.String(*sq.Version)
-		}
-		if sq.Shard != nil {
-			newSq.Shard = ptr.Uint(*sq.Shard)
-		}
-		if sq.Denylist != nil {
-			newSq.Denylist = ptr.Bool(*sq.Denylist)
-		}
-		cloned = append(cloned, &newSq)
+		cloned = append(cloned, sq.Copy())
 	}
 	return cloned, nil
 }

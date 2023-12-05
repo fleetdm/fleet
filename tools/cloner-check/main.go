@@ -39,7 +39,7 @@ import (
 var cacheableItems = []fleet.Cloner{
 	&fleet.AppConfig{},
 	&fleet.Pack{},
-	//&fleet.ScheduledQuery{},
+	&fleet.ScheduledQuery{},
 	&fleet.Features{},
 	&fleet.TeamMDM{},
 	&fleet.Query{},
@@ -85,14 +85,14 @@ func checkCacheableItems() bool {
 
 		want, err := os.ReadFile(filepath.Join("tools", "cloner-check", "generated_files", filename))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error reading file %s: %v\n", filename, err)
+			fmt.Fprintf(os.Stderr, "%s: error reading file %s: %v\n", itemType, filename, err)
 			ok = false
 			continue
 		}
 
 		var sb strings.Builder
 		if err := generateFieldsList(&sb, item); err != nil {
-			fmt.Fprintf(os.Stderr, "error generating field list of %s: %v\n", itemType, err)
+			fmt.Fprintf(os.Stderr, "%s: error generating field list: %v\n", itemType, err)
 			ok = false
 			continue
 		}
@@ -109,7 +109,7 @@ func checkCacheableItems() bool {
 			panic(err)
 		}
 		if len(text) != 0 {
-			fmt.Fprintf(os.Stderr, "fields mismatch for %s vs file %s:\n%v", itemType, filename, text)
+			fmt.Fprintf(os.Stderr, "%s: fields mismatch vs file %s:\n%s", itemType, filename, text)
 			ok = false
 			continue
 		}
@@ -127,12 +127,12 @@ func updateCacheableItems() bool {
 
 		var sb strings.Builder
 		if err := generateFieldsList(&sb, item); err != nil {
-			fmt.Fprintf(os.Stderr, "error generating field list of %s: %v\n", itemType, err)
+			fmt.Fprintf(os.Stderr, "%s: error generating field list: %v\n", itemType, err)
 			ok = false
 			continue
 		}
 		if err := os.WriteFile(filepath.Join("tools", "cloner-check", "generated_files", filename), []byte(sb.String()), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "error generating file %s: %v\n", filename, err)
+			fmt.Fprintf(os.Stderr, "%s: error generating file %s: %v\n", itemType, filename, err)
 			ok = false
 			continue
 		}
