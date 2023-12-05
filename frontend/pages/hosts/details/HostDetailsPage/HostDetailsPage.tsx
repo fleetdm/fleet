@@ -676,7 +676,7 @@ const HostDetailsPage = ({
     );
   };
 
-  if (isLoadingHost) {
+  if (!host || isLoadingHost) {
     return <Spinner />;
   }
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
@@ -862,11 +862,10 @@ const HostDetailsPage = ({
             </TabPanel>
             <TabPanel>
               <QueriesCard
-                hostId={host?.id}
+                hostId={host.id}
                 router={router}
-                isChromeOSHost={host?.platform === "chrome"}
+                isChromeOSHost={host.platform === "chrome"}
                 schedule={schedule}
-                isLoading={isLoadingHost}
                 queryReportsDisabled={
                   config?.server_settings?.query_reports_disabled
                 }

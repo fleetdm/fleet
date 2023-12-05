@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 
 import { IQueryStats } from "interfaces/query_stats";
 import TableContainer from "components/TableContainer";
@@ -16,10 +16,9 @@ import {
 const baseClass = "host-queries";
 
 interface IHostQueriesProps {
-  hostId?: number;
+  hostId: number;
   schedule?: IQueryStats[];
   isChromeOSHost: boolean;
-  isLoading: boolean;
   queryReportsDisabled?: boolean;
   router: InjectedRouter;
 }
@@ -34,7 +33,6 @@ const HostQueries = ({
   hostId,
   schedule,
   isChromeOSHost,
-  isLoading,
   queryReportsDisabled,
   router,
 }: IHostQueriesProps): JSX.Element => {
@@ -81,6 +79,13 @@ const HostQueries = ({
     [hostId, queryReportsDisabled, router]
   );
 
+  const tableData = useMemo(() => generateDataSet(schedule ?? []), [schedule]);
+
+  const columnConfigs = useMemo(
+    () => generateColumnConfigs(queryReportsDisabled),
+    [queryReportsDisabled]
+  );
+
   return (
     <div className="section section--host-queries">
       <p className="section__header">Queries</p>
@@ -89,8 +94,8 @@ const HostQueries = ({
       ) : (
         <div>
           <TableContainer
-            columns={generateColumnConfigs(queryReportsDisabled)}
-            data={generateDataSet(schedule)}
+            columns={columnConfigs}
+            data={tableData}
             onQueryChange={() => null}
             resultsTitle="queries"
             defaultSortHeader="scheduled_query_name"
@@ -101,7 +106,8 @@ const HostQueries = ({
             disablePagination
             disableCount
             disableMultiRowSelect
-            {...{ isLoading, onSelectSingleRow }}
+            isLoading={false} // loading state handled at parent level
+            {...{ onSelectSingleRow }}
           />
         </div>
       )}
