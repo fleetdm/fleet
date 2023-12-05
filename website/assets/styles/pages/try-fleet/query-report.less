@@ -8,9 +8,13 @@
   }
 
   p {
-    color: @core-fleet-black;
+    color: @core-fleet-black-75;
     font-size: 14px;
     line-height: 21px;
+  }
+
+  strong {
+    color: @core-fleet-black;
   }
 
   a {
@@ -38,6 +42,7 @@
     box-shadow: none;
     border-radius: 8px;
     padding: 40px;
+
   }
 
   [purpose='host-details'] {
@@ -48,10 +53,10 @@
 
   [purpose='host-selector'] {
     margin-right: 16px;
-    min-width: 200px;
+    min-width: 150px;
     height: 40px;
     border-radius: 8px;
-    padding: 9px 16px;
+    padding: 8px 12px;
     background: #FAFAFA;
     border: 1px solid @core-vibrant-blue-15;
     cursor: pointer;
@@ -59,6 +64,7 @@
 
   [purpose='host-selector-dropwdown'] {
     cursor: pointer;
+    width: 150px;
   }
 
   [purpose='query-results-container'] {
@@ -72,7 +78,7 @@
     width: 370px;
     height: 40px;
     border-radius: 8px;
-    padding: 9px 16px;
+    padding: 8px 12px;
     background: #FAFAFA;
     border: 1px solid @core-vibrant-blue-15;
     cursor: pointer;
@@ -151,6 +157,7 @@
   [purpose='query-result-table'] {
     margin-bottom: 0px;
     p {
+      color: @core-fleet-black-75;
       font-size: 14px;
       line-height: 21px;
       margin-bottom: 0px;

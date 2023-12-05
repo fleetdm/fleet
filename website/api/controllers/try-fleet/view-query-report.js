@@ -111,11 +111,11 @@ module.exports = {
         platform: undefined,
       };
       if(host.platform === 'windows'){
-        hostInfoForDropdownSelector.platform = 'windows';
+        hostInfoForDropdownSelector.platform = 'Windows';
       } else if(host.platform === 'darwin'){
-        hostInfoForDropdownSelector.platform = 'macos';
+        hostInfoForDropdownSelector.platform = 'macOS';
       } else {
-        hostInfoForDropdownSelector.platform = 'linux';
+        hostInfoForDropdownSelector.platform = 'Linux';
       }
       hostsAvailableToQuery.push(hostInfoForDropdownSelector);
     }

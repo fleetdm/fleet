@@ -60,9 +60,9 @@ parasails.registerPage('query-report', {
     },
     hostToDisplayResultsFor: function(val){
       if(val !== this.selectedHost){
-        if(val === 'linux'){
+        if(val === 'Linux'){
           window.location = `/try-fleet/explore-data/linux/apparmor_events`;
-        } else if(val === 'windows'){
+        } else if(val === 'Windows'){
           window.location = `/try-fleet/explore-data/windows/appcompat_shims`;
         } else {
           window.location = `/try-fleet/explore-data/macos/account_policy_data`;

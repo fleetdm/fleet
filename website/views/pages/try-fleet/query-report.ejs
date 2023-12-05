@@ -10,17 +10,17 @@
         <div class="d-flex" purpose="host-selector-container">
           <div purpose="host-selector" class="d-flex flex-row justify-content-between align-items-center"
             id="hostDropdownMenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            {{hostInfo.name}} <img class="d-flex align-self-end" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
+            {{hostPlatformFriendlyName}} <img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-75-16x16@2x.png" alt="a small shevron pointing downwards">
           </div>
           <div purpose="host-selector-dropwdown" class="dropdown-menu" aria-labelledby="hostDropdownMenu">
-            <div class="dropdown-item d-block" @click="hostToDisplayResultsFor = host.platform" v-for="host in hostsAvailableToQuery">{{host.name}}</div>
+            <div class="dropdown-item d-block" @click="hostToDisplayResultsFor = host.platform" v-for="host in hostsAvailableToQuery">{{host.platform}}</div>
           </div>
         </div>
       </div>
       <hr>
       <div purpose="host-details" class="d-flex flex-md-row flex-column">
         <div>
-          <p><strong>Hardware type</strong></p>
+          <p><strong>Hardware model</strong></p>
           <p>{{hostInfo.hardwareType}}</p>
         </div>
         <div>
@@ -48,7 +48,7 @@
       <div class="d-flex">
         <div purpose="table-selector" class="d-flex flex-row justify-content-between align-items-center"
           id="tableSelectorDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          {{selectedTable}} <img class="d-flex align-self-end" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
+          {{selectedTable}} <img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-75-16x16@2x.png" alt="a small shevron pointing downwards">
         </div>
         <div purpose="table-selector-dropwdown" class="dropdown-menu" aria-labelledby="tableSelectorDropdown">
           <div class="dropdown-item d-block" v-for="table in osqueryTables" @click="selectedTable = table.name">{{table.name}}</div>
@@ -56,7 +56,6 @@
       </div>
       <div purpose="table-description">
         <%- osqueryTableInfo.description %>
-        <a :href="'/tables/'+selectedTable">More Info</a>
       </div>
       <hr>
       <div v-if="queryReportPages.length > 0">
