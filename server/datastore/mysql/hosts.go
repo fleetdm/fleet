@@ -2950,21 +2950,21 @@ func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mapping
 		return b.SerialNumber + ":" + fmt.Sprint(b.CycleCount) + ":" + b.Health
 	}
 
-	// Index the mappings by serial_number, to quickly check which ones
-	// need to be deleted and inserted.
-	toIns := make(map[string]*fleet.HostBattery)
-	serials := make(map[string]struct{})
-	for _, m := range mappings {
-		if _, ok := serials[m.SerialNumber]; ok {
-			// Ignore multiple rows with the same serial number
-			// (e.g. in case of bugs in results reported by osquery).
-			continue
-		}
-		toIns[keyFn(m)] = m
-		serials[m.SerialNumber] = struct{}{}
-	}
-
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Index the mappings by serial_number, to quickly check which ones
+		// need to be deleted and inserted.
+		toIns := make(map[string]*fleet.HostBattery)
+		serials := make(map[string]struct{})
+		for _, m := range mappings {
+			if _, ok := serials[m.SerialNumber]; ok {
+				// Ignore multiple rows with the same serial number
+				// (e.g. in case of bugs in results reported by osquery).
+				continue
+			}
+			toIns[keyFn(m)] = m
+			serials[m.SerialNumber] = struct{}{}
+		}
+
 		var prevMappings []*fleet.HostBattery
 		if err := sqlx.SelectContext(ctx, tx, &prevMappings, selStmt, hid); err != nil {
 			return ctxerr.Wrap(ctx, err, "select previous host batteries")
