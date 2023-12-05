@@ -568,6 +568,12 @@ type Service interface {
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
+	// Software Titles
+
+	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitle, int, error)
+	SoftwareTitleByID(ctx context.Context, id uint) (*SoftwareTitle, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, p PolicyPayload) (*Policy, error)

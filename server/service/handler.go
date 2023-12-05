@@ -358,9 +358,15 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/spec/packs", getPackSpecsEndpoint, nil)
 	ue.GET("/api/_version_/fleet/spec/packs/{name}", getPackSpecEndpoint, getGenericSpecRequest{})
 
+	// DEPRECATED: use `/api/_version_/fleet/software/titles` instead
 	ue.GET("/api/_version_/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
+	// DEPRECATED: use `/api/_version_/fleet/software/titles/:id` instead
 	ue.GET("/api/_version_/fleet/software/{id:[0-9]+}", getSoftwareEndpoint, getSoftwareRequest{})
+	// DEPRECATED: use the `count` key in `/api/_version_/fleet/software/titles` instead
 	ue.GET("/api/_version_/fleet/software/count", countSoftwareEndpoint, countSoftwareRequest{})
+
+	ue.GET("/api/_version_/fleet/software/titles", listSoftwareTitlesEndpoint, listSoftwareTitlesRequest{})
+	ue.GET("/api/_version_/fleet/software/titles/{id:[0-9]+}", getSoftwareTitleEndpoint, getSoftwareTitleRequest{})
 
 	ue.GET("/api/_version_/fleet/host_summary", getHostSummaryEndpoint, getHostSummaryRequest{})
 	ue.GET("/api/_version_/fleet/hosts", listHostsEndpoint, listHostsRequest{})

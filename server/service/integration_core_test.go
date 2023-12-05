@@ -4957,6 +4957,21 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 
 	// batch set scripts
 	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusPaymentRequired)
+
+	// software titles
+	// a normal request works fine
+	var resp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp)
+	require.Equal(t, 0, resp.Count)
+	require.Nil(t, resp.SoftwareTitles)
+
+	// a request with a team_id parameter returns a license error
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{}, http.StatusPaymentRequired, &resp,
+		"team_id", "1",
+	)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
