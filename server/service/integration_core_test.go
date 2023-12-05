@@ -5458,7 +5458,7 @@ func (s *integrationTestSuite) TestQuerySpecs() {
 	assert.Equal(t, uint(3), delBatchResp.Deleted)
 }
 
-func (s *integrationTestSuite) TestPaginateListSoftware() {
+func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	t := s.T()
 
 	// create a few hosts specific to this test
@@ -5485,6 +5485,10 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	sws := make([]fleet.Software, 20)
 	for i := range sws {
 		sw := fleet.Software{Name: "sw" + strconv.Itoa(i), Version: "0.0." + strconv.Itoa(i), Source: "apps"}
+		if i%2 == 0 {
+			sw.Source = "chrome_extensions"
+			sw.Browser = "chrome"
+		}
 		sws[i] = sw
 	}
 
@@ -5536,6 +5540,28 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{hosts[19].ID, hosts[18].ID, hosts[17].ID}))
 	expectedTeamVersionsCount := 3
 
+	assertSoftwareDetails := func(expectedSoftware []fleet.Software) {
+		// this is just a basic sanity check of the software details endpoints and doesn't test all of the
+		// fields that may be present in the response (e.g., vulnerabilities)
+		for _, sw := range expectedSoftware {
+			var detailsResp getSoftwareResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", sw.ID), nil, http.StatusOK, &detailsResp)
+			assert.Equal(t, sw.ID, detailsResp.Software.ID)
+			assert.Equal(t, sw.Name, detailsResp.Software.Name)
+			assert.Equal(t, sw.Version, detailsResp.Software.Version)
+			assert.Equal(t, sw.Source, detailsResp.Software.Source)
+			assert.Equal(t, sw.Browser, detailsResp.Software.Browser)
+
+			detailsResp = getSoftwareResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", sw.ID), nil, http.StatusOK, &detailsResp)
+			assert.Equal(t, sw.ID, detailsResp.Software.ID)
+			assert.Equal(t, sw.Name, detailsResp.Software.Name)
+			assert.Equal(t, sw.Version, detailsResp.Software.Version)
+			assert.Equal(t, sw.Source, detailsResp.Software.Source)
+			assert.Equal(t, sw.Browser, detailsResp.Software.Browser)
+		}
+	}
+
 	assertResp := func(resp listSoftwareResponse, want []fleet.Software, ts time.Time, counts ...int) {
 		require.Len(t, resp.Software, len(want))
 		for i := range resp.Software {
@@ -5543,6 +5569,14 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 			assert.Equal(t, wantID, gotID)
 			wantCount, gotCount := counts[i], resp.Software[i].HostsCount
 			assert.Equal(t, wantCount, gotCount)
+			wantName, gotName := want[i].Name, resp.Software[i].Name
+			assert.Equal(t, wantName, gotName)
+			wantVersion, gotVersion := want[i].Version, resp.Software[i].Version
+			assert.Equal(t, wantVersion, gotVersion)
+			wantSource, gotSource := want[i].Source, resp.Software[i].Source
+			assert.Equal(t, wantSource, gotSource)
+			wantBrowser, gotBrowser := want[i].Browser, resp.Software[i].Browser
+			assert.Equal(t, wantBrowser, gotBrowser)
 		}
 		if ts.IsZero() {
 			assert.Nil(t, resp.CountsUpdatedAt)
@@ -5550,6 +5584,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 			require.NotNil(t, resp.CountsUpdatedAt)
 			assert.WithinDuration(t, ts, *resp.CountsUpdatedAt, time.Second)
 		}
+		assertSoftwareDetails(resp.Software)
 	}
 
 	assertVersionsResp := func(resp listSoftwareVersionsResponse, want []fleet.Software, ts time.Time, swCount int, hostCounts ...int) {
@@ -5560,6 +5595,14 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 			assert.Equal(t, wantID, gotID)
 			wantCount, gotCount := hostCounts[i], resp.Software[i].HostsCount
 			assert.Equal(t, wantCount, gotCount)
+			wantName, gotName := want[i].Name, resp.Software[i].Name
+			assert.Equal(t, wantName, gotName)
+			wantVersion, gotVersion := want[i].Version, resp.Software[i].Version
+			assert.Equal(t, wantVersion, gotVersion)
+			wantSource, gotSource := want[i].Source, resp.Software[i].Source
+			assert.Equal(t, wantSource, gotSource)
+			wantBrowser, gotBrowser := want[i].Browser, resp.Software[i].Browser
+			assert.Equal(t, wantBrowser, gotBrowser)
 		}
 		if ts.IsZero() {
 			assert.Nil(t, resp.CountsUpdatedAt)
@@ -5567,6 +5610,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 			require.NotNil(t, resp.CountsUpdatedAt)
 			assert.WithinDuration(t, ts, *resp.CountsUpdatedAt, time.Second)
 		}
+		assertSoftwareDetails(resp.Software)
 	}
 
 	// no software host counts have been calculated yet, so this returns nothing
