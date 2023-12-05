@@ -29,6 +29,7 @@ import (
 	"github.com/micromdm/nanodep/godep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 var expLastExec = func() time.Time {
@@ -134,6 +135,7 @@ func TestHosts(t *testing.T) {
 		{"DeleteHosts", testHostsDeleteHosts},
 		{"HostIDsByOSVersion", testHostIDsByOSVersion},
 		{"ReplaceHostBatteries", testHostsReplaceHostBatteries},
+		{"ReplaceHostBatteriesDeadlock", testHostsReplaceHostBatteriesDeadlock},
 		{"CountHostsNotResponding", testCountHostsNotResponding},
 		{"FailingPoliciesCount", testFailingPoliciesCount},
 		{"HostRecordNoPolicies", testHostsRecordNoPolicies},
@@ -6000,6 +6002,31 @@ func testHostsReplaceHostBatteries(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, h1Bat, bat1)
 
+	type timestamp struct {
+		CreatedAt time.Time `db:"created_at"`
+		UpdatedAt time.Time `db:"updated_at"`
+	}
+	var timestamps1 []timestamp
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &timestamps1, `SELECT created_at, updated_at FROM host_batteries WHERE host_id = ?`, h1.ID)
+	})
+
+	// Insert the same battery data again.
+	err = ds.ReplaceHostBatteries(ctx, h1.ID, h1Bat)
+	require.NoError(t, err)
+
+	var timestamps2 []timestamp
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &timestamps2, `SELECT created_at, updated_at FROM host_batteries WHERE host_id = ?`, h1.ID)
+	})
+
+	// Verify that there were no inserts/updates (because reported data hasn't changed).
+	require.ElementsMatch(t, timestamps1, timestamps2)
+
+	bat1, err = ds.ListHostBatteries(ctx, h1.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, h1Bat, bat1)
+
 	bat2, err := ds.ListHostBatteries(ctx, h2.ID)
 	require.NoError(t, err)
 	require.Len(t, bat2, 0)
@@ -6043,6 +6070,46 @@ func testHostsReplaceHostBatteries(t *testing.T, ds *Datastore) {
 	bat2, err = ds.ListHostBatteries(ctx, h2.ID)
 	require.NoError(t, err)
 	require.ElementsMatch(t, h2Bat, bat2)
+}
+
+func testHostsReplaceHostBatteriesDeadlock(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	var hosts []*fleet.Host
+	for i := 1; i <= 100; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			ID:              uint(i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("id-%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("key-%d", i)),
+			Platform:        "linux",
+			Hostname:        fmt.Sprintf("host-%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+	}
+
+	var g errgroup.Group
+	for _, h := range hosts {
+		hostID := h.ID
+		g.Go(func() error {
+			for i := 0; i < 100; i++ {
+				if err := ds.ReplaceHostBatteries(ctx, hostID, []*fleet.HostBattery{
+					{HostID: hostID, SerialNumber: fmt.Sprintf("%d-0000", hostID), CycleCount: 1, Health: "Good"},
+					{HostID: hostID, SerialNumber: fmt.Sprintf("%d-0000", hostID), CycleCount: 2, Health: "Fair"},
+				}); err != nil {
+					return err
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			return nil
+		})
+	}
+
+	err := g.Wait()
+	require.NoError(t, err)
 }
 
 func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
