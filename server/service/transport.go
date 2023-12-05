@@ -496,7 +496,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		softwareErrorLabel = append(softwareErrorLabel, "software_title_id")
 	}
 	if len(softwareErrorLabel) > 1 {
-		return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid parameters, cannot combine %s", strings.Join(softwareErrorLabel, " and "))))
+		return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid parameters. The combination of %s is not allowed.", strings.Join(softwareErrorLabel, " and "))))
 	}
 
 	return hopt, nil

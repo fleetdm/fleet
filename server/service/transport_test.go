@@ -329,11 +329,11 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		},
 		"invalid combination software_title_id and software_version_id": {
 			url:          "/foo?software_title_id=1&software_version_id=2",
-			errorMessage: "cannot combine software_version_id and software_title_id",
+			errorMessage: "The combination of software_version_id and software_title_id is not allowed",
 		},
 		"invalid combination software_id and software_version_id": {
 			url:          "/foo?software_id=1&software_version_id=2",
-			errorMessage: "cannot combine software_id and software_version_id",
+			errorMessage: "The combination of software_id and software_version_id is not allowed",
 		},
 	}
 
