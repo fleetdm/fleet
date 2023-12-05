@@ -31,9 +31,7 @@ data "aws_iam_policy_document" "firehose_policy" {
     effect  = "Allow"
     actions = ["logs:PutLogEvents"]
     resources = [
-      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.firehose_results_name}:*",
-      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.firehose_status_name}:*",
-      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.firehose_audit_name}:*"
+      for name in keys(var.log_destinations) : "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.log_destinations[name].name}:*"
     ]
   }
 
@@ -61,70 +59,32 @@ resource "aws_iam_role_policy_attachment" "firehose" {
   role       = aws_iam_role.firehose.name
 }
 
-resource "aws_kms_key" "firehose" {
-  enable_key_rotation = true
-  description         = "key to encrypt firehose in-transit data"
+resource "aws_kms_key" "firehose_key" {
+  count       = var.server_side_encryption_enabled && length(var.kms_key_arn) == 0 ? 1 : 0
+  description = "KMS key for encrypting Firehose data."
 }
 
-resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
-  name        = var.firehose_results_name
+resource "aws_kinesis_firehose_delivery_stream" "fleet_log_destinations" {
+  for_each    = var.log_destinations
+  name        = each.value.name
   destination = "extended_s3"
 
-  server_side_encryption {
-    enabled  = true
-    key_arn  = aws_kms_key.firehose.arn
-    key_type = "CUSTOMER_MANAGED_CMK"
+  dynamic "server_side_encryption" {
+    for_each = var.server_side_encryption_enabled ? [1] : []
+    content {
+      enabled  = var.server_side_encryption_enabled
+      key_arn  = length(var.kms_key_arn) > 0 ? var.kms_key_arn : aws_kms_key.firehose_key[0].arn
+      key_type = "CUSTOMER_MANAGED_CMK"
+    }
   }
 
   extended_s3_configuration {
     bucket_arn          = aws_s3_bucket.destination.arn
     role_arn            = aws_iam_role.firehose.arn
-    prefix              = var.results_prefix
-    error_output_prefix = var.results_error_prefix
-    buffering_size      = var.results_buffering_size
-    buffering_interval  = var.results_buffering_interval
-    compression_format  = var.results_compression_format
-  }
-}
-
-resource "aws_kinesis_firehose_delivery_stream" "osquery_status" {
-  name        = var.firehose_status_name
-  destination = "extended_s3"
-
-  server_side_encryption {
-    enabled  = true
-    key_arn  = aws_kms_key.firehose.arn
-    key_type = "CUSTOMER_MANAGED_CMK"
-  }
-
-  extended_s3_configuration {
-    bucket_arn          = aws_s3_bucket.destination.arn
-    role_arn            = aws_iam_role.firehose.arn
-    prefix              = var.status_prefix
-    error_output_prefix = var.status_error_prefix
-    buffering_size      = var.status_buffering_size
-    buffering_interval  = var.status_buffering_interval
-    compression_format  = var.status_compression_format
-  }
-}
-
-resource "aws_kinesis_firehose_delivery_stream" "fleet_audit" {
-  name        = var.firehose_audit_name
-  destination = "extended_s3"
-
-  server_side_encryption {
-    enabled  = true
-    key_arn  = aws_kms_key.firehose.arn
-    key_type = "CUSTOMER_MANAGED_CMK"
-  }
-
-  extended_s3_configuration {
-    bucket_arn          = aws_s3_bucket.destination.arn
-    role_arn            = aws_iam_role.firehose.arn
-    prefix              = var.audit_prefix
-    error_output_prefix = var.audit_error_prefix
-    buffering_size      = var.audit_buffering_size
-    buffering_interval  = var.audit_buffering_interval
-    compression_format  = var.audit_compression_format
+    prefix              = each.value.prefix
+    error_output_prefix = each.value.error_output_prefix
+    buffering_size      = each.value.buffering_size
+    buffering_interval  = each.value.buffering_interval
+    compression_format  = each.value.compression_format
   }
 }

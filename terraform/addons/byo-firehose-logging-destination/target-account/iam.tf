@@ -22,19 +22,23 @@ data "aws_iam_policy_document" "firehose" {
       "firehose:PutRecordBatch",
     ]
     resources = [
-      aws_kinesis_firehose_delivery_stream.osquery_results.arn,
-      aws_kinesis_firehose_delivery_stream.osquery_status.arn,
-      aws_kinesis_firehose_delivery_stream.fleet_audit.arn
+      for stream in aws_kinesis_firehose_delivery_stream.fleet_log_destinations : stream.arn
     ]
   }
 
-  statement {
-    effect = "Allow"
-    actions = [
-      "kms:Decrypt",
-      "kms:GenerateDataKey"
-    ]
-    resources = [aws_kms_key.firehose.arn]
+  dynamic "statement" {
+    for_each = var.server_side_encryption_enabled ? [1] : []
+
+    content {
+      effect = "Allow"
+      actions = [
+        "kms:Decrypt",
+        "kms:GenerateDataKey",
+      ]
+      resources = [
+        length(var.kms_key_arn) > 0 ? var.kms_key_arn : aws_kms_key.firehose_key[0].arn
+      ]
+    }
   }
 
 }

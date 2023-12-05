@@ -19,7 +19,7 @@ This code sets up a secure and controlled environment for the Fleet application 
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | 5.29.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 5.29.0 |
 
 ## Modules
 
@@ -35,10 +35,8 @@ No modules.
 | [aws_iam_role.fleet_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role_policy_attachment.firehose](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
 | [aws_iam_role_policy_attachment.fleet_firehose](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
-| [aws_kinesis_firehose_delivery_stream.fleet_audit](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream) | resource |
-| [aws_kinesis_firehose_delivery_stream.osquery_results](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream) | resource |
-| [aws_kinesis_firehose_delivery_stream.osquery_status](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream) | resource |
-| [aws_kms_key.firehose](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_key) | resource |
+| [aws_kinesis_firehose_delivery_stream.fleet_log_destinations](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream) | resource |
+| [aws_kms_key.firehose_key](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_key) | resource |
 | [aws_s3_bucket.destination](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket) | resource |
 | [aws_s3_bucket_public_access_block.destination](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_public_access_block) | resource |
 | [aws_s3_bucket_server_side_encryption_configuration.destination](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_server_side_encryption_configuration) | resource |
@@ -54,31 +52,16 @@ No modules.
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_audit_buffering_interval"></a> [audit\_buffering\_interval](#input\_audit\_buffering\_interval) | size of the time buffer in seconds before messages are flushed to S3 | `number` | `120` | no |
-| <a name="input_audit_buffering_size"></a> [audit\_buffering\_size](#input\_audit\_buffering\_size) | size of the buffer in megabytes before messages are flushed to S3 | `number` | `20` | no |
-| <a name="input_audit_error_prefix"></a> [audit\_error\_prefix](#input\_audit\_error\_prefix) | s3 object prefix to give firehose audit error logs | `string` | `"audit/error/error=!{firehose:error-output-type}/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"` | no |
-| <a name="input_audit_prefix"></a> [audit\_prefix](#input\_audit\_prefix) | s3 object prefix to give Fleet audit logs | `string` | `"audit/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"` | no |
-| <a name="input_firehose_audit_name"></a> [firehose\_audit\_name](#input\_firehose\_audit\_name) | firehose delivery stream name for Fleet audit logs | `string` | `"fleet_audit"` | no |
-| <a name="input_firehose_results_name"></a> [firehose\_results\_name](#input\_firehose\_results\_name) | firehose delivery stream name for osquery results logs | `string` | `"osquery_results"` | no |
-| <a name="input_firehose_status_name"></a> [firehose\_status\_name](#input\_firehose\_status\_name) | firehose delivery stream name for osquery status logs | `string` | `"osquery_status"` | no |
 | <a name="input_fleet_iam_role_arn"></a> [fleet\_iam\_role\_arn](#input\_fleet\_iam\_role\_arn) | the arn of the fleet role that firehose will assume to write data to your bucket | `string` | n/a | yes |
+| <a name="input_kms_key_arn"></a> [kms\_key\_arn](#input\_kms\_key\_arn) | An optional KMS key ARN for server-side encryption. If not provided and encryption is enabled, a new key will be created. | `string` | `""` | no |
+| <a name="input_log_destinations"></a> [log\_destinations](#input\_log\_destinations) | A map of configurations for Firehose delivery streams. | <pre>map(object({<br>    name                  = string<br>    prefix                = string<br>    error_output_prefix   = string<br>    buffering_size        = number<br>    buffering_interval    = number<br>    compression_format    = string<br>  }))</pre> | <pre>{<br>  "audit": {<br>    "buffering_interval": 120,<br>    "buffering_size": 20,<br>    "compression_format": "UNCOMPRESSED",<br>    "error_output_prefix": "audit/error/error=!{firehose:error-output-type}/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/",<br>    "name": "fleet_audit",<br>    "prefix": "audit/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"<br>  },<br>  "results": {<br>    "buffering_interval": 120,<br>    "buffering_size": 20,<br>    "compression_format": "UNCOMPRESSED",<br>    "error_output_prefix": "results/error/error=!{firehose:error-output-type}/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/",<br>    "name": "osquery_results",<br>    "prefix": "results/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"<br>  },<br>  "status": {<br>    "buffering_interval": 120,<br>    "buffering_size": 20,<br>    "compression_format": "UNCOMPRESSED",<br>    "error_output_prefix": "status/error/error=!{firehose:error-output-type}/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/",<br>    "name": "osquery_status",<br>    "prefix": "status/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"<br>  }<br>}</pre> | no |
 | <a name="input_osquery_logging_destination_bucket_name"></a> [osquery\_logging\_destination\_bucket\_name](#input\_osquery\_logging\_destination\_bucket\_name) | name of the bucket to store osquery results & status logs | `string` | n/a | yes |
-| <a name="input_results_buffering_interval"></a> [results\_buffering\_interval](#input\_results\_buffering\_interval) | size of the time buffer in seconds before messages are flushed to S3 | `number` | `120` | no |
-| <a name="input_results_buffering_size"></a> [results\_buffering\_size](#input\_results\_buffering\_size) | size of the buffer in megabytes before messages are flushed to S3 | `number` | `20` | no |
-| <a name="input_results_compression_format"></a> [results\_compression\_format](#input\_results\_compression\_format) | n/a | `string` | `"UNCOMPRESSED"` | no |
-| <a name="input_results_error_prefix"></a> [results\_error\_prefix](#input\_results\_error\_prefix) | s3 object prefix to give firehose results error logs | `string` | `"results/error/error=!{firehose:error-output-type}/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"` | no |
-| <a name="input_results_prefix"></a> [results\_prefix](#input\_results\_prefix) | s3 object prefix to give to results logs | `string` | `"results/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"` | no |
-| <a name="input_status_buffering_interval"></a> [status\_buffering\_interval](#input\_status\_buffering\_interval) | size of the time buffer in seconds before messages are flushed to S3 | `number` | `120` | no |
-| <a name="input_status_buffering_size"></a> [status\_buffering\_size](#input\_status\_buffering\_size) | size of the buffer in megabytes before messages are flushed to S3 | `number` | `20` | no |
-| <a name="input_status_error_prefix"></a> [status\_error\_prefix](#input\_status\_error\_prefix) | s3 object prefix to give firehose status error logs | `string` | `"status/error/error=!{firehose:error-output-type}/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"` | no |
-| <a name="input_status_prefix"></a> [status\_prefix](#input\_status\_prefix) | s3 object prefix to give status logs | `string` | `"status/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/"` | no |
+| <a name="input_server_side_encryption_enabled"></a> [server\_side\_encryption\_enabled](#input\_server\_side\_encryption\_enabled) | A boolean flag to enable/disable server-side encryption. Defaults to true (enabled). | `bool` | `true` | no |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| <a name="output_firehose_audit"></a> [firehose\_audit](#output\_firehose\_audit) | n/a |
 | <a name="output_firehose_iam_role"></a> [firehose\_iam\_role](#output\_firehose\_iam\_role) | n/a |
-| <a name="output_firehose_results"></a> [firehose\_results](#output\_firehose\_results) | n/a |
-| <a name="output_firehose_status"></a> [firehose\_status](#output\_firehose\_status) | n/a |
+| <a name="output_log_destinations"></a> [log\_destinations](#output\_log\_destinations) | Map of Firehose delivery streams' names. |
 | <a name="output_s3_destination"></a> [s3\_destination](#output\_s3\_destination) | n/a |
