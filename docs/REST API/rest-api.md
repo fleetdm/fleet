@@ -2976,9 +2976,11 @@ Request (`filters` is specified and empty, to delete all hosts):
 
 `Status: 200`
 
-### Get human-host mapping
+### Get human-device mapping
 
-Retrieves the end user's email(s) they use to log in to their Identity Provider (IdP) and Google Chrome profile.
+Returns the end user's email(s) they use to log in to their Identity Provider (IdP) and Google Chrome profile.
+
+Also returns the end user's email stored in the fleetd agent configuration (`END_USER_EMAIL`).
 
 Note that IdP email is only supported on macOS hosts. It's collected once, during automatic enrollment (DEP), only if the end user authenticates with the IdP and the DEP profile has `await_device_configured` set to `true`.
 
@@ -3011,6 +3013,10 @@ Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery mana
     {
       "email": "user@example.com",
       "source": "google_chrome_profiles"
+    },
+    {
+      "email": "user@example.com",
+      "source": "agent_configuration"
     }
   ]
 }
