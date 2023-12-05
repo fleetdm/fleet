@@ -102,6 +102,7 @@ type Query struct {
 	// or kept (false) in a query report.
 	DiscardData bool `json:"discard_data" db:"discard_data"`
 
+	ExtraFieldForTest *int
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the Query Clone implementation!
