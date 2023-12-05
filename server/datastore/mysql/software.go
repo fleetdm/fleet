@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -32,6 +33,39 @@ func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, softwa
 		result = r
 		return err
 	})
+	if err != nil {
+		return result, err
+	}
+
+	// We perform the following cleanup on a separate transaction to avoid deadlocks.
+	//
+	// Cleanup the software table when no more hosts have the deleted host_software
+	// table entries. Otherwise the software will be listed by ds.ListSoftware but
+	// ds.SoftwareByID, ds.CountHosts and ds.ListHosts will return a *notFoundError
+	// error for such software.
+	if len(result.Deleted) > 0 {
+		deletesHostSoftwareIDs := make([]uint, 0, len(result.Deleted))
+		for _, software := range result.Deleted {
+			deletesHostSoftwareIDs = append(deletesHostSoftwareIDs, software.ID)
+		}
+		slices.Sort(deletesHostSoftwareIDs)
+		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			stmt := `DELETE FROM software WHERE id IN (?) AND NOT EXISTS (
+				SELECT 1 FROM host_software hsw WHERE hsw.software_id = software.id
+			)`
+			stmt, args, err := sqlx.In(stmt, deletesHostSoftwareIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build delete software query")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete software")
+			}
+			return nil
+		}); err != nil {
+			return result, err
+		}
+	}
+
 	return result, err
 }
 
@@ -372,23 +406,6 @@ func deleteUninstalledHostSoftwareDB(
 	}
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "delete host software")
-	}
-
-	// Cleanup the software table when no more hosts have the deleted host_software
-	// table entries.
-	// Otherwise the software will be listed by ds.ListSoftware but ds.SoftwareByID,
-	// ds.CountHosts and ds.ListHosts will return a *notFoundError error for such
-	// software.
-	stmt = `DELETE FROM software WHERE id IN (?) AND
-	NOT EXISTS (
-		SELECT 1 FROM host_software hsw WHERE hsw.software_id = software.id
-	)`
-	stmt, args, err = sqlx.In(stmt, deletesHostSoftwareIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build delete software query")
-	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "delete software")
 	}
 
 	return deletedSoftware, nil

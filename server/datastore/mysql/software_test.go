@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/slices"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestSoftware(t *testing.T) {
@@ -39,6 +40,7 @@ func TestSoftware(t *testing.T) {
 		{"HostsByCVE", testHostsByCVE},
 		{"HostVulnSummariesBySoftwareIDs", testHostVulnSummariesBySoftwareIDs},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
+		{"UpdateHostSoftwareDeadlock", testUpdateHostSoftwareDeadlock},
 		{"UpdateHostSoftwareUpdatesSoftware", testUpdateHostSoftwareUpdatesSoftware},
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 		{"ListSoftwareVulnerabilitiesByHostIDsSource", testListSoftwareVulnerabilitiesByHostIDsSource},
@@ -2777,4 +2779,47 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 	// title_id is now populated for new source of foo
 	assertSoftware(t, expectedSoftware, nil)
+}
+
+func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	var hosts []*fleet.Host
+	for i := 1; i <= 100; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			ID:              uint(i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("id-%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("key-%d", i)),
+			Platform:        "linux",
+			Hostname:        fmt.Sprintf("host-%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+	}
+	var g errgroup.Group
+	for _, h := range hosts {
+		hostID := h.ID
+		g.Go(func() error {
+			for i := 0; i < 100; i++ {
+				software := []fleet.Software{
+					{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo"},
+					{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar"},
+					{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz"},
+				}
+				removeIdx := rand.Intn(len(software))
+				software = append(software[:removeIdx], software[removeIdx+1:]...)
+				if _, err := ds.UpdateHostSoftware(ctx, hostID, software); err != nil {
+					return err
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			return nil
+		})
+	}
+
+	err := g.Wait()
+	require.NoError(t, err)
 }
