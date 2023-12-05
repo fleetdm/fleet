@@ -152,7 +152,7 @@ func generateFieldsList(w io.Writer, item fleet.Cloner) error {
 	return generateStructFieldsList(w, t, seenTypes)
 }
 
-var basicTypes map[reflect.Kind]bool = map[reflect.Kind]bool{
+var basicTypes = map[reflect.Kind]bool{
 	reflect.Bool:       true,
 	reflect.Int:        true,
 	reflect.Int8:       true,

@@ -37,5 +37,5 @@ func (r *rawJSONMessage) Clone() (fleet.Cloner, error) {
 type integer int
 
 func (i integer) Clone() (fleet.Cloner, error) {
-	return integer(i), nil
+	return i, nil
 }
