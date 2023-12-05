@@ -376,6 +376,9 @@ func MapQueryReportResultsToRows(rows []*ScheduledQueryResultRow) ([]HostQueryRe
 	var results []HostQueryResultRow
 	for _, row := range rows {
 		var columns map[string]string
+		if row.Data == nil {
+			continue
+		}
 		if err := json.Unmarshal(*row.Data, &columns); err != nil {
 			return nil, err
 		}
