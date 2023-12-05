@@ -1,14 +1,15 @@
 package fleet
 
 import (
+	"bytes"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/beevik/etree"
 	"github.com/fleetdm/fleet/v4/server/mdm"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 )
 
 // MDMWindowsBitLockerSummary reports the number of Windows hosts being managed by Fleet with
@@ -28,6 +29,8 @@ type MDMWindowsBitLockerSummary struct {
 
 // MDMWindowsConfigProfile represents a Windows MDM profile in Fleet.
 type MDMWindowsConfigProfile struct {
+	// ProfileUUID is the unique identifier of the configuration profile in
+	// Fleet. For Windows profiles, it is the letter "w" followed by a uuid.
 	ProfileUUID string    `db:"profile_uuid" json:"profile_uuid"`
 	TeamID      *uint     `db:"team_id" json:"team_id"`
 	Name        string    `db:"name" json:"name"`
@@ -44,26 +47,50 @@ type MDMWindowsConfigProfile struct {
 //
 // Returns an error if these conditions are not met.
 func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
+	if len(bytes.TrimSpace(m.SyncML)) == 0 {
+		return errors.New("The file should include valid XML.")
+	}
+	fleetNames := mdm.FleetReservedProfileNames()
+	if _, ok := fleetNames[m.Name]; ok {
+		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
+	}
+
+	var validator struct {
+		SyncBody
+		NonProtocolElements []interface{} `xml:",any,omitempty"`
+	}
+	wrappedProfile := fmt.Sprintf("<SyncBody>%s</SyncBody>", m.SyncML)
+	if err := xml.Unmarshal([]byte(wrappedProfile), &validator); err != nil {
+		return fmt.Errorf("The file should include valid XML: %w", err)
+	}
+
+	// might be valid XML, but start with something other than <Replace>
 	if mdm.GetRawProfilePlatform(m.SyncML) != "windows" {
-		return errors.New("Only <Replace> supported as a top level element. Make sure you don’t have other top level elements.")
+		return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
 	}
 
-	doc := etree.NewDocument()
-	if err := doc.ReadFromBytes(m.SyncML); err != nil {
-		return fmt.Errorf("Couldn’t upload. The file should include valid XML: %w", err)
+	if len(validator.Add) != 0 ||
+		len(validator.Alert) != 0 ||
+		len(validator.Atomic) != 0 ||
+		len(validator.Delete) != 0 ||
+		len(validator.Exec) != 0 ||
+		len(validator.Get) != 0 ||
+		len(validator.Results) != 0 ||
+		len(validator.Status) != 0 ||
+		len(validator.NonProtocolElements) != 0 {
+		return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
 	}
 
-	for _, element := range doc.ChildElements() {
-		if element.Tag != CmdReplace {
-			return errors.New("Only <Replace> supported as a top level element. Make sure you don’t have other top level elements.")
-		}
+	for _, cmd := range validator.Replace {
+		for _, item := range cmd.Items {
+			// intentionally skipping any further validation if we
+			// don't get a target per product decision.
+			if item.Target == nil {
+				continue
+			}
 
-		for _, target := range element.FindElements("Target") {
-			locURI := target.FindElement("LocURI")
-			if locURI != nil {
-				if err := validateFleetProvidedLocURI(locURI.Text()); err != nil {
-					return err
-				}
+			if err := validateFleetProvidedLocURI(*item.Target); err != nil {
+				return err
 			}
 		}
 	}
@@ -72,15 +99,15 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 }
 
 var fleetProvidedLocURIValidationMap = map[string][2]string{
-	microsoft_mdm.FleetBitLockerTargetLocURI: {"BitLocker", "mdm.enable_disk_encryption"},
-	microsoft_mdm.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
+	syncml.FleetBitLockerTargetLocURI: {"BitLocker", "mdm.enable_disk_encryption"},
+	syncml.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
 }
 
 func validateFleetProvidedLocURI(locURI string) error {
 	sanitizedLocURI := strings.TrimSpace(locURI)
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
-			return fmt.Errorf("Custom configuration profiles can’t include %s settings. To control these settings, use the %s option.", errHints[0], errHints[1])
+			return fmt.Errorf("Custom configuration profiles can't include %s settings. To control these settings, use the %s option.", errHints[0], errHints[1])
 		}
 	}
 
@@ -95,6 +122,7 @@ type MDMWindowsProfilePayload struct {
 	OperationType MDMOperationType   `db:"operation_type"`
 	Detail        string             `db:"detail"`
 	CommandUUID   string             `db:"command_uuid"`
+	Retries       int                `db:"retries"`
 }
 
 type MDMWindowsBulkUpsertHostProfilePayload struct {

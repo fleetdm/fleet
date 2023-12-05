@@ -36,6 +36,7 @@ module "alb" {
   subnets         = var.alb_config.subnets
   security_groups = concat(var.alb_config.security_groups, [aws_security_group.alb.id])
   access_logs     = var.alb_config.access_logs
+  idle_timeout    = var.alb_config.idle_timeout
 
   target_groups = concat([
     {

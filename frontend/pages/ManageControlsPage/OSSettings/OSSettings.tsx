@@ -16,6 +16,7 @@ const baseClass = "os-settings";
 interface IOSSettingsProps {
   params: Params;
   router: InjectedRouter;
+  currentPage: number;
   location: {
     search: string;
   };
@@ -23,6 +24,7 @@ interface IOSSettingsProps {
 
 const OSSettings = ({
   router,
+  currentPage,
   location: { search: queryString },
   params,
 }: IOSSettingsProps) => {
@@ -41,8 +43,7 @@ const OSSettings = ({
     isLoading: isLoadingAggregateProfileStatus,
   } = useQuery(
     ["aggregateProfileStatuses", teamId],
-    () =>
-      mdmAPI.getAggregateProfileStatuses(teamId, config?.mdm_enabled ?? false),
+    () => mdmAPI.getProfilesStatusSummary(teamId),
     {
       refetchOnWindowFocus: false,
       retry: false,
@@ -68,7 +69,7 @@ const OSSettings = ({
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
-        Remotely enforce settings on macOS hosts assigned to this team.
+        Remotely enforce OS settings on hosts assigned to this team.
       </p>
       <ProfileStatusAggregate
         isLoading={isLoadingAggregateProfileStatus}
@@ -87,6 +88,8 @@ const OSSettings = ({
             key={teamId}
             currentTeamId={teamId}
             onMutation={refetchAggregateProfileStatus}
+            router={router}
+            currentPage={currentPage}
           />
         }
       />

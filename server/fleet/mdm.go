@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strconv"
 	"time"
 )
 
@@ -103,7 +102,10 @@ func (e MDMAppleEULA) AuthzType() string {
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
 type ExpectedMDMProfile struct {
+	// Identifier is the unique identifier used by macOS profiles
 	Identifier string `db:"identifier"`
+	// Name is the unique name used by Windows profiles
+	Name string `db:"name"`
 	// EarliestInstallDate is the earliest updated_at of all team profiles with the same checksum.
 	// It is used to assess the case where a host has installed a profile with the identifier
 	// expected by the host's current team, but the host's install_date is earlier than the
@@ -113,6 +115,8 @@ type ExpectedMDMProfile struct {
 	// Ideally, we would simply compare the checksums of the installed and expected profiles, but
 	// the checksums are not available in the osquery profiles table.
 	EarliestInstallDate time.Time `db:"earliest_install_date"`
+	// RawProfile contains the raw profile contents
+	RawProfile []byte `db:"raw_profile"`
 }
 
 // IsWithinGracePeriod returns true if the host is within the grace period for the profile.
@@ -133,8 +137,11 @@ func (ep ExpectedMDMProfile) IsWithinGracePeriod(hostDetailUpdatedAt time.Time) 
 // HostMDMProfileRetryCount represents the number of times Fleet has attempted to install
 // the identified profile on a host.
 type HostMDMProfileRetryCount struct {
+	// Identifier is the unique identifier used by macOS profiles
 	ProfileIdentifier string `db:"profile_identifier"`
-	Retries           uint   `db:"retries"`
+	// ProfileName is the unique name used by Windows profiles
+	ProfileName string `db:"profile_name"`
+	Retries     uint   `db:"retries"`
 }
 
 // TeamIDSetter defines the method to set a TeamID value on a struct,
@@ -239,6 +246,40 @@ type MDMDiskEncryptionSummary struct {
 	RemovingEnforcement MDMPlatformsCounts `db:"removing_enforcement" json:"removing_enforcement"`
 }
 
+// MDMProfilesSummary reports the number of hosts being managed with MDM configuration
+// profiles. Each host may be counted in only one of four mutually-exclusive categories:
+// Failed, Pending, Verifying, or Verified.
+type MDMProfilesSummary struct {
+	// Verified includes each host where Fleet has verified the installation of all of the
+	// profiles currently applicable to the host. If any of the profiles are pending, failed, or
+	// subject to verification for the host, the host is not counted as verified.
+	Verified uint `json:"verified" db:"verified"`
+	// Verifying includes each host where the MDM service has successfully delivered all of the
+	// profiles currently applicable to the host. If any of the profiles are pending or failed for
+	// the host, the host is not counted as verifying.
+	Verifying uint `json:"verifying" db:"verifying"`
+	// Pending includes each host that has not yet applied one or more of the profiles currently
+	// applicable to the host. If a host failed to apply any profiles, it is not counted as pending.
+	Pending uint `json:"pending" db:"pending"`
+	// Failed includes each host that has failed to apply one or more of the profiles currently
+	// applicable to the host.
+	Failed uint `json:"failed" db:"failed"`
+}
+
+// HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
+// a Windows or macOS profile.
+type HostMDMProfile struct {
+	HostUUID      string             `db:"-" json:"-"`
+	CommandUUID   string             `db:"-" json:"-"`
+	ProfileUUID   string             `db:"-" json:"profile_uuid"`
+	Name          string             `db:"-" json:"name"`
+	Identifier    string             `db:"-" json:"-"`
+	Status        *MDMDeliveryStatus `db:"-" json:"status"`
+	OperationType MDMOperationType   `db:"-" json:"operation_type"`
+	Detail        string             `db:"-" json:"detail"`
+	Platform      string             `db:"-" json:"platform"`
+}
+
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
 // to a device (whether it is installing or removing).
 type MDMDeliveryStatus string
@@ -310,14 +351,14 @@ func (m MDMConfigProfileAuthz) AuthzType() string {
 // MDMConfigProfilePayload is the platform-agnostic struct returned by
 // endpoints that return MDM configuration profiles (get/list profiles).
 type MDMConfigProfilePayload struct {
-	ProfileID  string    `json:"profile_id"` // is a uuid string for Windows
-	TeamID     *uint     `json:"team_id"`    // null for no-team
-	Name       string    `json:"name"`
-	Platform   string    `json:"platform"`             // "windows" or "darwin"
-	Identifier string    `json:"identifier,omitempty"` // only set for macOS
-	Checksum   []byte    `json:"checksum,omitempty"`   // only set for macOS
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ProfileUUID string    `json:"profile_uuid" db:"profile_uuid"`
+	TeamID      *uint     `json:"team_id" db:"team_id"` // null for no-team
+	Name        string    `json:"name" db:"name"`
+	Platform    string    `json:"platform" db:"platform"`               // "windows" or "darwin"
+	Identifier  string    `json:"identifier,omitempty" db:"identifier"` // only set for macOS
+	Checksum    []byte    `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
@@ -326,12 +367,12 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		tid = cp.TeamID
 	}
 	return &MDMConfigProfilePayload{
-		ProfileID: cp.ProfileUUID,
-		TeamID:    tid,
-		Name:      cp.Name,
-		Platform:  "windows",
-		CreatedAt: cp.CreatedAt,
-		UpdatedAt: cp.UpdatedAt,
+		ProfileUUID: cp.ProfileUUID,
+		TeamID:      tid,
+		Name:        cp.Name,
+		Platform:    "windows",
+		CreatedAt:   cp.CreatedAt,
+		UpdatedAt:   cp.UpdatedAt,
 	}
 }
 
@@ -341,13 +382,13 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		tid = cp.TeamID
 	}
 	return &MDMConfigProfilePayload{
-		ProfileID:  strconv.FormatUint(uint64(cp.ProfileID), 10),
-		TeamID:     tid,
-		Name:       cp.Name,
-		Identifier: cp.Identifier,
-		Platform:   "darwin",
-		Checksum:   cp.Checksum,
-		CreatedAt:  cp.CreatedAt,
-		UpdatedAt:  cp.UpdatedAt,
+		ProfileUUID: cp.ProfileUUID,
+		TeamID:      tid,
+		Name:        cp.Name,
+		Identifier:  cp.Identifier,
+		Platform:    "darwin",
+		Checksum:    cp.Checksum,
+		CreatedAt:   cp.CreatedAt,
+		UpdatedAt:   cp.UpdatedAt,
 	}
 }

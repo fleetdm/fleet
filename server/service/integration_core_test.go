@@ -697,8 +697,8 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.NotNil(t, host)
 
 	software := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "apps"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionID: "abc", Browser: "edge"},
+		{Name: "bar", Version: "0.0.3", Source: "apps", ExtensionID: "xyz", Browser: "chrome"},
 		{Name: "baz", Version: "0.0.4", Source: "apps"},
 	}
 	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
@@ -737,6 +737,8 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	expectedJSONSoft2 := `"name": "bar",
         "version": "0.0.3",
         "source": "apps",
+        "extension_id": "xyz",
+        "browser": "chrome",
         "generated_cpe": "somecpe",
         "vulnerabilities": [
           {
@@ -747,6 +749,8 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	expectedJSONSoft1 := `"name": "foo",
         "version": "0.0.1",
         "source": "chrome_extensions",
+        "extension_id": "abc",
+        "browser": "edge",
         "generated_cpe": "",
         "vulnerabilities": null`
 	// We are doing Contains instead of equals to test the output for software in particular
@@ -784,6 +788,8 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	require.Len(t, lsResp.Software, 1)
 	assert.Equal(t, soft1.ID, lsResp.Software[0].ID)
+	assert.Equal(t, soft1.ExtensionID, lsResp.Software[0].ExtensionID)
+	assert.Equal(t, soft1.Browser, lsResp.Software[0].Browser)
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
 	require.NotNil(t, lsResp.CountsUpdatedAt)
 	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
@@ -1445,6 +1451,10 @@ func (s *integrationTestSuite) TestListHosts() {
 	// Filter by inexistent software.
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_id", fmt.Sprint(9999))
+
+	// Filter by non-existent team.
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "team_id", fmt.Sprint(9999))
 
 	// set munki information on a host
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "1.2.3", []string{"err"}, []string{"warn"}))
@@ -2587,6 +2597,43 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	require.ElementsMatch(t, ids, []uint{hosts[1].ID, hosts[2].ID})
 }
 
+func (s *integrationTestSuite) TestGetHostByIdentifier() {
+	t := s.T()
+	ctx := context.Background()
+
+	hosts := make([]*fleet.Host, 6)
+	for i := 0; i < len(hosts); i++ {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			Hostname:       fmt.Sprintf("test-host%d-name", i),
+			OsqueryHostID:  ptr.String(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:        ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			UUID:           fmt.Sprintf("test-uuid-%d", i),
+			Platform:       "darwin",
+			HardwareSerial: fmt.Sprintf("serial-%d", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	var resp getHostResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/osquery-1", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[1].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/serial-2", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[2].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/nodekey-3", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[3].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/test-uuid-4", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[4].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/test-host5-name", nil, http.StatusOK, &resp)
+	require.Equal(t, hosts[5].ID, resp.Host.ID)
+
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/no-such-host", nil, http.StatusNotFound, &resp)
+}
+
 func (s *integrationTestSuite) TestScheduledQueries() {
 	t := s.T()
 
@@ -3140,6 +3187,37 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 			require.Fail(t, "unknown MDM server URL: %s", sol.ServerURL)
 		}
 	}
+
+	// Delete Munki from host -- no munki, but issues stick.
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "", []string{"error1", "error3"}, []string{}))
+	macadminsData = macadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
+	require.NotNil(t, macadminsData.Macadmins)
+	assert.Equal(t, "Off", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
+	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
+	require.Nil(t, macadminsData.Macadmins.Munki)
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 2)
+
+	// Bring Munki back, with same issues.
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "6.4", []string{"error1", "error3"}, []string{}))
+	macadminsData = macadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
+	require.NotNil(t, macadminsData.Macadmins)
+	assert.Equal(t, "Off", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
+	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
+	assert.NotNil(t, macadminsData.Macadmins.Munki)
+	require.NotNil(t, macadminsData.Macadmins.Munki.Version, "6.4")
+	require.Len(t, macadminsData.Macadmins.MunkiIssues, 2)
+
+	// Delete Munki from host without MDM -- nothing is returned
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostOnlyMunki.ID, "", nil, []string{}))
+	macadminsData = macadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMunki.ID), nil, http.StatusOK, &macadminsData)
+	require.Nil(t, macadminsData.Macadmins)
 
 	// TODO: ideally we'd pull this out into its own function that specifically tests
 	// the mdm summary endpoint. We can add additional tests for testing the platform
@@ -5198,6 +5276,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 		"mdm": { "apple_bm_default_team": "xyz" }
   }`), http.StatusUnprocessableEntity, &acResp)
 
+	// try to set the windows updates, which is premium only
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_updates": {"deadline_days": 1, "grace_period_days": 0} }
+  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "missing or invalid license")
+
 	// try to enable Windows MDM, impossible without the feature flag
 	// (only set in mdm integrations tests)
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -6326,7 +6411,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows[0], 48)        // total number of cols
+	require.Len(t, rows[0], 49)        // total number of cols
 
 	const (
 		idCol       = 3
@@ -8029,7 +8114,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows1[0], 48)        // total number of cols
+	require.Len(t, rows1[0], 49)        // total number of cols
 
 	var (
 		idIdx     int
@@ -8056,7 +8141,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows2[0], 48)        // total number of cols
+	require.Len(t, rows2[0], 49)        // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {
@@ -8163,6 +8248,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		SeenTime:        time.Now(),
 		NodeKey:         ptr.String("2"),
 		UUID:            "2",
+		ComputerName:    "Foo Local2",
 		Hostname:        "foo.local2",
 		OsqueryHostID:   ptr.String("2"),
 		PrimaryIP:       "192.168.1.2",
@@ -8339,7 +8425,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		return gqrr.Results[i].Columns["usb_port"] < gqrr.Results[j].Columns["usb_port"]
 	})
 	require.Equal(t, host2Team1.ID, gqrr.Results[0].HostID)
-	require.Equal(t, host2Team1.Hostname, gqrr.Results[0].Hostname)
+	require.Equal(t, host2Team1.DisplayName(), gqrr.Results[0].Hostname)
 	require.NotZero(t, gqrr.Results[0].LastFetched)
 	require.Equal(t, map[string]string{
 		"class":       "239",
@@ -8356,7 +8442,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"version":     "0.19",
 	}, gqrr.Results[0].Columns)
 	require.Equal(t, host2Team1.ID, gqrr.Results[1].HostID)
-	require.Equal(t, host2Team1.Hostname, gqrr.Results[1].Hostname)
+	require.Equal(t, host2Team1.DisplayName(), gqrr.Results[1].Hostname)
 	require.NotZero(t, gqrr.Results[1].LastFetched)
 	require.Equal(t, map[string]string{
 		"class":       "0",
@@ -8383,7 +8469,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		return gqrr.Results[i].Columns["version"] > gqrr.Results[j].Columns["version"]
 	})
 	require.Equal(t, host1Global.ID, gqrr.Results[0].HostID)
-	require.Equal(t, host1Global.Hostname, gqrr.Results[0].Hostname)
+	require.Equal(t, host1Global.DisplayName(), gqrr.Results[0].Hostname)
 	require.NotZero(t, gqrr.Results[0].LastFetched)
 	require.Equal(t, map[string]string{
 		"build_distro":   "centos7",
@@ -8400,7 +8486,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"watcher":        "3570",
 	}, gqrr.Results[0].Columns)
 	require.Equal(t, host2Team1.ID, gqrr.Results[1].HostID)
-	require.Equal(t, host2Team1.Hostname, gqrr.Results[1].Hostname)
+	require.Equal(t, host2Team1.DisplayName(), gqrr.Results[1].Hostname)
 	require.NotZero(t, gqrr.Results[1].LastFetched)
 	require.Equal(t, map[string]string{
 		"build_distro":   "10.14",

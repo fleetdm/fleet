@@ -427,11 +427,11 @@ func generateDummyWindowsProfile(uuid string) []byte {
 
 // TODO(roberto): update when we have datastore functions and API methods for this
 func InsertWindowsProfileForTest(t *testing.T, ds *Datastore, teamID uint) string {
-	profUUID := uuid.NewString()
+	profUUID := "w" + uuid.NewString()
 	prof := generateDummyWindowsProfile(profUUID)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		stmt := `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml) VALUES (?, ?, ?, ?);`
-		_, err := q.ExecContext(context.Background(), stmt, profUUID, teamID, fmt.Sprintf("name-%s", uuid.NewString()), prof)
+		_, err := q.ExecContext(context.Background(), stmt, profUUID, teamID, fmt.Sprintf("name-%s", profUUID), prof)
 		return err
 	})
 	return profUUID

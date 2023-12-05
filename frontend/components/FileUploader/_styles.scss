@@ -10,6 +10,11 @@
   text-align: center;
   gap: $pad-small;
 
+  &__graphics {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+  }
   &__message {
     margin: 0;
   }

@@ -12,8 +12,7 @@ import (
 	"strings"
 	"time"
 
-	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 )
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -62,11 +61,11 @@ func (req *SoapRequest) GetHeaderBinarySecurityToken() (*HeaderBinarySecurityTok
 		return nil, errors.New("binarySecurityToken is empty")
 	}
 
-	if req.Header.Security.Security.Encoding != mdm.EnrollEncode {
+	if req.Header.Security.Security.Encoding != syncml.EnrollEncode {
 		return nil, errors.New("binarySecurityToken encoding is invalid")
 	}
 
-	if req.Header.Security.Security.Value != mdm.BinarySecurityDeviceEnroll && req.Header.Security.Security.Value != mdm.BinarySecurityAzureEnroll {
+	if req.Header.Security.Security.Value != syncml.BinarySecurityDeviceEnroll && req.Header.Security.Security.Value != syncml.BinarySecurityAzureEnroll {
 		return nil, errors.New("binarySecurityToken type is invalid")
 	}
 
@@ -149,15 +148,15 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 	}
 
 	// Ensure that only valid versions are supported
-	if req.Body.Discover.Request.RequestVersion != mdm.EnrollmentVersionV4 &&
-		req.Body.Discover.Request.RequestVersion != mdm.EnrollmentVersionV5 {
+	if req.Body.Discover.Request.RequestVersion != syncml.EnrollmentVersionV4 &&
+		req.Body.Discover.Request.RequestVersion != syncml.EnrollmentVersionV5 {
 		return errors.New("invalid discover message: Request.RequestVersion")
 	}
 
 	// Traverse the AuthPolicies slice and check for valid values
 	isInvalidAuth := true
 	for _, authPolicy := range req.Body.Discover.Request.AuthPolicies.AuthPolicy {
-		if authPolicy == mdm.AuthOnPremise {
+		if authPolicy == syncml.AuthOnPremise {
 			isInvalidAuth = false
 			break
 		}
@@ -217,8 +216,8 @@ func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.ValueType")
 	}
 
-	if req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != mdm.EnrollReqTypePKCS10 &&
-		req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != mdm.EnrollReqTypePKCS7 {
+	if req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != syncml.EnrollReqTypePKCS10 &&
+		req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != syncml.EnrollReqTypePKCS7 {
 		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.EncodingType not supported")
 	}
 
@@ -230,29 +229,29 @@ func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 		return errors.New("invalid requestsecuritytoken message: AdditionalContext.ContextItems missing")
 	}
 
-	reqEnrollType, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemEnrollmentType)
-	if err != nil || (reqEnrollType != mdm.ReqSecTokenEnrollTypeDevice && reqEnrollType != mdm.ReqSecTokenEnrollTypeFull) {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemEnrollmentType, reqEnrollType, err)
+	reqEnrollType, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemEnrollmentType)
+	if err != nil || (reqEnrollType != syncml.ReqSecTokenEnrollTypeDevice && reqEnrollType != syncml.ReqSecTokenEnrollTypeFull) {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemEnrollmentType, reqEnrollType, err)
 	}
 
-	reqDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemDeviceID)
+	reqDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemDeviceID)
 	if err != nil || len(reqDeviceID) == 0 {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemDeviceID, reqDeviceID, err)
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemDeviceID, reqDeviceID, err)
 	}
 
-	reqHwDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemHWDevID)
+	reqHwDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil || len(reqHwDeviceID) == 0 {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemHWDevID, reqHwDeviceID, err)
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemHWDevID, reqHwDeviceID, err)
 	}
 
-	reqOSEdition, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemOSEdition)
+	reqOSEdition, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemOSEdition)
 	if err != nil || len(reqOSEdition) == 0 {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemOSEdition, reqOSEdition, err)
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemOSEdition, reqOSEdition, err)
 	}
 
-	reqOSVersion, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemOSVersion)
+	reqOSVersion, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemOSVersion)
 	if err != nil || len(reqOSVersion) == 0 {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemOSVersion, reqOSVersion, err)
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemOSVersion, reqOSVersion, err)
 	}
 
 	return nil
@@ -360,7 +359,7 @@ func (token *HeaderBinarySecurityToken) IsValidToken() error {
 		return errors.New("binary security token is empty")
 	}
 
-	if token.Value != microsoft_mdm.BinarySecurityDeviceEnroll && token.Value != microsoft_mdm.BinarySecurityAzureEnroll {
+	if token.Value != syncml.BinarySecurityDeviceEnroll && token.Value != syncml.BinarySecurityAzureEnroll {
 		return errors.New("binary security token is invalid")
 	}
 
@@ -373,7 +372,7 @@ func (token *HeaderBinarySecurityToken) IsAzureJWTToken() bool {
 		return false
 	}
 
-	if token.Value == microsoft_mdm.BinarySecurityAzureEnroll {
+	if token.Value == syncml.BinarySecurityAzureEnroll {
 		return true
 	}
 
@@ -386,7 +385,7 @@ func (token *HeaderBinarySecurityToken) IsDeviceToken() bool {
 		return false
 	}
 
-	if token.Value == microsoft_mdm.BinarySecurityDeviceEnroll {
+	if token.Value == syncml.BinarySecurityDeviceEnroll {
 		return true
 	}
 
@@ -503,8 +502,8 @@ func (msg RequestSecurityToken) GetBinarySecurityTokenData() (string, error) {
 
 // Get Binary Security Token Type
 func (msg RequestSecurityToken) GetBinarySecurityTokenType() (string, error) {
-	if msg.BinarySecurityToken.ValueType == mdm.EnrollReqTypePKCS10 ||
-		msg.BinarySecurityToken.ValueType == mdm.EnrollReqTypePKCS7 {
+	if msg.BinarySecurityToken.ValueType == syncml.EnrollReqTypePKCS10 ||
+		msg.BinarySecurityToken.ValueType == syncml.EnrollReqTypePKCS7 {
 		return msg.BinarySecurityToken.ValueType, nil
 	}
 
@@ -928,6 +927,13 @@ type SyncMLCmd struct {
 	Cmd     *string   `xml:"Cmd,omitempty"`
 	Data    *string   `xml:"Data,omitempty"`
 	Items   []CmdItem `xml:"Item,omitempty"`
+
+	// ReplaceCommands is a catch-all for any nested <Replace> commands,
+	// which can be found under <Atomic> elements.
+	//
+	// NOTE: in theory Atomics can have anything except Get verbs, but
+	// for the moment we're not allowing anything besides Replaces
+	ReplaceCommands []SyncMLCmd `xml:"Replace,omitempty"`
 }
 
 // ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
@@ -1021,12 +1027,12 @@ func (msg *SyncML) IsValidHeader() error {
 	}
 
 	// SyncML DTD version check
-	if msg.SyncHdr.VerDTD != mdm.SyncMLSupportedVersion {
+	if msg.SyncHdr.VerDTD != syncml.SyncMLSupportedVersion {
 		return errors.New("unsupported DTD version")
 	}
 
 	// SyncML Proto version check
-	if msg.SyncHdr.VerProto != mdm.SyncMLVerProto {
+	if msg.SyncHdr.VerProto != syncml.SyncMLVerProto {
 		return errors.New("unsupported proto version")
 	}
 
@@ -1303,11 +1309,7 @@ func (cmd *SyncMLCmd) IsValid() bool {
 
 // IsEmpty checks if there are not items in the command
 func (cmd *SyncMLCmd) IsEmpty() bool {
-	if len(cmd.Items) == 0 {
-		return true
-	}
-
-	return false
+	return len(cmd.Items) == 0
 }
 
 // GetTargetURI returns the first protocol commands target URI from the items list
@@ -1376,4 +1378,134 @@ func GetEncodedBinarySecurityToken(typeID WindowsMDMEnrollmentType, payload stri
 	}
 
 	return base64.URLEncoding.EncodeToString(rawBytes), nil
+}
+
+// HostMDMWindowsProfile represents the status of an MDM profile for a Windows host.
+type HostMDMWindowsProfile struct {
+	HostUUID      string             `db:"host_uuid" json:"host_uuid"`
+	CommandUUID   string             `db:"command_uuid" json:"command_uuid"`
+	ProfileUUID   string             `db:"profile_uuid" json:"profile_uuid"`
+	Name          string             `db:"name" json:"name"`
+	Status        *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
+	Detail        string             `db:"detail" json:"detail"`
+}
+
+func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
+	return HostMDMProfile{
+		HostUUID:      p.HostUUID,
+		ProfileUUID:   p.ProfileUUID,
+		Name:          p.Name,
+		Identifier:    "",
+		Status:        p.Status,
+		OperationType: p.OperationType,
+		Detail:        p.Detail,
+		Platform:      "windows",
+	}
+}
+
+// BuildMDMWindowsProfilePayloadFromMDMResponse builds a
+// MDMWindowsProfilePayload for a command that was used to deliver a
+// configuration profile.
+//
+// Profiles are groups of `<Replace>` commands wrapped in an `<Atomic>`, both
+// the top-level atomic and each replace have different CmdID values and Status
+// responses. For example a profile might look like:
+//
+// <Atomic>
+//
+//	<CmdID>foo</CmdID>
+//	<Replace>
+//	  <CmdID>bar</CmdID>
+//	  ...
+//	</Replace>
+//	<Replace>
+//	  <CmdID>baz</CmdID>
+//	  ...
+//	</Replace>
+//
+// </Atomic>
+//
+// And the response from the MDM server will be something like:
+//
+// <SyncBody>
+// <Status>
+//
+//	<CmdID>foo</CmdID>
+//	<Cmd>Atomic</Cmd>
+//	<Data>200</Data>
+//	...
+//
+// </Status>
+// <Status>
+//
+//	<CmdID>bar</CmdID>
+//	<Cmd>Replace</Cmd>
+//	<Data>200</Data>
+//	...
+//
+// </Status>
+// <Status>
+//
+//	<CmdID>baz</CmdID>
+//	<Cmd>Replace</Cmd>
+//	<Data>200</Data>
+//	...
+//
+// </Status>
+// ...
+// </SyncBody>
+//
+// As currently specified:
+//   - The status of the resulting command should be the status of the
+//     top-level `<Atomic>` operation
+//   - The detail of the resulting command should be an aggregate of all the
+//     status responses of every nested `Replace` operation
+func BuildMDMWindowsProfilePayloadFromMDMResponse(
+	cmd MDMWindowsCommand,
+	statuses map[string]SyncMLCmd,
+	hostUUID string,
+) (*MDMWindowsProfilePayload, error) {
+	status, ok := statuses[cmd.CommandUUID]
+	if !ok {
+		return nil, fmt.Errorf("missing status for root command %s", cmd.CommandUUID)
+	}
+	commandStatus := WindowsResponseToDeliveryStatus(*status.Data)
+	var details []string
+	if status.Data != nil && commandStatus == MDMDeliveryFailed {
+		syncML := new(SyncMLCmd)
+		if err := xml.Unmarshal(cmd.RawCommand, syncML); err != nil {
+			return nil, err
+		}
+		for _, nested := range syncML.ReplaceCommands {
+			if status, ok := statuses[nested.CmdID]; ok && status.Data != nil {
+				details = append(details, fmt.Sprintf("CmdID %s: status %s", nested.CmdID, *status.Data))
+			}
+		}
+	}
+	detail := strings.Join(details, ", ")
+	return &MDMWindowsProfilePayload{
+		HostUUID:      hostUUID,
+		Status:        &commandStatus,
+		OperationType: "",
+		Detail:        detail,
+		CommandUUID:   cmd.CommandUUID,
+	}, nil
+}
+
+// WindowsResponseToDeliveryStatus converts a response string from Windows MDM
+// into an MDMDeliveryStatus.
+//
+// If the response starts with "2" (any 2xx response), it returns
+// MDMDeliveryVerifying, otherwise, it returns MDMDeliveryFailed.
+func WindowsResponseToDeliveryStatus(resp string) MDMDeliveryStatus {
+	if len(resp) == 0 {
+		return MDMDeliveryPending
+	}
+
+	if strings.HasPrefix(resp, "2") {
+		return MDMDeliveryVerifying
+	}
+
+	return MDMDeliveryFailed
 }

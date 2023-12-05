@@ -547,40 +547,6 @@ export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
-export const humanHostLastRestart = (
-  detailUpdatedAt: string,
-  uptime: number | string
-): string => {
-  if (
-    !detailUpdatedAt ||
-    !uptime ||
-    detailUpdatedAt === DEFAULT_EMPTY_CELL_VALUE ||
-    detailUpdatedAt < INITIAL_FLEET_DATE ||
-    typeof uptime !== "number"
-  ) {
-    return "Unavailable";
-  }
-  try {
-    const currentDate = new Date();
-    const updatedDate = new Date(detailUpdatedAt);
-    const millisecondsLastUpdated =
-      currentDate.getTime() - updatedDate.getTime();
-
-    // Sum of calculated milliseconds since last updated with uptime
-    const millisecondsLastRestart =
-      millisecondsLastUpdated + uptime / NANOSECONDS_PER_MILLISECOND;
-
-    const restartDate = new Date();
-    restartDate.setMilliseconds(
-      restartDate.getMilliseconds() - millisecondsLastRestart
-    );
-
-    return restartDate.toISOString();
-  } catch {
-    return "Unavailable";
-  }
-};
-
 export const humanHostLastSeen = (lastSeen: string): string => {
   if (!lastSeen || lastSeen < INITIAL_FLEET_DATE) {
     return "Never";
@@ -640,36 +606,6 @@ export const internationalTimeFormat = (date: number | Date): string => {
     },
     { locale: window.navigator.languages[0] }
   );
-};
-
-const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
-  darwin: {
-    enabled:
-      "The disk is encrypted. The user must enter their<br/> password when they start their computer.",
-    disabled:
-      "The disk might be encrypted, but FileVault is off. The<br/> disk can be accessed without entering a password.",
-  },
-  windows: {
-    enabled:
-      "The disk is encrypted. If recently turned on,<br/> encryption could take awhile.",
-    disabled: "The disk is unencrypted.",
-  },
-};
-
-export const getHostDiskEncryptionTooltipMessage = (
-  platform: "darwin" | "windows" | "chrome", // TODO: improve this type
-  diskEncryptionEnabled = false
-) => {
-  if (platform === "chrome") {
-    return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
-  }
-
-  if (!["windows", "darwin"].includes(platform)) {
-    return "Disk encryption is enabled.";
-  }
-  return MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES[platform][
-    diskEncryptionEnabled ? "enabled" : "disabled"
-  ];
 };
 
 export const hostTeamName = (teamName: string | null): string => {
@@ -915,7 +851,6 @@ export default {
   humanLastSeen,
   internationalTimeFormat,
   internallyTruncateText,
-  getHostDiskEncryptionTooltipMessage,
   hostTeamName,
   humanQueryLastRun,
   inMilliseconds,

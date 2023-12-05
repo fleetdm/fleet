@@ -161,6 +161,10 @@ func TestGetTeams(t *testing.T) {
 									MinimumVersion: optjson.SetString("12.3.1"),
 									Deadline:       optjson.SetString("2021-12-14"),
 								},
+								WindowsUpdates: fleet.WindowsUpdates{
+									DeadlineDays:    optjson.SetInt(7),
+									GracePeriodDays: optjson.SetInt(3),
+								},
 							},
 						},
 					},
@@ -560,6 +564,12 @@ func TestGetConfig(t *testing.T) {
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
 			SMTPSettings:          &fleet.SMTPSettings{},
 			SSOSettings:           &fleet.SSOSettings{},
+			MDM: fleet.MDM{
+				WindowsUpdates: fleet.WindowsUpdates{
+					DeadlineDays:    optjson.SetInt(7),
+					GracePeriodDays: optjson.SetInt(3),
+				},
+			},
 		}, nil
 	}
 
@@ -602,7 +612,7 @@ func TestGetSoftware(t *testing.T) {
 			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
 		},
 	}
-	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"}
+	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", ExtensionID: "xyz", Browser: "edge"}
 	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
 	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle"}
 
@@ -645,6 +655,8 @@ spec:
   name: foo
   source: chrome_extensions
   version: 0.0.2
+  extension_id: xyz
+  browser: edge
   vulnerabilities: null
 - generated_cpe: someothercpewithoutvulns
   id: 0
@@ -688,6 +700,8 @@ spec:
       "name": "foo",
       "version": "0.0.2",
       "source": "chrome_extensions",
+      "extension_id": "xyz",
+      "browser": "edge",
       "generated_cpe": "",
       "vulnerabilities": null
     },
@@ -1989,6 +2003,10 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 					MinimumVersion: optjson.SetString("12.3.1"),
 					Deadline:       optjson.SetString("2021-12-14"),
 				},
+				WindowsUpdates: fleet.WindowsUpdates{
+					DeadlineDays:    optjson.SetInt(7),
+					GracePeriodDays: optjson.SetInt(3),
+				},
 			},
 		},
 	}
@@ -2015,10 +2033,10 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		}
 		return nil, fmt.Errorf("team not found: %s", name)
 	}
-	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string) error {
 		return nil
 	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {

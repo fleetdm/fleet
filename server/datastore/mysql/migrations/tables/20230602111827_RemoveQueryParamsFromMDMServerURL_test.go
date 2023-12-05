@@ -7,9 +7,6 @@ import (
 )
 
 func TestUp_20230602111827(t *testing.T) {
-	// skipping old migration tests as migrations don't change and we're getting
-	// timeouts in CI
-	t.Skip("old migration test, not longer required to run")
 	db := applyUpToPrev(t)
 	insertMDMSolutionStmt := `INSERT INTO mobile_device_management_solutions (id, name, server_url) VALUES (?, ?, ?)`
 	_, err := db.Exec(insertMDMSolutionStmt, 1, "foo", "https://test.example.com?test=1")

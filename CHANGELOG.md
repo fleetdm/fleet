@@ -1,3 +1,49 @@
+## Fleet 4.41.0 (Nov 28, 2023)
+
+### Changes
+
+* **Endpoint operations**:
+  - Enhanced `fleetctl` and API to support PowerShell (.ps1) scripts.
+  - Updated several API endpoints to support `os_settings` filter, including Windows profiles status.
+  - Enabled `after` parameter for improved pagination in various endpoints.
+  - Improved the `fleet/queries/run` endpoint with better error handling.
+  - Increased frequency of metrics reporting from Fleet servers to daily.
+  - Added caching for policy results in MySQL for faster operations.
+
+* **Device management (MDM)**:
+  - Added database tables for Windows profiles support.
+  - Added validation for WSTEP certificate and key pair before enabling Windows MDM.
+
+* **Vulnerability management**:
+  - Fleet now uses NVD API 2.0 for CVE information download.
+  - Added support for JetBrains application vulnerability data.
+  - Tightened software matching to reduce false positives.
+  - Stopped reporting Atom editor packages in software inventory.
+  - Introduced support for Windows PowerShell scripts in the UI.
+  
+* **UI improvements**:
+  - Updated activity feed for better communication around JIT-provisioned user logins.
+  - Query report now displays the host's display name instead of the hostname.
+  - Improved UI components like the manage page's label filter and edit columns modal.
+  - Enabled all sort headers in the UI to be fully clickable.
+  - Removed the creation of OS policies from a host's operating system in the UI.
+  - Ensured correct settings visibility in the Settings > Advanced section.
+
+### Bug fixes
+
+  - Fixed long result cell truncation in live query results and query reports.
+  - Fixed a Redis cluster mode detection issue for RedisLabs hosted instances.
+  - Fixed a false positive vulnerability report for Citrix Workspace.
+  - Fixed an edge case sorting bug related to the `last_restarted` value for hosts.
+  - Fixed an issue with creating .deb installers with different enrollment keys.
+  - Fixed SMTP configuration validation issues for TLS-only servers.
+  - Fixed caching of team MDM configurations to improve performance at scale.
+  - Fixed delete pending issue during orbit.exe installation.
+  - Fixed a bug causing the disk encryption key banner to not display correctly.
+  - Fixed various error code inconsistencies across endpoints.
+  - Fixed filtering hosts with invalid team_id now returns a 400 error.
+  - Fixed false positives in software matching for similar names.
+
 ## Fleet 4.40.0 (Nov 3, 2023)
 
 ### Changes
@@ -1447,7 +1493,7 @@ settings.
 
 * Added support for kubequery.
 
-* Added support for an `AC_TEAM_ID` environment variable when creating [signed installers for macOS hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#signing-installers).
+* Added support for an `AC_TEAM_ID` environment variable when creating [signed installers for macOS hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#signing-fleetd-installers).
 
 * Made cards on the **Home** page clickable.
 
