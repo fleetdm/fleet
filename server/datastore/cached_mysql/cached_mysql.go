@@ -25,7 +25,10 @@ import (
 //  3. Implement the cloner interface for the type of the cached item. If the
 //     type is a struct, you will need to define a type for the struct (see
 //     fleet.ScheduledQueryList for an example).
-//  4. Add the required Datastore methods to get the cached item and to set it,
+//  4. Add the cached item to fleet/tools/cloner-check/main.go to ensure it
+//     gets properly checked in CI when fields are added/modified. Run the tool
+//     to update the generated files.
+//  5. Add the required Datastore methods to get the cached item and to set it,
 //     and add tests in cached_mysql_test.go to ensure it works as expected.
 const (
 	appConfigKey                       = "AppConfig:%s"
