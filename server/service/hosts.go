@@ -1728,10 +1728,14 @@ func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return getHostHealthResponse{Err: err}, nil
 	}
 
+	// remove TeamID as it's needed for authorization internally but is not part of the external API
+	hh.TeamID = nil
+
 	return getHostHealthResponse{HostID: req.ID, HostHealth: hh}, nil
 }
 
 func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
+	svc.authz.SkipAuthorization(ctx)
 	hh, err := svc.ds.GetHostHealth(ctx, id)
 	if err != nil {
 		return nil, err

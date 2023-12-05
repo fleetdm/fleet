@@ -7630,6 +7630,11 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	var nfe fleet.NotFoundError
 	require.True(t, errors.As(err, &nfe))
 
+	// We'll check TeamIDs because at this level they should still be populated
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+
 	now := time.Now()
 	_, err = ds.NewHost(context.Background(), &fleet.Host{
 		ID:                  1,
@@ -7646,6 +7651,7 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 		LastEnrolledAt:      now,
 		PolicyUpdatedAt:     now,
 		RefetchRequested:    true,
+		TeamID:              ptr.Uint(team.ID),
 
 		SeenTime: now,
 
@@ -7709,10 +7715,44 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	require.Equal(t, h.Platform, hh.Platform)
 	require.Equal(t, h.DiskEncryptionEnabled, hh.DiskEncryptionEnabled)
 	require.Equal(t, h.OSVersion, hh.OsVersion)
-	require.Equal(t, h.TeamID, hh.TeamID)
+	require.Equal(t, ptr.Uint(team.ID), hh.TeamID)
 	require.Equal(t, h.UpdatedAt, hh.UpdatedAt)
 	require.Len(t, hh.FailingPolicies, 1)
 	require.Equal(t, failingPolicy.ID, hh.FailingPolicies[0].ID)
 	require.Len(t, hh.VulnerableSoftware, 1)
 	require.Equal(t, soft1.ID, hh.VulnerableSoftware[0].ID)
+
+	// Validate a host with no software or policies or team
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		ID:                  2,
+		OsqueryHostID:       ptr.String("empty"),
+		NodeKey:             ptr.String("empty_nodekey"),
+		Hostname:            "empty.local",
+		UUID:                "uuid123",
+		Platform:            "darwin",
+		DistributedInterval: 60,
+		LoggerTLSPeriod:     50,
+		ConfigTLSRefresh:    40,
+		DetailUpdatedAt:     now,
+		LabelUpdatedAt:      now,
+		LastEnrolledAt:      now,
+		PolicyUpdatedAt:     now,
+		RefetchRequested:    true,
+
+		SeenTime: now,
+
+		CPUType: "cpuType",
+	})
+	require.NoError(t, err)
+	h, err = ds.Host(context.Background(), 2)
+	require.NoError(t, err)
+
+	hh, err = ds.GetHostHealth(context.Background(), h.ID)
+	require.NoError(t, err)
+	require.Equal(t, h.Platform, hh.Platform)
+	require.Equal(t, h.DiskEncryptionEnabled, hh.DiskEncryptionEnabled)
+	require.Equal(t, h.OSVersion, hh.OsVersion)
+	require.Empty(t, hh.FailingPolicies)
+	require.Empty(t, hh.VulnerableSoftware)
+	require.Equal(t, h.TeamID, hh.TeamID)
 }

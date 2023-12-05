@@ -8626,17 +8626,25 @@ func results(num int, hostID string) string {
 func (s *integrationTestSuite) TestHostHealth() {
 	t := s.T()
 
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
+		OsqueryHostID:   ptr.String(t.Name() + "hostid1"),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "1"),
-		UUID:            t.Name() + "1",
+		NodeKey:         ptr.String(t.Name() + "nodekey1"),
+		UUID:            t.Name() + "uuid1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
 		OSVersion:       "Mac OS X 10.14.6",
+		Platform:        "darwin",
+		CPUType:         "cpuType",
+		TeamID:          ptr.Uint(team.ID),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
@@ -8679,14 +8687,14 @@ func (s *integrationTestSuite) TestHostHealth() {
 
 	q1 := test.NewQuery(t, s.ds, nil, "passing_query", "select 1", 0, true)
 	defer cleanupQuery(s, q1.ID)
-	passingPolicy, err := s.ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+	passingPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, &user1.ID, fleet.PolicyPayload{
 		QueryID: &q1.ID,
 	})
 	require.NoError(t, err)
 
 	q2 := test.NewQuery(t, s.ds, nil, "failing_query", "select 0", 0, true)
 	defer cleanupQuery(s, q2.ID)
-	failingPolicy, err := s.ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
+	failingPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, &user1.ID, fleet.PolicyPayload{
 		QueryID: &q2.ID,
 	})
 	require.NoError(t, err)
@@ -8705,4 +8713,36 @@ func (s *integrationTestSuite) TestHostHealth() {
 	assert.Len(t, hh.HostHealth.VulnerableSoftware, 1)
 	assert.Len(t, hh.HostHealth.FailingPolicies, 1)
 	assert.True(t, *hh.HostHealth.DiskEncryptionEnabled)
+	// Check that the TeamID didn't make it into the response
+	assert.Nil(t, hh.HostHealth.TeamID)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", 0), nil, http.StatusNotFound, &hh)
+
+	resp := getHostHealthResponse{}
+	host1, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		OsqueryHostID:   ptr.String(t.Name() + "hostid2"),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(t.Name() + "nodekey2"),
+		UUID:            t.Name() + "uuid2",
+		Hostname:        t.Name() + "foo2.local",
+		PrimaryIP:       "192.168.2.2",
+		PrimaryMac:      "32-62-E2-62-C2-52",
+		OSVersion:       "Mac OS X 10.14.2",
+		Platform:        "darwin",
+		CPUType:         "cpuType",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host1)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host1.ID), nil, http.StatusOK, &resp)
+	assert.Equal(t, host1.ID, resp.HostID)
+	assert.NotNil(t, resp.HostHealth)
+	assert.Equal(t, host1.OSVersion, resp.HostHealth.OsVersion)
+	assert.Nil(t, resp.HostHealth.DiskEncryptionEnabled)
+	assert.Empty(t, resp.HostHealth.VulnerableSoftware)
+	assert.Empty(t, resp.HostHealth.FailingPolicies)
+	assert.Nil(t, resp.HostHealth.TeamID)
 }
