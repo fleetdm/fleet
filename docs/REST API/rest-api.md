@@ -2192,6 +2192,7 @@ Returns the information of the specified host.
         "name": "osquery",
         "version": "4.5.1",
         "source": "rpm_packages",
+        "browser": "",
         "generated_cpe": "",
         "vulnerabilities": null,
         "installed_paths": ["/usr/lib/some-path-1"]
@@ -2201,6 +2202,7 @@ Returns the information of the specified host.
         "name": "tar",
         "version": "1.30",
         "source": "rpm_packages",
+        "browser": "",
         "generated_cpe": "",
         "vulnerabilities": null
       },
@@ -2209,6 +2211,7 @@ Returns the information of the specified host.
         "name": "SomeApp.app",
         "version": "1.0",
         "source": "apps",
+        "browser": "",
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
@@ -2432,6 +2435,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
           "name": "Automat",
           "version": "0.8.0",
           "source": "python_packages",
+          "browser": "",
           "generated_cpe": "",
           "vulnerabilities": null,
           "installed_paths": ["/usr/lib/some_path/"]
@@ -2639,6 +2643,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "name": "osquery",
         "version": "4.5.1",
         "source": "rpm_packages",
+        "browser": "",
         "generated_cpe": "",
         "vulnerabilities": null
       },
@@ -2647,6 +2652,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "name": "tar",
         "version": "1.30",
         "source": "rpm_packages",
+        "browser": "",
         "generated_cpe": "",
         "vulnerabilities": null
       },
@@ -2655,6 +2661,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "name": "SomeApp.app",
         "version": "1.0",
         "source": "apps",
+        "browser": "",
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
@@ -6979,6 +6986,7 @@ Get a list of all software grouped by software title.
       "name": "Firefox.app",
       "versions_count": 3,
       "source": "apps",
+      "browser": "",
       "hosts_count": 48,
       "versions": [ 
         {
@@ -7003,7 +7011,8 @@ Get a list of all software grouped by software title.
       "name": "Google Chrome.app",
       "versions_count": 5,
       "source": "apps",
-      "hosts_count": "345",
+      "browser": "",
+      "hosts_count": 345,
       "versions": [
         {
           "id": 331,
@@ -7025,6 +7034,21 @@ Get a list of all software grouped by software title.
           "version": "121.5",
           "vulnerabilities": ["CVE-2023-0987", "CVE-2023-5673", "CVE-2023-1334"]
         },
+      ]
+    },
+    {
+      "id": 32,
+      "name": "1Password – Password Manager",
+      "versions_count": 1,
+      "source": "chrome_extensions",
+      "browser": "chrome",
+      "hosts_count": 345,
+      "versions": [
+        {
+          "id": 4242,
+          "version": "2.3.7",
+          "vulnerabilities": []
+        }
       ]
     }
   ]
@@ -7060,13 +7084,14 @@ Get a list of all software versions.
 ```json
 {
     "counts_updated_at": "2022-01-01 12:32:00",
-    "count": 1
+    "count": 1,
     "software": [
       {
         "id": 1,
         "name": "glibc",
         "version": "2.12",
         "source": "rpm_packages",
+        "browser": "",
         "release": "1.212.el6",
         "vendor": "CentOS",
         "arch": "x86_64",
@@ -7084,6 +7109,25 @@ Get a list of all software versions.
           }
         ],
         "hosts_count": 1
+      },
+      {
+        "id": 32,
+        "name": "1Password – Password Manager",
+        "versions_count": 1,
+        "source": "chrome_extensions",
+        "browser": "chrome",
+        "release": "",
+        "vendor": "",
+        "arch": "",
+        "generated_cpe": "",
+        "versions": [
+          {
+            "id": 4242,
+            "version": "2.3.7",
+            "vulnerabilities": []
+          }
+        ],
+        "hosts_count": 345
       }
     ]
 }
@@ -7109,6 +7153,7 @@ Returns the information of the specified software title. By default `versions` a
     "id": 12,
     "name": "Firefox.app",
     "source": "apps",
+    "browser": "",
     "hosts_count": 48,
     "versions": [ 
       {
@@ -7156,6 +7201,7 @@ Returns the information of the specified software version.
     "version": "117.0",
     "bundle_identifier": "org.mozilla.firefox",
     "source": "apps",
+    "browser": "",
     "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
     "vulnerabilities": [
       {
