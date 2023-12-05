@@ -3,17 +3,26 @@ import EmptyTable from "components/EmptyTable";
 import Icon from "components/Icon";
 import MainContent from "components/MainContent";
 import ShowQueryModal from "components/modals/ShowQueryModal";
-import React, { useState } from "react";
+import { AppContext } from "context/app";
+import React, { useContext, useState } from "react";
+import { useQuery } from "react-query";
 import { browserHistory, InjectedRouter, Link, routerShape } from "react-router";
 import PATHS from "router/paths";
+import hqrAPI, { IGetHQRResponse } from "services/entities/host_query_report";
 
 const baseClass = "host-query-report";
 
 interface IHostQueryReportProps {
+  location: {
+    query: {
+      host_id: string;
+      query_id: string;
+    }
+  }
   router: InjectedRouter;
 }
 
-const HostQueryReport = ({router}: IHostQueryReportProps) => {
+const HostQueryReport = ({location, router}: IHostQueryReportProps) => {
   // Need to know:
 
   // globalReportsDisabled (from app config)
@@ -23,18 +32,31 @@ const HostQueryReport = ({router}: IHostQueryReportProps) => {
       // last fetched only matters to differentiate between collecting results and nothing to report
   // hostId (from path)
   // queryId (from path)
-  // hostName (from API)
-  // report clipped (from API)
-  // query has run on this host (!!lastFetched, from API)
-  // query has stored results (!!.results, from API)
+  const hostId = Number(location.query.host_id);
+  const queryId = Number(location.query.query_id);
+
   // teamId (TODO?)
 
-  // GET /api/v1/fleet/hosts/{hostId}/queries/{queryId}
 
-  if (globalReportsDisabled || queryDiscardData) {
-    router.push(PATHS.HOST_QUERIES(hostId);
-  }
+  // TODO - finalize reroute conditions
+  // if (globalReportsDisabled || queryDiscardData) {
+  //   router.push(PATHS.HOST_QUERIES(hostId);
+  // }
+
+
+
   const [showQuery, setShowQuery] = useState(false);
+
+  const { data: hqrResponse, error: hqrAPIError } = useQuery<
+    IGetHQRResponse,
+    Error,
+  >([hostId, queryId], () => hqrAPI.load(hostId, queryId), {
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const {host_name: hostName, report_clipped: clipped, last_fetched: lastFetched, results} = hqrResponse || {};
 
   const onCancel = () => {
     setShowQuery(false);
