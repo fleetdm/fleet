@@ -154,7 +154,7 @@ const generateTableHeaders = ({
                 )}
               </>
             }
-            path={PATHS.QUERY(
+            path={PATHS.QUERY_DETAILS(
               cellProps.row.original.id,
               cellProps.row.original.team_id ?? currentTeamId
             )}

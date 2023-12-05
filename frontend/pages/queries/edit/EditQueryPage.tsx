@@ -174,7 +174,7 @@ const EditQueryPage = ({
       queryId > 0 &&
       !canEditExistingQuery
     ) {
-      router.push(PATHS.QUERY(queryId));
+      router.push(PATHS.QUERY_DETAILS(queryId));
     }
   }, [queryId, isTeamMaintainerOrTeamAdmin, isStoredQueryLoading]);
 
@@ -215,7 +215,7 @@ const EditQueryPage = ({
       setIsQuerySaving(true);
       try {
         const { query } = await queryAPI.create(formData);
-        router.push(PATHS.QUERY(query.id, query.team_id));
+        router.push(PATHS.QUERY_DETAILS(query.id, query.team_id));
         renderFlash("success", "Query created!");
         setBackendValidators({});
       } catch (createError: any) {
@@ -317,7 +317,7 @@ const EditQueryPage = ({
 
   // Function instead of constant eliminates race condition
   const backToQueriesPath = () => {
-    return queryId ? PATHS.QUERY(queryId) : PATHS.MANAGE_QUERIES;
+    return queryId ? PATHS.QUERY_DETAILS(queryId) : PATHS.MANAGE_QUERIES;
   };
 
   const showSidebar =

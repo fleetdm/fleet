@@ -62,7 +62,7 @@ export default {
       teamId ? `?team_id=${teamId}` : ""
     }`;
   },
-  QUERY: (queryId: number, teamId?: number): string => {
+  QUERY_DETAILS: (queryId: number, teamId?: number): string => {
     return `${URL_PREFIX}/queries/${queryId}${
       teamId ? `?team_id=${teamId}` : ""
     }`;
