@@ -982,6 +982,7 @@ func (h *HostMDM) UnmarshalJSON(b []byte) error {
 // HostBattery represents a host's battery, as reported by the osquery battery
 // table.
 type HostBattery struct {
+	ID           uint   `json:"-" db:"id"`
 	HostID       uint   `json:"-" db:"host_id"`
 	SerialNumber string `json:"-" db:"serial_number"`
 	CycleCount   int    `json:"cycle_count" db:"cycle_count"`
