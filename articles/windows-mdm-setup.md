@@ -28,7 +28,7 @@ This section will show you how to:
 
 ### Step 1: generate your certificate and key
 
-If you're already using Fleet's macOS MDM features, you already have a certificate and key. These are your SCEP certificate and SCEP private key you used when turning on macOS MDM.
+> If you're already using Fleet's macOS MDM features, you already have a SCEP certificate and key. Skip to step 2 and reuse the SCEP certificate and key as your WSTEP certificate and key.
 
 If you're not using macOS MDM features, run the following command to download three files and send an email to you with an attached CSR file.
 

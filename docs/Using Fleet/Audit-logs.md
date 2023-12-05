@@ -610,7 +610,7 @@ This activity contains the following fields:
 }
 ```
 
-## `edited_windows_updates`
+## edited_windows_updates
 
 Generated when the Windows OS updates deadline or grace period is modified.
 
@@ -939,7 +939,7 @@ This activity contains the following fields:
 }
 ```
 
-### Type `created_windows_profile`
+## created_windows_profile
 
 Generated when a user adds a new Windows profile to a team (or no team).
 
@@ -958,7 +958,7 @@ This activity contains the following fields:
 }
 ```
 
-### Type `deleted_windows_profile`
+## deleted_windows_profile
 
 Generated when a user deletes a Windows profile from a team (or no team).
 
@@ -977,7 +977,7 @@ This activity contains the following fields:
 }
 ```
 
-### Type `edited_windows_profile`
+## edited_windows_profile
 
 Generated when a user edits the Windows profiles of a team (or no team) via the fleetctl CLI.
 
