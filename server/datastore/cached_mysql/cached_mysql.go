@@ -141,6 +141,18 @@ func WithTeamMDMConfigExpiration(d time.Duration) Option {
 	}
 }
 
+func WithQueryByNameExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.queryByNameExp = d
+	}
+}
+
+func WithQueryResultsCountExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.queryResultsCountExp = d
+	}
+}
+
 func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 	c := &cachedMysql{
 		Datastore:            ds,
@@ -326,6 +338,7 @@ func (ds *cachedMysql) DeleteTeam(ctx context.Context, teamID uint) error {
 	return nil
 }
 
+// TODO: should we handle DeleteQuery/DeleteQueries/SaveQuery to invalidate that cache?
 func (ds *cachedMysql) QueryByName(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 	teamID_ := uint(0) // global team is 0
 	if teamID != nil {
