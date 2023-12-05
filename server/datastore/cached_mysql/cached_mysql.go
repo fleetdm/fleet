@@ -23,11 +23,14 @@ import (
 //     initialize it with the default expiration duration in New, and add a
 //     WithXXXExpiration option to customize it.
 //  3. Implement the cloner interface for the type of the cached item. If the
-//     type is a struct, you will need to define a type for the struct (see
-//     fleet.ScheduledQueryList for an example).
-//  4. Add the cached item to fleet/tools/cloner-check/main.go to ensure it
-//     gets properly checked in CI when fields are added/modified. Run the tool
-//     to update the generated files.
+//     type is a slice, you will need to define a type for the slice (see
+//     fleet.ScheduledQueryList for an example, or packsList in this package
+//     for an alternative approach).
+//  4. Add the cached item to fleet/tools/cloner-check/main.go (in the
+//     cacheableItems slice variable) to ensure it gets properly checked in CI
+//     when fields are added/modified. Run the tool to update the generated files
+//     once you're confident that the Clone implementation covers all fields that
+//     need special care (usually pointers, slices, maps).
 //  5. Add the required Datastore methods to get the cached item and to set it,
 //     and add tests in cached_mysql_test.go to ensure it works as expected.
 const (
