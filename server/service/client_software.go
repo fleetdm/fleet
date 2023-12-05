@@ -6,7 +6,7 @@ import (
 
 // ListSoftware retrieves the software running across hosts.
 func (c *Client) ListSoftware(query string) ([]fleet.Software, error) {
-	verb, path := "GET", "/api/latest/fleet/software"
+	verb, path := "GET", "/api/latest/fleet/software/versions"
 	var responseBody listSoftwareResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	if err != nil {

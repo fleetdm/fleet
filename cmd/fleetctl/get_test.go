@@ -623,6 +623,10 @@ func TestGetSoftware(t *testing.T) {
 		return []fleet.Software{foo001, foo002, foo003, bar003}, nil
 	}
 
+	ds.CountSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
+		return 4, nil
+	}
+
 	expected := `+------+---------+-------------------+--------------------------+-----------+
 | NAME | VERSION |      SOURCE       |           CPE            | # OF CVES |
 +------+---------+-------------------+--------------------------+-----------+
