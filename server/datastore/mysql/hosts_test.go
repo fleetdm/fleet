@@ -7634,6 +7634,7 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(context.Background(), &fleet.Team{
 		Name: "team1",
 	})
+	require.NoError(t, err)
 
 	now := time.Now()
 	_, err = ds.NewHost(context.Background(), &fleet.Host{

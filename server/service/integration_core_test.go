@@ -8629,6 +8629,7 @@ func (s *integrationTestSuite) TestHostHealth() {
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name: "team1",
 	})
+	require.NoError(t, err)
 
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
