@@ -48,7 +48,8 @@
               width: 0;
             }
             .performance-cell__link-icon {
-              display: initial;
+              display: inline-flex;
+              align-self: center;
               width: initial;
             }
           }

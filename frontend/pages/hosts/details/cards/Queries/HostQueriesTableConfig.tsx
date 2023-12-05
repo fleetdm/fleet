@@ -9,7 +9,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import ReportUpdatedCell from "pages/hosts/details/cards/Queries/ReportUpdatedCell";
 import Icon from "components/Icon";
 
-interface IHostQueriesTable extends Partial<IQueryStats> {
+interface IHostQueriesTableData extends Partial<IQueryStats> {
   performance: { indicator: string; id: number };
   should_link_to_hqr: boolean;
 }
@@ -22,7 +22,7 @@ interface IHeaderProps {
 
 interface IRowProps {
   row: {
-    original: IHostQueriesTable;
+    original: IHostQueriesTableData;
   };
 }
 
@@ -123,7 +123,7 @@ const generateColumnConfigs = (
 
 const enhanceScheduleData = (
   query_stats: IQueryStats[]
-): IHostQueriesTable[] => {
+): IHostQueriesTableData[] => {
   return Object.values(query_stats).map((query) => {
     const {
       user_time,
@@ -157,8 +157,10 @@ const enhanceScheduleData = (
   });
 };
 
-const generateDataSet = (query_stats: IQueryStats[]): IHostQueriesTable[] => {
-  return query_stats ? [...enhanceScheduleData(query_stats)] : [];
+const generateDataSet = (
+  query_stats: IQueryStats[]
+): IHostQueriesTableData[] => {
+  return query_stats ? enhanceScheduleData(query_stats) : [];
 };
 
 export { generateColumnConfigs, generateDataSet };
