@@ -65,6 +65,12 @@ func main() {
 
 	if *flagCheck || !*flagUpdate {
 		if !checkCacheableItems() {
+			fmt.Fprintf(os.Stderr, `
+Some cacheable items failed the check, ensure you do the following:
+
+1. Verify the Cloner implementation for that type, make sure it takes the new/updated field(s) into account if necessary.
+2. Run "go run ./tools/cloner-check/main.go --update" to update the generated files and fix this check.
+`)
 			os.Exit(1)
 		}
 	}
