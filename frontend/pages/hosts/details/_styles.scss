@@ -292,4 +292,11 @@
       align-items: center;
     }
   }
+
+  .empty-table {
+    &__container {
+      margin: 0 0 $pad-xxlarge 0;
+      min-height: initial;
+    }
+  }
 }

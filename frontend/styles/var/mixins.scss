@@ -121,3 +121,32 @@ $max-width: 2560px;
   font-size: $xx-small;
   color: $ui-fleet-black-75;
 }
+
+@mixin link {
+  color: $core-vibrant-blue;
+  font-weight: $bold;
+  font-size: $x-small;
+  text-decoration: none;
+  &:focus-visible {
+    outline-color: #d9d9fe;
+    outline-offset: 3px;
+    outline-style: solid;
+    outline-width: 2px;
+  }
+}
+
+@mixin table-link {
+  display: inline-flex;
+  align-items: center;
+  padding: $pad-small $pad-xxsmall; // larger clickable area
+  gap: $pad-small;
+  white-space: nowrap;
+  @include link;
+}
+
+@mixin cell-with-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
