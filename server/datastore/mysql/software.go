@@ -13,6 +13,7 @@ import (
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -1283,6 +1284,65 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupTeamStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
 	}
+	return nil
+}
+
+func (ds *Datastore) ReconcileSoftwareTitles(ctx context.Context) error {
+	// TODO: consider if we should batch writes to software or software_titles table
+
+	// ensure all software titles are in the software_titles table
+	upsertTitlesStmt := `
+INSERT INTO software_titles (name, source)
+SELECT DISTINCT
+	name,
+	source
+FROM
+	software s
+WHERE 
+	NOT EXISTS (SELECT 1 FROM software_titles st WHERE (s.name, s.source) = (st.name, st.source)) 
+ON DUPLICATE KEY UPDATE software_titles.id = software_titles.id`
+	// TODO: consider the impact of on duplicate key update vs. risk of insert ignore
+	// or performing a select first to see if the title exists and only inserting
+	// new titles
+
+	res, err := ds.writer(ctx).ExecContext(ctx, upsertTitlesStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert software titles")
+	}
+	n, _ := res.RowsAffected()
+	level.Debug(ds.logger).Log("msg", "upsert software titles", "rows_affected", n)
+
+	// update title ids for software table entries
+	updateSoftwareStmt := `
+UPDATE
+	software s,
+	software_titles st
+SET
+	s.title_id = st.id
+WHERE
+	(s.name, s.source) = (st.name, st.source)
+	AND (s.title_id IS NULL OR s.title_id != st.id)`
+
+	res, err = ds.writer(ctx).ExecContext(ctx, updateSoftwareStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update software titles")
+	}
+	n, _ = res.RowsAffected()
+	level.Debug(ds.logger).Log("msg", "update software titles", "rows_affected", n)
+
+	// clean up orphaned software titles
+	cleanupStmt := `
+DELETE st FROM software_titles st 
+	LEFT JOIN software s ON s.title_id = st.id 
+	WHERE s.title_id IS NULL`
+
+	res, err = ds.writer(ctx).ExecContext(ctx, cleanupStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup orphaned software titles")
+	}
+	n, _ = res.RowsAffected()
+	level.Debug(ds.logger).Log("msg", "cleanup orphaned software titles", "rows_affected", n)
+
 	return nil
 }
 

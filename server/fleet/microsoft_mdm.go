@@ -1394,7 +1394,7 @@ type HostMDMWindowsProfile struct {
 func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 	return HostMDMProfile{
 		HostUUID:      p.HostUUID,
-		ProfileID:     p.ProfileUUID,
+		ProfileUUID:   p.ProfileUUID,
 		Name:          p.Name,
 		Identifier:    "",
 		Status:        p.Status,

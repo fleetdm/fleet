@@ -102,6 +102,14 @@ func (s Software) ToUniqueStr() string {
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
+type SoftwareTitle struct {
+	ID uint `json:"id" db:"id"`
+	// Name is the name reported by osquery.
+	Name string `json:"name" db:"name"`
+	// Source is the source reported by osquery.
+	Source string `json:"source" db:"source"`
+}
+
 // AuthzSoftwareInventory is used for access controls on software inventory.
 type AuthzSoftwareInventory struct {
 	// TeamID is the ID of the team. A value of nil means global scope.
