@@ -7,22 +7,21 @@ import { AppContext } from "context/app";
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { browserHistory, InjectedRouter, Link } from "react-router";
+import { Params } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import hqrAPI, { IGetHQRResponse } from "services/entities/host_query_report";
 
 const baseClass = "host-query-report";
 
 interface IHostQueryReportProps {
-  location: {
-    query: {
-      host_id: string;
-      query_id: string;
-    };
-  };
   router: InjectedRouter;
+  params: Params;
 }
 
-const HostQueryReport = ({ location, router }: IHostQueryReportProps) => {
+const HostQueryReport = ({
+  router,
+  params: { host_id, query_id },
+}: IHostQueryReportProps) => {
   // Need to know:
 
   // globalReportsDisabled (from app config)
@@ -33,11 +32,8 @@ const HostQueryReport = ({ location, router }: IHostQueryReportProps) => {
   // !lastFechted && !iinterval –> redirect
   // last fetched only matters to differentiate between collecting results and nothing to report
 
-  // TODO - fix this, url params are coming through undefined
-  const hostId = parseInt(location.query.host_id, 10);
-  const queryId = parseInt(location.query.query_id, 10);
-  // const hostId = Number(location.query.host_id);
-  // const queryId = Number(location.query.query_id);
+  const hostId = Number(host_id);
+  const queryId = Number(query_id);
 
   // teamId (from API? TODO?)
 
