@@ -1,3 +1,19 @@
 .host-query-report {
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+    .row2 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
 
+      .host-name {
+        font-weight: $xbold;
+      }
+    }
+  }
+  &__direction-link {
+    @include direction-link;
+  }
 }

@@ -2,7 +2,8 @@
   background-color: $ui-off-white;
 
   &__wrapper {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 1rem;
   }
 

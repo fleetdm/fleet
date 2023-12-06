@@ -214,23 +214,26 @@ const HostQueryReport = ({
   };
 
   const renderHeader = () => (
-    //  TODO - style this with CSS grid?
     <div className={`${baseClass}__header`}>
-      <BackLink text="Back to host details" path={PATHS.HOST_QUERIES(hostId)} />
-      {!hqrLoading && !hqrError && (
-        <h1 className={`${baseClass}__host-name`}>{hostName}</h1>
-      )}
-      {/* TODO - how should teamId work here? */}
-      <Link to={fullReportPath} onClick={onFullReportClick}>
-        <>
-          <span>View full query report</span>
-          <Icon
-            name="chevron-right"
-            // className={`${baseClass}__forward-icon`}
-            color="core-fleet-blue"
-          />
-        </>
-      </Link>
+      <span className="row1">
+        <BackLink
+          text="Back to host details"
+          path={PATHS.HOST_QUERIES(hostId)}
+        />
+      </span>
+      <span className="row2">
+        {!hqrLoading && !hqrError && <h1 className="host-name">{hostName}</h1>}
+        <Link
+          to={fullReportPath}
+          onClick={onFullReportClick}
+          className={`${baseClass}__direction-link`}
+        >
+          <>
+            <span>View full query report</span>
+            <Icon name="chevron-right" color="core-fleet-blue" />
+          </>
+        </Link>
+      </span>
     </div>
   );
   const renderContent = () => {
