@@ -2767,16 +2767,63 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	}
 	host1 := hosts[0]
 	host2 := hosts[1]
+	host3 := hosts[2]
 	_, err := ds.UpdateHostSoftware(context.Background(), host1.ID, software)
 	require.NoError(t, err)
 	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software)
 	require.NoError(t, err)
+	// host 3 only has foo v0.0.3
+	_, err = ds.UpdateHostSoftware(context.Background(), host3.ID, software[1:2])
+	require.NoError(t, err)
+
+	// reconcile software, will sync software titles
+	err = ds.ReconcileSoftwareTitles(context.Background())
+	require.NoError(t, err)
+
+	var fooV002ID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &fooV002ID,
+			"SELECT id FROM software WHERE name = ? AND source = ? AND version = ?", "foo", "chrome_extensions", "0.0.2")
+	})
+
+	var fooTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &fooTitleID,
+			"SELECT id FROM software_titles WHERE name = ? AND source = ?", "foo", "chrome_extensions")
+	})
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, false))
 
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: &host1.Software[0].ID}, 2)
+	// software_id is foo v0.0.2
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: &fooV002ID}, 2)
 	require.Len(t, hosts, 2)
+	got := []uint{hosts[0].ID, hosts[1].ID}
+	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, got)
+
+	// software_version_id is foo v0.0.2 (works exacty the same)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareVersionIDFilter: &fooV002ID}, 2)
+	require.Len(t, hosts, 2)
+	got = []uint{hosts[0].ID, hosts[1].ID}
+	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, got)
+
+	// unknown software_id
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: ptr.Uint(fooV002ID + 100)}, 0)
+	require.Len(t, hosts, 0)
+
+	// unknown software_version_id
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareVersionIDFilter: ptr.Uint(fooV002ID + 100)}, 0)
+	require.Len(t, hosts, 0)
+
+	// software_title_id is foo (any version)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &fooTitleID}, 3)
+	require.Len(t, hosts, 3)
+	got = []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID}
+	require.ElementsMatch(t, []uint{host1.ID, host2.ID, host3.ID}, got)
+
+	// unknown software_title_id
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareTitleIDFilter: ptr.Uint(fooTitleID + 100)}, 0)
+	require.Len(t, hosts, 0)
 }
 
 func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
