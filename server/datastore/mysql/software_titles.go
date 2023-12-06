@@ -50,6 +50,7 @@ func (ds *Datastore) ListSoftwareTitles(
 ) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
 	dbReader := ds.reader(ctx)
 	getTitlesStmt, args := selectSoftwareTitlesSQL(opt)
+	// build the count statement before adding the pagination constraints to `getTitlesStmt`
 	getTitlesCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, getTitlesStmt)
 
 	// grab titles that match the list options
@@ -150,7 +151,7 @@ GROUP BY st.id`
 	}
 
 	if match := opt.ListOptions.MatchQuery; match != "" {
-		whereClause += " AND st.name LIKE ? OR scve.cve LIKE ?"
+		whereClause += " AND (st.name LIKE ? OR scve.cve LIKE ?)"
 		match = likePattern(match)
 		args = append(args, match, match)
 	}

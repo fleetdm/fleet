@@ -3666,6 +3666,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusForbidden, &listSoftwareResponse{})
 	s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{}, http.StatusForbidden, &countSoftwareResponse{})
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/software/titles/1", getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResponse{})
 
 	// Attempt to list a software, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/software/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
@@ -5690,14 +5691,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 	require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_distributed_query_%s", t.Name()))
 }
 
-func (s *integrationEnterpriseTestSuite) TestSoftwareTitles() {
+func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	ctx := context.Background()
 	t := s.T()
 
 	softwareTitlesMatch := func(want, got []fleet.SoftwareTitle) {
 		// compare only the fields we care about
 		for i := range got {
-			require.NotZero(t, got[i])
+			require.NotZero(t, got[i].ID)
 			got[i].ID = 0
 
 			for j := range got[i].Versions {
@@ -5788,22 +5789,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitles() {
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
-
-	// TODO: adjust when we have datastore methods to insert software titles
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(
-			ctx, `
-		  INSERT INTO software_titles (id, name, source)
-		  VALUES (1, 'foo', 'homebrew'), (2, 'bar', 'apps')`)
-		require.NoError(t, err)
-
-		_, err = q.ExecContext(ctx, `UPDATE software SET title_id = 1 WHERE source = 'homebrew'`)
-		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, `UPDATE software SET title_id = 2 WHERE source = 'apps'`)
-		require.NoError(t, err)
-
-		return err
-	})
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 
 	t.Run("GET /software/titles", func(t *testing.T) {
 		var resp listSoftwareTitlesResponse
@@ -5937,20 +5923,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitles() {
 		// calculate hosts counts
 		hostsCountTs := time.Now().UTC()
 		require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
-
-		// TODO: adjust when we have datastore methods to insert software titles
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(
-				ctx, `
-		  INSERT INTO software_titles (id, name, source)
-		  VALUES (3, 'baz', 'deb_packages')`)
-			require.NoError(t, err)
-
-			_, err = q.ExecContext(ctx, `UPDATE software SET title_id = 3 WHERE source = 'deb_packages'`)
-			require.NoError(t, err)
-
-			return err
-		})
+		require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 
 		// request software for the team, this time we get results
 		resp = listSoftwareTitlesResponse{}
@@ -6080,13 +6053,26 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitles() {
 	})
 
 	t.Run("GET /software/titles/:id", func(t *testing.T) {
+		// find the ID of "foo"
+		var softwareListResp listSoftwareTitlesResponse
+		s.DoJSON(
+			"GET", "/api/latest/fleet/software/titles",
+			listSoftwareTitlesRequest{},
+			http.StatusOK, &softwareListResp,
+			"query", "foo",
+		)
+		require.Equal(t, 1, softwareListResp.Count)
+		require.Len(t, softwareListResp.SoftwareTitles, 1)
+		fooTitle := softwareListResp.SoftwareTitles[0]
+		require.Equal(t, "foo", fooTitle.Name)
+
 		// non-existent id is a 404
 		var resp getSoftwareTitleResponse
 		s.DoJSON("GET", "/api/latest/fleet/software/titles/999", getSoftwareTitleRequest{}, http.StatusNotFound, &resp)
 
 		// valid title
 		resp = getSoftwareTitleResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/software/titles/1", getSoftwareTitleRequest{}, http.StatusOK, &resp)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", fooTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &resp)
 		softwareTitlesMatch([]fleet.SoftwareTitle{{
 			Name:          "foo",
 			Source:        "homebrew",
@@ -6098,9 +6084,22 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitles() {
 			}},
 		}, []fleet.SoftwareTitle{*resp.SoftwareTitle})
 
+		// find the ID of "bar"
+		softwareListResp = listSoftwareTitlesResponse{}
+		s.DoJSON(
+			"GET", "/api/latest/fleet/software/titles",
+			listSoftwareTitlesRequest{},
+			http.StatusOK, &softwareListResp,
+			"query", "bar",
+		)
+		require.Equal(t, 1, softwareListResp.Count)
+		require.Len(t, softwareListResp.SoftwareTitles, 1)
+		barTitle := softwareListResp.SoftwareTitles[0]
+		require.Equal(t, "bar", barTitle.Name)
+
 		// valid title with vulnerabilities
 		resp = getSoftwareTitleResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/software/titles/2", getSoftwareTitleRequest{}, http.StatusOK, &resp)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &resp)
 		softwareTitlesMatch([]fleet.SoftwareTitle{{
 			Name:          "bar",
 			Source:        "apps",
