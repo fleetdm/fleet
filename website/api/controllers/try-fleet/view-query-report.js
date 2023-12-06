@@ -88,7 +88,7 @@ module.exports = {
 
     // Send an HTTP request to get the host details for hosts on the query report team.
     let hostsOnQueryReportTeamApiResponse = await sails.helpers.http.get.with({
-      url: sails.config.custom.fleetBaseUrlForQueryReports+'/api/v1/fleet/hosts?team_id='+sails.config.custom.teamApidForQueryReports,
+      url: sails.config.custom.fleetBaseUrlForQueryReports+'/api/v1/fleet/hosts?team_id='+encodeURIComponent(sails.config.custom.teamApidForQueryReports),
       headers: {
         Authorization: `Bearer ${sails.config.custom.fleetTokenForQueryReports}`
       }
@@ -176,7 +176,7 @@ module.exports = {
     let queryIdToGetReportFor = queryIdsByTableName[`${tableName}`];
     // Send an HTTP request to get the query report for the query for this table.
     let queryReportResponse = await sails.helpers.http.get.with({
-      url: sails.config.custom.fleetBaseUrlForQueryReports+'/api/v1/fleet/queries/'+queryIdToGetReportFor+'/report',
+      url: sails.config.custom.fleetBaseUrlForQueryReports+'/api/v1/fleet/queries/'+encodeURIComponent(queryIdToGetReportFor)+'/report',
       headers: {
         Authorization: `Bearer ${sails.config.custom.fleetTokenForQueryReports}`
       }
