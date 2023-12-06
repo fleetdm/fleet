@@ -6,9 +6,8 @@ import (
 
 // ListSoftwareVersions retrieves the software versions installed on hosts.
 func (c *Client) ListSoftwareVersions(query string) ([]fleet.Software, error) {
-	verb, path := "GET", "/api/latest/fleet/software" // TODO(mna): /versions
-	// TODO(mna): adjust if the response struct has changed, when this gets merged: https://github.com/fleetdm/fleet/issues/15229
-	var responseBody listSoftwareResponse
+	verb, path := "GET", "/api/latest/fleet/software/versions"
+	var responseBody listSoftwareVersionsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	if err != nil {
 		return nil, err
