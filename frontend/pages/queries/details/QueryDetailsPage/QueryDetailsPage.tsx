@@ -55,6 +55,9 @@ const QueryDetailsPage = ({
   location,
 }: IQueryDetailsPageProps): JSX.Element => {
   const queryId = parseInt(paramsQueryId, 10);
+  if (isNaN(queryId)) {
+    router.push(PATHS.MANAGE_QUERIES);
+  }
   const queryParams = location.query;
   const teamId = location.query.team_id
     ? parseInt(location.query.team_id, 10)
