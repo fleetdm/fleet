@@ -2094,8 +2094,8 @@ func TestHostHealth(t *testing.T) {
 	hostHealth := &fleet.HostHealth{TeamID: ptr.Uint(1)}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: hostHealth, action: read, allow: false},
-		{user: test.UserGitOps, object: hostHealth, action: read, allow: true},
-		{user: test.UserTeamGitOpsTeam1, object: hostHealth, action: read, allow: true},
+		{user: test.UserGitOps, object: hostHealth, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: hostHealth, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: hostHealth, action: read, allow: false},
 		{user: test.UserAdmin, object: hostHealth, action: read, allow: true},
 		{user: test.UserTeamAdminTeam1, object: hostHealth, action: read, allow: true},
