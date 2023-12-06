@@ -147,6 +147,7 @@ func testQueryResultRowsTeamFilter(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(context.Background(), &fleet.Team{
 		Name: "teamFoo",
 	})
+	require.NoError(t, err)
 	observerTeam, err := ds.NewTeam(context.Background(), &fleet.Team{
 		Name: "observerTeam",
 	})
@@ -169,6 +170,7 @@ func testQueryResultRowsTeamFilter(t *testing.T, ds *Datastore) {
 			},
 		},
 	})
+	require.NoError(t, err)
 
 	query := test.NewQuery(t, ds, nil, "New Query", "SELECT 1", teamUser.ID, true)
 	globalHost := test.NewHost(t, ds, "globalHost", "192.168.1.100", "1111", "UI8XB1223", time.Now())
@@ -241,7 +243,6 @@ func testQueryResultRowsTeamFilter(t *testing.T, ds *Datastore) {
 	require.Equal(t, observerTeamRow[0].QueryID, results[1].QueryID)
 	require.Equal(t, observerTeamRow[0].LastFetched, results[1].LastFetched)
 	require.JSONEq(t, string(observerTeamRow[0].Data), string(results[1].Data))
-	
 }
 
 func testCountResultsForQuery(t *testing.T, ds *Datastore) {
