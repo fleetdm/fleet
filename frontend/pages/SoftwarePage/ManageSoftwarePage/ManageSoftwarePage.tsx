@@ -11,7 +11,6 @@ import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
 import { isEmpty, isEqual } from "lodash";
-// import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -48,7 +47,6 @@ import TableDataError from "components/DataError";
 import Dropdown from "components/forms/fields/Dropdown";
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
-import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TeamsDropdown from "components/TeamsDropdown";
@@ -57,7 +55,7 @@ import { getNextLocationPath } from "utilities/helpers";
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
-import ManageAutomationsModal from "./components/ManageAutomationsModal";
+import ManageAutomationsModal from "../components/ManageAutomationsModal";
 
 interface IManageSoftwarePageProps {
   route: RouteProps;
@@ -385,7 +383,7 @@ const ManageSoftwarePage = ({
       }
 
       const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_SOFTWARE,
+        pathPrefix: PATHS.SOFTWARE_TITLES,
         routeTemplate,
         queryParams: newQueryParams,
       });
@@ -531,7 +529,7 @@ const ManageSoftwarePage = ({
 
     router.replace(
       getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_SOFTWARE,
+        pathPrefix: PATHS.SOFTWARE_TITLES,
         routeTemplate,
         queryParams: {
           ...queryParams,

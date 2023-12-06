@@ -8,6 +8,10 @@ import {
   IGetSoftwareByIdResponse,
 } from "interfaces/software";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import {
+  createMockSoftwareTitle,
+  createMockSoftwareTitleReponse,
+} from "__mocks__/softwareMock";
 
 interface ISoftwareApiParams {
   page?: number;
@@ -17,6 +21,33 @@ interface ISoftwareApiParams {
   query?: string;
   vulnerable?: boolean;
   teamId?: number;
+}
+
+export interface ISoftwareVersions {
+  id: number;
+  version: string;
+  vulnerabilities: string[] | null;
+}
+
+export interface ISoftwareTitle {
+  id: number;
+  // bundle_identifier: string; TODO: include this?
+  name: string;
+  versions_count: number;
+  source: string;
+  hosts_count: number;
+  versions: ISoftwareVersions[];
+}
+
+export interface ISoftwareTitlesResponse {
+  counts_updated_at: string;
+  count: number;
+  software_titles: ISoftwareTitle[];
+  // TODO: include this?
+  // meta: {
+  //   has_next_results: boolean;
+  //   has_previous_results: boolean;
+  // }
 }
 
 export interface ISoftwareQueryKey extends ISoftwareApiParams {
@@ -102,5 +133,29 @@ export default {
     const path = `${SOFTWARE}/${softwareId}`;
 
     return sendRequest("GET", path);
+  },
+
+  getSoftwareTitles: (params: ISoftwareApiParams) => {
+    const { SOFTWARE_TITLES } = endpoints;
+    const snakeCaseParams = convertParamsToSnakeCase(params);
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const path = `${SOFTWARE_TITLES}?${queryString}`;
+
+    // TODO: integrate with API.
+    return new Promise<ISoftwareTitlesResponse>((resolve, reject) => {
+      resolve(
+        createMockSoftwareTitleReponse({
+          software_titles: [
+            createMockSoftwareTitle({
+              versions: [
+                { id: 1, version: "1.0.0", vulnerabilities: null },
+                { id: 1, version: "1.0.0", vulnerabilities: null },
+              ],
+            }),
+          ],
+        })
+      );
+    });
+    // return sendRequest("GET", path);
   },
 };
