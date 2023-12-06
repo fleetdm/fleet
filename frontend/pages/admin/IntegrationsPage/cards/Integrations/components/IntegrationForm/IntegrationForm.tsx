@@ -300,7 +300,7 @@ const IntegrationForm = ({
               className={`add-integration-tooltip`}
               place="bottom"
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor="$tooltip-bg"
               id="add-integration-button"
               data-html
             >

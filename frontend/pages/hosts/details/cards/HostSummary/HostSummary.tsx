@@ -141,7 +141,7 @@ const HostSummary = ({
           place="top"
           effect="solid"
           id="refetch-tooltip"
-          backgroundColor="#3e4771"
+          backgroundColor="$tooltip-bg"
         >
           <span className={`${baseClass}__tooltip-text`}>
             You can’t fetch data from <br /> an offline host.
@@ -168,7 +168,7 @@ const HostSummary = ({
         <ReactTooltip
           place="bottom"
           effect="solid"
-          backgroundColor="#3e4771"
+          backgroundColor="$tooltip-bg"
           id="host-issue-count"
           data-html
         >

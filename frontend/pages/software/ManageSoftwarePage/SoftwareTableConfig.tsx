@@ -160,7 +160,7 @@ const generateVulnColumnHeader = () => {
           </span>
           <ReactTooltip
             effect="solid"
-            backgroundColor="#3e4771"
+            backgroundColor="$tooltip-bg"
             id={`vulnerabilities__${cellProps.row.original.id}`}
             data-html
           >

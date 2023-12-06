@@ -919,7 +919,7 @@ const ActivityItem = ({
             type="dark"
             effect="solid"
             id={`activity-${activity.id}`}
-            backgroundColor="#3e4771"
+            backgroundColor="$tooltip-bg"
           >
             {internationalTimeFormat(activityCreatedAt)}
           </ReactTooltip>

@@ -192,7 +192,7 @@ const generateTableHeaders = (
             <ReactTooltip
               place="bottom"
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor="$tooltip-bg"
               id={`passing_${cellProps.row.original.id.toString()}`}
               data-html
             >
@@ -238,7 +238,7 @@ const generateTableHeaders = (
             <ReactTooltip
               place="bottom"
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor="$tooltip-bg"
               id={`failing_${cellProps.row.original.id.toString()}`}
               data-html
             >

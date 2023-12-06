@@ -38,7 +38,7 @@ const LiveQueryIssueCell = ({
       <ReactTooltip
         place="top"
         effect="solid"
-        backgroundColor="#3e4771"
+        backgroundColor="$tooltip-bg"
         id={`host-issue__${rowId.toString()}`}
         data-html
       >

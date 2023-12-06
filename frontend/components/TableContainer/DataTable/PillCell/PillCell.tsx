@@ -97,7 +97,7 @@ const PillCell = ({
       <ReactTooltip
         place="top"
         effect="solid"
-        backgroundColor="#3e4771"
+        backgroundColor="$tooltip-bg"
         id={`${customIdPrefix || "pill"}__${id?.toString() || tooltipId}`}
         data-html
       >

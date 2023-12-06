@@ -71,7 +71,7 @@ const OSSettingStatusCell = ({
             <ReactTooltip
               place="top"
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor="$tooltip-bg"
               id={tooltipId}
               data-html
             >

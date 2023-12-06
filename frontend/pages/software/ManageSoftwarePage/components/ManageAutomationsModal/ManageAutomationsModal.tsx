@@ -519,7 +519,7 @@ const ManageAutomationsModal = ({
             className={`save-automation-button-tooltip`}
             place="bottom"
             effect="solid"
-            backgroundColor="#3e4771"
+            backgroundColor="$tooltip-bg"
             id="save-automation-button"
             data-html
           >

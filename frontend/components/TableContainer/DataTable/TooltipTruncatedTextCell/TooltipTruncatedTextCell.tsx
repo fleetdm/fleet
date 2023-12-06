@@ -46,7 +46,7 @@ const TooltipTruncatedTextCell = ({
       <ReactTooltip
         place="top"
         effect="solid"
-        backgroundColor="#3e4771"
+        backgroundColor="$tooltip-bg"
         id={tooltipId}
         data-html
         className={"truncated-tooltip"} // responsive widths

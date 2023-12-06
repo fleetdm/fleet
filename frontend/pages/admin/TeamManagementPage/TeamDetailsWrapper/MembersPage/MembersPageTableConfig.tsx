@@ -92,7 +92,7 @@ const generateTableHeaders = (
                     type="dark"
                     effect="solid"
                     id={`api-only-tooltip-${cellProps.row.original.id}`}
-                    backgroundColor="#3e4771"
+                    backgroundColor="$tooltip-bg"
                     clickable
                     delayHide={200} // need delay set to hover using clickable
                   >

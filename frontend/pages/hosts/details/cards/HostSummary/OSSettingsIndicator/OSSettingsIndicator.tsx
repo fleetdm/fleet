@@ -145,7 +145,7 @@ const OSSettingsIndicator = ({
       <ReactTooltip
         place="bottom"
         effect="solid"
-        backgroundColor="#3e4771"
+        backgroundColor="$tooltip-bg"
         id={`${baseClass}-tooltip`}
         data-html
       >

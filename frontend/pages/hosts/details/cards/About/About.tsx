@@ -40,7 +40,7 @@ const About = ({
         <ReactTooltip
           place="bottom"
           effect="solid"
-          backgroundColor="#3e4771"
+          backgroundColor="$tooltip-bg"
           id={"public-ip-tooltip"}
           data-html
           clickable
@@ -141,7 +141,7 @@ const About = ({
               </span>
               <ReactTooltip
                 effect="solid"
-                backgroundColor="#3e4771"
+                backgroundColor="$tooltip-bg"
                 id="device_mapping"
                 data-html
               >

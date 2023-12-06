@@ -186,7 +186,7 @@ const SaveNewPolicyModal = ({
                 place="bottom"
                 effect="solid"
                 id={`${baseClass}__button--modal-save-tooltip`}
-                backgroundColor="#3e4771"
+                backgroundColor="$tooltip-bg"
               >
                 Select the platform(s) this
                 <br />

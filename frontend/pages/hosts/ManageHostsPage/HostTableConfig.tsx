@@ -171,7 +171,7 @@ const allHostTableHeaders: IDataColumn[] = [
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor="$tooltip-bg"
               id={`host__${cellProps.row.original.id}`}
               data-html
             >
@@ -355,7 +355,7 @@ const allHostTableHeaders: IDataColumn[] = [
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor="$tooltip-bg"
               id={`device_mapping__${cellProps.row.original.id}`}
               data-html
               clickable
@@ -467,7 +467,7 @@ const allHostTableHeaders: IDataColumn[] = [
           <ReactTooltip
             place="top"
             effect="solid"
-            backgroundColor="#3e4771"
+            backgroundColor="$tooltip-bg"
             id={`public-ip__${cellProps.row.original.id}`}
             data-html
             clickable

@@ -34,8 +34,10 @@ const HostQueryReport = ({ location, router }: IHostQueryReportProps) => {
   // last fetched only matters to differentiate between collecting results and nothing to report
 
   // TODO - fix this, url params are coming through undefined
-  const hostId = Number(location.query.host_id);
-  const queryId = Number(location.query.query_id);
+  const hostId = parseInt(location.query.host_id, 10);
+  const queryId = parseInt(location.query.query_id, 10);
+  // const hostId = Number(location.query.host_id);
+  // const queryId = Number(location.query.query_id);
 
   // teamId (from API? TODO?)
 

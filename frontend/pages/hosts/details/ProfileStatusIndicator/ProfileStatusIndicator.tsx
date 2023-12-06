@@ -43,7 +43,7 @@ const ProfileStatusIndicator = ({
           <ReactTooltip
             place={tooltip.position ?? "bottom"}
             effect="solid"
-            backgroundColor="#3e4771"
+            backgroundColor="$tooltip-bg"
             id={`${indicatorText}-tooltip`}
             data-html
           >
@@ -81,7 +81,7 @@ const ProfileStatusIndicator = ({
           <ReactTooltip
             place={tooltip.position ?? "bottom"}
             effect="solid"
-            backgroundColor="#3e4771"
+            backgroundColor="$tooltip-bg"
             id={`${indicatorText}-tooltip`}
             data-html
           >

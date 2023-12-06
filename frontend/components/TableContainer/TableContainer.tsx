@@ -367,7 +367,7 @@ const TableContainer = ({
                 </div>
                 <ReactTooltip
                   effect="solid"
-                  backgroundColor="#3e4771"
+                  backgroundColor="$tooltip-bg"
                   id="search-tooltip"
                   data-html
                 >
