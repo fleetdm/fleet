@@ -2557,7 +2557,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
 	` + hostMDMJoin + `
-    WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
+    WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)
     LIMIT 1
 	`
 	host := &fleet.Host{}
@@ -2862,14 +2862,14 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 		insPart = ` (?, ?, ?),`
 	)
 
-	// index the mappings by email and source, to quickly check which ones
-	// need to be deleted and inserted
-	toIns := make(map[string]*fleet.HostDeviceMapping)
-	for _, m := range mappings {
-		toIns[m.Email+"\n"+m.Source] = m
-	}
-
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// index the mappings by email and source, to quickly check which ones
+		// need to be deleted and inserted
+		toIns := make(map[string]*fleet.HostDeviceMapping)
+		for _, m := range mappings {
+			toIns[m.Email+"\n"+m.Source] = m
+		}
+
 		var prevMappings []*fleet.HostDeviceMapping
 		if err := sqlx.SelectContext(ctx, tx, &prevMappings, selStmt, hid); err != nil {
 			return ctxerr.Wrap(ctx, err, "select previous host emails")
@@ -2912,65 +2912,95 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 }
 
 func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mappings []*fleet.HostBattery) error {
+	for _, m := range mappings {
+		if hid != m.HostID {
+			return ctxerr.Errorf(ctx, "host batteries mapping are not all for the provided host id %d, found %d", hid, m.HostID)
+		}
+	}
+
+	// The following SQL statements assume a small number of batteries reported per host.
+	// This is using the same pattern as ReplaceHostDeviceMapping.
 	const (
-		replaceStmt = `
-    INSERT INTO
-      host_batteries (
+		selStmt = `
+      SELECT
+        id,
         host_id,
         serial_number,
-        cycle_count,
-        health
-      )
-    VALUES
-      %s
-    ON DUPLICATE KEY UPDATE
-      cycle_count = VALUES(cycle_count),
-      health = VALUES(health),
-      updated_at = CURRENT_TIMESTAMP
-`
-		valuesPart = `(?, ?, ?, ?),`
+		cycle_count,
+		health
+      FROM
+        host_batteries
+      WHERE
+        host_id = ?`
 
-		deleteExceptStmt = `
-    DELETE FROM
-      host_batteries
-    WHERE
-      host_id = ? AND
-      serial_number NOT IN (?)
-`
-		deleteAllStmt = `
-    DELETE FROM
-      host_batteries
-    WHERE
-      host_id = ?
-`
+		delStmt = `
+      DELETE FROM
+        host_batteries
+      WHERE
+        id IN (?)`
+
+		insStmt = `
+      INSERT INTO
+        host_batteries (host_id, serial_number, cycle_count, health)
+      VALUES`
+		insPart = ` (?, ?, ?, ?),`
 	)
 
-	replaceArgs := make([]interface{}, 0, len(mappings)*4)
-	deleteNotIn := make([]string, 0, len(mappings))
-	for _, hb := range mappings {
-		deleteNotIn = append(deleteNotIn, hb.SerialNumber)
-		replaceArgs = append(replaceArgs, hid, hb.SerialNumber, hb.CycleCount, hb.Health)
+	keyFn := func(b *fleet.HostBattery) string {
+		return b.SerialNumber + ":" + fmt.Sprint(b.CycleCount) + ":" + b.Health
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// first, insert the new batteries or update the existing ones
-		if len(replaceArgs) > 0 {
-			if _, err := tx.ExecContext(ctx, fmt.Sprintf(replaceStmt, strings.TrimSuffix(strings.Repeat(valuesPart, len(mappings)), ",")), replaceArgs...); err != nil {
-				return ctxerr.Wrap(ctx, err, "upsert host batteries")
+		// Index the mappings by serial_number, to quickly check which ones
+		// need to be deleted and inserted.
+		toIns := make(map[string]*fleet.HostBattery)
+		serials := make(map[string]struct{})
+		for _, m := range mappings {
+			if _, ok := serials[m.SerialNumber]; ok {
+				// Ignore multiple rows with the same serial number
+				// (e.g. in case of bugs in results reported by osquery).
+				continue
+			}
+			toIns[keyFn(m)] = m
+			serials[m.SerialNumber] = struct{}{}
+		}
+
+		var prevMappings []*fleet.HostBattery
+		if err := sqlx.SelectContext(ctx, tx, &prevMappings, selStmt, hid); err != nil {
+			return ctxerr.Wrap(ctx, err, "select previous host batteries")
+		}
+
+		var delIDs []uint
+		for _, pm := range prevMappings {
+			key := keyFn(pm)
+			if _, ok := toIns[key]; ok {
+				// already exists, no need to insert
+				delete(toIns, key)
+			} else {
+				// does not exist anymore, must be deleted
+				delIDs = append(delIDs, pm.ID)
 			}
 		}
 
-		// then, delete the old ones
-		if len(deleteNotIn) > 0 {
-			delStmt, args, err := sqlx.In(deleteExceptStmt, hid, deleteNotIn)
+		if len(delIDs) > 0 {
+			stmt, args, err := sqlx.In(delStmt, delIDs)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "generating host batteries delete NOT IN statement")
+				return ctxerr.Wrap(ctx, err, "prepare delete statement")
 			}
-			if _, err := tx.ExecContext(ctx, delStmt, args...); err != nil {
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete host batteries")
 			}
-		} else if _, err := tx.ExecContext(ctx, deleteAllStmt, hid); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete all host batteries")
+		}
+
+		if len(toIns) > 0 {
+			var args []interface{}
+			for _, m := range toIns {
+				args = append(args, hid, m.SerialNumber, m.CycleCount, m.Health)
+			}
+			stmt := insStmt + strings.TrimSuffix(strings.Repeat(insPart, len(toIns)), ",")
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert host batteries")
+			}
 		}
 		return nil
 	})
@@ -3294,7 +3324,11 @@ VALUES
   (?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
   /* if the key has changed, set decrypted to its initial value so it can be calculated again if necessary (if null) */
-  decryptable = IF(base64_encrypted = VALUES(base64_encrypted), decryptable, VALUES(decryptable)),
+  decryptable = IF(
+    base64_encrypted = VALUES(base64_encrypted) AND base64_encrypted != '',
+    decryptable,
+    VALUES(decryptable)
+  ),
   base64_encrypted = VALUES(base64_encrypted),
   client_error = VALUES(client_error)
 `, hostID, encryptedBase64Key, clientError, decryptable)

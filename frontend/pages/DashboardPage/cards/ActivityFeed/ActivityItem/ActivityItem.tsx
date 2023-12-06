@@ -675,6 +675,27 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  editedWindowsUpdates: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        updated the Windows OS update options (
+        <b>
+          Deadline: {activity.details?.deadline_days} days / Grace period:{" "}
+          {activity.details?.grace_period_days} days
+        </b>
+        ) on hosts assigned to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
   deletedMultipleSavedQuery: (activity: IActivity) => {
     return <> deleted multiple queries.</>;
   },
@@ -811,6 +832,9 @@ const getDetail = (
     }
     case ActivityType.EditedScript: {
       return TAGGED_TEMPLATES.editedScript(activity);
+    }
+    case ActivityType.EditedWindowsUpdates: {
+      return TAGGED_TEMPLATES.editedWindowsUpdates(activity);
     }
     case ActivityType.DeletedMultipleSavedQuery: {
       return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);

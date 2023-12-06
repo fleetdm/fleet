@@ -33,6 +33,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestBulkOperationsMDMWindowsHostProfilesBatch3", testBulkOperationsMDMWindowsHostProfilesBatch3},
 		{"TestGetMDMWindowsProfilesContents", testGetMDMWindowsProfilesContents},
 		{"TestMDMWindowsConfigProfiles", testMDMWindowsConfigProfiles},
+		{"TestSetOrReplaceMDMWindowsConfigProfile", testSetOrReplaceMDMWindowsConfigProfile},
 		{"TestMDMWindowsDiskEncryption", testMDMWindowsDiskEncryption},
 		{"TestMDMWindowsProfilesSummary", testMDMWindowsProfilesSummary},
 		{"TestBatchSetMDMWindowsProfiles", testBatchSetMDMWindowsProfiles},
@@ -525,7 +526,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 					HostUUID:          hosts[5].UUID,
 					ProfileIdentifier: mobileconfig.FleetFileVaultPayloadIdentifier,
 					ProfileName:       "Disk encryption",
-					ProfileID:         1,
+					ProfileUUID:       "a" + uuid.NewString(),
 					CommandUUID:       uuid.New().String(),
 					OperationType:     fleet.MDMOperationTypeInstall,
 					Status:            &fleet.MDMDeliveryFailed,
@@ -1740,6 +1741,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	profC, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("c", "c", 0))
 	require.NoError(t, err)
 	require.NotZero(t, profC.ProfileID)
+	require.NotEmpty(t, profC.ProfileUUID)
 
 	// create the same name for team 1 as Windows profile
 	profATm, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
@@ -1751,6 +1753,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	profBTm, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 1))
 	require.NoError(t, err)
 	require.NotZero(t, profBTm.ProfileID)
+	require.NotEmpty(t, profBTm.ProfileUUID)
 
 	var existsErr *existsError
 	// create a duplicate of Windows for no-team
@@ -1800,10 +1803,74 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 }
 
+func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// nothing for no-team, nothing for team 1
+	expectWindowsProfiles(t, ds, nil, nil)
+	expectWindowsProfiles(t, ds, ptr.Uint(1), nil)
+
+	// create a profile for no-team
+	cp1 := *windowsConfigProfileForTest(t, "N1", "N1")
+	err := ds.SetOrUpdateMDMWindowsConfigProfile(ctx, cp1)
+	require.NoError(t, err)
+
+	// creating the same profile for Apple / no-team fails
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("N1", "I1", 0))
+	require.Error(t, err)
+
+	profs1 := expectWindowsProfiles(t, ds, nil, []*fleet.MDMWindowsConfigProfile{&cp1})
+
+	// update the profile for no-team
+	cp2 := *windowsConfigProfileForTest(t, "N1", "N1.modified")
+	err = ds.SetOrUpdateMDMWindowsConfigProfile(ctx, cp2)
+	require.NoError(t, err)
+
+	profs2 := expectWindowsProfiles(t, ds, nil, []*fleet.MDMWindowsConfigProfile{&cp2})
+
+	// profile UUIDs are the same
+	require.Equal(t, profs1["N1"], profs2["N1"])
+
+	// create a profile for Apple and team 1 with that name works
+	_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("N1", "I1", 1))
+	require.NoError(t, err)
+
+	// try to create that profile for Windows and team 1 fails
+	cp3 := *windowsConfigProfileForTest(t, "N1", "N1")
+	cp3.TeamID = ptr.Uint(1)
+	err = ds.SetOrUpdateMDMWindowsConfigProfile(ctx, cp3)
+	require.Error(t, err)
+
+	expectWindowsProfiles(t, ds, ptr.Uint(1), nil)
+
+	// create a profile with the same name for team 2 works
+	cp4 := *windowsConfigProfileForTest(t, "N1", "N1")
+	cp4.TeamID = ptr.Uint(2)
+	err = ds.SetOrUpdateMDMWindowsConfigProfile(ctx, cp4)
+	require.NoError(t, err)
+
+	profs3 := expectWindowsProfiles(t, ds, ptr.Uint(2), []*fleet.MDMWindowsConfigProfile{&cp4})
+	// profile UUIDs are not the same as for no-team
+	require.NotEqual(t, profs3["N1"], profs2["N1"])
+
+	// create a different profile for no-team
+	cp5 := *windowsConfigProfileForTest(t, "N2", "N2")
+	err = ds.SetOrUpdateMDMWindowsConfigProfile(ctx, cp5)
+	require.NoError(t, err)
+
+	expectWindowsProfiles(t, ds, nil, []*fleet.MDMWindowsConfigProfile{&cp2, &cp5})
+
+	// update that profile for no-team
+	cp6 := *windowsConfigProfileForTest(t, "N2", "N2.modified")
+	err = ds.SetOrUpdateMDMWindowsConfigProfile(ctx, cp6)
+	require.NoError(t, err)
+
+	expectWindowsProfiles(t, ds, nil, []*fleet.MDMWindowsConfigProfile{&cp2, &cp6})
+}
+
 func expectWindowsProfiles(
 	t *testing.T,
 	ds *Datastore,
-	newSet []*fleet.MDMWindowsConfigProfile,
 	tmID *uint,
 	want []*fleet.MDMWindowsConfigProfile,
 ) map[string]string {
@@ -1844,7 +1911,7 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 			return ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, newSet)
 		})
 		require.NoError(t, err)
-		return expectWindowsProfiles(t, ds, newSet, tmID, want)
+		return expectWindowsProfiles(t, ds, tmID, want)
 	}
 
 	withTeamID := func(p *fleet.MDMWindowsConfigProfile, tmID uint) *fleet.MDMWindowsConfigProfile {
@@ -1914,9 +1981,11 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string) *fleet.MDMWi
 		Name: name,
 		SyncML: []byte(fmt.Sprintf(`
 			<Replace>
-				<Target>
-					<LocURI>%s</LocURI>
-				</Target>
+				<Item>
+				  <Target>
+					  <LocURI>%s</LocURI>
+				  </Target>
+				</Item>
 			</Replace>
 		`, locURI)),
 	}

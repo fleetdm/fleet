@@ -1,0 +1,18 @@
+.os-version-table {
+  .hosts-cell__wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .os-hosts-link {
+    opacity: 0;
+    transition: 250ms;
+  }
+
+  tr:hover {
+    .os-hosts-link {
+      opacity: 1;
+    }
+  }
+}
