@@ -6077,8 +6077,8 @@ func testHostsReplaceHostBatteriesDeadlock(t *testing.T, ds *Datastore) {
 	// We are keeping them low to not cause CI issues ("too many connections" errors
 	// due to concurrent tests).
 	const (
-		hostCount    = 100
-		replaceCount = 100
+		hostCount    = 10
+		replaceCount = 10
 	)
 	ctx := context.Background()
 	var hosts []*fleet.Host

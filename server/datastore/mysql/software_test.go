@@ -1955,7 +1955,6 @@ func testSoftwareByIDNoDuplicatedVulns(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.LoadHostSoftware(ctx, hostB, false))
 
 		// Add one vulnerability to each software
-		var vulns []fleet.SoftwareVulnerability
 		for i, s := range hostA.Software {
 			inserted, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
 				SoftwareID: s.ID,
@@ -1963,7 +1962,6 @@ func testSoftwareByIDNoDuplicatedVulns(t *testing.T, ds *Datastore) {
 			}, fleet.UbuntuOVALSource)
 			require.NoError(t, err)
 			require.True(t, inserted)
-			vulns = append(vulns)
 		}
 
 		for _, s := range hostA.Software {
@@ -2786,8 +2784,8 @@ func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
 	// We are keeping them low to not cause CI issues ("too many connections" errors
 	// due to concurrent tests).
 	const (
-		hostCount   = 100
-		updateCount = 100
+		hostCount   = 10
+		updateCount = 10
 	)
 	ctx := context.Background()
 	var hosts []*fleet.Host
