@@ -138,7 +138,6 @@ const SoftwareTitles = ({
   );
 
   const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
-    debugger;
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.SOFTWARE_TITLES,
