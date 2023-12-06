@@ -4,12 +4,17 @@ import Icon from "components/Icon";
 import MainContent from "components/MainContent";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import { AppContext } from "context/app";
+import {
+  IGetQueryResponse,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { browserHistory, InjectedRouter, Link } from "react-router";
 import { Params } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import hqrAPI, { IGetHQRResponse } from "services/entities/host_query_report";
+import queryAPI from "services/entities/queries";
 
 const baseClass = "host-query-report";
 
@@ -46,75 +51,100 @@ const HostQueryReport = ({
   const [showQuery, setShowQuery] = useState(false);
 
   // TODO - remove dummy data, restore API call
-  const [hqrResponse, hqrLoading, hqrError] = [
+  const [[hqrResponse, queryResponse], hqrLoading, hqrError] = [
     // // render report
-    // {
-    //   query: "SELECT * FROM users",
-    //   discard_data: false,
-    //   host_name: "Haley's Macbook Air",
-    //   host_team_id: 1,
-    //   report_clipped: false,
-    //   last_fetched: "2021-01-01T00:00:00.000Z",
-    //   results: [
-    //     {
-    //       columns: {
-    //         username: "user1",
-    //         email: "e@mail",
+    // [
+    //   {
+    //     host_name: "Haley's Macbook Air",
+    //     host_team_id: 1,
+    //     report_clipped: false,
+    //     last_fetched: "2021-01-01T00:00:00.000Z",
+    //     results: [
+    //       {
+    //         columns: {
+    //           username: "user1",
+    //           email: "e@mail",
+    //         },
     //       },
-    //     },
-    //   ],
-    // },
+    //     ],
+    //   },
+    //   {
+    //     query: "SELECT * FROM users",
+    //     discard_data: false,
+    //     interval: 20,
+    //   },
+    // ],
 
-    // // empty A
-    // {
-    //   query: "SELECT * FROM users",
-    //   discard_data: false,
-    //   host_name: "Haley's Macbook Air",
-    //   host_team_id: 1,
-    //   report_clipped: false,
-    //   last_fetched: null,
-    //   results: [],
-    // },
+    // // collecting results (A)
+    // [
+    //   {
+    //     host_name: "Haley's Macbook Air",
+    //     host_team_id: 1,
+    //     report_clipped: false,
+    //     last_fetched: null,
+    //     results: [],
+    //   },
+    //   {
+    //     query: "SELECT * FROM users",
+    //     discard_data: false,
+    //     inverval: 20,
+    //   },
+    // ],
 
-    // // empty B
-    // {
-    //   query: "SELECT * FROM users",
-    //   discard_data: false,
-    //   host_name: "Haley's Macbook Air",
-    //   host_team_id: 1,
-    //   report_clipped: false,
-    //   last_fetched: "2021-01-01T00:00:00.000Z",
-    //   results: [],
-    // },
+    // // nothing to report (B)
+    // [
+    //   {
+    //     host_name: "Haley's Macbook Air",
+    //     host_team_id: 1,
+    //     report_clipped: false,
+    //     last_fetched: "2021-01-01T00:00:00.000Z",
+    //     results: [],
+    //   },
+    //   {
+    //     query: "SELECT * FROM users",
+    //     discard_data: false,
+    //     inverval: 20,
+    //   },
+    // ],
 
-    // empty C
-    {
-      query: "SELECT * FROM users",
-      discard_data: false,
-      host_name: "Haley's Macbook Air",
-      host_team_id: 1,
-      report_clipped: true,
-      last_fetched: "2021-01-01T00:00:00.000Z",
-      results: [],
-    },
+    // report clipped (C)
+    [
+      {
+        host_name: "Haley's Macbook Air",
+        host_team_id: 1,
+        report_clipped: true,
+        last_fetched: "2021-01-01T00:00:00.000Z",
+        results: [],
+      },
+      {
+        query: "SELECT * FROM users",
+        interval: 20,
+        discard_data: false,
+      },
+    ],
 
     // // reroute (local setting)
-    // {
-    //   query: "SELECT * FROM users",
-    //   discard_data: true,
-    //   host_name: "Haley's Macbook Air",
-    //   host_team_id: 1,
-    //   report_clipped: false,
-    //   last_fetched: "2021-01-01T00:00:00.000Z",
-    //   results: [
-    //     {
-    //       columns: {
-    //         username: "user1",
-    //         email: "e@mail",
+    // [
+    //   {
+    //     host_name: "Haley's Macbook Air",
+    //     host_team_id: 1,
+    //     report_clipped: false,
+    //     last_fetched: "2021-01-01T00:00:00.000Z",
+    //     results: [
+    //       {
+    //         columns: {
+    //           username: "user1",
+    //           email: "e@mail",
+    //         },
     //       },
-    //     },
-    //   ],
-    // },
+    //     ],
+    //   },
+    //   {
+    //     query: "SELECT * FROM users",
+    //     discard_data: true,
+    //     inverval: 20,
+    //   },
+    // ],
 
     false,
     null,
@@ -134,15 +164,34 @@ const HostQueryReport = ({
   //   }
   // );
 
+  // const {
+  //   isLoading: isQueryLoading,
+  //   data: queryResponse,
+  //   error: queryError,
+  // } = useQuery<IGetQueryResponse, Error, ISchedulableQuery>(
+  //   ["query", queryId],
+  //   () => queryAPI.load(queryId),
+  //   {
+  //     enabled: !!queryId,
+  //     refetchOnMount: false,
+  //     refetchOnReconnect: false,
+  //     refetchOnWindowFocus: false,
+  //   }
+  // );
+
   const {
-    query,
     host_name: hostName,
     host_team_id: hostTeamId,
     report_clipped: clipped,
     last_fetched: lastFetched,
-    discard_data: queryDiscardData,
     results,
   } = hqrResponse || {};
+
+  const {
+    query: querySQL,
+    discard_data: queryDiscardData,
+    interval: queryInterval,
+  } = queryResponse || {};
 
   // TODO - finalize local setting reroute conditions
   // previous reroute can be done before API call, not this one, hence 2
@@ -228,7 +277,9 @@ const HostQueryReport = ({
       <>
         {renderHeader()}
         {renderContent()}
-        {showQuery && <ShowQueryModal {...{ querySQL: query, onCancel }} />}
+        {showQuery && (
+          <ShowQueryModal {...{ querySQL: queryResponse, onCancel }} />
+        )}
       </>
     </MainContent>
   );

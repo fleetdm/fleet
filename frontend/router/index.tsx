@@ -177,20 +177,21 @@ const routes = (
               path="manage/:active_label/labels/:label_id"
               component={ManageHostsPage}
             />
-            <Route
-              // TODO - better way to achieve this?
-              // tricky because HostQueryReport isn't rendered by HostDetailsPage
-              path=":host_id/queries/:query_id"
-              component={HostQueryReport}
-            />
             <Route path=":host_id" component={HostDetailsPage}>
               <Route path="scripts" component={HostDetailsPage} />
               <Route path="software" component={HostDetailsPage} />
               <Route path="queries" component={HostDetailsPage} />
+              <Route path=":query_id" component={HostQueryReport} />
               <Route path="policies" component={HostDetailsPage} />
               {/* legacy route */}
               <Redirect from="schedule" to="queries" />
             </Route>
+
+            <Route
+              // outside of '/hosts' nested routes to avoid react-tabs-specific routing issues
+              path=":host_id/queries/:query_id"
+              component={HostQueryReport}
+            />
           </Route>
 
           <Route component={ExcludeInSandboxRoutes}>
