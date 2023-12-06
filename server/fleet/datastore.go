@@ -430,6 +430,12 @@ type Datastore interface {
 	DeleteIntegrationsFromTeams(ctx context.Context, deletedIntgs Integrations) error
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Software Titles
+
+	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitle, int, *PaginationMetadata, error)
+	SoftwareTitleByID(ctx context.Context, id uint) (*SoftwareTitle, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
 
 	// ListSoftwareForVulnDetection returns all software for the given hostID with only the fields
