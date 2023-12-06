@@ -1215,6 +1215,12 @@ type Datastore interface {
 	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) error
 }
 
+// Cloner represents any type that can clone itself. Used for the cached_mysql
+// caching layer.
+type Cloner interface {
+	Clone() (Cloner, error)
+}
+
 const (
 	// Default batch size to use for ScheduledQueryIDsByName.
 	DefaultScheduledQueryIDsByNameBatchSize = 1000
