@@ -83,19 +83,6 @@ You can view the list of the 1,000 latest commands:
 1. Run `fleetctl get mdm-commands`
 2. View the list of latest commands, most recent first, along with the timestamp, targeted hostname, command type, execution status and command ID.
 
-Example output:
-
-```sh
-$ fleetctl get mdm-commands
-+--------------------------------------+----------------------+--------------------------+--------------+------------------------+
-|                  ID                  |         TIME         |           TYPE           |    STATUS    |        HOSTNAME        |
-+--------------------------------------+----------------------+--------------------------+--------------+------------------------+
-| 024fb3b9-cd8a-40a6-8dd7-6c155f488fd1 | 2023-04-12T18:19:10Z | RestartDevice            | Acknowledged | iMac-Pro.local         |
-+--------------------------------------+----------------------+--------------------------+--------------+------------------------+
-| 87dc6325-8bc0-4fc8-9a2f-3901c535456e | 2023-04-12T18:15:01Z | DeviceLock               | Acknowledged | iMac-Pro.local         |
-+--------------------------------------+----------------------+--------------------------+--------------+------------------------+
-```
-
 The command ID can be used to view command results as documented in [step 4 of the previous section](#step-4-view-the-commands-results). 
 
 The possible statuses for macOS hosts are the following:
