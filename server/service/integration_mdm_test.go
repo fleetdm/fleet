@@ -42,9 +42,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
+	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
+	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
@@ -3134,7 +3136,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 
 	// create a host and enroll it in Fleet
 	host := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
-	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet)
+	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
 	require.NoError(t, err)
 
 	// request encryption key with no auth token
@@ -5468,22 +5470,22 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 	mdmURL := "https://mdm.example.com"
 
 	// host is a server so migration is not allowed
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, isServer, enrolled, mdmURL, installedFromDEP, mdmName))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, isServer, enrolled, mdmURL, installedFromDEP, mdmName, ""))
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
 	require.False(t, webhookCalled)
 
 	// host is not DEP so migration is not allowed
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, !installedFromDEP, mdmName))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, !installedFromDEP, mdmName, ""))
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
 	require.False(t, webhookCalled)
 
 	// host is not enrolled to MDM so migration is not allowed
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, !enrolled, mdmURL, installedFromDEP, mdmName))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, !enrolled, mdmURL, installedFromDEP, mdmName, ""))
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
 	require.False(t, webhookCalled)
 
 	// host is already enrolled to Fleet MDM so migration is not allowed
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, installedFromDEP, fleet.WellKnownMDMFleet))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, installedFromDEP, fleet.WellKnownMDMFleet, ""))
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
 	require.False(t, webhookCalled)
 
@@ -5495,7 +5497,7 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 
 	// host is enrolled to a third-party MDM but hasn't been assigned in
 	// ABM yet, so migration is not allowed
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, installedFromDEP, mdmName))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), h.ID, !isServer, enrolled, mdmURL, installedFromDEP, mdmName, ""))
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "good-token"), nil, http.StatusBadRequest)
 	require.False(t, webhookCalled)
 
@@ -6683,6 +6685,102 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Equal(t, "SSO User 1", accCmd.Command.AccountConfiguration.PrimaryAccountFullName)
 	require.Equal(t, "sso_user", accCmd.Command.AccountConfiguration.PrimaryAccountUserName)
 
+	// report host details for the device
+	var hostResp getHostResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+
+	ac, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features)
+
+	// simulate osquery reporting mdm information
+	rows := []map[string]string{
+		{
+			"enrolled":           "true",
+			"installed_from_dep": "true",
+			"server_url":         "https://test.example.com?enrollment_reference=" + user1EnrollRef,
+			"payload_identifier": apple_mdm.FleetPayloadIdentifier,
+		},
+	}
+	err = detailQueries["mdm"].DirectIngestFunc(
+		context.Background(),
+		log.NewNopLogger(),
+		&fleet.Host{ID: hostResp.Host.ID},
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+
+	// sumulate osquery reporting chrome extension information
+	rows = []map[string]string{
+		{"email": "g1@example.com"},
+		{"email": "g2@example.com"},
+	}
+	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
+		context.Background(),
+		log.NewNopLogger(),
+		&fleet.Host{ID: hostResp.Host.ID},
+		s.ds,
+		rows,
+	)
+	require.NoError(t, err)
+
+	// host device mapping includes the SSO user and the chrome extension users
+	var dmResp listHostDeviceMappingResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hostResp.Host.ID), nil, http.StatusOK, &dmResp)
+	require.Len(t, dmResp.DeviceMapping, 3)
+	sourceByEmail := make(map[string]string, 3)
+	for _, dm := range dmResp.DeviceMapping {
+		sourceByEmail[dm.Email] = dm.Source
+	}
+	source, ok := sourceByEmail["sso_user@example.com"]
+	require.True(t, ok)
+	require.Equal(t, "mdm_idp_accounts", source)
+	source, ok = sourceByEmail["g1@example.com"]
+	require.True(t, ok)
+	require.Equal(t, "google_chrome_profiles", source)
+	source, ok = sourceByEmail["g2@example.com"]
+	require.True(t, ok)
+	require.Equal(t, "google_chrome_profiles", source)
+
+	// list hosts can filter on mdm idp email
+	var hostsResp listHostsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?query=%s&device_mapping=true", url.QueryEscape("sso_user@example.com")), nil, http.StatusOK, &hostsResp)
+	require.Len(t, hostsResp.Hosts, 1)
+	gotHost := hostsResp.Hosts[0]
+	require.Equal(t, hostResp.Host.ID, gotHost.ID)
+	require.NotNil(t, gotHost.DeviceMapping)
+	var dm []fleet.HostDeviceMapping
+	require.NoError(t, json.Unmarshal(*gotHost.DeviceMapping, &dm))
+	require.Len(t, dm, 3)
+
+	// reporting google chrome profiles only clears chrome profiles from device mapping
+	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
+		context.Background(),
+		log.NewNopLogger(),
+		&fleet.Host{ID: hostResp.Host.ID},
+		s.ds,
+		[]map[string]string{},
+	)
+	require.NoError(t, err)
+	dmResp = listHostDeviceMappingResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hostResp.Host.ID), nil, http.StatusOK, &dmResp)
+	require.Len(t, dmResp.DeviceMapping, 1)
+	require.Equal(t, "sso_user@example.com", dmResp.DeviceMapping[0].Email)
+	require.Equal(t, "mdm_idp_accounts", dmResp.DeviceMapping[0].Source)
+	hostsResp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?query=%s&device_mapping=true", url.QueryEscape("sso_user@example.com")), nil, http.StatusOK, &hostsResp)
+	require.Len(t, hostsResp.Hosts, 1)
+	gotHost = hostsResp.Hosts[0]
+	require.Equal(t, hostResp.Host.ID, gotHost.ID)
+	require.NotNil(t, gotHost.DeviceMapping)
+	dm = []fleet.HostDeviceMapping{}
+	require.NoError(t, json.Unmarshal(*gotHost.DeviceMapping, &dm))
+	require.Len(t, dm, 1)
+	require.Equal(t, "sso_user@example.com", dm[0].Email)
+	require.Equal(t, "mdm_idp_accounts", dm[0].Source)
+
 	// enrolling a different user works without problems
 	res = s.LoginMDMSSOUser("sso_user2", "user123#")
 	require.NotEmpty(t, res.Header.Get("Location"))
@@ -6740,7 +6838,8 @@ func (s *integrationMDMTestSuite) TestSSO() {
 }
 
 type scepPayload struct {
-	URL string
+	Challenge string
+	URL       string
 }
 
 type enrollmentPayload struct {
@@ -6853,6 +6952,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 			"https://simplemdm.com",
 			true,
 			fleet.WellKnownMDMSimpleMDM,
+			"",
 		)
 		require.NoError(t, err)
 
@@ -6884,6 +6984,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 			s.server.URL,
 			true,
 			fleet.WellKnownMDMFleet,
+			"",
 		)
 		require.NoError(t, err)
 
@@ -6915,6 +7016,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 			s.server.URL,
 			false,
 			fleet.WellKnownMDMFleet,
+			"",
 		)
 		require.NoError(t, err)
 		getDesktopResp = fleetDesktopResponse{}
@@ -6998,7 +7100,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	for _, meta := range metadataHosts {
 		h := createOrbitEnrolledHost(t, meta.os, meta.suffix, s.ds)
 		createDeviceTokenForHost(t, s.ds, h.ID, meta.suffix)
-		err := s.ds.SetOrUpdateMDMData(ctx, h.ID, meta.isServer, meta.enrolledName != "", "https://example.com", false, meta.enrolledName)
+		err := s.ds.SetOrUpdateMDMData(ctx, h.ID, meta.isServer, meta.enrolledName != "", "https://example.com", false, meta.enrolledName, "")
 		require.NoError(t, err)
 		if meta.teamID != nil {
 			err = s.ds.AddHostsToTeam(ctx, meta.teamID, []uint{h.ID})
@@ -7041,7 +7143,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 
 	// set the win-no-team host as enrolled in Windows MDM
 	noTeamHost := hostsBySuffix["win-no-team"]
-	err = s.ds.SetOrUpdateMDMData(ctx, noTeamHost.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet)
+	err = s.ds.SetOrUpdateMDMData(ctx, noTeamHost.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "")
 	require.NoError(t, err)
 
 	// get the orbit config for win-no-team should return true for the
@@ -7963,7 +8065,7 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 		MDMNotInOOBE:           false,
 		HostUUID:               enrolledWindows.UUID,
 	}
-	err := s.ds.SetOrUpdateMDMData(ctx, enrolledWindows.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet)
+	err := s.ds.SetOrUpdateMDMData(ctx, enrolledWindows.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
 	require.NoError(t, err)
 
 	err = s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
@@ -8150,7 +8252,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 
 	// simulate osquery checking in and updating this info
 	// TODO: should we automatically fill these fields on MDM enrollment?
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), windowsHost.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), windowsHost.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, ""))
 
 	// notification is still false
 	checkNotification(false)
@@ -8256,7 +8358,7 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.Contains(t, msg, "host is not enrolled with fleet")
 
 	// mark it as enrolled in Fleet
-	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet)
+	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
 	require.NoError(t, err)
 
 	// set its encryption key
