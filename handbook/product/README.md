@@ -270,7 +270,7 @@ Please see [handbook/product#revise-a-draft-currently-in-development](https://fl
 Please see [handbook/product#outside-contributions](https://fleetdm.com/handbook/product#outside-contributions)
 
 ##### Prioritizing bugs
-handbook/product#correctly-prioritize-a-bug](https://fleetdm.com/handbook/product#correctly-prioritize-a-bug)
+Please see [handbook/product#correctly-prioritize-a-bug](https://fleetdm.com/handbook/product#correctly-prioritize-a-bug)
 
 ##### Writing user stories
 Please see [handbook/product#write-a-user-story](https://fleetdm.com/handbook/product#write-a-user-story)
