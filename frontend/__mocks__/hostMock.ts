@@ -2,9 +2,10 @@ import { IHost } from "interfaces/host";
 import { IHostMdmProfile } from "interfaces/mdm";
 
 const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
-  profile_id: 1,
+  profile_uuid: "123-abc",
   name: "Test Profile",
   operation_type: "install",
+  platform: "darwin",
   status: "verified",
   detail: "This is verified",
 };

@@ -461,6 +461,13 @@ type Datastore interface {
 	// After aggregation, it cleans up unused software (e.g. software installed
 	// on removed hosts, software uninstalled on hosts, etc.)
 	SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error
+
+	// ReconcileSoftwareTitles ensures the software_titles and software tables are in sync.
+	// It inserts new software titles and updates the software table with the title_id.
+	// It also cleans up any software titles that are no longer associated with any software.
+	// It is intended to be run after SyncHostsSoftware.
+	ReconcileSoftwareTitles(ctx context.Context) error
+
 	// HostVulnSummariesBySoftwareIDs returns a list of all hosts that have at least one of the
 	// specified Software installed. Includes the path were the software was installed.
 	HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]HostVulnerabilitySummary, error)
@@ -726,15 +733,15 @@ type Datastore interface {
 	// should be verified, failed, and retried, respectively. For each profile in the toRetry slice,
 	// the retries count is incremented by 1 and the status is set to null so that an install
 	// profile command is enqueued the next time the profile manager cron runs.
-	UpdateHostMDMProfilesVerification(ctx context.Context, hostUUID string, toVerify, toFail, toRetry []string) error
+	UpdateHostMDMProfilesVerification(ctx context.Context, host *Host, toVerify, toFail, toRetry []string) error
 	// GetHostMDMProfilesExpected returns the expected MDM profiles for a given host. The map is
 	// keyed by the profile identifier.
 	GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *Host) (map[string]*ExpectedMDMProfile, error)
 	// GetHostMDMProfilesRetryCounts returns a list of MDM profile retry counts for a given host.
-	GetHostMDMProfilesRetryCounts(ctx context.Context, hostUUID string) ([]HostMDMProfileRetryCount, error)
+	GetHostMDMProfilesRetryCounts(ctx context.Context, host *Host) ([]HostMDMProfileRetryCount, error)
 	// GetHostMDMProfileRetryCountByCommandUUID returns the retry count for the specified
 	// host UUID and command UUID.
-	GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, hostUUID, cmdUUID string) (HostMDMProfileRetryCount, error)
+	GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, host *Host, cmdUUID string) (HostMDMProfileRetryCount, error)
 
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
@@ -803,17 +810,25 @@ type Datastore interface {
 	// this is mainly aimed to internal usage within the Fleet server.
 	BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*MDMAppleConfigProfile) error
 
+	// GetMDMAppleConfigProfileByDeprecatedID returns the mdm config profile
+	// corresponding to the specified numeric profile id. This is deprecated and
+	// should not be used for new endpoints.
+	GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile returns the mdm config profile corresponding to the specified
-	// profile id.
-	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
+	// profile uuid.
+	GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*MDMAppleConfigProfile, error)
 
 	// ListMDMAppleConfigProfiles lists mdm config profiles associated with the specified team id.
 	// For global config profiles, specify nil as the team id.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
 
+	// DeleteMDMAppleConfigProfileByDeprecatedID deletes the mdm config profile
+	// corresponding to the specified numeric profile id. This is deprecated and
+	// should not be used for new endpoints.
+	DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error
 	// DeleteMDMAppleConfigProfile deletes the mdm config profile corresponding
-	// to the specified profile id.
-	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error
+	// to the specified profile uuid.
+	DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error
 
 	BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, payload []*MDMAppleProfilePayload) error
 
@@ -929,15 +944,15 @@ type Datastore interface {
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
 
-	// BulkSetPendingMDMHostProfiles sets the status of profiles to install
-	// or to remove for each affected host to pending for the provided criteria,
-	// which may be either a list of hostIDs, teamIDs, profileIDs or hostUUIDs
-	// (only one of those ID types can be provided).
-	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, profileUUIDs, hostUUIDs []string) error
+	// BulkSetPendingMDMHostProfiles sets the status of profiles to install or to
+	// remove for each affected host to pending for the provided criteria, which
+	// may be either a list of hostIDs, teamIDs, profileUUIDs or hostUUIDs (only
+	// one of those ID types can be provided).
+	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error
 
 	// GetMDMAppleProfilesContents retrieves the XML contents of the
 	// profiles requested.
-	GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error)
+	GetMDMAppleProfilesContents(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error)
 
 	// UpdateOrDeleteHostMDMAppleProfile updates information about a single
 	// profile status. It deletes the row if the profile operation is "remove"
@@ -1123,7 +1138,7 @@ type Datastore interface {
 
 	// ListMDMWindowsProfilesToRemove returns all the profiles that should
 	// be removed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`
+	// registered in `host_mdm_windows_profiles`
 	ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
 
 	// BulkUpsertMDMWindowsHostProfiles bulk-adds/updates records to track the
@@ -1200,6 +1215,31 @@ const (
 	// Default batch size for loading IDs of or inserting new munki issues.
 	DefaultMunkiIssuesBatchSize = 100
 )
+
+// ProfileVerificationStore is the minimal interface required to get and update the verification
+// status of a host's MDM profiles. The Fleet Datastore satisfies this interface.
+type ProfileVerificationStore interface {
+	// GetHostMDMProfilesExpectedForVerification returns the expected MDM profiles for a given host. The map is
+	// keyed by the profile identifier.
+	GetHostMDMProfilesExpectedForVerification(ctx context.Context, host *Host) (map[string]*ExpectedMDMProfile, error)
+	// GetHostMDMProfilesRetryCounts returns the retry counts for the specified host.
+	GetHostMDMProfilesRetryCounts(ctx context.Context, host *Host) ([]HostMDMProfileRetryCount, error)
+	// GetHostMDMProfileRetryCountByCommandUUID returns the retry count for the specified
+	// host UUID and command UUID.
+	GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, host *Host, commandUUID string) (HostMDMProfileRetryCount, error)
+	// UpdateHostMDMProfilesVerification updates status of macOS profiles installed on a given
+	// host. The toVerify, toFail, and toRetry slices contain the identifiers of the profiles that
+	// should be verified, failed, and retried, respectively. For each profile in the toRetry slice,
+	// the retries count is incremented by 1 and the status is set to null so that an install
+	// profile command is enqueued the next time the profile manager cron runs.
+	UpdateHostMDMProfilesVerification(ctx context.Context, host *Host, toVerify, toFail, toRetry []string) error
+	// UpdateOrDeleteHostMDMAppleProfile updates information about a single
+	// profile status. It deletes the row if the profile operation is "remove"
+	// and the status is "verifying" (i.e. successfully removed).
+	UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *HostMDMAppleProfile) error
+}
+
+var _ ProfileVerificationStore = (Datastore)(nil)
 
 type PolicyFailure struct {
 	PolicyID uint

@@ -4,7 +4,7 @@ import (
 	"encoding/xml"
 	"testing"
 
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
@@ -91,7 +91,7 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 				RawCommand:  []byte(`<Atomic><Replace><</Atomic>`),
 			},
 			statuses: map[string]SyncMLCmd{
-				"foo": {CmdID: "foo", Data: ptr.String(microsoft_mdm.CmdStatusAtomicFailed)},
+				"foo": {CmdID: "foo", Data: ptr.String(syncml.CmdStatusAtomicFailed)},
 			},
 			hostUUID:      "host-uuid",
 			expectedError: "XML syntax error",
@@ -130,9 +130,9 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 				</Atomic>`),
 			},
 			statuses: map[string]SyncMLCmd{
-				"foo": {CmdID: "foo", Data: ptr.String(microsoft_mdm.CmdStatusAtomicFailed)},
-				"bar": {CmdID: "bar", Data: ptr.String(microsoft_mdm.CmdStatusOK)},
-				"baz": {CmdID: "baz", Data: ptr.String(microsoft_mdm.CmdStatusBadRequest)},
+				"foo": {CmdID: "foo", Data: ptr.String(syncml.CmdStatusAtomicFailed)},
+				"bar": {CmdID: "bar", Data: ptr.String(syncml.CmdStatusOK)},
+				"baz": {CmdID: "baz", Data: ptr.String(syncml.CmdStatusBadRequest)},
 			},
 			hostUUID: "host-uuid",
 			expectedPayload: &MDMWindowsProfilePayload{

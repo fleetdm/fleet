@@ -726,7 +726,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			if appCfg.MDM.EnabledAndConfigured {
+			if appCfg.MDM.EnabledAndConfigured || appCfg.MDM.WindowsEnabledAndConfigured {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					return newMDMProfileManager(
 						ctx,
