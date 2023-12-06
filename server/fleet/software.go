@@ -46,7 +46,7 @@ type Software struct {
 	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons)
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// Browser is the browser type (from osquery chrome_extensions)
-	Browser string `json:"browser,omitempty" db:"browser"`
+	Browser string `json:"browser" db:"browser"`
 
 	// Release is the version of the OS this software was released on
 	// (e.g. "30.el7" for a CentOS package).
