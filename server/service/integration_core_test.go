@@ -1390,6 +1390,8 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host0, false))
 
+	err = s.ds.SyncHostsSoftware(context.Background(), time.Now())
+	require.NoError(t, err)
 	err = s.ds.ReconcileSoftwareTitles(context.Background())
 	require.NoError(t, err)
 
@@ -1425,6 +1427,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Equal(t, host2.ID, resp.Hosts[0].ID)
 	assert.Equal(t, "foo", resp.Software.Name)
 	assert.Greater(t, resp.Hosts[0].SoftwareUpdatedAt, resp.Hosts[0].CreatedAt)
+	assert.Nil(t, resp.SoftwareTitle)
 
 	var countResp countHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_id", fmt.Sprint(fooV1ID))
@@ -1444,7 +1447,12 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_title_id", fmt.Sprint(barAppTitleID))
 	require.Len(t, resp.Hosts, 1)
 	require.ElementsMatch(t, []uint{host1.ID}, []uint{resp.Hosts[0].ID})
-	// TODO(mna): test that SoftwareTitle details are filled
+	assert.Equal(t, "bar", resp.SoftwareTitle.Name)
+	assert.Equal(t, "application", resp.SoftwareTitle.Source)
+	assert.Equal(t, uint(1), resp.SoftwareTitle.HostsCount)
+	require.Len(t, resp.SoftwareTitle.Versions, 1)
+	assert.Equal(t, "0.1.0", resp.SoftwareTitle.Versions[0].Version)
+	assert.Nil(t, resp.Software)
 
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_title_id", fmt.Sprint(barAppTitleID))
 	require.Equal(t, 1, countResp.Count)
@@ -1592,9 +1600,8 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_id", fmt.Sprint(9999))
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_version_id", fmt.Sprint(9999))
-	// TODO(mna): uncomment once the endpoint gets and returns the corresponding software title information.
-	//resp = listHostsResponse{}
-	//s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_title_id", fmt.Sprint(9999))
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_title_id", fmt.Sprint(9999))
 
 	// Filter by non-existent team.
 	resp = listHostsResponse{}
