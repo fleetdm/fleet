@@ -66,10 +66,11 @@ When starting a new draft:
 > As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
 
 ### Ensure product user-story is complete
-Once the draft has been approved, it moves to the "Settled" column on the drafting board. 
+Once the draft has been approved, it moves to the "Settled" column on the drafting board and assign to the EM.
 
 Before assigning an engineering manager to [estimate](https://fleetdm.com/handbook/engineering#sprint-ceremonies) a user story, the product designer ensures the product section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
 
+### Ensure bug drafting is complete
 Once a bug has gone through design and is considered "Settled", the designer removes the `:product` label and moves the issue to the 'Sprint backlog' column on the "Bugs" board and assigns the group engineering manager. 
 
 ### Revise a draft currently in development
@@ -270,7 +271,7 @@ Please see [handbook/product#revise-a-draft-currently-in-development](https://fl
 Please see [handbook/product#outside-contributions](https://fleetdm.com/handbook/product#outside-contributions)
 
 ##### Prioritizing bugs
-handbook/product#correctly-prioritize-a-bug](https://fleetdm.com/handbook/product#correctly-prioritize-a-bug)
+Please see [handbook/product#correctly-prioritize-a-bug](https://fleetdm.com/handbook/product#correctly-prioritize-a-bug)
 
 ##### Writing user stories
 Please see [handbook/product#write-a-user-story](https://fleetdm.com/handbook/product#write-a-user-story)
