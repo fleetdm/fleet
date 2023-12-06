@@ -154,6 +154,8 @@ type DeleteHostFunc func(ctx context.Context, hid uint) error
 
 type HostFunc func(ctx context.Context, id uint) (*fleet.Host, error)
 
+type GetHostHealthFunc func(ctx context.Context, id uint) (*fleet.HostHealth, error)
+
 type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
 type ListHostsLiteByUUIDsFunc func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error)
@@ -972,6 +974,9 @@ type DataStore struct {
 
 	HostFunc        HostFunc
 	HostFuncInvoked bool
+
+	GetHostHealthFunc        GetHostHealthFunc
+	GetHostHealthFuncInvoked bool
 
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
@@ -2371,6 +2376,13 @@ func (s *DataStore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	s.HostFuncInvoked = true
 	s.mu.Unlock()
 	return s.HostFunc(ctx, id)
+}
+
+func (s *DataStore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
+	s.mu.Lock()
+	s.GetHostHealthFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostHealthFunc(ctx, id)
 }
 
 func (s *DataStore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {

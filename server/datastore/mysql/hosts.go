@@ -943,9 +943,20 @@ func (ds *Datastore) applyHostFilters(
 	}
 
 	softwareFilter := "TRUE"
-	if opt.SoftwareIDFilter != nil {
+	var softwareIDFilter *uint
+	if opt.SoftwareVersionIDFilter != nil {
+		softwareIDFilter = opt.SoftwareVersionIDFilter
+	} else if opt.SoftwareIDFilter != nil {
+		softwareIDFilter = opt.SoftwareIDFilter
+	}
+	if softwareIDFilter != nil {
 		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id = h.id AND hs.software_id = ?)"
-		params = append(params, opt.SoftwareIDFilter)
+		params = append(params, *softwareIDFilter)
+	} else if opt.SoftwareTitleIDFilter != nil {
+		// software (version) ID filter is mutually exclusive with software title ID
+		// so we're reusing the same filter to avoid adding unnecessary conditions.
+		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs INNER JOIN software sw ON hs.software_id = sw.id WHERE hs.host_id = h.id AND sw.title_id = ?)"
+		params = append(params, *opt.SoftwareTitleIDFilter)
 	}
 
 	failingPoliciesJoin := ""
@@ -1268,7 +1279,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
             WHEN (%s) THEN
                 'bitlocker_pending'
             WHEN (%s) THEN
-                'bitlocker_failed'				
+                'bitlocker_failed'
             ELSE
                 ''
             END`,
@@ -1280,11 +1291,11 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	}
 
 	whereWindows += fmt.Sprintf(` AND (
-    CASE (%s)	
+    CASE (%s)
     WHEN 'profiles_failed' THEN
         'failed'
     WHEN 'profiles_pending' THEN (
-        CASE (%s) 
+        CASE (%s)
         WHEN 'bitlocker_failed' THEN
             'failed'
         ELSE
@@ -1310,7 +1321,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
         ELSE
             'verified'
         END)
-    ELSE 
+    ELSE
         REPLACE((%s), 'bitlocker_', '')
     END) = ?`, profilesStatus, bitlockerStatus, bitlockerStatus, bitlockerStatus, bitlockerStatus)
 
@@ -4535,4 +4546,45 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 	}
 
 	return result, nil
+}
+
+func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
+	sqlStmt := `
+		SELECT h.os_version, h.updated_at, h.platform, h.team_id, hd.encrypted as disk_encryption_enabled FROM hosts h
+		LEFT JOIN host_disks hd ON hd.host_id = h.id
+		WHERE id = ?
+	`
+
+	var hh fleet.HostHealth
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hh, sqlStmt, id); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Host Health").WithID(id))
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "loading host health")
+	}
+
+	host := &fleet.Host{ID: id, Platform: hh.Platform}
+	if err := ds.LoadHostSoftware(ctx, host, true); err != nil {
+		return nil, err
+	}
+
+	for _, s := range host.Software {
+		if len(s.Vulnerabilities) > 0 {
+			hh.VulnerableSoftware = append(hh.VulnerableSoftware, s)
+		}
+	}
+
+	policies, err := ds.ListPoliciesForHost(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, p := range policies {
+		if p.Response == "fail" {
+			hh.FailingPolicies = append(hh.FailingPolicies, p)
+		}
+	}
+
+	return &hh, nil
 }

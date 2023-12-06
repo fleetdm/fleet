@@ -196,6 +196,7 @@ type Datastore interface {
 	NewHost(ctx context.Context, host *Host) (*Host, error)
 	DeleteHost(ctx context.Context, hid uint) error
 	Host(ctx context.Context, id uint) (*Host, error)
+	GetHostHealth(ctx context.Context, id uint) (*HostHealth, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
 
 	// ListHostsLiteByUUIDs returns the "lite" version of hosts corresponding to
@@ -1213,6 +1214,12 @@ type Datastore interface {
 
 	// BatchSetScripts sets the scripts for the given team or no team.
 	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) error
+}
+
+// Cloner represents any type that can clone itself. Used for the cached_mysql
+// caching layer.
+type Cloner interface {
+	Clone() (Cloner, error)
 }
 
 const (
