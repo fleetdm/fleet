@@ -65,8 +65,8 @@ When starting a new draft:
 
 > As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
 
-### Ensure product user-story is complete
-Once the draft has been approved, it moves to the "Settled" column on the drafting board and assign to the EM.
+### Ensure story drafting is complete
+Once the story has been approved, it moves to the "Settled" column on the drafting board and assign to the EM.
 
 Before assigning an engineering manager to [estimate](https://fleetdm.com/handbook/engineering#sprint-ceremonies) a user story, the product designer ensures the product section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
 
