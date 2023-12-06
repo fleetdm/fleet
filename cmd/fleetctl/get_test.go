@@ -612,7 +612,7 @@ func TestGetSoftware(t *testing.T) {
 			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
 		},
 	}
-	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"}
+	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", ExtensionID: "xyz", Browser: "edge"}
 	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
 	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle"}
 
@@ -621,6 +621,10 @@ func TestGetSoftware(t *testing.T) {
 	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
 		gotTeamID = opt.TeamID
 		return []fleet.Software{foo001, foo002, foo003, bar003}, nil
+	}
+
+	ds.CountSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
+		return 4, nil
 	}
 
 	expected := `+------+---------+-------------------+--------------------------+-----------+
@@ -644,6 +648,7 @@ spec:
   id: 0
   name: foo
   source: chrome_extensions
+  browser: ""
   version: 0.0.1
   vulnerabilities:
   - cve: cve-321-432-543
@@ -655,11 +660,14 @@ spec:
   name: foo
   source: chrome_extensions
   version: 0.0.2
+  extension_id: xyz
+  browser: edge
   vulnerabilities: null
 - generated_cpe: someothercpewithoutvulns
   id: 0
   name: foo
   source: chrome_extensions
+  browser: ""
   version: 0.0.3
   vulnerabilities: null
 - bundle_identifier: bundle
@@ -667,6 +675,7 @@ spec:
   id: 0
   name: bar
   source: deb_packages
+  browser: ""
   version: 0.0.3
   vulnerabilities: null
 `
@@ -681,6 +690,7 @@ spec:
       "name": "foo",
       "version": "0.0.1",
       "source": "chrome_extensions",
+	  "browser": "",
       "generated_cpe": "somecpe",
       "vulnerabilities": [
         {
@@ -698,6 +708,8 @@ spec:
       "name": "foo",
       "version": "0.0.2",
       "source": "chrome_extensions",
+      "extension_id": "xyz",
+      "browser": "edge",
       "generated_cpe": "",
       "vulnerabilities": null
     },
@@ -706,6 +718,7 @@ spec:
       "name": "foo",
       "version": "0.0.3",
       "source": "chrome_extensions",
+	  "browser": "",
       "generated_cpe": "someothercpewithoutvulns",
       "vulnerabilities": null
     },
@@ -715,6 +728,7 @@ spec:
       "version": "0.0.3",
       "bundle_identifier": "bundle",
       "source": "deb_packages",
+      "browser": "",
       "generated_cpe": "",
       "vulnerabilities": null
     }
@@ -2032,7 +2046,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, profileUUIDs, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string) error {
 		return nil
 	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {

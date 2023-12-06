@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strconv"
 	"time"
 )
 
@@ -103,7 +102,10 @@ func (e MDMAppleEULA) AuthzType() string {
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
 type ExpectedMDMProfile struct {
+	// Identifier is the unique identifier used by macOS profiles
 	Identifier string `db:"identifier"`
+	// Name is the unique name used by Windows profiles
+	Name string `db:"name"`
 	// EarliestInstallDate is the earliest updated_at of all team profiles with the same checksum.
 	// It is used to assess the case where a host has installed a profile with the identifier
 	// expected by the host's current team, but the host's install_date is earlier than the
@@ -113,6 +115,8 @@ type ExpectedMDMProfile struct {
 	// Ideally, we would simply compare the checksums of the installed and expected profiles, but
 	// the checksums are not available in the osquery profiles table.
 	EarliestInstallDate time.Time `db:"earliest_install_date"`
+	// RawProfile contains the raw profile contents
+	RawProfile []byte `db:"raw_profile"`
 }
 
 // IsWithinGracePeriod returns true if the host is within the grace period for the profile.
@@ -133,8 +137,11 @@ func (ep ExpectedMDMProfile) IsWithinGracePeriod(hostDetailUpdatedAt time.Time) 
 // HostMDMProfileRetryCount represents the number of times Fleet has attempted to install
 // the identified profile on a host.
 type HostMDMProfileRetryCount struct {
+	// Identifier is the unique identifier used by macOS profiles
 	ProfileIdentifier string `db:"profile_identifier"`
-	Retries           uint   `db:"retries"`
+	// ProfileName is the unique name used by Windows profiles
+	ProfileName string `db:"profile_name"`
+	Retries     uint   `db:"retries"`
 }
 
 // TeamIDSetter defines the method to set a TeamID value on a struct,
@@ -260,11 +267,11 @@ type MDMProfilesSummary struct {
 }
 
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
-// a Windows or macOS profile. The ProfileID field is a string for Windows and an integer for macOS.
+// a Windows or macOS profile.
 type HostMDMProfile struct {
 	HostUUID      string             `db:"-" json:"-"`
 	CommandUUID   string             `db:"-" json:"-"`
-	ProfileID     interface{}        `db:"-" json:"profile_id"`
+	ProfileUUID   string             `db:"-" json:"profile_uuid"`
 	Name          string             `db:"-" json:"name"`
 	Identifier    string             `db:"-" json:"-"`
 	Status        *MDMDeliveryStatus `db:"-" json:"status"`
@@ -344,14 +351,14 @@ func (m MDMConfigProfileAuthz) AuthzType() string {
 // MDMConfigProfilePayload is the platform-agnostic struct returned by
 // endpoints that return MDM configuration profiles (get/list profiles).
 type MDMConfigProfilePayload struct {
-	ProfileID  string    `json:"profile_id" db:"profile_id"` // is a uuid string for Windows
-	TeamID     *uint     `json:"team_id" db:"team_id"`       // null for no-team
-	Name       string    `json:"name" db:"name"`
-	Platform   string    `json:"platform" db:"platform"`               // "windows" or "darwin"
-	Identifier string    `json:"identifier,omitempty" db:"identifier"` // only set for macOS
-	Checksum   []byte    `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
-	CreatedAt  time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
+	ProfileUUID string    `json:"profile_uuid" db:"profile_uuid"`
+	TeamID      *uint     `json:"team_id" db:"team_id"` // null for no-team
+	Name        string    `json:"name" db:"name"`
+	Platform    string    `json:"platform" db:"platform"`               // "windows" or "darwin"
+	Identifier  string    `json:"identifier,omitempty" db:"identifier"` // only set for macOS
+	Checksum    []byte    `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
@@ -360,12 +367,12 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		tid = cp.TeamID
 	}
 	return &MDMConfigProfilePayload{
-		ProfileID: cp.ProfileUUID,
-		TeamID:    tid,
-		Name:      cp.Name,
-		Platform:  "windows",
-		CreatedAt: cp.CreatedAt,
-		UpdatedAt: cp.UpdatedAt,
+		ProfileUUID: cp.ProfileUUID,
+		TeamID:      tid,
+		Name:        cp.Name,
+		Platform:    "windows",
+		CreatedAt:   cp.CreatedAt,
+		UpdatedAt:   cp.UpdatedAt,
 	}
 }
 
@@ -375,13 +382,13 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		tid = cp.TeamID
 	}
 	return &MDMConfigProfilePayload{
-		ProfileID:  strconv.FormatUint(uint64(cp.ProfileID), 10),
-		TeamID:     tid,
-		Name:       cp.Name,
-		Identifier: cp.Identifier,
-		Platform:   "darwin",
-		Checksum:   cp.Checksum,
-		CreatedAt:  cp.CreatedAt,
-		UpdatedAt:  cp.UpdatedAt,
+		ProfileUUID: cp.ProfileUUID,
+		TeamID:      tid,
+		Name:        cp.Name,
+		Identifier:  cp.Identifier,
+		Platform:    "darwin",
+		Checksum:    cp.Checksum,
+		CreatedAt:   cp.CreatedAt,
+		UpdatedAt:   cp.UpdatedAt,
 	}
 }
