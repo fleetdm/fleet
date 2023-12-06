@@ -13,6 +13,8 @@
 //
 //	$ go run ./tools/cloner-check/main.go [--check]
 //
+// (or alternatively "make check-go-cloner")
+//
 // The second way to use this command is with the --update flag, which is used
 // to update the generated files with the current version of the cacheable
 // items (i.e. the current struct definition). Use this when you've
@@ -20,6 +22,8 @@
 // correct.
 //
 //	$ go run ./tools/cloner-check/main.go --update
+//
+// (or atternatively "make update-go-cloner")
 package main
 
 import (
@@ -69,7 +73,7 @@ func main() {
 Some cacheable items failed the check, ensure you do the following:
 
 1. Verify the Cloner implementation for that type, make sure it takes the new/updated field(s) into account if necessary.
-2. Run "go run ./tools/cloner-check/main.go --update" to update the generated files and fix this check.
+2. Run "go run ./tools/cloner-check/main.go --update" (or "make update-go-cloner") to update the generated files and fix this check.
 `)
 			os.Exit(1)
 		}
