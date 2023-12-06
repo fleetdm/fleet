@@ -2782,9 +2782,16 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 }
 
 func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
+	// To increase chance of deadlock increase these numbers.
+	// We are keeping them low to not cause CI issues ("too many connections" errors
+	// due to concurrent tests).
+	const (
+		hostCount   = 100
+		updateCount = 100
+	)
 	ctx := context.Background()
 	var hosts []*fleet.Host
-	for i := 1; i <= 100; i++ {
+	for i := 1; i <= hostCount; i++ {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			ID:              uint(i),
 			OsqueryHostID:   ptr.String(fmt.Sprintf("id-%d", i)),
@@ -2803,7 +2810,7 @@ func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
 	for _, h := range hosts {
 		hostID := h.ID
 		g.Go(func() error {
-			for i := 0; i < 100; i++ {
+			for i := 0; i < updateCount; i++ {
 				software := []fleet.Software{
 					{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo"},
 					{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar"},

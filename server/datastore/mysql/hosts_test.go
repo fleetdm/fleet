@@ -6073,9 +6073,16 @@ func testHostsReplaceHostBatteries(t *testing.T, ds *Datastore) {
 }
 
 func testHostsReplaceHostBatteriesDeadlock(t *testing.T, ds *Datastore) {
+	// To increase chance of deadlock increase these numbers.
+	// We are keeping them low to not cause CI issues ("too many connections" errors
+	// due to concurrent tests).
+	const (
+		hostCount    = 100
+		replaceCount = 100
+	)
 	ctx := context.Background()
 	var hosts []*fleet.Host
-	for i := 1; i <= 100; i++ {
+	for i := 1; i <= hostCount; i++ {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			ID:              uint(i),
 			OsqueryHostID:   ptr.String(fmt.Sprintf("id-%d", i)),
@@ -6095,10 +6102,10 @@ func testHostsReplaceHostBatteriesDeadlock(t *testing.T, ds *Datastore) {
 	for _, h := range hosts {
 		hostID := h.ID
 		g.Go(func() error {
-			for i := 0; i < 100; i++ {
+			for i := 0; i < replaceCount; i++ {
 				if err := ds.ReplaceHostBatteries(ctx, hostID, []*fleet.HostBattery{
 					{HostID: hostID, SerialNumber: fmt.Sprintf("%d-0000", hostID), CycleCount: 1, Health: "Good"},
-					{HostID: hostID, SerialNumber: fmt.Sprintf("%d-0000", hostID), CycleCount: 2, Health: "Fair"},
+					{HostID: hostID, SerialNumber: fmt.Sprintf("%d-0001", hostID), CycleCount: 2, Health: "Fair"},
 				}); err != nil {
 					return err
 				}
