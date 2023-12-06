@@ -7093,7 +7093,7 @@ Get a list of all software versions.
     "meta": {
       "has_next_results": false,
       "has_previous_results": false
-  }
+    }
 }
 ```
 
