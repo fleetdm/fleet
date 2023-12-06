@@ -290,10 +290,10 @@ module.exports.custom = {
   // The API ID of the team of hosts created for query reports.
   // teamApidForQueryReports:
 
-  // A dictionary where each key is the name of an osquery table, and the value is the API ID of the query that selects all information from that table
+  // A dictionary where each key is the name of an osquery table, and the value is the API ID of the query that selects all information from that table. e.g., {'account_policy_data': 2045, 'ad_config': 2047, …}
   // queryIdsByTableName: {…}
 
-  // A dictionary where each key is the lowercased platform, and the value is the API ID of a host.
+  // A dictionary where each key is the lowercased platform, and the value is the API ID of a host. e.g., {'macos': 92, 'windows': 94, 'linux': 93}
   // hostIdsByHostPlatform: {…}
 
   /***************************************************************************
