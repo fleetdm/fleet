@@ -188,7 +188,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /try-fleet/explore-data/:hostPlatform/:tableName': {
+  'GET /try-fleet/explore-data/:hostPlatform/:tableName': {// [?]: https://github.com/fleetdm/fleet/blob/97a0d419e1a25d2155606c09b9c483ae5067544e/website/api/controllers/try-fleet/view-query-report.js#L16
     action: 'try-fleet/view-query-report',
     locals: {
       pageTitleForMeta: 'Explore real data | Fleet for osquery',
