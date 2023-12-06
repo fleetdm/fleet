@@ -7027,7 +7027,11 @@ Get a list of all software grouped by software title.
         },
       ]
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -7085,7 +7089,11 @@ Get a list of all software versions.
         ],
         "hosts_count": 1
       }
-    ]
+    ],
+    "meta": {
+      "has_next_results": false,
+      "has_previous_results": false
+  }
 }
 ```
 
