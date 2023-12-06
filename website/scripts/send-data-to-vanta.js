@@ -223,14 +223,14 @@ module.exports = {
               softwareToAdd.name = software.name;
               softwareToAdd.browser = 'FIREFOX';
               softwareToAdd.extensionId = software.name + ' ' + software.version;// Set the extensionId to be the software's name and the software version.
-              if(software.extension_id !== undefined) {// If the Fleet instance reported an extension_id for the extension, we'll use that value.
+              if(software.extension_id !== undefined && software.extension_id !== null) {// If the Fleet instance reported an extension_id for the extension, we'll use that value.
                 softwareToAdd.extensionId = software.extension_id;
               }
               macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
             } else if (software.source === 'chrome_extensions') {
               softwareToAdd.name = software.name;
               softwareToAdd.extensionId = software.name + ' ' + software.version;
-              if(software.extension_id !== undefined){
+              if(software.extension_id !== undefined && software.extension_id !== null){
                 softwareToAdd.extensionId = software.extension_id;
               }
               softwareToAdd.browser = 'CHROME';
@@ -317,14 +317,14 @@ module.exports = {
               softwareToAdd.name = software.name;
               softwareToAdd.browser = 'FIREFOX';
               softwareToAdd.extensionId = software.name + ' ' + software.version;// Set the extensionId to be the software's name and the software version.
-              if(software.extension_id !== undefined) {// If the Fleet instance reported an extension_id for the extension, we'll use that value.
+              if(software.extension_id !== undefined && software.extension_id !== null) {// If the Fleet instance reported an extension_id for this extension, we'll use that value.
                 softwareToAdd.extensionId = software.extension_id;
               }
               windowsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
             } else if (software.source === 'chrome_extensions') {
               softwareToAdd.name = software.name;
               softwareToAdd.extensionId = software.name + ' ' + software.version;
-              if(software.extension_id !== undefined) {
+              if(software.extension_id !== undefined && software.extension_id !== null) {
                 softwareToAdd.extensionId = software.extension_id;
               }
               softwareToAdd.browser = 'CHROME';
