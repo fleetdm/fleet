@@ -1247,14 +1247,9 @@ func getSoftwareCommand() *cli.Command {
 			}
 
 			if c.Bool("versions") {
-				if err := printSoftwareVersions(c, client, query); err != nil {
-					return err
-				}
-			} else if err := printSoftwareTitles(c, client, query); err != nil {
-				return err
+				return printSoftwareVersions(c, client, query)
 			}
-
-			return nil
+			return printSoftwareTitles(c, client, query)
 		},
 	}
 }
@@ -1324,26 +1319,28 @@ func printSoftwareTitles(c *cli.Context, client *service.Client, query url.Value
 		return nil
 	}
 
-	//// Default to printing as table
-	//data := [][]string{}
+	// Default to printing as table
+	data := [][]string{}
 
-	//for _, s := range software {
-	//	vulns := make(map[string]bool)
-	//	for _, ver := range s.Versions {
-	//		for _, vuln := range ver.Vulnerabilities {
-	//			vulns[vuln] = true
-	//		}
-	//	}
-	//	data = append(data, []string{
-	//		s.Name,
-	//		fmt.Sprintf("%d versions", s.VersionsCount),
-	//		s.Source,
-	//		fmt.Sprintf("%d vulnerabilities", len(vulns)),
-	//		fmt.Sprint(s.HostsCount),
-	//	})
-	//}
-	//columns := []string{"Name", "Versions", "Type", "Vulnerabilities", "Hosts"}
-	//printTable(c, columns, data)
+	for _, s := range software {
+		vulns := make(map[string]bool)
+		for _, ver := range s.Versions {
+			if ver.Vulnerabilities != nil {
+				for _, vuln := range *ver.Vulnerabilities {
+					vulns[vuln] = true
+				}
+			}
+		}
+		data = append(data, []string{
+			s.Name,
+			fmt.Sprintf("%d versions", s.VersionsCount),
+			s.Source,
+			fmt.Sprintf("%d vulnerabilities", len(vulns)),
+			fmt.Sprint(s.HostsCount),
+		})
+	}
+	columns := []string{"Name", "Versions", "Type", "Vulnerabilities", "Hosts"}
+	printTable(c, columns, data)
 	return nil
 }
 

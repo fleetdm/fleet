@@ -16,13 +16,12 @@ func (c *Client) ListSoftwareVersions(query string) ([]fleet.Software, error) {
 }
 
 // ListSoftwareTitles retrieves the software titles installed on hosts.
-func (c *Client) ListSoftwareTitles(query string) ([]fleet.Software, error) {
+func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitle, error) {
 	verb, path := "GET", "/api/latest/fleet/software/titles"
-	// TODO(mna): adjust when this gets merged: https://github.com/fleetdm/fleet/issues/15228
-	var responseBody listSoftwareResponse
+	var responseBody listSoftwareTitlesResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	if err != nil {
 		return nil, err
 	}
-	return responseBody.Software, nil
+	return responseBody.SoftwareTitles, nil
 }
