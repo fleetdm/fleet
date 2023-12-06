@@ -43,6 +43,9 @@
       }
     }
   }
+  &__info {
+    max-width: 350px;
+  }
 
   &__cta-buttons {
     display: flex;

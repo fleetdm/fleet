@@ -35,7 +35,7 @@ const EmptyTable = ({
       )}
       <div className={`${baseClass}__inner`}>
         {header && <h3>{header}</h3>}
-        {info && <p>{info}</p>}
+        {info && <p className={`${baseClass}__info`}>{info}</p>}
         {additionalInfo && <p>{additionalInfo}</p>}
       </div>
       {primaryButton && (
