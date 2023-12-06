@@ -44,7 +44,10 @@ GROUP BY st.id
 	return &title, nil
 }
 
-func (ds *Datastore) ListSoftwareTitles(ctx context.Context, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareTitle, int, error) {
+func (ds *Datastore) ListSoftwareTitles(
+	ctx context.Context,
+	opt fleet.SoftwareTitleListOptions,
+) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
 	dbReader := ds.reader(ctx)
 	getTitlesStmt, args := selectSoftwareTitlesSQL(opt)
 	getTitlesCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, getTitlesStmt)
@@ -53,19 +56,19 @@ func (ds *Datastore) ListSoftwareTitles(ctx context.Context, opt fleet.SoftwareT
 	var titles []fleet.SoftwareTitle
 	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
 	if err := sqlx.SelectContext(ctx, dbReader, &titles, getTitlesStmt, args...); err != nil {
-		return nil, 0, ctxerr.Wrap(ctx, err, "select software titles")
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "select software titles")
 	}
 
 	// perform a second query to grab the counts
 	var counts int
 	if err := sqlx.GetContext(ctx, dbReader, &counts, getTitlesCountStmt, args...); err != nil {
-		return nil, 0, ctxerr.Wrap(ctx, err, "get software titles count")
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software titles count")
 	}
 
 	// if we don't have any matching titles, there's no point trying to
 	// find matching versions. Early return
 	if len(titles) == 0 {
-		return titles, counts, nil
+		return titles, counts, &fleet.PaginationMetadata{}, nil
 	}
 
 	// grab all the IDs to find matching versions below
@@ -87,11 +90,11 @@ func (ds *Datastore) ListSoftwareTitles(ctx context.Context, opt fleet.SoftwareT
 	}
 	getVersionsStmt, args, err := selectSoftwareVersionsSQL(titleIDs, teamID, false)
 	if err != nil {
-		return nil, 0, ctxerr.Wrap(ctx, err, "build get versions stmt")
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "build get versions stmt")
 	}
 	var versions []fleet.SoftwareVersion
 	if err := sqlx.SelectContext(ctx, dbReader, &versions, getVersionsStmt, args...); err != nil {
-		return nil, 0, ctxerr.Wrap(ctx, err, "get software versions")
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software versions")
 	}
 
 	// append matching versions to titles
@@ -101,7 +104,16 @@ func (ds *Datastore) ListSoftwareTitles(ctx context.Context, opt fleet.SoftwareT
 		}
 	}
 
-	return titles, counts, nil
+	var metaData *fleet.PaginationMetadata
+	if opt.ListOptions.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
+		if len(titles) > int(opt.ListOptions.PerPage) {
+			metaData.HasNextResults = true
+			titles = titles[:len(titles)-1]
+		}
+	}
+
+	return titles, counts, metaData, nil
 }
 
 func selectSoftwareTitlesSQL(opt fleet.SoftwareTitleListOptions) (string, []any) {

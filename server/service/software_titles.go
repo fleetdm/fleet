@@ -17,17 +17,18 @@ type listSoftwareTitlesRequest struct {
 }
 
 type listSoftwareTitlesResponse struct {
-	Count           int                   `json:"count"`
-	CountsUpdatedAt *time.Time            `json:"counts_updated_at"`
-	SoftwareTitles  []fleet.SoftwareTitle `json:"software_titles,omitempty"`
-	Err             error                 `json:"error,omitempty"`
+	Meta            *fleet.PaginationMetadata `json:"meta"`
+	Count           int                       `json:"count"`
+	CountsUpdatedAt *time.Time                `json:"counts_updated_at"`
+	SoftwareTitles  []fleet.SoftwareTitle     `json:"software_titles,omitempty"`
+	Err             error                     `json:"error,omitempty"`
 }
 
 func (r listSoftwareTitlesResponse) error() error { return r.Err }
 
 func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listSoftwareTitlesRequest)
-	titles, count, err := svc.ListSoftwareTitles(ctx, req.SoftwareTitleListOptions)
+	titles, count, meta, err := svc.ListSoftwareTitles(ctx, req.SoftwareTitleListOptions)
 	if err != nil {
 		return listSoftwareTitlesResponse{Err: err}, nil
 	}
@@ -38,7 +39,11 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 			latest = sw.CountsUpdatedAt
 		}
 	}
-	listResp := listSoftwareTitlesResponse{SoftwareTitles: titles, Count: count}
+	listResp := listSoftwareTitlesResponse{
+		SoftwareTitles: titles,
+		Count:          count,
+		Meta:           meta,
+	}
 	if !latest.IsZero() {
 		listResp.CountsUpdatedAt = &latest
 	}
@@ -46,29 +51,37 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 	return listResp, nil
 }
 
-func (svc *Service) ListSoftwareTitles(ctx context.Context, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareTitle, int, error) {
+func (svc *Service) ListSoftwareTitles(
+	ctx context.Context,
+	opt fleet.SoftwareTitleListOptions,
+) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
 		TeamID: opt.TeamID,
 	}, fleet.ActionRead); err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
 
 	if opt.TeamID != nil && *opt.TeamID != 0 {
 		lic, err := svc.License(ctx)
 		if err != nil {
-			return nil, 0, ctxerr.Wrap(ctx, err, "get license")
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get license")
 		}
 		if !lic.IsPremium() {
-			return nil, 0, fleet.ErrMissingLicense
+			return nil, 0, nil, fleet.ErrMissingLicense
 		}
 	}
 
-	titles, count, err := svc.ds.ListSoftwareTitles(ctx, opt)
+	// always include metadata for software titles
+	opt.ListOptions.IncludeMetadata = true
+	// cursor-based pagination is not supported for software titles
+	opt.ListOptions.After = ""
+
+	titles, count, meta, err := svc.ds.ListSoftwareTitles(ctx, opt)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
 
-	return titles, count, nil
+	return titles, count, meta, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -80,7 +93,7 @@ type getSoftwareTitleRequest struct {
 }
 
 type getSoftwareTitleResponse struct {
-	SoftwareTitle *fleet.SoftwareTitle `json:"software,omitempty"`
+	SoftwareTitle *fleet.SoftwareTitle `json:"software_title,omitempty"`
 	Err           error                `json:"error,omitempty"`
 }
 

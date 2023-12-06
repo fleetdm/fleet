@@ -15,8 +15,8 @@ import (
 func TestServiceSoftwareTitlesAuth(t *testing.T) {
 	ds := new(mock.Store)
 
-	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareTitle, int, error) {
-		return []fleet.SoftwareTitle{}, 0, nil
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+		return []fleet.SoftwareTitle{}, 0, &fleet.PaginationMetadata{}, nil
 	}
 	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareTitle, error) {
 		return &fleet.SoftwareTitle{}, nil
@@ -135,11 +135,11 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 			premiumCtx := license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 			// List all software titles.
-			_, _, err := svc.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{})
+			_, _, _, err := svc.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{})
 			checkAuthErr(t, tc.shouldFailGlobalRead, err)
 
 			// List software for a team.
-			_, _, err = svc.ListSoftwareTitles(premiumCtx, fleet.SoftwareTitleListOptions{
+			_, _, _, err = svc.ListSoftwareTitles(premiumCtx, fleet.SoftwareTitleListOptions{
 				TeamID: ptr.Uint(1),
 			})
 			checkAuthErr(t, tc.shouldFailTeamRead, err)
@@ -147,7 +147,7 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 			// List software for a team should fail no matter what
 			// with a non-premium context
 			if !tc.shouldFailTeamRead {
-				_, _, err = svc.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+				_, _, _, err = svc.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 					TeamID: ptr.Uint(1),
 				})
 				require.ErrorContains(t, err, "Requires Fleet Premium license")

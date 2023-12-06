@@ -432,7 +432,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Software Titles
 
-	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitle, int, error)
+	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitle, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint) (*SoftwareTitle, error)
 
 	///////////////////////////////////////////////////////////////////////////////
