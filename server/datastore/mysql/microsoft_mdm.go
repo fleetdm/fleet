@@ -1341,7 +1341,7 @@ func (ds *Datastore) bulkDeleteMDMWindowsHostsConfigProfilesDB(
 }
 
 func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
-	profileUUID := uuid.New().String()
+	profileUUID := "w" + uuid.New().String()
 	stmt := `
 INSERT INTO
     mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml)
@@ -1470,7 +1470,8 @@ INSERT INTO
     profile_uuid, team_id, name, syncml
   )
 VALUES
-  ( UUID(), ?, ?, ? )
+	-- see https://stackoverflow.com/a/51393124/1094941
+  ( CONCAT('w', CONVERT(UUID() USING utf8mb4)), ?, ?, ? )
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   syncml = VALUES(syncml)

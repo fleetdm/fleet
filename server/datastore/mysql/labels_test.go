@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -490,7 +491,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 	// test team filter in combination with macos settings filter
 	require.NoError(t, db.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
-			ProfileID:         1,
+			ProfileUUID:       "a" + uuid.NewString(),
 			ProfileIdentifier: "identifier",
 			HostUUID:          h1.UUID, // hosts[0] is assgined to team 1
 			CommandUUID:       "command-uuid-1",
@@ -508,7 +509,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 
 	require.NoError(t, db.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
-			ProfileID:         1,
+			ProfileUUID:       "a" + uuid.NewString(),
 			ProfileIdentifier: "identifier",
 			HostUUID:          h2.UUID, // hosts[9] is assgined to no team
 			CommandUUID:       "command-uuid-2",

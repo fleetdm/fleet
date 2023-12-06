@@ -45,7 +45,7 @@ type Software struct {
 	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons)
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// Browser is the browser type (from osquery chrome_extensions)
-	Browser string `json:"browser,omitempty" db:"browser"`
+	Browser string `json:"browser" db:"browser"`
 
 	// Release is the version of the OS this software was released on
 	// (e.g. "30.el7" for a CentOS package).
@@ -76,6 +76,10 @@ type Software struct {
 	// corresponding host. Only filled when the software list is requested for
 	// a specific host (host_id is provided).
 	LastOpenedAt *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
+
+	// TitleID is the ID of the associated software title, representing a unique combination of name
+	// and source.
+	TitleID *uint `json:"-" db:"title_id"`
 }
 
 func (Software) AuthzType() string {
@@ -96,6 +100,14 @@ func (s Software) ToUniqueStr() string {
 		ss = append(ss, s.ExtensionID, s.Browser)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
+}
+
+type SoftwareTitle struct {
+	ID uint `json:"id" db:"id"`
+	// Name is the name reported by osquery.
+	Name string `json:"name" db:"name"`
+	// Source is the source reported by osquery.
+	Source string `json:"source" db:"source"`
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.

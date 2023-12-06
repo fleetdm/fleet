@@ -81,7 +81,7 @@ const CustomSettings = ({
     setShowDeleteProfileModal(false);
   };
 
-  const onDeleteProfile = async (profileId: number | string) => {
+  const onDeleteProfile = async (profileId: string) => {
     try {
       await mdmAPI.deleteProfile(profileId);
       refetchProfiles();
@@ -134,6 +134,7 @@ const CustomSettings = ({
     return (
       <>
         <UploadList
+          keyAttribute="profile_uuid"
           listItems={profiles}
           HeadingComponent={ProfileListHeading}
           ListItemComponent={({ listItem }) => (
@@ -170,7 +171,7 @@ const CustomSettings = ({
       {showDeleteProfileModal && selectedProfile.current && (
         <DeleteProfileModal
           profileName={selectedProfile.current?.name}
-          profileId={selectedProfile.current?.profile_id}
+          profileId={selectedProfile.current?.profile_uuid}
           onCancel={onCancelDelete}
           onDelete={onDeleteProfile}
         />

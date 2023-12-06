@@ -25,7 +25,8 @@ export const generateWinDiskEncryptionProfile = (
   detail: string
 ): IHostMdmProfile => {
   return {
-    profile_id: 0, // This s the only type of profile that can have this number
+    profile_uuid: "0", // This s the only type of profile that can have this value
+    platform: "windows",
     name: "Disk Encryption",
     status: convertWinDiskEncryptionStatusToProfileStatus(diskEncryptionStatus),
     detail,
