@@ -200,7 +200,7 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: IStringCellProps): JSX.Element => {
-        const { id, name, bundle_identifier: bundle } = cellProps.row.original;
+        const { id, name } = cellProps.row.original;
 
         const onClickSoftware = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
@@ -214,9 +214,6 @@ const generateTableHeaders = (
             path={PATHS.SOFTWARE_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
             value={name}
-            tooltipContent={
-              bundle ? getSoftwareBundleTooltipJSX(bundle) : undefined
-            }
           />
         );
       },

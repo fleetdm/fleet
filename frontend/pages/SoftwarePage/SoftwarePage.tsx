@@ -120,7 +120,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     queryParams && queryParams.page
       ? parseInt(queryParams.page, 10)
       : DEFAULT_PAGE;
-  const vulnFilter =
+  const showVulnerableSoftware =
     queryParams !== undefined && queryParams.vulnerable === "true";
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
@@ -327,7 +327,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           perPage: DEFAULT_PAGE_SIZE,
           orderDirection: sortDirection,
           orderKey: sortHeader,
-          showVulnerableSoftware: vulnFilter,
+          showVulnerableSoftware,
           currentPage: page,
           teamId: teamIdForApi,
         })}

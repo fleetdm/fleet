@@ -31,7 +31,6 @@ export interface ISoftwareVersions {
 
 export interface ISoftwareTitle {
   id: number;
-  // bundle_identifier: string; TODO: include this?
   name: string;
   versions_count: number;
   source: string;

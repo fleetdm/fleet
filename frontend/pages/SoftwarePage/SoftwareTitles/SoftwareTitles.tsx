@@ -4,7 +4,7 @@ import { useQuery } from "react-query";
 import { Row } from "react-table";
 
 import PATHS from "router/paths";
-import { ISoftwareCountResponse, ISoftwareResponse } from "interfaces/software";
+import { ISoftwareCountResponse } from "interfaces/software";
 import softwareAPI, {
   ISoftwareCountQueryKey,
   ISoftwareQueryKey,
@@ -138,6 +138,7 @@ const SoftwareTitles = ({
   );
 
   const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
+    debugger;
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.SOFTWARE_TITLES,
@@ -171,9 +172,28 @@ const SoftwareTitles = ({
     console.log("selectedRow", row.id);
   };
 
+  const generateNewQueryParams = (newTableQuery: ITableQueryData) => {
+    return {
+      query: newTableQuery.searchQuery,
+      teamId,
+      orderDirection: newTableQuery.sortDirection,
+      orderKey: newTableQuery.sortHeader,
+      vulnerable: showVulnerableSoftware.toString(),
+      page: newTableQuery.pageIndex,
+    };
+  };
+
   // NOTE: this is called once on initial render and every time the query changes
-  const onQueryChange = useCallback(async (newTableQuery: ITableQueryData) => {
+  const onQueryChange = useCallback((newTableQuery: ITableQueryData) => {
     console.log("new query data:", newTableQuery);
+
+    const newRoute = getNextLocationPath({
+      pathPrefix: PATHS.SOFTWARE_TITLES,
+      routeTemplate: "",
+      queryParams: generateNewQueryParams(newTableQuery),
+    });
+
+    router.replace(newRoute);
 
     // if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
     //   return;
@@ -310,7 +330,7 @@ const SoftwareTitles = ({
         columns={softwareTableHeaders}
         data={softwareData?.software_titles || []}
         isLoading={isLoading}
-        resultsTitle={"software items"}
+        resultsTitle={"items"}
         emptyComponent={() => (
           <EmptySoftwareTable
             isSoftwareDisabled={!isSoftwareEnabled}
