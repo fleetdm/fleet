@@ -29,7 +29,6 @@ import LabelPage from "pages/LabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
 import ManageHostsPage from "pages/hosts/ManageHostsPage";
-import ManageSoftwarePage from "pages/SoftwarePage/ManageSoftwarePage";
 import ManageQueriesPage from "pages/queries/ManageQueriesPage";
 import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";

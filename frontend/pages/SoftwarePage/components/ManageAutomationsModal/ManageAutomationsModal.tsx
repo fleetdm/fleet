@@ -32,8 +32,8 @@ import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import useDeepEffect from "hooks/useDeepEffect";
 import { isEmpty, omit } from "lodash";
 
-import PreviewPayloadModal from "../../ManageSoftwarePage/components/PreviewPayloadModal";
-import PreviewTicketModal from "../../ManageSoftwarePage/components/PreviewTicketModal";
+import PreviewPayloadModal from "../PreviewPayloadModal";
+import PreviewTicketModal from "../PreviewTicketModal";
 
 interface ISoftwareAutomations {
   webhook_settings: {
