@@ -221,7 +221,7 @@ module.exports = {
             let softwareToAdd = {
               name: software.name,
             };
-           if(software.source === 'firefox_addons' || software.source === 'chrome_extensions') {
+            if(software.source === 'firefox_addons' || software.source === 'chrome_extensions') {
               softwareToAdd.browser = software.source.toUpperCase().split('_')[0];// Get the uppercased first word of the software source, this will either be CHROME or FIREFOX.
               softwareToAdd.extensionId = software.name + ' ' + software.version;// Set the extensionId to be the software's name and the software version.
               if(software.extension_id !== undefined && software.extension_id !== null) {// If the Fleet instance reported an extension_id for the extension, we'll use that value.
