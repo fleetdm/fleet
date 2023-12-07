@@ -298,7 +298,7 @@ type CleanupExpiredHostsFunc func(ctx context.Context) ([]uint, error)
 
 type ScheduledQueryIDsByNameFunc func(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
-type QueryResultRowsFunc func(ctx context.Context, queryID uint) ([]*fleet.ScheduledQueryResultRow, error)
+type QueryResultRowsFunc func(ctx context.Context, queryID uint, filter fleet.TeamFilter) ([]*fleet.ScheduledQueryResultRow, error)
 
 type ResultCountForQueryFunc func(ctx context.Context, queryID uint) (int, error)
 
@@ -2887,11 +2887,11 @@ func (s *DataStore) ScheduledQueryIDsByName(ctx context.Context, batchSize int, 
 	return s.ScheduledQueryIDsByNameFunc(ctx, batchSize, packAndSchedQueryNames...)
 }
 
-func (s *DataStore) QueryResultRows(ctx context.Context, queryID uint) ([]*fleet.ScheduledQueryResultRow, error) {
+func (s *DataStore) QueryResultRows(ctx context.Context, queryID uint, filter fleet.TeamFilter) ([]*fleet.ScheduledQueryResultRow, error) {
 	s.mu.Lock()
 	s.QueryResultRowsFuncInvoked = true
 	s.mu.Unlock()
-	return s.QueryResultRowsFunc(ctx, queryID)
+	return s.QueryResultRowsFunc(ctx, queryID, filter)
 }
 
 func (s *DataStore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {

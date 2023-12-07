@@ -270,7 +270,7 @@ type Service interface {
 	// and only non-scheduled queries will be returned if `*scheduled == false`.
 	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool) ([]*Query, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
-	// GetQueryReportResults returns all the stored results of a query.
+	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to
 	GetQueryReportResults(ctx context.Context, id uint) ([]HostQueryResultRow, error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
