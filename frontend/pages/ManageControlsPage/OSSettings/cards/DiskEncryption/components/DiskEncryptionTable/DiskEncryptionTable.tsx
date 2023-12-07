@@ -54,7 +54,7 @@ const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
     <div className={baseClass}>
       <TableContainer
         columnConfigs={tableHeaders}
-        rows={tableData}
+        data={tableData}
         resultsTitle="" // TODO: make optional
         isLoading={false}
         showMarkAllPages={false}

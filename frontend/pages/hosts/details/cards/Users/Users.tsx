@@ -52,7 +52,7 @@ const Users = ({
       {users?.length ? (
         <TableContainer
           columnConfigs={tableHeaders}
-          rows={usersState}
+          data={usersState}
           isLoading={isLoading}
           defaultSortHeader={"username"}
           defaultSortDirection={"asc"}

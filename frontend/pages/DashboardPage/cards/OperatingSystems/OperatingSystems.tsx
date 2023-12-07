@@ -171,7 +171,7 @@ const OperatingSystems = ({
         ) : (
           <TableContainer
             columnConfigs={tableHeaders}
-            rows={osInfo?.os_versions || []}
+            data={osInfo?.os_versions || []}
             isLoading={isFetching}
             defaultSortHeader={DEFAULT_SORT_HEADER}
             defaultSortDirection={DEFAULT_SORT_DIRECTION}

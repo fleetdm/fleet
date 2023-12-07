@@ -97,7 +97,7 @@ const HostQueries = ({
         <div>
           <TableContainer
             columnConfigs={columnConfigs}
-            rows={tableData}
+            data={tableData}
             onQueryChange={() => null}
             resultsTitle="queries"
             defaultSortHeader="scheduled_query_name"

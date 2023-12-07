@@ -133,7 +133,7 @@ const HQRTable = ({
       resultsTitle="results"
       customControl={renderTableButtons}
       setExportRows={setFilteredResults}
-      {...{ columnConfigs, rows, emptyComponent, isLoading, renderCount }}
+      {...{ columnConfigs, data: rows, emptyComponent, isLoading, renderCount }}
     />
   );
 };

@@ -87,7 +87,7 @@ const Policies = ({
           )}
           <TableContainer
             columnConfigs={tableHeaders}
-            rows={generatePolicyDataSet(policies)}
+            data={generatePolicyDataSet(policies)}
             isLoading={isLoading}
             defaultSortHeader={"name"}
             defaultSortDirection={"asc"}

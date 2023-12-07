@@ -33,7 +33,7 @@ interface IRowProps extends Row {
 
 interface ITableContainerProps {
   columnConfigs: any; // TODO: Figure out type
-  rows: any; // TODO: Figure out type
+  data: any; // TODO: Figure out type
   isLoading: boolean;
   manualSortBy?: boolean;
   defaultSortHeader?: string;
@@ -100,7 +100,7 @@ const DEFAULT_PAGE_INDEX = 0;
 
 const TableContainer = ({
   columnConfigs,
-  rows,
+  data,
   filters,
   isLoading,
   manualSortBy = false,
@@ -248,8 +248,8 @@ const TableContainer = ({
     } else if (typeof clientFilterCount === "number") {
       return clientFilterCount;
     }
-    return rows?.length || 0;
-  }, [filteredCount, clientFilterCount, rows]);
+    return data?.length || 0;
+  }, [filteredCount, clientFilterCount, data]);
 
   const renderPagination = useCallback(() => {
     if (disablePagination || isClientSidePagination) {
@@ -257,7 +257,7 @@ const TableContainer = ({
     }
     return (
       <Pagination
-        resultsOnCurrentPage={rows.length}
+        resultsOnCurrentPage={data.length}
         currentPage={pageIndex}
         resultsPerPage={pageSize}
         onPaginationChange={onPaginationChange}
@@ -265,7 +265,7 @@ const TableContainer = ({
       />
     );
   }, [
-    rows,
+    data,
     disablePagination,
     isClientSidePagination,
     disableNextPage,
@@ -382,15 +382,15 @@ const TableContainer = ({
       )}
       <div className={`${baseClass}__data-table-block`}>
         {/* No entities for this result. */}
-        {(!isLoading && rows.length === 0 && !isMultiColumnFilter) ||
-        (searchQuery.length && rows.length === 0 && !isMultiColumnFilter) ? (
+        {(!isLoading && data.length === 0 && !isMultiColumnFilter) ||
+        (searchQuery.length && data.length === 0 && !isMultiColumnFilter) ? (
           <>
             <EmptyComponent pageIndex={pageIndex} />
             {pageIndex !== 0 && (
               <div className={`${baseClass}__empty-page`}>
                 <div className={`${baseClass}__previous`}>
                   <Pagination
-                    resultsOnCurrentPage={rows.length}
+                    resultsOnCurrentPage={data.length}
                     currentPage={pageIndex}
                     resultsPerPage={pageSize}
                     onPaginationChange={onPaginationChange}
@@ -416,7 +416,7 @@ const TableContainer = ({
               <DataTable
                 isLoading={isLoading}
                 columns={columnConfigs}
-                data={rows}
+                data={data}
                 filters={filters}
                 manualSortBy={manualSortBy}
                 sortHeader={sortHeader}

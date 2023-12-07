@@ -46,7 +46,7 @@ const BootstrapPackageTable = ({
     <div className={baseClass}>
       <TableContainer
         columnConfigs={COLUMN_CONFIGS}
-        rows={tableData}
+        data={tableData}
         resultsTitle=""
         isLoading={isLoading}
         showMarkAllPages={false}

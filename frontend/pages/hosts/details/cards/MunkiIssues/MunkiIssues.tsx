@@ -31,7 +31,7 @@ const MunkiIssuesTable = ({
         <div className={deviceType || ""}>
           <TableContainer
             columnConfigs={tableHeaders}
-            rows={tableMunkiIssues || []}
+            data={tableMunkiIssues || []}
             isLoading={isLoading}
             defaultSortHeader={"name"}
             defaultSortDirection={"asc"}

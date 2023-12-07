@@ -622,7 +622,7 @@ const ManageSoftwarePage = ({
     return (
       <TableContainer
         columnConfigs={softwareTableHeaders}
-        rows={(isSoftwareEnabled && software?.software) || []}
+        data={(isSoftwareEnabled && software?.software) || []}
         isLoading={
           isFetchingCount ||
           isFetchingSoftware ||

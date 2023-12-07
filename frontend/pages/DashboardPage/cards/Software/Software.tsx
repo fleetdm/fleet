@@ -90,7 +90,7 @@ const Software = ({
               ) : (
                 <TableContainer
                   columnConfigs={tableHeaders}
-                  rows={(isSoftwareEnabled && software?.software) || []}
+                  data={(isSoftwareEnabled && software?.software) || []}
                   isLoading={isSoftwareFetching}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
@@ -117,7 +117,7 @@ const Software = ({
               ) : (
                 <TableContainer
                   columnConfigs={tableHeaders}
-                  rows={(isSoftwareEnabled && software?.software) || []}
+                  data={(isSoftwareEnabled && software?.software) || []}
                   isLoading={isSoftwareFetching}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_HEADER}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}

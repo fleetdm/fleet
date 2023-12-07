@@ -70,7 +70,7 @@ const Munki = ({
               ) : (
                 <TableContainer
                   columnConfigs={tableHeaders}
-                  rows={munkiIssuesData || []}
+                  data={munkiIssuesData || []}
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
@@ -97,7 +97,7 @@ const Munki = ({
               ) : (
                 <TableContainer
                   columnConfigs={munkiVersionsTableHeaders}
-                  rows={munkiVersionsData || []}
+                  data={munkiVersionsData || []}
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}

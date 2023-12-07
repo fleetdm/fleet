@@ -148,7 +148,7 @@ const PoliciesTable = ({
           isPremiumTier,
           isSandboxMode
         )}
-        rows={generateDataSet(
+        data={generateDataSet(
           policiesList,
           currentAutomatedPolicies,
           config?.update_interval.osquery_policy

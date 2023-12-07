@@ -105,7 +105,7 @@ const PacksTable = ({
       <TableContainer
         resultsTitle={"packs"}
         columnConfigs={tableHeaders}
-        rows={generateDataSet(filteredPacks)}
+        data={generateDataSet(filteredPacks)}
         isLoading={isLoading}
         defaultSortHeader={"pack"}
         defaultSortDirection={"desc"}

@@ -142,7 +142,7 @@ const QueryReport = ({
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
           columnConfigs={columnConfigs}
-          rows={flattenResults(queryReport?.results || [])}
+          data={flattenResults(queryReport?.results || [])}
           // All empty states are handled in QueryDetailsPage.tsx and returned in lieu of QueryReport.tsx
           emptyComponent={() => {
             return (

@@ -41,7 +41,7 @@ const PoliciesTable = ({
       <TableContainer
         resultsTitle={resultsTitle || "policies"}
         columnConfigs={generateTableHeaders()}
-        rows={generateDataSet(policyHostsList)}
+        data={generateDataSet(policyHostsList)}
         isLoading={isLoading}
         defaultSortHeader={"query_results"}
         defaultSortDirection={"asc"}

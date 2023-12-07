@@ -197,7 +197,7 @@ const QueryResults = ({
           columnConfigs={
             tableType === "results" ? resultsColumnConfigs : errorColumnConfigs
           }
-          rows={tableData || []}
+          data={tableData || []}
           emptyComponent={renderNoResults}
           isLoading={false}
           isClientSidePagination

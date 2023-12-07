@@ -408,7 +408,7 @@ const Integrations = (): JSX.Element => {
       ) : (
         <TableContainer
           columnConfigs={tableHeaders}
-          rows={tableData}
+          data={tableData}
           isLoading={isLoadingIntegrations}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}

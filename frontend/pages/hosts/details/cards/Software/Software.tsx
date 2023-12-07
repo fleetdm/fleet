@@ -222,7 +222,7 @@ const SoftwareTable = ({
               <TableContainer
                 resultsTitle="software items"
                 columnConfigs={tableHeaders}
-                rows={tableSoftware || []}
+                data={tableSoftware || []}
                 filters={{
                   global: searchQuery,
                   vulnerabilities: filterVuln,
