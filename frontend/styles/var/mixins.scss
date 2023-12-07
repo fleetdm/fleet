@@ -117,9 +117,13 @@ $max-width: 2560px;
   cursor: default;
 }
 
+@mixin grey-text {
+  color: $ui-fleet-black-75;
+}
+
 @mixin help-text {
   font-size: $xx-small;
-  color: $ui-fleet-black-75;
+  @include grey-text;
 }
 
 @mixin link {

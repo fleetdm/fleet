@@ -9,6 +9,8 @@ import {
   generateCSVQueryResults,
 } from "utilities/generate_csv";
 import FileSaver from "file-saver";
+import Spinner from "components/Spinner";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import generateColumnConfigs from "./HQRTableConfig";
 
 const baseClass = "hqr-table";
@@ -78,8 +80,7 @@ const HQRTable = ({
     );
   }, [onShowQuery, filteredResults, queryName, hostName, columnConfigs]);
 
-  const emptyComponent = () => {
-    // if query hasn't run on this host
+  const renderEmptyState = () => {
     // rows.length === 0
 
     if (!lastFetched) {
@@ -117,14 +118,27 @@ const HQRTable = ({
   const renderCount = () => {
     const count = filteredResults.length;
     return (
-      <div className={`${baseClass}__count `}>
+      <div className={`${baseClass}__results-count-and-last-fetched`}>
         <span>{`${count} result${count === 1 ? "" : "s"}`}</span>
+        <span className="last-fetched">
+          Last fetched{" "}
+          <HumanTimeDiffWithFleetLaunchCutoff timeString={lastFetched ?? ""} />
+        </span>
       </div>
     );
   };
 
-  return (
+  if (isLoading) {
+    return <Spinner />;
+  }
+  return rows.length === 0 ? (
+    renderEmptyState()
+  ) : (
     <TableContainer
+      isLoading={isLoading}
+      columnConfigs={columnConfigs}
+      data={rows}
+      renderCount={renderCount}
       isClientSidePagination
       isClientSideFilter
       isMultiColumnFilter
@@ -133,7 +147,7 @@ const HQRTable = ({
       resultsTitle="results"
       customControl={renderTableButtons}
       setExportRows={setFilteredResults}
-      {...{ columnConfigs, data: rows, emptyComponent, isLoading, renderCount }}
+      emptyComponent={() => null}
     />
   );
 };

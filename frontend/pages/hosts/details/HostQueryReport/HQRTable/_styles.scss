@@ -1,2 +1,16 @@
 .hqr-table {
+  &__results-count-and-last-fetched {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+
+    .last-fetched {
+      font-weight: initial;
+      @include grey-text;
+    }
+  }
+  &__results-cta {
+    display: flex;
+    gap: $pad-medium;
+  }
 }
