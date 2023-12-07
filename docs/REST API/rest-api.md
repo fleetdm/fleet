@@ -6040,7 +6040,7 @@ load balancer timeout.
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| query_ids | array | path | **Required**. The ID of the saved query to run. |
+| query_id | integer | path | **Required**. The ID of the saved query to run. |
 | host_ids  | array | body | **Required**. The IDs of the hosts to target. User must be authorized to target all of these hosts.                                                                |
 
 #### Example
