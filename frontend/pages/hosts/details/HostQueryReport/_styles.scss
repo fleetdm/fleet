@@ -1,16 +1,36 @@
 .host-query-report {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
+
   &__header {
     display: flex;
     flex-direction: column;
     gap: $pad-large;
-    .row2 {
+
+    &__row2 {
       display: flex;
       align-items: center;
       justify-content: space-between;
+    }
+    &__query-info {
+      display: flex;
+      flex-direction: column;
+      gap: $pad-small;
+    }
 
-      .host-name {
-        font-weight: $xbold;
-      }
+    h1 {
+      font-weight: $xbold;
+    }
+    h2 {
+      font-size: $medium;
+      font-weight: $bold;
+      margin: 0;
+    }
+    h3 {
+      font-size: $x-small;
+      font-weight: $regular;
+      margin: 0;
     }
   }
   &__direction-link {

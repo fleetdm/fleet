@@ -49,29 +49,30 @@ const HostQueryReport = ({
 
   // TODO - remove dummy data, restore API call
   const [[hqrResponse, queryResponse], hqrLoading, hqrError] = [
-    // // render report
-    // [
-    //   {
-    //     host_name: "Haley's Macbook Air",
-    //     host_team_id: 1,
-    //     report_clipped: false,
-    //     last_fetched: "2021-01-01T00:00:00.000Z",
-    //     results: [
-    //       {
-    //         columns: {
-    //           username: "user1",
-    //           email: "e@mail",
-    //         },
-    //       },
-    //     ],
-    //   },
-    //   {
-    //     name: 'test query',
-    //     query: "SELECT * FROM users",
-    //     discard_data: false,
-    //     interval: 20,
-    //   },
-    // ],
+    // render report
+    [
+      {
+        host_name: "Haley's Macbook Air",
+        host_team_id: 1,
+        report_clipped: false,
+        last_fetched: "2021-01-01T00:00:00.000Z",
+        results: [
+          {
+            columns: {
+              username: "user1",
+              email: "e@mail",
+            },
+          },
+        ],
+      },
+      {
+        name: "Test Query",
+        description: "A great query",
+        query: "SELECT * FROM users",
+        discard_data: false,
+        interval: 20,
+      },
+    ],
 
     // // collecting results (A)
     // [
@@ -84,6 +85,7 @@ const HostQueryReport = ({
     //   },
     //   {
     //     name: 'test query',
+    //     description: "a great query",
     //     query: "SELECT * FROM users",
     //     discard_data: false,
     //     inverval: 20,
@@ -101,28 +103,30 @@ const HostQueryReport = ({
     //   },
     //   {
     //     name: 'test query',
+    //     description: "a great query",
     //     query: "SELECT * FROM users",
     //     discard_data: false,
     //     inverval: 20,
     //   },
     // ],
 
-    // report clipped (C)
-    [
-      {
-        host_name: "Haley's Macbook Air",
-        host_team_id: 1,
-        report_clipped: true,
-        last_fetched: "2021-01-01T00:00:00.000Z",
-        results: [],
-      },
-      {
-        name: "test query",
-        query: "SELECT * FROM users",
-        interval: 20,
-        discard_data: false,
-      },
-    ],
+    // // report clipped (C)
+    // [
+    //   {
+    //     host_name: "Haley's Macbook Air",
+    //     host_team_id: 1,
+    //     report_clipped: true,
+    //     last_fetched: "2021-01-01T00:00:00.000Z",
+    //     results: [],
+    //   },
+    //   {
+    //     name: "test query",
+    //     description: "a great query",
+    //     query: "SELECT * FROM users",
+    //     interval: 20,
+    //     discard_data: false,
+    //   },
+    // ],
 
     // // reroute (local setting)
     // [
@@ -142,6 +146,7 @@ const HostQueryReport = ({
     //   },
     //   {
     //     name: 'test query',
+    //     description: "a great query",
     //     query: "SELECT * FROM users",
     //     discard_data: true,
     //     inverval: 20,
@@ -196,6 +201,7 @@ const HostQueryReport = ({
 
   const {
     name: queryName,
+    description: queryDescription,
     query: querySQL,
     discard_data: queryDiscardData,
     interval: queryInterval,
@@ -211,13 +217,13 @@ const HostQueryReport = ({
 
   const HQRHeader = () => (
     <div className={`${baseClass}__header`}>
-      <span className="row1">
+      <div className={`${baseClass}__header__row1`}>
         <BackLink
           text="Back to host details"
           path={PATHS.HOST_QUERIES(hostId)}
         />
-      </span>
-      <span className="row2">
+      </div>
+      <div className={`${baseClass}__header__row2`}>
         {!hqrLoading && !hqrError && <h1 className="host-name">{hostName}</h1>}
         <Link
           // to and onClick seem redundant
@@ -232,7 +238,11 @@ const HostQueryReport = ({
             <Icon name="chevron-right" color="core-fleet-blue" />
           </>
         </Link>
-      </span>
+      </div>
+      <div className={`${baseClass}__header__query-info`}>
+        <h2>{queryName}</h2>
+        <h3>{queryDescription}</h3>
+      </div>
     </div>
   );
 
@@ -243,8 +253,9 @@ const HostQueryReport = ({
         <HQRTable
           {...{
             queryName,
+            queryDescription,
             hostName,
-            rows: [],
+            rows,
             reportClipped,
             lastFetched,
             onShowQuery: () => setShowQuery(true),
