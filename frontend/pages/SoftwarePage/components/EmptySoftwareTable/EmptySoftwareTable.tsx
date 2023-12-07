@@ -1,4 +1,5 @@
-// This component is used on DashboardPage.tsx > Software.tsx, Host Details/Device User > Software.tsx, and ManageSoftwarePage.tsx
+// This component is used on DashboardPage.tsx > Software.tsx,
+// Host Details / Device User > Software.tsx, and SoftwarePage.tsx
 
 import React from "react";
 

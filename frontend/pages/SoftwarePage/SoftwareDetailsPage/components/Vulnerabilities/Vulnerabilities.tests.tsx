@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
-import createMockSoftware from "__mocks__/softwareMock";
+import { createMockSoftware } from "__mocks__/softwareMock";
 
 import Vulnerabilities from "./Vulnerabilities";
 

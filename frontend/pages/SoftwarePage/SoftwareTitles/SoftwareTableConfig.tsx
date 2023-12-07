@@ -6,6 +6,7 @@ import ReactTooltip from "react-tooltip";
 import { formatSoftwareType, ISoftware } from "interfaces/software";
 import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
+import { ISoftwareVersions } from "services/entities/software";
 import {
   formatFloatAsPercentage,
   getSoftwareBundleTooltipJSX,
@@ -18,12 +19,13 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import VersionCell from "./VersionCell";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 interface ICellProps {
   cell: {
-    value: number | string | IVulnerability[];
+    value: number | string | IVulnerability[] | ISoftwareVersions[];
   };
   row: {
     original: ISoftware;
@@ -32,6 +34,12 @@ interface ICellProps {
 interface IStringCellProps extends ICellProps {
   cell: {
     value: string;
+  };
+}
+
+interface IVersionCellProps extends ICellProps {
+  cell: {
+    value: ISoftwareVersions[];
   };
 }
 
@@ -192,7 +200,7 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: IStringCellProps): JSX.Element => {
-        const { id, name, bundle_identifier: bundle } = cellProps.row.original;
+        const { id, name } = cellProps.row.original;
 
         const onClickSoftware = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
@@ -206,9 +214,6 @@ const generateTableHeaders = (
             path={PATHS.SOFTWARE_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
             value={name}
-            tooltipContent={
-              bundle ? getSoftwareBundleTooltipJSX(bundle) : undefined
-            }
           />
         );
       },
@@ -218,9 +223,9 @@ const generateTableHeaders = (
       title: "Version",
       Header: "Version",
       disableSortBy: true,
-      accessor: "version",
-      Cell: (cellProps: IStringCellProps): JSX.Element => (
-        <TextCell value={cellProps.cell.value} />
+      accessor: "versions",
+      Cell: (cellProps: IVersionCellProps): JSX.Element => (
+        <VersionCell versions={cellProps.cell.value} />
       ),
     },
     {
