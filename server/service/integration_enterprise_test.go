@@ -3405,7 +3405,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		ctx, fleet.SoftwareVulnerability{
 			SoftwareID:        bar.ID,
 			CVE:               "cve-123",
-			ResolvedInVersion: "1.2.3",
+			ResolvedInVersion: ptr.String("1.2.3"),
 		}, fleet.NVDSource,
 	)
 	require.NoError(t, err)
@@ -6073,15 +6073,17 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		// valid title
 		resp = getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", fooTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &resp)
-		softwareTitlesMatch([]fleet.SoftwareTitle{{
-			Name:          "foo",
-			Source:        "homebrew",
-			VersionsCount: 2,
-			HostsCount:    2,
-			Versions: []fleet.SoftwareVersion{
-				{Version: "0.0.1", Vulnerabilities: nil, HostsCount: ptr.Uint(2)},
-				{Version: "0.0.3", Vulnerabilities: nil, HostsCount: ptr.Uint(1)},
-			}},
+		softwareTitlesMatch([]fleet.SoftwareTitle{
+			{
+				Name:          "foo",
+				Source:        "homebrew",
+				VersionsCount: 2,
+				HostsCount:    2,
+				Versions: []fleet.SoftwareVersion{
+					{Version: "0.0.1", Vulnerabilities: nil, HostsCount: ptr.Uint(2)},
+					{Version: "0.0.3", Vulnerabilities: nil, HostsCount: ptr.Uint(1)},
+				},
+			},
 		}, []fleet.SoftwareTitle{*resp.SoftwareTitle})
 
 		// find the ID of "bar"
@@ -6100,18 +6102,20 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		// valid title with vulnerabilities
 		resp = getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &resp)
-		softwareTitlesMatch([]fleet.SoftwareTitle{{
-			Name:          "bar",
-			Source:        "apps",
-			VersionsCount: 1,
-			HostsCount:    1,
-			Versions: []fleet.SoftwareVersion{
-				{
-					Version:         "0.0.4",
-					Vulnerabilities: &fleet.SliceString{"cve-123-123-132"},
-					HostsCount:      ptr.Uint(1),
+		softwareTitlesMatch([]fleet.SoftwareTitle{
+			{
+				Name:          "bar",
+				Source:        "apps",
+				VersionsCount: 1,
+				HostsCount:    1,
+				Versions: []fleet.SoftwareVersion{
+					{
+						Version:         "0.0.4",
+						Vulnerabilities: &fleet.SliceString{"cve-123-123-132"},
+						HostsCount:      ptr.Uint(1),
+					},
 				},
-			}},
+			},
 		}, []fleet.SoftwareTitle{*resp.SoftwareTitle})
 	})
 }
