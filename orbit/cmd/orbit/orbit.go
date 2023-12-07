@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -404,22 +405,35 @@ func main() {
 
 			g.Add(updateRunner.Execute, updateRunner.Interrupt)
 
-			osquerydLocalTarget, err := updater.Get("osqueryd")
-			if err != nil {
-				return fmt.Errorf("get osqueryd target: %w", err)
-			}
-			osquerydPath = osquerydLocalTarget.ExecPath
-			if c.Bool("fleet-desktop") {
-				fleetDesktopLocalTarget, err := updater.Get("desktop")
+			// if getting any of the targets fails, keep on
+			// retrying, the `updater.Get` method has built-in backoff functionality.
+			//
+			// NOTE: it used to be the case that we would return an
+			// error here, causing orbit to restart. This was
+			// changed to have control over how/when we want to
+			// retry to download the packages.
+			retrypkg.Do(func() error {
+				osquerydLocalTarget, err := updater.Get("osqueryd")
 				if err != nil {
-					return fmt.Errorf("get desktop target: %w", err)
+					log.Info().Err(err).Msg("get osqueryd target failed")
+					return fmt.Errorf("get osqueryd target: %w", err)
 				}
-				if runtime.GOOS == "darwin" {
-					desktopPath = fleetDesktopLocalTarget.DirPath
-				} else {
-					desktopPath = fleetDesktopLocalTarget.ExecPath
+				osquerydPath = osquerydLocalTarget.ExecPath
+				if c.Bool("fleet-desktop") {
+					fleetDesktopLocalTarget, err := updater.Get("desktop")
+					if err != nil {
+						log.Info().Err(err).Msg("get desktop target failed")
+						return fmt.Errorf("get desktop target: %w", err)
+					}
+					if runtime.GOOS == "darwin" {
+						desktopPath = fleetDesktopLocalTarget.DirPath
+					} else {
+						desktopPath = fleetDesktopLocalTarget.ExecPath
+					}
 				}
-			}
+
+				return nil
+			})
 		} else {
 			log.Info().Msg("running with auto updates disabled")
 			updater = update.NewDisabled(opt)
