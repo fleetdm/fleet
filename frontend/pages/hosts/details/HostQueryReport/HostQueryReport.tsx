@@ -1,13 +1,9 @@
 import BackLink from "components/BackLink";
-import EmptyTable from "components/EmptyTable";
 import Icon from "components/Icon";
 import MainContent from "components/MainContent";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import { AppContext } from "context/app";
-import {
-  IGetQueryResponse,
-  ISchedulableQuery,
-} from "interfaces/schedulable_query";
+import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { browserHistory, InjectedRouter, Link } from "react-router";
@@ -15,6 +11,7 @@ import { Params } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import hqrAPI, { IGetHQRResponse } from "services/entities/host_query_report";
 import queryAPI from "services/entities/queries";
+import HQRTable from "./HQRTable";
 
 const baseClass = "host-query-report";
 
@@ -69,6 +66,7 @@ const HostQueryReport = ({
     //     ],
     //   },
     //   {
+    //     name: 'test query',
     //     query: "SELECT * FROM users",
     //     discard_data: false,
     //     interval: 20,
@@ -85,6 +83,7 @@ const HostQueryReport = ({
     //     results: [],
     //   },
     //   {
+    //     name: 'test query',
     //     query: "SELECT * FROM users",
     //     discard_data: false,
     //     inverval: 20,
@@ -101,6 +100,7 @@ const HostQueryReport = ({
     //     results: [],
     //   },
     //   {
+    //     name: 'test query',
     //     query: "SELECT * FROM users",
     //     discard_data: false,
     //     inverval: 20,
@@ -117,6 +117,7 @@ const HostQueryReport = ({
         results: [],
       },
       {
+        name: "test query",
         query: "SELECT * FROM users",
         interval: 20,
         discard_data: false,
@@ -140,6 +141,7 @@ const HostQueryReport = ({
     //     ],
     //   },
     //   {
+    //     name: 'test query',
     //     query: "SELECT * FROM users",
     //     discard_data: true,
     //     inverval: 20,
@@ -165,7 +167,7 @@ const HostQueryReport = ({
   // );
 
   // const {
-  //   isLoading: isQueryLoading,
+  //   isLoading: queryLoading,
   //   data: queryResponse,
   //   error: queryError,
   // } = useQuery<IGetQueryResponse, Error, ISchedulableQuery>(
@@ -179,19 +181,25 @@ const HostQueryReport = ({
   //   }
   // );
 
+  const queryLoading = false;
+
   const {
     host_name: hostName,
     host_team_id: hostTeamId,
-    report_clipped: clipped,
+    report_clipped: reportClipped,
     last_fetched: lastFetched,
     results,
-  } = hqrResponse || {};
+    // TODO - remove below casting, just for testing
+  } = (hqrResponse || {}) as Partial<IGetHQRResponse>;
+
+  const rows = results?.map((row) => row.columns) ?? [];
 
   const {
+    name: queryName,
     query: querySQL,
     discard_data: queryDiscardData,
     interval: queryInterval,
-  } = queryResponse || {};
+  } = (queryResponse || {}) as Partial<ISchedulableQuery>;
 
   // TODO - finalize local setting reroute conditions
   // previous reroute can be done before API call, not this one, hence 2
@@ -199,21 +207,9 @@ const HostQueryReport = ({
     router.push(PATHS.HOST_QUERIES(hostId));
   }
 
-  const onCancel = () => {
-    setShowQuery(false);
-  };
-
   const fullReportPath = PATHS.QUERY_DETAILS(queryId, hostTeamId);
 
-  const onFullReportClick = () => {
-    browserHistory.push(fullReportPath);
-  };
-
-  const renderHQR = () => {
-    //  TODO
-  };
-
-  const renderHeader = () => (
+  const HQRHeader = () => (
     <div className={`${baseClass}__header`}>
       <span className="row1">
         <BackLink
@@ -224,8 +220,11 @@ const HostQueryReport = ({
       <span className="row2">
         {!hqrLoading && !hqrError && <h1 className="host-name">{hostName}</h1>}
         <Link
+          // to and onClick seem redundant
           to={fullReportPath}
-          onClick={onFullReportClick}
+          onClick={() => {
+            browserHistory.push(fullReportPath);
+          }}
           className={`${baseClass}__direction-link`}
         >
           <>
@@ -236,52 +235,27 @@ const HostQueryReport = ({
       </span>
     </div>
   );
-  const renderContent = () => {
-    // if query hasn't run on this host
-    if (!lastFetched) {
-      // collecting results
-      return (
-        <EmptyTable
-          className={`${baseClass}__collecting-results`}
-          graphicName="collecting-results"
-          header="Collecting results..."
-          info={`Fleet is collecting query results from ${hostName}. Check back later.`}
-        />
-      );
-    }
-    if (results.length === 0) {
-      if (clipped) {
-        // report clipped
-        return (
-          <EmptyTable
-            className={`${baseClass}__report-clipped`}
-            graphicName="empty-software"
-            header="Report clipped"
-            info="This query has paused reporting in Fleet, and no results were saved for this host."
-          />
-        );
-      }
-      return (
-        // nothing to report
-        <EmptyTable
-          className={`${baseClass}__nothing-to-report`}
-          graphicName="empty-software"
-          header="Nothing to report"
-          info={`This query has run on ${hostName}, but returned no data for this host.`}
-        />
-      );
-    }
-    // render the report
-    renderHQR();
-  };
 
   return (
     <MainContent className={baseClass}>
       <>
-        {renderHeader()}
-        {renderContent()}
+        <HQRHeader />
+        <HQRTable
+          {...{
+            queryName,
+            hostName,
+            rows: [],
+            reportClipped,
+            lastFetched,
+            onShowQuery: () => setShowQuery(true),
+            isLoading: queryLoading || hqrLoading,
+          }}
+        />
         {showQuery && (
-          <ShowQueryModal {...{ querySQL: queryResponse, onCancel }} />
+          <ShowQueryModal
+            query={querySQL}
+            onCancel={() => setShowQuery(false)}
+          />
         )}
       </>
     </MainContent>
