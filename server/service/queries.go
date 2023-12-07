@@ -114,7 +114,7 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 
 func onlyShowObserverCanRunQueries(user *fleet.User, teamID *uint) bool {
 	if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleObserver {
-		return false
+		return true
 	}
 
 	return teamID != nil && user.TeamMembership(func(ut fleet.UserTeam) bool {

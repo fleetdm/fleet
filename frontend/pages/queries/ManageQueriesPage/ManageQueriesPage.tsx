@@ -90,7 +90,6 @@ const ManageQueriesPage = ({
     filteredQueriesPath,
     isPremiumTier,
     isSandboxMode,
-    isGlobalObserver,
     config,
   } = useContext(AppContext);
   const { setLastEditedQueryBody, setSelectedQueryTargetsByType } = useContext(
@@ -138,12 +137,6 @@ const ManageQueriesPage = ({
     [{ scope: "queries", teamId: teamIdForApi }],
     ({ queryKey: [{ teamId }] }) =>
       queriesAPI.loadAll(teamId).then(({ queries }) => {
-        if (isGlobalObserver) {
-          return queries
-            .filter((q: ISchedulableQuery) => q.observer_can_run)
-            .map(enhanceQuery);
-        }
-
         return queries.map(enhanceQuery);
       }),
     {
