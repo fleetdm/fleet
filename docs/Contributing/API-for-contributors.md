@@ -2726,7 +2726,30 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 #### Example
 
-`POST /api/v1/fleet/mdm/scripts/batch`
+`POST /api/v1/fleet/scripts/batch`
+
+##### Default response
+
+`204`
+
+## Software
+
+### Batch-apply software 
+
+`POST /api/v1/fleet/software/batch`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_id | number | query | The ID of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. 
+| team_name | string | query | The name of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. 
+| dry_run   | bool   | query | Validate the provided software files and return any validation errors, but do not apply the changes.                                                                         |
+| software   | array  | body  | An array of URLs with the software files.                    |
+
+#### Example
+
+`POST /api/v1/fleet/software/batch`
 
 ##### Default response
 
