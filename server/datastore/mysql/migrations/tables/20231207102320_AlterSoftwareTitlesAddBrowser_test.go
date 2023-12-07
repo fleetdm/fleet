@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20231205165248(t *testing.T) {
+func TestUp_20231207102320(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	insertStmt := "INSERT INTO software_titles (name, source) VALUES (?, ?)"
