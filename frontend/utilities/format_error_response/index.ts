@@ -1,7 +1,7 @@
 import { get, join } from "lodash";
-import { IError } from "interfaces/errors";
+import { IFleetApiError } from "interfaces/errors";
 
-const formatServerErrors = (errors: IError[]) => {
+const formatServerErrors = (errors: IFleetApiError[]) => {
   if (!errors || !errors.length) {
     return {};
   }
@@ -18,7 +18,7 @@ const formatServerErrors = (errors: IError[]) => {
     }
   });
 
-  return result;
+  return result; // TODO: Typing {base: string}
 };
 
 const formatErrorResponse = (errorResponse: any) => {
@@ -30,7 +30,7 @@ const formatErrorResponse = (errorResponse: any) => {
   return {
     ...formatServerErrors(errors),
     http_status: errorResponse.status,
-  } as any;
+  } as any; // TODO: Fix type to IOldApiError
 };
 
 export default formatErrorResponse;

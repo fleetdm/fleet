@@ -73,6 +73,20 @@ export interface IUserFormErrors {
   password?: string | null;
   sso_enabled?: boolean | null;
 }
+export interface IResetPasswordFormErrors {
+  new_password?: string | null;
+  new_password_confirmation?: string | null;
+}
+
+export interface IResetPasswordForm {
+  new_password: string;
+  new_password_confirmation: string;
+}
+
+export interface ILoginUserData {
+  email: string;
+  password: string;
+}
 
 export interface ICreateUserFormData {
   email: string;

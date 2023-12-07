@@ -63,13 +63,10 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
               turnOnMacOSMdm={navigateToMacOSMdm}
               viewDetails={navigateToMacOSMdm}
             />
-            {/* TODO: remove conditional rendering when windows MDM is released. */}
-            {config?.mdm_enabled && (
-              <WindowsMdmCard
-                turnOnWindowsMdm={navigateToWindowsMdm}
-                editWindowsMdm={navigateToWindowsMdm}
-              />
-            )}
+            <WindowsMdmCard
+              turnOnWindowsMdm={navigateToWindowsMdm}
+              editWindowsMdm={navigateToWindowsMdm}
+            />
           </>
         )}
       </div>

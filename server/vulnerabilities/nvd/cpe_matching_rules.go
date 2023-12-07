@@ -106,6 +106,81 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				"CVE-2016-7656": {},
 			},
 		},
+		// The NVD dataset contains an invalid rule for CVE-2020-10146 that matches all versions of
+		// Microsoft Teams.
+		//
+		//	"cve" : {
+		//		"data_type" : "CVE",
+		//		"data_format" : "MITRE",
+		//		"data_version" : "4.0",
+		//		"CVE_data_meta" : {
+		// 			"ID" : "CVE-2020-10146",
+		// 			"ASSIGNER" : "cert@cert.org"
+		// 		},
+		//	[...]
+		//	"configurations" : {
+		//		"CVE_data_version" : "4.0",
+		//		"nodes" : [ {
+		//			"operator" : "OR",
+		//			"children" : [ ],
+		//			"cpe_match" : [ {
+		//				"vulnerable" : true,
+		//				"cpe23Uri" : "cpe:2.3:a:microsoft:teams:*:*:*:*:*:*:*:*", <<<<<<
+		//				"versionEndExcluding" : "2020-10-29",
+		//				"cpe_name" : [ ]
+		//			} ]
+		//		} ]
+		//	},
+		//
+		// Such CVE corresponds to a vulnerability on Microsoft's online service
+		// that has been patched since October 2020.
+		CPEMatchingRule{
+			IgnoreAll: true,
+			CVEs: map[string]struct{}{
+				"CVE-2020-10146": {},
+			},
+		},
+		// #9835 Python expat 2.1.0 CVE recommends rejecting the report, no CVSS score, broad CPE criteria
+		CPEMatchingRule{
+			IgnoreAll: true,
+			CVEs: map[string]struct{}{
+				"CVE-2013-0340": {},
+			},
+		},
+		// CVE-2022-42919 only affects Python on Linux but the NVD dataset doesn't set target_sw=linux.
+		// For instance, here's an invalid CPE sample from the NVD dataset from this vulnerability as of Oct 13th 2023:
+		// `cpe:2.3:a:python:python:3.7.3:-:*:*:*:*:*:*`.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2022-42919": {},
+			},
+			CPESpecs: []CPEMatchingRuleSpec{
+				{
+					Vendor:           "python",
+					Product:          "python",
+					TargetSW:         "linux",
+					SemVerConstraint: ">= 3.9.0, < 3.9.16",
+				},
+				{
+					Vendor:           "python",
+					Product:          "python",
+					TargetSW:         "linux",
+					SemVerConstraint: ">= 3.10.0, < 3.10.9",
+				},
+				{
+					Vendor:           "python",
+					Product:          "python",
+					TargetSW:         "linux",
+					SemVerConstraint: ">= 3.8.3, <= 3.8.15",
+				},
+				{
+					Vendor:           "python",
+					Product:          "python",
+					TargetSW:         "linux",
+					SemVerConstraint: ">= 3.7.3, <= 3.7.15",
+				},
+			},
+		},
 	}
 
 	for i, rule := range rules {

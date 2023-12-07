@@ -18,7 +18,7 @@ const Advanced = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState({
     domain: appConfig.smtp_settings.domain || "",
     verifySSLCerts: appConfig.smtp_settings.verify_ssl_certs || false,
     enableStartTLS: appConfig.smtp_settings.enable_start_tls,
@@ -26,6 +26,8 @@ const Advanced = ({
       appConfig.host_expiry_settings.host_expiry_enabled || false,
     hostExpiryWindow: appConfig.host_expiry_settings.host_expiry_window || 0,
     disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
+    disableQueryReports:
+      appConfig.server_settings.query_reports_disabled || false,
   });
 
   const {
@@ -35,6 +37,7 @@ const Advanced = ({
     enableHostExpiry,
     hostExpiryWindow,
     disableLiveQuery,
+    disableQueryReports,
   } = formData;
 
   const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
@@ -43,22 +46,17 @@ const Advanced = ({
     setFormData({ ...formData, [name]: value });
   };
 
-  const validateForm = () => {
+  useEffect(() => {
+    // validate desired form fields
     const errors: IAppConfigFormErrors = {};
 
-    if (enableHostExpiry) {
-      if (!hostExpiryWindow || hostExpiryWindow <= 0) {
-        errors.host_expiry_window =
-          "Host expiry window must be a positive number";
-      }
+    if (enableHostExpiry && (!hostExpiryWindow || hostExpiryWindow <= 0)) {
+      errors.host_expiry_window =
+        "Host expiry window must be a positive number";
     }
 
     setFormErrors(errors);
-  };
-
-  useEffect(() => {
-    validateForm();
-  }, [enableHostExpiry]);
+  }, [enableHostExpiry, hostExpiryWindow]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -69,6 +67,7 @@ const Advanced = ({
         server_url: appConfig.server_settings.server_url || "",
         live_query_disabled: disableLiveQuery,
         enable_analytics: appConfig.server_settings.enable_analytics,
+        query_reports_disabled: disableQueryReports,
       },
       smtp_settings: {
         enable_smtp: appConfig.smtp_settings.enable_smtp || false,
@@ -111,7 +110,13 @@ const Advanced = ({
                 value={domain}
                 parseTarget
                 tooltip={
-                  '<p>If you need to specify a HELO domain, <br />you can do it here <em className="hint hint--brand">(Default: <strong>Blank</strong>)</em></p>'
+                  <p>
+                    If you need to specify a HELO domain, <br />
+                    you can do it here{" "}
+                    <em className="hint hint--brand">
+                      (Default: <strong>Blank</strong>)
+                    </em>
+                  </p>
                 }
               />
               <Checkbox
@@ -119,8 +124,15 @@ const Advanced = ({
                 name="verifySSLCerts"
                 value={verifySSLCerts}
                 parseTarget
-                tooltip={
-                  '<p>Turn this off (not recommended) <br />if you use a self-signed certificate <em className="hint hint--brand"><br />(Default: <strong>On</strong>)</em></p>'
+                tooltipContent={
+                  <p>
+                    Turn this off (not recommended) <br />
+                    if you use a self-signed certificate{" "}
+                    <em className="hint hint--brand">
+                      <br />
+                      (Default: <strong>On</strong>)
+                    </em>
+                  </p>
                 }
               >
                 Verify SSL certs
@@ -130,8 +142,15 @@ const Advanced = ({
                 name="enableStartTLS"
                 value={enableStartTLS}
                 parseTarget
-                tooltip={
-                  '<p>Detects if STARTTLS is enabled <br />in your SMTP server and starts <br />to use it. <em className="hint hint--brand">(Default: <strong>On</strong>)</em></p>'
+                tooltipContent={
+                  <p>
+                    Detects if STARTTLS is enabled <br />
+                    in your SMTP server and starts <br />
+                    to use it.{" "}
+                    <em className="hint hint--brand">
+                      (Default: <strong>On</strong>)
+                    </em>
+                  </p>
                 }
               >
                 Enable STARTTLS
@@ -141,36 +160,84 @@ const Advanced = ({
                 name="enableHostExpiry"
                 value={enableHostExpiry}
                 parseTarget
-                tooltip={
-                  '<p>When enabled, allows automatic cleanup <br />of hosts that have not communicated with Fleet <br />in some number of days. <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>'
+                tooltipContent={
+                  <>
+                    When enabled, allows automatic cleanup of
+                    <br />
+                    hosts that have not communicated with Fleet in
+                    <br />
+                    the number of days specified in the{" "}
+                    <strong>
+                      Host expiry
+                      <br />
+                      window
+                    </strong>{" "}
+                    setting.{" "}
+                    <em className="hint hint--brand">
+                      (Default: <strong>Off</strong>)
+                    </em>
+                  </>
                 }
               >
                 Host expiry
               </Checkbox>
-              <InputField
-                label="Host expiry window"
-                type="number"
-                disabled={!enableHostExpiry}
-                onChange={handleInputChange}
-                name="hostExpiryWindow"
-                value={hostExpiryWindow}
-                parseTarget
-                onBlur={validateForm}
-                error={formErrors.host_expiry_window}
-                tooltip={
-                  "<p>If a host has not communicated with Fleet in the specified number of days, it will be removed.</p>"
-                }
-              />
+              {enableHostExpiry && (
+                <InputField
+                  label="Host expiry window"
+                  type="number"
+                  onChange={handleInputChange}
+                  name="hostExpiryWindow"
+                  value={hostExpiryWindow}
+                  parseTarget
+                  error={formErrors.host_expiry_window}
+                />
+              )}
               <Checkbox
                 onChange={handleInputChange}
                 name="disableLiveQuery"
                 value={disableLiveQuery}
                 parseTarget
-                tooltip={
-                  '<p>When enabled, disables the ability to run live queries <br />(ad hoc queries executed via the UI or fleetctl). <em className="hint hint--brand">(Default: <strong>Off</strong>)</em></p>'
+                tooltipContent={
+                  <p>
+                    When enabled, disables the ability to run live queries{" "}
+                    <br />
+                    (ad hoc queries executed via the UI or fleetctl).{" "}
+                    <em className="hint hint--brand">
+                      (Default: <strong>Off</strong>)
+                    </em>
+                  </p>
                 }
               >
                 Disable live queries
+              </Checkbox>
+              <Checkbox
+                onChange={handleInputChange}
+                name="disableQueryReports"
+                value={disableQueryReports}
+                parseTarget
+                // TODO - once refactor is merged, have this and bove tooltips disappear more
+                // quickly to get out of users' way
+                tooltipContent={
+                  <>
+                    <p>
+                      Disabling query reports will decrease database usage,{" "}
+                      <br />
+                      but will prevent you from accessing query results in
+                      <br />
+                      Fleet and will delete existing reports. This can also be{" "}
+                      <br />
+                      disabled on a per-query basis by enabling &quot;Discard{" "}
+                      <br />
+                      data&quot;.{" "}
+                      <em>
+                        (Default: <b>Off</b>)
+                      </em>
+                    </p>
+                  </>
+                }
+                helpText="Enabling this setting will delete all existing query reports in Fleet."
+              >
+                Disable query reports
               </Checkbox>
             </div>
           </div>

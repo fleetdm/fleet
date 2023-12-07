@@ -18,7 +18,6 @@ const Apple = ({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 16 16"
-      data-testid="apple-icon"
     >
       <path
         fillRule="evenodd"

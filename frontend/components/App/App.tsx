@@ -2,12 +2,13 @@ import React, { useContext, useEffect, useState } from "react";
 import { AxiosResponse } from "axios";
 import { QueryClient, QueryClientProvider } from "react-query";
 
+import page_titles from "router/page_titles";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
 import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
-import local, { authToken } from "utilities/local";
+import { authToken, clearToken } from "utilities/local";
 import useDeepEffect from "hooks/useDeepEffect";
 
 import usersAPI from "services/entities/users";
@@ -39,6 +40,7 @@ const baseClass = "app";
 const App = ({ children, location }: IAppProps): JSX.Element => {
   const queryClient = new QueryClient();
   const {
+    config,
     currentUser,
     isGlobalObserver,
     isOnlyObserver,
@@ -55,15 +57,15 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
 
   const fetchConfig = async () => {
     try {
-      const config = await configAPI.loadAll();
-      if (config.sandbox_enabled) {
+      const configResponse = await configAPI.loadAll();
+      if (configResponse.sandbox_enabled) {
         const timestamp = await configAPI.loadSandboxExpiry();
         setSandboxExpiry(timestamp as string);
         const hostCount = await hostCountAPI.load({});
         const noSandboxHosts = hostCount.count === 0;
         setNoSandboxHosts(noSandboxHosts);
       }
-      setConfig(config);
+      setConfig(configResponse);
     } catch (error) {
       console.error(error);
       return false;
@@ -80,15 +82,23 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       setAvailableTeams(user, available_teams);
       fetchConfig();
     } catch (error) {
-      if (!location?.pathname.includes("/login/reset")) {
-        console.log(error);
-        local.removeItem("auth_token");
-
-        // if this is not the device user page,
-        // redirect to login
-        if (!location?.pathname.includes("/device/")) {
-          window.location.href = "/login";
-        }
+      if (
+        // reseting a user's password requires the current token
+        location?.pathname.includes("/login/reset") ||
+        // these errors can occur when user refreshes their page at certain intervals,
+        // in which case we don't want to log them out
+        (typeof error === "string" &&
+          // in Firefox and Chrome, this error is "Request aborted"
+          // in Safari, it's "Network Error"
+          error.match(/request aborted|network error/i))
+      ) {
+        return true;
+      }
+      clearToken();
+      // if this is not the device user page,
+      // redirect to login
+      if (!location?.pathname.includes("/device/")) {
+        window.location.href = "/login";
       }
     }
     return true;
@@ -99,6 +109,26 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       fetchCurrentUser();
     }
   }, [location?.pathname]);
+
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    // Also applies title to subpaths such as settings/organization/webaddress
+    const curTitle = page_titles.find((item) =>
+      location?.pathname.includes(item.path)
+    );
+
+    // Override Controls page title if MDM not configured
+    if (
+      !config?.mdm.enabled_and_configured &&
+      curTitle?.path === "/controls/os-updates"
+    ) {
+      curTitle.title = "Manage OS hosts | Fleet for osquery";
+    }
+
+    if (curTitle && curTitle.title) {
+      document.title = curTitle.title;
+    }
+  }, [location, config]);
 
   useDeepEffect(() => {
     const canGetEnrollSecret =

@@ -1,6 +1,6 @@
 import React from "react";
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 import paths from "router/paths";
 import SummaryTile from "./SummaryTile";
@@ -15,7 +15,8 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI={false} // tested
         title={"Windows hosts"}
-        iconName={"windows-blue"}
+        iconName={"windows"}
+        circledIcon
         tooltip={"Hosts on any Windows device"}
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -33,7 +34,8 @@ describe("SummaryTile - component", () => {
         isLoading // tested
         showUI
         title={"Windows hosts"}
-        iconName={"windows-blue"}
+        iconName={"windows"}
+        circledIcon
         tooltip={"Hosts on any Windows device"}
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -52,7 +54,8 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI
         title={"Windows hosts"} // tested
-        iconName={"windows-blue"} // tested
+        iconName={"windows"} // tested
+        circledIcon
         tooltip={"Hosts on any Windows device"}
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -60,7 +63,7 @@ describe("SummaryTile - component", () => {
 
     const title = screen.getByText("Windows hosts");
     const count = screen.getByText("200");
-    const icon = screen.queryByTestId("icon");
+    const icon = screen.queryByTestId("windows-icon");
 
     expect(title).toBeInTheDocument();
     expect(count).toBeInTheDocument();
@@ -74,7 +77,8 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI
         title={"Windows hosts"}
-        iconName={"windows-blue"}
+        iconName={"windows"}
+        circledIcon
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
     );
@@ -91,32 +95,17 @@ describe("SummaryTile - component", () => {
         isLoading={false}
         showUI
         title={"Windows hosts"}
-        iconName={"windows-blue"}
+        iconName={"windows"}
+        circledIcon
         tooltip={"Hosts on any Windows device"} // tested
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
     );
 
-    await user.hover(screen.getByText("Windows hosts"));
+    await fireEvent.mouseEnter(screen.getByText("Windows hosts"));
 
     expect(screen.getByText("Hosts on any Windows device")).toBeInTheDocument();
   });
 
-  it("renders manage host page on click", async () => {
-    const { user } = renderWithSetup(
-      <SummaryTile
-        count={200}
-        isLoading={false}
-        showUI
-        title={"Windows hosts"}
-        iconName={"windows-blue"}
-        tooltip={"Hosts on any Windows device"} // tested
-        path={paths.MANAGE_HOSTS_LABEL(10)}
-      />
-    );
-
-    await user.click(screen.getByText("Windows hosts"));
-
-    expect(window.location.pathname).toBe("/hosts/manage/labels/10");
-  });
+  // Note: Cannot test path of react-router <Link/> without <Router/>
 });

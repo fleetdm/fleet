@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -32,8 +33,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/getsentry/sentry-go"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/hashicorp/go-multierror"
 	"github.com/micromdm/nanodep/godep"
 )
@@ -68,6 +69,12 @@ func newVulnerabilitiesSchedule(
 			"cron_sync_host_software",
 			func(ctx context.Context) error {
 				return ds.SyncHostsSoftware(ctx, time.Now())
+			},
+		),
+		schedule.WithJob(
+			"cron_reconcile_software_titles",
+			func(ctx context.Context) error {
+				return ds.ReconcileSoftwareTitles(ctx)
 			},
 		),
 	)
@@ -354,7 +361,7 @@ func checkNVDVulnerabilities(
 			CPETranslationsURL: config.CPETranslationsURL,
 			CVEFeedPrefixURL:   config.CVEFeedPrefixURL,
 		}
-		err := nvd.Sync(opts)
+		err := nvd.Sync(opts, logger)
 		if err != nil {
 			errHandler(ctx, logger, "syncing vulnerability database", err)
 			// don't return, continue on ...
@@ -780,9 +787,9 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
-			"scheduled_query_aggregated_stats",
+			"policy_aggregated_stats",
 			func(ctx context.Context) error {
-				return ds.UpdateScheduledQueryAggregatedStats(ctx)
+				return ds.UpdateHostPolicyCounts(ctx)
 			},
 		),
 		schedule.WithJob(
@@ -809,6 +816,20 @@ func newCleanupsAndAggregationSchedule(
 				return verifyDiskEncryptionKeys(ctx, logger, ds, config)
 			},
 		),
+		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
+			config, err := ds.AppConfig(ctx)
+			if err != nil {
+				return err
+			}
+
+			if config.ServerSettings.QueryReportsDisabled {
+				if err = ds.CleanupGlobalDiscardQueryResults(ctx); err != nil {
+					return err
+				}
+			}
+
+			return nil
+		}),
 	)
 
 	return s, nil
@@ -844,7 +865,7 @@ func verifyDiskEncryptionKeys(
 		if key.UpdatedAt.After(latest) {
 			latest = key.UpdatedAt
 		}
-		if _, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
+		if _, err := mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
 			undecryptable = append(undecryptable, key.HostID)
 			continue
 		}
@@ -889,7 +910,9 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	if err != nil {
 		return err
 	}
-	if !ac.ServerSettings.EnableAnalytics {
+
+	// If the license is Premium, we should always send usage statisics.
+	if !ac.ServerSettings.EnableAnalytics && !license.IsPremium(ctx) {
 		return nil
 	}
 
@@ -937,7 +960,7 @@ func newAppleMDMDEPProfileAssigner(
 	return s, nil
 }
 
-func newMDMAppleProfileManager(
+func newMDMProfileManager(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
@@ -956,8 +979,11 @@ func newMDMAppleProfileManager(
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
-		schedule.WithJob("manage_profiles", func(ctx context.Context) error {
-			return service.ReconcileProfiles(ctx, ds, commander, logger)
+		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
+			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
+		}),
+		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
+			return service.ReconcileWindowsProfiles(ctx, ds, logger)
 		}),
 	)
 

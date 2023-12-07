@@ -1,20 +1,22 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest, { getError } from "services";
+import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { IQueryFormData } from "interfaces/query";
-import { ISelectedTargets } from "interfaces/target";
-import { AxiosResponse } from "axios";
+import { getErrorReason } from "interfaces/errors";
+import { ISelectedTargetsForApi } from "interfaces/target";
+import {
+  ICreateQueryRequestBody,
+  IModifyQueryRequestBody,
+} from "interfaces/schedulable_query";
+import { buildQueryStringFromParams } from "utilities/url";
+
+// Mock API requests to be used in developing FE for #7765 in parallel with BE development
+// import { sendRequest } from "services/mock_service/service/service";
 
 export default {
-  create: ({ description, name, query, observer_can_run }: IQueryFormData) => {
+  create: (createQueryRequestBody: ICreateQueryRequestBody) => {
     const { QUERIES } = endpoints;
 
-    return sendRequest("POST", QUERIES, {
-      description,
-      name,
-      query,
-      observer_can_run,
-    });
+    return sendRequest("POST", QUERIES, createQueryRequestBody);
   },
   destroy: (id: string | number) => {
     const { QUERIES } = endpoints;
@@ -22,16 +24,26 @@ export default {
 
     return sendRequest("DELETE", path);
   },
+  bulkDestroy: (ids: number[]) => {
+    const { QUERIES } = endpoints;
+    const path = `${QUERIES}/delete`;
+    return sendRequest("POST", path, { ids });
+  },
   load: (id: number) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
 
     return sendRequest("GET", path);
   },
-  loadAll: () => {
+  loadAll: (teamId?: number) => {
     const { QUERIES } = endpoints;
+    const queryString = buildQueryStringFromParams({ team_id: teamId });
+    const path = `${QUERIES}`;
 
-    return sendRequest("GET", QUERIES);
+    return sendRequest(
+      "GET",
+      queryString ? path.concat(`?${queryString}`) : path
+    );
   },
   run: async ({
     query,
@@ -40,12 +52,12 @@ export default {
   }: {
     query: string;
     queryId: number | null;
-    selected: ISelectedTargets;
+    selected: ISelectedTargetsForApi;
   }) => {
-    const { RUN_QUERY } = endpoints;
+    const { LIVE_QUERY } = endpoints;
 
     try {
-      const { campaign } = await sendRequest("POST", RUN_QUERY, {
+      const { campaign } = await sendRequest("POST", LIVE_QUERY, {
         query,
         query_id: queryId,
         selected,
@@ -58,11 +70,13 @@ export default {
           total: 0,
         },
       });
-    } catch (response) {
-      throw new Error(getError(response as AxiosResponse));
+    } catch (e) {
+      throw new Error(
+        getErrorReason(e) || `run query: parse server error ${e}`
+      );
     }
   },
-  update: (id: number, updateParams: IQueryFormData) => {
+  update: (id: number, updateParams: IModifyQueryRequestBody) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
 

@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -59,4 +60,27 @@ func TestCapabilityString(t *testing.T) {
 			require.ElementsMatch(t, strings.Split(tt.in.String(), ","), strings.Split(tt.out, ","))
 		})
 	}
+}
+
+func TestCapabilityConcurrentWrites(t *testing.T) {
+	var wg sync.WaitGroup
+
+	c := make(CapabilityMap)
+
+	numIterations := 1000
+	numGoroutines := 10
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < numIterations; j++ {
+				c.PopulateFromString("test,foo,bar")
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	require.ElementsMatch(t, []string{"test", "foo", "bar"}, strings.Split(c.String(), ","))
 }

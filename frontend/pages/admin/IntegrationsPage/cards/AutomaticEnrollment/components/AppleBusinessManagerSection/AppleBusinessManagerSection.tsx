@@ -2,11 +2,14 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import FileSaver from "file-saver";
+import { InjectedRouter } from "react-router";
 
+import PATHS from "router/paths";
 import { IMdmAppleBm } from "interfaces/mdm";
 import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
 import { readableDate } from "utilities/helpers";
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
@@ -16,6 +19,7 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner/Spinner";
 
 import EditTeamModal from "../EditTeamModal";
+import WindowsAutomaticEnrollmentCard from "./components/WindowsAutomaticEnrollmentCard/WindowsAutomaticEnrollmentCard";
 
 const baseClass = "apple-business-manager-section";
 
@@ -24,10 +28,17 @@ interface IABMKeys {
   decodedPrivate: string;
 }
 
-const AppleBusinessManagerSection = () => {
+interface IAppleBusinessManagerSectionProps {
+  router: InjectedRouter;
+}
+
+const AppleBusinessManagerSection = ({
+  router,
+}: IAppleBusinessManagerSectionProps) => {
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
   const [defaultTeamName, setDefaultTeamName] = useState("No team");
   const { renderFlash } = useContext(NotificationContext);
+  const { config } = useContext(AppContext);
 
   const {
     data: mdmAppleBm,
@@ -56,6 +67,10 @@ const AppleBusinessManagerSection = () => {
 
   const toggleEditTeamModal = () => {
     setShowEditTeamModal(!showEditTeamModal);
+  };
+
+  const navigateToWindowsAutomaticEnrollment = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS);
   };
 
   const onDownloadKeys = (evt: React.MouseEvent) => {
@@ -114,7 +129,7 @@ const AppleBusinessManagerSection = () => {
           <span className={`${baseClass}__400-error-info`}>
             See our{" "}
             <CustomLink
-              url="https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm"
+              url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-business-manager-abm"
               text="ABM documentation"
               newTab
             />{" "}
@@ -186,7 +201,7 @@ const AppleBusinessManagerSection = () => {
         <div className={`${baseClass}__section-information`}>
           <h4>
             <TooltipWrapper
-              position="top"
+              position="top-start"
               tipContent="macOS hosts will be added to this team when they’re first unboxed."
             >
               Team
@@ -219,6 +234,9 @@ const AppleBusinessManagerSection = () => {
     <div className={baseClass}>
       <h2>Apple Business Manager</h2>
       {isLoadingMdmAppleBm ? <Spinner /> : renderAppleBMInfo()}
+      <WindowsAutomaticEnrollmentCard
+        viewDetails={navigateToWindowsAutomaticEnrollment}
+      />
       {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}

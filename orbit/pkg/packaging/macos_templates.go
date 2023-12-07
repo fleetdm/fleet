@@ -125,6 +125,10 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 		<key>ORBIT_USE_SYSTEM_CONFIGURATION</key>
 		<string>{{ .UseSystemConfiguration }}</string>
 		{{- end }}
+		{{- if .EnableScripts }}
+		<key>ORBIT_ENABLE_SCRIPTS</key>
+		<string>{{ .EnableScripts }}</string>
+		{{- end }}
 		{{- if .DisableUpdates }}
 		<key>ORBIT_DISABLE_UPDATES</key>
 		<string>true</string>

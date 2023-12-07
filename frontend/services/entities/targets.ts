@@ -1,14 +1,14 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import { IHost } from "interfaces/host";
-import { ISelectedTargets, ITargetsAPIResponse } from "interfaces/target";
+import { ISelectedTargetsForApi, ITargetsAPIResponse } from "interfaces/target";
 import endpoints from "utilities/endpoints";
 import appendTargetTypeToTargets from "utilities/append_target_type_to_targets";
 
 interface ITargetsProps {
   query?: string;
   queryId?: number | null;
-  selected: ISelectedTargets;
+  selected: ISelectedTargetsForApi;
 }
 
 const defaultSelected = {
@@ -29,7 +29,7 @@ export interface ITargetsSearchResponse {
 
 export interface ITargetsCountParams {
   query_id?: number | null;
-  selected: ISelectedTargets | null;
+  selected: ISelectedTargetsForApi | null;
 }
 
 export interface ITargetsCountResponse {

@@ -8,14 +8,13 @@ import { IconSizes } from "styles/var/icon_sizes";
 interface IIconProps {
   name: IconNames;
   color?: Colors;
-  direction?: "up" | "down" | "left" | "right";
   className?: string;
   size?: IconSizes;
 }
 
 const baseClass = "icon";
 
-const Icon = ({ name, color, direction, className, size }: IIconProps) => {
+const Icon = ({ name, color, className, size }: IIconProps) => {
   const classNames = classnames(baseClass, className);
 
   // createPassedProps creates a props object that we pass to the specific icon
@@ -25,18 +24,17 @@ const Icon = ({ name, color, direction, className, size }: IIconProps) => {
       return Object.assign(
         {},
         color === undefined ? undefined : { color },
-        direction === undefined ? undefined : { direction },
         size === undefined ? undefined : { size }
       );
     };
 
     return createPassedProps();
-  }, [color, direction, size]);
+  }, [color, size]);
 
   const IconComponent = ICON_MAP[name];
 
   return (
-    <div className={classNames} data-testid="icon">
+    <div className={classNames} data-testid={`${name}-icon`}>
       <IconComponent {...props} />
     </div>
   );

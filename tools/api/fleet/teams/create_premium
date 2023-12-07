@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script creates 2 teams and 7 users with various roles.
+# This script creates 2 teams and 9 users with various roles.
 # These users are seeded to Fleet Premium E2E tests
 
 source $FLEET_ENV_PATH
@@ -52,6 +52,17 @@ data='{
   "password": "password123#",
   "invited_by": 1,
   "global_role": "observer",
+  "admin_forced_password_reset": false
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
+
+# Create Opal
+data='{
+  "name": "Opal G. Observer+",
+  "email": "opal@organization.com",
+  "password": "password123#",
+  "invited_by": 1,
+  "global_role": "observer_plus",
   "admin_forced_password_reset": false
 }'
 curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
@@ -124,6 +135,23 @@ data='{
     {
       "id": 1,
       "role": "observer"
+    }
+  ]
+}'
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_user_endpoint" -d "$data" --insecure
+
+# Create Topanga
+data='{
+  "name": "Topanga T. Observer+",
+  "email": "topanga@organization.com",
+  "password": "password123#",
+  "invited_by": 1,
+  "global_role": null,
+  "admin_forced_password_reset": false,
+  "teams": [
+    {
+      "id": 1,
+      "role": "observer_plus"
     }
   ]
 }'

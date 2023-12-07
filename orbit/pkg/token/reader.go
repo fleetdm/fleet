@@ -47,11 +47,18 @@ func (r *Reader) HasChanged() (bool, error) {
 }
 
 // HasExpired checks if 1 hour has passed since the last recorded `mtime` of
-// the token file
-func (r *Reader) HasExpired() bool {
+// the token file. It returns true, 0 if the token has expired, or false and
+// the duration until it does expire.
+func (r *Reader) HasExpired() (bool, time.Duration) {
+	const expirationDuration = 1 * time.Hour
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return time.Now().After(r.mtime.Add(1 * time.Hour))
+	since := time.Since(r.mtime)
+	if since > expirationDuration {
+		return true, 0
+	}
+	return false, expirationDuration - since
 }
 
 func (r *Reader) GetMtime() time.Time {

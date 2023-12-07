@@ -1,6 +1,9 @@
 package fleet
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -52,35 +55,67 @@ type ScheduledQuery struct {
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
-	// account in the ScheduledQueryList Clone implementation!
+	// account in the ScheduledQuery Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// Clone implements cloner for ScheduledQuery.
+func (q *ScheduledQuery) Clone() (Cloner, error) {
+	return q.Copy(), nil
+}
+
+// Copy returns a deep copy of the ScheduledQuery.
+func (q *ScheduledQuery) Copy() *ScheduledQuery {
+	if q == nil {
+		return nil
+	}
+
+	var clone ScheduledQuery
+	clone = *q
+
+	if q.Snapshot != nil {
+		clone.Snapshot = ptr.Bool(*q.Snapshot)
+	}
+	if q.Removed != nil {
+		clone.Removed = ptr.Bool(*q.Removed)
+	}
+	if q.Platform != nil {
+		clone.Platform = ptr.String(*q.Platform)
+	}
+	if q.Version != nil {
+		clone.Version = ptr.String(*q.Version)
+	}
+	if q.Shard != nil {
+		clone.Shard = ptr.Uint(*q.Shard)
+	}
+	if q.Denylist != nil {
+		clone.Denylist = ptr.Bool(*q.Denylist)
+	}
+
+	if q.AggregatedStats.SystemTimeP50 != nil {
+		clone.AggregatedStats.SystemTimeP50 = ptr.Float64(*q.AggregatedStats.SystemTimeP50)
+	}
+	if q.AggregatedStats.SystemTimeP95 != nil {
+		clone.AggregatedStats.SystemTimeP95 = ptr.Float64(*q.AggregatedStats.SystemTimeP95)
+	}
+	if q.AggregatedStats.UserTimeP50 != nil {
+		clone.AggregatedStats.UserTimeP50 = ptr.Float64(*q.AggregatedStats.UserTimeP50)
+	}
+	if q.AggregatedStats.UserTimeP95 != nil {
+		clone.AggregatedStats.UserTimeP95 = ptr.Float64(*q.AggregatedStats.UserTimeP95)
+	}
+	if q.AggregatedStats.TotalExecutions != nil {
+		clone.AggregatedStats.TotalExecutions = ptr.Float64(*q.AggregatedStats.TotalExecutions)
+	}
+	return &clone
 }
 
 type ScheduledQueryList []*ScheduledQuery
 
-func (sql ScheduledQueryList) Clone() (interface{}, error) {
+func (sql ScheduledQueryList) Clone() (Cloner, error) {
 	var cloned ScheduledQueryList
 	for _, sq := range sql {
-		newSq := *sq
-		if sq.Snapshot != nil {
-			newSq.Snapshot = ptr.Bool(*sq.Snapshot)
-		}
-		if sq.Removed != nil {
-			newSq.Removed = ptr.Bool(*sq.Removed)
-		}
-		if sq.Platform != nil {
-			newSq.Platform = ptr.String(*sq.Platform)
-		}
-		if sq.Version != nil {
-			newSq.Version = ptr.String(*sq.Version)
-		}
-		if sq.Shard != nil {
-			newSq.Shard = ptr.Uint(*sq.Shard)
-		}
-		if sq.Denylist != nil {
-			newSq.Denylist = ptr.Bool(*sq.Denylist)
-		}
-		cloned = append(cloned, &newSq)
+		cloned = append(cloned, sq.Copy())
 	}
 	return cloned, nil
 }
@@ -126,4 +161,100 @@ type ScheduledQueryStats struct {
 	SystemTime   int       `json:"system_time" db:"system_time"`
 	UserTime     int       `json:"user_time" db:"user_time"`
 	WallTime     int       `json:"wall_time" db:"wall_time"`
+}
+
+// TeamID returns the team id if the stat is for a team query stat result
+func (sqs *ScheduledQueryStats) TeamID() (*int, error) {
+	if strings.HasPrefix(sqs.PackName, "team-") {
+		teamIDParts := strings.Split(sqs.PackName, "-")
+		if len(teamIDParts) != 2 {
+			return nil, fmt.Errorf("invalid pack name: %s", sqs.PackName)
+		}
+
+		teamID, err := strconv.Atoi(teamIDParts[1])
+		if err != nil {
+			return nil, err
+		}
+		return &teamID, nil
+	}
+
+	return nil, nil
+}
+
+func ScheduledQueryFromQuery(query *Query) *ScheduledQuery {
+	var (
+		snapshot *bool
+		removed  *bool
+	)
+	if query.Logging == "" || query.Logging == "snapshot" {
+		snapshot = ptr.Bool(true)
+		removed = ptr.Bool(false)
+	} else if query.Logging == "differential" {
+		snapshot = ptr.Bool(false)
+		removed = ptr.Bool(true)
+	} else { // query.Logging == "differential_ignore_removals"
+		snapshot = ptr.Bool(false)
+		removed = ptr.Bool(false)
+	}
+	return &ScheduledQuery{
+		ID:              query.ID,
+		Name:            query.Name,
+		QueryID:         query.ID,
+		QueryName:       query.Name,
+		Query:           query.Query,
+		Description:     query.Description,
+		Interval:        query.Interval,
+		Snapshot:        snapshot,
+		Removed:         removed,
+		Platform:        &query.Platform,
+		Version:         &query.MinOsqueryVersion,
+		AggregatedStats: query.AggregatedStats,
+	}
+}
+
+func ScheduledQueryToQueryPayloadForNewQuery(originalQuery *Query, scheduledQuery *ScheduledQuery) QueryPayload {
+	logging := ptr.String(LoggingSnapshot) // default is snapshot.
+	if scheduledQuery.Snapshot != nil && scheduledQuery.Removed != nil {
+		if *scheduledQuery.Snapshot {
+			logging = ptr.String(LoggingSnapshot)
+		} else if *scheduledQuery.Removed {
+			logging = ptr.String(LoggingDifferential)
+		} else {
+			logging = ptr.String(LoggingDifferentialIgnoreRemovals)
+		}
+	}
+	return QueryPayload{
+		Name:               &originalQuery.Name,
+		Description:        &originalQuery.Description,
+		Query:              &originalQuery.Query,
+		ObserverCanRun:     &originalQuery.ObserverCanRun,
+		TeamID:             originalQuery.TeamID,
+		Interval:           &scheduledQuery.Interval,
+		Platform:           scheduledQuery.Platform,
+		MinOsqueryVersion:  scheduledQuery.Version,
+		AutomationsEnabled: ptr.Bool(true),
+		Logging:            logging,
+	}
+}
+
+// NOTE(lucas): payload.Snapshot and payload.Removed must both be set in order to
+// change the logging behavior of a scheduled query.
+// Document this API change.
+func ScheduledQueryPayloadToQueryPayloadForModifyQuery(payload ScheduledQueryPayload) QueryPayload {
+	var logging *string
+	if payload.Snapshot != nil && payload.Removed != nil {
+		if *payload.Snapshot {
+			logging = ptr.String(LoggingSnapshot)
+		} else if *payload.Removed {
+			logging = ptr.String(LoggingDifferential)
+		} else {
+			logging = ptr.String(LoggingDifferentialIgnoreRemovals)
+		}
+	}
+	return QueryPayload{
+		Interval:          payload.Interval,
+		Platform:          payload.Platform,
+		MinOsqueryVersion: payload.Version,
+		Logging:           logging,
+	}
 }

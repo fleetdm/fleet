@@ -12,7 +12,7 @@ import {
   ISelectLabel,
   ISelectTeam,
   ISelectTargetsEntity,
-  ISelectedTargets,
+  ISelectedTargetsForApi,
 } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 
@@ -48,7 +48,9 @@ interface ISelectTargetsProps {
   targetedTeams: ITeam[];
   goToQueryEditor: () => void;
   goToRunQuery: () => void;
-  setSelectedTargets: React.Dispatch<React.SetStateAction<ITarget[]>>;
+  setSelectedTargets: // TODO: Refactor policy targets to streamline selectedTargets/selectedTargetsByType
+  | React.Dispatch<React.SetStateAction<ITarget[]>> // Used for policies page level useState hook
+    | ((value: ITarget[]) => void); // Used for queries app level QueryContext
   setTargetedHosts: React.Dispatch<React.SetStateAction<IHost[]>>;
   setTargetedLabels: React.Dispatch<React.SetStateAction<ILabel[]>>;
   setTargetedTeams: React.Dispatch<React.SetStateAction<ITeam[]>>;
@@ -65,7 +67,7 @@ interface ITargetsQueryKey {
   scope: string;
   query_id?: number | null;
   query?: string | null;
-  selected?: ISelectedTargets | null;
+  selected?: ISelectedTargetsForApi | null;
 }
 
 const DEBOUNCE_DELAY = 500;
@@ -379,15 +381,31 @@ const SelectTargets = ({
     }
 
     const { targets_count: total, targets_online: online } = counts;
-    const onlinePercentage = total > 0 ? Math.round((online / total) * 100) : 0;
+    const onlinePercentage = () => {
+      if (total === 0) {
+        return 0;
+      }
+      // If at least 1 host is online, displays <1% instead of 0%
+      const roundPercentage =
+        Math.round((online / total) * 100) === 0
+          ? "<1"
+          : Math.round((online / total) * 100);
+      return roundPercentage;
+    };
 
     return (
       <>
-        <span>{total}</span>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
-        {onlinePercentage}
+        <b>{total}</b>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
+        {onlinePercentage()}
         %&nbsp;
         <TooltipWrapper
-          tipContent={`Hosts are online if they<br /> have recently checked <br />into Fleet.`}
+          tipContent={
+            <>
+              Hosts are online if they <br />
+              have recently checked <br />
+              into Fleet.
+            </>
+          }
         >
           online
         </TooltipWrapper>

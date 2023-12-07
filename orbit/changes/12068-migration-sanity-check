@@ -1,1 +1,0 @@
-* Ensure MDM migration modal is not shown, and enrollment commands are not run if the host is already enrolled into Fleet

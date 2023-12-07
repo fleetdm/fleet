@@ -1,1 +1,0 @@
-* Improve the logic to read enroll secrets from macOS configuration profiles to be compatible with different MDM providers.

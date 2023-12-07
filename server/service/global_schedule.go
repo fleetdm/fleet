@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -37,22 +37,19 @@ func getGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fle
 }
 
 func (svc *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{
-		Type: ptr.String("global"),
-	}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	gp, err := svc.ds.EnsureGlobalPack(ctx)
+	queries, err := svc.ListQueries(ctx, opts, nil, ptr.Bool(true)) // teamID == nil means global
 	if err != nil {
 		return nil, err
 	}
-
-	return svc.ds.ListScheduledQueriesInPackWithStats(ctx, gp.ID, opts)
+	scheduledQueries := make([]*fleet.ScheduledQuery, 0, len(queries))
+	for _, query := range queries {
+		scheduledQueries = append(scheduledQueries, fleet.ScheduledQueryFromQuery(query))
+	}
+	return scheduledQueries, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Global Schedule Query
+// Schedule a global query
 ////////////////////////////////////////////////////////////////////////////////
 
 type globalScheduleQueryRequest struct {
@@ -90,20 +87,22 @@ func globalScheduleQueryEndpoint(ctx context.Context, request interface{}, svc f
 	return globalScheduleQueryResponse{Scheduled: scheduled}, nil
 }
 
-func (svc *Service) GlobalScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{
-		Type: ptr.String("global"),
-	}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	gp, err := svc.ds.EnsureGlobalPack(ctx)
+func (svc *Service) GlobalScheduleQuery(ctx context.Context, scheduledQuery *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+	originalQuery, err := svc.ds.Query(ctx, scheduledQuery.QueryID)
 	if err != nil {
-		return nil, err
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get query")
 	}
-	sq.PackID = gp.ID
-
-	return svc.ScheduleQuery(ctx, sq)
+	if originalQuery.TeamID != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, ctxerr.New(ctx, "cannot create a global schedule from a team query")
+	}
+	originalQuery.Name = nameForCopiedQuery(originalQuery.Name)
+	newQuery, err := svc.NewQuery(ctx, fleet.ScheduledQueryToQueryPayloadForNewQuery(originalQuery, scheduledQuery))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create new query")
+	}
+	return fleet.ScheduledQueryFromQuery(newQuery), nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -135,21 +134,12 @@ func modifyGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc 
 	}, nil
 }
 
-func (svc *Service) ModifyGlobalScheduledQueries(ctx context.Context, id uint, query fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{
-		Type: ptr.String("global"),
-	}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
-
-	gp, err := svc.ds.EnsureGlobalPack(ctx)
+func (svc *Service) ModifyGlobalScheduledQueries(ctx context.Context, id uint, scheduledQueryPayload fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
+	query, err := svc.ModifyQuery(ctx, id, fleet.ScheduledQueryPayloadToQueryPayloadForModifyQuery(scheduledQueryPayload))
 	if err != nil {
 		return nil, err
 	}
-
-	query.PackID = ptr.Uint(gp.ID)
-
-	return svc.ModifyScheduledQuery(ctx, id, query)
+	return fleet.ScheduledQueryFromQuery(query), nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -176,24 +166,7 @@ func deleteGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc 
 	return deleteGlobalScheduleResponse{}, nil
 }
 
+// TODO(lucas): Document new behavior.
 func (svc *Service) DeleteGlobalScheduledQueries(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Pack{
-		Type: ptr.String("global"),
-	}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	globalPack, err := svc.ds.EnsureGlobalPack(ctx)
-	if err != nil {
-		return err
-	}
-	scheduledQuery, err := svc.ds.ScheduledQuery(ctx, id)
-	if err != nil {
-		return err
-	}
-	if scheduledQuery.PackID != globalPack.ID {
-		return fmt.Errorf("scheduled query %d is not global", id)
-	}
-
-	return svc.DeleteScheduledQuery(ctx, id)
+	return svc.DeleteQueryByID(ctx, id)
 }

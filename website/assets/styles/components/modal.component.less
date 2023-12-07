@@ -5,11 +5,12 @@
  */
 
 [parasails-component='modal'] {
+  max-width: 100vw;
   -webkit-overflow-scrolling: touch;//« makes this actually scrollable on certain phones
   [purpose='modal-dialog'] {
     z-index: 100;
     position: relative;
-    // max-width: 800px;
+    max-width: 480px;
     [purpose='modal-content'] {
       margin-top: 100px;
       max-width: 480px;
@@ -98,6 +99,8 @@
 // Modal backdrop styles are exposed globally here because this gets appended to the <body>
 .modal-backdrop {
   background-color: #192147;
+  max-width: 100vw;
+  max-height: 100vh;
   &.show {
     opacity: 0.25;
   }

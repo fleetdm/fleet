@@ -6,6 +6,7 @@ import "text/template"
 // FleetdProfileTemplate.
 type FleetdProfileOptions struct {
 	PayloadType  string
+	PayloadName  string
 	EnrollSecret string
 	ServerURL    string
 }
@@ -30,8 +31,10 @@ var FleetdProfileTemplate = template.Must(template.New("").Option("missingkey=er
         <string>{{ .EnrollSecret }}</string>
         <key>FleetURL</key>
         <string>{{ .ServerURL }}</string>
+        <key>EnableScripts</key>
+        <true />
         <key>PayloadDisplayName</key>
-        <string>Fleetd configuration</string>
+        <string>{{ .PayloadName }}</string>
         <key>PayloadIdentifier</key>
         <string>{{ .PayloadType }}</string>
         <key>PayloadType</key>
@@ -43,7 +46,7 @@ var FleetdProfileTemplate = template.Must(template.New("").Option("missingkey=er
       </dict>
     </array>
     <key>PayloadDisplayName</key>
-    <string>Fleetd configuration</string>
+    <string>{{ .PayloadName }}</string>
     <key>PayloadIdentifier</key>
     <string>{{ .PayloadType }}</string>
     <key>PayloadType</key>

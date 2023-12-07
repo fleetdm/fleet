@@ -8,6 +8,10 @@ func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
 	return nil, ErrNotImplemented
 }
 
-func IsEnrolledIntoMatchingURL(u string) (bool, error) {
-	return false, ErrNotImplemented
+func IsEnrolledInMDM() (bool, string, error) {
+	return false, "", ErrNotImplemented
+}
+
+func CheckAssignedEnrollmentProfile(expectedURL string) error {
+	return ErrNotImplemented
 }

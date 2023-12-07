@@ -94,7 +94,9 @@ func TestTokenHasExpired(t *testing.T) {
 	// perform an initial read
 	_, err := tr.Read()
 	require.NoError(t, err)
-	require.False(t, tr.HasExpired())
+	exp, remain := tr.HasExpired()
+	require.False(t, exp)
+	require.Greater(t, remain, time.Minute)
 
 	// change the mtime of the file to an expired value
 	oldmtime := time.Now().Add(-3 * time.Hour)
@@ -103,7 +105,9 @@ func TestTokenHasExpired(t *testing.T) {
 
 	_, err = tr.Read()
 	require.NoError(t, err)
-	require.True(t, tr.HasExpired())
+	exp, remain = tr.HasExpired()
+	require.True(t, exp)
+	require.Zero(t, remain)
 }
 
 func TestGetCached(t *testing.T) {

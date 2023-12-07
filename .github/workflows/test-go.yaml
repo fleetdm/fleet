@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - patch-*
+      - prepare-*
     paths:
       - '**.go'
       - 'go.mod'
@@ -40,7 +41,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        go-version: ['^1.19.11']
+        go-version: ['${{ vars.GO_VERSION }}']
         mysql: ["mysql:5.7.21", "mysql:8.0.28"]
     runs-on: ${{ matrix.os }}
 
@@ -50,18 +51,23 @@ jobs:
 
     steps:
     - name: Install Go
-      uses: actions/setup-go@v4.0.1
+      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
       with:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
       # Use & to background this
-      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit &
+      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
 
+    - name: Add TLS certificate for SMTP Tests
+      run: |
+        sudo cp tools/smtp4dev/fleet.crt /usr/local/share/ca-certificates/
+        sudo update-ca-certificates
+        
     # It seems faster not to cache Go dependencies
     - name: Install Go Dependencies
       run: make deps-go
@@ -85,6 +91,7 @@ jobs:
             sleep 1
         done
         echo "mysql is ready"
+
 
     - name: Run Go Tests
       run: |

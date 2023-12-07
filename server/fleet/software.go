@@ -1,15 +1,33 @@
 package fleet
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
-// Must be kept in sync with the vendor column definition.
 const (
-	SoftwareVendorMaxLength    = 114
 	SoftwareVendorMaxLengthFmt = "%.111s..."
 	SoftwareFieldSeparator     = "\u0000"
+
+	//
+	// The following length values must be kept in sync with the DB column definitions.
+	//
+
+	SoftwareNameMaxLength             = 255
+	SoftwareVersionMaxLength          = 255
+	SoftwareSourceMaxLength           = 64
+	SoftwareBundleIdentifierMaxLength = 255
+	SoftwareExtensionIDMaxLength      = 255
+	SoftwareBrowserMaxLength          = 255
+
+	SoftwareReleaseMaxLength = 64
+	SoftwareVendorMaxLength  = 114
+	SoftwareArchMaxLength    = 16
 )
 
 type Vulnerabilities []CVE
@@ -25,6 +43,10 @@ type Software struct {
 	BundleIdentifier string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	// Source is the source of the data (osquery table name).
 	Source string `json:"source" db:"source"`
+	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons)
+	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
+	// Browser is the browser type (from osquery chrome_extensions)
+	Browser string `json:"browser" db:"browser"`
 
 	// Release is the version of the OS this software was released on
 	// (e.g. "30.el7" for a CentOS package).
@@ -55,6 +77,10 @@ type Software struct {
 	// corresponding host. Only filled when the software list is requested for
 	// a specific host (host_id is provided).
 	LastOpenedAt *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
+
+	// TitleID is the ID of the associated software title, representing a unique combination of name
+	// and source.
+	TitleID *uint `json:"-" db:"title_id"`
 }
 
 func (Software) AuthzType() string {
@@ -69,7 +95,65 @@ func (s Software) ToUniqueStr() string {
 	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
 		ss = append(ss, s.Release, s.Vendor, s.Arch)
 	}
+	// ExtensionID and Browser were added in a single migration, so they are only included if they exist.
+	// This way a blank ExtensionID/Browser matches the pre-migration unique string.
+	if s.ExtensionID != "" || s.Browser != "" {
+		ss = append(ss, s.ExtensionID, s.Browser)
+	}
 	return strings.Join(ss, SoftwareFieldSeparator)
+}
+
+type SliceString []string
+
+func (c *SliceString) Scan(v interface{}) error {
+	switch tv := v.(type) {
+	case []byte:
+		return json.Unmarshal(tv, &c)
+	}
+	return errors.New("unsupported type")
+}
+
+// SoftwareVersion is an abstraction over the `software` table to support the
+// software titles APIs
+type SoftwareVersion struct {
+	ID uint `db:"id" json:"id"`
+	// Version is the version string we grab for this specific software.
+	Version string `db:"version" json:"version"`
+	// Vulnerabilities is the list of CVE names for vulnerabilities found for this version.
+	Vulnerabilities *SliceString `db:"vulnerabilities" json:"vulnerabilities,omitempty"`
+	// HostsCount is the number of hosts that use this software version.
+	HostsCount *uint `db:"hosts_count" json:"hosts_count,omitempty"`
+
+	// TitleID is used only as an auxiliary field and it's not part of the
+	// JSON response.
+	TitleID uint `db:"title_id" json:"-"`
+}
+
+// SoftwareTitle represents a title backed by the `software_titles` table.
+type SoftwareTitle struct {
+	ID uint `json:"id" db:"id"`
+	// Name is the name reported by osquery.
+	Name string `json:"name" db:"name"`
+	// Source is the source reported by osquery.
+	Source string `json:"source" db:"source"`
+	// HostsCount is the number of hosts that use this software title.
+	HostsCount uint `json:"hosts_count" db:"hosts_count"`
+	// VesionsCount is the number of versions that have the same title.
+	VersionsCount uint `json:"versions_count" db:"versions_count"`
+	// Versions countains information about the versions that use this title.
+	Versions []SoftwareVersion `json:"versions" db:"-"`
+	// CountsUpdatedAt is the timestamp when the hosts count
+	// was last updated for that software, filled only if hosts
+	// count is requested.
+	CountsUpdatedAt time.Time `json:"-" db:"counts_updated_at"`
+}
+
+type SoftwareTitleListOptions struct {
+	// ListOptions cannot be embedded in order to unmarshall with validation.
+	ListOptions ListOptions `url:"list_options"`
+
+	TeamID         *uint `query:"team_id,optional"`
+	VulnerableOnly bool  `query:"vulnerable,optional"`
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.
@@ -88,7 +172,7 @@ type HostSoftwareEntry struct {
 	Software
 	// Where this software was installed on the host, value is derived from the
 	// host_software_installed_paths table.
-	InstalledPaths []string `json:"installed_paths,omitempty"`
+	InstalledPaths []string `json:"installed_paths"`
 }
 
 // HostSoftware is the set of software installed on a specific host
@@ -108,7 +192,8 @@ type SoftwareIterator interface {
 }
 
 type SoftwareListOptions struct {
-	ListOptions
+	// ListOptions cannot be embedded in order to unmarshall with validation.
+	ListOptions ListOptions `url:"list_options"`
 
 	// HostID filters software to the specified host if not nil.
 	HostID           *uint
@@ -169,4 +254,73 @@ func (uhsdbr *UpdateHostSoftwareDBResult) CurrInstalled() []Software {
 	}
 
 	return r
+}
+
+// ParseSoftwareLastOpenedAtRowValue attempts to parse the last_opened_at
+// software column value. If the value is empty or if the parsed value is
+// less or equal than 0 it returns (time.Time{}, nil). We do this because
+// some macOS apps return "-1.0" when the app was never opened and we hardcode
+// to 0 for some tables that don't have such info.
+func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
+	if value == "" {
+		return time.Time{}, nil
+	}
+	lastOpenedEpoch, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if lastOpenedEpoch <= 0 {
+		return time.Time{}, nil
+	}
+	return time.Unix(int64(lastOpenedEpoch), 0).UTC(), nil
+}
+
+// SoftwareFromOsqueryRow creates a fleet.Software from the values reported by osquery.
+// Arguments name and source must be defined, all other fields are optional.
+// This method doesn't fail if lastOpenedAt is empty or cannot be parsed.
+//
+// All fields are trimmed to fit on Fleet's database.
+// The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
+func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, release, arch, bundleIdentifier, extensionId, browser, lastOpenedAt string) (
+	*Software, error,
+) {
+	if name == "" {
+		return nil, errors.New("host reported software with empty name")
+	}
+	if source == "" {
+		return nil, errors.New("host reported software with empty source")
+	}
+
+	// We don't fail if only the last_opened_at cannot be parsed.
+	lastOpenedAtTime, _ := ParseSoftwareLastOpenedAtRowValue(lastOpenedAt)
+
+	// Check whether the vendor is longer than the max allowed width and if so, truncate it.
+	if utf8.RuneCountInString(vendor) >= SoftwareVendorMaxLength {
+		vendor = fmt.Sprintf(SoftwareVendorMaxLengthFmt, vendor)
+	}
+
+	truncateString := func(str string, length int) string {
+		runes := []rune(str)
+		if len(runes) > length {
+			return string(runes[:length])
+		}
+		return str
+	}
+
+	software := Software{
+		Name:             truncateString(name, SoftwareNameMaxLength),
+		Version:          truncateString(version, SoftwareVersionMaxLength),
+		Source:           truncateString(source, SoftwareSourceMaxLength),
+		BundleIdentifier: truncateString(bundleIdentifier, SoftwareBundleIdentifierMaxLength),
+		ExtensionID:      truncateString(extensionId, SoftwareExtensionIDMaxLength),
+		Browser:          truncateString(browser, SoftwareBrowserMaxLength),
+
+		Release: truncateString(release, SoftwareReleaseMaxLength),
+		Vendor:  vendor,
+		Arch:    truncateString(arch, SoftwareArchMaxLength),
+	}
+	if !lastOpenedAtTime.IsZero() {
+		software.LastOpenedAt = &lastOpenedAtTime
+	}
+	return &software, nil
 }

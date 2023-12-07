@@ -28,23 +28,14 @@
 
   &--success {
     background-color: $ui-success;
-    .fleeticon {
-      color: $core-white;
-    }
   }
 
   &--error {
     background-color: $ui-error;
-    .fleeticon {
-      color: $core-white;
-    }
   }
 
   &--warning-filled {
     background-color: $ui-warning;
-    .fleeticon {
-      color: $core-fleet-black;
-    }
 
     span {
       margin-left: 15px;
@@ -106,11 +97,6 @@
     button {
       display: flex;
       align-items: center;
-
-      img {
-        height: 16px;
-        width: 16px;
-      }
     }
   }
 }

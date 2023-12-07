@@ -2,7 +2,7 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
-import { IOsqueryPlatform } from "interfaces/platform";
+import { OsqueryPlatform } from "interfaces/platform";
 import { buildQueryStringFromParams } from "utilities/url";
 
 // TODO: add platforms to this constant as new ones are supported
@@ -14,19 +14,20 @@ export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = [
 
 export interface IGetOSVersionsRequest {
   id?: number;
-  platform?: IOsqueryPlatform;
+  platform?: OsqueryPlatform;
   teamId?: number;
 }
 
 export interface IGetOSVersionsQueryKey extends IGetOSVersionsRequest {
   scope: string;
 }
+
 export interface IOSVersionsResponse {
   counts_updated_at: string;
   os_versions: IOperatingSystemVersion[];
 }
 
-export const getOSVersions = async ({
+export const getOSVersions = ({
   id,
   platform,
   teamId,

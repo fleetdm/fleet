@@ -8,12 +8,13 @@ import {
   reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
-import { ISelectedPlatform } from "interfaces/platform";
+import { SelectedPlatform } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import {
-  FileVaultProfileStatus,
+  DiskEncryptionStatus,
   BootstrapPackageStatus,
   IMdmSolution,
+  MdmProfileStatus,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 
@@ -28,6 +29,14 @@ export interface ILoadHostsResponse {
   munki_issue: IMunkiIssuesAggregate;
   mobile_device_management_solution: IMdmSolution;
 }
+
+// the source of truth for the filter option names.
+// there are used on many other pages but we define them here.
+// TODO: add other filter options here.
+export const HOSTS_QUERY_PARAMS = {
+  OS_SETTINGS: "os_settings",
+  DISK_ENCRYPTION: "os_settings_disk_encryption",
+} as const;
 
 export interface ILoadHostsQueryKey extends ILoadHostsOptions {
   scope: "hosts";
@@ -57,7 +66,8 @@ export interface ILoadHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
-  diskEncryptionStatus?: FileVaultProfileStatus;
+  osSettings?: MdmProfileStatus;
+  diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
@@ -83,7 +93,8 @@ export interface IExportHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
-  diskEncryptionStatus?: FileVaultProfileStatus;
+  osSettings?: MdmProfileStatus;
+  diskEncryptionStatus?: DiskEncryptionStatus;
 }
 
 export interface IActionByFilter {
@@ -127,7 +138,7 @@ const getSortParams = (sortOptions?: ISortOption[]) => {
   };
 };
 
-const createMdmParams = (platform?: ISelectedPlatform, teamId?: number) => {
+const createMdmParams = (platform?: SelectedPlatform, teamId?: number) => {
   if (platform === "all") {
     return buildQueryStringFromParams({ team_id: teamId });
   }
@@ -174,6 +185,7 @@ export default {
     const visibleColumns = options?.visibleColumns;
     const label = getLabelParam(selectedLabels);
     const munkiIssueId = options?.munkiIssueId;
+    const osSettings = options?.osSettings;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
 
     if (!sortBy.length) {
@@ -184,7 +196,11 @@ export default {
       order_key: sortBy[0].key,
       order_direction: sortBy[0].direction,
       query: globalFilter,
-      ...reconcileMutuallyInclusiveHostParams({ teamId, macSettingsStatus }),
+      ...reconcileMutuallyInclusiveHostParams({
+        teamId,
+        macSettingsStatus,
+        osSettings,
+      }),
       ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
@@ -194,6 +210,7 @@ export default {
         munkiIssueId,
         softwareId,
         lowDiskSpaceHosts,
+        osSettings,
         diskEncryptionStatus,
       }),
       status,
@@ -228,6 +245,7 @@ export default {
     device_mapping,
     selectedLabels,
     sortBy,
+    osSettings,
     diskEncryptionStatus,
     bootstrapPackageStatus,
   }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
@@ -245,6 +263,7 @@ export default {
       ...reconcileMutuallyInclusiveHostParams({
         teamId,
         macSettingsStatus,
+        osSettings,
       }),
       ...reconcileMutuallyExclusiveHostParams({
         label,
@@ -259,6 +278,7 @@ export default {
         osName,
         osVersion,
         diskEncryptionStatus,
+        osSettings,
         bootstrapPackageStatus,
       }),
     };
@@ -328,7 +348,7 @@ export default {
     return sendRequest("GET", HOST_MDM(id));
   },
 
-  getMdmSummary: (platform?: ISelectedPlatform, teamId?: number) => {
+  getMdmSummary: (platform?: SelectedPlatform, teamId?: number) => {
     const { MDM_SUMMARY } = endpoints;
 
     if (!platform || platform === "linux") {

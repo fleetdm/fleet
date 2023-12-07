@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -20,7 +19,7 @@ import (
 func LoadPEM(path string) (*x509.CertPool, error) {
 	pool := x509.NewCertPool()
 
-	contents, err := ioutil.ReadFile(path)
+	contents, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read certificate file: %w", err)
 	}

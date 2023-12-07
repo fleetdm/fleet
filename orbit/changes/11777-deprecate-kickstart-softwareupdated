@@ -1,2 +1,0 @@
-* Removed automatic functionality to call `launchctl kickstart -k softwareupdated` periodically, which was causing issues on some macOS devices.
-  The `--disable-kickstart-softwareupdated` flag is kept for backwards compatibility but it doesn't have any effect.

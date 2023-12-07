@@ -29,8 +29,8 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.NoError(t, s.ds.ReplaceHostDeviceMapping(context.Background(), hosts[0].ID, []*fleet.HostDeviceMapping{
 		{HostID: hosts[0].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
 		{HostID: hosts[0].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
-	}))
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, false, true, "url", false, ""))
+	}, "google_chrome_profiles"))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, false, true, "url", false, "", ""))
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), hosts[0].ID, "1.3.0", nil, nil))
 	// create a battery for hosts[0]
 	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), hosts[0].ID, []*fleet.HostBattery{
@@ -261,4 +261,52 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 		}
 		s.DoRawWithHeaders(tCase.verb, tCase.endpoint, b, http.StatusTooManyRequests, headers).Body.Close()
 	}
+}
+
+func (s *integrationTestSuite) TestErrorReporting() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+	token := "much_valid"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hosts[0].ID, token)
+		return err
+	})
+
+	// invalid token is unauthorized
+	res := s.DoRawNoAuth("POST", "/api/latest/fleet/device/no_such_token/debug/errors", []byte("{}"), http.StatusUnauthorized)
+	res.Body.Close()
+
+	// invalid request body is a bad request
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", []byte("{},{}"), http.StatusBadRequest)
+	res.Body.Close()
+
+	data := make(map[string]interface{})
+	for i := int64(0); i < (maxFleetdErrorReportSize+1024)/20; i++ {
+		key := fmt.Sprintf("key%d", i)
+		value := fmt.Sprintf("value%d", i)
+		data[key] = value
+	}
+
+	jsonData, err := json.Marshal(data)
+	require.NoError(t, err)
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", jsonData, http.StatusBadRequest)
+	res.Body.Close()
+
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", []byte("{}"), http.StatusInternalServerError)
+	res.Body.Close()
+
+	testTime, err := time.Parse(time.RFC3339, "1969-06-19T21:44:05Z")
+	require.NoError(t, err)
+	ferr := fleet.FleetdError{
+		ErrorSource:         "orbit",
+		ErrorSourceVersion:  "1.1.1",
+		ErrorTimestamp:      testTime,
+		ErrorMessage:        "test message",
+		ErrorAdditionalInfo: map[string]any{"foo": "bar"},
+	}
+	errBytes, err := json.Marshal(ferr)
+	require.NoError(t, err)
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusInternalServerError)
+	res.Body.Close()
 }

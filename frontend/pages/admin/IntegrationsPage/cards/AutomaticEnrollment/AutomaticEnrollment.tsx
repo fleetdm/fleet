@@ -64,7 +64,7 @@ const AutomaticEnrollment = ({ router }: IAutomaticEnrollment) => {
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <AppleBusinessManagerSection />
+        <AppleBusinessManagerSection router={router} />
       </div>
       <div className={`${baseClass}__section`}>
         <IdpSection />

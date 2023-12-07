@@ -13,6 +13,7 @@ import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
+import { getErrorReason } from "interfaces/errors";
 import packsAPI from "services/entities/packs";
 import queriesAPI from "services/entities/queries";
 import scheduledQueriesAPI from "services/entities/scheduled_queries";
@@ -149,10 +150,11 @@ const EditPacksPage = ({
         router.push(PATHS.MANAGE_PACKS);
         renderFlash("success", `Successfully updated this pack.`);
       })
-      .catch((response) => {
+      .catch((e) => {
         if (
-          response.errors[0].reason.slice(0, 27) ===
-          "Error 1062: Duplicate entry"
+          getErrorReason(e, {
+            reasonIncludes: "Duplicate entry",
+          })
         ) {
           renderFlash(
             "error",

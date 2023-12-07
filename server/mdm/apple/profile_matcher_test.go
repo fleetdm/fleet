@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/require"
@@ -304,6 +305,15 @@ func TestPreassignProfileValidation(t *testing.T) {
 			"payload identifier com.fleetdm.fleet.mdm.filevault is not allowed",
 		},
 		{
+			"invalid payload name",
+			fleet.MDMApplePreassignProfilePayload{
+				ExternalHostIdentifier: "abcd",
+				HostUUID:               "1234",
+				Profile:                generateProfile(mdm.FleetFileVaultProfileName, "p1", "Configuration", "p1"),
+			},
+			"payload display name Disk encryption is not allowed",
+		},
+		{
 			"valid",
 			fleet.MDMApplePreassignProfilePayload{
 				ExternalHostIdentifier: "abcd",
@@ -323,6 +333,23 @@ func TestPreassignProfileValidation(t *testing.T) {
 				require.NoError(t, err)
 			}
 		})
+	}
+}
+
+func TestKeyForExternalHostIdentifier(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"", ""},
+		{"abcd", "abcd"},
+		{"6f36ab2c-1a40-429b-9c9d-07c9029f4aa8", "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8"},
+		{"6f36ab2c-1a40-429b-9c9d-07c9029f4aa8-puppetcompiler06.test.example.com", "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8"},
+	}
+
+	for _, c := range cases {
+		got := keyForExternalHostIdentifier(c.in)
+		require.Equal(t, preassignKeyPrefix+c.want, got)
 	}
 }
 

@@ -35,7 +35,7 @@ func TestCampaigns(t *testing.T) {
 func testCampaignsDistributedQuery(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	mockClock := clock.NewMockClock()
-	query := test.NewQuery(t, ds, "test", "select * from time", user.ID, false)
+	query := test.NewQuery(t, ds, nil, "test", "select * from time", user.ID, false)
 	campaign := test.NewCampaign(t, ds, query.ID, fleet.QueryRunning, mockClock.Now())
 
 	{
@@ -84,7 +84,7 @@ func testCampaignsCleanupDistributedQuery(t *testing.T, ds *Datastore) {
 
 	mockClock := clock.NewMockClock()
 
-	query := test.NewQuery(t, ds, "test", "select * from time", user.ID, false)
+	query := test.NewQuery(t, ds, nil, "test", "select * from time", user.ID, false)
 
 	c1 := test.NewCampaign(t, ds, query.ID, fleet.QueryWaiting, mockClock.Now())
 	c2 := test.NewCampaign(t, ds, query.ID, fleet.QueryRunning, mockClock.Now())
@@ -158,7 +158,7 @@ func testCampaignsSaveDistributedQuery(t *testing.T, ds *Datastore) {
 
 	mockClock := clock.NewMockClock()
 
-	query := test.NewQuery(t, ds, t.Name()+"test", "select * from time", user.ID, false)
+	query := test.NewQuery(t, ds, nil, t.Name()+"test", "select * from time", user.ID, false)
 
 	c1 := test.NewCampaign(t, ds, query.ID, fleet.QueryWaiting, mockClock.Now())
 	gotC, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)

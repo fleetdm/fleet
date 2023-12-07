@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"strconv"
 
@@ -33,6 +34,15 @@ func (c *Client) CreateTeam(teamPayload fleet.TeamPayload) (*fleet.Team, error) 
 	return responseBody.Team, nil
 }
 
+func (c *Client) GetTeam(teamID uint) (*fleet.Team, error) {
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID)
+	var responseBody getTeamResponse
+	if err := c.authenticatedRequest(getTeamRequest{}, verb, path, &responseBody); err != nil {
+		return nil, err
+	}
+	return responseBody.Team, nil
+}
+
 // DeleteTeam deletes a team.
 func (c *Client) DeleteTeam(teamID uint) error {
 	verb, path := "DELETE", "/api/latest/fleet/teams/"+strconv.FormatUint(uint64(teamID), 10)
@@ -54,8 +64,8 @@ func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplySpecOptions
 
 // ApplyTeamProfiles sends the list of profiles to be applied for the specified
 // team.
-func (c *Client) ApplyTeamProfiles(tmName string, profiles [][]byte, opts fleet.ApplySpecOptions) error {
-	verb, path := "POST", "/api/latest/fleet/mdm/apple/profiles/batch"
+func (c *Client) ApplyTeamProfiles(tmName string, profiles map[string][]byte, opts fleet.ApplySpecOptions) error {
+	verb, path := "POST", "/api/latest/fleet/mdm/profiles/batch"
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
 		return err
@@ -71,4 +81,16 @@ func (c *Client) ApplyPolicies(specs []*fleet.PolicySpec) error {
 	verb, path := "POST", "/api/latest/fleet/spec/policies"
 	var responseBody applyPolicySpecsResponse
 	return c.authenticatedRequest(req, verb, path, &responseBody)
+}
+
+// ApplyTeamScripts sends the list of scripts to be applied for the specified
+// team.
+func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, opts fleet.ApplySpecOptions) error {
+	verb, path := "POST", "/api/latest/fleet/scripts/batch"
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return err
+	}
+	query.Add("team_name", tmName)
+	return c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, nil, query.Encode())
 }

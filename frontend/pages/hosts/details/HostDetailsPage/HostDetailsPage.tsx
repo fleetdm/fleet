@@ -1,4 +1,10 @@
-import React, { useContext, useState, useCallback, useEffect } from "react";
+import React, {
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -12,55 +18,64 @@ import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
-import { PolicyContext } from "context/policy";
+import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 import {
   IHost,
   IDeviceMappingResponse,
   IMacadminsResponse,
-  IPackStats,
   IHostResponse,
   IHostMdmData,
+  IPackStats,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
-import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
+import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { ITeam } from "interfaces/team";
+import {
+  IListQueriesResponse,
+  IQueryKeyQueriesLoadAll,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
-import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
 
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import {
+  normalizeEmptyValues,
+  wrapFleetHelper,
+  TAGGED_TEMPLATES,
+} from "utilities/helpers";
 import permissions from "utilities/permissions";
+import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
 import AgentOptionsCard from "../cards/AgentOptions";
 import LabelsCard from "../cards/Labels";
 import MunkiIssuesCard from "../cards/MunkiIssues";
+import ScriptsCard from "../cards/Scripts";
 import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
 import ScheduleCard from "../cards/Schedule";
 import PacksCard from "../cards/Packs";
-import SelectQueryModal from "./modals/SelectQueryModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import OSPolicyModal from "./modals/OSPolicyModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
-import parseOsVersion from "./modals/OSPolicyModal/helpers";
-
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
-import MacSettingsModal from "../MacSettingsModal";
+import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
+import SelectQueryModal from "./modals/SelectQueryModal";
+import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
+import HostDetailsBanners from "./components/HostDetailsBanners";
 
 const baseClass = "host-details";
 
@@ -95,12 +110,6 @@ interface IHostDetailsSubNavItem {
   pathname: string;
 }
 
-const TAGGED_TEMPLATES = {
-  queryByHostRoute: (hostId: number | undefined | null) => {
-    return `${hostId ? `?host_ids=${hostId}` : ""}`;
-  },
-};
-
 const HostDetailsPage = ({
   route,
   router,
@@ -121,14 +130,7 @@ const HostDetailsPage = ({
     isOnlyObserver,
     filteredHostsPath,
   } = useContext(AppContext);
-  const {
-    setLastEditedQueryName,
-    setLastEditedQueryDescription,
-    setLastEditedQueryBody,
-    setLastEditedQueryResolution,
-    setLastEditedQueryCritical,
-    setPolicyTeamId,
-  } = useContext(PolicyContext);
+  const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const handlePageError = useErrorHandler();
@@ -137,38 +139,42 @@ const HostDetailsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
-  const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
-  const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
+  const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
+  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
   const [isUpdatingHost, setIsUpdatingHost] = useState(false);
-
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
-  const [packsState, setPacksState] = useState<IPackStats[]>();
   const [schedule, setSchedule] = useState<IQueryStats[]>();
+  const [packsState, setPacksState] = useState<IPackStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
 
+  // used to track the current script execution id we want to show in the show
+  // details modal.
+  const scriptExecutionId = useRef<string | null>(null);
+
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
-    IFleetQueriesResponse,
+    IListQueriesResponse,
     Error,
-    IQuery[]
-  >("fleet queries", () => queryAPI.loadAll(), {
+    ISchedulableQuery[],
+    IQueryKeyQueriesLoadAll[]
+  >([{ scope: "queries", teamId: undefined }], () => queryAPI.loadAll(), {
     enabled: !!hostIdFromURL,
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     retry: false,
-    select: (data: IFleetQueriesResponse) => data.queries,
+    select: (data: IListQueriesResponse) => data.queries,
   });
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
@@ -312,8 +318,8 @@ const HostDetailsPage = ({
             },
             { packs: [], schedule: [] }
           );
-          setPacksState(packStatsByType.packs);
           setSchedule(packStatsByType.schedule);
+          setPacksState(packStatsByType.packs);
         }
       },
       onError: (error) => handlePageError(error),
@@ -335,6 +341,27 @@ const HostDetailsPage = ({
       );
     });
   }, [usersSearchString, host?.users]);
+
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    const hostTab = () => {
+      if (location.pathname.includes("software")) {
+        return "software";
+      }
+      if (location.pathname.includes("schedule")) {
+        return "schedule";
+      }
+      if (location.pathname.includes("policies")) {
+        return "policies";
+      }
+      return "";
+    };
+
+    // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
+    document.title = `Host ${hostTab()} details ${
+      host?.display_name ? `| ${host?.display_name} |` : "|"
+    } Fleet for osquery`;
+  }, [location.pathname, host]);
 
   // Used for back to software pathname
   useEffect(() => {
@@ -360,8 +387,6 @@ const HostDetailsPage = ({
     ])
   );
 
-  const [osPolicyLabel, osPolicyQuery] = parseOsVersion(host?.os_version);
-
   const aboutData = normalizeEmptyValues(
     pick(host, [
       "seen_time",
@@ -374,6 +399,7 @@ const HostDetailsPage = ({
       "geolocation",
       "batteries",
       "detail_updated_at",
+      "last_restarted_at",
     ])
   );
 
@@ -393,13 +419,9 @@ const HostDetailsPage = ({
     [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
   );
 
-  const toggleOSPolicyModal = useCallback(() => {
-    setShowOSPolicyModal(!showOSPolicyModal);
-  }, [showOSPolicyModal, setShowOSPolicyModal]);
-
-  const toggleMacSettingsModal = useCallback(() => {
-    setShowMacSettingsModal(!showMacSettingsModal);
-  }, [showMacSettingsModal, setShowMacSettingsModal]);
+  const toggleOSSettingsModal = useCallback(() => {
+    setShowOSSettingsModal(!showOSSettingsModal);
+  }, [showOSSettingsModal, setShowOSSettingsModal]);
 
   const toggleBootstrapPackageModal = useCallback(() => {
     setShowBootstrapPackageModal(!showBootstrapPackageModal);
@@ -413,21 +435,6 @@ const HostDetailsPage = ({
   const toggleUnenrollMdmModal = useCallback(() => {
     setShowUnenrollMdmModal(!showUnenrollMdmModal);
   }, [showUnenrollMdmModal, setShowUnenrollMdmModal]);
-
-  const onCreateNewPolicy = () => {
-    const { NEW_POLICY } = PATHS;
-    host?.team_name
-      ? setLastEditedQueryName(`${osPolicyLabel} (${host.team_name})`)
-      : setLastEditedQueryName(osPolicyLabel);
-    setPolicyTeamId(host?.team_id ? host?.team_id : 0);
-    setLastEditedQueryDescription(
-      "Checks to see if the required minimum operating system version is installed."
-    );
-    setLastEditedQueryBody(osPolicyQuery);
-    setLastEditedQueryResolution("");
-    setLastEditedQueryCritical(false);
-    router.replace(NEW_POLICY);
-  };
 
   const onDestroyHost = async () => {
     if (host) {
@@ -481,14 +488,28 @@ const HostDetailsPage = ({
   };
 
   const onQueryHostCustom = () => {
-    router.push(PATHS.NEW_QUERY + TAGGED_TEMPLATES.queryByHostRoute(host?.id));
+    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
+    router.push(
+      PATHS.NEW_QUERY() + TAGGED_TEMPLATES.queryByHostRoute(host?.id)
+    );
   };
 
-  const onQueryHostSaved = (selectedQuery: IQuery) => {
+  const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
+    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
-      PATHS.EDIT_QUERY(selectedQuery) +
+      PATHS.EDIT_QUERY(selectedQuery.id) +
         TAGGED_TEMPLATES.queryByHostRoute(host?.id)
     );
+  };
+
+  const onCancelScriptDetailsModal = () => {
+    setShowScriptDetailsModal(false);
+    scriptExecutionId.current = null;
+  };
+
+  const onShowScriptDetails = (executionId: string) => {
+    scriptExecutionId.current = executionId;
+    setShowScriptDetailsModal(true);
   };
 
   const onTransferHostSubmit = async (team: ITeam) => {
@@ -551,7 +572,9 @@ const HostDetailsPage = ({
 
     return (
       <HostActionDropdown
+        hostTeamId={host.team_id}
         onSelect={onSelectHostAction}
+        hostPlatform={host.platform}
         hostStatus={host.status}
         hostMdmEnrollemntStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
@@ -570,6 +593,11 @@ const HostDetailsPage = ({
       name: "Details",
       title: "details",
       pathname: PATHS.HOST_DETAILS(hostIdFromURL),
+    },
+    {
+      name: "Scripts",
+      title: "scripts",
+      pathname: PATHS.HOST_SCRIPTS(hostIdFromURL),
     },
     {
       name: "Software",
@@ -595,25 +623,28 @@ const HostDetailsPage = ({
     },
   ];
 
+  // we want the scripts tabs on the list for only mac and windows hosts and premium tier atm.
+  // We filter it out for other platforms and non premium.
+  // TODO: improve this code. We can pull the tab list component out
+  // into its own component later.
+
+  const showScripts =
+    ["darwin", "windows"].includes(host?.platform ?? "") && isPremiumTier;
+  const filteredSubNavTabs = showScripts
+    ? hostDetailsSubNav
+    : hostDetailsSubNav.filter((navItem) => navItem.title !== "scripts");
+
   const getTabIndex = (path: string): number => {
-    return hostDetailsSubNav.findIndex((navItem) => {
+    return filteredSubNavTabs.findIndex((navItem) => {
       // tab stays highlighted for paths that ends with same pathname
       return path.endsWith(navItem.pathname);
     });
   };
 
   const navigateToNav = (i: number): void => {
-    const navPath = hostDetailsSubNav[i].pathname;
+    const navPath = filteredSubNavTabs[i].pathname;
     router.push(navPath);
   };
-
-  const isMdmUnenrolled =
-    host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
-
-  const showDiskEncryptionUserActionRequired =
-    config?.mdm.enabled_and_configured &&
-    host?.mdm.name === "Fleet" &&
-    host?.mdm.macos_settings?.disk_encryption === "action_required";
 
   /*  Context team id might be different that host's team id
   Observer plus must be checked against host's team id  */
@@ -638,25 +669,17 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
+  const page = (location.query.page && parseInt(location.query.page, 10)) || 0;
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
-        {host?.platform === "darwin" &&
-          isMdmUnenrolled &&
-          config?.mdm.enabled_and_configured && (
-            <InfoBanner color="yellow">
-              To change settings and install software, ask the end user to
-              follow the <strong>Turn on MDM</strong> instructions on their{" "}
-              <strong>My device</strong> page.
-            </InfoBanner>
-          )}
-        {showDiskEncryptionUserActionRequired && (
-          <InfoBanner color="yellow">
-            Disk encryption: Requires action from the end user. Ask the end user
-            to follow <b>Disk encryption</b> instructions on their{" "}
-            <b>My device</b> page.
-          </InfoBanner>
-        )}
+        <HostDetailsBanners
+          hostMdmEnrollmentStatus={host?.mdm.enrollment_status}
+          hostPlatform={host?.platform}
+          mdmName={host?.mdm.name}
+          diskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
+        />
         <div className={`${baseClass}__header-links`}>
           <BackLink
             text="Back to all hosts"
@@ -669,15 +692,14 @@ const HostDetailsPage = ({
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
           isSandboxMode={isSandboxMode}
-          isOnlyObserver={isOnlyObserver}
-          toggleOSPolicyModal={toggleOSPolicyModal}
-          toggleMacSettingsModal={toggleMacSettingsModal}
+          toggleOSSettingsModal={toggleOSSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
           hostMdmProfiles={host?.mdm.profiles ?? []}
           mdmName={mdm?.name}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
+          osSettings={host?.mdm.os_settings}
         />
         <TabsWrapper>
           <Tabs
@@ -685,7 +707,7 @@ const HostDetailsPage = ({
             onSelect={(i) => navigateToNav(i)}
           >
             <TabList>
-              {hostDetailsSubNav.map((navItem) => {
+              {filteredSubNavTabs.map((navItem) => {
                 // Bolding text when the tab is active causes a layout shift
                 // so we add a hidden pseudo element with the same text string
                 return <Tab key={navItem.title}>{navItem.name}</Tab>;
@@ -697,7 +719,6 @@ const HostDetailsPage = ({
                 deviceMapping={deviceMapping}
                 munki={macadmins?.munki}
                 mdm={mdm}
-                wrapFleetHelper={wrapFleetHelper}
               />
               <div className="col-2">
                 <AgentOptionsCard
@@ -718,6 +739,14 @@ const HostDetailsPage = ({
                 hostUsersEnabled={featuresConfig?.enable_host_users}
               />
             </TabPanel>
+            {showScripts && (
+              <TabPanel>
+                <ScriptsCard
+                  {...{ currentUser, host, page, router }}
+                  onShowDetails={onShowScriptDetails}
+                />
+              </TabPanel>
+            )}
             <TabPanel>
               <SoftwareCard
                 isLoading={isLoadingHost}
@@ -791,31 +820,25 @@ const HostDetailsPage = ({
             policy={selectedPolicy}
           />
         )}
-        {showOSPolicyModal && (
-          <OSPolicyModal
-            onCancel={() => setShowOSPolicyModal(false)}
-            onCreateNewPolicy={onCreateNewPolicy}
-            osVersion={host?.os_version}
-            detailsUpdatedAt={host?.detail_updated_at}
-            osPolicy={osPolicyQuery}
-            osPolicyLabel={osPolicyLabel}
-          />
-        )}
-        {showMacSettingsModal && (
-          <MacSettingsModal
+        {showOSSettingsModal && (
+          <OSSettingsModal
+            platform={host?.platform}
             hostMDMData={host?.mdm}
-            onClose={toggleMacSettingsModal}
+            onClose={toggleOSSettingsModal}
           />
         )}
         {showUnenrollMdmModal && !!host && (
           <UnenrollMdmModal hostId={host.id} onClose={toggleUnenrollMdmModal} />
         )}
-        {showDiskEncryptionModal && host && (
-          <DiskEncryptionKeyModal
-            hostId={host.id}
-            onCancel={() => setShowDiskEncryptionModal(false)}
-          />
-        )}
+        {showDiskEncryptionModal &&
+          host &&
+          isSupportedPlatform(host.platform) && (
+            <DiskEncryptionKeyModal
+              platform={host.platform}
+              hostId={host.id}
+              onCancel={() => setShowDiskEncryptionModal(false)}
+            />
+          )}
         {showBootstrapPackageModal &&
           bootstrapPackageData.details &&
           bootstrapPackageData.name && (
@@ -825,6 +848,12 @@ const HostDetailsPage = ({
               onClose={() => setShowBootstrapPackageModal(false)}
             />
           )}
+        {showScriptDetailsModal && scriptExecutionId.current && (
+          <ScriptDetailsModal
+            scriptExecutionId={scriptExecutionId.current}
+            onCancel={onCancelScriptDetailsModal}
+          />
+        )}
       </div>
     </MainContent>
   );

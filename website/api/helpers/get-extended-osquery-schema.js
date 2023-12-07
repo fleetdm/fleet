@@ -6,6 +6,13 @@ module.exports = {
 
   description: 'Get the extended osquery schema and documentation supported by Fleet by reading the raw osquery tables and Fleet\'s overrides from disk, then returning the extended set of tables.',
 
+  inputs: {
+    includeLastModifiedAtValue: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether or not to include a lastModifiedAt value for each table.',
+    }
+  },
 
   exits: {
 
@@ -18,9 +25,11 @@ module.exports = {
   },
 
 
-  fn: async function () {
+  fn: async function ({includeLastModifiedAtValue}) {
     let path = require('path');
     let YAML = require('yaml');
+    let util = require('util');
+
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
     require('assert')(sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation, 'Please set sails.config.custom.sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation to the version of osquery to use, for example \'5.8.1\'.');
@@ -29,6 +38,31 @@ module.exports = {
     // Getting the specified osquery schema from the osquery/osquery-site GitHub repo.
     let rawOsqueryTables = await sails.helpers.http.get('https://raw.githubusercontent.com/osquery/osquery-site/source/src/data/osquery_schema_versions/'+VERSION_OF_OSQUERY_SCHEMA_TO_USE+'.json');
 
+    let rawOsqueryTablesLastModifiedAt;
+    if(includeLastModifiedAtValue) {
+      // If we're including a lastModifiedAt value for schema tables, we'll send a request to the GitHub API to get a timestamp of when the last commit
+      let responseData = await sails.helpers.http.get.with({// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
+        url: 'https://api.github.com/repos/osquery/osquery-site/commits',
+        data: {
+          path: '/src/data/osquery_schema_versions/'+VERSION_OF_OSQUERY_SCHEMA_TO_USE+'.json',
+          page: 1,
+          per_page: 1,//eslint-disable-line camelcase
+        },
+        headers: {
+          'User-Agent': 'fleet-schema-builder',
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }).intercept((err)=>{
+        return new Error(`When trying to send a request to GitHub get a timestamp of the last commit to the osqeury schema JSON, an error occurred. Full error: ${util.inspect(err)}`);
+      });
+      // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit` we got in the API response from github.
+      let mostRecentCommitToOsquerySchema = responseData[0];
+      if(!mostRecentCommitToOsquerySchema.commit || !mostRecentCommitToOsquerySchema.commit.committer) {
+        // Throw an error if the the response from GitHub is missing a commit or commiter.
+        throw new Error(`When trying to get a lastModifiedAt timestamp for the osqeury schema json, the response from the GitHub API did not include information about the most recent commit. Response from GitHub: ${util.inspect(responseData, {depth:null})}`);
+      }
+      rawOsqueryTablesLastModifiedAt = (new Date(mostRecentCommitToOsquerySchema.commit.committer.date)).getTime(); // Convert the UTC timestamp from GitHub to a JS timestamp.
+    }
     let fleetOverridesForTables = [];
 
     let filesInTablesFolder = await sails.helpers.fs.ls(path.resolve(topLvlRepoPath+'/schema/tables'));
@@ -43,6 +77,17 @@ module.exports = {
       } catch(err) {
         throw new Error(`Could not parse the Fleet overrides YAMl at ${yamlSchema} on line ${err.linePos.start.line}. To resolve, make sure the YAML is valid, then try running this script again: `+err.stack);
       }
+
+      if(includeLastModifiedAtValue) {
+        // If we're including lastModifiedAt values, we'll use git to get a timestamp representing when the yaml
+        // file was last changed, and add it to the parsedYamlTable object.
+        let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+          command: `git log -1 --format="%ai" '${path.relative(topLvlRepoPath, yamlSchema)}'`,
+          dir: topLvlRepoPath,
+        })).stdout)).getTime();
+        parsedYamlTable.lastModifiedAt = lastModifiedAt;
+      }
+
       if(parsedYamlTable.name) {
         if(typeof parsedYamlTable.name !== 'string') {
           throw new Error(`Could not merge osquery schema with Fleet overrides. A table in the Fleet overrides schema has an invalid "name" (Expected a string, but instead got a ${typeof parsedYamlTable.name}. To resolve, change the "name" of the table located at ${yamlSchema} to be a string.`);
@@ -89,7 +134,9 @@ module.exports = {
           // fence so it renders as a code block.
           expandedTableToPush.examples = '```\n' + examplesFromOsquerySchema[examplesFromOsquerySchema.length - 1] + '\n```';
         }
-
+        if(includeLastModifiedAtValue) {
+          expandedTableToPush.lastModifiedAt = rawOsqueryTablesLastModifiedAt;
+        }
         expandedTables.push(expandedTableToPush);
       } else { // If this table exists in the Fleet overrides schema, we'll override the values
         if(fleetOverridesForTable.platforms !== undefined) {
@@ -130,9 +177,24 @@ module.exports = {
         // If the table has Fleet overrides, we'll add the URL of the YAML file in the Fleet Github repo as the `fleetRepoUrl`, and add set the url to be where this table will live on fleetdm.com.
         expandedTableToPush.fleetRepoUrl = 'https://github.com/fleetdm/fleet/blob/main/schema/tables/'+encodeURIComponent(expandedTableToPush.name)+'.yml';
         expandedTableToPush.url = 'https://fleetdm.com/tables/'+encodeURIComponent(expandedTableToPush.name);
+        // If we're including lastModifiedAt values, we'll set the value for this table to be when the Fleet override was last modified.
+        if(includeLastModifiedAtValue) {
+          expandedTableToPush.lastModifiedAt = fleetOverridesForTable.lastModifiedAt;
+        }
         let mergedTableColumns = [];
         for (let osquerySchemaColumn of osquerySchemaTable.columns) { // iterate through the columns in the osquery schema table
           if(!fleetOverridesForTable.columns) { // If there are no column overrides for this table, we'll add the column unchanged.
+            if(osquerySchemaColumn.platforms !== undefined) {// If the column in the osquery schema has a platforms value, we'll normalize the names
+              let platformWithNormalizedNames = [];
+              for(let platform of osquerySchemaColumn.platforms) {
+                if(platform === 'darwin') {// darwin » macOS
+                  platformWithNormalizedNames.push('macOS');
+                } else if(platform === 'windows' || platform === 'linux') {// Note: we're ignoring all other platform values (e.g, win32 and cygwin).
+                  platformWithNormalizedNames.push(_.capitalize(platform));
+                }
+              }
+              osquerySchemaColumn.platforms = platformWithNormalizedNames;
+            }
             mergedTableColumns.push(osquerySchemaColumn);
           } else {// If the Fleet overrides JSON has column data for this table, we'll find the matching column and use the values from the Fleet overrides in the final schema.
             let columnHasFleetOverrides = _.find(fleetOverridesForTable.columns, {'name': osquerySchemaColumn.name});
@@ -304,8 +366,10 @@ module.exports = {
         expandedTables.push(fleetOverrideToPush);
       }//∞ After each Fleet overrides table
     }
-    // Return the merged schema
-    return expandedTables;
+    // Sort the merged tables by table name
+    let sortedMergedSchema = _.sortBy(expandedTables, 'name');
+    // Return the sorted merged schema
+    return sortedMergedSchema;
   }
 
 };

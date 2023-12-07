@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - patch-*
+      - prepare-*
   pull_request:
     paths:
       - assets/**
@@ -36,7 +37,7 @@ jobs:
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
     - name: JS Dependency Cache
       id: js-cache
@@ -44,7 +45,6 @@ jobs:
       with:
         path: |
           **/node_modules
-          ~/.cache/Cypress
         key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-modules-
@@ -70,7 +70,7 @@ jobs:
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
     - name: JS Dependency Cache
       id: js-cache
@@ -78,7 +78,6 @@ jobs:
       with:
         path: |
           **/node_modules
-          ~/.cache/Cypress
         key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-modules-

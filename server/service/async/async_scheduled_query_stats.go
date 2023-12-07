@@ -21,10 +21,10 @@ const (
 )
 
 // RecordScheduledQueryStats records the scheduled query stats for a given host.
-func (t *Task) RecordScheduledQueryStats(ctx context.Context, hostID uint, stats []fleet.PackStats, ts time.Time) error {
+func (t *Task) RecordScheduledQueryStats(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats, ts time.Time) error {
 	cfg := t.taskConfigs[config.AsyncTaskScheduledQueryStats]
 	if !cfg.Enabled {
-		return t.datastore.SaveHostPackStats(ctx, hostID, stats)
+		return t.datastore.SaveHostPackStats(ctx, teamID, hostID, stats)
 	}
 
 	// set an expiration on the  key, ensuring that if async processing is

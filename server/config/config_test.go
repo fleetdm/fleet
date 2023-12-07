@@ -534,9 +534,18 @@ func TestMicrosoftWSTEPConfig(t *testing.T) {
 		{"cert file does not exist", MDMConfig{WindowsWSTEPIdentityCert: "no-such-file", WindowsWSTEPIdentityKey: keyFile}, `open no-such-file: no such file or directory`},
 		{"key file does not exist", MDMConfig{WindowsWSTEPIdentityKey: "no-such-file", WindowsWSTEPIdentityCert: certFile}, `open no-such-file: no such file or directory`},
 		{"valid file pairs", MDMConfig{WindowsWSTEPIdentityCert: certFile, WindowsWSTEPIdentityKey: keyFile}, ""},
+		{"valid file/raw pairs", MDMConfig{WindowsWSTEPIdentityCert: certFile, WindowsWSTEPIdentityKeyBytes: string(testKey)}, ""},
+		{"valid raw/file pairs", MDMConfig{WindowsWSTEPIdentityCertBytes: string(testCert), WindowsWSTEPIdentityKey: keyFile}, ""},
 		{"invalid file pairs", MDMConfig{WindowsWSTEPIdentityCert: certFile, WindowsWSTEPIdentityKey: invalidKeyFile}, "tls: private key does not match public key"},
 		{"invalid file key", MDMConfig{WindowsWSTEPIdentityCert: certFile, WindowsWSTEPIdentityKey: garbageFile}, "tls: failed to find any PEM data"},
 		{"invalid file cert", MDMConfig{WindowsWSTEPIdentityCert: garbageFile, WindowsWSTEPIdentityKey: keyFile}, "tls: failed to find any PEM data"},
+		{"invalid file/raw pairs", MDMConfig{WindowsWSTEPIdentityCert: certFile, WindowsWSTEPIdentityKeyBytes: string(unrelatedTestKey)}, "tls: private key does not match public key"},
+		{"invalid raw/file pairs", MDMConfig{WindowsWSTEPIdentityCertBytes: string(testCert), WindowsWSTEPIdentityKey: invalidKeyFile}, "tls: private key does not match public key"},
+		{"invalid file key", MDMConfig{WindowsWSTEPIdentityCert: certFile, WindowsWSTEPIdentityKey: garbageFile}, "tls: failed to find any PEM data"},
+		{"invalid raw key", MDMConfig{WindowsWSTEPIdentityCert: certFile, WindowsWSTEPIdentityKeyBytes: "zzzz"}, "tls: failed to find any PEM data"},
+		{"invalid raw cert", MDMConfig{WindowsWSTEPIdentityCertBytes: "zzzz", WindowsWSTEPIdentityKey: keyFile}, "tls: failed to find any PEM data in certificate input"},
+		{"duplicate cert", MDMConfig{WindowsWSTEPIdentityCert: certFile, WindowsWSTEPIdentityCertBytes: string(testCert), WindowsWSTEPIdentityKey: keyFile}, `Microsoft MDM WSTEP configuration: only one of the certificate path or bytes must be provided`},
+		{"duplicate key", MDMConfig{WindowsWSTEPIdentityCert: certFile, WindowsWSTEPIdentityKey: keyFile, WindowsWSTEPIdentityKeyBytes: string(testKey)}, `Microsoft MDM WSTEP configuration: only one of the key path or bytes must be provided`},
 	}
 
 	for _, c := range cases {

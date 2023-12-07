@@ -1,28 +1,24 @@
-import Alert from "./Alert";
 import Arrow from "./Arrow";
 import ArrowInternalLink from "./ArrowInternalLink";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
-import Chevron from "./Chevron";
+import ChevronLeft from "./ChevronLeft";
+import ChevronRight from "./ChevronRight";
+import ChevronUp from "./ChevronUp";
+import ChevronDown from "./ChevronDown";
 import Columns from "./Columns";
-import CriticalPolicy from "./CriticalPolicy";
 import Disable from "./Disable";
-import DownCaret from "./DownCaret";
-import Ex from "./Ex";
-import EmptyHosts from "./EmptyHosts";
-import EmptyIntegrations from "./EmptyIntegrations";
-import EmptyMembers from "./EmptyMembers";
-import EmptyPacks from "./EmptyPacks";
-import EmptyPolicies from "./EmptyPolicies";
-import EmptyQueries from "./EmptyQueries";
-import EmptySchedule from "./EmptySchedule";
-import EmptySoftware from "./EmptySoftware";
-import EmptyTeams from "./EmptyTeams";
+import Close from "./Close";
+import CloseFilled from "./CloseFilled";
 import ExternalLink from "./ExternalLink";
-import Issue from "./Issue";
+import Filter from "./Filter";
+import FilterAlt from "./FilterAlt";
+import FilterFunnel from "./FilterFunnel";
+import Info from "./Info";
 import More from "./More";
 import Plus from "./Plus";
 import PremiumFeature from "./PremiumFeature";
+import Policy from "./Policy";
 import Query from "./Query";
 import Search from "./Search";
 
@@ -38,19 +34,15 @@ import Centos from "./Centos";
 import Ubuntu from "./Ubuntu";
 import Chrome from "./Chrome";
 
-// Encircled
-import ApplePurple from "./ApplePurple";
-import LinuxGreen from "./LinuxGreen";
-import WindowsBlue from "./WindowsBlue";
-import RedEncircledChrome from "./RedEncircledChrome";
-
 // Status Icons
 import Success from "./Success";
-import SuccessPartial from "./SuccessPartial";
+import SuccessOutline from "./SuccessOutline";
 import Pending from "./Pending";
-import PendingPartial from "./PendingPartial";
+import PendingOutline from "./PendingOutline";
 import ErrorOutline from "./ErrorOutline";
 import Error from "./Error";
+import Warning from "./Warning";
+import Clock from "./Clock";
 
 import Copy from "./Copy";
 import Eye from "./Eye";
@@ -59,44 +51,33 @@ import Transfer from "./Transfer";
 import TrashCan from "./TrashCan";
 import Profile from "./Profile";
 import Download from "./Download";
-import Files from "./Files";
 import Refresh from "./Refresh";
-import FilePython from "./FilePython";
-import FileZsh from "./FileZsh";
-import FileBash from "./FileBash";
-import FileGeneric from "./FileGeneric";
-import FilePkg from "./FilePkg";
-import FilePdf from "./FilePdf";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
-  alert: Alert,
   arrow: Arrow,
   "arrow-internal-link": ArrowInternalLink,
   "calendar-check": CalendarCheck,
-  chevron: Chevron,
+  "chevron-left": ChevronLeft,
+  "chevron-right": ChevronRight,
+  "chevron-up": ChevronUp,
+  "chevron-down": ChevronDown,
   check: Check,
   columns: Columns,
-  "critical-policy": CriticalPolicy,
   disable: Disable,
-  "down-caret": DownCaret,
-  ex: Ex,
-  "empty-hosts": EmptyHosts,
-  "empty-integrations": EmptyIntegrations,
-  "empty-members": EmptyMembers,
-  "empty-packs": EmptyPacks,
-  "empty-policies": EmptyPolicies,
-  "empty-queries": EmptyQueries,
-  "empty-schedule": EmptySchedule,
-  "empty-software": EmptySoftware,
-  "empty-teams": EmptyTeams,
+  close: Close,
+  "close-filled": CloseFilled,
   "external-link": ExternalLink,
+  filter: Filter,
+  "filter-alt": FilterAlt,
+  "filter-funnel": FilterFunnel,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
   lightbulb: Lightbulb,
-  issue: Issue,
+  info: Info,
   more: More,
   plus: Plus,
+  policy: Policy,
   query: Query,
   copy: Copy,
   eye: Eye,
@@ -105,11 +86,13 @@ export const ICON_MAP = {
   transfer: Transfer,
   trash: TrashCan,
   success: Success,
-  "success-partial": SuccessPartial,
+  "success-outline": SuccessOutline,
   pending: Pending,
-  "pending-partial": PendingPartial,
+  "pending-outline": PendingOutline,
   error: Error,
   "error-outline": ErrorOutline,
+  warning: Warning,
+  clock: Clock,
   darwin: Apple,
   macOS: Apple,
   windows: Windows,
@@ -122,19 +105,8 @@ export const ICON_MAP = {
   chrome: Chrome,
   ChromeOS: Chrome,
   "premium-feature": PremiumFeature,
-  "darwin-purple": ApplePurple,
-  "windows-blue": WindowsBlue,
-  "linux-green": LinuxGreen,
-  "chrome-red": RedEncircledChrome,
   profile: Profile,
   download: Download,
-  files: Files,
-  "file-python": FilePython,
-  "file-zsh": FileZsh,
-  "file-bash": FileBash,
-  "file-pkg": FilePkg,
-  "file-generic": FileGeneric,
-  "file-pdf": FilePdf,
   refresh: Refresh,
 };
 

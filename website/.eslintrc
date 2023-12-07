@@ -48,7 +48,7 @@
     "NewsletterSubscription": true,
     "VantaConnection": true,
     "CertificateSigningRequest": true,
-
+    "Platform": true,
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   },

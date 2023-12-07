@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,15 +18,60 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// mappings based on https://github.com/osquery/osquery/blob/b87a4b5f1567415a72acd5ecd0e9e7ab75754959/tools/codegen/genwebsitejson.py#L38C18-L38C18
+var platformMapping = map[string][]string{
+	"darwin":    {"darwin"},
+	"linux":     {"linux"},
+	"windows":   {"windows"},
+	"chrome":    {"chrome"},
+	"specs":     {"darwin", "linux", "windows"},
+	"utility":   {"darwin", "linux", "windows"},
+	"yara":      {"darwin", "linux", "windows"},
+	"smart":     {"darwin", "linux"},
+	"kernel":    {"darwin"},
+	"linwin":    {"linux", "windows"},
+	"macwin":    {"darwin", "windows"},
+	"posix":     {"darwin", "linux"},
+	"sleuthkit": {"darwin", "linux"},
+	"any":       {""},
+	"all":       {""},
+	"":          {""},
+}
+
+func convertPlatforms(platformsIn string) (string, error) {
+	splitPlatformsIn := strings.Split(platformsIn, ",")
+
+	// validate and convert each substring
+	mapped := map[string]struct{}{} // use a set to dedupe
+	for _, substring := range splitPlatformsIn {
+		mappedSubstring, ok := platformMapping[substring]
+		// validate substring
+		if !ok {
+			return "", fmt.Errorf("unsupported platform: %s", substring)
+		}
+		for _, p := range mappedSubstring {
+			mapped[p] = struct{}{}
+		}
+	}
+
+	// convert set to slice
+	result := make([]string, 0, len(mapped))
+
+	for p := range mapped {
+		result = append(result, p)
+	}
+
+	// sort for deterministic output
+	sort.Strings(result)
+
+	resultString := strings.Join(result, ",")
+
+	return resultString, nil
+}
+
 func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spec.Group, error) {
 	specs := &spec.Group{
 		Queries: []*fleet.QuerySpec{},
-		Packs:   []*fleet.PackSpec{},
-		Labels:  []*fleet.LabelSpec{},
-	}
-
-	pack := &fleet.PackSpec{
-		Name: name,
 	}
 
 	// this ensures order is consistent in output
@@ -41,12 +85,8 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 
 	for _, name := range keys {
 		query := inputPack.Queries[name]
-		spec := &fleet.QuerySpec{
-			Name:        name,
-			Description: query.Description,
-			Query:       query.Query,
-		}
 
+		// get the interval as uint from a variety of possible types
 		interval := uint(0)
 		switch i := query.Interval.(type) {
 		case string:
@@ -61,21 +101,33 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 			interval = uint(i)
 		}
 
-		specs.Queries = append(specs.Queries, spec)
-		pack.Queries = append(pack.Queries, fleet.PackSpecQuery{
-			Name:        name,
-			QueryName:   name,
-			Interval:    interval,
-			Description: query.Description,
-			Snapshot:    query.Snapshot,
-			Removed:     query.Removed,
-			Shard:       query.Shard,
-			Platform:    query.Platform,
-			Version:     query.Version,
-		})
-	}
+		// handle nil query.Platform
+		var queryPlatforms string
+		if query.Platform != nil {
+			queryPlatforms = *query.Platform
+		}
+		convertedPlatforms, err := convertPlatforms(queryPlatforms)
+		if err != nil {
+			return nil, err
+		}
 
-	specs.Packs = append(specs.Packs, pack)
+		// handle nil query.Version
+		var minOsqueryVersion string
+		if query.Version != nil {
+			minOsqueryVersion = *query.Version
+		}
+
+		spec := &fleet.QuerySpec{
+			Name:              name,
+			Description:       query.Description,
+			Query:             query.Query,
+			Interval:          interval,
+			Platform:          convertedPlatforms,
+			MinOsqueryVersion: minOsqueryVersion,
+		}
+
+		specs.Queries = append(specs.Queries, spec)
+	}
 
 	return specs, nil
 }
@@ -87,7 +139,7 @@ func convertCommand() *cli.Command {
 	)
 	return &cli.Command{
 		Name:      "convert",
-		Usage:     "Convert osquery packs into decomposed fleet configs",
+		Usage:     "Convert osquery packs into Fleet queries",
 		UsageText: `fleetctl convert [options]`,
 		Flags: []cli.Flag{
 			configFlag(),
@@ -112,7 +164,7 @@ func convertCommand() *cli.Command {
 				return errors.New("-f must be specified")
 			}
 
-			b, err := ioutil.ReadFile(flFilename)
+			b, err := os.ReadFile(flFilename)
 			if err != nil {
 				return err
 			}
@@ -149,27 +201,6 @@ func convertCommand() *cli.Command {
 				}
 				defer file.Close()
 				w = file
-			}
-
-			for _, pack := range specs.Packs {
-				specBytes, err := json.Marshal(pack)
-				if err != nil {
-					return err
-				}
-
-				meta := spec.Metadata{
-					Kind:    fleet.PackKind,
-					Version: fleet.ApiVersion,
-					Spec:    specBytes,
-				}
-
-				out, err := yaml.Marshal(meta)
-				if err != nil {
-					return err
-				}
-
-				fmt.Fprintln(w, "---")
-				fmt.Fprint(w, string(out))
 			}
 
 			for _, query := range specs.Queries {

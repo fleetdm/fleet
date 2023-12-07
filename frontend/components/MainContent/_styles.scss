@@ -3,8 +3,8 @@
   background-color: $core-white;
   flex-grow: 1;
   // overflow: auto allows for horizontal scrolling
-  // of the main-content when there is a sidebar.
-  // Without it the main content pushes the sidebar off the page.
+  // of the main-content when there is a banner. (e.g. sandbox mode)
+  // Without it the main content pushes the banner off the page.
   overflow: auto;
   animation: fade-in 250ms ease-out;
 }

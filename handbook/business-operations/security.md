@@ -894,5 +894,14 @@ We make sure the fixes to vulnerable dependencies are also performed according t
 We publish a trust report that includes automated checking of controls, answers to frequently asked
 questions and more on [https://fleetdm.com/trust](https://fleetdm.com/trust)
 
+## Securtiy audits
+
+Read about Fleet's security audits on [this page](https://fleetdm.com/handbook/business-operations/security-audits).
+
+
+## Application security
+
+Read about Fleet's application security practices on the [application security page](https://fleetdm.com/handbook/business-operations/application-security).
+
 <meta name="maintainedBy" value="hollidayn">
 <meta name="title" value="Security">

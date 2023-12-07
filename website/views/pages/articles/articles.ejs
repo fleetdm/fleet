@@ -4,7 +4,6 @@
       <div purpose="categories-and-search" class="d-flex flex-lg-row flex-column justify-content-lg-between justify-content-md-center justify-content-start" v-if="isArticlesLandingPage">
         <div purpose="categories" class="d-flex flex-md-row flex-column justify-content-start">
           <div purpose="category-filter" :class="[ filter === 'all' ? 'selected' : '']" @click="filterBy('all')">All</div>
-          <div purpose="category-filter" :class="[ filter === 'deploy' ? 'selected' : '']" @click="filterBy('deploy')">Deploy</div>
           <div purpose="category-filter" :class="[ filter === 'engineering' ? 'selected' : '']" @click="filterBy('engineering')">Engineering</div>
           <div purpose="category-filter" :class="[ filter === 'security' ? 'selected' : '']" @click="filterBy('security')">Security</div>
           <div purpose="category-filter" :class="[ filter === 'announcements' ? 'selected' : '']" @click="filterBy('announcements')">Announcements</div>

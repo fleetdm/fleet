@@ -1,12 +1,11 @@
 import React from "react";
 
 import ReactTooltip from "react-tooltip";
-import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 
 import { IHostMdmData, IMunkiData, IDeviceUser } from "interfaces/host";
-import { humanHostLastRestart } from "utilities/helpers";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   MDM_STATUS_TOOLTIP,
@@ -17,7 +16,6 @@ interface IAboutProps {
   deviceMapping?: IDeviceUser[];
   munki?: IMunkiData | null;
   mdm?: IHostMdmData;
-  wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
 }
 
 const About = ({
@@ -103,7 +101,6 @@ const About = ({
           <span className="info-grid__header">MDM status</span>
           <span className="info-grid__data">
             <TooltipWrapper
-              position="bottom"
               tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
             >
               {mdm.enrollment_status}
@@ -201,7 +198,7 @@ const About = ({
         <div className="info-grid__block">
           <span className="info-grid__header">Added to Fleet</span>
           <span className="info-grid__data">
-            <HumanTimeDiffWithDateTip
+            <HumanTimeDiffWithFleetLaunchCutoff
               timeString={aboutData.last_enrolled_at ?? "Unavailable"}
             />
           </span>
@@ -209,11 +206,8 @@ const About = ({
         <div className="info-grid__block">
           <span className="info-grid__header">Last restarted</span>
           <span className="info-grid__data">
-            <HumanTimeDiffWithDateTip
-              timeString={humanHostLastRestart(
-                aboutData.detail_updated_at,
-                aboutData.uptime
-              )}
+            <HumanTimeDiffWithFleetLaunchCutoff
+              timeString={aboutData.last_restarted_at}
             />
           </span>
         </div>

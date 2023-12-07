@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClient(t *testing.T) {
@@ -66,6 +67,59 @@ func TestTransport(t *testing.T) {
 			}
 			assert.NotNil(t, tr.Proxy)
 			assert.NotNil(t, tr.DialContext)
+		})
+	}
+}
+
+func TestHostnamesMatch(t *testing.T) {
+	tests := []struct {
+		name          string
+		inputA        string
+		inputB        string
+		expectedMatch bool
+		expectError   bool
+	}{
+		{
+			name:          "ValidHostnamesMatch",
+			inputA:        "https://www.example.com/path",
+			inputB:        "http://www.example.com:80",
+			expectedMatch: true,
+			expectError:   false,
+		},
+		{
+			name:          "ValidHostnamesDoNotMatch",
+			inputA:        "https://www.example.com",
+			inputB:        "https://sub.example.com",
+			expectedMatch: false,
+			expectError:   false,
+		},
+		{
+			name:          "InvalidURLA",
+			inputA:        "ht tp://foo.com",
+			inputB:        "https://www.example.com",
+			expectedMatch: false,
+			expectError:   true,
+		},
+		{
+			name:          "InvalidURLB",
+			inputA:        "https://www.example.com",
+			inputB:        "ht tp://foo.com",
+			expectedMatch: false,
+			expectError:   true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			matched, err := HostnamesMatch(test.inputA, test.inputB)
+
+			if test.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, test.expectedMatch, matched)
+
+			}
 		})
 	}
 }

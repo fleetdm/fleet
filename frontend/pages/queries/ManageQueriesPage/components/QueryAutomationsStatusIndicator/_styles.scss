@@ -1,0 +1,21 @@
+.status-indicator {
+  // Query automations status
+  &--query-automations-on {
+    &:before {
+      background-color: $ui-success;
+    }
+  }
+  &--query-automations-off {
+    &:before {
+      background-color: $ui-offline;
+    }
+  }
+  &--query-automations-paused {
+    .status-tooltip {
+      text-transform: none;
+    }
+    &:before {
+      background-color: $ui-offline;
+    }
+  }
+}

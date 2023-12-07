@@ -1,2 +1,0 @@
-- On Unix systems, dump pprof data into a `profiles` directory in the orbit root dir
-  when receiving a SIGUSR1. This is to assist debugging for memory leaks

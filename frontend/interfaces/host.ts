@@ -8,9 +8,10 @@ import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
 import { ILicense, IDeviceGlobalConfig } from "./config";
 import {
-  IHostMacMdmProfile,
+  IHostMdmProfile,
   MdmEnrollmentStatus,
   BootstrapPackageStatus,
+  DiskEncryptionStatus,
 } from "./mdm";
 
 export default PropTypes.shape({
@@ -18,6 +19,7 @@ export default PropTypes.shape({
   updated_at: PropTypes.string,
   id: PropTypes.number,
   detail_updated_at: PropTypes.string,
+  last_restarted_at: PropTypes.string,
   label_updated_at: PropTypes.string,
   policy_updated_at: PropTypes.string,
   last_enrolled_at: PropTypes.string,
@@ -90,18 +92,17 @@ export interface IMunkiData {
   version: string;
 }
 
-type MacDiskEncryptionState =
-  | "applied"
-  | "action_required"
-  | "enforcing"
-  | "failed"
-  | "removing_enforcement"
-  | null;
-
 type MacDiskEncryptionActionRequired = "log_out" | "rotate_key" | null;
 
+export interface IOSSettings {
+  disk_encryption: {
+    status: DiskEncryptionStatus | null;
+    detail: string;
+  };
+}
+
 interface IMdmMacOsSettings {
-  disk_encryption: MacDiskEncryptionState | null;
+  disk_encryption: DiskEncryptionStatus | null;
   action_required: MacDiskEncryptionActionRequired | null;
 }
 
@@ -117,7 +118,8 @@ export interface IHostMdmData {
   name?: string;
   server_url: string | null;
   id?: number;
-  profiles: IHostMacMdmProfile[] | null;
+  profiles: IHostMdmProfile[] | null;
+  os_settings?: IOSSettings;
   macos_settings?: IMdmMacOsSettings;
   macos_setup?: IMdmMacOsSetup;
 }
@@ -198,6 +200,7 @@ export interface IHost {
   updated_at: string;
   id: number;
   detail_updated_at: string;
+  last_restarted_at: string;
   label_updated_at: string;
   policy_updated_at: string;
   last_enrolled_at: string;
@@ -210,7 +213,7 @@ export interface IHost {
   osquery_version: string;
   os_version: string;
   build: string;
-  platform_like: string;
+  platform_like: string; // TODO: replace with more specific union type
   code_name: string;
   uptime: number;
   memory: number;

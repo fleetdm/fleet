@@ -42,6 +42,8 @@ module.exports = {
 
   fn: async function ({id, type, data, webhookSecret}) {
 
+    let assert = require('assert');
+
     if(!this.req.get('stripe-signature')) {
       throw 'missingStripeHeader';
     }
@@ -60,13 +62,36 @@ module.exports = {
     if(!stripeEventData.subscription) {
       return;
     }
+    assert(stripeEventData.customer !== undefined);
 
     // Find the subscription record for this event.
     let subscriptionIdToFind = stripeEventData.subscription;
     let subscriptionForThisEvent = await Subscription.findOne({stripeSubscriptionId: subscriptionIdToFind}).populate('user');
 
+    let STRIPE_EVENTS_SENT_BEFORE_A_SUBSCRIPTION_RECORD_EXISTS = [
+      'invoice.created',// Sent when a user submits the billing form on /customers/new-license, before the user's biliing card is charged.
+      'invoice.finalized',// Sent when a user submits the billing form on /customers/new-license, before the user's biliing card is charged.
+      'invoice.paid',//Sent when a user submits the billing form on /customers/new-license, when the user's biliing card is charged.
+      'invoice.payment_succeeded',// Sent when payment for a users subscription is successful. The save-billing-info-and-subscribe action will check for this event before creating a license key.
+      'invoice.payment_failed',// Sent when a users subscritpion payment fails. This can happen before we create a license key and save the subscription in the database.
+      'invoice.payment_action_required',// Sent when a user's billing card requires additional verification from stripe.
+      'invoice.updated',// Sent before an incomplete invoice is voided. (~24 hours after a payment fails)
+      'invoice.voided',// Sent when an incomplete invoice is marked as voided. (~24 hours after a payment fails)
+    ];
+
+    // If this event is for a subscription that was just created, we won't have a matching Subscription record in the database. This is because we wait until the subscription's invoice is paid to create the record in our database.
+    // To handle cases like this, we'll check to see if a User with the provided stripe customer ID exists, and throw an error if it does not exist.
     if(!subscriptionForThisEvent) {
-      throw new Error(`The Stripe subscription events webhook received a event for a subscription with stripeSubscriptionId: ${subscriptionIdToFind}, but no matching record was found in our database.`);
+      if(!_.contains(STRIPE_EVENTS_SENT_BEFORE_A_SUBSCRIPTION_RECORD_EXISTS, type)) {
+        throw new Error(`The Stripe subscription events webhook received a event for a subscription with stripeSubscriptionId: ${subscriptionIdToFind}, but no matching record was found in our database.`);
+      } else {
+        let userReferencedInStripeEvent = await User.findOne({stripeCustomerId: stripeEventData.customer});
+        if(!userReferencedInStripeEvent){
+          throw new Error(`The receive-from-stripe webhook received an event for an invoice (type: ${type}) for a subscription (stripeSubscriptionId: ${subscriptionIdToFind}) but no matching Subscription or User record (stripeCustomerId: ${stripeEventData.customer}) was found in our databse.`);
+        } else {
+          return;
+        }
+      }
     }
 
     let userForThisSubscription = subscriptionForThisEvent.user;

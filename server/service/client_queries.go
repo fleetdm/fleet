@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -15,20 +16,31 @@ func (c *Client) ApplyQueries(specs []*fleet.QuerySpec) error {
 	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
 
-// GetQuery retrieves the list of all Queries.
-func (c *Client) GetQuery(name string) (*fleet.QuerySpec, error) {
+// GetQuerySpec returns the query spec of a query by its team+name.
+func (c *Client) GetQuerySpec(teamID *uint, name string) (*fleet.QuerySpec, error) {
 	verb, path := "GET", "/api/latest/fleet/spec/queries/"+url.PathEscape(name)
+	query := url.Values{}
+	if teamID != nil {
+		query.Set("team_id", fmt.Sprint(*teamID))
+	}
 	var responseBody getQuerySpecResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())
 	return responseBody.Spec, err
 }
 
 // GetQueries retrieves the list of all Queries.
-func (c *Client) GetQueries() ([]fleet.Query, error) {
+func (c *Client) GetQueries(teamID *uint) ([]fleet.Query, error) {
 	verb, path := "GET", "/api/latest/fleet/queries"
+	query := url.Values{}
+	if teamID != nil {
+		query.Set("team_id", fmt.Sprint(*teamID))
+	}
 	var responseBody listQueriesResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
-	return responseBody.Queries, err
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.Queries, nil
 }
 
 // DeleteQuery deletes the query with the matching name.

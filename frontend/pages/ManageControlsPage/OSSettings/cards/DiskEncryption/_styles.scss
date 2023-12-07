@@ -1,0 +1,18 @@
+.disk-encryption {
+  &__premium-feature-message {
+    margin-top: 80px;
+    text-align: center;
+  }
+
+  > p {
+    margin: 0;
+  }
+
+  &__save-button {
+    margin-top: $pad-large;
+  }
+
+  .disk-encryption-content {
+    animation: fade-in 250ms ease-out;
+  }
+}

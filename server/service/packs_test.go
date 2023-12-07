@@ -72,7 +72,6 @@ func TestPacksWithDS(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *mysql.Datastore)
 	}{
-		{"ModifyPack", testPacksModifyPack},
 		{"ListPacks", testPacksListPacks},
 		{"DeletePack", testPacksDeletePack},
 		{"DeletePackByID", testPacksDeletePackByID},
@@ -84,35 +83,6 @@ func TestPacksWithDS(t *testing.T) {
 			c.fn(t, ds)
 		})
 	}
-}
-
-func testPacksModifyPack(t *testing.T, ds *mysql.Datastore) {
-	svc, ctx := newTestService(t, ds, nil, nil)
-	test.AddAllHostsLabel(t, ds)
-	users := createTestUsers(t, ds)
-
-	globalPack, err := ds.EnsureGlobalPack(ctx)
-	require.NoError(t, err)
-
-	labelids := []uint{1, 2, 3}
-	hostids := []uint{4, 5, 6}
-	teamids := []uint{7, 8, 9}
-	packPayload := fleet.PackPayload{
-		Name:        ptr.String("foo"),
-		Description: ptr.String("bar"),
-		LabelIDs:    &labelids,
-		HostIDs:     &hostids,
-		TeamIDs:     &teamids,
-	}
-
-	user := users["admin1@example.com"]
-	pack, _ := svc.ModifyPack(test.UserContext(ctx, &user), globalPack.ID, packPayload)
-
-	require.Equal(t, "Global", pack.Name, "name for global pack should not change")
-	require.Equal(t, "Global pack", pack.Description, "description for global pack should not change")
-	require.Len(t, pack.LabelIDs, 1)
-	require.Len(t, pack.HostIDs, 0)
-	require.Len(t, pack.TeamIDs, 0)
 }
 
 func testPacksListPacks(t *testing.T, ds *mysql.Datastore) {
@@ -135,21 +105,8 @@ func testPacksListPacks(t *testing.T, ds *mysql.Datastore) {
 func testPacksDeletePack(t *testing.T, ds *mysql.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
-	gp, err := ds.EnsureGlobalPack(context.Background())
-	require.NoError(t, err)
-
 	users := createTestUsers(t, ds)
 	user := users["admin1@example.com"]
-
-	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
-		ID:          42,
-		Name:        "team1",
-		Description: "desc team1",
-	})
-	require.NoError(t, err)
-
-	tp, err := ds.EnsureTeamPack(context.Background(), team1.ID)
-	require.NoError(t, err)
 
 	type args struct {
 		ctx  context.Context
@@ -160,22 +117,6 @@ func testPacksDeletePack(t *testing.T, ds *mysql.Datastore) {
 		args    args
 		wantErr bool
 	}{
-		{
-			name: "cannot delete global pack",
-			args: args{
-				ctx:  test.UserContext(context.Background(), &user),
-				name: gp.Name,
-			},
-			wantErr: true,
-		},
-		{
-			name: "cannot delete team pack",
-			args: args{
-				ctx:  test.UserContext(context.Background(), &user),
-				name: tp.Name,
-			},
-			wantErr: true,
-		},
 		{
 			name: "delete pack that doesn't exist",
 			args: args{
@@ -198,9 +139,6 @@ func testPacksDeletePack(t *testing.T, ds *mysql.Datastore) {
 func testPacksDeletePackByID(t *testing.T, ds *mysql.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
-	globalPack, err := ds.EnsureGlobalPack(context.Background())
-	require.NoError(t, err)
-
 	type args struct {
 		ctx context.Context
 		id  uint
@@ -211,10 +149,10 @@ func testPacksDeletePackByID(t *testing.T, ds *mysql.Datastore) {
 		wantErr bool
 	}{
 		{
-			name: "cannot delete global pack",
+			name: "cannot delete pack that doesn't exists",
 			args: args{
 				ctx: test.UserContext(context.Background(), test.UserAdmin),
-				id:  globalPack.ID,
+				id:  123456,
 			},
 			wantErr: true,
 		},
@@ -232,21 +170,8 @@ func testPacksDeletePackByID(t *testing.T, ds *mysql.Datastore) {
 func testPacksApplyPackSpecs(t *testing.T, ds *mysql.Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
-	global, err := ds.EnsureGlobalPack(context.Background())
-	require.NoError(t, err)
-
 	users := createTestUsers(t, ds)
 	user := users["admin1@example.com"]
-
-	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
-		ID:          42,
-		Name:        "team1",
-		Description: "desc team1",
-	})
-	require.NoError(t, err)
-
-	teamPack, err := ds.EnsureTeamPack(context.Background(), team1.ID)
-	require.NoError(t, err)
 
 	type args struct {
 		ctx   context.Context
@@ -263,7 +188,6 @@ func testPacksApplyPackSpecs(t *testing.T, ds *mysql.Datastore) {
 			args: args{
 				ctx: test.UserContext(context.Background(), &user),
 				specs: []*fleet.PackSpec{
-					{Name: global.Name, Description: "bar", Platform: "baz"},
 					{Name: "Foo Pack", Description: "Foo Desc", Platform: "MacOS"},
 					{Name: "Bar Pack", Description: "Bar Desc", Platform: "MacOS"},
 				},
@@ -279,7 +203,6 @@ func testPacksApplyPackSpecs(t *testing.T, ds *mysql.Datastore) {
 			args: args{
 				ctx: test.UserContext(context.Background(), &user),
 				specs: []*fleet.PackSpec{
-					{Name: teamPack.Name, Description: "Desc", Platform: "windows"},
 					{Name: "Test", Description: "Test Desc", Platform: "linux"},
 				},
 			},

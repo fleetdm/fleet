@@ -56,7 +56,7 @@ In keeping with Fleet's value of openness, [Fleet Device Management's company ha
 <!-- > To upgrade from Fleet ≤3.2.0, just follow the upgrading steps for the earliest subsequent major release from this repository (it'll work out of the box until the release of Fleet 5.0). -->
 
 
-## Is it any good??
+## Is it any good?
 Fleet is used in production by IT and security teams with thousands of laptops and servers.  Many deployments support tens of thousands of hosts, and a few large organizations manage deployments as large as 400,000+ hosts.
 
 
@@ -90,4 +90,4 @@ Complete documentation for Fleet can be found at [https://fleetdm.com/docs](http
 ## License
 The free version of Fleet is available under the MIT license.  The commercial license is also designed to allow contributions to paid features for users whose employment agreements allow them to contribute to open source projects.  (See LICENSE.md for details.)
 
-> Fleet is built on osquery, nanoMDM, and Nudge.
+> Fleet is built on [osquery](https://github.com/osquery/osquery), [nanoMDM](https://github.com/micromdm/nanomdm), [Nudge](https://github.com/macadmins/nudge), and [swiftDialog](https://github.com/swiftDialog/swiftDialog).

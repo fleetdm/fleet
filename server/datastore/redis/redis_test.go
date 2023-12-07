@@ -78,7 +78,7 @@ func TestConnectRetry(t *testing.T) {
 			&netError{error: io.EOF, allowedCalls: 10}, 2, 1, 0, 100 * time.Millisecond,
 		}, // net error, but non-retryable
 		{
-			&netError{error: io.EOF, timeout: true, allowedCalls: 1}, 10, 2, 250 * time.Millisecond, 750 * time.Millisecond,
+			&netError{error: io.EOF, timeout: true, allowedCalls: 1}, 10, 2, 250 * time.Millisecond, 800 * time.Millisecond,
 		}, // retryable, but succeeded after one retry
 	}
 	for _, c := range cases {

@@ -1,6 +1,7 @@
 /* eslint-disable */
 // @ts-nocheck
-import { osqueryTableNames } from "utilities/osquery_tables";
+import { osqueryTableNames, osqueryTableColumnNames } from "utilities/osquery_tables";
+import { sqlBuiltinFunctions, sqlDataTypes, sqlKeyWords } from "utilities/sql_tools";
 
 ace.define(
   "ace/mode/fleet_highlight_rules",
@@ -18,28 +19,21 @@ ace.define(
     var SqlHighlightRules = acequire("./sql_highlight_rules").SqlHighlightRules;
 
     var FleetHighlightRules = function () {
-      var keywords =
-        "select|insert|update|delete|from|where|and|or|group|by|order|limit|offset|having|as|case|" +
-        "when|else|end|type|left|right|join|on|outer|desc|asc|union|create|table|primary|key|if|" +
-        "foreign|not|references|default|null|inner|cross|natural|database|drop|grant";
-
+      var keywords = sqlKeyWords.join("|");
+      
       var builtinConstants = "true|false";
 
-      // Note: `last` was removed from the list of built-in functions because it collides with the
-      // `last` table available in osquery
-      var builtinFunctions =
-        "avg|count|first|max|min|sum|ucase|lcase|mid|len|round|rank|now|format|" +
-        "coalesce|ifnull|isnull|nvl";
+      var builtinFunctions = sqlBuiltinFunctions.join("|");
 
-      var dataTypes =
-        "int|numeric|decimal|date|varchar|char|bigint|float|double|bit|binary|text|set|timestamp|" +
-        "money|real|number|integer";
+      var dataTypes = sqlDataTypes.join("|");
 
       var osqueryTables = osqueryTableNames.join("|");
+      var osqueryColumns = osqueryTableColumnNames.join("|");
 
       var keywordMapper = this.createKeywordMapper(
         {
           "osquery-token": osqueryTables,
+          "osquery-column": osqueryColumns,
           "support.function": builtinFunctions,
           keyword: keywords,
           "constant.language": builtinConstants,

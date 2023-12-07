@@ -33,18 +33,19 @@
 
   &__ex {
     text-decoration: none;
-    padding-left: $pad-xsmall;
 
-    .button::after {
-      content: url("../assets/images/icon-close-fleet-blue-16x16@2x.png");
-      transform: scale(0.5);
-      border-radius: 0px;
+    &:hover {
+      .icon {
+        svg {
+          path {
+            stroke: $core-vibrant-blue;
+          }
+        }
+      }
     }
 
-    .button:hover::after {
-      content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
-      transform: scale(0.5);
-      border-radius: 0px;
+    .button {
+      padding: $pad-small;
     }
   }
 

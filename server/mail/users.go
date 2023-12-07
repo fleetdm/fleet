@@ -3,6 +3,8 @@ package mail
 import (
 	"bytes"
 	"html/template"
+
+	"github.com/fleetdm/fleet/v4/server"
 )
 
 type ChangeEmailMailer struct {
@@ -12,7 +14,7 @@ type ChangeEmailMailer struct {
 }
 
 func (cem *ChangeEmailMailer) Message() ([]byte, error) {
-	t, err := getTemplate("server/mail/templates/change_email_confirmation.html")
+	t, err := server.GetTemplate("server/mail/templates/change_email_confirmation.html", "email_template")
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +36,7 @@ type PasswordResetMailer struct {
 }
 
 func (r PasswordResetMailer) Message() ([]byte, error) {
-	t, err := getTemplate("server/mail/templates/password_reset.html")
+	t, err := server.GetTemplate("server/mail/templates/password_reset.html", "email_template")
 	if err != nil {
 		return nil, err
 	}

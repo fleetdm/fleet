@@ -1,5 +1,4 @@
 .host-actions-dropdown {
-
   .form-field {
     margin: 0;
   }
@@ -46,6 +45,10 @@
 
       .Select-input {
         height: auto;
+      }
+
+      .Select-arrow-zone {
+        display: flex;
       }
     }
 

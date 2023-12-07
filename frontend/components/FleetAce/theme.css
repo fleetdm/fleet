@@ -24,6 +24,10 @@
   padding-left: 0px;
 }
 
+.ace_editor.ace-fleet.ace_autocomplete {
+  width: 350px;
+}
+
 .ace-fleet .ace_content {
   height: 100% !important;
 }
@@ -98,7 +102,8 @@
   color: #ff5850;
 }
 
-.ace-fleet .ace_string {
+.ace-fleet .ace_string,
+.ace-fleet .ace_osquery-column {
   color: #4fd061;
 }
 

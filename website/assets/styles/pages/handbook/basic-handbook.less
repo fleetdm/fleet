@@ -433,6 +433,40 @@
     }
   }
 
+  // For deloitte quote on open poisiton pages.
+
+  [purpose='open-position-quote-card'] {
+    margin-top: 36px;
+    padding: 40px 60px;
+    border-radius: 16px;
+    background-color: #FFF;
+    border: 1px solid @core-vibrant-blue-15;
+    box-shadow: 0px 4px 16px 0px rgba(0, 0, 0, 0.10);
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    img {
+      height: 36px;
+      width: auto;
+      padding: 0;
+      margin-right: 40px;
+    }
+    [purpose='quote-text'] {
+      font-size: 18px;
+      line-height: 27px;
+    }
+    [purpose='quote-attribution'] {
+      p {
+        font-size: 14px;
+        line-height: 21px;
+        margin-bottom: 0px;
+      }
+    }
+  }
+
+
+
   @media (min-width: 1199px) {
 
     [purpose='right-sidebar'] {
@@ -531,6 +565,16 @@
 
   // for even smaller screens (>576px)
   @media (max-width: 767px) {
+    [purpose='open-position-quote-card'] {
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: start;
+      padding: 75px 40px;
+      img {
+        margin-right: 0px;
+        margin-bottom: 40px;
+      }
+    }
     [purpose='search'] {
       padding-bottom: 0px;
     }

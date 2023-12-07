@@ -6,12 +6,15 @@ import ReactTooltip from "react-tooltip";
 import { formatSoftwareType, ISoftware } from "interfaces/software";
 import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
-import { formatFloatAsPercentage } from "utilities/helpers";
+import {
+  formatFloatAsPercentage,
+  getSoftwareBundleTooltipJSX,
+} from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
-import Button from "components/buttons/Button";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
@@ -65,23 +68,6 @@ const condenseVulnerabilities = (
     : condensed;
 };
 
-const renderBundleTooltip = (name: string, bundle: string) => (
-  <span className="name-container">
-    <TooltipWrapper
-      position="top"
-      tipContent={`
-        <span>
-          <b>Bundle identifier: </b>
-          <br />
-          ${bundle}
-        </span>
-      `}
-    >
-      {name}
-    </TooltipWrapper>
-  </span>
-);
-
 const getMaxProbability = (vulns: IVulnerability[]) =>
   vulns.reduce(
     (max, { epss_probability }) => Math.max(max, epss_probability || 0),
@@ -93,13 +79,15 @@ const generateEPSSColumnHeader = (isSandboxMode = false) => {
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={`
-            The probability that this software will be exploited
-            <br />
-            in the next 30 days (EPSS probability). This data is
-            <br />
-            reported by FIRST.org.
-          `}
+          tipContent={
+            <>
+              The probability that this software will be exploited
+              <br />
+              in the next 30 days (EPSS probability). This data is
+              <br />
+              reported by FIRST.org.
+            </>
+          }
         >
           Probability of exploit
         </TooltipWrapper>
@@ -214,9 +202,14 @@ const generateTableHeaders = (
         };
 
         return (
-          <Button onClick={onClickSoftware} variant="text-link">
-            {bundle ? renderBundleTooltip(name, bundle) : name}
-          </Button>
+          <LinkCell
+            path={PATHS.SOFTWARE_DETAILS(id.toString())}
+            customOnClick={onClickSoftware}
+            value={name}
+            tooltipContent={
+              bundle ? getSoftwareBundleTooltipJSX(bundle) : undefined
+            }
+          />
         );
       },
       sortType: "caseInsensitive",

@@ -6,6 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/goose"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -42,6 +43,23 @@ WHERE
 `,
 		table, column,
 	).Scan(&count)
+	if err != nil {
+		return false
+	}
+
+	return count > 0
+}
+
+func indexExists(tx *sqlx.DB, table, index string) bool {
+	var count int
+	err := tx.QueryRow(`
+SELECT COUNT(1)
+FROM INFORMATION_SCHEMA.STATISTICS
+WHERE table_schema = DATABASE()
+AND table_name = ?
+AND index_name = ?
+`, table, index).Scan(&count)
+
 	if err != nil {
 		return false
 	}

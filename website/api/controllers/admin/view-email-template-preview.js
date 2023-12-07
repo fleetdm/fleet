@@ -110,6 +110,10 @@ module.exports = {
         layout = 'layout-email';
         fakeData = {};
         break;
+      case 'email-sandbox-ready-approved':
+        layout = 'layout-email';
+        fakeData = {};
+        break;
       default:
         layout = 'layout-email-newsletter';
         fakeData = {

@@ -19,6 +19,7 @@ class InputFieldWithIcon extends InputField {
     label: PropTypes.string,
     name: PropTypes.string,
     onChange: PropTypes.func,
+    onClick: PropTypes.func,
     placeholder: PropTypes.string,
     tabIndex: PropTypes.number,
     type: PropTypes.string,
@@ -27,6 +28,7 @@ class InputFieldWithIcon extends InputField {
     iconPosition: PropTypes.oneOf(["start", "end"]),
     inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     tooltip: PropTypes.string,
+    ignore1Password: PropTypes.bool,
   };
 
   renderHeading = () => {
@@ -44,7 +46,7 @@ class InputFieldWithIcon extends InputField {
         data-has-tooltip={!!tooltip}
       >
         {tooltip && !error ? (
-          <TooltipWrapper position="top" tipContent={tooltip}>
+          <TooltipWrapper position="top-start" tipContent={tooltip}>
             {label}
           </TooltipWrapper>
         ) : (
@@ -78,6 +80,8 @@ class InputFieldWithIcon extends InputField {
       disabled,
       iconPosition,
       inputOptions,
+      ignore1Password,
+      onClick,
     } = this.props;
     const { onInputChange, renderHint } = this;
 
@@ -103,15 +107,14 @@ class InputFieldWithIcon extends InputField {
       { [`${baseClass}__icon--active`]: value }
     );
 
-    console.log("iconSvg", iconSvg);
     return (
       <div className={wrapperClasses}>
         {this.props.label && this.renderHeading()}
-        {iconSvg && <Icon name={iconSvg} className={iconClasses} />}
         <input
           id={name}
           name={name}
           onChange={onInputChange}
+          onClick={onClick}
           className={inputClasses}
           placeholder={placeholder}
           ref={(r) => {
@@ -122,7 +125,9 @@ class InputFieldWithIcon extends InputField {
           value={value}
           disabled={disabled}
           {...inputOptions}
+          data-1p-ignore={ignore1Password}
         />
+        {iconSvg && <Icon name={iconSvg} className={iconClasses} />}
         {iconName && <FleetIcon name={iconName} className={iconClasses} />}
         {renderHint()}
       </div>

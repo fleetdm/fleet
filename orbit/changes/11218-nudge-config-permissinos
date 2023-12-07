@@ -1,1 +1,0 @@
-* Fixed an issue preventing Nudge to read the configuration file delivered by Fleet on some installations. This only affects you if Nudge was enabled and configured on a host using Orbit v1.8.0

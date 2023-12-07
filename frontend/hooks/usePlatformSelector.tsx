@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { forEach } from "lodash";
 
-import { IPlatformString, SUPPORTED_PLATFORMS } from "interfaces/platform";
+import {
+  SelectedPlatformString,
+  SUPPORTED_PLATFORMS,
+} from "interfaces/platform";
 
 import PlatformSelector from "components/PlatformSelector";
 
@@ -13,7 +16,7 @@ export interface IPlatformSelector {
 }
 
 const usePlatformSelector = (
-  platformContext: IPlatformString | null | undefined,
+  platformContext: SelectedPlatformString | null | undefined,
   baseClass = ""
 ): IPlatformSelector => {
   const [checkDarwin, setCheckDarwin] = useState(false);

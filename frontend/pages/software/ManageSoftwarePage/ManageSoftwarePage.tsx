@@ -327,7 +327,7 @@ const ManageSoftwarePage = ({
         teamId: teamIdForApi,
       },
     ],
-    ({ queryKey }) => softwareAPI.count(queryKey[0]),
+    ({ queryKey }) => softwareAPI.getCount(queryKey[0]),
     {
       enabled: isRouteOk && isSoftwareConfigLoaded,
       keepPreviousData: true,
@@ -550,6 +550,7 @@ const ManageSoftwarePage = ({
         options={VULNERABLE_DROPDOWN_OPTIONS}
         searchable={false}
         onChange={handleVulnFilterDropdownChange}
+        tableFilterDropdown
       />
     );
   };
@@ -615,14 +616,6 @@ const ManageSoftwarePage = ({
 
   const renderSoftwareTable = () => {
     if (
-      isFetchingCount ||
-      isFetchingSoftware ||
-      !globalConfig ||
-      (!softwareConfig && !softwareConfigError)
-    ) {
-      return <Spinner />;
-    }
-    if (
       (softwareError && !isFetchingSoftware) ||
       (softwareConfigError && !isFetchingSoftwareConfig)
     ) {
@@ -632,7 +625,12 @@ const ManageSoftwarePage = ({
       <TableContainer
         columns={softwareTableHeaders}
         data={(isSoftwareEnabled && software?.software) || []}
-        isLoading={false}
+        isLoading={
+          isFetchingCount ||
+          isFetchingSoftware ||
+          !globalConfig ||
+          (!softwareConfig && !softwareConfigError)
+        }
         resultsTitle={"software items"}
         emptyComponent={() => (
           <EmptySoftwareTable
@@ -655,7 +653,7 @@ const ManageSoftwarePage = ({
         resetPageIndex={resetPageIndex}
         disableNextPage={isLastPage}
         searchable={searchable}
-        inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
+        inputPlaceHolder="Search by name or vulnerabilities (CVEs)"
         onQueryChange={onQueryChange}
         additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
         // for the useDeepEffect hook to fire onQueryChange for events happeing outside of

@@ -2,12 +2,9 @@
   display: flex;
   justify-content: center;
   flex-direction: column;
-  min-height: 100vh;
-  position: relative;
-  overflow-x: hidden;
+  margin-top: 24px;
 
   &__logo {
-    @include position(absolute, 24px null null 24px);
     width: 120px;
 
     @include breakpoint(tablet) {

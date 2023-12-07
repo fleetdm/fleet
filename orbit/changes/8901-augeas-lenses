@@ -1,2 +1,0 @@
-- Embed augeas lenses into orbit on Unix platforms so that the `augeas`
-  table works without further configuration

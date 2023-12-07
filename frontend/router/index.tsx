@@ -33,10 +33,12 @@ import ManageSoftwarePage from "pages/software/ManageSoftwarePage";
 import ManageQueriesPage from "pages/queries/ManageQueriesPage";
 import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
-import ManageSchedulePage from "pages/schedule/ManageSchedulePage";
+import NoAccessPage from "pages/NoAccessPage";
 import PackComposerPage from "pages/packs/PackComposerPage";
 import PolicyPage from "pages/policies/PolicyPage";
-import QueryPage from "pages/queries/QueryPage";
+import QueryDetailsPage from "pages/queries/details/QueryDetailsPage";
+import LiveQueryPage from "pages/queries/live/LiveQueryPage";
+import EditQueryPage from "pages/queries/edit/EditQueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
 import MDMAppleSSOPage from "pages/MDMAppleSSOPage";
@@ -50,11 +52,13 @@ import SettingsWrapper from "pages/admin/AdminWrapper";
 import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
 import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
-import MacOSUpdates from "pages/ManageControlsPage/MacOSUpdates";
-import MacOSSettings from "pages/ManageControlsPage/MacOSSettings";
-import MacOSSetup from "pages/ManageControlsPage/MacOSSetup/MacOSSetup";
+import OSUpdates from "pages/ManageControlsPage/OSUpdates";
+import OSSettings from "pages/ManageControlsPage/OSSettings";
+import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExperience";
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
 import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
+import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
+import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
 
 import PATHS from "router/paths";
 
@@ -73,13 +77,14 @@ import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
 
 interface IAppWrapperProps {
   children: JSX.Element;
+  location?: any;
 }
 
 // App.tsx needs the context for user and config
-const AppWrapper = ({ children }: IAppWrapperProps) => (
+const AppWrapper = ({ children, location }: IAppWrapperProps) => (
   <AppProvider>
     <RoutingProvider>
-      <App>{children}</App>
+      <App location={location}>{children}</App>
     </RoutingProvider>
   </AppProvider>
 );
@@ -101,6 +106,7 @@ const routes = (
           />
           <Route path="login/forgot" component={ForgotPasswordPage} />
           <Route path="login/reset" component={ResetPasswordPage} />
+          <Route path="login/denied" component={NoAccessPage} />
           <Route path="mdm/sso/callback" component={MDMAppleSSOCallbackPage} />
           <Route path="mdm/sso" component={MDMAppleSSOPage} />
         </Route>
@@ -140,6 +146,10 @@ const routes = (
             </Route>
             <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
             <Route path="integrations/mdm/apple" component={MacOSMdmPage} />
+            <Route
+              path="integrations/automatic-enrollment/windows"
+              component={WindowsAutomaticEnrollmentPage}
+            />
             <Route path="teams" component={TeamDetailsWrapper}>
               <Route path="members" component={MembersPage} />
               <Route path="options" component={AgentOptionsPage} />
@@ -170,6 +180,7 @@ const routes = (
             <IndexRedirect to=":host_id" />
             <Route component={HostDetailsPage}>
               <Route path=":host_id" component={HostDetailsPage}>
+                <Route path="scripts" component={HostDetailsPage} />
                 <Route path="software" component={HostDetailsPage} />
                 <Route path="schedule" component={HostDetailsPage} />
                 <Route path="policies" component={HostDetailsPage} />
@@ -179,13 +190,17 @@ const routes = (
 
           <Route component={ExcludeInSandboxRoutes}>
             <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
-              <IndexRedirect to="mac-os-updates" />
+              <IndexRedirect to="os-updates" />
               <Route component={ManageControlsPage}>
-                <Route path="mac-os-updates" component={MacOSUpdates} />
-                <Route path="mac-settings" component={MacOSSettings} />
-                <Route path="mac-settings/:section" component={MacOSSettings} />
-                <Route path="mac-setup" component={MacOSSetup} />
-                <Route path="mac-setup/:section" component={MacOSSetup} />
+                <Route path="os-updates" component={OSUpdates} />
+                <Route path="os-settings" component={OSSettings} />
+                <Route path="os-settings/:section" component={OSSettings} />
+                <Route path="setup-experience" component={SetupExperience} />
+                <Route path="scripts" component={Scripts} />
+                <Route
+                  path="setup-experience/:section"
+                  component={SetupExperience}
+                />
               </Route>
             </Route>
           </Route>
@@ -206,21 +221,20 @@ const routes = (
               </Route>
             </Route>
           </Route>
-          <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-            <Route path="schedule">
-              <IndexRedirect to="manage" />
-              <Route path="manage" component={ManageSchedulePage} />
-              <Redirect from="manage/teams" to="manage" />
-              <Redirect from="manage/teams/:team_id" to="manage" />
-            </Route>
-          </Route>
           <Route path="queries">
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManageQueriesPage} />
             <Route component={AuthAnyMaintainerAdminObserverPlusRoutes}>
-              <Route path="new" component={QueryPage} />
+              <Route path="new">
+                <IndexRoute component={EditQueryPage} />
+                <Route path="live" component={LiveQueryPage} />
+              </Route>
             </Route>
-            <Route path=":id" component={QueryPage} />
+            <Route path=":id">
+              <IndexRoute component={QueryDetailsPage} />
+              <Route path="edit" component={EditQueryPage} />
+              <Route path="live" component={LiveQueryPage} />
+            </Route>
           </Route>
           <Route path="policies">
             <IndexRedirect to="manage" />

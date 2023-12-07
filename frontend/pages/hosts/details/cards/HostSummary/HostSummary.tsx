@@ -1,26 +1,28 @@
 import React from "react";
-
 import ReactTooltip from "react-tooltip";
-import { IHostMacMdmProfile, BootstrapPackageStatus } from "interfaces/mdm";
+
+import {
+  IHostMdmProfile,
+  BootstrapPackageStatus,
+  isWindowsDiskEncryptionStatus,
+} from "interfaces/mdm";
+import { IOSSettings } from "interfaces/host";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
-import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
-import {
-  getHostDiskEncryptionTooltipMessage,
-  humanHostMemory,
-  wrapFleetHelper,
-} from "utilities/helpers";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
-import MacSettingsIndicator from "./MacSettingsIndicator";
+
+import OSSettingsIndicator from "./OSSettingsIndicator";
 import HostSummaryIndicator from "./HostSummaryIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
+import { generateWinDiskEncryptionProfile } from "../../helpers";
 
 const baseClass = "host-summary";
 
@@ -35,11 +37,9 @@ interface IHostSummaryProps {
   diskEncryptionEnabled?: boolean;
   isPremiumTier?: boolean;
   isSandboxMode?: boolean;
-  isOnlyObserver?: boolean;
-  toggleOSPolicyModal?: () => void;
-  toggleMacSettingsModal?: () => void;
+  toggleOSSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
-  hostMdmProfiles?: IHostMacMdmProfile[];
+  hostMdmProfiles?: IHostMdmProfile[];
   mdmName?: string;
   showRefetchSpinner: boolean;
   onRefetchHost: (
@@ -47,7 +47,50 @@ interface IHostSummaryProps {
   ) => void;
   renderActionButtons: () => JSX.Element | null;
   deviceUser?: boolean;
+  osSettings?: IOSSettings;
 }
+
+const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
+  darwin: {
+    enabled: (
+      <>
+        The disk is encrypted. The user must enter their
+        <br /> password when they start their computer.
+      </>
+    ),
+    disabled: (
+      <>
+        The disk might be encrypted, but FileVault is off. The
+        <br /> disk can be accessed without entering a password.
+      </>
+    ),
+  },
+  windows: {
+    enabled: (
+      <>
+        The disk is encrypted. If recently turned on,
+        <br /> encryption could take awhile.
+      </>
+    ),
+    disabled: "The disk is unencrypted.",
+  },
+};
+
+const getHostDiskEncryptionTooltipMessage = (
+  platform: "darwin" | "windows" | "chrome", // TODO: improve this type
+  diskEncryptionEnabled = false
+) => {
+  if (platform === "chrome") {
+    return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
+  }
+
+  if (!["windows", "darwin"].includes(platform)) {
+    return "Disk encryption is enabled.";
+  }
+  return MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES[platform][
+    diskEncryptionEnabled ? "enabled" : "disabled"
+  ];
+};
 
 const HostSummary = ({
   titleData,
@@ -55,9 +98,7 @@ const HostSummary = ({
   diskEncryptionEnabled,
   isPremiumTier,
   isSandboxMode = false,
-  isOnlyObserver,
-  toggleOSPolicyModal,
-  toggleMacSettingsModal,
+  toggleOSSettingsModal,
   toggleBootstrapPackageModal,
   hostMdmProfiles,
   mdmName,
@@ -65,8 +106,9 @@ const HostSummary = ({
   onRefetchHost,
   renderActionButtons,
   deviceUser,
+  osSettings,
 }: IHostSummaryProps): JSX.Element => {
-  const { status, id, platform } = titleData;
+  const { status, platform } = titleData;
 
   const renderRefetch = () => {
     const isOnline = titleData.status === "online";
@@ -121,7 +163,7 @@ const HostSummary = ({
           data-for="host-issue-count"
           data-tip-disable={false}
         >
-          <img alt="host issue" src={IssueIcon} />
+          <Icon name="error-outline" color="ui-fleet-black-50" />
         </span>
         <ReactTooltip
           place="bottom"
@@ -172,7 +214,7 @@ const HostSummary = ({
     return (
       <div className="info-flex__item info-flex__item--title">
         <span className="info-flex__header">Disk encryption</span>
-        <TooltipWrapper tipContent={tooltipMessage} position="bottom">
+        <TooltipWrapper tipContent={tooltipMessage}>
           {statusText}
         </TooltipWrapper>
       </div>
@@ -180,6 +222,23 @@ const HostSummary = ({
   };
 
   const renderSummary = () => {
+    // for windows hosts we have to manually add a profile for disk encryption
+    // as this is not currently included in the `profiles` value from the API
+    // response for windows hosts.
+    if (
+      platform === "windows" &&
+      osSettings?.disk_encryption?.status &&
+      isWindowsDiskEncryptionStatus(osSettings.disk_encryption.status)
+    ) {
+      const winDiskEncryptionProfile: IHostMdmProfile = generateWinDiskEncryptionProfile(
+        osSettings.disk_encryption.status,
+        osSettings.disk_encryption.detail
+      );
+      hostMdmProfiles = hostMdmProfiles
+        ? [...hostMdmProfiles, winDiskEncryptionProfile]
+        : [winDiskEncryptionProfile];
+    }
+
     return (
       <div className="info-flex">
         <div className="info-flex__item info-flex__item--title">
@@ -187,7 +246,6 @@ const HostSummary = ({
           <StatusIndicator
             value={status || ""} // temporary work around of integration test bug
             tooltip={{
-              id,
               tooltipText: getHostStatusTooltipText(status),
               position: "bottom",
             }}
@@ -200,15 +258,18 @@ const HostSummary = ({
 
         {isPremiumTier && renderHostTeam()}
 
-        {platform === "darwin" &&
+        {/* Rendering of OS Settings data */}
+        {(platform === "darwin" || platform === "windows") &&
           isPremiumTier &&
-          mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
+          // TODO: API INTEGRATION: change this when we figure out why the API is
+          // returning "Fleet" or "FleetDM" for the MDM name.
+          mdmName?.includes("Fleet") && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&
           hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
-            <HostSummaryIndicator title="macOS settings">
-              <MacSettingsIndicator
+            <HostSummaryIndicator title="OS settings">
+              <OSSettingsIndicator
                 profiles={hostMdmProfiles}
-                onClick={toggleMacSettingsModal}
+                onClick={toggleOSSettingsModal}
               />
             </HostSummaryIndicator>
           )}
@@ -250,19 +311,7 @@ const HostSummary = ({
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Operating system</span>
-          <span className="info-flex__data">
-            {isOnlyObserver || deviceUser ? (
-              `${titleData.os_version}`
-            ) : (
-              <Button
-                onClick={() => toggleOSPolicyModal?.()}
-                variant="text-link"
-                className={`${baseClass}__os-policy-button`}
-              >
-                {titleData.os_version}
-              </Button>
-            )}
-          </span>
+          <span className="info-flex__data">{titleData.os_version}</span>
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Osquery</span>
@@ -273,7 +322,9 @@ const HostSummary = ({
   };
 
   const lastFetched = titleData.detail_updated_at ? (
-    <HumanTimeDiffWithDateTip timeString={titleData.detail_updated_at} />
+    <HumanTimeDiffWithFleetLaunchCutoff
+      timeString={titleData.detail_updated_at}
+    />
   ) : (
     ": unavailable"
   );

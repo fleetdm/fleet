@@ -165,18 +165,18 @@ const PlatformWrapper = ({
     return (
       <div className={`${baseClass}__advanced--fleet-certificate`}>
         {type === "plain" ? (
-          <p className={`${baseClass}__advanced--heading`}>
+          <div className={`${baseClass}__advanced--heading`}>
             Download your Fleet certificate
-          </p>
+          </div>
         ) : (
-          <p
+          <div
             className={`${baseClass}__advanced--heading download-certificate--tooltip`}
           >
             Download your{" "}
             <TooltipWrapper tipContent="A Fleet certificate is required if Fleet is running with a self signed or otherwise untrusted certificate.">
               Fleet certificate:
             </TooltipWrapper>
-          </p>
+          </div>
         )}
         {isFetchingCertificate && (
           <p className={`${baseClass}__certificate-loading`}>
@@ -218,9 +218,7 @@ const PlatformWrapper = ({
 
   const renderInstallerString = (packageType: string) => {
     return packageType === "advanced"
-      ? `fleetctl package --type=YOUR_TYPE --fleet-url=${config?.server_settings.server_url}
---enroll-secret=${enrollSecret}
---fleet-certificate=PATH_TO_YOUR_CERTIFICATE/fleet.pem`
+      ? `fleetctl package --type=YOUR_TYPE --fleet-url=${config?.server_settings.server_url} --enroll-secret=${enrollSecret} --fleet-certificate=PATH_TO_YOUR_CERTIFICATE/fleet.pem`
       : `fleetctl package --type=${packageType} ${
           includeFleetDesktop ? "--fleet-desktop " : ""
         }--fleet-url=${
@@ -373,7 +371,7 @@ const PlatformWrapper = ({
               <InfoBanner className={`${baseClass}__chromeos--instructions`}>
                 For a step-by-step guide, see the documentation page for{" "}
                 <CustomLink
-                  url="https://fleetdm.com/docs/using-fleet/adding-hosts#add-chromebooks-with-the-fleetd-chrome-extension"
+                  url="https://fleetdm.com/docs/using-fleet/adding-hosts#enroll-chromebooks"
                   text="adding hosts"
                   newTab
                   multiline
@@ -538,7 +536,7 @@ const PlatformWrapper = ({
               Include&nbsp;
               <TooltipWrapper
                 tipContent={
-                  "Include Fleet Desktop if your’re adding workstations."
+                  "Include Fleet Desktop if you're adding workstations."
                 }
               >
                 Fleet Desktop

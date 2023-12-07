@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -468,9 +467,15 @@ type MDMConfig struct {
 	// WindowsWSTEPIdentityCert is the path to the certificate used to sign
 	// WSTEP responses.
 	WindowsWSTEPIdentityCert string `yaml:"windows_wstep_identity_cert"`
+	// WindowsWSTEPIdentityCertBytes is the content of the certificate used to sign
+	// WSTEP responses.
+	WindowsWSTEPIdentityCertBytes string `yaml:"windows_wstep_identity_cert_bytes"`
 	// WindowsWSTEPIdentityKey is the path to the private key used to sign
 	// WSTEP responses.
 	WindowsWSTEPIdentityKey string `yaml:"windows_wstep_identity_key"`
+	// WindowsWSTEPIdentityKey is the content of the private key used to sign
+	// WSTEP responses.
+	WindowsWSTEPIdentityKeyBytes string `yaml:"windows_wstep_identity_key_bytes"`
 
 	// the following fields hold the parsed, validated TLS certificate set the
 	// first time Microsoft WSTEP is called, as well as the PEM-encoded
@@ -671,13 +676,12 @@ func (m *MDMConfig) loadAppleBMEncryptedToken() ([]byte, error) {
 // MicrosoftWSTEP returns the parsed and validated TLS certificate for Microsoft WSTEP.
 // It parses and validates it if it hasn't been done yet.
 func (m *MDMConfig) MicrosoftWSTEP() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
-	// TODO: should we also implement support for setting raw bytes in the config (like we do for Apple MDM)?
 	if m.microsoftWSTEP == nil {
 		pair := x509KeyPairConfig{
 			m.WindowsWSTEPIdentityCert,
-			nil,
+			[]byte(m.WindowsWSTEPIdentityCertBytes),
 			m.WindowsWSTEPIdentityKey,
-			nil,
+			[]byte(m.WindowsWSTEPIdentityKeyBytes),
 		}
 		cert, err := pair.Parse(true)
 		if err != nil {
@@ -693,9 +697,9 @@ func (m *MDMConfig) MicrosoftWSTEP() (cert *tls.Certificate, pemCert, pemKey []b
 func (m *MDMConfig) IsMicrosoftWSTEPSet() bool {
 	pair := x509KeyPairConfig{
 		m.WindowsWSTEPIdentityCert,
-		nil,
+		[]byte(m.WindowsWSTEPIdentityCertBytes),
 		m.WindowsWSTEPIdentityKey,
-		nil,
+		[]byte(m.WindowsWSTEPIdentityKeyBytes),
 	}
 	return pair.IsSet()
 }
@@ -711,7 +715,7 @@ func (t *TLS) ToTLSConfig() (*tls.Config, error) {
 	var rootCertPool *x509.CertPool
 	if t.TLSCA != "" {
 		rootCertPool = x509.NewCertPool()
-		pem, err := ioutil.ReadFile(t.TLSCA)
+		pem, err := os.ReadFile(t.TLSCA)
 		if err != nil {
 			return nil, fmt.Errorf("read server-ca pem: %w", err)
 		}
@@ -1092,11 +1096,15 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
+	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
+	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
 
 	// Hide Microsoft/Windows MDM flags as we don't want it to be discoverable for users for now
 	betaMDMFlags := []string{
 		"mdm.windows_wstep_identity_cert",
 		"mdm.windows_wstep_identity_key",
+		"mdm.windows_wstep_identity_cert_bytes",
+		"mdm.windows_wstep_identity_key_bytes",
 	}
 	for _, mdmFlag := range betaMDMFlags {
 		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
@@ -1365,6 +1373,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleDEPSyncPeriodicity:         man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
 			WindowsWSTEPIdentityCert:        man.getConfigString("mdm.windows_wstep_identity_cert"),
 			WindowsWSTEPIdentityKey:         man.getConfigString("mdm.windows_wstep_identity_key"),
+			WindowsWSTEPIdentityCertBytes:   man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
+			WindowsWSTEPIdentityKeyBytes:    man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
 		},
 	}
 
@@ -1689,7 +1699,7 @@ func TestConfig() FleetConfig {
 // all required pairs and the Apple BM token is used as-is, instead of
 // decrypting the encrypted value that is usually provided via the fleet
 // server's flags.
-func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMToken *nanodep_client.OAuth1Tokens) {
+func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMToken *nanodep_client.OAuth1Tokens, wstepCertAndKeyDir string) {
 	tlsCert, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		t.Fatal(err)
@@ -1719,19 +1729,15 @@ func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMT
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 	cfg.MDM.AppleSCEPChallenge = "testchallenge"
 
-	certPath := "../service/testdata/server.pem"
-	keyPath := "../service/testdata/server.key"
+	if wstepCertAndKeyDir == "" {
+		wstepCertAndKeyDir = "testdata"
+	}
+	certPath := filepath.Join(wstepCertAndKeyDir, "server.pem")
+	keyPath := filepath.Join(wstepCertAndKeyDir, "server.key")
 
 	cfg.MDM.WindowsWSTEPIdentityCert = certPath
 	cfg.MDM.WindowsWSTEPIdentityKey = keyPath
-}
-
-// Undocumented feature flag for Windows MDM, used to determine if the Windows
-// MDM feature is visible in the UI and can be enabled. More details here:
-// https://github.com/fleetdm/fleet/issues/12257
-//
-// TODO: remove this flag once the Windows MDM feature is ready for
-// release.
-func IsMDMFeatureFlagEnabled() bool {
-	return os.Getenv("FLEET_DEV_MDM_ENABLED") == "1"
+	if _, _, _, err := cfg.MDM.MicrosoftWSTEP(); err != nil {
+		t.Fatal(err)
+	}
 }

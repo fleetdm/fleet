@@ -13,6 +13,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -82,7 +83,7 @@ func TestHostDetails(t *testing.T) {
 	require.Nil(t, hostDetail.MDM.MacOSSettings)
 }
 
-func TestHostDetailsMDMDiskEncryption(t *testing.T) {
+func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{ds: ds}
 
@@ -111,7 +112,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 		fvProf     *fleet.HostMDMAppleProfile
 		wantState  fleet.DiskEncryptionStatus
 		wantAction fleet.ActionRequiredState
-		wantStatus *fleet.MDMAppleDeliveryStatus
+		wantStatus *fleet.MDMDeliveryStatus
 	}{
 		{"no profile", ptr.Int(-1), nil, "", "", nil},
 
@@ -121,12 +122,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryVerifying,
-				OperationType: fleet.MDMAppleOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryVerifying,
+				OperationType: fleet.MDMOperationTypeInstall,
 			},
 			fleet.DiskEncryptionActionRequired,
 			fleet.ActionRequiredLogOut,
-			&fleet.MDMAppleDeliveryPending,
+			&fleet.MDMDeliveryPending,
 		},
 		{
 			"installed profile, unknown decryptable",
@@ -134,12 +135,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryVerifying,
-				OperationType: fleet.MDMAppleOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryVerifying,
+				OperationType: fleet.MDMOperationTypeInstall,
 			},
 			fleet.DiskEncryptionEnforcing,
 			"",
-			&fleet.MDMAppleDeliveryPending,
+			&fleet.MDMDeliveryPending,
 		},
 		{
 			"installed profile, not decryptable",
@@ -147,12 +148,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryVerifying,
-				OperationType: fleet.MDMAppleOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryVerifying,
+				OperationType: fleet.MDMOperationTypeInstall,
 			},
 			fleet.DiskEncryptionActionRequired,
 			fleet.ActionRequiredRotateKey,
-			&fleet.MDMAppleDeliveryPending,
+			&fleet.MDMDeliveryPending,
 		},
 		{
 			"installed profile, decryptable",
@@ -160,12 +161,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryVerifying,
-				OperationType: fleet.MDMAppleOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryVerifying,
+				OperationType: fleet.MDMOperationTypeInstall,
 			},
 			fleet.DiskEncryptionVerifying,
 			"",
-			&fleet.MDMAppleDeliveryVerifying,
+			&fleet.MDMDeliveryVerifying,
 		},
 		{
 			"installed profile, decryptable, verified",
@@ -173,12 +174,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryVerified,
-				OperationType: fleet.MDMAppleOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryVerified,
+				OperationType: fleet.MDMOperationTypeInstall,
 			},
 			fleet.DiskEncryptionVerified,
 			"",
-			&fleet.MDMAppleDeliveryVerified,
+			&fleet.MDMDeliveryVerified,
 		},
 		{
 			"pending install, decryptable",
@@ -186,12 +187,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryPending,
-				OperationType: fleet.MDMAppleOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeInstall,
 			},
 			fleet.DiskEncryptionEnforcing,
 			"",
-			&fleet.MDMAppleDeliveryPending,
+			&fleet.MDMDeliveryPending,
 		},
 		{
 			"pending install, unknown decryptable",
@@ -199,12 +200,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryPending,
-				OperationType: fleet.MDMAppleOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeInstall,
 			},
 			fleet.DiskEncryptionEnforcing,
 			"",
-			&fleet.MDMAppleDeliveryPending,
+			&fleet.MDMDeliveryPending,
 		},
 		{
 			"pending install, no key",
@@ -212,12 +213,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryPending,
-				OperationType: fleet.MDMAppleOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeInstall,
 			},
 			fleet.DiskEncryptionEnforcing,
 			"",
-			&fleet.MDMAppleDeliveryPending,
+			&fleet.MDMDeliveryPending,
 		},
 		{
 			"failed install, no key",
@@ -225,12 +226,13 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryFailed,
-				OperationType: fleet.MDMAppleOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryFailed,
+				OperationType: fleet.MDMOperationTypeInstall,
+				Detail:        "some mdm profile install error",
 			},
 			fleet.DiskEncryptionFailed,
 			"",
-			&fleet.MDMAppleDeliveryFailed,
+			&fleet.MDMDeliveryFailed,
 		},
 		{
 			"failed install, not decryptable",
@@ -238,12 +240,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryFailed,
-				OperationType: fleet.MDMAppleOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryFailed,
+				OperationType: fleet.MDMOperationTypeInstall,
 			},
 			fleet.DiskEncryptionFailed,
 			"",
-			&fleet.MDMAppleDeliveryFailed,
+			&fleet.MDMDeliveryFailed,
 		},
 		{
 			"pending remove, decryptable",
@@ -251,12 +253,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryPending,
-				OperationType: fleet.MDMAppleOperationTypeRemove,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			fleet.DiskEncryptionRemovingEnforcement,
 			"",
-			&fleet.MDMAppleDeliveryPending,
+			&fleet.MDMDeliveryPending,
 		},
 		{
 			"pending remove, no key",
@@ -264,12 +266,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryPending,
-				OperationType: fleet.MDMAppleOperationTypeRemove,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			fleet.DiskEncryptionRemovingEnforcement,
 			"",
-			&fleet.MDMAppleDeliveryPending,
+			&fleet.MDMDeliveryPending,
 		},
 		{
 			"failed remove, unknown decryptable",
@@ -277,12 +279,13 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryFailed,
-				OperationType: fleet.MDMAppleOperationTypeRemove,
+				Status:        &fleet.MDMDeliveryFailed,
+				OperationType: fleet.MDMOperationTypeRemove,
+				Detail:        "some mdm profile removal error",
 			},
 			fleet.DiskEncryptionFailed,
 			"",
-			&fleet.MDMAppleDeliveryFailed,
+			&fleet.MDMDeliveryFailed,
 		},
 		{
 			"removed profile, not decryptable",
@@ -290,12 +293,12 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
 				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
-				Status:        &fleet.MDMAppleDeliveryVerifying,
-				OperationType: fleet.MDMAppleOperationTypeRemove,
+				Status:        &fleet.MDMDeliveryVerifying,
+				OperationType: fleet.MDMOperationTypeRemove,
 			},
 			"",
 			"",
-			&fleet.MDMAppleDeliveryVerifying,
+			&fleet.MDMDeliveryVerifying,
 		},
 	}
 	for _, c := range cases {
@@ -307,13 +310,13 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			}
 			require.NoError(t, mdmData.Scan([]byte(fmt.Sprintf(`{"raw_decryptable": %s}`, rawDecrypt))))
 
-			host := &fleet.Host{ID: 3, MDM: mdmData, UUID: "abc"}
+			host := &fleet.Host{ID: 3, MDM: mdmData, UUID: "abc", Platform: "darwin"}
 			opts := fleet.HostDetailOptions{
 				IncludeCVEScores: false,
 				IncludePolicies:  false,
 			}
 
-			ds.GetHostMDMProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
+			ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
 				if c.fvProf == nil {
 					return nil, nil
 				}
@@ -321,12 +324,18 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			}
 			hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), host, opts)
 			require.NoError(t, err)
+			require.NotNil(t, hostDetail.MDM.MacOSSettings)
 
 			if c.wantState == "" {
 				require.Nil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
+				require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+				require.Empty(t, hostDetail.MDM.OSSettings.DiskEncryption.Detail)
 			} else {
 				require.NotNil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
 				require.Equal(t, c.wantState, *hostDetail.MDM.MacOSSettings.DiskEncryption)
+				require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+				require.Equal(t, c.wantState, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
+				require.Equal(t, c.fvProf.Detail, hostDetail.MDM.OSSettings.DiskEncryption.Detail)
 			}
 			if c.wantAction == "" {
 				require.Nil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
@@ -338,11 +347,160 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 				require.NotNil(t, hostDetail.MDM.Profiles)
 				profs := *hostDetail.MDM.Profiles
 				require.Equal(t, c.wantStatus, profs[0].Status)
+				require.Equal(t, c.fvProf.Detail, profs[0].Detail)
 			} else {
 				require.Nil(t, *hostDetail.MDM.Profiles)
 			}
 		})
 	}
+}
+
+func TestHostDetailsOSSettings(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+
+	ctx := context.Background()
+
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hid uint) (*fleet.HostMDMMacOSSetup, error) {
+		return nil, nil
+	}
+
+	type testCase struct {
+		name        string
+		host        *fleet.Host
+		licenseTier string
+		wantStatus  fleet.DiskEncryptionStatus
+	}
+	cases := []testCase{
+		{"windows", &fleet.Host{ID: 42, Platform: "windows"}, fleet.TierPremium, fleet.DiskEncryptionEnforcing},
+		{"darwin", &fleet.Host{ID: 42, Platform: "darwin"}, fleet.TierPremium, ""},
+		{"ubuntu", &fleet.Host{ID: 42, Platform: "ubuntu"}, fleet.TierPremium, ""},
+		{"not premium", &fleet.Host{ID: 42, Platform: "windows"}, fleet.TierFree, ""},
+	}
+
+	setupDS := func(c testCase) {
+		ds.AppConfigFuncInvoked = false
+		ds.GetMDMWindowsBitLockerStatusFuncInvoked = false
+		ds.GetHostMDMAppleProfilesFuncInvoked = false
+		ds.GetHostMDMWindowsProfilesFuncInvoked = false
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
+		}
+		ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+			if c.wantStatus == "" {
+				return nil, nil
+			}
+			return &fleet.HostMDMDiskEncryption{Status: &c.wantStatus, Detail: ""}, nil
+		}
+		ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
+			return nil, nil
+		}
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			setupDS(c)
+
+			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: c.licenseTier})
+
+			hostDetail, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin), c.host, fleet.HostDetailOptions{
+				IncludeCVEScores: false,
+				IncludePolicies:  false,
+			})
+			require.NoError(t, err)
+			require.NotNil(t, hostDetail)
+			require.True(t, ds.AppConfigFuncInvoked)
+
+			switch c.host.Platform {
+			case "windows":
+				require.False(t, ds.GetHostMDMAppleProfilesFuncInvoked)
+				if c.wantStatus != "" {
+					require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
+					require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+					require.Equal(t, c.wantStatus, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
+				} else {
+					require.False(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
+					require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+				}
+			case "darwin":
+				require.True(t, ds.GetHostMDMAppleProfilesFuncInvoked)
+				require.False(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
+				require.Nil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+			default:
+				require.False(t, ds.GetHostMDMAppleProfilesFuncInvoked)
+				require.False(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
+			}
+		})
+	}
+}
+
+func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hid uint) (*fleet.HostMDMMacOSSetup, error) {
+		return nil, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
+	}
+	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+		verified := fleet.DiskEncryptionVerified
+		return &fleet.HostMDMDiskEncryption{Status: &verified, Detail: ""}, nil
+	}
+	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
+		return nil, nil
+	}
+
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	hostDetail, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin), &fleet.Host{ID: 42, Platform: "windows"}, fleet.HostDetailOptions{
+		IncludeCVEScores: false,
+		IncludePolicies:  false,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, hostDetail)
+	require.True(t, ds.AppConfigFuncInvoked)
+	require.False(t, ds.GetHostMDMAppleProfilesFuncInvoked)
+	require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
+	require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+	require.Equal(t, fleet.DiskEncryptionVerified, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
 }
 
 func TestHostAuth(t *testing.T) {
@@ -409,7 +567,7 @@ func TestHostAuth(t *testing.T) {
 		}
 		return nil
 	}
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
 		return nil
 	}
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
@@ -516,13 +674,13 @@ func TestHostAuth(t *testing.T) {
 			err = svc.DeleteHost(ctx, 2)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
-			err = svc.DeleteHosts(ctx, []uint{1}, fleet.HostListOptions{}, nil)
+			err = svc.DeleteHosts(ctx, []uint{1}, nil, nil)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			err = svc.DeleteHosts(ctx, []uint{2}, fleet.HostListOptions{}, nil)
+			err = svc.DeleteHosts(ctx, []uint{2}, &fleet.HostListOptions{}, nil)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
-			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1})
+			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1}, false)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), fleet.HostListOptions{}, nil)
@@ -632,7 +790,7 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 		assert.Equal(t, expectedHostIDs, hostIDs)
 		return nil
 	}
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
 		return nil
 	}
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
@@ -667,7 +825,7 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		assert.Equal(t, expectedHostIDs, hostIDs)
 		return nil
 	}
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
 		return nil
 	}
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
@@ -695,7 +853,7 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
 		return nil
 	}
 
@@ -894,16 +1052,25 @@ func TestHostEncryptionKey(t *testing.T) {
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken, "")
 
 	recoveryKey := "AAA-BBB-CCC"
 	encryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{testCert})
 	require.NoError(t, err)
 	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
 
+	wstep, _, _, err := fleetCfg.MDM.MicrosoftWSTEP()
+	require.NoError(t, err)
+	winEncryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{wstep.Leaf})
+	require.NoError(t, err)
+	winBase64EncryptedKey := base64.StdEncoding.EncodeToString(winEncryptedKey)
+
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			ds := new(mock.Store)
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+			}
 			svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 
 			ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
@@ -950,7 +1117,10 @@ func TestHostEncryptionKey(t *testing.T) {
 
 	t.Run("test error cases", func(t *testing.T) {
 		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		hostErr := errors.New("host error")
@@ -980,6 +1150,56 @@ func TestHostEncryptionKey(t *testing.T) {
 		_, err = svc.HostEncryptionKey(ctx, 1)
 		require.Error(t, err)
 	})
+
+	t.Run("host platform mdm enabled", func(t *testing.T) {
+		cases := []struct {
+			hostPlatform  string
+			macMDMEnabled bool
+			winMDMEnabled bool
+			shouldFail    bool
+		}{
+			{"windows", true, false, true},
+			{"windows", false, true, false},
+			{"windows", true, true, false},
+			{"darwin", true, false, false},
+			{"darwin", false, true, true},
+			{"darwin", true, true, false},
+		}
+		for _, c := range cases {
+			t.Run(fmt.Sprintf("%s: mac mdm: %t; win mdm: %t", c.hostPlatform, c.macMDMEnabled, c.winMDMEnabled), func(t *testing.T) {
+				ds := new(mock.Store)
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: c.macMDMEnabled, WindowsEnabledAndConfigured: c.winMDMEnabled}}, nil
+				}
+				ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+					return &fleet.Host{Platform: c.hostPlatform}, nil
+				}
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+					key := base64EncryptedKey
+					if c.hostPlatform == "windows" {
+						key = winBase64EncryptedKey
+					}
+					return &fleet.HostDiskEncryptionKey{
+						Base64Encrypted: key,
+						Decryptable:     ptr.Bool(true),
+					}, nil
+				}
+				ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+					return nil
+				}
+
+				svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+				ctx = test.UserContext(ctx, test.UserAdmin)
+				_, err := svc.HostEncryptionKey(ctx, 1)
+				if c.shouldFail {
+					require.Error(t, err)
+					require.ErrorContains(t, err, fleet.ErrMDMNotConfigured.Error())
+				} else {
+					require.NoError(t, err)
+				}
+			})
+		}
+	})
 }
 
 func TestHostMDMProfileDetail(t *testing.T) {
@@ -997,14 +1217,15 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken, "")
 
 	svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 	ctx = test.UserContext(ctx, test.UserAdmin)
 
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &fleet.Host{
-			ID: 1,
+			ID:       1,
+			Platform: "darwin",
 		}, nil
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
@@ -1059,13 +1280,13 @@ func TestHostMDMProfileDetail(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			ds.GetHostMDMProfilesFunc = func(ctx context.Context, host_uuid string) ([]fleet.HostMDMAppleProfile, error) {
+			ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, host_uuid string) ([]fleet.HostMDMAppleProfile, error) {
 				return []fleet.HostMDMAppleProfile{
 					{
 						Name:          "test",
 						Identifier:    "test",
-						OperationType: fleet.MDMAppleOperationTypeInstall,
-						Status:        &fleet.MDMAppleDeliveryFailed,
+						OperationType: fleet.MDMOperationTypeInstall,
+						Status:        &fleet.MDMDeliveryFailed,
 						Detail:        tt.storedDetail,
 					},
 				}, nil

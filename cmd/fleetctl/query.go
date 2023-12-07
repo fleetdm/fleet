@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -75,6 +75,10 @@ func queryCommand() *cli.Command {
 				Destination: &flTimeout,
 				Usage:       "How long to run query before exiting (10s, 1h, etc.)",
 			},
+			&cli.UintFlag{
+				Name:  teamFlagName,
+				Usage: "ID of the team where the named query belongs to (0 means global)",
+			},
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -94,7 +98,11 @@ func queryCommand() *cli.Command {
 			}
 
 			if flQueryName != "" {
-				q, err := fleet.GetQuery(flQueryName)
+				var teamID *uint
+				if tid := c.Uint(teamFlagName); tid != 0 {
+					teamID = &tid
+				}
+				q, err := fleet.GetQuerySpec(teamID, flQueryName)
 				if err != nil {
 					return fmt.Errorf("Query '%s' not found", flQueryName)
 				}
@@ -128,7 +136,7 @@ func queryCommand() *cli.Command {
 			s := spinner.New(spinner.CharSets[24], 200*time.Millisecond)
 			s.Writer = os.Stderr
 			if flQuiet {
-				s.Writer = ioutil.Discard
+				s.Writer = io.Discard
 			}
 			s.Start()
 

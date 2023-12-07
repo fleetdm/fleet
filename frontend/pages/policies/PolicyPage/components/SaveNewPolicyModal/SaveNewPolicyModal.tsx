@@ -5,7 +5,7 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
 import { IPolicyFormData } from "interfaces/policy";
-import { IPlatformString } from "interfaces/platform";
+import { SelectedPlatformString } from "interfaces/platform";
 import useDeepEffect from "hooks/useDeepEffect";
 
 // @ts-ignore
@@ -81,7 +81,7 @@ const SaveNewPolicyModal = ({
 
     const newPlatformString = platformSelector
       .getSelectedPlatforms()
-      .join(",") as IPlatformString;
+      .join(",") as SelectedPlatformString;
     setLastEditedQueryPlatform(newPlatformString);
 
     const { valid: validName, errors: newErrors } = validatePolicyName(name);
@@ -120,8 +120,9 @@ const SaveNewPolicyModal = ({
             error={errors.name}
             inputClassName={`${baseClass}__policy-save-modal-name`}
             label="Name"
-            placeholder="What yes or no question does your policy ask about your devices?"
+            hint="What yes or no question does your policy ask about your hosts?"
             autofocus
+            ignore1password
           />
           <InputField
             name="description"
@@ -130,7 +131,6 @@ const SaveNewPolicyModal = ({
             inputClassName={`${baseClass}__policy-save-modal-description`}
             label="Description"
             type="textarea"
-            placeholder="Add a description here (optional)"
           />
           <InputField
             name="resolution"
@@ -139,7 +139,7 @@ const SaveNewPolicyModal = ({
             inputClassName={`${baseClass}__policy-save-modal-resolution`}
             label="Resolution"
             type="textarea"
-            placeholder="What steps should a device owner take to resolve a host that fails this policy? (optional)"
+            hint="What steps should an end user take to resolve a host that fails this policy? (optional)"
           />
           {platformSelector.render()}
           {isPremiumTier && (
@@ -153,9 +153,11 @@ const SaveNewPolicyModal = ({
               >
                 <TooltipWrapper
                   tipContent={
-                    "<p>If automations are turned on, this<br/> information is included.</p>"
+                    <p>
+                      If automations are turned on, this
+                      <br /> information is included.
+                    </p>
                   }
-                  isDelayed
                 >
                   Critical:
                 </TooltipWrapper>

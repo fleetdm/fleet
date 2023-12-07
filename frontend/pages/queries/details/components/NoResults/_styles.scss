@@ -1,0 +1,9 @@
+.no-results {
+  .component__tooltip-wrapper {
+    &__tip-text {
+      display: flex;
+      flex-direction: column;
+      gap: $pad-xsmall;
+    }
+  }
+}

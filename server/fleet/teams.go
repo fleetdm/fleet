@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 const (
@@ -29,9 +32,12 @@ type TeamPayload struct {
 // need to be able which part of the MDM config was provided in the request,
 // so the fields are pointers to structs.
 type TeamPayloadMDM struct {
-	MacOSUpdates  *MacOSUpdates  `json:"macos_updates"`
-	MacOSSettings *MacOSSettings `json:"macos_settings"`
-	MacOSSetup    *MacOSSetup    `json:"macos_setup"`
+	EnableDiskEncryption optjson.Bool     `json:"enable_disk_encryption"`
+	MacOSUpdates         *MacOSUpdates    `json:"macos_updates"`
+	WindowsUpdates       *WindowsUpdates  `json:"windows_updates"`
+	MacOSSettings        *MacOSSettings   `json:"macos_settings"`
+	MacOSSetup           *MacOSSetup      `json:"macos_setup"`
+	WindowsSettings      *WindowsSettings `json:"windows_settings"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -131,11 +137,12 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 
 type TeamConfig struct {
 	// AgentOptions is the options for osquery and Orbit.
-	AgentOptions    *json.RawMessage    `json:"agent_options,omitempty"`
-	WebhookSettings TeamWebhookSettings `json:"webhook_settings"`
-	Integrations    TeamIntegrations    `json:"integrations"`
-	Features        Features            `json:"features"`
-	MDM             TeamMDM             `json:"mdm"`
+	AgentOptions    *json.RawMessage      `json:"agent_options,omitempty"`
+	WebhookSettings TeamWebhookSettings   `json:"webhook_settings"`
+	Integrations    TeamIntegrations      `json:"integrations"`
+	Features        Features              `json:"features"`
+	MDM             TeamMDM               `json:"mdm"`
+	Scripts         optjson.Slice[string] `json:"scripts,omitempty"`
 }
 
 type TeamWebhookSettings struct {
@@ -143,14 +150,59 @@ type TeamWebhookSettings struct {
 }
 
 type TeamMDM struct {
-	MacOSUpdates  MacOSUpdates  `json:"macos_updates"`
-	MacOSSettings MacOSSettings `json:"macos_settings"`
-	MacOSSetup    MacOSSetup    `json:"macos_setup"`
+	EnableDiskEncryption bool           `json:"enable_disk_encryption"`
+	MacOSUpdates         MacOSUpdates   `json:"macos_updates"`
+	WindowsUpdates       WindowsUpdates `json:"windows_updates"`
+	MacOSSettings        MacOSSettings  `json:"macos_settings"`
+	MacOSSetup           MacOSSetup     `json:"macos_setup"`
+
+	WindowsSettings WindowsSettings `json:"windows_settings"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
+
+	/////////////////////////////////////////////////////////////////
+	// WARNING: If you add to this struct make sure it's taken into
+	// account in the TeamMDM Clone implementation!
+	/////////////////////////////////////////////////////////////////
+}
+
+// Clone implements cloner for TeamMDM.
+func (t *TeamMDM) Clone() (Cloner, error) {
+	return t.Copy(), nil
+}
+
+// Copy returns a deep copy of the TeamMDM.
+func (t *TeamMDM) Copy() *TeamMDM {
+	if t == nil {
+		return nil
+	}
+
+	var clone TeamMDM
+	clone = *t
+
+	// EnableDiskEncryption, MacOSUpdates and MacOSSetup don't have fields that
+	// require cloning (all fields are basic value types, no
+	// pointers/slices/maps).
+
+	if t.MacOSSettings.CustomSettings != nil {
+		clone.MacOSSettings.CustomSettings = make([]string, len(t.MacOSSettings.CustomSettings))
+		copy(clone.MacOSSettings.CustomSettings, t.MacOSSettings.CustomSettings)
+	}
+	if t.MacOSSettings.DeprecatedEnableDiskEncryption != nil {
+		clone.MacOSSettings.DeprecatedEnableDiskEncryption = ptr.Bool(*t.MacOSSettings.DeprecatedEnableDiskEncryption)
+	}
+	if t.WindowsSettings.CustomSettings.Set {
+		windowsSettings := make([]string, len(t.WindowsSettings.CustomSettings.Value))
+		copy(windowsSettings, t.WindowsSettings.CustomSettings.Value)
+		clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
+	}
+	return &clone
 }
 
 type TeamSpecMDM struct {
-	MacOSUpdates MacOSUpdates `json:"macos_updates"`
+	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+
+	MacOSUpdates   MacOSUpdates   `json:"macos_updates"`
+	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
 	// A map is used for the macos settings so that we can easily detect if its
 	// sub-keys were provided or not in an "apply" call. E.g. if the
@@ -159,6 +211,8 @@ type TeamSpecMDM struct {
 	// unmodified.
 	MacOSSettings map[string]interface{} `json:"macos_settings"`
 	MacOSSetup    MacOSSetup             `json:"macos_setup"`
+
+	WindowsSettings WindowsSettings `json:"windows_settings"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
 }
@@ -337,9 +391,10 @@ type TeamSpec struct {
 	// set to the agent options JSON object.
 	AgentOptions json.RawMessage `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
 
-	Secrets  []EnrollSecret   `json:"secrets,omitempty"`
-	Features *json.RawMessage `json:"features"`
-	MDM      TeamSpecMDM      `json:"mdm"`
+	Secrets  []EnrollSecret        `json:"secrets,omitempty"`
+	Features *json.RawMessage      `json:"features"`
+	MDM      TeamSpecMDM           `json:"mdm"`
+	Scripts  optjson.Slice[string] `json:"scripts"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.
@@ -363,8 +418,12 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 
 	var mdmSpec TeamSpecMDM
 	mdmSpec.MacOSUpdates = t.Config.MDM.MacOSUpdates
+	mdmSpec.WindowsUpdates = t.Config.MDM.WindowsUpdates
 	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
+	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
+	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
+	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
 	return &TeamSpec{
 		Name:         t.Name,
 		AgentOptions: agentOptions,

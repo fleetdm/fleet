@@ -1,11 +1,14 @@
 package fleet
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,4 +48,32 @@ func TestUserMessageErrors(t *testing.T) {
 			require.Contains(t, got, c.out)
 		})
 	}
+}
+
+func TestFleetdErrors(t *testing.T) {
+	testTime, err := time.Parse(time.RFC3339, "1969-06-19T21:44:05Z")
+	require.NoError(t, err)
+	ferr := FleetdError{
+		ErrorSource:         "orbit",
+		ErrorSourceVersion:  "1.1.1",
+		ErrorTimestamp:      testTime,
+		ErrorMessage:        "test message",
+		ErrorAdditionalInfo: map[string]any{"foo": "bar"},
+	}
+
+	require.Equal(t, "test message", ferr.Error())
+	require.Equal(t, map[string]any{
+		"error_source":          ferr.ErrorSource,
+		"error_source_version":  ferr.ErrorSourceVersion,
+		"error_timestamp":       ferr.ErrorTimestamp,
+		"error_message":         ferr.ErrorMessage,
+		"error_additional_info": ferr.ErrorAdditionalInfo,
+	}, ferr.ToMap())
+
+	logBuf := bytes.NewBuffer(nil)
+	logger := zerolog.New(logBuf)
+	zevent := logger.Log()
+	ferr.MarshalZerologObject(zevent)
+	zevent.Send()
+	require.JSONEq(t, `{"error_source":"orbit","error_source_version":"1.1.1","error_timestamp":"1969-06-19T21:44:05Z","error_message":"test message","error_additional_info":{"foo":"bar"}}`, logBuf.String())
 }

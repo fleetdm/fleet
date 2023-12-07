@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router";
 
 import Button from "components/buttons/Button";
-import LinkArrow from "../../../../../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png";
+import Icon from "components/Icon";
 
 interface IInfoCardProps {
   title: string;
@@ -21,7 +21,7 @@ interface IInfoCardProps {
         text: string;
         onClick?: () => void;
       };
-  total_host_count?: string | (() => string | undefined);
+  total_host_count?: number;
   showTitle?: boolean;
 }
 
@@ -66,7 +66,7 @@ const useInfoCard = ({
               <span className={`${baseClass}__action-button-text`}>
                 {action.text}
               </span>
-              <img src={LinkArrow} alt="link arrow" id="link-arrow" />
+              <Icon name="arrow-internal-link" color="core-fleet-blue" />
             </>
           </Button>
         );
@@ -79,7 +79,7 @@ const useInfoCard = ({
             <span className={`${baseClass}__action-button-text`}>
               {action.text}
             </span>
-            <img src={LinkArrow} alt="link arrow" id="link-arrow" />
+            <Icon name="arrow-internal-link" color="core-fleet-blue" />
           </Link>
         );
       }
@@ -107,11 +107,15 @@ const useInfoCard = ({
             <div className={`${baseClass}__section-title-group`}>
               <div className={`${baseClass}__section-title`}>
                 <h2>{title}</h2>
-                {total_host_count && <span>{total_host_count}</span>}
+                {total_host_count !== undefined && (
+                  <span>{total_host_count}</span>
+                )}
               </div>
-              <div className={`${baseClass}__section-title-detail`}>
-                {titleDetail}
-              </div>
+              {titleDetail && (
+                <div className={`${baseClass}__section-title-detail`}>
+                  {titleDetail}
+                </div>
+              )}
             </div>
             {renderAction()}
           </div>

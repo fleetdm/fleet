@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -157,7 +156,7 @@ func rawHTTPClientFromConfig(cc Context) (*http.Client, *url.URL, error) {
 	if cc.RootCA != "" {
 		rootCA = x509.NewCertPool()
 		// read in the root cert file specified in the context
-		certs, err := ioutil.ReadFile(cc.RootCA)
+		certs, err := os.ReadFile(cc.RootCA)
 		if err != nil {
 			return nil, nil, fmt.Errorf("reading root CA: %w", err)
 		}

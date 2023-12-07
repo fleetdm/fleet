@@ -50,7 +50,6 @@ const Vulnerabilities = ({
   return (
     <div className="section section--vulnerabilities">
       <p className="section__header">Vulnerabilities</p>
-
       {software?.vulnerabilities?.length ? (
         <>
           {software && (

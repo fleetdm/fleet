@@ -13,7 +13,7 @@ const objArray = [
 
 describe("convertToCSV - utility", () => {
   it("converts an array of objects to CSV format", () => {
-    expect(convertToCSV(objArray)).toEqual(
+    expect(convertToCSV({ objArray })).toEqual(
       '"first_name","last_name"\n"Mike","Stone"\n"Paul","Simon"'
     );
   });

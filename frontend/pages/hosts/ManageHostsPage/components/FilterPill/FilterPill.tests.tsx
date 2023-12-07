@@ -1,12 +1,10 @@
 import React from "react";
 import { noop } from "lodash";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 
 import { renderWithSetup } from "test/test-utils";
 
 import FilterPill from "./FilterPill";
-
-import PolicyIcon from "../../../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
 
 describe("Filter Pill Component", () => {
   it("renders the pill text", () => {
@@ -15,10 +13,12 @@ describe("Filter Pill Component", () => {
     expect(screen.getByText("Test Pill")).toBeInTheDocument();
   });
 
-  it("renders an passed in icon properly", () => {
-    render(<FilterPill label="Test Pill" icon={PolicyIcon} onClear={noop} />);
+  it("renders icon properly", () => {
+    render(<FilterPill label="Test Pill" icon="policy" onClear={noop} />);
 
-    expect(screen.getByTestId("filter-pill__icon")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("status")).getByTestId("policy-icon")
+    ).toBeInTheDocument();
   });
 
   it("renders a passed in string tooltip", () => {
@@ -52,7 +52,9 @@ describe("Filter Pill Component", () => {
       <FilterPill label="Test Pill" onClear={spy} />
     );
 
-    await user.click(screen.getByRole("button", { name: "Remove filter" }));
+    await user.click(
+      within(screen.getByRole("button")).getByTestId("close-icon")
+    );
 
     expect(spy).toHaveBeenCalled();
   });

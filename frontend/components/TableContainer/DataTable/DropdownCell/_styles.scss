@@ -48,6 +48,10 @@
       .Select-input {
         height: auto;
       }
+
+      .Select-arrow-zone {
+        display: flex;
+      }
     }
 
     .Select-menu-outer {
@@ -64,12 +68,6 @@
       padding: $pad-small;
       position: absolute;
       left: -12px;
-    }
-
-    &:not(.is-open) {
-      .Select-control:hover .Select-arrow {
-        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
-      }
     }
 
     &.is-open {

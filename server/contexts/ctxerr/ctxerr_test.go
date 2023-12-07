@@ -356,3 +356,28 @@ func TestRetrieve(t *testing.T) {
 		require.Len(t, rerrs, 2)
 	})
 }
+
+func TestLogFields(t *testing.T) {
+	ctx, cleanup := setup()
+	defer cleanup()
+
+	testErr := errors.New("test")
+	cases := []struct {
+		err  error
+		want []any
+	}{
+		{&FleetError{}, []any{}},
+		{New(ctx, "test"), []any{"timestamp", "1969-06-19T21:44:05Z"}},
+		{NewWithData(ctx, "test", map[string]any{}), []any{"timestamp", "1969-06-19T21:44:05Z"}},
+		{NewWithData(ctx, "test", map[string]any{"test": 1}), []any{"test", float64(1), "timestamp", "1969-06-19T21:44:05Z"}},
+		{WrapWithData(ctx, testErr, "test", map[string]any{"test": "one"}), []any{"test", "one", "timestamp", "1969-06-19T21:44:05Z"}},
+		{&FleetError{data: json.RawMessage("{malformed: 1, }}")}, []any{"data", "{malformed: 1, }}"}},
+	}
+
+	for _, c := range cases {
+		ferr, ok := c.err.(*FleetError)
+		require.True(t, ok)
+		got := ferr.LogFields()
+		require.ElementsMatch(t, c.want, got)
+	}
+}

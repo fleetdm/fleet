@@ -31,11 +31,6 @@
       }
 
       tbody {
-        .name__cell {
-          overflow: hidden;
-          white-space: nowrap;
-          text-overflow: ellipsis;
-        }
         .mdm-solution-link {
           opacity: 0;
           transition: 250ms;

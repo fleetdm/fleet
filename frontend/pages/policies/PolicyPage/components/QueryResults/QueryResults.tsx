@@ -1,12 +1,15 @@
 import React, { useState, useContext } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
-import { format } from "date-fns";
 import FileSaver from "file-saver";
 import { get } from "lodash";
 import { PolicyContext } from "context/policy";
 
-import convertToCSV from "utilities/convert_to_csv";
+import {
+  generateCSVFilename,
+  generateCSVPolicyResults,
+  generateCSVPolicyErrors,
+} from "utilities/generate_csv";
 import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
@@ -71,14 +74,13 @@ const QueryResults = ({
             host.query_results && host.query_results.length ? "yes" : "no",
         };
       });
-      const csv = convertToCSV(hostsExport);
-      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
-      const filename = `${policyName || CSV_TITLE} (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
 
-      FileSaver.saveAs(file);
+      FileSaver.saveAs(
+        generateCSVPolicyResults(
+          hostsExport,
+          generateCSVFilename(`${policyName || CSV_TITLE} - Results`)
+        )
+      );
     }
   };
 
@@ -86,17 +88,12 @@ const QueryResults = ({
     evt.preventDefault();
 
     if (errors) {
-      const csv = convertToCSV(errors);
-
-      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
-      const filename = `${
-        policyName || CSV_TITLE
-      } Errors (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
-
-      FileSaver.saveAs(file);
+      FileSaver.saveAs(
+        generateCSVPolicyErrors(
+          errors,
+          generateCSVFilename(`${policyName || CSV_TITLE} - Errors`)
+        )
+      );
     }
   };
 
@@ -118,7 +115,7 @@ const QueryResults = ({
           variant="text-icon"
         >
           <>
-            Show query <Icon name="eye" size="small" />
+            Show query <Icon name="eye" />
           </>
         </Button>
         <Button

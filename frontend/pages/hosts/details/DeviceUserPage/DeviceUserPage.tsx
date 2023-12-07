@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback } from "react";
+import React, { useState, useContext, useCallback, useEffect } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
@@ -13,7 +13,6 @@ import {
   IDeviceUserResponse,
   IHostDevice,
 } from "interfaces/host";
-import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
 import DeviceUserError from "components/DeviceUserError";
@@ -23,6 +22,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
+import Icon from "components/Icon/Icon";
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import PATHS from "router/paths";
 
@@ -32,12 +32,11 @@ import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
 
-import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
-import MacSettingsModal from "../MacSettingsModal";
+import OSSettingsModal from "../OSSettingsModal";
 import ResetKeyModal from "./ResetKeyModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 
@@ -79,7 +78,7 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
-  const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
+  const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
@@ -265,9 +264,9 @@ const DeviceUserPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
-  const toggleMacSettingsModal = useCallback(() => {
-    setShowMacSettingsModal(!showMacSettingsModal);
-  }, [showMacSettingsModal, setShowMacSettingsModal]);
+  const toggleOSSettingsModal = useCallback(() => {
+    setShowOSSettingsModal(!showOSSettingsModal);
+  }, [showOSSettingsModal, setShowOSSettingsModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(!showPolicyDetailsModal);
@@ -292,12 +291,33 @@ const DeviceUserPage = ({
     }
   };
 
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    const hostTab = () => {
+      if (location.pathname.includes("software")) {
+        return "software";
+      }
+      if (location.pathname.includes("schedule")) {
+        return "schedule";
+      }
+      if (location.pathname.includes("policies")) {
+        return "policies";
+      }
+      return "";
+    };
+
+    // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
+    document.title = `My device ${hostTab()} details | ${
+      host?.display_name || "Unknown host"
+    } | Fleet for osquery`;
+  }, [location.pathname, host]);
+
   const renderActionButtons = () => {
     return (
       <div className={`${baseClass}__action-button-container`}>
         <Button onClick={() => setShowInfoModal(true)} variant="text-icon">
           <>
-            Info <img src={InfoIcon} alt="Host info icon" />
+            Info <Icon name="info" size="small" />
           </>
         </Button>
       </div>
@@ -391,12 +411,13 @@ const DeviceUserPage = ({
               diskEncryptionEnabled={host?.disk_encryption_enabled}
               bootstrapPackageData={bootstrapPackageData}
               isPremiumTier={isPremiumTier}
-              toggleMacSettingsModal={toggleMacSettingsModal}
+              toggleOSSettingsModal={toggleOSSettingsModal}
               hostMdmProfiles={host?.mdm.profiles ?? []}
               mdmName={deviceMacAdminsData?.mobile_device_management?.name}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionButtons={renderActionButtons}
+              osSettings={host?.mdm.os_settings}
               deviceUser
             />
             <TabsWrapper>
@@ -423,7 +444,6 @@ const DeviceUserPage = ({
                     aboutData={aboutData}
                     deviceMapping={deviceMapping}
                     munki={deviceMacAdminsData?.munki}
-                    wrapFleetHelper={wrapFleetHelper}
                   />
                 </TabPanel>
                 <TabPanel>
@@ -467,10 +487,11 @@ const DeviceUserPage = ({
             policy={selectedPolicy}
           />
         )}
-        {showMacSettingsModal && (
-          <MacSettingsModal
+        {showOSSettingsModal && (
+          <OSSettingsModal
+            platform={host?.platform}
             hostMDMData={host?.mdm}
-            onClose={toggleMacSettingsModal}
+            onClose={toggleOSSettingsModal}
           />
         )}
         {showBootstrapPackageModal &&

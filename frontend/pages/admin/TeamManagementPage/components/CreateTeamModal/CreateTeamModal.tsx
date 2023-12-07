@@ -65,6 +65,7 @@ const CreateTeamModal = ({
           placeholder="Workstations"
           value={name}
           error={errors.name}
+          ignore1password
         />
         <InfoBanner className={`${baseClass}__sandbox-info`}>
           To organize your hosts, create a team, like

@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	//"time"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -66,7 +66,6 @@ func deleteIngress(id, name, ddbTable string) {
 		log.Fatal(err)
 	}
 
-	/*
 	// Delete the cronjob so we don't spam the database for stuff that's not running
 	err = clientset.BatchV1().CronJobs("default").Delete(context.Background(), id, v1.DeleteOptions{})
 	if err != nil {
@@ -86,7 +85,6 @@ func deleteIngress(id, name, ddbTable string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	*/
 
 	svc := dynamodb.New(sess)
 	err = updateFleetInstanceState(id, ddbTable, svc)

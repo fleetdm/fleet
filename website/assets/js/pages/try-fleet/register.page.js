@@ -45,14 +45,14 @@ parasails.registerPage('register', {
 
     // Using handle-submitting to add firstName, and lastName values to our formData before sending it to signup.js
     handleSubmittingRegisterForm: async function(argins) {
-      argins.signupReason = 'Try Fleet Sandbox';
+      argins.signupReason = 'Try Fleet';
       return await Cloud.signup.with(argins);
     },
 
-    // After the form is submitted, we'll redirect the user to their Fleet sandbox instance.
+    // After the form is submitted, we'll redirect the user to the fleetctl preview page.
     submittedRegisterForm: async function() {
       this.syncing = true;
-      window.location = '/try-fleet/sandbox';
+      window.location = '/try-fleet/fleetctl-preview';
     },
 
     clickOpenVideoModal: function() {

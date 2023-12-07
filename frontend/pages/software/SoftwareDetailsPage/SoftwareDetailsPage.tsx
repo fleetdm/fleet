@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 import { useErrorHandler } from "react-error-boundary";
 import { useQuery } from "react-query";
 import PATHS from "router/paths";
@@ -70,6 +70,14 @@ const SoftwareDetailsPage = ({
 
     return `${name}, ${version}`;
   };
+
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    // e.g., Software horizon, 5.2.0 details | Fleet for osquery
+    document.title = `Software details | ${
+      software && renderName(software)
+    } | Fleet for osquery`;
+  }, [location.pathname, software]);
 
   if (!software || isPremiumTier === undefined) {
     return <Spinner />;

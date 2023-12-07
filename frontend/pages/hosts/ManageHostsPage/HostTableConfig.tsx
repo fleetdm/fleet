@@ -13,15 +13,14 @@ import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
-import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import CustomLink from "components/CustomLink";
 import NotSupported from "components/NotSupported";
 
 import {
   humanHostMemory,
-  humanHostLastRestart,
   humanHostLastSeen,
   hostTeamName,
 } from "utilities/helpers";
@@ -47,7 +46,6 @@ interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
-    isLastColumn?: boolean;
   };
   getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
@@ -149,7 +147,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "display_name",
@@ -208,7 +205,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "hostname",
@@ -220,7 +216,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "computer_name",
@@ -232,7 +227,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "team_name",
@@ -245,11 +239,13 @@ const allHostTableHeaders: IDataColumn[] = [
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={`
-             Online hosts will respond to a live query. Offline<br/>
-             hosts won’t respond to a live query because<br/>
-             they may be shut down, asleep, or not<br/>
-             connected to the internet.`}
+          tipContent={
+            <>
+              Online hosts will respond to a live query. Offline hosts won’t
+              respond to a live query because they may be shut down, asleep, or
+              not connected to the internet.
+            </>
+          }
           className="status-header"
         >
           Status
@@ -259,7 +255,6 @@ const allHostTableHeaders: IDataColumn[] = [
         <HeaderCell
           value={cellProps.rows.length === 1 ? "Status" : titleWithToolTip}
           disableSortBy
-          isLastColumn={cellProps.column.isLastColumn}
         />
       );
     },
@@ -268,7 +263,6 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => {
       const value = cellProps.cell.value;
       const tooltip = {
-        id: cellProps.row.original.id,
         tooltipText: getHostStatusTooltipText(value),
       };
       return <StatusIndicator value={value} tooltip={tooltip} />;
@@ -292,7 +286,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "gigs_disk_space_available",
@@ -322,7 +315,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "os_version",
@@ -383,7 +375,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "primary_ip",
@@ -394,22 +385,18 @@ const allHostTableHeaders: IDataColumn[] = [
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={`
-            Settings can be updated remotely on <br/>
-            hosts with MDM turned on. To filter by<br/>
-            MDM status, head to the Dashboard page.
-          `}
+          tipContent={
+            <>
+              Settings can be updated remotely on hosts with MDM turned
+              <br />
+              on. To filter by MDM status, head to the Dashboard page.
+            </>
+          }
         >
           MDM status
         </TooltipWrapper>
       );
-      return (
-        <HeaderCell
-          value={titleWithToolTip}
-          isLastColumn={cellProps.column.isLastColumn}
-          disableSortBy
-        />
-      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
     },
     disableSortBy: true,
     accessor: "mdm.enrollment_status",
@@ -429,22 +416,18 @@ const allHostTableHeaders: IDataColumn[] = [
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={`
-            The MDM server that updates settings<br/>
-            on the host. To filter by MDM server URL,<br/>
-            head to the Dashboard page.
-          `}
+          tipContent={
+            <>
+              The MDM server that updates settings on the host. To
+              <br />
+              filter by MDM server URL, head to the Dashboard page.
+            </>
+          }
         >
           MDM server URL
         </TooltipWrapper>
       );
-      return (
-        <HeaderCell
-          value={titleWithToolTip}
-          isLastColumn={cellProps.column.isLastColumn}
-          disableSortBy
-        />
-      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
     },
     disableSortBy: true,
     accessor: "mdm.server_url",
@@ -465,7 +448,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "public_ip",
@@ -509,9 +491,12 @@ const allHostTableHeaders: IDataColumn[] = [
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={`
-            The last time the host<br/> reported vitals.
-          `}
+          tipContent={
+            <>
+              The last time the host
+              <br /> reported vitals.
+            </>
+          }
         >
           Last fetched
         </TooltipWrapper>
@@ -520,7 +505,6 @@ const allHostTableHeaders: IDataColumn[] = [
         <HeaderCell
           value={titleWithToolTip}
           isSortedDesc={cellProps.column.isSortedDesc}
-          isLastColumn={cellProps.column.isLastColumn}
         />
       );
     },
@@ -528,7 +512,7 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => (
       <TextCell
         value={{ timeString: cellProps.cell.value }}
-        formatter={HumanTimeDiffWithDateTip}
+        formatter={HumanTimeDiffWithFleetLaunchCutoff}
       />
     ),
   },
@@ -537,9 +521,12 @@ const allHostTableHeaders: IDataColumn[] = [
     Header: (cellProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={`
-            The last time the <br/>host was online.
-          `}
+          tipContent={
+            <>
+              The last time the <br />
+              host was online.
+            </>
+          }
         >
           Last seen
         </TooltipWrapper>
@@ -548,7 +535,6 @@ const allHostTableHeaders: IDataColumn[] = [
         <HeaderCell
           value={titleWithToolTip}
           isSortedDesc={cellProps.column.isSortedDesc}
-          isLastColumn={cellProps.column.isLastColumn}
         />
       );
     },
@@ -556,7 +542,7 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => (
       <TextCell
         value={{ timeString: cellProps.cell.value }}
-        formatter={HumanTimeDiffWithDateTip}
+        formatter={HumanTimeDiffWithFleetLaunchCutoff}
       />
     ),
   },
@@ -566,12 +552,11 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "uuid",
     Cell: (cellProps: ICellProps) => (
-      <TruncatedTextCell value={cellProps.cell.value} />
+      <TooltipTruncatedTextCell value={cellProps.cell.value} />
     ),
   },
   {
@@ -580,12 +565,11 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
-    accessor: "uptime",
+    accessor: "last_restarted_at",
     Cell: (cellProps: ICellProps) => {
-      const { uptime, detail_updated_at, platform } = cellProps.row.original;
+      const { platform, last_restarted_at } = cellProps.row.original;
 
       if (platform === "chrome") {
         return NotSupported;
@@ -593,9 +577,9 @@ const allHostTableHeaders: IDataColumn[] = [
       return (
         <TextCell
           value={{
-            timeString: humanHostLastRestart(detail_updated_at, uptime),
+            timeString: last_restarted_at,
           }}
-          formatter={HumanTimeDiffWithDateTip}
+          formatter={HumanTimeDiffWithFleetLaunchCutoff}
         />
       );
     },
@@ -613,7 +597,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "memory",
@@ -627,7 +610,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "primary_mac",
@@ -639,7 +621,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "hardware_serial",
@@ -651,7 +632,6 @@ const allHostTableHeaders: IDataColumn[] = [
       <HeaderCell
         value={cellProps.column.title}
         isSortedDesc={cellProps.column.isSortedDesc}
-        isLastColumn={cellProps.column.isLastColumn}
       />
     ),
     accessor: "hardware_model",

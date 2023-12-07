@@ -7,6 +7,13 @@ locals {
     name      = k
     valueFrom = v
   }]
+  load_balancers = concat([
+    {
+      target_group_arn = var.fleet_config.loadbalancer.arn
+      container_name   = "fleet"
+      container_port   = 8080
+    }
+  ], var.fleet_config.extra_load_balancers)
 }
 
 data "aws_region" "current" {}
@@ -21,10 +28,13 @@ resource "aws_ecs_service" "fleet" {
   deployment_maximum_percent         = 200
   health_check_grace_period_seconds  = 30
 
-  load_balancer {
-    target_group_arn = var.fleet_config.loadbalancer.arn
-    container_name   = "fleet"
-    container_port   = 8080
+  dynamic "load_balancer" {
+    for_each = local.load_balancers
+    content {
+      target_group_arn = load_balancer.value.target_group_arn
+      container_name   = load_balancer.value.container_name
+      container_port   = load_balancer.value.container_port
+    }
   }
 
   lifecycle {

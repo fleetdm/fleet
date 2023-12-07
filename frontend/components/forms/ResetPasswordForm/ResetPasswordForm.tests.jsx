@@ -11,8 +11,8 @@ describe("ResetPasswordForm - component", () => {
   it("renders correctly", () => {
     render(<ResetPasswordForm handleSubmit={submitSpy} />);
 
-    expect(screen.getByLabelText("New password")).toBeInTheDocument();
-    expect(screen.getByLabelText("Confirm password")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("New password")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Confirm password")).toBeInTheDocument();
 
     expect(
       screen.getByRole("button", { name: "Reset password" })
@@ -42,7 +42,7 @@ describe("ResetPasswordForm - component", () => {
       <ResetPasswordForm handleSubmit={submitSpy} />
     );
 
-    await user.type(screen.getByLabelText("New password"), newPassword);
+    await user.type(screen.getByPlaceholderText("New password"), newPassword);
     await user.click(screen.getByRole("button", { name: "Reset password" }));
 
     const passwordError = screen.getByText(
@@ -58,7 +58,10 @@ describe("ResetPasswordForm - component", () => {
       <ResetPasswordForm handleSubmit={submitSpy} />
     );
 
-    await user.type(screen.getByLabelText("Confirm password"), newPassword);
+    await user.type(
+      screen.getByPlaceholderText("Confirm password"),
+      newPassword
+    );
     await user.click(screen.getByRole("button", { name: "Reset password" }));
 
     const passwordError = screen.getByText(
@@ -73,9 +76,9 @@ describe("ResetPasswordForm - component", () => {
       <ResetPasswordForm handleSubmit={submitSpy} />
     );
 
-    await user.type(screen.getByLabelText("New password"), newPassword);
+    await user.type(screen.getByPlaceholderText("New password"), newPassword);
     await user.type(
-      screen.getByLabelText("Confirm password"),
+      screen.getByPlaceholderText("Confirm password"),
       "not my new password"
     );
     await user.click(screen.getByRole("button", { name: "Reset password" }));
@@ -91,8 +94,14 @@ describe("ResetPasswordForm - component", () => {
       <ResetPasswordForm handleSubmit={submitSpy} />
     );
 
-    await user.type(screen.getByLabelText("New password"), invalidPassword);
-    await user.type(screen.getByLabelText("Confirm password"), invalidPassword);
+    await user.type(
+      screen.getByPlaceholderText("New password"),
+      invalidPassword
+    );
+    await user.type(
+      screen.getByPlaceholderText("Confirm password"),
+      invalidPassword
+    );
     await user.click(screen.getByRole("button", { name: "Reset password" }));
 
     const passwordError = screen.getByText(
@@ -107,8 +116,11 @@ describe("ResetPasswordForm - component", () => {
       <ResetPasswordForm handleSubmit={submitSpy} />
     );
 
-    await user.type(screen.getByLabelText("New password"), newPassword);
-    await user.type(screen.getByLabelText("Confirm password"), newPassword);
+    await user.type(screen.getByPlaceholderText("New password"), newPassword);
+    await user.type(
+      screen.getByPlaceholderText("Confirm password"),
+      newPassword
+    );
     await user.click(screen.getByRole("button", { name: "Reset password" }));
 
     expect(submitSpy).toHaveBeenCalledWith({

@@ -64,6 +64,31 @@ func (e *FleetError) Stack() []string {
 	return e.stack.List()
 }
 
+// LogFields implements fleet.ErrWithLogFields, so attached error data can be
+// logged along with the error
+func (e *FleetError) LogFields() []any {
+	var fields []any
+	var data map[string]any
+
+	if len(e.data) == 0 {
+		return fields
+	}
+
+	// if we fail to unmarshal the data, return it as a raw string. It
+	// won't be as easy to read but it will be there.
+	if err := json.Unmarshal(e.data, &data); err != nil {
+		return []any{
+			"data", string(e.data),
+		}
+	}
+
+	for k, v := range data {
+		fields = append(fields, k, v)
+	}
+
+	return fields
+}
+
 // setMetadata adds common metadata attributes to the `data` map provided.
 // NOTE: this will mutate the data provided and override other values with the same keys.
 func setMetadata(ctx context.Context, data map[string]interface{}) map[string]interface{} {
