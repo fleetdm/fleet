@@ -45,9 +45,9 @@ fleetctl run-script --script-path=/path/to/script --host=hostname
 ```
 ### Configure script execution timeout
 
-By default script execution timeout is set to 30 seconds. You can configure different timeout by updating [agent options](https://fleetdm.com/docs/configuration/agent-configuration) using Fleet CLI or Fleet UI. The maximum allowed timeout is `600` seconds.
+By default script execution timeout is set to 30 seconds. You can configure different timeout by updating [agent options](https://fleetdm.com/docs/configuration/agent-configuration) using `fleetctl` CLI or Fleet UI. The maximum allowed timeout is `600` seconds.
 
-Fleet CLI:
+fleetctl CLI:
 
 ```yaml
 apiVersion: v1
@@ -59,7 +59,7 @@ spec:
         scripts_timeout: 180
 ```
 
-Learn how to [change agent options in Fleet UI](https://fleetdm.com/docs/configuration/agent-configuration#update-agent-options-in-fleet-ui). 
+Fleet UI: Learn more [here](https://fleetdm.com/docs/configuration/agent-configuration#update-agent-options-in-fleet-ui). 
 
 <meta name="pageOrderInSection" value="1508">
 <meta name="title" value="Scripts">
