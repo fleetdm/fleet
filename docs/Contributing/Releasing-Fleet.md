@@ -59,20 +59,22 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
 
 A patch release is required when a critical bug is found. Critical bugs are defined in [our handbook](https://fleetdm.com/handbook/quality#critical-bugs).
 
-1. Create a new branch, starting from the git tag of the prior release. Patch branches should be prefixed with `patch-`. In this example we are creating `4.3.1`:
+1. Complete the steps above to [prepare a new version of Fleet](#prepare-a-new-version-of-fleet).
+
+2. Create a new branch, starting from the git tag of the prior release. Patch branches should be prefixed with `patch-`. In this example we are creating `4.3.1`:
    ```sh
    git checkout fleet-v4.3.0
    git checkout --branch patch-fleet-v4.3.1
    ```
 
-2. Cherry picks the necessary commits from `main` into the new branch:
+3. Cherry picks the necessary commits from `main` into the new branch:
    ```sh
    git cherry-pick d34db33f
    ```
 
-3. 
+> Make sure to cherry-pick the commit containing changelog and version number updates.
 
-3. Push the branch to [fleetdm/fleet](https://github.com/fleetdm/fleet).
+4. Push the branch to [fleetdm/fleet](https://github.com/fleetdm/fleet).
    ```sh
    git push origin patch-fleet-v4.3.1
    ```
@@ -81,15 +83,32 @@ A patch release is required when a critical bug is found. Critical bugs are defi
    Action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) will
    run and create a container image for QA with `fleetctl preview` (eg. `fleetctl preview --tag patch-fleet-v4.3.1`).
 
-4. Check the [Docker Publsih GitHub action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) to confirm it completed successfully for this branch.
+5. Check the [Docker Publsih GitHub action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) to confirm it completes successfully for this branch.
 
-5. Create a [Realease QA](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md) issue. Populate the version and browsers, and assign to the QA person leading the release. Add the appropriate product group label, and `:release` label, so that it appears on the product group's release board.
+5. Create a [Release QA](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md) issue. Populate the version and browsers, and assign to the QA person leading the release. Add the appropriate [product group label](https://fleetdm.com/handbook/company/product-groups), and `:release` label, so that it appears on the product group's release board.
 
 6. QA conducts release tests. When they all pass, the patch is ready for release. 
 
-8. The DRI for creating the patch release branch cherry-picks the commit containing the changelog updates into a new branch, and merges that commit into `main` through a Pull Request.
+7. **Important!** The DRI for creating the patch release branch manually checks the database migrations. Any migrations that are not cherry-picked in a patch must have a _later_ timestamp than migrations that were cherry-picked. If there are new migrations that were not cherry-picked, verify that those migrations have later timestamps. If they do not, submit a new Pull Request to increase the timestamps and ensure that migrations are run in the appropriate order.
 
-9. **Important!** The DRI for creating the patch release branch manually checks the database migrations. Any migrations that are not cherry-picked in a patch must have a _later_ timestamp than migrations that were cherry-picked. If there are new migrations that were not cherry-picked, verify that those migrations have later timestamps. If they do not, submit a new Pull Request to increase the timestamps and ensure that migrations are run in the appropriate order.
+8. Tag and push the new release in Git:
+   ```sh
+   git tag fleet-v-v4.3.1
+   git push origin fleet-v-4.3.1
+   ```
+
+   Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here
+   is to push the new tag to the `github.com/fleetdm/fleet` repository.
+
+   After the tag is pushed, GitHub Actions will automatically begin building the new release.
+
+   ***
+
+   Wait while GitHub Actions creates and uploads the artifacts.
+
+   ***
+
+   When the Actions Workflow has been completed, [publish the new version of Fleet](#publish-a-new-version-of-fleet).
 
 ### Publish a new version of Fleet
 
@@ -134,27 +153,6 @@ A patch release is required when a critical bug is found. Critical bugs are defi
 8. Announce the release in the #general channel. 
 
 9. Announce the release in the #fleet channel of [osquery Slack](https://fleetdm.com/slack) by updating the channel topic with the link to this release. 
-
-#### Release candidate process
-
-Major, minor, and patch releases go through the same release candidate and smoke testing process prior to release. 
-
-1. The release ritual or patch release DRI creates a release candidate branch. If this is a major or minor version, they prepend the branch name with `prepare-v`. If it is a patch version, they prepend the branch name with `patch-v`. For example, `prepare-fleet-v4.0.0` or `patch-fleet-v4.0.1`.
-
-> When a `prepare-*` or `patch-*` branch is pushed, the [Docker publish Action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) will be invoked to push a container image for smoke testing with `fleetctl preview` (eg. `fleetctl preview --tag patch-fleet-v4.3.1`).
-
-2. The release DRI pushes the branch to github.com/fleetdm/fleet:
-   ```
-   git push origin prepare-fleet-v4.0.0
-   ```
-
-3. The release DRI checks in the GitHub UI that Actions ran successfully for this branch.
-
-4. The release DRI adds a comment to the related smoke testing issue [created during the freeze ritual](https://fleetdm.com/handbook/engineering#create-release-qa-issue) confirming that the release candidate is ready for testing. 
-
-5. QA is conducted on the release candidate following the steps in the smoke testing issue. If smoke testing passes successfully, the EM for each relevant product group adds a comment to the issue certifying that their product group has completed smoke testing. 
-
-6. When the smoke testing issue has been certified, the release DRI publishes the release. 
 
 <meta name="pageOrderInSection" value="500">
 <meta name="description" value="Learn how new versions of Fleet are tested and released.">
