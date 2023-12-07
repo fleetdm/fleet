@@ -414,37 +414,39 @@ const TableContainer = ({
               }
             >
               <DataTable
-                isLoading={isLoading}
-                columns={columnConfigs}
-                data={rows}
-                filters={filters}
-                manualSortBy={manualSortBy}
-                sortHeader={sortHeader}
-                sortDirection={sortDirection}
-                onSort={onSortChange}
-                disableMultiRowSelect={disableMultiRowSelect}
-                showMarkAllPages={showMarkAllPages}
-                isAllPagesSelected={isAllPagesSelected}
-                toggleAllPagesSelected={toggleAllPagesSelected}
-                resultsTitle={resultsTitle}
-                defaultPageSize={pageSize}
-                defaultPageIndex={defaultPageIndex}
-                primarySelectAction={primarySelectAction}
-                secondarySelectActions={secondarySelectActions}
-                onSelectSingleRow={onSelectSingleRow}
-                onResultsCountChange={onResultsCountChange}
-                isClientSidePagination={isClientSidePagination}
-                onClientSidePaginationChange={onClientSidePaginationChange}
-                isClientSideFilter={isClientSideFilter}
-                disableHighlightOnHover={disableHighlightOnHover}
-                searchQuery={searchQuery}
-                searchQueryColumn={searchQueryColumn}
-                selectedDropdownFilter={selectedDropdownFilter}
-                renderFooter={renderFooter}
-                renderPagination={
-                  isClientSidePagination ? undefined : renderPagination
-                }
-                setExportRows={setExportRows}
+                {...{
+                  isLoading,
+                  data: rows,
+                  columns: columnConfigs,
+                  onSort: onSortChange,
+                  filters,
+                  manualSortBy,
+                  sortHeader,
+                  sortDirection,
+                  disableMultiRowSelect,
+                  showMarkAllPages,
+                  isAllPagesSelected,
+                  toggleAllPagesSelected,
+                  resultsTitle,
+                  defaultPageSize: pageSize,
+                  defaultPageIndex,
+                  primarySelectAction,
+                  secondarySelectActions,
+                  onSelectSingleRow,
+                  onResultsCountChange,
+                  isClientSidePagination,
+                  onClientSidePaginationChange,
+                  isClientSideFilter,
+                  disableHighlightOnHover,
+                  searchQuery,
+                  searchQueryColumn,
+                  selectedDropdownFilter,
+                  renderFooter,
+                  renderPagination: isClientSidePagination
+                    ? undefined
+                    : renderPagination,
+                  setExportRows,
+                }}
               />
             </div>
           </>
