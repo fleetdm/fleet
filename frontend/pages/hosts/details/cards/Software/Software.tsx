@@ -221,8 +221,8 @@ const SoftwareTable = ({
             <div className={deviceType || ""}>
               <TableContainer
                 resultsTitle="software items"
-                columns={tableHeaders}
-                data={tableSoftware || []}
+                columnConfigs={tableHeaders}
+                rows={tableSoftware || []}
                 filters={{
                   global: searchQuery,
                   vulnerabilities: filterVuln,

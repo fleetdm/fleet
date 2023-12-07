@@ -75,8 +75,8 @@ const PackQueriesTable = ({
     <div className={`${baseClass} body-wrap`}>
       {scheduledQueries?.length ? (
         <TableContainer
-          columns={tableHeaders}
-          data={tableData}
+          columnConfigs={tableHeaders}
+          rows={tableData}
           isLoading={isLoadingPackQueries}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}

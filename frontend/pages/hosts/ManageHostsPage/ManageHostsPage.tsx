@@ -1438,8 +1438,8 @@ const ManageHostsPage = ({
     return (
       <TableContainer
         resultsTitle="hosts"
-        columns={tableColumns}
-        data={hostsData?.hosts || []}
+        columnConfigs={tableColumns}
+        rows={hostsData?.hosts || []}
         isLoading={isLoadingHosts || isLoadingHostsCount || isLoadingPolicy}
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}

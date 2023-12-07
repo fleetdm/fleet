@@ -32,8 +32,8 @@ interface IRowProps extends Row {
 }
 
 interface ITableContainerProps {
-  columns: any; // TODO: Figure out type
-  data: any; // TODO: Figure out type
+  columnConfigs: any; // TODO: Figure out type
+  rows: any; // TODO: Figure out type
   isLoading: boolean;
   manualSortBy?: boolean;
   defaultSortHeader?: string;
@@ -99,8 +99,8 @@ const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PAGE_INDEX = 0;
 
 const TableContainer = ({
-  columns,
-  data,
+  columnConfigs,
+  rows,
   filters,
   isLoading,
   manualSortBy = false,
@@ -248,8 +248,8 @@ const TableContainer = ({
     } else if (typeof clientFilterCount === "number") {
       return clientFilterCount;
     }
-    return data?.length || 0;
-  }, [filteredCount, clientFilterCount, data]);
+    return rows?.length || 0;
+  }, [filteredCount, clientFilterCount, rows]);
 
   const renderPagination = useCallback(() => {
     if (disablePagination || isClientSidePagination) {
@@ -257,7 +257,7 @@ const TableContainer = ({
     }
     return (
       <Pagination
-        resultsOnCurrentPage={data.length}
+        resultsOnCurrentPage={rows.length}
         currentPage={pageIndex}
         resultsPerPage={pageSize}
         onPaginationChange={onPaginationChange}
@@ -265,7 +265,7 @@ const TableContainer = ({
       />
     );
   }, [
-    data,
+    rows,
     disablePagination,
     isClientSidePagination,
     disableNextPage,
@@ -382,15 +382,15 @@ const TableContainer = ({
       )}
       <div className={`${baseClass}__data-table-block`}>
         {/* No entities for this result. */}
-        {(!isLoading && data.length === 0 && !isMultiColumnFilter) ||
-        (searchQuery.length && data.length === 0 && !isMultiColumnFilter) ? (
+        {(!isLoading && rows.length === 0 && !isMultiColumnFilter) ||
+        (searchQuery.length && rows.length === 0 && !isMultiColumnFilter) ? (
           <>
             <EmptyComponent pageIndex={pageIndex} />
             {pageIndex !== 0 && (
               <div className={`${baseClass}__empty-page`}>
                 <div className={`${baseClass}__previous`}>
                   <Pagination
-                    resultsOnCurrentPage={data.length}
+                    resultsOnCurrentPage={rows.length}
                     currentPage={pageIndex}
                     resultsPerPage={pageSize}
                     onPaginationChange={onPaginationChange}
@@ -415,8 +415,8 @@ const TableContainer = ({
             >
               <DataTable
                 isLoading={isLoading}
-                columns={columns}
-                data={data}
+                columns={columnConfigs}
+                data={rows}
                 filters={filters}
                 manualSortBy={manualSortBy}
                 sortHeader={sortHeader}

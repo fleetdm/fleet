@@ -431,8 +431,8 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
       ) : (
         <TableContainer
           resultsTitle={"members"}
-          columns={tableHeaders}
-          data={members || []}
+          columnConfigs={tableHeaders}
+          rows={members || []}
           isLoading={isLoadingMembers}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}

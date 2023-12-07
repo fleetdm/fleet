@@ -69,8 +69,8 @@ const Munki = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
-                  columns={tableHeaders}
-                  data={munkiIssuesData || []}
+                  columnConfigs={tableHeaders}
+                  rows={munkiIssuesData || []}
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
@@ -96,8 +96,8 @@ const Munki = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
-                  columns={munkiVersionsTableHeaders}
-                  data={munkiVersionsData || []}
+                  columnConfigs={munkiVersionsTableHeaders}
+                  rows={munkiVersionsData || []}
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}

@@ -270,8 +270,8 @@ const TeamManagementPage = (): JSX.Element => {
           <TableDataError />
         ) : (
           <TableContainer
-            columns={tableHeaders}
-            data={tableData}
+            columnConfigs={tableHeaders}
+            rows={tableData}
             isLoading={isFetchingTeams}
             defaultSortHeader={"name"}
             defaultSortDirection={"asc"}

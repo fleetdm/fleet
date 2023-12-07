@@ -113,8 +113,8 @@ const Scripts = ({
           emptyComponent={() => <></>}
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          columns={scriptColumnConfigs}
-          data={data}
+          columnConfigs={scriptColumnConfigs}
+          rows={data}
           isLoading={isLoadingScriptData}
           onQueryChange={onQueryChange}
           disableNextPage={hostScriptResponse?.meta.has_next_results}

@@ -28,8 +28,8 @@ const OSVersionTable = ({
   return (
     <div className={baseClass}>
       <TableContainer
-        columns={columns}
-        data={osVersionData}
+        columnConfigs={columns}
+        rows={osVersionData}
         isLoading={isLoading}
         resultsTitle=""
         emptyComponent={OSVersionsEmptyState}

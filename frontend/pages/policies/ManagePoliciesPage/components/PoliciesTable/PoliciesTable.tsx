@@ -139,7 +139,7 @@ const PoliciesTable = ({
     >
       <TableContainer
         resultsTitle="policies"
-        columns={generateTableHeaders(
+        columnConfigs={generateTableHeaders(
           {
             selectedTeamId: currentTeam?.id,
             canAddOrDeletePolicy,
@@ -148,7 +148,7 @@ const PoliciesTable = ({
           isPremiumTier,
           isSandboxMode
         )}
-        data={generateDataSet(
+        rows={generateDataSet(
           policiesList,
           currentAutomatedPolicies,
           config?.update_interval.osquery_policy

@@ -112,8 +112,8 @@ const Mdm = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
-                  columns={solutionsTableHeaders}
-                  data={solutionsDataSet}
+                  columnConfigs={solutionsTableHeaders}
+                  rows={solutionsDataSet}
                   isLoading={isFetching}
                   defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
@@ -132,8 +132,8 @@ const Mdm = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
-                  columns={statusTableHeaders}
-                  data={statusDataSet}
+                  columnConfigs={statusTableHeaders}
+                  rows={statusDataSet}
                   isLoading={isFetching}
                   defaultSortHeader={STATUS_DEFAULT_SORT_HEADER}
                   defaultSortDirection={STATUS_DEFAULT_SORT_DIRECTION}

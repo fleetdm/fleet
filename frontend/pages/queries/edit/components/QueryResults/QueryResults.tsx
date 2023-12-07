@@ -194,10 +194,10 @@ const QueryResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
-          columns={
+          columnConfigs={
             tableType === "results" ? resultsColumnConfigs : errorColumnConfigs
           }
-          data={tableData || []}
+          rows={tableData || []}
           emptyComponent={renderNoResults}
           isLoading={false}
           isClientSidePagination

@@ -89,8 +89,8 @@ const Software = ({
                 <TableDataError />
               ) : (
                 <TableContainer
-                  columns={tableHeaders}
-                  data={(isSoftwareEnabled && software?.software) || []}
+                  columnConfigs={tableHeaders}
+                  rows={(isSoftwareEnabled && software?.software) || []}
                   isLoading={isSoftwareFetching}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
@@ -116,8 +116,8 @@ const Software = ({
                 <TableDataError />
               ) : (
                 <TableContainer
-                  columns={tableHeaders}
-                  data={(isSoftwareEnabled && software?.software) || []}
+                  columnConfigs={tableHeaders}
+                  rows={(isSoftwareEnabled && software?.software) || []}
                   isLoading={isSoftwareFetching}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_HEADER}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}

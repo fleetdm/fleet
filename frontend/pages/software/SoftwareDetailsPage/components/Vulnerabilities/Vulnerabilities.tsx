@@ -55,8 +55,8 @@ const Vulnerabilities = ({
           {software && (
             <div className="vuln-table">
               <TableContainer
-                columns={tableHeaders}
-                data={software.vulnerabilities}
+                columnConfigs={tableHeaders}
+                rows={software.vulnerabilities}
                 defaultSortHeader={isPremiumTier ? "epss_probability" : "cve"}
                 defaultSortDirection={"desc"}
                 emptyComponent={NoVulnsDetected}
