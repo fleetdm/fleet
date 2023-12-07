@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IVulnerability } from "interfaces/vulnerability";
+import { ISoftwareVulnerability } from "interfaces/software";
 import { formatFloatAsPercentage } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
@@ -22,7 +22,7 @@ interface ICellProps {
     value: number | string | string[];
   };
   row: {
-    original: IVulnerability;
+    original: ISoftwareVulnerability;
     index: number;
   };
 }

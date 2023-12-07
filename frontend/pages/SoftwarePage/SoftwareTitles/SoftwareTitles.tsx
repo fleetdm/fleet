@@ -4,9 +4,7 @@ import { useQuery } from "react-query";
 import { Row } from "react-table";
 
 import PATHS from "router/paths";
-import { ISoftwareCountResponse } from "interfaces/software";
 import softwareAPI, {
-  ISoftwareCountQueryKey,
   ISoftwareQueryKey,
   ISoftwareTitlesResponse,
 } from "services/entities/software";
@@ -96,31 +94,6 @@ const SoftwareTitles = ({
     }
   );
 
-  // request to get software count
-  const {
-    data: softwareCountData,
-    isError: isSoftwareCountError,
-    isLoading: isSoftwareCountLoading,
-  } = useQuery<ISoftwareCountResponse, Error, number, ISoftwareCountQueryKey[]>(
-    [
-      {
-        scope: "softwareCount",
-        query,
-        vulnerable: showVulnerableSoftware,
-        teamId,
-      },
-    ],
-    ({ queryKey }) => softwareAPI.getCount(queryKey[0]),
-    {
-      keepPreviousData: true,
-      // stale time can be adjusted if fresher data is desired based on
-      // software inventory interval
-      staleTime: 30000,
-      refetchOnWindowFocus: false,
-      retry: 1,
-      select: (data) => data.count,
-    }
-  );
   // determines if a user be able to search in the table
   const searchable =
     isSoftwareEnabled &&
@@ -252,7 +225,7 @@ const SoftwareTitles = ({
       return null;
     }
 
-    if (isSoftwareCountError) {
+    if (isSoftwareError) {
       return (
         <span className={`${baseClass}__count count-error`}>
           Failed to load software count
@@ -260,15 +233,16 @@ const SoftwareTitles = ({
       );
     }
 
-    if (softwareCountData) {
+    const hostCount = softwareData?.count;
+    if (hostCount) {
       return (
         <div
           className={`${baseClass}__count ${
-            isSoftwareCountLoading ? "count-loading" : ""
+            isSoftwareLoading ? "count-loading" : ""
           }`}
         >
-          <span>{`${softwareCountData} software item${
-            softwareCountData === 1 ? "" : "s"
+          <span>{`${hostCount} software item${
+            hostCount === 1 ? "" : "s"
           }`}</span>
           <LastUpdatedText
             lastUpdatedAt={lastUpdatedAt}
@@ -279,13 +253,7 @@ const SoftwareTitles = ({
     }
 
     return null;
-  }, [
-    isSoftwareCountLoading,
-    softwareData,
-    isSoftwareCountError,
-    softwareCountData,
-    isSoftwareEnabled,
-  ]);
+  }, [softwareData, isSoftwareLoading, isSoftwareError, isSoftwareEnabled]);
 
   const renderVulnFilterDropdown = () => {
     return (
@@ -313,11 +281,7 @@ const SoftwareTitles = ({
     );
   };
 
-  // combined software and software count states.
-  const isLoading = isSoftwareLoading || isSoftwareCountLoading;
-  const isError = isSoftwareError || isSoftwareCountError;
-
-  if (isError) {
+  if (isSoftwareError) {
     return <TableDataError />;
   }
 
@@ -328,7 +292,7 @@ const SoftwareTitles = ({
       <TableContainer
         columns={softwareTableHeaders}
         data={softwareData?.software_titles || []}
-        isLoading={isLoading}
+        isLoading={isSoftwareLoading}
         resultsTitle={"items"}
         emptyComponent={() => (
           <EmptySoftwareTable

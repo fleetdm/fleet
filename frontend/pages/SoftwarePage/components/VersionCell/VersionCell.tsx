@@ -1,10 +1,11 @@
-import TextCell from "components/TableContainer/DataTable/TextCell";
 import React from "react";
 
-import { ISoftwareVersions } from "services/entities/software";
+import { ISoftwareTitleVersion } from "interfaces/software";
+
+import TextCell from "components/TableContainer/DataTable/TextCell";
 
 interface IVersionCellProps {
-  versions: ISoftwareVersions[];
+  versions: ISoftwareTitleVersion[];
 }
 
 const VersionCell = ({ versions }: IVersionCellProps) => {

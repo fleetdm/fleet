@@ -6,11 +6,14 @@ import {
   ISoftwareResponse,
   ISoftwareCountResponse,
   IGetSoftwareByIdResponse,
+  ISoftwareVersion,
+  ISoftwareTitle,
 } from "interfaces/software";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 import {
   createMockSoftwareTitle,
   createMockSoftwareTitleReponse,
+  createMockSoftwareVersionsReponse,
 } from "__mocks__/softwareMock";
 
 interface ISoftwareApiParams {
@@ -23,30 +26,24 @@ interface ISoftwareApiParams {
   teamId?: number;
 }
 
-export interface ISoftwareVersions {
-  id: number;
-  version: string;
-  vulnerabilities: string[] | null;
-}
-
-export interface ISoftwareTitle {
-  id: number;
-  name: string;
-  versions_count: number;
-  source: string;
-  hosts_count: number;
-  versions: ISoftwareVersions[];
-}
-
 export interface ISoftwareTitlesResponse {
   counts_updated_at: string;
   count: number;
   software_titles: ISoftwareTitle[];
-  // TODO: include this?
-  // meta: {
-  //   has_next_results: boolean;
-  //   has_previous_results: boolean;
-  // }
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
+
+export interface ISoftwareVersionsResponse {
+  counts_updated_at: string;
+  count: number;
+  software: ISoftwareVersion[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
 }
 
 export interface ISoftwareQueryKey extends ISoftwareApiParams {
@@ -144,16 +141,22 @@ export default {
     return new Promise<ISoftwareTitlesResponse>((resolve, reject) => {
       resolve(
         createMockSoftwareTitleReponse({
-          software_titles: [
-            createMockSoftwareTitle({
-              versions: [
-                { id: 1, version: "1.0.0", vulnerabilities: null },
-                { id: 1, version: "1.0.0", vulnerabilities: null },
-              ],
-            }),
-          ],
+          software_titles: [createMockSoftwareTitle()],
         })
       );
+    });
+    // return sendRequest("GET", path);
+  },
+
+  getSoftwareVersions: (params: ISoftwareApiParams) => {
+    const { SOFTWARE_VERSIONS } = endpoints;
+    const snakeCaseParams = convertParamsToSnakeCase(params);
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const path = `${SOFTWARE_VERSIONS}?${queryString}`;
+
+    // TODO: integrate with API.
+    return new Promise<ISoftwareVersionsResponse>((resolve, reject) => {
+      resolve(createMockSoftwareVersionsReponse());
     });
     // return sendRequest("GET", path);
   },
