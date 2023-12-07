@@ -979,6 +979,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		"x": "y"
 	}`), http.StatusBadRequest, &tmResp)
 
+	// modify team agent options with invalid platform options
+	tmResp.Team = nil
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(
+		`{"overrides": {
+			"platforms": {
+				"linux": null
+			}
+		}}`,
+	), http.StatusBadRequest, &tmResp)
+
 	// modify team agent options with invalid options, but force-apply them
 	tmResp.Team = nil
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
@@ -6073,15 +6083,17 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		// valid title
 		resp = getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", fooTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &resp)
-		softwareTitlesMatch([]fleet.SoftwareTitle{{
-			Name:          "foo",
-			Source:        "homebrew",
-			VersionsCount: 2,
-			HostsCount:    2,
-			Versions: []fleet.SoftwareVersion{
-				{Version: "0.0.1", Vulnerabilities: nil, HostsCount: ptr.Uint(2)},
-				{Version: "0.0.3", Vulnerabilities: nil, HostsCount: ptr.Uint(1)},
-			}},
+		softwareTitlesMatch([]fleet.SoftwareTitle{
+			{
+				Name:          "foo",
+				Source:        "homebrew",
+				VersionsCount: 2,
+				HostsCount:    2,
+				Versions: []fleet.SoftwareVersion{
+					{Version: "0.0.1", Vulnerabilities: nil, HostsCount: ptr.Uint(2)},
+					{Version: "0.0.3", Vulnerabilities: nil, HostsCount: ptr.Uint(1)},
+				},
+			},
 		}, []fleet.SoftwareTitle{*resp.SoftwareTitle})
 
 		// find the ID of "bar"
@@ -6100,18 +6112,20 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		// valid title with vulnerabilities
 		resp = getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &resp)
-		softwareTitlesMatch([]fleet.SoftwareTitle{{
-			Name:          "bar",
-			Source:        "apps",
-			VersionsCount: 1,
-			HostsCount:    1,
-			Versions: []fleet.SoftwareVersion{
-				{
-					Version:         "0.0.4",
-					Vulnerabilities: &fleet.SliceString{"cve-123-123-132"},
-					HostsCount:      ptr.Uint(1),
+		softwareTitlesMatch([]fleet.SoftwareTitle{
+			{
+				Name:          "bar",
+				Source:        "apps",
+				VersionsCount: 1,
+				HostsCount:    1,
+				Versions: []fleet.SoftwareVersion{
+					{
+						Version:         "0.0.4",
+						Vulnerabilities: &fleet.SliceString{"cve-123-123-132"},
+						HostsCount:      ptr.Uint(1),
+					},
 				},
-			}},
+			},
 		}, []fleet.SoftwareTitle{*resp.SoftwareTitle})
 	})
 }

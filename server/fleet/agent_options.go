@@ -59,6 +59,10 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 
 	for platform, platformOpts := range opts.Overrides.Platforms {
 		if len(platformOpts) > 0 {
+			if string(platformOpts) == "null" {
+				return fmt.Errorf("platforms cannot be null. To remove platform overrides omit overrides from agent options.")
+			}
+
 			if err := validateJSONAgentOptionsSet(platformOpts); err != nil {
 				return fmt.Errorf("%s platform config: %w", platform, err)
 			}
