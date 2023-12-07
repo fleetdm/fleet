@@ -80,6 +80,10 @@ type CleanupGlobalDiscardQueryResultsFunc func(ctx context.Context) error
 
 type IsSavedQueryFunc func(ctx context.Context, queryID uint) (bool, error)
 
+type GetLiveQueryStatsFunc func(ctx context.Context, queryID uint, hostIDs []uint) ([]*fleet.LiveQueryStats, error)
+
+type UpdateLiveQueryStatsFunc func(ctx context.Context, queryID uint, stats []*fleet.LiveQueryStats) error
+
 type NewDistributedQueryCampaignFunc func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
 
 type DistributedQueryCampaignFunc func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error)
@@ -869,6 +873,12 @@ type DataStore struct {
 
 	IsSavedQueryFunc        IsSavedQueryFunc
 	IsSavedQueryFuncInvoked bool
+
+	GetLiveQueryStatsFunc        GetLiveQueryStatsFunc
+	GetLiveQueryStatsFuncInvoked bool
+
+	UpdateLiveQueryStatsFunc        UpdateLiveQueryStatsFunc
+	UpdateLiveQueryStatsFuncInvoked bool
 
 	NewDistributedQueryCampaignFunc        NewDistributedQueryCampaignFunc
 	NewDistributedQueryCampaignFuncInvoked bool
@@ -2132,6 +2142,20 @@ func (s *DataStore) IsSavedQuery(ctx context.Context, queryID uint) (bool, error
 	s.IsSavedQueryFuncInvoked = true
 	s.mu.Unlock()
 	return s.IsSavedQueryFunc(ctx, queryID)
+}
+
+func (s *DataStore) GetLiveQueryStats(ctx context.Context, queryID uint, hostIDs []uint) ([]*fleet.LiveQueryStats, error) {
+	s.mu.Lock()
+	s.GetLiveQueryStatsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetLiveQueryStatsFunc(ctx, queryID, hostIDs)
+}
+
+func (s *DataStore) UpdateLiveQueryStats(ctx context.Context, queryID uint, stats []*fleet.LiveQueryStats) error {
+	s.mu.Lock()
+	s.UpdateLiveQueryStatsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateLiveQueryStatsFunc(ctx, queryID, stats)
 }
 
 func (s *DataStore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {

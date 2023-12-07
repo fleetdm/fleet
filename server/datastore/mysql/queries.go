@@ -4,10 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
+	"os"
+	"strings"
+)
+
+const (
+	statsLiveQueryType = 1
 )
 
 func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
@@ -612,7 +617,7 @@ func (ds *Datastore) IsSavedQuery(ctx context.Context, queryID uint) (bool, erro
 	stmt := `
 		SELECT saved
 		FROM queries
-		WHERE q.id = ?;
+		WHERE id = ?
 	`
 	args := []interface{}{queryID}
 	results := []bool{}
@@ -623,4 +628,52 @@ func (ds *Datastore) IsSavedQuery(ctx context.Context, queryID uint) (bool, erro
 		return false, sql.ErrNoRows
 	}
 	return results[0], nil
+}
+
+// GetLiveQueryStats returns the live query stats for the given query and hosts.
+func (ds *Datastore) GetLiveQueryStats(ctx context.Context, queryID uint, hostIDs []uint) ([]*fleet.LiveQueryStats, error) {
+	stmt, args, err := sqlx.In(
+		`
+		SELECT host_id, average_memory, executions, system_time, user_time, wall_time
+		FROM scheduled_query_stats
+		WHERE host_id IN (?) AND scheduled_query_id = ? AND query_type = ?
+	`, hostIDs, queryID, statsLiveQueryType,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building get live query stats stmt")
+	}
+
+	results := []*fleet.LiveQueryStats{}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get live query stats")
+	}
+	return results, nil
+}
+
+// UpdateLiveQueryStats writes new stats as a batch
+func (ds *Datastore) UpdateLiveQueryStats(ctx context.Context, queryID uint, stats []*fleet.LiveQueryStats) error {
+	if len(stats) == 0 {
+		return nil
+	}
+
+	// Bulk insert/update
+	const valueStr = "(?,?,?,?,?,?,?,?,?,?,?),"
+	stmt := "REPLACE INTO scheduled_query_stats (scheduled_query_id, host_id, query_type, executions, average_memory, system_time, user_time, wall_time, output_size, denylisted, schedule_interval) VALUES " +
+		strings.Repeat(valueStr, len(stats))
+	stmt = strings.TrimSuffix(stmt, ",")
+
+	fmt.Fprintf(os.Stderr, "VICTOR: %v\n", stmt)
+
+	var args []interface{}
+	for _, s := range stats {
+		// TODO: Put in a real output_size?? Check what osquery is doing.
+		args = append(
+			args, queryID, s.HostID, statsLiveQueryType, s.Executions, s.AverageMemory, s.SystemTime, s.UserTime, s.WallTime, 0, 0, 0,
+		)
+	}
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update live query stats")
+	}
+	return nil
 }
