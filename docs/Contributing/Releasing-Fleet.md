@@ -15,7 +15,7 @@ Major, minor, and patch releases go through the same release candidate and smoke
 
 2. The release DRI pushes the branch to github.com/fleetdm/fleet:
    ```
-   git push origin prepare-fleet-v4.0.0
+   git push origin prepare-v4.0.0
    ```
 
 3. The release DRI checks in the GitHub UI that Actions ran successfully for this branch.
