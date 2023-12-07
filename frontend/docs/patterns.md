@@ -128,12 +128,17 @@ export default {
 
 ## Components
 
-### React Functional Components
+### React functional components
 
 We use functional components with React instead of class comonents. We do this
 as this allows us to use hooks to better share common logic between components.
 
-### Page Component Pattern
+### Passing props into components
+We tend to use explicit assignment of prop values, instead of object spread syntax:
+```
+<ExampleComponent prop1={pop1Val} prop2={prop2Val} prop3={prop3Val} />
+```
+### Page component pattern
 
 When creating a **top level page** (e.g. dashboard page, hosts page, policies page)
 we wrap that page's content inside components `MainContent` and
@@ -169,7 +174,7 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
 export default PackComposerPage;
 ```
 
-## React Hooks
+## React hooks
 
 [Hooks](https://reactjs.org/docs/hooks-intro.html) are used to track state and use other features
 of React. Hooks are only allowed in functional components, which are created like so:
