@@ -3285,57 +3285,43 @@ Retrieves the aggregated host OS versions information.
 
 ```json
 {
-  "counts_updated_at": "2022-03-22T21:38:31Z",
+  "counts_updated_at": "2023-12-06T22:17:30Z",
   "os_versions": [
     {
-      "hosts_count": 1,
-      "name": "CentOS 6.10.0",
-      "name_only": "CentOS",
-      "version": "6.10.0",
-      "platform": "rhel",
-      "os_id": 1
-    },
-    {
-      "hosts_count": 1,
-      "name": "CentOS Linux 7.9.2009",
-      "name_only": "CentOS",
-      "version": "7.9.2009",
-      "platform": "rhel",
-      "os_id": 2
-    },
-    {
-      "hosts_count": 1,
-      "name": "CentOS Linux 8.3.2011",
-      "name_only": "CentOS",
-      "version": "8.2.2011",
-      "platform": "rhel",
-      "os_id": 3
-    },
-    {
-      "hosts_count": 1,
-      "name": "Debian GNU/Linux 10.0.0",
-      "name_only": "Debian GNU/Linux",
-      "version": "10.0.0",
-      "platform": "debian",
-      "os_id": 4
-    },
-    {
-      "hosts_count": 1,
-      "name": "Debian GNU/Linux 9.0.0",
-      "name_only": "Debian GNU/Linux",
-      "version": "9.0.0",
-      "platform": "debian",
-      "os_id": 5
-    },
-    {
-      "hosts_count": 1,
-      "name": "Ubuntu 16.4.0 LTS",
-      "name_only": "Ubuntu",
-      "version": "16.4.0 LTS",
-      "platform": "ubuntu",
-      "os_id": 6
+      "hosts_count": 21,
+      "name": "Microsoft Windows Server 2022 Datacenter 10.0.20348",
+      "name_only": "Microsoft Windows Server 2022 Datacenter",
+      "version": "10.0.20348",
+      "platform": "windows",
+      "generated_cpe": "cpe:2.3:o:microsoft:windows_server_2022:-:*:*:*:*:*:*:*",
+      "vulnerabilities": [
+        {
+          "cve": "CVE-2022-30190",
+          "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",// Available in Fleet Premium
+          "cvss_score": 7.8,// Available in Fleet Premium
+          "epss_probability": 0.9729,// Available in Fleet Premium
+          "cisa_known_exploit": false,// Available in Fleet Premium
+          "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+          "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+          "resolved_in_version": ""// Available in Fleet Premium
+        }
+      ]
     }
   ]
+}
+```
+
+`generated_cpe` and `vulnerabilities` are currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
+
+```json
+{
+  "hosts_count": 1,
+  "name": "CentOS Linux 7.9.2009",
+  "name_only": "CentOS",
+  "version": "7.9.2009",
+  "platform": "rhel",
+  "generated_cpe": "",
+  "vulnerabilities": []
 }
 ```
 
