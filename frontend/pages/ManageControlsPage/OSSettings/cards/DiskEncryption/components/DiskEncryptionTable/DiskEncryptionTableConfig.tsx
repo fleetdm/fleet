@@ -93,15 +93,13 @@ const defaultTableHeaders: IDataColumn[] = [
       return (
         <div className="disk-encryption-table__aggregate-table-data">
           <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
-          {!true && (
-            <ViewAllHostsLink
-              className="view-hosts-link"
-              queryParams={{
-                [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: original.status.value,
-                team_id: original.teamId,
-              }}
-            />
-          )}
+          <ViewAllHostsLink
+            className="view-hosts-link"
+            queryParams={{
+              [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: original.status.value,
+              team_id: original.teamId,
+            }}
+          />
         </div>
       );
     },
