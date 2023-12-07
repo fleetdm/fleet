@@ -4666,6 +4666,12 @@ func testHostsReplaceHostDeviceMapping(t *testing.T, ds *Datastore) {
 	}, "src2")
 	require.NoError(t, err)
 
+	err = ds.ReplaceHostDeviceMapping(ctx, h.ID, []*fleet.HostDeviceMapping{
+		{HostID: h.ID, Email: "a@b.c", Source: "src1"},
+		{HostID: h.ID, Email: "b@b.c", Source: "src1"},
+	}, "src1")
+	require.NoError(t, err)
+
 	dms, err = ds.ListHostDeviceMapping(ctx, h.ID)
 	require.NoError(t, err)
 	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{
