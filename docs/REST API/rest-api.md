@@ -6021,13 +6021,12 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 ### Run live query
 
+> This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.x.x, for improved compatibility with many HTTP clients. The [old endpoint]() is maintained for backwards compatibility.
+
 Run one or more live queries against the specified hosts and responds with the results
 collected after 25 seconds.
 
-If multiple queries are provided, they run concurrently. Response time is capped at 25 seconds from
-when the API request was received, regardless of how many queries you are running, and regardless
-whether all results have been gathered or not. This API does not return any results until the fixed
-time period elapses, at which point all of the collected results are returned.
+Response time is capped at 25 seconds from when the API request was received, regardless of whether all results have been gathered or not. This API does not return any results until the fixed time period elapses, at which point all of the collected results are returned.
 
 The fixed time period is configurable via environment variable on the Fleet server (eg.
 `FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value, be sure that you do not exceed your
@@ -6035,24 +6034,23 @@ load balancer timeout.
 
 > WARNING: This API endpoint collects responses in-memory (RAM) on the Fleet compute instance handling this request, which can overflow if the result set is large enough.  This has the potential to crash the process and/or cause an autoscaling event in your cloud provider, depending on how Fleet is deployed.
 
-`POST /api/v1/fleet/queries/run`
+`POST /api/v1/fleet/queries/:id/run`
 
 #### Parameters
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| query_ids | array | body | **Required**. The IDs of the saved queries to run. If a mix of authorized and unauthorized IDs is provided, only results from authorized queries will be returned. |
+| query_ids | array | path | **Required**. The ID of the saved query to run. |
 | host_ids  | array | body | **Required**. The IDs of the hosts to target. User must be authorized to target all of these hosts.                                                                |
 
 #### Example
 
-`POST /api/v1/fleet/queries/run`
+`POST /api/v1/fleet/queries/123/run`
 
 ##### Request body
 
 ```json
 {
-  "query_ids": [ 1, 2 ],
   "host_ids": [ 1, 4, 34, 27 ]
 }
 ```
@@ -6067,7 +6065,7 @@ load balancer timeout.
   },
   "live_query_results": [
     {
-      "query_id": 2,
+      "query_id": 123,
       "results": [
         {
           "host_id": 1,
