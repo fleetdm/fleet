@@ -5,7 +5,7 @@
 - industryName: Device health
   friendlyName: Automate device health
   description: Automatically report system health issues using webhooks or integrations, to notify or quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
-  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-host
+  documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
   screenshotSrc:
   tier: Free
   productCategories: [Endpoint operations]
@@ -213,7 +213,7 @@
 - industryName: Detection engineering
   friendlyName: # Ship logs to your data lake and comopare with known bad binary hashes or capture behavioral data and build custom detections (e.g. using a framework like MITRE)
   description: 
-  documentationUrl:
+  documentationUrl: https://fleetdm.com/docs/using-fleet/log-destinations
   tier: Free
   dri: mikermcneil
   usualDepartment: Security
@@ -227,7 +227,7 @@
 - industryName: Threat hunting
   friendlyName: # TODO: live query
   description: 
-  documentationUrl:
+  documentationUrl: https://fleetdm.com/queries
   tier: Free
   dri: mikermcneil
   usualDepartment: Security
@@ -278,6 +278,7 @@
 - industryName: Agent auto-update
   friendlyName: Keep agents and extensions up to date
   descrption: Keep agents and extensions up to date by loading code from Fleet's free update registry.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetd
   tier: Free
   productCategories: [Endpoint operations]
   usualDepartment: IT
@@ -288,6 +289,7 @@
   tier: Free
   productCategories: [Endpoint operations]
   usualDepartment: IT
+  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetd
   waysToUse:
     - description: Build scripts for Ansible deployments
       moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
@@ -300,6 +302,7 @@
 #  ╚═╝╩ ╩ ╩ ╚═╝╩ ╩  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝
 - industryName: Batch installation (Chef, Ansible, Puppet, MDM)
   friendlyName: Install agents over the air
+  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetd
   tier: Free
   productCategories: [Endpoint operations]
   usualDepartment: IT
@@ -308,6 +311,7 @@
 #  ╩╚═╚═╝╩ ╩╚═╝ ╩ ╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
 - industryName: Remote settings
   description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.). Fleetd startup flags coming soon (2023-12-31) #customer-blanco
+  documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/13825
   tier: Free
   productCategories: [Endpoint operations]
@@ -317,8 +321,9 @@
 #   ╚╝ ╩ ╩╩╚═╩╩ ╩╚═╝╩═╝╚═╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩
 - industryName: Variable enrollment
   description: Enroll hosts in different groups using different enrollment secrets and/or installers per-baseline.
+  documentationUrl: https://fleetdm.com/docs/configuration/configuration-files#teams 
   tier: Premium
-  productCategories: [Endpoint operations,Device management]
+  productCategories: [Endpoint operations, Device management]
   usualDepartment: IT
 #  ╔═╗╦═╗╦╦  ╦╔═╗╔╦╗╔═╗  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╦═╗╔═╗╔═╗╦╔═╗╔╦╗╦═╗╦ ╦
 #  ╠═╝╠╦╝║╚╗╔╝╠═╣ ║ ║╣   ║ ║╠═╝ ║║╠═╣ ║ ║╣   ╠╦╝║╣ ║ ╦║╚═╗ ║ ╠╦╝╚╦╝
@@ -326,6 +331,7 @@
 - industryName: Private update registry
   friendlyName: Update agents from a secret URL
   description: Load agent code from a secret URL that you manage.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/update-agents
   tier: Premium
   productCategories: [Endpoint operations]
   usualDepartment: Security
@@ -335,6 +341,7 @@
 - industryName: Custom tables
   friendlyName: Add tables to osquery with extensions
   description: Install osquery extensions over the air. #  (GitOptional)
+  documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration#extensions
   moreInfoUrl: https://github.com/trailofbits/osquery-extensions/blob/3df2b72ad78549e25344c79dbc9bce6808c4d92a/README.md#extensions
   tier: Premium
   productCategories: [Endpoint operations]
@@ -357,6 +364,7 @@
 #  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝  ╩═╝╩╝╚╝╚═╝   ╩ ╚═╝╚═╝╩═╝  └─  ╚═╝╩═╝╩  ─┘
 - industryName: Command line tool (CLI)
   friendlyName: fleetctl
+  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetctl-cli
   productCategories: [Endpoint operations,Device management]
   usualDepartment: IT
   tier: Free
@@ -456,6 +464,7 @@
   tier: Premium
 - industryName: Self-managed
   friendlyName: Host it yourself
+  documentationUrl: https://fleetdm.com/docs/deploy/introduction
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   tier: Free
   buzzwords: [Self-hosted]
@@ -468,9 +477,11 @@
   tier: Premium
 - industryName: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
   tier: Premium
+  documentationUrl: ""
   usualDepartment: IT
   productCategories: [Device management]
 - industryName: Remotely enforce OS settings
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-macos-settings
   tier: Free
   usualDepartment: IT
   waysToUse:
@@ -484,22 +495,27 @@
   productCategories: [Device management]
 - industryName: Self service
   description: Provide resolution instructions for end users through Fleet Desktop that suggest how an end user can fix a posture issue themselves.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/fleet-desktop
   tier: Premium
   usualDepartment: IT
   productCategories: [Device management]
 - industryName: User-initiated enrollment of macOS computers
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-migration-guide#migrate-manually-enrolled-hosts
   tier: Free
   usualDepartment: IT
   productCategories: [Device management]
 - industryName: Low-level MDM commands for macOS and Windows (e.g. remote restart)
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   tier: Free
   usualDepartment: IT
   productCategories: [Device management]
 - industryName: Native macOS update reminders
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-updates
   tier: Free
   usualDepartment: IT
   productCategories: [Device management]
 - industryName: Zero-touch setup for macOS computers
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
   tier: Premium
   usualDepartment: IT
   productCategories: [Device management]
@@ -509,6 +525,7 @@
     - description: Customize the out-of-the-box setup experience for your end users.
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
 - industryName: Enforce OS updates
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-updates
   tier: Premium
   usualDepartment: IT
   productCategories: [Device management,Vulnerability management]
@@ -516,10 +533,12 @@
     - description: Enforce macOS updates via Nudge.
     - description: Automatically update Windows after the end user reaches a deadline. Coming soon (2023-12-30) #Customer-preston
 - industryName: Encrypt macOS hard disks with FileVault
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   tier: Premium
   usualDepartment: IT
   productCategories: [Device management]
 - industryName: Remotely lock and wipe macOS computers
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   tier: Premium
   usualDepartment: IT
   productCategories: [Device management]
@@ -531,6 +550,7 @@
   usualDepartment: IT
   productCategories: [Device management]
 - industryName: Puppet module
+  documentationUrl: https://fleetdm.com/docs/using-fleet/puppet-module
   friendlyName: Map macOS settings to computers with Puppet module
   tier: Premium
   usualDepartment: IT
@@ -584,6 +604,7 @@
   usualDepartment: IT
   tier: Premium
 - industryName: Versionable queries and config (GitOps)
+  documentationUrl: https://fleetdm.com/guides/using-github-actions-to-apply-configuration-profiles-with-fleet#basic-article
   tier: Free
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   usualDepartment: IT

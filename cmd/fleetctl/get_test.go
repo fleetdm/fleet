@@ -602,7 +602,159 @@ func TestGetConfig(t *testing.T) {
 	})
 }
 
-func TestGetSoftware(t *testing.T) {
+func TestGetSoftwareTitles(t *testing.T) {
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier:       fleet.TierPremium,
+			Expiration: time.Now().Add(24 * time.Hour),
+		},
+	})
+
+	var gotTeamID *uint
+
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+		gotTeamID = opt.TeamID
+		return []fleet.SoftwareTitle{
+			{
+				Name:          "foo",
+				Source:        "chrome_extensions",
+				HostsCount:    2,
+				VersionsCount: 3,
+				Versions: []fleet.SoftwareVersion{
+					{
+						Version:         "0.0.1",
+						Vulnerabilities: &fleet.SliceString{"cve-123-456-001", "cve-123-456-002"},
+					},
+					{
+						Version:         "0.0.2",
+						Vulnerabilities: &fleet.SliceString{"cve-123-456-001"},
+					},
+					{
+						Version:         "0.0.3",
+						Vulnerabilities: &fleet.SliceString{"cve-123-456-003"},
+					},
+				},
+			},
+			{
+				Name:          "bar",
+				Source:        "deb_packages",
+				HostsCount:    0,
+				VersionsCount: 1,
+				Versions: []fleet.SoftwareVersion{
+					{
+						Version:         "0.0.3",
+						Vulnerabilities: nil,
+					},
+				},
+			},
+		}, 0, nil, nil
+	}
+
+	expected := `+------+------------+-------------------+-------------------+-------+
+| NAME |  VERSIONS  |       TYPE        |  VULNERABILITIES  | HOSTS |
++------+------------+-------------------+-------------------+-------+
+| foo  | 3 versions | chrome_extensions | 3 vulnerabilities |     2 |
++------+------------+-------------------+-------------------+-------+
+| bar  | 1 versions | deb_packages      | 0 vulnerabilities |     0 |
++------+------------+-------------------+-------------------+-------+
+`
+
+	expectedYaml := `---
+apiVersion: "1"
+kind: software_title
+spec:
+- hosts_count: 2
+  id: 0
+  name: foo
+  source: chrome_extensions
+  versions:
+  - id: 0
+    version: 0.0.1
+    vulnerabilities:
+    - cve-123-456-001
+    - cve-123-456-002
+  - id: 0
+    version: 0.0.2
+    vulnerabilities:
+    - cve-123-456-001
+  - id: 0
+    version: 0.0.3
+    vulnerabilities:
+    - cve-123-456-003
+  versions_count: 3
+- hosts_count: 0
+  id: 0
+  name: bar
+  source: deb_packages
+  versions:
+  - id: 0
+    version: 0.0.3
+  versions_count: 1
+`
+
+	expectedJson := `
+{
+  "kind": "software_title",
+  "apiVersion": "1",
+  "spec": [
+    {
+      "id": 0,
+      "name": "foo",
+      "source": "chrome_extensions",
+      "hosts_count": 2,
+      "versions_count": 3,
+      "versions": [
+        {
+          "id": 0,
+          "version": "0.0.1",
+          "vulnerabilities": [
+            "cve-123-456-001",
+            "cve-123-456-002"
+          ]
+        },
+        {
+          "id": 0,
+          "version": "0.0.2",
+          "vulnerabilities": [
+            "cve-123-456-001"
+          ]
+        },
+        {
+          "id": 0,
+          "version": "0.0.3",
+          "vulnerabilities": [
+            "cve-123-456-003"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 0,
+      "name": "bar",
+      "source": "deb_packages",
+      "hosts_count": 0,
+      "versions_count": 1,
+      "versions": [
+        {
+          "id": 0,
+          "version": "0.0.3"
+        }
+      ]
+    }
+  ]
+}
+`
+
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--yaml"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--json"}))
+
+	runAppForTest(t, []string{"get", "software", "--json", "--team", "999"})
+	require.NotNil(t, gotTeamID)
+	assert.Equal(t, uint(999), *gotTeamID)
+}
+
+func TestGetSoftwareVersions(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	foo001 := fleet.Software{
@@ -627,17 +779,17 @@ func TestGetSoftware(t *testing.T) {
 		return 4, nil
 	}
 
-	expected := `+------+---------+-------------------+--------------------------+-----------+
-| NAME | VERSION |      SOURCE       |           CPE            | # OF CVES |
-+------+---------+-------------------+--------------------------+-----------+
-| foo  | 0.0.1   | chrome_extensions | somecpe                  |         2 |
-+------+---------+-------------------+--------------------------+-----------+
-| foo  | 0.0.2   | chrome_extensions |                          |         0 |
-+------+---------+-------------------+--------------------------+-----------+
-| foo  | 0.0.3   | chrome_extensions | someothercpewithoutvulns |         0 |
-+------+---------+-------------------+--------------------------+-----------+
-| bar  | 0.0.3   | deb_packages      |                          |         0 |
-+------+---------+-------------------+--------------------------+-----------+
+	expected := `+------+---------+-------------------+-------------------+-------+
+| NAME | VERSION |       TYPE        |  VULNERABILITIES  | HOSTS |
++------+---------+-------------------+-------------------+-------+
+| foo  | 0.0.1   | chrome_extensions | 2 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
+| foo  | 0.0.2   | chrome_extensions | 0 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
+| foo  | 0.0.3   | chrome_extensions | 0 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
+| bar  | 0.0.3   | deb_packages      | 0 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
 `
 
 	expectedYaml := `---
@@ -736,11 +888,11 @@ spec:
 }
 `
 
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--json"}))
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software", "--versions"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--versions", "--yaml"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--versions", "--json"}))
 
-	runAppForTest(t, []string{"get", "software", "--json", "--team", "999"})
+	runAppForTest(t, []string{"get", "software", "--versions", "--json", "--team", "999"})
 	require.NotNil(t, gotTeamID)
 	assert.Equal(t, uint(999), *gotTeamID)
 }

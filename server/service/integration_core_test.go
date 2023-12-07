@@ -692,6 +692,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
+		OSVersion:       "Mac OS X 10.14.6",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
@@ -1362,20 +1363,119 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, len(hosts)-2)
 
 	time.Sleep(1 * time.Second)
-	host := hosts[2]
+
+	// create some software for various hosts
+	host2 := hosts[2]
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
-	_, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	_, err := s.ds.UpdateHostSoftware(context.Background(), host2.ID, software)
 	require.NoError(t, err)
-	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host2, false))
 
+	host1 := hosts[1]
+	software = []fleet.Software{
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.1.0", Source: "application"},
+	}
+	_, err = s.ds.UpdateHostSoftware(context.Background(), host1.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host1, false))
+
+	host0 := hosts[0]
+	software = []fleet.Software{
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.2.0", Source: "not_application"},
+	}
+	_, err = s.ds.UpdateHostSoftware(context.Background(), host0.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host0, false))
+
+	err = s.ds.SyncHostsSoftware(context.Background(), time.Now())
+	require.NoError(t, err)
+	err = s.ds.ReconcileSoftwareTitles(context.Background())
+	require.NoError(t, err)
+
+	var fooV1ID, fooV2ID, barAppTitleID, fooTitleID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.GetContext(context.Background(), q, &fooV1ID,
+			`SELECT id FROM software WHERE name = ? AND source = ? AND version = ?`, "foo", "chrome_extensions", "0.0.1")
+		if err != nil {
+			return err
+		}
+		err = sqlx.GetContext(context.Background(), q, &fooV2ID,
+			`SELECT id FROM software WHERE name = ? AND source = ? AND version = ?`, "foo", "chrome_extensions", "0.0.2")
+		if err != nil {
+			return err
+		}
+		err = sqlx.GetContext(context.Background(), q, &barAppTitleID,
+			`SELECT id FROM software_titles WHERE name = ? AND source = ?`, "bar", "application")
+		if err != nil {
+			return err
+		}
+		err = sqlx.GetContext(context.Background(), q, &fooTitleID,
+			`SELECT id FROM software_titles WHERE name = ? AND source = ?`, "foo", "chrome_extensions")
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	// foo v0.0.1 is only installed on host2
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(fooV1ID))
 	require.Len(t, resp.Hosts, 1)
-	assert.Equal(t, host.ID, resp.Hosts[0].ID)
+	assert.Equal(t, host2.ID, resp.Hosts[0].ID)
 	assert.Equal(t, "foo", resp.Software.Name)
 	assert.Greater(t, resp.Hosts[0].SoftwareUpdatedAt, resp.Hosts[0].CreatedAt)
+	assert.Nil(t, resp.SoftwareTitle)
+
+	var countResp countHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_id", fmt.Sprint(fooV1ID))
+	require.Equal(t, 1, countResp.Count)
+
+	// foo v0.0.2 is installed on hosts 0 and 1
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(fooV2ID))
+	require.Len(t, resp.Hosts, 2)
+	require.ElementsMatch(t, []uint{host0.ID, host1.ID}, []uint{resp.Hosts[0].ID, resp.Hosts[1].ID})
+
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_version_id", fmt.Sprint(fooV2ID))
+	require.Equal(t, 2, countResp.Count)
+
+	// bar/application title is only on host1
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_title_id", fmt.Sprint(barAppTitleID))
+	require.Len(t, resp.Hosts, 1)
+	require.ElementsMatch(t, []uint{host1.ID}, []uint{resp.Hosts[0].ID})
+	assert.Equal(t, "bar", resp.SoftwareTitle.Name)
+	assert.Equal(t, "application", resp.SoftwareTitle.Source)
+	assert.Equal(t, uint(1), resp.SoftwareTitle.HostsCount)
+	require.Len(t, resp.SoftwareTitle.Versions, 1)
+	assert.Equal(t, "0.1.0", resp.SoftwareTitle.Versions[0].Version)
+	assert.Nil(t, resp.Software)
+
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_title_id", fmt.Sprint(barAppTitleID))
+	require.Equal(t, 1, countResp.Count)
+
+	// foo title is on all 3 hosts
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_title_id", fmt.Sprint(fooTitleID))
+	require.Len(t, resp.Hosts, 3)
+	require.ElementsMatch(t, []uint{host0.ID, host1.ID, host2.ID}, []uint{resp.Hosts[0].ID, resp.Hosts[1].ID, resp.Hosts[2].ID})
+
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_title_id", fmt.Sprint(fooTitleID))
+	require.Equal(t, 3, countResp.Count)
+
+	// verify invalid combinations of software filters
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_title_id", fmt.Sprint(fooTitleID), "software_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_title_id", fmt.Sprint(fooTitleID), "software_version_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID), "software_title_id", fmt.Sprint(fooTitleID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_title_id", fmt.Sprint(fooTitleID), "software_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_title_id", fmt.Sprint(fooTitleID), "software_version_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID), "software_title_id", fmt.Sprint(fooTitleID))
 
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, s.ds, nil, "query1", "select 1", 0, true)
@@ -1385,16 +1485,16 @@ func (s *integrationTestSuite) TestListHosts() {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(fooV1ID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID), "disable_failing_policies", "true")
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(fooV1ID), "disable_failing_policies", "true")
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, 0, resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, 0, resp.Hosts[0].HostIssues.TotalIssuesCount)
@@ -1421,7 +1521,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Nil(t, resp.MunkiIssue)
 
 	// set MDM information on a host
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host2.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM))
 	var mdmID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &mdmID,
@@ -1499,13 +1599,17 @@ func (s *integrationTestSuite) TestListHosts() {
 	// Filter by inexistent software.
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_id", fmt.Sprint(9999))
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_version_id", fmt.Sprint(9999))
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_title_id", fmt.Sprint(9999))
 
 	// Filter by non-existent team.
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "team_id", fmt.Sprint(9999))
 
 	// set munki information on a host
-	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "1.2.3", []string{"err"}, []string{"warn"}))
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host2.ID, "1.2.3", []string{"err"}, []string{"warn"}))
 	var errMunkiID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &errMunkiID,
@@ -1536,7 +1640,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	// set operating system information on a host
 	testOS := fleet.OperatingSystem{Name: "fooOS", Version: "4.2", Arch: "64bit", KernelVersion: "13.37", Platform: "bar"}
-	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), host.ID, testOS))
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), host2.ID, testOS))
 	var osID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &osID,
@@ -5005,6 +5109,21 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 
 	// batch set scripts
 	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusPaymentRequired)
+
+	// software titles
+	// a normal request works fine
+	var resp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp)
+	require.Equal(t, 0, resp.Count)
+	require.Nil(t, resp.SoftwareTitles)
+
+	// a request with a team_id parameter returns a license error
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{}, http.StatusPaymentRequired, &resp,
+		"team_id", "1",
+	)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -5103,7 +5222,6 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Equal(t, "free", acResp.License.Tier)
 	assert.Equal(t, "FleetTest", acResp.OrgInfo.OrgName) // set in SetupSuite
 	assert.False(t, acResp.MDM.AppleBMTermsExpired)
-	assert.False(t, acResp.MDMEnabled)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
@@ -5132,7 +5250,6 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	assert.Equal(t, "test", acResp.OrgInfo.OrgName)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
-	assert.False(t, acResp.MDMEnabled)
 
 	// the global agent options were not modified by the last call, so the
 	// corresponding activity should not have been created.
@@ -5331,13 +5448,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "missing or invalid license")
 
-	// try to enable Windows MDM, impossible without the feature flag
+	// try to enable Windows MDM, impossible without the WSTEP certs
 	// (only set in mdm integrations tests)
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_enabled_and_configured": true }
   }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "cannot enable Windows MDM without the feature flag explicitly enabled")
+	assert.Contains(t, errMsg, "Please configure Fleet with a certificate and key pair first.")
 
 	// verify that the Apple BM terms expired flag was never modified
 	acResp = appConfigResponse{}
@@ -6551,6 +6668,32 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0))
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
 
+	// create software for host [0]
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+	}
+	_, err = s.ds.UpdateHostSoftware(ctx, hosts[0].ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, hosts[0], false))
+
+	err = s.ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	var fooV1ID, fooTitleID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.GetContext(context.Background(), q, &fooV1ID,
+			`SELECT id FROM software WHERE name = ? AND source = ? AND version = ?`, "foo", "chrome_extensions", "0.0.1")
+		if err != nil {
+			return err
+		}
+		err = sqlx.GetContext(context.Background(), q, &fooTitleID,
+			`SELECT id FROM software_titles WHERE name = ? AND source = ?`, "foo", "chrome_extensions")
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
 	res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusUnsupportedMediaType, "format", "gzip")
 	var errs validationErrResp
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&errs))
@@ -6638,6 +6781,22 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Len(t, rows, 2) // headers + member host
 	require.Contains(t, rows[1], hosts[2].Hostname)
 
+	// with a software version id
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname", "software_version_id", fmt.Sprint(fooV1ID))
+	rows, err = csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, 2) // headers + member host
+	require.Contains(t, rows[1], hosts[0].Hostname)
+
+	// with a software title id
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname", "software_title_id", fmt.Sprint(fooTitleID))
+	rows, err = csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, 2) // headers + member host
+	require.Contains(t, rows[1], hosts[0].Hostname)
+
 	// valid format but an invalid column is provided
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "format", "csv", "columns", "memory,hostname,status,nosuchcolumn")
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&errs))
@@ -6659,6 +6818,12 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local1"}, rows[2][:2])
 	require.Len(t, rows[3], 3)
 	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local0"}, rows[3][:2])
+
+	// invalid combinations of software filters
+	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_title_id", "123", "software_id", "456")
+	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_title_id", "123", "software_version_id", "456")
+	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_id", "123", "software_version_id", "456")
+	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_id", "123", "software_version_id", "456", "software_title_id", "789")
 }
 
 func (s *integrationTestSuite) TestSSODisabled() {
@@ -8779,4 +8944,129 @@ func results(num int, hostID string) string {
 	}
 
 	return b.String()
+}
+
+func (s *integrationTestSuite) TestHostHealth() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		OsqueryHostID:   ptr.String(t.Name() + "hostid1"),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(t.Name() + "nodekey1"),
+		UUID:            t.Name() + "uuid1",
+		Hostname:        t.Name() + "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		OSVersion:       "Mac OS X 10.14.6",
+		Platform:        "darwin",
+		CPUType:         "cpuType",
+		TeamID:          ptr.Uint(team.ID),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "apps"},
+		{Name: "baz", Version: "0.0.4", Source: "apps"},
+	}
+	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
+
+	soft1 := host.Software[0]
+	if soft1.Name != "bar" {
+		soft1 = host.Software[1]
+	}
+
+	cpes := []fleet.SoftwareCPE{{SoftwareID: soft1.ID, CPE: "somecpe"}}
+	_, err = s.ds.UpsertSoftwareCPEs(context.Background(), cpes)
+	require.NoError(t, err)
+
+	// Reload software so that 'GeneratedCPEID is set.
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
+	soft1 = host.Software[0]
+	if soft1.Name != "bar" {
+		soft1 = host.Software[1]
+	}
+
+	inserted, err := s.ds.InsertSoftwareVulnerability(
+		context.Background(), fleet.SoftwareVulnerability{
+			SoftwareID: soft1.ID,
+			CVE:        "cve-123-123-132",
+		}, fleet.NVDSource,
+	)
+	require.NoError(t, err)
+	require.True(t, inserted)
+
+	user1 := test.NewUser(t, s.ds, "Joe", "joe@example.com", true)
+
+	q1 := test.NewQuery(t, s.ds, nil, "passing_query", "select 1", 0, true)
+	defer cleanupQuery(s, q1.ID)
+	passingPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, &user1.ID, fleet.PolicyPayload{
+		QueryID: &q1.ID,
+	})
+	require.NoError(t, err)
+
+	q2 := test.NewQuery(t, s.ds, nil, "failing_query", "select 0", 0, true)
+	defer cleanupQuery(s, q2.ID)
+	failingPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, &user1.ID, fleet.PolicyPayload{
+		QueryID: &q2.ID,
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingPolicy.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), host.ID, true))
+
+	// Get host health
+	hh := getHostHealthResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host.ID), nil, http.StatusOK, &hh)
+	assert.Equal(t, host.ID, hh.HostID)
+	assert.NotNil(t, hh.HostHealth)
+	assert.Equal(t, host.OSVersion, hh.HostHealth.OsVersion)
+	assert.Len(t, hh.HostHealth.VulnerableSoftware, 1)
+	assert.Len(t, hh.HostHealth.FailingPolicies, 1)
+	assert.True(t, *hh.HostHealth.DiskEncryptionEnabled)
+	// Check that the TeamID didn't make it into the response
+	assert.Nil(t, hh.HostHealth.TeamID)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", 0), nil, http.StatusNotFound, &hh)
+
+	resp := getHostHealthResponse{}
+	host1, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		OsqueryHostID:   ptr.String(t.Name() + "hostid2"),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(t.Name() + "nodekey2"),
+		UUID:            t.Name() + "uuid2",
+		Hostname:        t.Name() + "foo2.local",
+		PrimaryIP:       "192.168.2.2",
+		PrimaryMac:      "32-62-E2-62-C2-52",
+		OSVersion:       "Mac OS X 10.14.2",
+		Platform:        "darwin",
+		CPUType:         "cpuType",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host1)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host1.ID), nil, http.StatusOK, &resp)
+	assert.Equal(t, host1.ID, resp.HostID)
+	assert.NotNil(t, resp.HostHealth)
+	assert.Equal(t, host1.OSVersion, resp.HostHealth.OsVersion)
+	assert.Nil(t, resp.HostHealth.DiskEncryptionEnabled)
+	assert.Empty(t, resp.HostHealth.VulnerableSoftware)
+	assert.Empty(t, resp.HostHealth.FailingPolicies)
+	assert.Nil(t, resp.HostHealth.TeamID)
 }

@@ -6563,8 +6563,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ## Scripts
 
-- [Run script asynchronously](#run-script-asynchronously)
-- [Run script synchronously](#run-script-synchronously)
+- [Run script](#run-script)
 - [Get script result](#get-script-result)
 - [Upload a script](#upload-a-script)
 - [Delete a script](#delete-a-script)
@@ -6572,44 +6571,11 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Get or download a script](#get-or-download-a-script)
 - [Get script details by host](#get-script-details-by-host)
 
-### Run script asynchronously
+### Run script
 
 _Available in Fleet Premium_
 
-Creates a script execution request and returns the execution identifier to retrieve results at a later time.
-
-`POST /api/v1/fleet/scripts/run`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                                                                    |
-| ----            | ------- | ---- | --------------------------------------------                                                   |
-| host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
-
-> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
-
-#### Example
-
-`POST /api/v1/fleet/scripts/run`
-
-##### Default response
-
-`Status: 202`
-
-```json
-{
-  "host_id": 1227,
-  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
-}
-```
-
-### Run script synchronously
-
-_Available in Fleet Premium_
-
-Creates a script execution request and waits for a result to return (up to a 1 minute timeout).
+Execute a script and see script results (1 minute timeout).
 
 `POST /api/v1/fleet/scripts/run/sync`
 

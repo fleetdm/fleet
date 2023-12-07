@@ -64,8 +64,6 @@ import (
 )
 
 func TestIntegrationsMDM(t *testing.T) {
-	t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
-
 	testingSuite := new(integrationMDMTestSuite)
 	testingSuite.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
@@ -2796,16 +2794,9 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
 		s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	}
 
-	// 1. disable both windows and mac mdm
-	// 2. turn off windows feature flag
+	// disable both windows and mac mdm
 	// we should get an error
 	setMDMEnabled(false, false)
-	t.Setenv("FLEET_DEV_MDM_ENABLED", "0")
-	checkConfigSetErrors()
-
-	// turn on windows feature flag
-	// we should get an error
-	t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
 	checkConfigSetErrors()
 
 	// enable windows mdm, no errors
@@ -6965,7 +6956,6 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	// the feature flag is enabled for the MDM test suite
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.True(t, acResp.MDMEnabled)
 	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
 
 	// create a couple teams
@@ -7013,7 +7003,6 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		"mdm": { "windows_enabled_and_configured": true }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
-	assert.True(t, acResp.MDMEnabled)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledWindowsMDM{}.ActivityName(), `{}`, 0)
 
 	// get the orbit config for each host, verify that only the expected ones

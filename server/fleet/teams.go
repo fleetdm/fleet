@@ -166,7 +166,7 @@ type TeamMDM struct {
 }
 
 // Clone implements cloner for TeamMDM.
-func (t *TeamMDM) Clone() (interface{}, error) {
+func (t *TeamMDM) Clone() (Cloner, error) {
 	return t.Copy(), nil
 }
 

@@ -157,6 +157,7 @@ func TestHosts(t *testing.T) {
 		{"ListHostsLiteByIDs", testHostsListHostsLiteByIDs},
 		{"ListHostsWithPagination", testListHostsWithPagination},
 		{"LastRestarted", testLastRestarted},
+		{"HostHealth", testHostHealth},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2766,16 +2767,63 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	}
 	host1 := hosts[0]
 	host2 := hosts[1]
+	host3 := hosts[2]
 	_, err := ds.UpdateHostSoftware(context.Background(), host1.ID, software)
 	require.NoError(t, err)
 	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software)
 	require.NoError(t, err)
+	// host 3 only has foo v0.0.3
+	_, err = ds.UpdateHostSoftware(context.Background(), host3.ID, software[1:2])
+	require.NoError(t, err)
+
+	// reconcile software, will sync software titles
+	err = ds.ReconcileSoftwareTitles(context.Background())
+	require.NoError(t, err)
+
+	var fooV002ID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &fooV002ID,
+			"SELECT id FROM software WHERE name = ? AND source = ? AND version = ?", "foo", "chrome_extensions", "0.0.2")
+	})
+
+	var fooTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &fooTitleID,
+			"SELECT id FROM software_titles WHERE name = ? AND source = ?", "foo", "chrome_extensions")
+	})
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, false))
 
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: &host1.Software[0].ID}, 2)
+	// software_id is foo v0.0.2
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: &fooV002ID}, 2)
 	require.Len(t, hosts, 2)
+	got := []uint{hosts[0].ID, hosts[1].ID}
+	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, got)
+
+	// software_version_id is foo v0.0.2 (works exacty the same)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareVersionIDFilter: &fooV002ID}, 2)
+	require.Len(t, hosts, 2)
+	got = []uint{hosts[0].ID, hosts[1].ID}
+	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, got)
+
+	// unknown software_id
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: ptr.Uint(fooV002ID + 100)}, 0)
+	require.Len(t, hosts, 0)
+
+	// unknown software_version_id
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareVersionIDFilter: ptr.Uint(fooV002ID + 100)}, 0)
+	require.Len(t, hosts, 0)
+
+	// software_title_id is foo (any version)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &fooTitleID}, 3)
+	require.Len(t, hosts, 3)
+	got = []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID}
+	require.ElementsMatch(t, []uint{host1.ID, host2.ID, host3.ID}, got)
+
+	// unknown software_title_id
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareTitleIDFilter: ptr.Uint(fooTitleID + 100)}, 0)
+	require.Len(t, hosts, 0)
 }
 
 func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
@@ -6073,9 +6121,16 @@ func testHostsReplaceHostBatteries(t *testing.T, ds *Datastore) {
 }
 
 func testHostsReplaceHostBatteriesDeadlock(t *testing.T, ds *Datastore) {
+	// To increase chance of deadlock increase these numbers.
+	// We are keeping them low to not cause CI issues ("too many connections" errors
+	// due to concurrent tests).
+	const (
+		hostCount    = 10
+		replaceCount = 10
+	)
 	ctx := context.Background()
 	var hosts []*fleet.Host
-	for i := 1; i <= 100; i++ {
+	for i := 1; i <= hostCount; i++ {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			ID:              uint(i),
 			OsqueryHostID:   ptr.String(fmt.Sprintf("id-%d", i)),
@@ -6095,10 +6150,10 @@ func testHostsReplaceHostBatteriesDeadlock(t *testing.T, ds *Datastore) {
 	for _, h := range hosts {
 		hostID := h.ID
 		g.Go(func() error {
-			for i := 0; i < 100; i++ {
+			for i := 0; i < replaceCount; i++ {
 				if err := ds.ReplaceHostBatteries(ctx, hostID, []*fleet.HostBattery{
 					{HostID: hostID, SerialNumber: fmt.Sprintf("%d-0000", hostID), CycleCount: 1, Health: "Good"},
-					{HostID: hostID, SerialNumber: fmt.Sprintf("%d-0000", hostID), CycleCount: 2, Health: "Fair"},
+					{HostID: hostID, SerialNumber: fmt.Sprintf("%d-0001", hostID), CycleCount: 2, Health: "Fair"},
 				}); err != nil {
 					return err
 				}
@@ -7689,4 +7744,138 @@ func testLastRestarted(t *testing.T, ds *Datastore) {
 	require.Equal(t, h2.ID, host.ID)
 	require.Equal(t, time.Duration(uptimeVal), host.Uptime)
 	require.Equal(t, hostsToVals[host.ID], host.LastRestartedAt)
+}
+
+func testHostHealth(t *testing.T, ds *Datastore) {
+	_, err := ds.GetHostHealth(context.Background(), 1)
+	require.Error(t, err)
+	var nfe fleet.NotFoundError
+	require.True(t, errors.As(err, &nfe))
+
+	// We'll check TeamIDs because at this level they should still be populated
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	now := time.Now()
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		ID:                  1,
+		OsqueryHostID:       ptr.String("foobar"),
+		NodeKey:             ptr.String("nodekey"),
+		Hostname:            "foobar.local",
+		UUID:                "uuid",
+		Platform:            "darwin",
+		DistributedInterval: 60,
+		LoggerTLSPeriod:     50,
+		ConfigTLSRefresh:    40,
+		DetailUpdatedAt:     now,
+		LabelUpdatedAt:      now,
+		LastEnrolledAt:      now,
+		PolicyUpdatedAt:     now,
+		RefetchRequested:    true,
+		TeamID:              ptr.Uint(team.ID),
+
+		SeenTime: now,
+
+		CPUType: "cpuType",
+	})
+	require.NoError(t, err)
+	h, err := ds.Host(context.Background(), 1)
+	require.NoError(t, err)
+
+	// set up policies
+	u := test.NewUser(t, ds, "Jack", "jack@example.com", true)
+
+	q := test.NewQuery(t, ds, nil, "passing_query", "select 1", 0, true)
+	passingPolicy, err := ds.NewGlobalPolicy(context.Background(), &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
+	require.NoError(t, err)
+
+	q = test.NewQuery(t, ds, nil, "failing_query", "select 1", 0, true)
+	failingPolicy, err := ds.NewGlobalPolicy(context.Background(), &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{passingPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{failingPolicy.ID: ptr.Bool(false)}, time.Now(), false))
+
+	// set up vulnerable software
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "apps"},
+		{Name: "baz", Version: "0.0.4", Source: "apps"},
+	}
+	_, err = ds.UpdateHostSoftware(context.Background(), h.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), h, false))
+
+	soft1 := h.Software[0]
+	if soft1.Name != "bar" {
+		soft1 = h.Software[1]
+	}
+
+	cpes := []fleet.SoftwareCPE{{SoftwareID: soft1.ID, CPE: "somecpe"}}
+	_, err = ds.UpsertSoftwareCPEs(context.Background(), cpes)
+	require.NoError(t, err)
+
+	// Reload software so that 'GeneratedCPEID is set.
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), h, false))
+	soft1 = h.Software[0]
+	if soft1.Name != "bar" {
+		soft1 = h.Software[1]
+	}
+
+	inserted, err := ds.InsertSoftwareVulnerability(
+		context.Background(), fleet.SoftwareVulnerability{
+			SoftwareID: soft1.ID,
+			CVE:        "cve-123-123-132",
+		}, fleet.NVDSource,
+	)
+	require.NoError(t, err)
+	require.True(t, inserted)
+
+	hh, err := ds.GetHostHealth(context.Background(), h.ID)
+	require.NoError(t, err)
+	require.Equal(t, h.Platform, hh.Platform)
+	require.Equal(t, h.DiskEncryptionEnabled, hh.DiskEncryptionEnabled)
+	require.Equal(t, h.OSVersion, hh.OsVersion)
+	require.Equal(t, ptr.Uint(team.ID), hh.TeamID)
+	require.Equal(t, h.UpdatedAt, hh.UpdatedAt)
+	require.Len(t, hh.FailingPolicies, 1)
+	require.Equal(t, failingPolicy.ID, hh.FailingPolicies[0].ID)
+	require.Len(t, hh.VulnerableSoftware, 1)
+	require.Equal(t, soft1.ID, hh.VulnerableSoftware[0].ID)
+
+	// Validate a host with no software or policies or team
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		ID:                  2,
+		OsqueryHostID:       ptr.String("empty"),
+		NodeKey:             ptr.String("empty_nodekey"),
+		Hostname:            "empty.local",
+		UUID:                "uuid123",
+		Platform:            "darwin",
+		DistributedInterval: 60,
+		LoggerTLSPeriod:     50,
+		ConfigTLSRefresh:    40,
+		DetailUpdatedAt:     now,
+		LabelUpdatedAt:      now,
+		LastEnrolledAt:      now,
+		PolicyUpdatedAt:     now,
+		RefetchRequested:    true,
+
+		SeenTime: now,
+
+		CPUType: "cpuType",
+	})
+	require.NoError(t, err)
+	h, err = ds.Host(context.Background(), 2)
+	require.NoError(t, err)
+
+	hh, err = ds.GetHostHealth(context.Background(), h.ID)
+	require.NoError(t, err)
+	require.Equal(t, h.Platform, hh.Platform)
+	require.Equal(t, h.DiskEncryptionEnabled, hh.DiskEncryptionEnabled)
+	require.Equal(t, h.OSVersion, hh.OsVersion)
+	require.Empty(t, hh.FailingPolicies)
+	require.Empty(t, hh.VulnerableSoftware)
+	require.Equal(t, h.TeamID, hh.TeamID)
 }

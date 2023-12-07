@@ -62,3 +62,7 @@ jobs:
           # version changes
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@411e0bbbd3096aa0ee2b924160629bdf2bc81d40 # v1.54.2
           make lint-go
+
+      - name: Run cloner-check tool
+        run: |
+          go run ./tools/cloner-check/main.go -check
