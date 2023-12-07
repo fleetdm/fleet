@@ -83,7 +83,7 @@ A patch release is required when a critical bug is found. Critical bugs are defi
    Action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) will
    run and create a container image for QA with `fleetctl preview` (eg. `fleetctl preview --tag patch-fleet-v4.3.1`).
 
-5. Check the [Docker Publsih GitHub action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) to confirm it completes successfully for this branch.
+5. Check the [Docker Publish GitHub action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) to confirm it completes successfully for this branch.
 
 5. Create a [Release QA](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md) issue. Populate the version and browsers, and assign to the QA person leading the release. Add the appropriate [product group label](https://fleetdm.com/handbook/company/product-groups), and `:release` label, so that it appears on the product group's release board.
 
