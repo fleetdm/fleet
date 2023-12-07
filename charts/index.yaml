@@ -2,10 +2,10 @@ apiVersion: v1
 entries:
   fleet:
   - apiVersion: v1
-    appVersion: v4.41.0
-    created: "2023-11-29T01:34:06.527375378Z"
+    appVersion: v4.41.1
+    created: "2023-12-07T22:27:18.478503517Z"
     description: A Helm chart for Fleet
-    digest: 1a5a7094755cb900a149df4f315ccd352cebab74451199f336fca8b7d71ba1cd
+    digest: db2cdf60a4c1dfc899fda1c84a408ad8ac2a3a944df4ef3c6f80a7d7a4c6bb49
     home: https://github.com/fleetdm/fleet
     keywords:
     - fleet
@@ -799,12 +799,12 @@ entries:
   tuf:
   - apiVersion: v2
     appVersion: 1.16.0
-    created: "2023-11-29T01:34:06.527735854Z"
+    created: "2023-12-07T22:27:18.478876653Z"
     description: A Helm chart for Kubernetes
-    digest: b4a66a71b7e7e01a8bd794c0af731edb19603a0b39af3845bffb23c275d0827d
+    digest: e9631e99af90b0e16add3e22b3ff4988049cea25e2b76d24ff2c6f945d1aae8f
     name: tuf
     type: application
     urls:
     - https://fleetdm.github.io/fleet/charts/tuf-0.1.0.tgz
     version: 0.1.0
-generated: "2023-11-29T01:34:06.51785164Z"
+generated: "2023-12-07T22:27:18.469220746Z"
