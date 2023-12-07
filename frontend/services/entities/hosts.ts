@@ -313,6 +313,7 @@ export default {
   search: (searchText: string) => {
     const { HOSTS } = endpoints;
     const path = `${HOSTS}?query=${searchText}`;
+    
     return sendRequest("GET", path);
   },
   transferToTeam: (teamId: number | null, hostIds: number[]) => {
