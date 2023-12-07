@@ -287,7 +287,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 		require.NotNil(t, h)
 		hosts = append(hosts, h)
 
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
 	}
 
 	t.Run("Disk encryption disabled", func(t *testing.T) {
@@ -509,7 +509,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			require.NoError(t, ds.SetOrUpdateMDMData(ctx,
 				hosts[3].ID,
 				true, // set is_server to true for hosts[3]
-				true, "https://example.com", false, fleet.WellKnownMDMFleet))
+				true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
 
 			// Check Windows servers not counted
 			checkExpected(t, nil, hostIDsByDEStatus{
@@ -655,7 +655,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		require.NotNil(t, h)
 		hosts = append(hosts, h)
 
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
 	}
 
 	t.Run("profiles summary accounts for bitlocker status", func(t *testing.T) {
@@ -927,7 +927,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 			require.NotNil(t, h)
 			otherHosts = append(otherHosts, h)
 
-			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet))
+			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
 		}
 		checkExpected(t, nil, expected)
 
@@ -1018,7 +1018,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		checkExpected(t, nil, expected)
 
 		// report otherHosts[0] as a server
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, otherHosts[0].ID, true, true, "https://example.com", false, fleet.WellKnownMDMFleet))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, otherHosts[0].ID, true, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
 		// otherHosts[0] is no longer counted
 		expected = hostIDsByProfileStatus{
 			fleet.MDMDeliveryPending: []uint{hosts[0].ID, hosts[3].ID, otherHosts[1].ID, otherHosts[2].ID, otherHosts[3].ID, otherHosts[4].ID},
@@ -1027,7 +1027,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		checkExpected(t, nil, expected)
 
 		// report hosts[0] as a server
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[0].ID, true, true, "https://example.com", false, fleet.WellKnownMDMFleet))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[0].ID, true, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
 		// hosts[0] is no longer counted
 		expected = hostIDsByProfileStatus{
 			fleet.MDMDeliveryPending: []uint{hosts[3].ID, otherHosts[1].ID, otherHosts[2].ID, otherHosts[3].ID, otherHosts[4].ID},
@@ -1036,7 +1036,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		checkExpected(t, nil, expected)
 
 		// report hosts[3] as not enrolled
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[3].ID, false, false, "https://example.com", false, fleet.WellKnownMDMFleet))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[3].ID, false, false, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
 		// hosts[3] is no longer counted
 		expected = hostIDsByProfileStatus{
 			fleet.MDMDeliveryPending: []uint{otherHosts[1].ID, otherHosts[2].ID, otherHosts[3].ID, otherHosts[4].ID},
@@ -1045,7 +1045,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		checkExpected(t, nil, expected)
 
 		// report hosts[4] as enrolled to a different MDM
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[4].ID, false, true, "https://some-other-mdm.example.com", false, "some-other-mdm"))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[4].ID, false, true, "https://some-other-mdm.example.com", false, "some-other-mdm", ""))
 		// hosts[4] is no longer counted
 		expected = hostIDsByProfileStatus{
 			fleet.MDMDeliveryPending: []uint{otherHosts[1].ID, otherHosts[2].ID, otherHosts[3].ID, otherHosts[4].ID},

@@ -494,7 +494,9 @@ type SaveHostAdditionalFunc func(ctx context.Context, hostID uint, additional *j
 
 type SetOrUpdateMunkiInfoFunc func(ctx context.Context, hostID uint, version string, errors []string, warnings []string) error
 
-type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, isServer bool, enrolled bool, serverURL string, installedFromDep bool, name string) error
+type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, isServer bool, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string) error
+
+type SetOrUpdateHostEmailsFromMdmIdpAccountsFunc func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error
 
@@ -520,7 +522,7 @@ type GetHostMDMProfileRetryCountByCommandUUIDFunc func(ctx context.Context, host
 
 type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
-type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
+type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error
 
 type ReplaceHostBatteriesFunc func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error
 
@@ -1487,6 +1489,9 @@ type DataStore struct {
 
 	SetOrUpdateMDMDataFunc        SetOrUpdateMDMDataFunc
 	SetOrUpdateMDMDataFuncInvoked bool
+
+	SetOrUpdateHostEmailsFromMdmIdpAccountsFunc        SetOrUpdateHostEmailsFromMdmIdpAccountsFunc
+	SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked bool
 
 	SetOrUpdateHostDisksSpaceFunc        SetOrUpdateHostDisksSpaceFunc
 	SetOrUpdateHostDisksSpaceFuncInvoked bool
@@ -3568,11 +3573,18 @@ func (s *DataStore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, versi
 	return s.SetOrUpdateMunkiInfoFunc(ctx, hostID, version, errors, warnings)
 }
 
-func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer bool, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer bool, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string) error {
 	s.mu.Lock()
 	s.SetOrUpdateMDMDataFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdateMDMDataFunc(ctx, hostID, isServer, enrolled, serverURL, installedFromDep, name)
+	return s.SetOrUpdateMDMDataFunc(ctx, hostID, isServer, enrolled, serverURL, installedFromDep, name, fleetEnrollRef)
+}
+
+func (s *DataStore) SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
+	s.mu.Lock()
+	s.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc(ctx, hostID, fleetEnrollmentRef)
 }
 
 func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error {
@@ -3659,11 +3671,11 @@ func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, v
 	return s.SetOrUpdateHostOrbitInfoFunc(ctx, hostID, version)
 }
 
-func (s *DataStore) ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error {
+func (s *DataStore) ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error {
 	s.mu.Lock()
 	s.ReplaceHostDeviceMappingFuncInvoked = true
 	s.mu.Unlock()
-	return s.ReplaceHostDeviceMappingFunc(ctx, id, mappings)
+	return s.ReplaceHostDeviceMappingFunc(ctx, id, mappings, source)
 }
 
 func (s *DataStore) ReplaceHostBatteries(ctx context.Context, id uint, mappings []*fleet.HostBattery) error {
