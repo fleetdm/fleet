@@ -6021,7 +6021,7 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 ### Run live query
 
-> This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.x.x, for improved compatibility with many HTTP clients. The [old endpoint]() is maintained for backwards compatibility.
+> This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.x.x, for improved compatibility with many HTTP clients. The [old endpoint](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/API-for-contributors.md#run-live-query-deprecated) is maintained for backwards compatibility.
 
 Run one or more live queries against the specified hosts and responds with the results
 collected after 25 seconds.
