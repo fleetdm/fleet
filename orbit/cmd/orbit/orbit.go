@@ -412,7 +412,7 @@ func main() {
 			// error here, causing orbit to restart. This was
 			// changed to have control over how/when we want to
 			// retry to download the packages.
-			retrypkg.Do(func() error {
+			err := retrypkg.Do(func() error {
 				osquerydLocalTarget, err := updater.Get("osqueryd")
 				if err != nil {
 					log.Info().Err(err).Msg("get osqueryd target failed")
@@ -433,7 +433,15 @@ func main() {
 				}
 
 				return nil
-			})
+			},
+				// retry every 5 minutes to not flood the logs,
+				// but actual pings to the remote server are
+				// handled by `updater.Get`
+				retrypkg.WithInterval(5*time.Minute),
+			)
+			if err != nil {
+				return fmt.Errorf("getting targets after retry: %w", err)
+			}
 		} else {
 			log.Info().Msg("running with auto updates disabled")
 			updater = update.NewDisabled(opt)
