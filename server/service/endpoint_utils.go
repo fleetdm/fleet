@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -86,7 +87,7 @@ type requestDecoder interface {
 // A value that implements bodyDecoder takes control of decoding the request
 // body.
 type bodyDecoder interface {
-	DecodeBody(ctx context.Context, r io.Reader, u url.Values) error
+	DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error
 }
 
 // makeDecoder creates a decoder for the type for the struct passed on. If the
@@ -304,7 +305,12 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 
 		if isBodyDecoder {
 			bd := v.Interface().(bodyDecoder)
-			if err := bd.DecodeBody(ctx, body, r.URL.Query()); err != nil {
+			var certs []*x509.Certificate
+			if (r.TLS != nil) && (r.TLS.PeerCertificates != nil) {
+				certs = r.TLS.PeerCertificates
+			}
+
+			if err := bd.DecodeBody(ctx, body, r.URL.Query(), certs); err != nil {
 				return nil, err
 			}
 		}

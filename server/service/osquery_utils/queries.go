@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -27,6 +30,8 @@ import (
 type DetailQuery struct {
 	// Query is the SQL query string.
 	Query string
+	// QueryFunc is optionally used to dynamically build a query.
+	QueryFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) string
 	// Discovery is the SQL query that defines whether the query will run on the host or not.
 	// If not set, Fleet makes sure the query will always run.
 	Discovery string
@@ -433,31 +438,48 @@ var extraDetailQueries = map[string]DetailQuery{
 		Discovery:        discoveryTable("mdm"),
 	},
 	"mdm_windows": {
+		// we get most of the MDM information for Windows from the
+		// `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%`
+		// registry keys. A computer might many different folders under
+		// that path, for different enrollments, so we need to group by
+		// enrollment (key in this case) and try to grab the most
+		// likely candiate to be an MDM solution.
+		//
+		// The best way I have found, is to filter by groups of entries
+		// with an UPN value, and pick the first one.
+		//
+		// An example of a host having more than one entry: when
+		// the `mdm_bridge` table is used, the `mdmlocalmanagement.dll`
+		// registers an MDM with ProviderID = `Local_Management`
+		//
+		// For more information, refer to issue #15362
 		Query: `
-			SELECT * FROM (
-				SELECT "provider_id" AS "key", data as "value" FROM registry
-				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\ProviderID'
-				LIMIT 1
+			WITH registry_keys AS (
+			    SELECT *
+			    FROM registry
+			    WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
+			),
+			enrollment_info AS (
+			    SELECT
+			        MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
+			        MAX(CASE WHEN name = 'IsFederated' THEN data END) AS is_federated,
+			        MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
+			        MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id
+			    FROM registry_keys
+			    GROUP BY key
 			)
-			UNION ALL
-			SELECT * FROM (
-				SELECT "discovery_service_url" AS "key", data as "value" FROM registry
-				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\DiscoveryServiceFullURL'
-				LIMIT 1
-			)
-			UNION ALL
-			SELECT * FROM (
-				SELECT "is_federated" AS "key", data as "value" FROM registry
-				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\IsFederated'
-				LIMIT 1
-			)
-			UNION ALL
-			SELECT * FROM (
-				SELECT "installation_type" AS "key", data as "value" FROM registry
-				WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
-				LIMIT 1
-			)
-			;
+			SELECT
+			    e.is_federated,
+			    e.discovery_service_url,
+			    e.provider_id,
+			    (
+			        SELECT data
+			        FROM registry
+			        WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+			    ) AS installation_type
+			FROM enrollment_info e
+			WHERE e.upn IS NOT NULL
+			LIMIT 1;
 		`,
 		DirectIngestFunc: directIngestMDMWindows,
 		Platforms:        []string{"windows"},
@@ -584,6 +606,12 @@ var mdmQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestMacOSProfiles,
 		Discovery:        discoveryTable("macos_profiles"),
 	},
+	"mdm_config_profiles_windows": {
+		QueryFunc:        buildConfigProfilesWindowsQuery,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestWindowsProfiles,
+		Discovery:        discoveryTable("mdm_bridge"),
+	},
 	// There are two mutually-exclusive queries used to read the FileVaultPRK depending on which
 	// extension tables are discovered on the agent. The preferred query uses the newer custom
 	// `filevault_prk` extension table rather than the macadmins `file_lines` table. It is preferred
@@ -629,6 +657,11 @@ var mdmQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestDiskEncryptionKeyFileDarwin,
 		Discovery:        discoveryTable("filevault_prk"),
 	},
+	"mdm_device_id_windows": {
+		Query:            `SELECT name, data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\OMADM\MDMDeviceID\DeviceClientId';`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestMDMDeviceIDWindows,
+	},
 }
 
 // discoveryTable returns a query to determine whether a table exists or not.
@@ -664,6 +697,8 @@ SELECT
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
   'apps' AS source,
   last_opened_time AS last_opened_at,
   path AS installed_path
@@ -674,6 +709,8 @@ SELECT
   version AS version,
   'Package (Python)' AS type,
   '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
   'python_packages' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -684,6 +721,8 @@ SELECT
   version AS version,
   'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
+  identifier AS extension_id,
+  browser_type AS browser,
   'chrome_extensions' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -694,6 +733,8 @@ SELECT
   version AS version,
   'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
+  identifier AS extension_id,
+  'firefox' AS browser,
   'firefox_addons' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -704,6 +745,8 @@ SELECT
   version AS version,
   'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
   'safari_extensions' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -712,18 +755,10 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Atom)' AS type,
-  '' AS bundle_identifier,
-  'atom_packages' AS source,
-  0 AS last_opened_at,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
   'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
   'homebrew_packages' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -747,6 +782,8 @@ SELECT
   name AS name,
   version AS version,
   'Package (deb)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'deb_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -759,6 +796,8 @@ SELECT
   package AS name,
   version AS version,
   'Package (Portage)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'portage_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -770,6 +809,8 @@ SELECT
   name AS name,
   version AS version,
   'Package (RPM)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'rpm_packages' AS source,
   release AS release,
   vendor AS vendor,
@@ -781,6 +822,8 @@ SELECT
   name AS name,
   version AS version,
   'Package (NPM)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'npm_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -792,6 +835,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
+  identifier AS extension_id,
+  browser_type AS browser,
   'chrome_extensions' AS source,
   '' AS release,
   '' AS vendor,
@@ -803,6 +848,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
+  identifier AS extension_id,
+  'firefox' AS browser,
   'firefox_addons' AS source,
   '' AS release,
   '' AS vendor,
@@ -813,18 +860,9 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Atom)' AS type,
-  'atom_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
   'Package (Python)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'python_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -842,6 +880,8 @@ SELECT
   name AS name,
   version AS version,
   'Program (Windows)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'programs' AS source,
   publisher AS vendor,
   install_location AS installed_path
@@ -851,6 +891,8 @@ SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'python_packages' AS source,
   '' AS vendor,
   path AS installed_path
@@ -860,6 +902,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (IE)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'ie_extensions' AS source,
   '' AS vendor,
   path AS installed_path
@@ -869,6 +913,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
+  identifier AS extension_id,
+  browser_type AS browser,
   'chrome_extensions' AS source,
   '' AS vendor,
   path AS installed_path
@@ -878,6 +924,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
+  identifier AS extension_id,
+  'firefox' AS browser,
   'firefox_addons' AS source,
   '' AS vendor,
   path AS installed_path
@@ -887,19 +935,12 @@ SELECT
   name AS name,
   version AS version,
   'Package (Chocolatey)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'chocolatey_packages' AS source,
   '' AS vendor,
   path AS installed_path
 FROM chocolatey_packages
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (Atom)' AS type,
-  'atom_packages' AS source,
-  '' AS vendor,
-  path AS installed_path
-FROM cached_users CROSS JOIN atom_packages USING (uid);
 `),
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
@@ -909,6 +950,8 @@ var softwareChrome = DetailQuery{
 	Query: `SELECT
   name AS name,
   version AS version,
+  identifier AS extension_id,
+  browser_type AS browser,
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
   '' AS vendor,
@@ -1038,7 +1081,7 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 			Source: "google_chrome_profiles",
 		})
 	}
-	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
+	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, "google_chrome_profiles")
 }
 
 func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -1175,7 +1218,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			level.Debug(logger).Log(
 				"msg", "host reported software with invalid last opened timestamp",
 				"host_id", host.ID,
-				"row", row,
+				"row", fmt.Sprintf("%+v", row),
 			)
 		}
 
@@ -1188,19 +1231,21 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			row["release"],
 			row["arch"],
 			row["bundle_identifier"],
+			row["extension_id"],
+			row["browser"],
 			row["last_opened_at"],
 		)
 		if err != nil {
 			level.Debug(logger).Log(
 				"msg", "failed to parse software row",
 				"host_id", host.ID,
-				"row", row,
+				"row", fmt.Sprintf("%+v", row),
 				"err", err,
 			)
 			continue
 		}
 
-		sanitizeSoftware(host, s)
+		sanitizeSoftware(host, s, logger)
 
 		software = append(software, *s)
 
@@ -1226,12 +1271,15 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	return nil
 }
 
-var macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+var (
+	macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+	citrixName          = regexp.MustCompile(`Citrix Workspace [0-9]+`)
+)
 
 // sanitizeSoftware performs any sanitization required to the ingested software fields.
 //
 // Some fields are reported with known incorrect values and we need to fix them before using them.
-func sanitizeSoftware(h *fleet.Host, s *fleet.Software) {
+func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 	softwareSanitizers := []struct {
 		checkSoftware  func(*fleet.Host, *fleet.Software) bool
 		mutateSoftware func(*fleet.Software)
@@ -1248,6 +1296,66 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software) {
 				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
 					s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
 				}
+			},
+		},
+		// In the Windows Registry, Cloudflare WARP defines its major version with the last two digits, e.g. `23.9.248.0`.
+		// On NVD, the vulnerabilities are reported using the full year, e.g. `2023.9.248.0`.
+		{
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return h.Platform == "windows" && s.Name == "Cloudflare WARP" && s.Source == "programs"
+			},
+			mutateSoftware: func(s *fleet.Software) {
+				// Perform some sanity check on the version before mutating it.
+				parts := strings.Split(s.Version, ".")
+				if len(parts) <= 1 {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
+					return
+				}
+				_, err := strconv.Atoi(parts[0])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+				// In case Cloudflare starts returning the full year.
+				if len(parts[0]) == 4 {
+					return
+				}
+				s.Version = "20" + s.Version // Cloudflare WARP was released on 2019.
+			},
+		},
+		{
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return citrixName.Match([]byte(s.Name)) || s.Name == "Citrix Workspace.app"
+			},
+			mutateSoftware: func(s *fleet.Software) {
+				parts := strings.Split(s.Version, ".")
+				if len(parts) <= 1 {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
+					return
+				}
+
+				if len(parts[0]) > 2 {
+					// then the versioning is correct, so no need to change
+					return
+				}
+
+				part1, err := strconv.Atoi(parts[0])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+
+				part2, err := strconv.Atoi(parts[1])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+
+				newFirstPart := part1*100 + part2
+				newFirstStr := strconv.Itoa(newFirstPart)
+				newParts := []string{newFirstStr}
+				newParts = append(newParts, parts[2:]...)
+				s.Version = strings.Join(newParts, ".")
 			},
 		},
 	}
@@ -1333,6 +1441,19 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing server_url")
 	}
+
+	// if the MDM solution is Fleet, we need to extract the enrollment reference from the URL and
+	// upsert host emails based on the MDM IdP account associated with the enrollment reference
+	var fleetEnrollRef string
+	if mdmSolutionName == fleet.WellKnownMDMFleet {
+		fleetEnrollRef = serverURL.Query().Get("enrollment_reference")
+		if fleetEnrollRef != "" {
+			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
+			}
+		}
+	}
+
 	// strip any query parameters from the URL
 	serverURL.RawQuery = ""
 
@@ -1343,6 +1464,7 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		serverURL.String(),
 		installedFromDep,
 		mdmSolutionName,
+		fleetEnrollRef,
 	)
 }
 
@@ -1367,10 +1489,19 @@ func deduceMDMNameWindows(data map[string]string) string {
 }
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	data := make(map[string]string, len(rows))
-	for _, r := range rows {
-		data[r["key"]] = r["value"]
+	if len(rows) != 1 {
+		logger.Log("component", "service", "method", "directIngestMDMWindows", "warn",
+			fmt.Sprintf("mdm expected single result got %d", len(rows)))
+		// assume the extension is not there
+		return nil
 	}
+
+	if len(rows) > 1 {
+		logger.Log("component", "service", "method", "directIngestMDMWindows", "warn",
+			fmt.Sprintf("mdm expected single result got %d", len(rows)))
+	}
+
+	data := rows[0]
 	var enrolled bool
 	var automatic bool
 	serverURL := data["discovery_service_url"]
@@ -1392,13 +1523,14 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 		serverURL,
 		automatic,
 		deduceMDMNameWindows(data),
+		"",
 	)
 }
 
 func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
-		// assume the extension is not there
-		return nil
+		// munki is not there, and we need to mark it deleted if it was there before
+		return ds.SetOrUpdateMunkiInfo(ctx, host.ID, "", []string{}, []string{})
 	}
 	if len(rows) > 1 {
 		logger.Log("component", "service", "method", "ingestMunkiInfo", "warn",
@@ -1466,9 +1598,16 @@ func directIngestDiskEncryptionKeyFileDarwin(
 		return nil
 	}
 
-	// it's okay if the key comes empty, this can happen and if the disk is
-	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"], "", nil)
+	// at this point we know that the disk is encrypted, if the key is
+	// empty then the disk is not decryptable. For example an user might
+	// have removed the `/var/db/FileVaultPRK.dat` or the computer might
+	// have been encrypted without FV escrow enabled.
+	var decryptable *bool
+	base64Key := rows[0]["filevault_key"]
+	if base64Key == "" {
+		decryptable = ptr.Bool(false)
+	}
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64Key, "", decryptable)
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -1517,9 +1656,17 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 		return ctxerr.Wrap(ctx, err, "decoding hex string")
 	}
 
-	// it's okay if the key comes empty, this can happen and if the disk is
-	// encrypted it means we need to reset the encryption key
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64.StdEncoding.EncodeToString(b), "", nil)
+	// at this point we know that the disk is encrypted, if the key is
+	// empty then the disk is not decryptable. For example an user might
+	// have removed the `/var/db/FileVaultPRK.dat` or the computer might
+	// have been encrypted without FV escrow enabled.
+	var decryptable *bool
+	base64Key := base64.StdEncoding.EncodeToString(b)
+	if base64Key == "" {
+		decryptable = ptr.Bool(false)
+	}
+
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64Key, "", decryptable)
 }
 
 func directIngestMacOSProfiles(
@@ -1574,6 +1721,18 @@ func directIngestMacOSProfiles(
 	return apple_mdm.VerifyHostMDMProfiles(ctx, ds, host, installed)
 }
 
+func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	if len(rows) == 0 {
+		// this registry key is only going to be present if the device is enrolled to mdm so assume that mdm is turned off
+		return nil
+	}
+
+	if len(rows) > 1 {
+		return ctxerr.Errorf(ctx, "directIngestMDMDeviceIDWindows invalid number of rows: %d", len(rows))
+	}
+	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
+}
+
 // go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
 
 func GetDetailQueries(
@@ -1610,8 +1769,11 @@ func GetDetailQueries(
 		generatedMap["scheduled_query_stats"] = scheduledQueryStats
 	}
 
-	if appConfig != nil && appConfig.MDM.EnabledAndConfigured {
+	if appConfig != nil && (appConfig.MDM.EnabledAndConfigured || appConfig.MDM.WindowsEnabledAndConfigured) {
 		for key, query := range mdmQueries {
+			if slices.Equal(query.Platforms, []string{"windows"}) && !appConfig.MDM.WindowsEnabledAndConfigured {
+				continue
+			}
 			generatedMap[key] = query
 		}
 	}
@@ -1651,4 +1813,70 @@ func splitCleanSemicolonSeparated(s string) []string {
 		}
 	}
 	return cleaned
+}
+
+func buildConfigProfilesWindowsQuery(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+) string {
+	var sb strings.Builder
+	sb.WriteString("<SyncBody>")
+	gotProfiles := false
+	err := microsoft_mdm.LoopHostMDMLocURIs(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+		// Per the [docs][1], to `<Get>` configurations you must
+		// replace `/Policy/Config` with `Policy/Result`
+		// [1]: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider
+		locURI = strings.Replace(locURI, "/Policy/Config", "/Policy/Result", 1)
+		sb.WriteString(
+			// NOTE: intentionally building the xml as a one-liner
+			// to prevent any errors in the query.
+			fmt.Sprintf(
+				"<Get><CmdID>%s</CmdID><Item><Target><LocURI>%s</LocURI></Target></Item></Get>",
+				hash,
+				locURI,
+			))
+		gotProfiles = true
+	})
+	if err != nil {
+		logger.Log(
+			"component", "service",
+			"method", "QueryFunc - windows config profiles",
+			"err", err,
+		)
+		return ""
+	}
+	if !gotProfiles {
+		logger.Log(
+			"component", "service",
+			"method", "QueryFunc - windows config profiles",
+			"info", "host doesn't have profiles to check",
+		)
+		return ""
+	}
+	sb.WriteString("</SyncBody>")
+	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", sb.String())
+}
+
+func directIngestWindowsProfiles(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	if len(rows) > 1 {
+		return ctxerr.Errorf(ctx, "directIngestWindowsProfiles invalid number of rows: %d", len(rows))
+	}
+
+	rawResponse := []byte(rows[0]["raw_mdm_command_output"])
+	if len(rawResponse) == 0 {
+		return ctxerr.Errorf(ctx, "directIngestWindowsProfiles host %s got an empty SyncML response", host.UUID)
+	}
+	return microsoft_mdm.VerifyHostMDMProfiles(ctx, ds, host, rawResponse)
 }

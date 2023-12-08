@@ -2,6 +2,7 @@ package nvd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/url"
@@ -21,6 +22,7 @@ import (
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	nvdsync "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/sync"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -32,21 +34,45 @@ var semverPattern = regexp.MustCompile(`^v?(\d+\.\d+\.\d+)`)
 // Define a regex pattern for splitting version strings into subparts
 var nonNumericPartRegex = regexp.MustCompile(`(\d+)(\D.*)`)
 
-// DownloadNVDCVEFeed downloads the NVD CVE feed. Skips downloading if the cve feed has not changed since the last time.
-func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string) error {
-	cve := nvd.SupportedCVE["cve-1.1.json.gz"]
-
-	source := nvd.NewSourceConfig()
+// DownloadNVDCVEFeed downloads CVEs information from a CVE source.
+// If cveFeedPrefixURL is not set, the NVD API 2.0 is used to download CVE information to vulnPath.
+// If cveFeedPrefixURL is set, the CVE information will be downloaded assuming NVD's legacy feed format.
+func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string, debug bool, logger log.Logger) error {
 	if cveFeedPrefixURL != "" {
-		parsed, err := url.Parse(cveFeedPrefixURL)
-		if err != nil {
-			return fmt.Errorf("parsing cve feed url prefix override: %w", err)
-		}
-		source.Host = parsed.Host
-		source.CVEFeedPath = parsed.Path
-		source.Scheme = parsed.Scheme
+		return downloadNVDCVELegacy(vulnPath, cveFeedPrefixURL)
 	}
 
+	cveSyncer, err := nvdsync.NewCVE(
+		vulnPath,
+		nvdsync.WithLogger(logger),
+		nvdsync.WithDebug(debug),
+	)
+	if err != nil {
+		return err
+	}
+
+	if err := cveSyncer.Do(context.Background()); err != nil {
+		return fmt.Errorf("download nvd cve feed: %w", err)
+	}
+
+	return nil
+}
+
+func downloadNVDCVELegacy(vulnPath string, cveFeedPrefixURL string) error {
+	if cveFeedPrefixURL == "" {
+		return errors.New("missing cve_feed_prefix_url")
+	}
+
+	source := nvd.NewSourceConfig()
+	parsed, err := url.Parse(cveFeedPrefixURL)
+	if err != nil {
+		return fmt.Errorf("parsing cve feed url prefix override: %w", err)
+	}
+	source.Host = parsed.Host
+	source.CVEFeedPath = parsed.Path
+	source.Scheme = parsed.Scheme
+
+	cve := nvd.SupportedCVE["cve-1.1.json.gz"]
 	dfs := nvd.Sync{
 		Feeds:    []nvd.Syncer{cve},
 		Source:   source,
@@ -64,13 +90,12 @@ func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string) error {
 	if err := dfs.Do(ctx); err != nil {
 		return fmt.Errorf("download nvd cve feed: %w", err)
 	}
-
 	return nil
 }
 
 const publishedDateFmt = "2006-01-02T15:04Z" // not quite RFC3339
 
-var rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.gz$`)
+var rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.json.*$`)
 
 func getNVDCVEFeedFiles(vulnPath string) ([]string, error) {
 	var files []string
@@ -202,6 +227,19 @@ func TranslateCPEToCVE(
 	return newVulns, nil
 }
 
+func matchesExactTargetSW(softwareCPETargetSW string, targetSWs []string, configs []*wfn.Attributes) bool {
+	for _, targetSW := range targetSWs {
+		if softwareCPETargetSW == targetSW {
+			for _, attr := range configs {
+				if attr.TargetSW == targetSW {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func checkCVEs(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -255,6 +293,23 @@ func checkCVEs(
 							matches.CVE.ID(),
 						); ok {
 							if !rule.CPEMatches(softwareCPE.meta) {
+								continue
+							}
+						}
+
+						// For chrome/firefox extensions we only want to match vulnerabilities
+						// that are reported explicitly for target_sw == "chrome" or target_sw = "firefox".
+						//
+						// Why? In many ocassions the NVD dataset reports vulnerabilities in client applications
+						// with target_sw == "*", meaning the client application is vulnerable on all operating systems.
+						// Such rules we want to ignore here to prevent many false positives that do not apply to the
+						// Chrome or Firefox environment.
+						if softwareCPE.meta.TargetSW == "chrome" || softwareCPE.meta.TargetSW == "firefox" {
+							if !matchesExactTargetSW(
+								softwareCPE.meta.TargetSW,
+								[]string{"chrome", "firefox"},
+								matches.CVE.Config(),
+							) {
 								continue
 							}
 						}

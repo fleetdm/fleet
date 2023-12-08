@@ -52,7 +52,7 @@
     margin: $pad-small 0;
     display: block;
 
-    &:last-child {
+    &:last-of-type {
       margin-bottom: 0;
     }
   }

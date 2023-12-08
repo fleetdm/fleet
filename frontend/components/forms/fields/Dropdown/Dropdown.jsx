@@ -117,7 +117,7 @@ class Dropdown extends Component {
   renderCustomDropdownArrow = () => {
     return (
       <div className={`${baseClass}__custom-arrow`}>
-        <Icon name="chevron" className={`${baseClass}__icon`} />
+        <Icon name="chevron-down" className={`${baseClass}__icon`} />
       </div>
     );
   };

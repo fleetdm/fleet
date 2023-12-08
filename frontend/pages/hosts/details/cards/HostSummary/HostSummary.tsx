@@ -15,15 +15,11 @@ import Icon from "components/Icon/Icon";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import {
-  getHostDiskEncryptionTooltipMessage,
-  humanHostMemory,
-  wrapFleetHelper,
-} from "utilities/helpers";
+import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
 
-import MacSettingsIndicator from "./MacSettingsIndicator";
+import OSSettingsIndicator from "./OSSettingsIndicator";
 import HostSummaryIndicator from "./HostSummaryIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 import { generateWinDiskEncryptionProfile } from "../../helpers";
@@ -41,9 +37,7 @@ interface IHostSummaryProps {
   diskEncryptionEnabled?: boolean;
   isPremiumTier?: boolean;
   isSandboxMode?: boolean;
-  isOnlyObserver?: boolean;
-  toggleOSPolicyModal?: () => void;
-  toggleMacSettingsModal?: () => void;
+  toggleOSSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
   hostMdmProfiles?: IHostMdmProfile[];
   mdmName?: string;
@@ -56,15 +50,55 @@ interface IHostSummaryProps {
   osSettings?: IOSSettings;
 }
 
+const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
+  darwin: {
+    enabled: (
+      <>
+        The disk is encrypted. The user must enter their
+        <br /> password when they start their computer.
+      </>
+    ),
+    disabled: (
+      <>
+        The disk might be encrypted, but FileVault is off. The
+        <br /> disk can be accessed without entering a password.
+      </>
+    ),
+  },
+  windows: {
+    enabled: (
+      <>
+        The disk is encrypted. If recently turned on,
+        <br /> encryption could take awhile.
+      </>
+    ),
+    disabled: "The disk is unencrypted.",
+  },
+};
+
+const getHostDiskEncryptionTooltipMessage = (
+  platform: "darwin" | "windows" | "chrome", // TODO: improve this type
+  diskEncryptionEnabled = false
+) => {
+  if (platform === "chrome") {
+    return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
+  }
+
+  if (!["windows", "darwin"].includes(platform)) {
+    return "Disk encryption is enabled.";
+  }
+  return MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES[platform][
+    diskEncryptionEnabled ? "enabled" : "disabled"
+  ];
+};
+
 const HostSummary = ({
   titleData,
   bootstrapPackageData,
   diskEncryptionEnabled,
   isPremiumTier,
   isSandboxMode = false,
-  isOnlyObserver,
-  toggleOSPolicyModal,
-  toggleMacSettingsModal,
+  toggleOSSettingsModal,
   toggleBootstrapPackageModal,
   hostMdmProfiles,
   mdmName,
@@ -129,7 +163,7 @@ const HostSummary = ({
           data-for="host-issue-count"
           data-tip-disable={false}
         >
-          <Icon name="issue" color="ui-fleet-black-50" />
+          <Icon name="error-outline" color="ui-fleet-black-50" />
         </span>
         <ReactTooltip
           place="bottom"
@@ -180,7 +214,7 @@ const HostSummary = ({
     return (
       <div className="info-flex__item info-flex__item--title">
         <span className="info-flex__header">Disk encryption</span>
-        <TooltipWrapper tipContent={tooltipMessage} position="bottom">
+        <TooltipWrapper tipContent={tooltipMessage}>
           {statusText}
         </TooltipWrapper>
       </div>
@@ -233,9 +267,9 @@ const HostSummary = ({
           hostMdmProfiles &&
           hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
             <HostSummaryIndicator title="OS settings">
-              <MacSettingsIndicator
+              <OSSettingsIndicator
                 profiles={hostMdmProfiles}
-                onClick={toggleMacSettingsModal}
+                onClick={toggleOSSettingsModal}
               />
             </HostSummaryIndicator>
           )}
@@ -277,19 +311,7 @@ const HostSummary = ({
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Operating system</span>
-          <span className="info-flex__data">
-            {isOnlyObserver || deviceUser ? (
-              `${titleData.os_version}`
-            ) : (
-              <Button
-                onClick={() => toggleOSPolicyModal?.()}
-                variant="text-link"
-                className={`${baseClass}__os-policy-button`}
-              >
-                {titleData.os_version}
-              </Button>
-            )}
-          </span>
+          <span className="info-flex__data">{titleData.os_version}</span>
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Osquery</span>

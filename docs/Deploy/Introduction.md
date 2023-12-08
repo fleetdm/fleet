@@ -16,9 +16,6 @@ The `fleetctl` binary is the CLI interface which allows management of your deplo
 
 Both binaries are available for download from our [repo](https://github.com/fleetdm/fleet/releases).
 
-> Note: You can try a preview environment of Fleet locally on your machine. [Get up and running in minutes](https://fleetdm.com/try-fleet/fleetctl-preview).
->
-> If you want to enroll real hosts or deploy to a more scalable environment, we recommend [deploying Fleet to a server](https://fleetdm.com/docs/deploy/deploy-fleet-on-centos).
 
 ## Infrastructure dependencies
 

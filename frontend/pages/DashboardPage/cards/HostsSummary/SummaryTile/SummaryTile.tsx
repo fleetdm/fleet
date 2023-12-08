@@ -2,12 +2,12 @@ import React from "react";
 import { Link } from "react-router";
 import { kebabCase } from "lodash";
 
-import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import classnames from "classnames";
 import { Colors } from "styles/var/colors";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface ISummaryTileProps {
   count: number;
@@ -15,6 +15,7 @@ interface ISummaryTileProps {
   showUI: boolean;
   title: string;
   iconName: IconNames;
+  circledIcon?: boolean;
   iconColor?: Colors;
   path: string;
   tooltip?: string;
@@ -31,6 +32,7 @@ const SummaryTile = ({
   showUI, // false on first load only
   title,
   iconName,
+  circledIcon,
   iconColor,
   path,
   tooltip,
@@ -50,14 +52,16 @@ const SummaryTile = ({
   const classes = classnames(`${baseClass}__tile`, `${kebabCase(title)}-tile`, {
     [`${baseClass}__not-supported`]: notSupported,
   });
-
   const tile = (
     <>
-      <Icon
-        name={iconName}
-        color={iconColor}
-        className={`${baseClass}__tile-icon`}
-      />
+      <div className={circledIcon ? `${baseClass}__circled-icon` : ""}>
+        <Icon
+          name={iconName}
+          size="large"
+          color={iconColor}
+          className={`${baseClass}__tile-icon`}
+        />
+      </div>
       <div>
         {notSupported ? (
           <div className={`${baseClass}__not-supported-text`}>

@@ -29,7 +29,7 @@ func TestCPEFromSoftware(t *testing.T) {
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -56,7 +56,7 @@ func TestCPETranslations(t *testing.T) {
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -348,7 +348,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	err = TranslateSoftwareToCPE(context.Background(), ds, tempDir, kitlog.NewNopLogger())
@@ -397,7 +397,7 @@ func TestTranslateSoftwareToCPEIgnoreEmptyVersion(t *testing.T) {
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	err = TranslateSoftwareToCPE(context.Background(), ds, tempDir, kitlog.NewNopLogger())
@@ -444,7 +444,7 @@ func TestLegacyCPEDB(t *testing.T) {
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -648,7 +648,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "5.11.6 (9890)",
 				Vendor:           "",
 				BundleIdentifier: "us.zoom.xos",
-			}, cpe: "cpe:2.3:a:zoom:meetings:5.11.6.9890:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:zoom:zoom:5.11.6.9890:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1125,7 +1125,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.12.4",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:golang:protobuf:3.12.4:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:google:protobuf:3.12.4:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1152,7 +1152,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "2.3.0+ubuntu2.1",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:debian:python-apt:2.3.0.ubuntu2.1:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:ubuntu:python-apt:2.3.0.ubuntu2.1:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1188,7 +1188,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "2.25.1",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:jenkins:requests:2.25.1:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:python:requests:2.25.1:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1289,6 +1289,79 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:  "python_packages",
 				Version: "6.0.1",
 			}, cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "IntelliJ IDEA.app",
+				Source:           "apps",
+				Version:          "2022.3.3",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.intellij",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2022.3.3:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "IntelliJ IDEA CE.app",
+				Source:           "apps",
+				Version:          "2022.3.3",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.intellij.ce",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2022.3.3:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "User PyCharm Custom Name.app", // 2023/10/31: The actual product name must be part of the app name per our code in CPEFromSoftware
+				Source:           "apps",
+				Version:          "2019.2",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.pycharm",
+			},
+			cpe: "cpe:2.3:a:jetbrains:pycharm:2019.2:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "PyCharm Community Edition.app",
+				Source:           "apps",
+				Version:          "2022.1",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.pycharm.ce",
+			},
+			cpe: "cpe:2.3:a:jetbrains:pycharm:2022.1:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Google Chrome Helper.app",
+				Source:           "apps",
+				Version:          "111.0.5563.64",
+				Vendor:           "",
+				BundleIdentifier: "com.google.Chrome.helper",
+			},
+			// DO NOT MATCH with Google Chrome
+			cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Acrobat Uninstaller.app",
+				Source:           "apps",
+				Version:          "6.0",
+				Vendor:           "",
+				BundleIdentifier: "com.adobe.Acrobat.Uninstaller",
+			},
+			// DO NOT MATCH with Adobe Acrobat
+			cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "UmbrellaMenu.app",
+				Source:           "apps",
+				Version:          "1.0",
+				Vendor:           "",
+				BundleIdentifier: "com.cisco.umbrella.menu.UmbrellaMenu",
+			},
+			// DO NOT MATCH with Cisco Umbrella
+			cpe: "",
 		},
 	}
 

@@ -21,7 +21,7 @@ linters-settings:
       main:
         deny:
           - pkg: github.com/pkg/errors
-            msg: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
+            desc: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
 
   errcheck:
     check-type-assertions: false

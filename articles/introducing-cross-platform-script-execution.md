@@ -51,7 +51,7 @@ In the ever-changing landscape of technology, the requirements and challenges co
 Thank you for your trust and partnership as we continue this exciting journey together. If you have any questions or need assistance, please do not hesitate to [reach out](https://fleetdm.com/support). Your success is our success, and we are here to support you every step of the way.
 
 
-<meta name="category" value="releases">
+<meta name="category" value="announcements">
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="publishedOn" value="2023-10-17">

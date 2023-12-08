@@ -1,11 +1,13 @@
 package service
 
 import (
-	"github.com/fleetdm/fleet/v4/server/ptr"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -61,12 +63,13 @@ func TestListOptionsFromRequest(t *testing.T) {
 
 		// All params defined
 		{
-			url: "/foo?order_key=foo&order_direction=desc&page=1&per_page=100",
+			url: "/foo?order_key=foo&order_direction=desc&page=1&per_page=100&after=bar",
 			listOptions: fleet.ListOptions{
 				OrderKey:       "foo",
 				OrderDirection: fleet.OrderDescending,
 				Page:           1,
 				PerPage:        100,
+				After:          "bar",
 			},
 		},
 
@@ -95,6 +98,11 @@ func TestListOptionsFromRequest(t *testing.T) {
 		// bad order_direction
 		{
 			url:          "/foo?&order_direction=foo&order_key=foo",
+			shouldErr400: true,
+		},
+		// after without order_key
+		{
+			url:          "/foo?page=1&after=foo",
 			shouldErr400: true,
 		},
 	}
@@ -285,6 +293,48 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			url:          "/foo?os_name=foo",
 			errorMessage: "Invalid os_version",
 		},
+		"negative software_id": {
+			url:          "/foo?software_id=-10",
+			errorMessage: "Invalid software_id",
+		},
+		"negative software_version_id": {
+			url:          "/foo?software_version_id=-10",
+			errorMessage: "Invalid software_version_id",
+		},
+		"negative software_title_id": {
+			url:          "/foo?software_title_id=-10",
+			errorMessage: "Invalid software_title_id",
+		},
+		"software_title_id too big": {
+			url:          "/foo?software_title_id=" + fmt.Sprint(1<<33),
+			errorMessage: "Invalid software_title_id",
+		},
+		"software_version_id can be > 32bits": {
+			url: "/foo?software_version_id=" + fmt.Sprint(1<<33),
+			hostListOptions: fleet.HostListOptions{
+				SoftwareVersionIDFilter: ptr.Uint(1 << 33),
+			},
+		},
+		"good software_version_id": {
+			url: "/foo?software_version_id=1",
+			hostListOptions: fleet.HostListOptions{
+				SoftwareVersionIDFilter: ptr.Uint(1),
+			},
+		},
+		"good software_title_id": {
+			url: "/foo?software_title_id=1",
+			hostListOptions: fleet.HostListOptions{
+				SoftwareTitleIDFilter: ptr.Uint(1),
+			},
+		},
+		"invalid combination software_title_id and software_version_id": {
+			url:          "/foo?software_title_id=1&software_version_id=2",
+			errorMessage: "The combination of software_version_id and software_title_id is not allowed",
+		},
+		"invalid combination software_id and software_version_id": {
+			url:          "/foo?software_id=1&software_version_id=2",
+			errorMessage: "The combination of software_id and software_version_id is not allowed",
+		},
 	}
 
 	for name, tt := range hostListOptionsTests {
@@ -298,10 +348,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 					assert.NotNil(t, err)
 					var be *fleet.BadRequestError
 					require.ErrorAs(t, err, &be)
-					assert.True(
-						t, strings.Contains(err.Error(), tt.errorMessage),
-						"error message '%v' should contain '%v'", err.Error(), tt.errorMessage,
-					)
+					require.Contains(t, err.Error(), tt.errorMessage)
 					return
 				}
 				assert.Nil(t, err)

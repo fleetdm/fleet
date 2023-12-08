@@ -1332,7 +1332,7 @@ This flag only has effect if one of the following is true:
 - `activity_audit_log_plugin` is set to `filesystem` and `activity_enable_audit_log` is set to `true`.
 
 This flag will cause the osquery result and status log files to be automatically
-rotated when files reach a size of 500 Mb or an age of 28 days.
+rotated when files reach a size of 500 MB or an age of 28 days.
 
 - Default value: `false`
 - Environment variable: `FLEET_FILESYSTEM_ENABLE_LOG_ROTATION`
@@ -2363,10 +2363,12 @@ If this value is not defined, Fleet checks for the latest release in Github and 
 
 ##### cve_feed_prefix_url
 
-Like the CPE dictionary, we allow users to define where to get the CVE feeds.
-In this case, the URL should be a host that serves the files in the path /feeds/json/cve/1.1/.
-Fleet expects to find all the JSON Feeds that can be found in https://nvd.nist.gov/vuln/data-feeds.
-When not defined, Fleet downloads from the nvd.nist.gov host.
+Like the CPE dictionary, we allow users to define where to get the legacy CVE feeds from.
+In this case, the URL should be a host that serves the files in the legacy feed format.
+Fleet expects to find all the GZ and META files that can be found in https://nvd.nist.gov/vuln/data-feeds#JSON_FEED.
+For example: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL` + `/nvdcve-1.1-2002.meta`
+
+When not defined, Fleet downloads CVE information from the nvd.nist.gov host using the NVD 2.0 API.
 
 - Default value: `""`
 - Environment variable: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL`
@@ -2738,7 +2740,7 @@ packaging:
 
 ## Mobile device management (MDM)
 
-> MDM features require some endpoints to be publicly accessible outside your VPN or intranet, for more details see [What API endpoints should I expose to the public internet?](https://fleetdm.com/docs/get-started/faq#what-api-endpoints-should-i-expose-to-the-public-internet)
+> MDM features require some endpoints to be publicly accessible. For more details, see the guide, [Which API endpoints to expose to the public internet?](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet)
 
 This section is a reference for the configuration required to turn on MDM features in production.
 

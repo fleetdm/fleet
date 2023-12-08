@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -180,6 +181,7 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 	var contents bytes.Buffer
 	params := fileVaultProfileOptions{
 		PayloadIdentifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
+		PayloadName:          mdm.FleetFileVaultProfileName,
 		Base64DerCertificate: base64.StdEncoding.EncodeToString(cert.Leaf.Raw),
 	}
 	if err := fileVaultProfileTemplate.Execute(&contents, params); err != nil {
@@ -789,7 +791,7 @@ func (svc *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.
 	// for the preassign and match features, we don't know yet what team(s) will
 	// be affected, so we authorize only users with write-access to the no-team
 	// config profiles and with team-write access.
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
@@ -805,7 +807,7 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 	// for the preassign and match features, we don't know yet what team(s) will
 	// be affected, so we authorize only users with write-access to the no-team
 	// config profiles and with team-write access.
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
@@ -976,9 +978,7 @@ func teamNameFromPreassignGroups(groups []string) string {
 }
 
 func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*fleet.MDMDiskEncryptionSummary, error) {
-	// TODO: Consider adding a new generic OSSetting type or Windows-specific type for authz checks
-	// like this.
-	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	var macOS fleet.MDMAppleFileVaultSummary
@@ -1021,4 +1021,31 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 			Windows: windows.RemovingEnforcement,
 		},
 	}, nil
+}
+
+func (svc *Service) mdmWindowsEnableOSUpdates(ctx context.Context, teamID *uint, updates fleet.WindowsUpdates) error {
+	var contents bytes.Buffer
+	params := windowsOSUpdatesProfileOptions{
+		Deadline:    updates.DeadlineDays.Value,
+		GracePeriod: updates.GracePeriodDays.Value,
+	}
+	if err := windowsOSUpdatesProfileTemplate.Execute(&contents, params); err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling Windows OS updates")
+	}
+
+	err := svc.ds.SetOrUpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		TeamID: teamID,
+		Name:   mdm.FleetWindowsOSUpdatesProfileName,
+		SyncML: contents.Bytes(),
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "create Windows OS updates profile")
+	}
+
+	return nil
+}
+
+func (svc *Service) mdmWindowsDisableOSUpdates(ctx context.Context, teamID *uint) error {
+	err := svc.ds.DeleteMDMWindowsConfigProfileByTeamAndName(ctx, teamID, mdm.FleetWindowsOSUpdatesProfileName)
+	return ctxerr.Wrap(ctx, err, "delete Windows OS updates profile")
 }

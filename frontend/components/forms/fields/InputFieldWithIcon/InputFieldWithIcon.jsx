@@ -19,6 +19,7 @@ class InputFieldWithIcon extends InputField {
     label: PropTypes.string,
     name: PropTypes.string,
     onChange: PropTypes.func,
+    onClick: PropTypes.func,
     placeholder: PropTypes.string,
     tabIndex: PropTypes.number,
     type: PropTypes.string,
@@ -45,7 +46,7 @@ class InputFieldWithIcon extends InputField {
         data-has-tooltip={!!tooltip}
       >
         {tooltip && !error ? (
-          <TooltipWrapper position="top" tipContent={tooltip}>
+          <TooltipWrapper position="top-start" tipContent={tooltip}>
             {label}
           </TooltipWrapper>
         ) : (
@@ -80,6 +81,7 @@ class InputFieldWithIcon extends InputField {
       iconPosition,
       inputOptions,
       ignore1Password,
+      onClick,
     } = this.props;
     const { onInputChange, renderHint } = this;
 
@@ -112,6 +114,7 @@ class InputFieldWithIcon extends InputField {
           id={name}
           name={name}
           onChange={onInputChange}
+          onClick={onClick}
           className={inputClasses}
           placeholder={placeholder}
           ref={(r) => {

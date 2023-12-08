@@ -54,8 +54,17 @@ type listHostsRequest struct {
 }
 
 type listHostsResponse struct {
-	Hosts    []fleet.HostResponse `json:"hosts"`
-	Software *fleet.Software      `json:"software,omitempty"`
+	Hosts []fleet.HostResponse `json:"hosts"`
+	// Software is populated with the software version corresponding to the
+	// software_version_id (or software_id) filter if one is provided with the
+	// request (and it exists in the database). It is nil otherwise and absent of
+	// the JSON response payload.
+	Software *fleet.Software `json:"software,omitempty"`
+	// SoftwareTitle is populated with the title corresponding to the
+	// software_title_id filter if one is provided with the request (and it
+	// exists in the database). It is nil otherwise and absent of the JSON
+	// response payload.
+	SoftwareTitle *fleet.SoftwareTitle `json:"software_title,omitempty"`
 	// MDMSolution is populated with the MDM solution corresponding to the mdm_id
 	// filter if one is provided with the request (and it exists in the
 	// database). It is nil otherwise and absent of the JSON response payload.
@@ -75,9 +84,24 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	req := request.(*listHostsRequest)
 
 	var software *fleet.Software
-	if req.Opts.SoftwareIDFilter != nil {
+	if req.Opts.SoftwareVersionIDFilter != nil || req.Opts.SoftwareIDFilter != nil {
 		var err error
-		software, err = svc.SoftwareByID(ctx, *req.Opts.SoftwareIDFilter, false)
+
+		id := req.Opts.SoftwareVersionIDFilter
+		if id == nil {
+			id = req.Opts.SoftwareIDFilter
+		}
+		software, err = svc.SoftwareByID(ctx, *id, false)
+		if err != nil {
+			return listHostsResponse{Err: err}, nil
+		}
+	}
+
+	var softwareTitle *fleet.SoftwareTitle
+	if req.Opts.SoftwareTitleIDFilter != nil {
+		var err error
+
+		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
@@ -112,10 +136,11 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		hostResponses[i] = *h
 	}
 	return listHostsResponse{
-		Hosts:       hostResponses,
-		Software:    software,
-		MDMSolution: mdmSolution,
-		MunkiIssue:  munkiIssue,
+		Hosts:         hostResponses,
+		Software:      software,
+		SoftwareTitle: softwareTitle,
+		MDMSolution:   mdmSolution,
+		MunkiIssue:    munkiIssue,
 	}, nil
 }
 
@@ -161,44 +186,88 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 // Delete Hosts
 /////////////////////////////////////////////////////////////////////////////////
 
+// These values are modified during testing.
+var (
+	deleteHostsTimeout           = 30 * time.Second
+	deleteHostsSkipAuthorization = false
+)
+
+type deleteHostsFilters struct {
+	MatchQuery string           `json:"query"`
+	Status     fleet.HostStatus `json:"status"`
+	LabelID    *uint            `json:"label_id"`
+	TeamID     *uint            `json:"team_id"`
+}
+
 type deleteHostsRequest struct {
-	IDs     []uint `json:"ids"`
-	Filters struct {
-		MatchQuery string           `json:"query"`
-		Status     fleet.HostStatus `json:"status"`
-		LabelID    *uint            `json:"label_id"`
-		TeamID     *uint            `json:"team_id"`
-	} `json:"filters"`
+	IDs []uint `json:"ids"`
+	// Using a pointer to help determine whether an empty filter was passed, like: "filters":{}
+	Filters *deleteHostsFilters `json:"filters"`
 }
 
 type deleteHostsResponse struct {
-	Err error `json:"error,omitempty"`
+	Err        error `json:"error,omitempty"`
+	StatusCode int   `json:"-"`
 }
 
 func (r deleteHostsResponse) error() error { return r.Err }
 
+// Status implements statuser interface to send out custom HTTP success codes.
+func (r deleteHostsResponse) Status() int { return r.StatusCode }
+
 func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteHostsRequest)
-	listOpt := fleet.HostListOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: req.Filters.MatchQuery,
-		},
-		StatusFilter: req.Filters.Status,
-		TeamFilter:   req.Filters.TeamID,
+	var listOpts *fleet.HostListOptions
+	var labelID *uint
+	if req.Filters != nil {
+		listOpts = &fleet.HostListOptions{
+			ListOptions: fleet.ListOptions{
+				MatchQuery: req.Filters.MatchQuery,
+			},
+			StatusFilter: req.Filters.Status,
+			TeamFilter:   req.Filters.TeamID,
+		}
+		labelID = req.Filters.LabelID
 	}
-	err := svc.DeleteHosts(ctx, req.IDs, listOpt, req.Filters.LabelID)
-	if err != nil {
-		return deleteHostsResponse{Err: err}, nil
+
+	// Since bulk deletes can take a long time, after DeleteHostsTimeout, we will return a 202 (Accepted) status code
+	// and allow the delete operation to proceed.
+	var err error
+	deleteDone := make(chan bool, 1)
+	ctx = context.WithoutCancel(ctx) // to make sure DB operations don't get killed after we return a 202
+	go func() {
+		err = svc.DeleteHosts(ctx, req.IDs, listOpts, labelID)
+		if err != nil {
+			// logging the error for future debug in case we already sent http.StatusAccepted
+			logging.WithErr(ctx, err)
+		}
+		deleteDone <- true
+	}()
+	select {
+	case <-deleteDone:
+		if err != nil {
+			return deleteHostsResponse{Err: err}, nil
+		}
+		return deleteHostsResponse{StatusCode: http.StatusOK}, nil
+	case <-time.After(deleteHostsTimeout):
+		if deleteHostsSkipAuthorization {
+			// Only called during testing.
+			svc.(validationMiddleware).Service.(*Service).authz.SkipAuthorization(ctx)
+		}
+		return deleteHostsResponse{StatusCode: http.StatusAccepted}, nil
 	}
-	return deleteHostsResponse{}, nil
 }
 
-func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.HostListOptions, lid *uint) error {
+func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts *fleet.HostListOptions, lid *uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
 	}
 
-	if len(ids) > 0 && (lid != nil || !opts.Empty()) {
+	if len(ids) == 0 && lid == nil && opts == nil {
+		return &fleet.BadRequestError{Message: "list of ids or filters must be specified"}
+	}
+
+	if len(ids) > 0 && (lid != nil || (opts != nil && !opts.Empty())) {
 		return &fleet.BadRequestError{Message: "Cannot specify a list of ids and filters at the same time"}
 	}
 
@@ -210,8 +279,11 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts fleet.Host
 		return svc.ds.DeleteHosts(ctx, ids)
 	}
 
+	if opts == nil {
+		opts = &fleet.HostListOptions{}
+	}
 	opts.DisableFailingPolicies = true // don't check policies for hosts that are about to be deleted
-	hostIDs, _, err := svc.hostIDsAndNamesFromFilters(ctx, opts, lid)
+	hostIDs, _, err := svc.hostIDsAndNamesFromFilters(ctx, *opts, lid)
 	if err != nil {
 		return err
 	}
@@ -456,13 +528,6 @@ func (r getHostSummaryResponse) error() error { return r.Err }
 
 func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostSummaryRequest)
-	if req.LowDiskSpace != nil {
-		if *req.LowDiskSpace < 1 || *req.LowDiskSpace > 100 {
-			err := ctxerr.Errorf(ctx, "invalid low_disk_space threshold, must be between 1 and 100: %d", *req.LowDiskSpace)
-			return getHostSummaryResponse{Err: err}, nil
-		}
-	}
-
 	summary, err := svc.GetHostSummary(ctx, req.TeamID, req.Platform, req.LowDiskSpace)
 	if err != nil {
 		return getHostSummaryResponse{Err: err}, nil
@@ -475,6 +540,14 @@ func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *string, lowDiskSpace *int) (*fleet.HostSummary, error) {
+	if lowDiskSpace != nil {
+		if *lowDiskSpace < 1 || *lowDiskSpace > 100 {
+			svc.authz.SkipAuthorization(ctx)
+			return nil, ctxerr.Wrap(
+				ctx, badRequest(fmt.Sprintf("invalid low_disk_space threshold, must be between 1 and 100: %d", *lowDiskSpace)),
+			)
+		}
+	}
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -658,7 +731,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return err
 	}
 	if !skipBulkPending {
-		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 	}
@@ -795,7 +868,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
 		return err
 	}
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 	serials, err := svc.ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
@@ -918,12 +991,15 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get app config for host mdm details")
 	}
 
-	var profiles []fleet.HostMDMAppleProfile
+	var profiles []fleet.HostMDMProfile
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
 		case "windows":
-			if ac.MDM.WindowsEnabledAndConfigured && license.IsPremium(ctx) {
+			if !ac.MDM.WindowsEnabledAndConfigured {
+				break
+			}
+			if license.IsPremium(ctx) {
 				hde, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
 				switch {
 				case err != nil:
@@ -934,9 +1010,21 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 					host.MDM.OSSettings.DiskEncryption = fleet.HostMDMDiskEncryption{}
 				}
 			}
+			profs, err := svc.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get host mdm windows profiles")
+			}
+			if profs == nil {
+				profs = []fleet.HostMDMWindowsProfile{}
+			}
+			for _, p := range profs {
+				p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
+				profiles = append(profiles, p.ToHostMDMProfile())
+			}
+
 		case "darwin":
 			if ac.MDM.EnabledAndConfigured {
-				profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
+				profs, err := svc.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
 				}
@@ -950,7 +1038,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
 					}
 					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
-					profiles = append(profiles, p)
+					profiles = append(profiles, p.ToHostMDMProfile())
 				}
 			}
 		}
@@ -1640,4 +1728,47 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 	}
 
 	return key, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Host Health
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostHealthRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostHealthResponse struct {
+	Err        error             `json:"error,omitempty"`
+	HostID     uint              `json:"host_id,omitempty"`
+	HostHealth *fleet.HostHealth `json:"health,omitempty"`
+}
+
+func (r getHostHealthResponse) error() error { return r.Err }
+
+func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getHostHealthRequest)
+	hh, err := svc.GetHostHealth(ctx, req.ID)
+	if err != nil {
+		return getHostHealthResponse{Err: err}, nil
+	}
+
+	// remove TeamID as it's needed for authorization internally but is not part of the external API
+	hh.TeamID = nil
+
+	return getHostHealthResponse{HostID: req.ID, HostHealth: hh}, nil
+}
+
+func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
+	svc.authz.SkipAuthorization(ctx)
+	hh, err := svc.ds.GetHostHealth(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := svc.authz.Authorize(ctx, hh, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return hh, nil
 }

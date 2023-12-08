@@ -729,10 +729,18 @@ const ManageHostsPage = ({
 
       let sort = sortBy;
       if (sortHeader) {
+        let direction = sortDirection;
+        if (sortHeader === "last_restarted_at") {
+          if (sortDirection === "asc") {
+            direction = "desc";
+          } else {
+            direction = "asc";
+          }
+        }
         sort = [
           {
             key: sortHeader,
-            direction: sortDirection || DEFAULT_SORT_DIRECTION,
+            direction: direction || DEFAULT_SORT_DIRECTION,
           },
         ];
       } else if (!sortBy.length) {
@@ -1179,6 +1187,7 @@ const ManageHostsPage = ({
       onSubmit={onDeleteHostSubmit}
       onCancel={toggleDeleteHostModal}
       isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+      hostsCount={hostsCount}
       isUpdating={isUpdatingHosts}
     />
   );
@@ -1357,19 +1366,19 @@ const ManageHostsPage = ({
     if (maybeEmptyHosts) {
       const emptyState = () => {
         const emptyHosts: IEmptyTableProps = {
-          iconName: "empty-hosts",
-          header: "Devices will show up here once they’re added to Fleet.",
+          graphicName: "empty-hosts",
+          header: "Hosts will show up here once they’re added to Fleet.",
           info:
-            "Expecting to see devices? Try again in a few seconds as the system catches up.",
+            "Expecting to see hosts? Try again in a few seconds as the system catches up.",
         };
         if (includesFilterQueryParam) {
-          delete emptyHosts.iconName;
+          delete emptyHosts.graphicName;
           emptyHosts.header = "No hosts match the current criteria";
           emptyHosts.info =
             "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
         } else if (canEnrollHosts) {
-          emptyHosts.header = "Add your devices to Fleet";
-          emptyHosts.info = "Generate an installer to add your own devices.";
+          emptyHosts.header = "Add your hosts to Fleet";
+          emptyHosts.info = "Generate an installer to add your own hosts.";
           emptyHosts.primaryButton = (
             <Button variant="brand" onClick={toggleAddHostsModal} type="button">
               Add hosts
@@ -1382,7 +1391,7 @@ const ManageHostsPage = ({
       return (
         <>
           {EmptyTable({
-            iconName: emptyState().iconName,
+            graphicName: emptyState().graphicName,
             header: emptyState().header,
             info: emptyState().info,
             additionalInfo: emptyState().additionalInfo,
@@ -1410,12 +1419,6 @@ const ManageHostsPage = ({
       isOnlyObserver:
         isOnlyObserver || (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
     });
-
-    // Update last column
-    tableColumns.forEach((dataColumn) => {
-      dataColumn.isLastColumn = false;
-    });
-    tableColumns[tableColumns.length - 1].isLastColumn = true;
 
     const emptyState = () => {
       const emptyHosts: IEmptyTableProps = {

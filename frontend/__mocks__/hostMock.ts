@@ -2,9 +2,10 @@ import { IHost } from "interfaces/host";
 import { IHostMdmProfile } from "interfaces/mdm";
 
 const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
-  profile_id: 1,
+  profile_uuid: "123-abc",
   name: "Test Profile",
   operation_type: "install",
+  platform: "darwin",
   status: "verified",
   detail: "This is verified",
 };
@@ -20,6 +21,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   created_at: "2022-01-01T12:00:00Z",
   updated_at: "2022-01-02T12:00:00Z",
   detail_updated_at: "2022-01-02T12:00:00Z",
+  last_restarted_at: "2022-01-02T12:00:00Z",
   label_updated_at: "2022-01-02T12:00:00Z",
   policy_updated_at: "2022-01-02T12:00:00Z",
   last_enrolled_at: "2022-01-02T12:00:00Z",

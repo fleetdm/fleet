@@ -59,6 +59,7 @@ const RunQueryPage = ({
     isAnyTeamMaintainerOrTeamAdmin,
     isObserverPlus,
     isAnyTeamObserverPlus,
+    config,
   } = useContext(AppContext);
   const {
     selectedQueryTargets,
@@ -89,6 +90,15 @@ const RunQueryPage = ({
   );
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
+
+  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+
+  // Reroute users out of live flow when live queries are globally disabled
+  if (disabledLiveQuery) {
+    queryId
+      ? router.push(PATHS.QUERY(queryId))
+      : router.push(PATHS.NEW_QUERY());
+  }
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
@@ -154,11 +164,6 @@ const RunQueryPage = ({
       teams: targetedTeams,
     });
   }, [targetedLabels, targetedHosts, targetedTeams]);
-
-  console.log(
-    "LiveQueryPage.tsx: selectedQueryTargetsByType",
-    selectedQueryTargetsByType
-  );
 
   // Updates title that shows up on browser tabs
   useEffect(() => {

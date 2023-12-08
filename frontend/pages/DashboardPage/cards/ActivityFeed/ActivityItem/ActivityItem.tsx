@@ -32,16 +32,18 @@ const PREMIUM_ACTIVITIES = new Set([
 
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
+  platform: "darwin" | "windows",
   teamName?: string | null
 ) => {
-  let messageSuffix = <>all macOS hosts</>;
+  const platformDisplayName = platform === "darwin" ? "macOS" : "Windows";
+  let messageSuffix = <>all {platformDisplayName} hosts</>;
   if (isPremiumTier) {
     messageSuffix = teamName ? (
       <>
-        macOS hosts assigned to the <b>{teamName}</b> team
+        {platformDisplayName} hosts assigned to the <b>{teamName}</b> team
       </>
     ) : (
-      <>macOS hosts with no team</>
+      <>{platformDisplayName} hosts with no team</>
     );
   }
   return messageSuffix;
@@ -173,7 +175,9 @@ const TAGGED_TEMPLATES = {
     );
   },
   userCreated: (activity: IActivity) => {
-    return (
+    return activity.actor_id === activity.details?.user_id ? (
+      <>activated their account.</>
+    ) : (
       <>
         created a user <b> {activity.details?.user_email}</b>.
       </>
@@ -187,10 +191,22 @@ const TAGGED_TEMPLATES = {
     );
   },
   userChangedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
+    const { actor_id } = activity;
+    const { user_id, user_email, role } = activity.details || {};
+
+    if (actor_id === user_id) {
+      // this is the case when SSO user is crated via JIT provisioning
+      // should only be possible for premium tier, but check anyway
+      return (
+        <>
+          was assigned the <b>{role}</b> role{isPremiumTier && " for all teams"}
+          .
+        </>
+      );
+    }
     return (
       <>
-        changed <b>{activity.details?.user_email}</b> to{" "}
-        <b>{activity.details?.role}</b>
+        changed <b>{user_email}</b> to <b>{activity.details?.role}</b>
         {isPremiumTier && " for all teams"}.
       </>
     );
@@ -205,11 +221,22 @@ const TAGGED_TEMPLATES = {
     );
   },
   userChangedTeamRole: (activity: IActivity) => {
+    const { actor_id } = activity;
+    const { user_id, user_email, role, team_name } = activity.details || {};
+
+    const varText =
+      actor_id === user_id ? (
+        <>
+          was assigned the <b>{role}</b> role
+        </>
+      ) : (
+        <>
+          changed <b>{user_email}</b> to <b>{role}</b>
+        </>
+      );
     return (
       <>
-        changed <b>{activity.details?.user_email}</b> to{" "}
-        <b>{activity.details?.role}</b> for the{" "}
-        <b>{activity.details?.team_name}</b> team.
+        {varText} for the <b>{team_name}</b> team.
       </>
     );
   },
@@ -293,7 +320,6 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-
   createMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
@@ -305,12 +331,16 @@ const TAGGED_TEMPLATES = {
         ) : (
           <>a configuration profile</>
         )}{" "}
-        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
         .
       </>
     );
   },
-
   deleteMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
@@ -323,11 +353,15 @@ const TAGGED_TEMPLATES = {
           <>a configuration profile</>
         )}{" "}
         from{" "}
-        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
       </>
     );
   },
-
   editMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     return (
       <>
@@ -335,6 +369,63 @@ const TAGGED_TEMPLATES = {
         edited configuration profiles for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+  createWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        added{" "}
+        {profileName ? (
+          <>configuration profile {profileName}</>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "windows",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  deleteWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        deleted{" "}
+        {profileName ? (
+          <>configuration profile {profileName}</>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        from{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "windows",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  editWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited configuration profiles for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "windows",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
@@ -584,6 +675,30 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  editedWindowsUpdates: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        updated the Windows OS update options (
+        <b>
+          Deadline: {activity.details?.deadline_days} days / Grace period:{" "}
+          {activity.details?.grace_period_days} days
+        </b>
+        ) on hosts assigned to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  deletedMultipleSavedQuery: (activity: IActivity) => {
+    return <> deleted multiple queries.</>;
+  },
 };
 
 const getDetail = (
@@ -664,6 +779,15 @@ const getDetail = (
     case ActivityType.EditedMacOSProfile: {
       return TAGGED_TEMPLATES.editMacOSProfile(activity, isPremiumTier);
     }
+    case ActivityType.CreatedWindowsProfile: {
+      return TAGGED_TEMPLATES.createWindowsProfile(activity, isPremiumTier);
+    }
+    case ActivityType.DeletedWindowsProfile: {
+      return TAGGED_TEMPLATES.deleteWindowsProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EditedWindowsProfile: {
+      return TAGGED_TEMPLATES.editWindowsProfile(activity, isPremiumTier);
+    }
     case ActivityType.EnabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.enableMacDiskEncryption(activity);
     }
@@ -709,6 +833,12 @@ const getDetail = (
     case ActivityType.EditedScript: {
       return TAGGED_TEMPLATES.editedScript(activity);
     }
+    case ActivityType.EditedWindowsUpdates: {
+      return TAGGED_TEMPLATES.editedWindowsUpdates(activity);
+    }
+    case ActivityType.DeletedMultipleSavedQuery: {
+      return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -745,6 +875,19 @@ const ActivityItem = ({
   const indicatePremiumFeature =
     isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);
 
+  const renderActivityPrefix = () => {
+    if (activity.type === ActivityType.UserLoggedIn) {
+      return <b>{activity.actor_email} </b>;
+    }
+    if (
+      (activity.type === ActivityType.UserChangedGlobalRole ||
+        activity.type === ActivityType.UserChangedTeamRole) &&
+      activity.actor_id === activity.details?.user_id
+    ) {
+      return <b>{activity.details?.user_email} </b>;
+    }
+    return <b>{activity.actor_full_name} </b>;
+  };
   return (
     <div className={baseClass}>
       <Avatar
@@ -753,15 +896,11 @@ const ActivityItem = ({
         size="small"
         hasWhiteBackground
       />
-      <div className={`${baseClass}__details`}>
-        <p>
+      <div className={`${baseClass}__details-wrapper`}>
+        <div className={"activity-details"}>
           {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
           <span className={`${baseClass}__details-topline`}>
-            {activity.type === ActivityType.UserLoggedIn ? (
-              <b>{activity.actor_email} </b>
-            ) : (
-              <b>{activity.actor_full_name} </b>
-            )}
+            {renderActivityPrefix()}
             {getDetail(activity, isPremiumTier, onDetailsClick)}
           </span>
           <br />
@@ -784,7 +923,7 @@ const ActivityItem = ({
           >
             {internationalTimeFormat(activityCreatedAt)}
           </ReactTooltip>
-        </p>
+        </div>
       </div>
       <div className={`${baseClass}__dash`} />
     </div>

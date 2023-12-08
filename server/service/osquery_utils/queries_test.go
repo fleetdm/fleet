@@ -7,8 +7,11 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -18,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -287,6 +291,30 @@ func TestGetDetailQueries(t *testing.T) {
 	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_chrome", "scheduled_query_stats")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
+
+	// test that appropriate mdm queries are added based on app config
+	var mdmQueriesBase, mdmQueriesWindows []string
+	for k, q := range mdmQueries {
+		switch {
+		case slices.Equal(q.Platforms, []string{"windows"}):
+			mdmQueriesWindows = append(mdmQueriesWindows, k)
+		default:
+			mdmQueriesBase = append(mdmQueriesBase, k)
+		}
+	}
+	ac := fleet.AppConfig{}
+	ac.MDM.EnabledAndConfigured = true
+	// windows mdm is disabled by default, windows mdm queries should not be present
+	gotQueries := GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil)
+	wantQueries := append(baseQueries, mdmQueriesBase...)
+	require.Len(t, gotQueries, len(wantQueries))
+	sortedKeysCompare(t, gotQueries, wantQueries)
+	// enable windows mdm, windows mdm queries should be present
+	ac.MDM.WindowsEnabledAndConfigured = true
+	gotQueries = GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil)
+	wantQueries = append(wantQueries, mdmQueriesWindows...)
+	require.Len(t, gotQueries, len(wantQueries))
+	sortedKeysCompare(t, gotQueries, wantQueries)
 }
 
 func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
@@ -524,12 +552,16 @@ func TestDirectIngestMDMMac(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
 				require.Equal(t, isServer, c.wantParams[0])
 				require.Equal(t, enrolled, c.wantParams[1])
 				require.Equal(t, serverURL, c.wantParams[2])
 				require.Equal(t, installedFromDep, c.wantParams[3])
 				require.Equal(t, name, c.wantParams[4])
+				require.Empty(t, fleetEnrollmentRef)
+				return nil
+			}
+			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
 				return nil
 			}
 
@@ -542,9 +574,60 @@ func TestDirectIngestMDMMac(t *testing.T) {
 				require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 				require.NoError(t, err)
 				ds.SetOrUpdateMDMDataFuncInvoked = false
+				require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
 			}
 		})
 	}
+
+	t.Run("with enrollment reference", func(t *testing.T) {
+		// SetOrUpdateHostEmailsFromMdmIdpAccountsFunc is called when
+		// there is an enrollment_reference in the server url query string
+		mdmData := map[string]string{
+			"enrolled":           "true",
+			"installed_from_dep": "true",
+			"server_url":         "https://test.example.com?enrollment_reference=test-reference",
+			"payload_identifier": apple_mdm.FleetPayloadIdentifier,
+		}
+
+		ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
+			require.Equal(t, "test-reference", fleetEnrollmentRef)
+			return nil
+		}
+		ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			require.False(t, isServer)
+			require.True(t, enrolled)
+			require.Equal(t, serverURL, "https://test.example.com") // query string is removed
+			require.True(t, installedFromDep)
+			require.Equal(t, name, fleet.WellKnownMDMFleet)
+			require.Equal(t, "test-reference", fleetEnrollmentRef)
+			return nil
+		}
+
+		err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &fleet.Host{}, ds, []map[string]string{mdmData})
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+		ds.SetOrUpdateMDMDataFuncInvoked = false
+		require.True(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
+		ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked = false
+
+		// SetOrUpdateHostEmailsFromMdmIdpAccountsFunc is not called when there is an
+		// enrollment_reference in the server url query string but the MDM is not Fleet
+		ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			require.False(t, isServer)
+			require.True(t, enrolled)
+			require.Equal(t, serverURL, "https://test.example.com") // query string is removed
+			require.True(t, installedFromDep)
+			require.Equal(t, name, fleet.UnknownMDMName)
+			require.Empty(t, fleetEnrollmentRef)
+			return nil
+		}
+		mdmData["payload_identifier"] = ""
+		err = directIngestMDMMac(context.Background(), log.NewNopLogger(), &fleet.Host{}, ds, []map[string]string{mdmData})
+		require.NoError(t, err)
+		require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+		ds.SetOrUpdateMDMDataFuncInvoked = false
+		require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
+	})
 }
 
 func TestDirectIngestMDMWindows(t *testing.T) {
@@ -560,10 +643,12 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		{
 			name: "off empty server URL",
 			data: []map[string]string{
-				{"key": "discovery_service_url", "value": ""},
-				{"key": "is_federated", "value": "1"},
-				{"key": "provider_id", "value": "Some_ID"},
-				{"key": "installation_type", "value": "Client"},
+				{
+					"discovery_service_url": "",
+					"is_federated":          "1",
+					"provider_id":           "Some_ID",
+					"installation_type":     "Client",
+				},
 			},
 			wantEnrolled:         false,
 			wantInstalledFromDep: false,
@@ -573,8 +658,10 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		{
 			name: "off missing is_federated and server url",
 			data: []map[string]string{
-				{"key": "provider_id", "value": "Some_ID"},
-				{"key": "installation_type", "value": "Client"},
+				{
+					"provider_id":       "Some_ID",
+					"installation_type": "Client",
+				},
 			},
 			wantEnrolled:         false,
 			wantInstalledFromDep: false,
@@ -584,10 +671,12 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		{
 			name: "on automatic",
 			data: []map[string]string{
-				{"key": "discovery_service_url", "value": "https://example.com"},
-				{"key": "is_federated", "value": "1"},
-				{"key": "provider_id", "value": "Some_ID"},
-				{"key": "installation_type", "value": "Client"},
+				{
+					"discovery_service_url": "https://example.com",
+					"is_federated":          "1",
+					"provider_id":           "Some_ID",
+					"installation_type":     "Client",
+				},
 			},
 			wantEnrolled:         true,
 			wantInstalledFromDep: true,
@@ -597,10 +686,12 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		{
 			name: "on manual",
 			data: []map[string]string{
-				{"key": "discovery_service_url", "value": "https://example.com"},
-				{"key": "is_federated", "value": "0"},
-				{"key": "provider_id", "value": "Local_Management"},
-				{"key": "installation_type", "value": "Client"},
+				{
+					"discovery_service_url": "https://example.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
 			},
 			wantEnrolled:         true,
 			wantInstalledFromDep: false,
@@ -610,9 +701,11 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		{
 			name: "on manual missing is_federated",
 			data: []map[string]string{
-				{"key": "discovery_service_url", "value": "https://example.com"},
-				{"key": "provider_id", "value": "Some_ID"},
-				{"key": "installation_type", "value": "Client"},
+				{
+					"discovery_service_url": "https://example.com",
+					"provider_id":           "Some_ID",
+					"installation_type":     "Client",
+				},
 			},
 			wantEnrolled:         true,
 			wantInstalledFromDep: false,
@@ -622,10 +715,12 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		{
 			name: "is_server",
 			data: []map[string]string{
-				{"key": "discovery_service_url", "value": "https://example.com"},
-				{"key": "is_federated", "value": "1"},
-				{"key": "provider_id", "value": "Some_ID"},
-				{"key": "installation_type", "value": "Windows SeRvEr 99.9"},
+				{
+					"discovery_service_url": "https://example.com",
+					"is_federated":          "1",
+					"provider_id":           "Some_ID",
+					"installation_type":     "Windows SeRvEr 99.9",
+				},
 			},
 			wantEnrolled:         true,
 			wantInstalledFromDep: true,
@@ -636,11 +731,15 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
 				require.Equal(t, c.wantEnrolled, enrolled)
 				require.Equal(t, c.wantInstalledFromDep, installedFromDep)
 				require.Equal(t, c.wantIsServer, isServer)
 				require.Equal(t, c.wantServerURL, serverURL)
+				require.Empty(t, fleetEnrollmentRef)
+				return nil
+			}
+			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
 				return nil
 			}
 		})
@@ -648,17 +747,19 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 		ds.SetOrUpdateMDMDataFuncInvoked = false
+		require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
 	}
 }
 
 func TestDirectIngestChromeProfiles(t *testing.T) {
 	ds := new(mock.Store)
-	ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, hostID uint, mapping []*fleet.HostDeviceMapping) error {
+	ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, hostID uint, mapping []*fleet.HostDeviceMapping, source string) error {
 		require.Equal(t, hostID, uint(1))
 		require.Equal(t, mapping, []*fleet.HostDeviceMapping{
 			{HostID: hostID, Email: "test@example.com", Source: "google_chrome_profiles"},
 			{HostID: hostID, Email: "test+2@example.com", Source: "google_chrome_profiles"},
 		})
+		require.Equal(t, source, "google_chrome_profiles")
 		return nil
 	}
 
@@ -1159,6 +1260,9 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		if host.ID != hostID {
 			return errors.New("host ID mismatch")
 		}
+		if encryptedBase64Key == "" && (decryptable == nil || *decryptable == true) {
+			return errors.New("decryptable should be false if the key is empty")
+		}
 		return nil
 	}
 
@@ -1264,8 +1368,8 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 		}
 		return expected, nil
 	}
-	ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, hostUUID string, toVerify, toFailed, toRetry []string) error {
-		require.Equal(t, h.UUID, hostUUID)
+	ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, host *fleet.Host, toVerify, toFailed, toRetry []string) error {
+		require.Equal(t, h.UUID, host.UUID)
 		require.Equal(t, len(installedProfiles), len(toVerify))
 		require.Len(t, toFailed, 0)
 		require.Len(t, toRetry, 0)
@@ -1301,6 +1405,36 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 	// expect error: install date format is not "2006-01-02 15:04:05 -0700"
 	rows[0]["install_date"] = time.Now().Format(time.UnixDate)
 	require.ErrorContains(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows), "parsing time")
+}
+
+func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	host := &fleet.Host{ID: 1, UUID: "mdm-windows-hw-uuid"}
+
+	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) error {
+		require.NotEmpty(t, deviceID)
+		require.Equal(t, host.UUID, hostUUID)
+		return nil
+	}
+
+	// if no rows, assume the registry key is not present (i.e. mdm is turned off) and do nothing
+	require.NoError(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{}))
+	require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+
+	// if multiple rows, expect error
+	require.Error(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{
+		{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+		{"name": "mdm-windows-hostname2", "data": "mdm-windows-device-id2"},
+	}))
+	require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+
+	// happy path
+	require.NoError(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{
+		{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+	}))
+	require.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
 }
 
 func TestSanitizeSoftware(t *testing.T) {
@@ -1352,10 +1486,193 @@ func TestSanitizeSoftware(t *testing.T) {
 				Version: "1.2.3",
 			},
 		},
+		{
+			name: "Cloudflare WARP on Windows, version not using full year",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "23.9.248.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows, version using full year",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows with invalid version",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foobar",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foobar",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows with invalid version",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foo.bar",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foo.bar",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Other on Windows",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Other",
+				Version: "1.2.3",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Other",
+				Version: "1.2.3",
+			},
+		},
+		{
+			name: "Citrix Workspace on Windows",
+			h: &fleet.Host{
+				Platform: "windows",
+			},
+			s: &fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "23.9.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "2309.1.104",
+			},
+		},
+		{
+			name: "Citrix Workspace on Mac",
+			h: &fleet.Host{
+				Platform: "darwin",
+			},
+			s: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "23.9.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2309.1.104",
+			},
+		},
+		{
+			name: "Citrix Workspace with correct versioning",
+			h: &fleet.Host{
+				Platform: "darwin",
+			},
+			s: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2400.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2400.1.104",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			sanitizeSoftware(tc.h, tc.s)
+			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())
 			require.Equal(t, tc.sanitized, tc.s)
 		})
+	}
+}
+
+func TestDirectIngestWindowsProfiles(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	ds := new(mock.Store)
+
+	for _, tc := range []struct {
+		hostProfiles []*fleet.ExpectedMDMProfile
+		want         string
+	}{
+		{nil, ""},
+		{
+			[]*fleet.ExpectedMDMProfile{
+				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{})},
+			},
+			"",
+		},
+		{
+			[]*fleet.ExpectedMDMProfile{
+				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
+			},
+			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get></SyncBody>';",
+		},
+		{
+			[]*fleet.ExpectedMDMProfile{
+				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
+				{Name: "N2", RawProfile: syncml.ForTestWithData(map[string]string{"L2": "D2"})},
+				{Name: "N3", RawProfile: syncml.ForTestWithData(map[string]string{"L3": "D3", "L3.1": "D3.1"})},
+			},
+			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get><Get><CmdID>2736786183</CmdID><Item><Target><LocURI>L2</LocURI></Target></Item></Get><Get><CmdID>894211447</CmdID><Item><Target><LocURI>L3</LocURI></Target></Item></Get><Get><CmdID>3410477854</CmdID><Item><Target><LocURI>L3.1</LocURI></Target></Item></Get></SyncBody>';",
+		},
+	} {
+
+		ds.GetHostMDMProfilesExpectedForVerificationFunc = func(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
+			result := map[string]*fleet.ExpectedMDMProfile{}
+			for _, p := range tc.hostProfiles {
+				result[p.Name] = p
+			}
+			return result, nil
+		}
+
+		gotQuery := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)
+		if tc.want != "" {
+			require.Contains(t, gotQuery, "SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input =")
+			re := regexp.MustCompile(`'<(.*?)>'`)
+			gotMatches := re.FindStringSubmatch(gotQuery)
+			require.NotEmpty(t, gotMatches)
+			wantMatches := re.FindStringSubmatch(tc.want)
+			require.NotEmpty(t, wantMatches)
+
+			var extractedStruct, expectedStruct fleet.SyncBody
+			err := xml.Unmarshal([]byte(gotMatches[0]), &extractedStruct)
+			require.NoError(t, err)
+
+			err = xml.Unmarshal([]byte(wantMatches[0]), &expectedStruct)
+			require.NoError(t, err)
+
+			require.ElementsMatch(t, expectedStruct.Get, extractedStruct.Get)
+		} else {
+			require.Equal(t, gotQuery, tc.want)
+		}
 	}
 }

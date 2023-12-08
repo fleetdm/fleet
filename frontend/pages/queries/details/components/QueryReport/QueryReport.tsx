@@ -17,7 +17,7 @@ import ShowQueryModal from "components/modals/ShowQueryModal";
 import TooltipWrapper from "components/TooltipWrapper";
 import EmptyTable from "components/EmptyTable";
 
-import generateResultsTableHeaders from "./QueryReportTableConfig";
+import generateReportColumnConfigsFromResults from "./QueryReportTableConfig";
 
 interface IQueryReportProps {
   queryReport?: IQueryReport;
@@ -27,7 +27,7 @@ interface IQueryReportProps {
 const baseClass = "query-report";
 const CSV_TITLE = "Query";
 
-const tableResults = (results: IQueryReportResultRow[]) => {
+const flattenResults = (results: IQueryReportResultRow[]) => {
   return results.map((result: IQueryReportResultRow) => {
     const hostInfoColumns = {
       host_display_name: result.host_name,
@@ -48,18 +48,18 @@ const QueryReport = ({
 
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>(
-    tableResults(queryReport?.results || [])
+    flattenResults(queryReport?.results || [])
   );
-  const [tableHeaders, setTableHeaders] = useState<Column[]>([]);
+  const [columnConfigs, setColumnConfigs] = useState<Column[]>([]);
 
   useEffect(() => {
     if (queryReport && queryReport.results && queryReport.results.length > 0) {
-      const generatedTableHeaders = generateResultsTableHeaders(
-        tableResults(queryReport.results)
+      const newColumnConfigs = generateReportColumnConfigsFromResults(
+        flattenResults(queryReport.results)
       );
       // Update tableHeaders if new headers are found
-      if (generatedTableHeaders !== tableHeaders) {
-        setTableHeaders(generatedTableHeaders);
+      if (newColumnConfigs !== columnConfigs) {
+        setColumnConfigs(newColumnConfigs);
       }
     }
   }, [queryReport]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
@@ -72,7 +72,7 @@ const QueryReport = ({
         generateCSVFilename(
           `${lastEditedQueryName || CSV_TITLE} - Query Report`
         ),
-        tableHeaders
+        columnConfigs
       )
     );
   };
@@ -114,10 +114,16 @@ const QueryReport = ({
       return (
         <div className={`${baseClass}__count `}>
           <TooltipWrapper
-            tipContent={`Fleet has retained a sample of early results for 
-            reference. Reporting is paused until existing data is deleted. <br/><br/>
-            You can reset this report by updating the query's SQL, or by
-            temporarily enabling the <b>discard data</b> setting and disabling it again.`}
+            tipContent={
+              <>
+                Fleet has retained a sample of early results for reference.
+                Reporting is paused until existing data is deleted. <br />
+                <br />
+                You can reset this report by updating the query&apos;s SQL, or
+                by temporarily enabling the <b>discard data</b> setting and
+                disabling it again.
+              </>
+            }
           >
             {`${count} result${count === 1 ? "" : "s"}`}
           </TooltipWrapper>
@@ -135,14 +141,14 @@ const QueryReport = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
-          columns={tableHeaders}
-          data={tableResults(queryReport?.results || [])}
+          columns={columnConfigs}
+          data={flattenResults(queryReport?.results || [])}
           // All empty states are handled in QueryDetailsPage.tsx and returned in lieu of QueryReport.tsx
           emptyComponent={() => {
             return (
               <EmptyTable
                 className={baseClass}
-                iconName="empty-software"
+                graphicName="empty-software"
                 header={"Nothing to report yet"}
                 info={"This query has returned no data so far."}
               />
