@@ -4,7 +4,6 @@ import React from "react";
 
 import {
   CellProps,
-  Column,
   ColumnInstance,
   ColumnInterface,
   HeaderProps,

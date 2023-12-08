@@ -8,7 +8,6 @@ export interface IGetHQRResponse {
   query_id: number;
   host_id: number;
   host_name: string;
-  host_team_id: number; // confirm
   last_fetched: string | null; // timestamp
   report_clipped: boolean;
   results: IHQRResult[];

@@ -80,7 +80,7 @@ const HQRTable = ({
     );
   }, [onShowQuery, filteredResults, queryName, hostName, columnConfigs]);
 
-  const renderEmptyState = () => {
+  const renderEmptyState = useCallback(() => {
     // rows.length === 0
 
     if (!lastFetched) {
@@ -113,9 +113,9 @@ const HQRTable = ({
         info={`This query has run on ${hostName}, but returned no data for this host.`}
       />
     );
-  };
+  }, [lastFetched, hostName, reportClipped]);
 
-  const renderCount = () => {
+  const renderCount = useCallback(() => {
     const count = filteredResults.length;
     return (
       <div className={`${baseClass}__results-count-and-last-fetched`}>
@@ -126,7 +126,7 @@ const HQRTable = ({
         </span>
       </div>
     );
-  };
+  }, [filteredResults.length, lastFetched]);
 
   if (isLoading) {
     return <Spinner />;

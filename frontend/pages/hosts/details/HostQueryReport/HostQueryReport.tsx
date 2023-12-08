@@ -2,9 +2,10 @@ import BackLink from "components/BackLink";
 import Icon from "components/Icon";
 import MainContent from "components/MainContent";
 import ShowQueryModal from "components/modals/ShowQueryModal";
+import Spinner from "components/Spinner";
 import { AppContext } from "context/app";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
-import React, { useContext, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { browserHistory, InjectedRouter, Link } from "react-router";
 import { Params } from "react-router/lib/Router";
@@ -25,22 +26,10 @@ const HostQueryReport = ({
   router,
   params: { host_id, query_id },
 }: IHostQueryReportProps) => {
-  // Need to know:
-
-  // globalReportsDisabled (from app config)
   const { config } = useContext(AppContext);
   const globalReportsDisabled = config?.server_settings.query_reports_disabled;
-  // queryDiscardData (from API, CONFIRM?) – need for rerouting
-  // or use !lastFetched && (!interval || discardData) ?
-  // !lastFechted && !iinterval –> redirect
-  // last fetched only matters to differentiate between collecting results and nothing to report
-
   const hostId = Number(host_id);
   const queryId = Number(query_id);
-
-  // teamId (from API? TODO?)
-
-  // query sql (API)
 
   if (globalReportsDisabled) {
     router.push(PATHS.HOST_QUERIES(hostId));
@@ -54,7 +43,6 @@ const HostQueryReport = ({
     [
       {
         host_name: "Haley's Macbook Air",
-        host_team_id: 1,
         report_clipped: false,
         last_fetched: "2021-01-01T00:00:00.000Z",
         results: [
@@ -229,7 +217,6 @@ const HostQueryReport = ({
     // [
     //   {
     //     host_name: "Haley's Macbook Air",
-    //     host_team_id: 1,
     //     report_clipped: false,
     //     last_fetched: null,
     //     results: [],
@@ -247,7 +234,6 @@ const HostQueryReport = ({
     // [
     //   {
     //     host_name: "Haley's Macbook Air",
-    //     host_team_id: 1,
     //     report_clipped: false,
     //     last_fetched: "2021-01-01T00:00:00.000Z",
     //     results: [],
@@ -265,7 +251,6 @@ const HostQueryReport = ({
     // [
     //   {
     //     host_name: "Haley's Macbook Air",
-    //     host_team_id: 1,
     //     report_clipped: true,
     //     last_fetched: "2021-01-01T00:00:00.000Z",
     //     results: [],
@@ -283,7 +268,6 @@ const HostQueryReport = ({
     // [
     //   {
     //     host_name: "Haley's Macbook Air",
-    //     host_team_id: 1,
     //     report_clipped: false,
     //     last_fetched: "2021-01-01T00:00:00.000Z",
     //     results: [
@@ -337,11 +321,13 @@ const HostQueryReport = ({
   //   }
   // );
 
+  // TODO - remove mock loading state
   const queryLoading = false;
+
+  const isLoading = queryLoading || hqrLoading;
 
   const {
     host_name: hostName,
-    host_team_id: hostTeamId,
     report_clipped: reportClipped,
     last_fetched: lastFetched,
     results,
@@ -355,7 +341,6 @@ const HostQueryReport = ({
     description: queryDescription,
     query: querySQL,
     discard_data: queryDiscardData,
-    interval: queryInterval,
   } = (queryResponse || {}) as Partial<ISchedulableQuery>;
 
   // TODO - finalize local setting reroute conditions
@@ -366,62 +351,64 @@ const HostQueryReport = ({
 
   document.title = `Host query report | ${queryName} | ${hostName} | ${DOCUMENT_TITLE_SUFFIX}`;
 
-  const fullReportPath = PATHS.QUERY_DETAILS(queryId, hostTeamId);
-
-  const HQRHeader = () => (
-    <div className={`${baseClass}__header`}>
-      <div className={`${baseClass}__header__row1`}>
-        <BackLink
-          text="Back to host details"
-          path={PATHS.HOST_QUERIES(hostId)}
-        />
+  const HQRHeader = useCallback(() => {
+    const fullReportPath = PATHS.QUERY_DETAILS(queryId);
+    return (
+      <div className={`${baseClass}__header`}>
+        <div className={`${baseClass}__header__row1`}>
+          <BackLink
+            text="Back to host details"
+            path={PATHS.HOST_QUERIES(hostId)}
+          />
+        </div>
+        <div className={`${baseClass}__header__row2`}>
+          {!hqrError && <h1 className="host-name">{hostName}</h1>}
+          <Link
+            // to and onClick seem redundant
+            to={fullReportPath}
+            onClick={() => {
+              browserHistory.push(fullReportPath);
+            }}
+            className={`${baseClass}__direction-link`}
+          >
+            <>
+              <span>View full query report</span>
+              <Icon name="chevron-right" color="core-fleet-blue" />
+            </>
+          </Link>
+        </div>
+        <div className={`${baseClass}__header__query-info`}>
+          <h2>{queryName}</h2>
+          <h3>{queryDescription}</h3>
+        </div>
       </div>
-      <div className={`${baseClass}__header__row2`}>
-        {!hqrLoading && !hqrError && <h1 className="host-name">{hostName}</h1>}
-        <Link
-          // to and onClick seem redundant
-          to={fullReportPath}
-          onClick={() => {
-            browserHistory.push(fullReportPath);
-          }}
-          className={`${baseClass}__direction-link`}
-        >
-          <>
-            <span>View full query report</span>
-            <Icon name="chevron-right" color="core-fleet-blue" />
-          </>
-        </Link>
-      </div>
-      <div className={`${baseClass}__header__query-info`}>
-        <h2>{queryName}</h2>
-        <h3>{queryDescription}</h3>
-      </div>
-    </div>
-  );
+    );
+  }, [queryId, hostId, hqrError, hostName, queryName, queryDescription]);
 
   return (
     <MainContent className={baseClass}>
-      <>
-        <HQRHeader />
-        <HQRTable
-          {...{
-            queryName,
-            queryDescription,
-            hostName,
-            rows,
-            reportClipped,
-            lastFetched,
-            onShowQuery: () => setShowQuery(true),
-            isLoading: queryLoading || hqrLoading,
-          }}
-        />
-        {showQuery && (
-          <ShowQueryModal
-            query={querySQL}
-            onCancel={() => setShowQuery(false)}
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <>
+          <HQRHeader />
+          <HQRTable
+            queryName={queryName}
+            hostName={hostName}
+            rows={rows}
+            reportClipped={reportClipped}
+            lastFetched={lastFetched}
+            onShowQuery={() => setShowQuery(true)}
+            isLoading={false}
           />
-        )}
-      </>
+          {showQuery && (
+            <ShowQueryModal
+              query={querySQL}
+              onCancel={() => setShowQuery(false)}
+            />
+          )}
+        </>
+      )}
     </MainContent>
   );
 };
