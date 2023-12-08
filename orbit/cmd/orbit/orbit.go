@@ -409,9 +409,9 @@ func main() {
 			// retrying, the `updater.Get` method has built-in backoff functionality.
 			//
 			// NOTE: it used to be the case that we would return an
-			// error here, causing orbit to restart. This was
-			// changed to have control over how/when we want to
-			// retry to download the packages.
+			// error on the first attempt here, causing orbit to
+			// restart. This was changed to have control over
+			// how/when we want to retry to download the packages.
 			err = retrypkg.Do(func() error {
 				osquerydLocalTarget, err := updater.Get("osqueryd")
 				if err != nil {
@@ -440,6 +440,8 @@ func main() {
 				retrypkg.WithInterval(5*time.Minute),
 			)
 			if err != nil {
+				// this should never happen because `retry.Do` is
+				// executed without a defined number of max attempts
 				return fmt.Errorf("getting targets after retry: %w", err)
 			}
 		} else {

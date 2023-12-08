@@ -17,7 +17,7 @@ type ExcessRetriesError struct {
 }
 
 func (e *ExcessRetriesError) Error() string {
-	return fmt.Sprintf("max retries exeeded, retrying again in %v", e.nextRetry)
+	return fmt.Sprintf("max retries exceeded, retrying again in %v", e.nextRetry)
 }
 
 // LimitedWithCooldown manages function calls with a limit on retries and a
@@ -70,7 +70,7 @@ func (t *LimitedWithCooldown) Do(hash string, fn func() error) error {
 	if err := fn(); err != nil {
 		t.retries[hash]++
 		if t.retries[hash] >= t.maxRetries {
-			t.wait[hash] = time.Now().Add(t.cooldown)
+			t.wait[hash] = time.Now()
 		}
 		return err
 	}
