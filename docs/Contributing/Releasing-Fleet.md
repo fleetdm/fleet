@@ -109,11 +109,11 @@ When the Actions Workflow has been completed, [publish the new version of Fleet]
 
    > When a `prepare-*` or `patch-*` branch is pushed, the [Docker publish Action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) will run and create a container image for QA with `fleetctl preview` (eg. `fleetctl preview --tag patch-fleet-v4.3.1`).
 
-5. Check the [Docker Publish GitHub action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) to confirm it completes successfully for this branch.
+2. Check the [Docker Publish GitHub action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) to confirm it completes successfully for this branch.
 
-5. Create a [Release QA](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md) issue. Populate the version and browsers, and assign to the QA person leading the release. Add the appropriate [product group label](https://fleetdm.com/handbook/company/product-groups), and `:release` label, so that it appears on the product group's release board.
+3. Create a [Release QA](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md) issue. Populate the version and browsers, and assign to the QA person leading the release. Add the appropriate [product group label](https://fleetdm.com/handbook/company/product-groups), and `:release` label, so that it appears on the product group's release board.
 
-6. Notify QA that the release candidate is ready for (release QA)[#complete-release-qa].
+4. Notify QA that the release candidate is ready for (release QA)[#complete-release-qa].
 
 ### Complete release QA
 
@@ -127,7 +127,7 @@ When the Actions Workflow has been completed, [publish the new version of Fleet]
 
 ### Publish a new version of Fleet
 
-4. Edit the draft release on the [GitHub releases page](https://github.com/fleetdm/fleet/releases).Use the version number as the release title. Use the below template for the release description
+1. Edit the draft release on the [GitHub releases page](https://github.com/fleetdm/fleet/releases).Use the version number as the release title. Use the below template for the release description
 (replace items in <> with the appropriate values):
    
 ```md
@@ -152,17 +152,17 @@ Documentation for Fleet is available at [fleetdm.com/docs](https://fleetdm.com/d
 
 When editing is complete, publish the release.
 
-5. Publish the new version of `fleetctl` on NPM. Run `npm publish` in the [fleetctl-npm](https://github.com/fleetdm/fleet/tree/main/tools/fleetctl-npm) directory. Note that NPM does not allow replacing a package without creating a new version number. Take care to get things correct before running `npm publish`!
+2. Publish the new version of `fleetctl` on NPM. Run `npm publish` in the [fleetctl-npm](https://github.com/fleetdm/fleet/tree/main/tools/fleetctl-npm) directory. Note that NPM does not allow replacing a package without creating a new version number. Take care to get things correct before running `npm publish`!
 
 > If releasing a "prerelease" of Fleet, run `npm publish --tag prerelease`. This way, you can publish a prerelease of fleetctl while the most recent fleetctl npm package, available for public download, is still the latest _official_ release.
 
-6. Deploy the new version to Fleet's internal dogfood instance: https://fleetdm.com/handbook/engineering#deploying-to-dogfood.
+3. Deploy the new version to Fleet's internal dogfood instance: https://fleetdm.com/handbook/engineering#deploying-to-dogfood.
 
-7. In the #help-infrastructure Slack channel, notify the @infrastructure-oncall of the release. The @infrastructure-oncall will schedule time to upgrade our managed cloud to the new version.
+4. In the #help-infrastructure Slack channel, notify the @infrastructure-oncall of the release. The @infrastructure-oncall will schedule time to upgrade our managed cloud to the new version.
 
-8. Announce the release in the #fleet channel of [osquery Slack](https://fleetdm.com/slack) by updating the channel topic with the link to this release. 
+5. Announce the release in the #fleet channel of [osquery Slack](https://fleetdm.com/slack) by updating the channel topic with the link to this release. 
 
-9. Announce the release in the #general channel by copying and pasting the osquery Slack channel topic.
+6. Announce the release in the #general channel by copying and pasting the osquery Slack channel topic.
 
 <meta name="pageOrderInSection" value="500">
 <meta name="description" value="Learn how new versions of Fleet are created, tested, and released.">
