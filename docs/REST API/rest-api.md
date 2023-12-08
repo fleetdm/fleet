@@ -4292,6 +4292,8 @@ This endpoint returns the results for a specific custom MDM command.
 }
 ```
 
+> Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
+
 ### List custom MDM commands
 
 > `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#list-custom-mdm-commands).
