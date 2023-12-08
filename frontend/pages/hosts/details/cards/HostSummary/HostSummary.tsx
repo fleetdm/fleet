@@ -18,12 +18,12 @@ import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTool
 import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
+import { COLORS } from "styles/var/colors";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
 import HostSummaryIndicator from "./HostSummaryIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 import { generateWinDiskEncryptionProfile } from "../../helpers";
-import { COLORS } from "styles/var/colors";
 
 const baseClass = "host-summary";
 

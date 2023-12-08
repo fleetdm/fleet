@@ -9,11 +9,11 @@ import SearchField from "components/forms/fields/SearchField";
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
+import { COLORS } from "styles/var/colors";
 
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
-import { COLORS } from "styles/var/colors";
 
 export interface ITableQueryData {
   pageIndex: number;

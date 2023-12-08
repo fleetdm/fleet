@@ -31,10 +31,10 @@ import validUrl from "components/forms/validators/valid_url";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import useDeepEffect from "hooks/useDeepEffect";
 import { isEmpty, omit } from "lodash";
+import { COLORS } from "styles/var/colors";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
 import PreviewTicketModal from "../PreviewTicketModal";
-import { COLORS } from "styles/var/colors";
 
 interface ISoftwareAutomations {
   webhook_settings: {

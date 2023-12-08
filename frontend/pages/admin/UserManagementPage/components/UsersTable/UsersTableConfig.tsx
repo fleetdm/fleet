@@ -11,8 +11,8 @@ import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import DropdownCell from "../../../../../components/TableContainer/DataTable/DropdownCell";
 import { COLORS } from "styles/var/colors";
+import DropdownCell from "../../../../../components/TableContainer/DataTable/DropdownCell";
 
 interface IHeaderProps {
   column: {

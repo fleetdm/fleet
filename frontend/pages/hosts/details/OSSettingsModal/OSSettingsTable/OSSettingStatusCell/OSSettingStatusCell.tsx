@@ -8,6 +8,7 @@ import {
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   ProfileOperationType,
 } from "interfaces/mdm";
+import { COLORS } from "styles/var/colors";
 
 import {
   isMdmProfileStatus,
@@ -19,7 +20,6 @@ import {
   ProfileDisplayOption,
   WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG,
 } from "./helpers";
-import { COLORS } from "styles/var/colors";
 
 const baseClass = "os-setting-status-cell";
 

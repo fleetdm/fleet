@@ -24,11 +24,11 @@ import {
   humanHostLastSeen,
   hostTeamName,
 } from "utilities/helpers";
+import { COLORS } from "styles/var/colors";
 import { IDataColumn } from "interfaces/datatable_config";
 import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import getHostStatusTooltipText from "../helpers";
-import { COLORS } from "styles/var/colors";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
