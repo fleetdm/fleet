@@ -28,6 +28,7 @@ import { IDataColumn } from "interfaces/datatable_config";
 import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import getHostStatusTooltipText from "../helpers";
+import { COLORS } from "styles/var/colors";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
@@ -171,7 +172,7 @@ const allHostTableHeaders: IDataColumn[] = [
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="$tooltip-bg"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`host__${cellProps.row.original.id}`}
               data-html
             >
@@ -355,7 +356,7 @@ const allHostTableHeaders: IDataColumn[] = [
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="$tooltip-bg"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`device_mapping__${cellProps.row.original.id}`}
               data-html
               clickable
@@ -467,7 +468,7 @@ const allHostTableHeaders: IDataColumn[] = [
           <ReactTooltip
             place="top"
             effect="solid"
-            backgroundColor="$tooltip-bg"
+            backgroundColor={COLORS["tooltip-bg"]}
             id={`public-ip__${cellProps.row.original.id}`}
             data-html
             clickable

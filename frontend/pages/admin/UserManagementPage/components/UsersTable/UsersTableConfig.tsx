@@ -12,6 +12,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import DropdownCell from "../../../../../components/TableContainer/DataTable/DropdownCell";
+import { COLORS } from "styles/var/colors";
 
 interface IHeaderProps {
   column: {
@@ -98,7 +99,7 @@ const generateTableHeaders = (
                     type="dark"
                     effect="solid"
                     id={`api-only-tooltip-${cellProps.row.original.id}`}
-                    backgroundColor="$tooltip-bg"
+                    backgroundColor={COLORS["tooltip-bg"]}
                     clickable
                     delayHide={200} // need delay set to hover using clickable
                   >

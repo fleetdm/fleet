@@ -13,6 +13,7 @@ import Icon from "components/Icon/Icon";
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
+import { COLORS } from "styles/var/colors";
 
 export interface ITableQueryData {
   pageIndex: number;
@@ -367,7 +368,7 @@ const TableContainer = ({
                 </div>
                 <ReactTooltip
                   effect="solid"
-                  backgroundColor="$tooltip-bg"
+                  backgroundColor={COLORS["tooltip-bg"]}
                   id="search-tooltip"
                   data-html
                 >

@@ -31,7 +31,7 @@ import AddMemberModal from "./components/AddMemberModal";
 import RemoveMemberModal from "./components/RemoveMemberModal";
 
 import {
-  generateTableHeaders,
+  generateColumnConfigs,
   generateDataSet,
   IMembersTableData,
 } from "./MembersPageTableConfig";
@@ -412,7 +412,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
     return <Spinner />;
   }
 
-  const tableHeaders = generateTableHeaders(onActionSelection);
+  const columnConfigs = generateColumnConfigs(onActionSelection);
 
   return (
     <div className={baseClass}>
@@ -431,7 +431,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
       ) : (
         <TableContainer
           resultsTitle={"members"}
-          columnConfigs={tableHeaders}
+          columnConfigs={columnConfigs}
           data={members || []}
           isLoading={isLoadingMembers}
           defaultSortHeader={"name"}

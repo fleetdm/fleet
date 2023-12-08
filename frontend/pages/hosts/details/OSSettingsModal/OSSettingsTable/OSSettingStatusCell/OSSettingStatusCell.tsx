@@ -19,6 +19,7 @@ import {
   ProfileDisplayOption,
   WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG,
 } from "./helpers";
+import { COLORS } from "styles/var/colors";
 
 const baseClass = "os-setting-status-cell";
 
@@ -71,7 +72,7 @@ const OSSettingStatusCell = ({
             <ReactTooltip
               place="top"
               effect="solid"
-              backgroundColor="$tooltip-bg"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={tooltipId}
               data-html
             >

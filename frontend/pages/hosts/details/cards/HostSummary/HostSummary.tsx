@@ -23,6 +23,7 @@ import OSSettingsIndicator from "./OSSettingsIndicator";
 import HostSummaryIndicator from "./HostSummaryIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 import { generateWinDiskEncryptionProfile } from "../../helpers";
+import { COLORS } from "styles/var/colors";
 
 const baseClass = "host-summary";
 
@@ -141,7 +142,7 @@ const HostSummary = ({
           place="top"
           effect="solid"
           id="refetch-tooltip"
-          backgroundColor="$tooltip-bg"
+          backgroundColor={COLORS["tooltip-bg"]}
         >
           <span className={`${baseClass}__tooltip-text`}>
             You can’t fetch data from <br /> an offline host.
@@ -168,7 +169,7 @@ const HostSummary = ({
         <ReactTooltip
           place="bottom"
           effect="solid"
-          backgroundColor="$tooltip-bg"
+          backgroundColor={COLORS["tooltip-bg"]}
           id="host-issue-count"
           data-html
         >

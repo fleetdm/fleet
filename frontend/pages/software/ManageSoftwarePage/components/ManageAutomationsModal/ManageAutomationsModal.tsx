@@ -34,6 +34,7 @@ import { isEmpty, omit } from "lodash";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
 import PreviewTicketModal from "../PreviewTicketModal";
+import { COLORS } from "styles/var/colors";
 
 interface ISoftwareAutomations {
   webhook_settings: {
@@ -519,7 +520,7 @@ const ManageAutomationsModal = ({
             className={`save-automation-button-tooltip`}
             place="bottom"
             effect="solid"
-            backgroundColor="$tooltip-bg"
+            backgroundColor={COLORS["tooltip-bg"]}
             id="save-automation-button"
             data-html
           >
