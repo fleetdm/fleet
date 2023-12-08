@@ -1213,11 +1213,15 @@ func getSoftwareCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "software",
 		Aliases: []string{"s"},
-		Usage:   "List software",
+		Usage:   "List software titles",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:  teamFlagName,
 				Usage: "Only list software of hosts that belong to the specified team",
+			},
+			&cli.BoolFlag{
+				Name:  "versions",
+				Usage: "List all software versions",
 			},
 			jsonFlag(),
 			yamlFlag(),
@@ -1242,47 +1246,102 @@ func getSoftwareCommand() *cli.Command {
 				query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
 			}
 
-			software, err := client.ListSoftware(query.Encode())
-			if err != nil {
-				return fmt.Errorf("could not list software: %w", err)
+			if c.Bool("versions") {
+				return printSoftwareVersions(c, client, query)
 			}
-
-			if len(software) == 0 {
-				log(c, "No software found")
-				return nil
-			}
-
-			if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
-				spec := specGeneric{
-					Kind:    "software",
-					Version: "1",
-					Spec:    software,
-				}
-				err = printSpec(c, spec)
-				if err != nil {
-					return err
-				}
-				return nil
-			}
-
-			// Default to printing as table
-			data := [][]string{}
-
-			for _, s := range software {
-				data = append(data, []string{
-					s.Name,
-					s.Version,
-					s.Source,
-					s.GenerateCPE,
-					fmt.Sprint(len(s.Vulnerabilities)),
-				})
-			}
-			columns := []string{"Name", "Version", "Source", "CPE", "# of CVEs"}
-			printTable(c, columns, data)
-
-			return nil
+			return printSoftwareTitles(c, client, query)
 		},
 	}
+}
+
+func printSoftwareVersions(c *cli.Context, client *service.Client, query url.Values) error {
+	software, err := client.ListSoftwareVersions(query.Encode())
+	if err != nil {
+		return fmt.Errorf("could not list software versions: %w", err)
+	}
+
+	if len(software) == 0 {
+		log(c, "No software versions found")
+		return nil
+	}
+
+	if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
+		spec := specGeneric{
+			Kind:    "software",
+			Version: "1",
+			Spec:    software,
+		}
+		err = printSpec(c, spec)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Default to printing as table
+	data := [][]string{}
+
+	for _, s := range software {
+		data = append(data, []string{
+			s.Name,
+			s.Version,
+			s.Source,
+			fmt.Sprintf("%d vulnerabilities", len(s.Vulnerabilities)),
+			fmt.Sprint(s.HostsCount),
+		})
+	}
+	columns := []string{"Name", "Version", "Type", "Vulnerabilities", "Hosts"}
+	printTable(c, columns, data)
+	return nil
+}
+
+func printSoftwareTitles(c *cli.Context, client *service.Client, query url.Values) error {
+	software, err := client.ListSoftwareTitles(query.Encode())
+	if err != nil {
+		return fmt.Errorf("could not list software titles: %w", err)
+	}
+
+	if len(software) == 0 {
+		log(c, "No software titles found")
+		return nil
+	}
+
+	if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
+		spec := specGeneric{
+			Kind:    "software_title",
+			Version: "1",
+			Spec:    software,
+		}
+		err = printSpec(c, spec)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Default to printing as table
+	data := [][]string{}
+
+	for _, s := range software {
+		vulns := make(map[string]bool)
+		for _, ver := range s.Versions {
+			if ver.Vulnerabilities != nil {
+				for _, vuln := range *ver.Vulnerabilities {
+					vulns[vuln] = true
+				}
+			}
+		}
+		data = append(data, []string{
+			s.Name,
+			fmt.Sprintf("%d versions", s.VersionsCount),
+			s.Source,
+			fmt.Sprintf("%d vulnerabilities", len(vulns)),
+			fmt.Sprint(s.HostsCount),
+		})
+	}
+	columns := []string{"Name", "Versions", "Type", "Vulnerabilities", "Hosts"}
+	printTable(c, columns, data)
+	return nil
 }
 
 func getMDMAppleCommand() *cli.Command {
