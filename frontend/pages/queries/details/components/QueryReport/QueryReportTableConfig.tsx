@@ -15,7 +15,7 @@ import {
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
-import { humanHostLastSeen } from "utilities/helpers";
+import { humanHostLastSeen, internallyTruncateText } from "utilities/helpers";
 
 type IHeaderProps = HeaderProps<TableInstance> & {
   column: ColumnInstance & IDataColumn;
@@ -48,7 +48,7 @@ const _unshiftHostname = (headers: IDataColumn[]) => {
   return newHeaders;
 };
 
-const generateResultsTableHeaders = (results: any[]): Column[] => {
+const generateReportColumnConfigsFromResults = (results: any[]): Column[] => {
   /* Results include an array of objects, each representing a table row
   Each key value pair in an object represents a column name and value
   To create headers, use JS set to create an array of all unique column names */
@@ -59,7 +59,7 @@ const generateResultsTableHeaders = (results: any[]): Column[] => {
     )
   );
 
-  const headers = uniqueColumnNames.map((key) => {
+  const columnConfigs = uniqueColumnNames.map((key) => {
     return {
       id: key as string,
       title: key as string,
@@ -80,14 +80,18 @@ const generateResultsTableHeaders = (results: any[]): Column[] => {
         if (cellProps.column.id === "last_fetched") {
           return humanHostLastSeen(cellProps?.cell?.value);
         }
-        return cellProps?.cell?.value || null;
+        // truncate columns longer than 300 characters
+        const val = cellProps?.cell?.value;
+        return !!val?.length && val.length > 300
+          ? internallyTruncateText(val)
+          : val ?? null;
       },
       Filter: DefaultColumnFilter, // Component hides filter for last_fetched
       filterType: "text",
       disableSortBy: false,
     };
   });
-  return _unshiftHostname(headers);
+  return _unshiftHostname(columnConfigs);
 };
 
-export default generateResultsTableHeaders;
+export default generateReportColumnConfigsFromResults;

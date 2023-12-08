@@ -19,7 +19,7 @@ module.exports = {
     softwareInventoryEnabled: { type: 'boolean', defaultsTo: false },
     vulnDetectionEnabled: { type: 'boolean', defaultsTo: false },
     systemUsersEnabled: { type: 'boolean', defaultsTo: false },
-    hostStatusWebhookEnabled: { type: 'boolean', defaultsTo: false },
+    hostsStatusWebHookEnabled: { type: 'boolean', defaultsTo: false },
     numWeeklyActiveUsers: { type: 'number', defaultsTo: 0 },
     numWeeklyPolicyViolationDaysActual: { type: 'number', defaultsTo: 0 },
     numWeeklyPolicyViolationDaysPossible: { type: 'number', defaultsTo: 0 },
@@ -29,6 +29,10 @@ module.exports = {
     storedErrors: { type: [{}], defaultsTo: [] }, // TODO migrate all rows that have "[]" to {}
     numHostsNotResponding: { type: 'number', defaultsTo: 0, description: 'The number of hosts per deployment that have not submitted results for distibuted queries. A host is counted as not responding if Fleet hasn\'t received a distributed write to requested distibuted queries for the host during the 2-hour interval since the host was last seen. Hosts that have not been seen for 7 days or more are not counted.', },
     organization: { type: 'string', defaultsTo: 'unknown', description: 'For Fleet Premium deployments, the organization registered with the license.', },
+    mdmMacOsEnabled: {type: 'boolean', defaultsTo: false},
+    mdmWindowsEnabled: {type: 'boolean', defaultsTo: false},
+    liveQueryDisabled: {type: 'boolean', defaultsTo: false},
+    hostExpiryEnabled: {type: 'boolean', defaultsTo: false},
   },
 
 
@@ -39,8 +43,8 @@ module.exports = {
 
   fn: async function (inputs) {
 
-    // Create a database record for these usage statistics
-    await HistoricalUsageSnapshot.create(inputs);
+    // Create a database record for these usage statistics.
+    await HistoricalUsageSnapshot.create(Object.assign({}, inputs));
 
     if(!sails.config.custom.datadogApiKey) {
       throw new Error('No Datadog API key configured! (Please set sails.config.custom.datadogApiKey)');
@@ -53,7 +57,11 @@ module.exports = {
       `software_inventory_enabled:${inputs.softwareInventoryEnabled}`,
       `vuln_detection_enabled:${inputs.vulnDetectionEnabled}`,
       `system_users_enabled:${inputs.systemUsersEnabled}`,
-      `host_status_webhook_enabled:${inputs.hostStatusWebhookEnabled}`,
+      `host_status_webhook_enabled:${inputs.hostsStatusWebHookEnabled}`,
+      `mdm_macos_enabled:${inputs.mdmMacOsEnabled}`,
+      `mdm_windows_enabled:${inputs.mdmWindowsEnabled}`,
+      `live_query_disabled:${inputs.liveQueryDisabled}`,
+      `host_expiry_enabled:${inputs.hostExpiryEnabled}`,
     ];
 
     // Create a timestamp in seconds for these metrics
@@ -282,20 +290,24 @@ module.exports = {
       }//∞
     }//ﬁ
 
-    await sails.helpers.http.post.with({
-      url: 'https://api.us5.datadoghq.com/api/v2/series',
-      data: {
-        series: metricsToSendToDatadog,
-      },
-      headers: {
-        'DD-API-KEY': sails.config.custom.datadogApiKey,
-        'Content-Type': 'application/json',
-      }
-    }).tolerate((err)=>{
-      // If there was an error sending metrics to Datadog, we'll log the error in a warning, but we won't throw an error.
-      // This way, we'll still return a 200 status to the Fleet instance that sent usage analytics.
-      sails.log.warn(`When the receive-usage-analytics webhook tried to send metrics to Datadog, an error occured. Raw error: ${require('util').inspect(err)}`);
-    });
+    // Break the metrics into smaller arrays to ensure we don't exceed Datadog's 512 kb request body limit.
+    let chunkedMetrics = _.chunk(metricsToSendToDatadog, 500);// Note: 500 stringified JSON metrics is ~410 kb.
+    for(let chunkOfMetrics of chunkedMetrics) {
+      await sails.helpers.http.post.with({
+        url: 'https://api.us5.datadoghq.com/api/v2/series',
+        data: {
+          series: chunkOfMetrics,
+        },
+        headers: {
+          'DD-API-KEY': sails.config.custom.datadogApiKey,
+          'Content-Type': 'application/json',
+        }
+      }).tolerate((err)=>{
+        // If there was an error sending metrics to Datadog, we'll log the error in a warning, but we won't throw an error.
+        // This way, we'll still return a 200 status to the Fleet instance that sent usage analytics.
+        sails.log.warn(`When the receive-usage-analytics webhook tried to send metrics to Datadog, an error occured. Raw error: ${require('util').inspect(err)}`);
+      });
+    }//∞
 
 
 

@@ -6,7 +6,7 @@ import { abbreviateTimeUnits } from "utilities/helpers";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IMunkiIssue } from "interfaces/host";
 
@@ -77,7 +77,7 @@ export const munkiIssuesTableHeaders: IDataColumn[] = [
     disableSortBy: false,
     accessor: "name",
     Cell: (cellProps: IStringCellProps) => (
-      <TruncatedTextCell value={cellProps.cell.value} />
+      <TooltipTruncatedTextCell value={cellProps.cell.value} />
     ),
     sortType: "caseInsensitive",
   },

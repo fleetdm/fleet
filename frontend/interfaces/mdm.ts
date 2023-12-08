@@ -55,27 +55,28 @@ export interface IMdmSummaryResponse {
   mobile_device_management_solution: IMdmSolution[] | null;
 }
 
+type ProfilePlatform = "darwin" | "windows";
+
 export interface IMdmProfile {
-  profile_id: number;
+  profile_uuid: string;
   team_id: number;
   name: string;
-  identifier: string;
+  platform: ProfilePlatform;
+  identifier: string | null; // null for windows profiles
   created_at: string;
   updated_at: string;
-}
-
-export interface IMdmProfilesResponse {
-  profiles: IMdmProfile[] | null;
+  checksum: string | null; // null for windows profiles
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
 
-export type MacMdmProfileOperationType = "remove" | "install";
+export type ProfileOperationType = "remove" | "install";
 
 export interface IHostMdmProfile {
-  profile_id: number;
+  profile_uuid: string;
   name: string;
-  operation_type: MacMdmProfileOperationType | null;
+  operation_type: ProfileOperationType | null;
+  platform: ProfilePlatform;
   status: MdmProfileStatus;
   detail: string;
 }

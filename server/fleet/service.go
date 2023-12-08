@@ -32,6 +32,8 @@ type EnterpriseOverrides struct {
 	DeleteMDMAppleSetupAssistant      func(ctx context.Context, teamID *uint) error
 	MDMAppleSyncDEPProfiles           func(ctx context.Context) error
 	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
+	MDMWindowsEnableOSUpdates         func(ctx context.Context, teamID *uint, updates WindowsUpdates) error
+	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
 }
 
 type OsqueryService interface {
@@ -268,7 +270,7 @@ type Service interface {
 	// and only non-scheduled queries will be returned if `*scheduled == false`.
 	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool) ([]*Query, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
-	// GetQueryReportResults returns all the stored results of a query.
+	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to
 	GetQueryReportResults(ctx context.Context, id uint) ([]HostQueryResultRow, error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
@@ -323,6 +325,7 @@ type Service interface {
 	// The return value can also include policy information and CVE scores based
 	// on the values provided to `opts`
 	GetHost(ctx context.Context, id uint, opts HostDetailOptions) (host *HostDetail, err error)
+	GetHostHealth(ctx context.Context, id uint) (hostHealth *HostHealth, err error)
 	GetHostSummary(ctx context.Context, teamID *uint, platform *string, lowDiskSpace *int) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
 	// HostByIdentifier returns one host matching the provided identifier.
@@ -566,6 +569,12 @@ type Service interface {
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
+	// Software Titles
+
+	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitle, int, *PaginationMetadata, error)
+	SoftwareTitleByID(ctx context.Context, id uint) (*SoftwareTitle, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, p PolicyPayload) (*Policy, error)
@@ -597,24 +606,32 @@ type Service interface {
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
-	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*MDMAppleConfigProfile, error)
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader) (*MDMAppleConfigProfile, error)
+	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
+	// configuration profile via its numeric ID. This method is deprecated and
+	// should not be used for new endpoints.
+	GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile retrieves the specified configuration profile.
-	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
+	GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*MDMAppleConfigProfile, error)
+	// DeleteMDMAppleConfigProfileByDeprecatedID deletes the specified Apple
+	// configuration profile via its numeric ID. This method is deprecated and
+	// should not be used for new endpoints.
+	DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error
 	// DeleteMDMAppleConfigProfile deletes the specified configuration profile.
-	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error
+	DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error
 	// ListMDMAppleConfigProfiles returns the list of all the configuration profiles for the
 	// specified team.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
-
-	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
-	// each host in the specified team (or, if no team is specified, each host that is not assigned
-	// to any team).
-	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleConfigProfilesSummary, error)
 
 	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
 	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
+
+	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
+	// each host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
@@ -810,8 +827,30 @@ type Service interface {
 	// Set or update the disk encryption key for a host.
 	SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error
 
+	// GetMDMWindowsConfigProfile retrieves the specified configuration profile.
+	GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*MDMWindowsConfigProfile, error)
+
 	// DeleteMDMWindowsConfigProfile deletes the specified windows profile.
 	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
+
+	// GetMDMWindowsProfileSummary summarizes the current state of MDM configuration profiles on each host
+	// in the specified team (or, if no team is specified, each host that is not assigned to any team).
+	GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
+
+	// NewMDMWindowsConfigProfile creates a new Windows configuration profile for
+	// the specified team.
+	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader) (*MDMWindowsConfigProfile, error)
+
+	// NewMDMUnsupportedConfigProfile is called when a profile with an
+	// unsupported extension is uploaded.
+	NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error
+
+	// ListMDMConfigProfiles returns a list of paginated configuration profiles.
+	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
+
+	// BatchSetMDMProfiles replaces the custom Windows/macOS profiles for a specified
+	// team or for hosts with no team.
+	BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles map[string][]byte, dryRun bool, skipBulkPending bool) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM

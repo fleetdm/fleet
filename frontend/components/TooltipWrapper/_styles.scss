@@ -1,6 +1,11 @@
 .component__tooltip-wrapper {
   display: inline-flex;
 
+  &__element {
+    white-space: nowrap;
+    line-height: initial;
+  }
+
   &__underline {
     position: relative;
     width: fit-content;

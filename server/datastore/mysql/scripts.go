@@ -243,10 +243,19 @@ WHERE
 	return scripts, metaData, nil
 }
 
-func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opt fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opt fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
 	var globalOrTeamID uint
 	if teamID != nil {
 		globalOrTeamID = *teamID
+	}
+
+	var extension string
+	switch hostPlatform {
+	case "darwin":
+		extension = `%.sh`
+		break
+	case "windows":
+		extension = `%.ps1`
 	}
 
 	type row struct {
@@ -295,9 +304,16 @@ FROM
 	ON s.id = hsr.script_id
 WHERE
 	(hsr.host_id IS NULL OR hsr.host_id = ?)
-	AND s.global_or_team_id = ?`
+	AND s.global_or_team_id = ?
+	`
 
 	args := []any{hostID, hostID, hostID, globalOrTeamID}
+	if len(extension) > 0 {
+		args = append(args, extension)
+		sql += `
+		AND s.name LIKE ?
+		`
+	}
 	stmt, args := appendListOptionsWithCursorToSQL(sql, args, &opt)
 
 	var rows []*row
@@ -424,5 +440,4 @@ ON DUPLICATE KEY UPDATE
 		}
 		return nil
 	})
-
 }

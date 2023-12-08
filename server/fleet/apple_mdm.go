@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/micromdm/nanodep/godep"
 )
@@ -174,7 +175,12 @@ func (e MDMAppleCommandTimeoutError) StatusCode() int {
 // Configuration profiles are used to configure Apple devices .
 // See also https://developer.apple.com/documentation/devicemanagement/configuring_multiple_devices_using_profiles.
 type MDMAppleConfigProfile struct {
-	// ProfileID is the unique id of the configuration profile in Fleet
+	// ProfileUUID is the unique identifier of the configuration profile in
+	// Fleet. For Apple profiles, it is the letter "a" followed by a uuid.
+	ProfileUUID string `db:"profile_uuid" json:"profile_uuid"`
+	// Deprecated: ProfileID is the old unique id of the configuration profile in
+	// Fleet. It is still maintained and generated for new profiles, but only
+	// used in legacy API endpoints.
 	ProfileID uint `db:"profile_id" json:"profile_id"`
 	// TeamID is the id of the team with which the configuration is associated. A nil team id
 	// represents a configuration profile that is not associated with any team.
@@ -209,10 +215,16 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 }
 
 func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
+	// first screen the top-level object for reserved identifiers and names
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
 		return fmt.Errorf("payload identifier %s is not allowed", cp.Identifier)
 	}
+	fleetNames := mdm.FleetReservedProfileNames()
+	if _, ok := fleetNames[cp.Name]; ok {
+		return fmt.Errorf("payload display name %s is not allowed", cp.Name)
+	}
 
+	// then screen the payload content for reserved identifiers, names, and types
 	return cp.Mobileconfig.ScreenPayloads()
 }
 
@@ -220,12 +232,26 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 type HostMDMAppleProfile struct {
 	HostUUID      string             `db:"host_uuid" json:"-"`
 	CommandUUID   string             `db:"command_uuid" json:"-"`
-	ProfileID     uint               `db:"profile_id" json:"profile_id"`
+	ProfileUUID   string             `db:"profile_uuid" json:"profile_uuid"`
 	Name          string             `db:"name" json:"name"`
 	Identifier    string             `db:"identifier" json:"-"`
 	Status        *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
 	Detail        string             `db:"detail" json:"detail"`
+}
+
+// ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
+func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
+	return HostMDMProfile{
+		HostUUID:      p.HostUUID,
+		ProfileUUID:   p.ProfileUUID,
+		Name:          p.Name,
+		Identifier:    p.Identifier,
+		Status:        p.Status,
+		OperationType: p.OperationType,
+		Detail:        p.Detail,
+		Platform:      "darwin",
+	}
 }
 
 func (p HostMDMAppleProfile) IgnoreMDMClientError() bool {
@@ -259,7 +285,7 @@ func (d HostMDMProfileDetail) Message() string {
 }
 
 type MDMAppleProfilePayload struct {
-	ProfileID         uint               `db:"profile_id"`
+	ProfileUUID       string             `db:"profile_uuid"`
 	ProfileIdentifier string             `db:"profile_identifier"`
 	ProfileName       string             `db:"profile_name"`
 	HostUUID          string             `db:"host_uuid"`
@@ -271,7 +297,7 @@ type MDMAppleProfilePayload struct {
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
-	ProfileID         uint
+	ProfileUUID       string
 	ProfileIdentifier string
 	ProfileName       string
 	HostUUID          string
@@ -280,26 +306,6 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	Status            *MDMDeliveryStatus
 	Detail            string
 	Checksum          []byte
-}
-
-// MDMAppleConfigProfilesSummary reports the number of hosts being managed with MDM configuration
-// profiles. Each host may be counted in only one of four mutually-exclusive categories:
-// Failed, Pending, Verifying, or Verified.
-type MDMAppleConfigProfilesSummary struct {
-	// Verified includes each host where Fleet has verified the installation of all of the
-	// profiles currently applicable to the host. If any of the profiles are pending, failed, or
-	// subject to verification for the host, the host is not counted as verified.
-	Verified uint `json:"verified" db:"verified"`
-	// Verifying includes each host where the MDM service has successfully delivered all of the
-	// profiles currently applicable to the host. If any of the profiles are pending or failed for
-	// the host, the host is not counted as verifying.
-	Verifying uint `json:"verifying" db:"verifying"`
-	// Pending includes each host that has not yet applied one or more of the profiles currently
-	// applicable to the host. If a host failed to apply any profiles, it is not counted as pending.
-	Pending uint `json:"pending" db:"pending"`
-	// Failed includes each host that has failed to apply one or more of the profiles currently
-	// applicable to the host.
-	Failed uint `json:"failed" db:"failed"`
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk

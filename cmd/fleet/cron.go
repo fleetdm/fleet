@@ -71,6 +71,12 @@ func newVulnerabilitiesSchedule(
 				return ds.SyncHostsSoftware(ctx, time.Now())
 			},
 		),
+		schedule.WithJob(
+			"cron_reconcile_software_titles",
+			func(ctx context.Context) error {
+				return ds.ReconcileSoftwareTitles(ctx)
+			},
+		),
 	)
 
 	return s, nil
@@ -778,6 +784,12 @@ func newCleanupsAndAggregationSchedule(
 			"query_aggregated_stats",
 			func(ctx context.Context) error {
 				return ds.UpdateQueryAggregatedStats(ctx)
+			},
+		),
+		schedule.WithJob(
+			"policy_aggregated_stats",
+			func(ctx context.Context) error {
+				return ds.UpdateHostPolicyCounts(ctx)
 			},
 		),
 		schedule.WithJob(

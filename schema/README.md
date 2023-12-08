@@ -12,6 +12,7 @@ When adding a new YAML override to Fleet's osquery schema you can use this templ
 
 ```yaml
 name: # (required) string - The name of the table.
+evented: # boolean - whether or not this table is evented. This value may be required depending on the table's source.
 description: >- # (required) string - The description for this table. Note: this field supports markdown
 	# Add description here
 examples: >- # (optional) string - An example query for this table. Note: This field supports markdown
