@@ -28,7 +28,7 @@ This section will show you how to:
 
 ### Step 1: generate your certificate and key
 
-If you're already using Fleet's macOS MDM features, you already have a certificate and key. These are your SCEP certificate and SCEP private key you used when turning on macOS MDM.
+> If you're already using Fleet's macOS MDM features, you already have a SCEP certificate and key. Skip to step 2 and reuse the SCEP certificate and key as your WSTEP certificate and key.
 
 If you're not using macOS MDM features, run the following command to download three files and send an email to you with an attached CSR file.
 
@@ -164,7 +164,7 @@ Autopilot requires at least one Intune license to edit the Autopilot profile.
 
 ### Step 3: register a test workstation
 
-1. Open your test workstation and follow these Microsoft instructions to export your workstations's device hash as a CSV. The CSV should look something like `DeviceHash_DESKTOP-2V08FUI.csv`
+1. Open your test workstation and follow these [Microsoft instructions](https://learn.microsoft.com/en-us/autopilot/add-devices#desktop-hash-export) to export your workstations's device hash as a CSV. The CSV should look something like `DeviceHash_DESKTOP-2V08FUI.csv`
 
 2. In Intune, in the left-side bar, select **Devices > Enroll devices**. Under **Windows Autopilot Deployment Program** select **Devices** to navigate to the **Windows Autopilot devices** page.
 

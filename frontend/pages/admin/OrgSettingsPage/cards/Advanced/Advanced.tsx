@@ -46,22 +46,17 @@ const Advanced = ({
     setFormData({ ...formData, [name]: value });
   };
 
-  const validateForm = () => {
+  useEffect(() => {
+    // validate desired form fields
     const errors: IAppConfigFormErrors = {};
 
-    if (enableHostExpiry) {
-      if (!hostExpiryWindow || hostExpiryWindow <= 0) {
-        errors.host_expiry_window =
-          "Host expiry window must be a positive number";
-      }
+    if (enableHostExpiry && (!hostExpiryWindow || hostExpiryWindow <= 0)) {
+      errors.host_expiry_window =
+        "Host expiry window must be a positive number";
     }
 
     setFormErrors(errors);
-  };
-
-  useEffect(() => {
-    validateForm();
-  }, [enableHostExpiry]);
+  }, [enableHostExpiry, hostExpiryWindow]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -166,35 +161,37 @@ const Advanced = ({
                 value={enableHostExpiry}
                 parseTarget
                 tooltipContent={
-                  <p>
-                    When enabled, allows automatic cleanup <br />
-                    of hosts that have not communicated with Fleet <br />
-                    in some number of days.{" "}
+                  <>
+                    When enabled, allows automatic cleanup of
+                    <br />
+                    hosts that have not communicated with Fleet in
+                    <br />
+                    the number of days specified in the{" "}
+                    <strong>
+                      Host expiry
+                      <br />
+                      window
+                    </strong>{" "}
+                    setting.{" "}
                     <em className="hint hint--brand">
                       (Default: <strong>Off</strong>)
                     </em>
-                  </p>
+                  </>
                 }
               >
                 Host expiry
               </Checkbox>
-              <InputField
-                label="Host expiry window"
-                type="number"
-                disabled={!enableHostExpiry}
-                onChange={handleInputChange}
-                name="hostExpiryWindow"
-                value={hostExpiryWindow}
-                parseTarget
-                onBlur={validateForm}
-                error={formErrors.host_expiry_window}
-                tooltipContent={
-                  <p>
-                    If a host has not communicated with Fleet in the specified
-                    number of days, it will be removed.
-                  </p>
-                }
-              />
+              {enableHostExpiry && (
+                <InputField
+                  label="Host expiry window"
+                  type="number"
+                  onChange={handleInputChange}
+                  name="hostExpiryWindow"
+                  value={hostExpiryWindow}
+                  parseTarget
+                  error={formErrors.host_expiry_window}
+                />
+              )}
               <Checkbox
                 onChange={handleInputChange}
                 name="disableLiveQuery"
@@ -224,18 +221,21 @@ const Advanced = ({
                   <>
                     <p>
                       Disabling query reports will decrease database usage,{" "}
-                      <br />\ but will prevent you from accessing query results
-                      in
-                      <br /> \ Fleet and will delete existing reports. This can
-                      also be
-                      <br />\ disabled on a per-query basis by enabling
-                      &quot;Discard <br />\ data&quot;.{" "}
+                      <br />
+                      but will prevent you from accessing query results in
+                      <br />
+                      Fleet and will delete existing reports. This can also be{" "}
+                      <br />
+                      disabled on a per-query basis by enabling &quot;Discard{" "}
+                      <br />
+                      data&quot;.{" "}
                       <em>
                         (Default: <b>Off</b>)
                       </em>
                     </p>
                   </>
                 }
+                helpText="Enabling this setting will delete all existing query reports in Fleet."
               >
                 Disable query reports
               </Checkbox>

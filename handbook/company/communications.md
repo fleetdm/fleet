@@ -1,6 +1,4 @@
 # Communications
-
-
 This page covers the things every team member needs to know to effectively contribute at Fleet.
 
 ## All hands
@@ -16,6 +14,38 @@ You can read about the company's positioning and product strategy in ["🎐 Why 
 
 To see the evolution over time or catch up with the latest happenings, review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide ["All hands" meetings](https://fleetdm.com/handbook/business-operations#all-hands).
 
+### Competition
+We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private Google doc).
+
+## Marketing programs
+Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through events, community support, [social media](#social-media), conversation-starting, [ads](#ads), video, and articles.
+
+### Social media
+Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
+
+Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/demand#engage-with-the-community).
+
+Here are some topics for social media posts:
+- Fleet the product
+- Internal progress
+- Highlighting community contributions
+- Highlighting Fleet and osquery accomplishments
+- Industry news about osquery
+- Industry news about device management
+- Upcoming events, interviews, and podcasts
+
+### Ads
+Fleet uses advertising to spread awareness through a broader audience and foster greater engagement within user communities. The more people actively using Fleet, or contributing, the better Fleet will be.
+
+
+### Events
+It's important for Fleet to engage at events. This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
+
+### Podcast
+Fleet has created the [ExpedITioners podcast](https://expeditioners.podbean.com/) to open discussions and help IT and security professionals get ahead of the curve and prepare themselves and their organizations for what lies ahead. 
+
+### Video
+Fleet's utilization of YouTube is an essential component of our commitment to nurturing a strong and informed user community. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it.
 
 ## Meetings
 - **Plan to join meetings on time.** At Fleet, we start on time and do not wait for folks to join.  As most of our meetings are conducted over zoom, please join with a working microphone and with your camera on whenever possible.  Being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early. 
@@ -173,19 +203,36 @@ We use these prefixes to organize the Fleet Slack:
 
 
 ## Github
-Fleet uses Github as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for our product and documentation; a platfrom to allow community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
+Fleet uses Github as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for our product and documentation; a platform to allow community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
 
 ### GitHub labels
-We use special characters to define different types of GitHub labels. By combining labels, we
-organize and categorize GitHub issues. This reduces the total number of labels required while
-maintaining an expressive labeling system. For example, instead of a label called
-`platform-dev-backend`, we use `#platform :dev ~backend`.
+Fleet prefixes all GitHub labels with special characters or words to organize and categorize GitHub issues.
 
-| Special character | Label type  | Examples                            |
+| Prefix            | Label type  | Examples                            |
 |:------------------|:------------|:------------------------------------|
 | `#`               | Noun        | `#g-marketing`, `#g-ceo`, `#agent`
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
+| `customer-`       | [Customer request](TODO link to handbook section) | `customer-leo`, `customer-sagittarius`
+| `#g-`             | Group isssue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
+
+Opionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. For example, instead of a label called `platform-dev-backend`, we use `#platform :dev ~backend`.
+
+> _**Note:** There are only a few "special" labels that are exceptions to this rule:
+> - `bug`
+> - `story`
+> -  `prospect-` _(TODO: This makes sense, but I noticed on Nov 30, 2023 that `customer-` was being used in at least one place `prospect-` was supposed to be.  Let's decide what we'll be doing.  Easiest thing is probably to switch to `customer-` for everything and then clarify who is a customer in the mapping between labels and actual organization names.  Up to Luke and Zay.)_
+> - `customer request` _(FUTURE: is this needed?  if so, could use special symbol prefix in front of it)_
+> -  `needs prioritization` _(FUTURE: is this needed? could we use a symbol prefix in front of it?)_
+> - `github_actions` _(TODO: why is this here?  Instead we can use prefixes, like `~`)_
+> - `docker` _(TODO: why is this here?  Instead we can use prefixes, like `~`)_
+> -  `go` _(TODO: why is this here?  Instead we can use prefixes, like `~`)_
+> -  `javascript` _(TODO: why is this here?  Instead we can use prefixes, like `~`)_
+> - `Epic` _(TODO: Find a way to remove this.  It is an artifact from Zenhub and not something we actually want to exist or use, as it is confusing.)_
+> -  `p4` _(TODO: why is this here?  Instead we can use prefixes, like `~`.  Or better yet, delete it.  What is a P4 anyway?)_
+> -  `p5` _(TODO: why is this here?  Instead we can use prefixes, like `~`.  Same as `p4`.)_
+> -  `story to demo` _(FUTURE: is this needed?  if so, could use special symbol prefix in front of it)_
+> -  `bug to demo` _(FUTURE: is this needed?  if so, could use special symbol prefix in front of it)_
 
 ### Process new requests
 Team members [process their department's kanban boards](https://fleetdm.com/handbook/company/why-this-way#why-lean-software-development) daily, prioritizing all new requests including issues and PRs within one business day.
@@ -493,6 +540,8 @@ Compensation at Fleet is determined by benchmarking using [Pave](https://pave.co
 
 ### Payroll dates
 US based Fleeties get paid on the last business day of the month. International teammates pay dates follow the same structure as US pay, unless there are in-country requirement that dictate a more frequent cadence.
+
+Variable compensation (i.e. commission) is reviewed and submitted for processing by RevOps by the 7th of each month for the previous month or quarter's contributions. US based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions. 
 
 ### Workiversaries
 We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The  team will post in Slack to highlight your dedication and contribution to Fleet, giving an opportunity for teammates to share their appreciation of your contribution!
@@ -1190,10 +1239,12 @@ Once you have the above follow these steps:
     > 
     > e.g., `node ./node_modules/sails/bin/sails run build-static-content --skipGithubRequests`
 
+    >Note: When this script runs, the website's configuration file ([`website/.sailsrc`](https://github.com/fleetdm/fleet/blob/main/website/.sailsrc)) will automatically be updated with information the website uses to display content built from Markdown and YAML. Changes to this file should never be committed to the GitHub repo. If you want to exclude changes to this file in any PRs you make, you can run this terminal command in your local copy of the Fleet repo: `git update-index --assume-unchanged ./website/.sailsrc`.
+
 3. Once the script is complete, start the website server. From the `website/` folder:
   - **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`
   - **With Sails.js installed globally:** start the server by running `sails lift`.
-4. When the server has started, the Fleet website will be availible at [http://localhost:2024](http://localhost:2024)
+4. When the server has started, the Fleet website will be available at [http://localhost:2024](http://localhost:2024)
     
   > **Note:** Some features, such as self-service license dispenser and account creation, are not available when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw` in the [#g-website](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack.
 

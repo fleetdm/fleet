@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"go.mozilla.org/pkcs7"
 	"howett.net/plist"
 )
@@ -99,6 +100,7 @@ func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 type payloadSummary struct {
 	Type       string
 	Identifier string
+	Name       string
 }
 
 // payloadSummary attempts to parse the PayloadContent list of the Mobileconfig's TopLevel object.
@@ -161,7 +163,14 @@ func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 			}
 		}
 
-		if summary.Type != "" || summary.Identifier != "" {
+		pdn, ok := payloadDict["PayloadDisplayName"]
+		if ok {
+			if s, ok := pdn.(string); ok {
+				summary.Name = s
+			}
+		}
+
+		if summary.Type != "" || summary.Identifier != "" || summary.Name != "" {
 			result = append(result, summary)
 		}
 
@@ -179,16 +188,21 @@ func (mc *Mobileconfig) ScreenPayloads() error {
 		}
 	}
 
+	fleetNames := mdm.FleetReservedProfileNames()
 	fleetIdentifiers := FleetPayloadIdentifiers()
 	fleetTypes := FleetPayloadTypes()
 	screenedTypes := []string{}
 	screenedIdentifiers := []string{}
+	screenedNames := []string{}
 	for _, t := range pct {
 		if _, ok := fleetTypes[t.Type]; ok {
 			screenedTypes = append(screenedTypes, t.Type)
 		}
 		if _, ok := fleetIdentifiers[t.Identifier]; ok {
 			screenedIdentifiers = append(screenedIdentifiers, t.Identifier)
+		}
+		if _, ok := fleetNames[t.Name]; ok {
+			screenedNames = append(screenedNames, t.Name)
 		}
 	}
 
@@ -198,6 +212,10 @@ func (mc *Mobileconfig) ScreenPayloads() error {
 
 	if len(screenedIdentifiers) > 0 {
 		return fmt.Errorf("unsupported PayloadIdentifier(s): %s", strings.Join(screenedIdentifiers, ", "))
+	}
+
+	if len(screenedNames) > 0 {
+		return fmt.Errorf("unsupported PayloadDisplayName(s): %s", strings.Join(screenedNames, ", "))
 	}
 
 	return nil

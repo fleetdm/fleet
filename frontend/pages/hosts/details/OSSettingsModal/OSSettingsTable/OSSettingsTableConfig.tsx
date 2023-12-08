@@ -10,7 +10,7 @@ import {
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
 import { generateWinDiskEncryptionProfile } from "../../helpers";
 
@@ -86,7 +86,7 @@ const tableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps): JSX.Element => {
       const profile = cellProps.row.original;
       return (
-        <TruncatedTextCell
+        <TooltipTruncatedTextCell
           tooltipBreakOnWord
           value={
             (profile.status === "failed" && profile.detail) ||
@@ -98,21 +98,28 @@ const tableHeaders: IDataColumn[] = [
   },
 ];
 
-const makeWindowsRows = ({ os_settings }: IHostMdmData) => {
-  if (
-    !os_settings?.disk_encryption?.status ||
-    !isWindowsDiskEncryptionStatus(os_settings.disk_encryption.status)
-  ) {
-    return null;
+const makeWindowsRows = ({ profiles, os_settings }: IHostMdmData) => {
+  const rows: ITableRowOsSettings[] = [];
+
+  if (profiles) {
+    rows.push(...profiles);
   }
 
-  const rows: ITableRowOsSettings[] = [];
-  rows.push(
-    generateWinDiskEncryptionProfile(
-      os_settings.disk_encryption.status,
-      os_settings.disk_encryption.detail
-    )
-  );
+  if (
+    os_settings?.disk_encryption?.status &&
+    isWindowsDiskEncryptionStatus(os_settings.disk_encryption.status)
+  ) {
+    rows.push(
+      generateWinDiskEncryptionProfile(
+        os_settings.disk_encryption.status,
+        os_settings.disk_encryption.detail
+      )
+    );
+  }
+
+  if (rows.length === 0 && !profiles) {
+    return null;
+  }
 
   return rows;
 };

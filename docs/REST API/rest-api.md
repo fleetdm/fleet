@@ -642,13 +642,14 @@ Retrieves a list of the non expired carves. Carve contents remain available for 
 
 #### Parameters
 
-| Name            | Type    | In    | Description                                                                                                                   |
-|-----------------|---------|-------|-------------------------------------------------------------------------------------------------------------------------------|
-| page            | integer | query | Page number of the results to fetch.                                                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
-| order_key       | string  | query | What to order results by. Can be any field listed in the `results` array example below.                                       |
+| Name            | Type    | In    | Description                                                                                                                    |
+|-----------------|---------|-------|--------------------------------------------------------------------------------------------------------------------------------|
+| page            | integer | query | Page number of the results to fetch.                                                                                           |
+| per_page        | integer | query | Results per page.                                                                                                              |
+| order_key       | string  | query | What to order results by. Can be any field listed in the `results` array example below.                                        |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Valid options are 'asc' or 'desc'. Default is 'asc'. |
-| expired         | boolean | query | Include expired carves (default: false)                                                                                       |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                       |
+| expired         | boolean | query | Include expired carves (default: false)                                                                                        |
 
 #### Example
 
@@ -698,7 +699,7 @@ Retrieves a list of the non expired carves. Carve contents remain available for 
 
 Retrieves the specified carve.
 
-`GET /api/v1/fleet/carves/{id}`
+`GET /api/v1/fleet/carves/:id`
 
 #### Parameters
 
@@ -737,7 +738,7 @@ Retrieves the specified carve.
 
 Retrieves the specified carve block. This endpoint retrieves the data that was carved.
 
-`GET /api/v1/fleet/carves/{id}/block/{block_id}`
+`GET /api/v1/fleet/carves/:id/block/:block_id`
 
 #### Parameters
 
@@ -878,9 +879,16 @@ None.
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
     },
+    "windows_updates": {
+      "deadline_days": 5,
+      "grace_period_days": 1
+    },
     "macos_settings": {
       "custom_settings": ["path/to/profile1.mobileconfig"],
       "enable_disk_encryption": true
+    },
+    "windows_settings": {
+      "custom_settings": ["path/to/profile2.xml"],
     },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
@@ -1078,11 +1086,14 @@ Modifies the Fleet's configuration with the supplied information.
 | windows_enabled_and_configured    | boolean | body  | _mdm settings_. Enables Windows MDM support. |
 | minimum_version                   | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. **Requires Fleet Premium license** |
 | deadline                          | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. **Requires Fleet Premium license** |
+| deadline_days                     | integer | body  | _mdm.windows_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows. **Requires Fleet Premium license** |
+| grace_period_days                 | integer | body  | _mdm.windows_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates. **Requires Fleet Premium license** |
 | enable                          | boolean  | body  | _mdm.macos_migration settings_. Whether to enable the end user migration workflow for devices migrating from your old MDM solution. **Requires Fleet Premium license** |
 | mode                          | string  | body  | _mdm.macos_migration settings_. The end user migration workflow mode for devices migrating from your old MDM solution. Options are `"voluntary"` or `"forced"`. **Requires Fleet Premium license** |
 | webhook_url                          | string  | body  | _mdm.macos_migration settings_. The webhook url configured to receive requests to unenroll devices migrating from your old MDM solution. **Requires Fleet Premium license** |
 | custom_settings                   | list    | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
 | enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
+| custom_settings                   | list    | body  | _mdm.windows_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
 | scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
 | enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
@@ -1173,9 +1184,16 @@ Note that when making changes to the `integrations` object, all integrations mus
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
     },
+    "windows_updates": {
+      "deadline_days": 5,
+      "grace_period_days": 1
+    },
     "macos_settings": {
       "custom_settings": ["path/to/profile1.mobileconfig"],
       "enable_disk_encryption": true
+    },
+    "windows_settings": {
+      "custom_settings": ["path/to/profile2.xml"],
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -1376,7 +1394,7 @@ Delete all global enroll secrets.
 
 Returns the valid team enroll secrets.
 
-`GET /api/v1/fleet/teams/{id}/secrets`
+`GET /api/v1/fleet/teams/:id/secrets`
 
 #### Parameters
 
@@ -1407,7 +1425,7 @@ None.
 
 Replaces all existing team enroll secrets.
 
-`PATCH /api/v1/fleet/teams/{id}/secrets`
+`PATCH /api/v1/fleet/teams/:id/secrets`
 
 #### Parameters
 
@@ -1605,7 +1623,7 @@ Returns a list of the active invitations in Fleet.
 
 Delete the specified invite from Fleet.
 
-`DELETE /api/v1/fleet/invites/{id}`
+`DELETE /api/v1/fleet/invites/:id`
 
 #### Parameters
 
@@ -1615,7 +1633,7 @@ Delete the specified invite from Fleet.
 
 #### Example
 
-`DELETE /api/v1/fleet/invites/{id}`
+`DELETE /api/v1/fleet/invites/123`
 
 ##### Default response
 
@@ -1626,7 +1644,7 @@ Delete the specified invite from Fleet.
 
 Verify the specified invite.
 
-`GET /api/v1/fleet/invites/{token}`
+`GET /api/v1/fleet/invites/:token`
 
 #### Parameters
 
@@ -1636,7 +1654,7 @@ Verify the specified invite.
 
 #### Example
 
-`GET /api/v1/fleet/invites/{token}`
+`GET /api/v1/fleet/invites/abcdef012456789`
 
 ##### Default response
 
@@ -1675,7 +1693,7 @@ Verify the specified invite.
 
 ### Update invite
 
-`PATCH /api/v1/fleet/invites/{id}`
+`PATCH /api/v1/fleet/invites/:id`
 
 #### Parameters
 
@@ -1828,6 +1846,7 @@ the `software` table.
 - `policy_updated_at`: the last time we updated the policy results for the host based on the queries ran.
 - `seen_time`: the last time the host contacted the fleet server, regardless of what operation it was for.
 - `software_updated_at`: the last time software changed for the host in any way.
+- `last_restarted_at`: the last time that the host was restarted.
 
 ### List hosts
 
@@ -1904,6 +1923,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "updated_at": "2020-11-05T06:03:39Z",
       "id": 1,
       "detail_updated_at": "2020-11-05T05:09:45Z",
+      "last_restarted_at": "2020-11-01T03:01:45Z",
       "software_updated_at": "2020-11-05T05:09:44Z",
       "label_updated_at": "2020-11-05T05:14:51Z",
       "policy_updated_at": "2023-06-26T18:33:15Z",
@@ -2160,7 +2180,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 Returns the information of the specified host.
 
-`GET /api/v1/fleet/hosts/{id}`
+`GET /api/v1/fleet/hosts/:id`
 
 #### Parameters
 
@@ -2213,6 +2233,7 @@ Returns the information of the specified host.
     ],
     "id": 1,
     "detail_updated_at": "2021-08-19T21:07:53Z",
+    "last_restarted_at": "2020-11-01T03:01:45Z",
     "software_updated_at": "2020-11-05T05:09:44Z",
     "label_updated_at": "2021-08-19T21:07:53Z",
     "policy_updated_at": "2023-06-26T18:33:15Z",
@@ -2400,7 +2421,7 @@ Returns the information of the specified host.
 Returns the information of the host specified using the `uuid`, `osquery_host_id`, `hostname`, or
 `node_key` as an identifier
 
-`GET /api/v1/fleet/hosts/identifier/{identifier}`
+`GET /api/v1/fleet/hosts/identifier/:identifier`
 
 #### Parameters
 
@@ -2607,7 +2628,7 @@ Returns a subset of information about the host specified by `token`. To get all 
 
 This is the API route used by the **My device** page in Fleet desktop to display information about the host to the end user.
 
-`GET /api/v1/fleet/device/{token}`
+`GET /api/v1/fleet/device/:token`
 
 ##### Parameters
 
@@ -2805,7 +2826,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
 
 Deletes the specified host from Fleet. Note that a deleted host will fail authentication with the previous node key, and in most osquery configurations will attempt to re-enroll automatically. If the host still has a valid enroll secret, it will re-enroll successfully.
 
-`DELETE /api/v1/fleet/hosts/{id}`
+`DELETE /api/v1/fleet/hosts/:id`
 
 #### Parameters
 
@@ -2826,7 +2847,7 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 Flags the host details, labels and policies to be refetched the next time the host checks in for distributed queries. Note that we cannot be certain when the host will actually check in and update the query results. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
 
-`POST /api/v1/fleet/hosts/{id}/refetch`
+`POST /api/v1/fleet/hosts/:id/refetch`
 
 #### Parameters
 
@@ -2971,7 +2992,7 @@ Retrieves a host's Google Chrome profile information which can be used to link a
 
 Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
-`GET /api/v1/fleet/hosts/{id}/device_mapping`
+`GET /api/v1/fleet/hosts/:id/device_mapping`
 
 #### Parameters
 
@@ -3058,7 +3079,7 @@ Retrieves a host's MDM enrollment status and MDM server URL.
 
 If the host exists but is not enrolled to an MDM server, then this API returns `null`.
 
-`GET /api/v1/fleet/hosts/{id}/mdm`
+`GET /api/v1/fleet/hosts/:id/mdm`
 
 #### Parameters
 
@@ -3150,7 +3171,7 @@ Currently supported only on macOS.
 
 Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
-`GET /api/v1/fleet/hosts/{id}/macadmins`
+`GET /api/v1/fleet/hosts/:id/macadmins`
 
 #### Parameters
 
@@ -3562,7 +3583,7 @@ Creates a dynamic label.
 
 Modifies the specified label. Note: Label queries and platforms are immutable. To change these, you must delete the label and create a new label.
 
-`PATCH /api/v1/fleet/labels/{id}`
+`PATCH /api/v1/fleet/labels/:id`
 
 #### Parameters
 
@@ -3613,7 +3634,7 @@ Modifies the specified label. Note: Label queries and platforms are immutable. T
 
 Returns the specified label.
 
-`GET /api/v1/fleet/labels/{id}`
+`GET /api/v1/fleet/labels/:id`
 
 #### Parameters
 
@@ -3802,7 +3823,7 @@ Returns a list of all the labels in Fleet.
 
 Returns a list of the hosts that belong to the specified label.
 
-`GET /api/v1/fleet/labels/{id}/hosts`
+`GET /api/v1/fleet/labels/:id/hosts`
 
 #### Parameters
 
@@ -3898,7 +3919,7 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
 
 Deletes the label specified by name.
 
-`DELETE /api/v1/fleet/labels/{name}`
+`DELETE /api/v1/fleet/labels/:name`
 
 #### Parameters
 
@@ -3919,7 +3940,7 @@ Deletes the label specified by name.
 
 Deletes the label specified by ID.
 
-`DELETE /api/v1/fleet/labels/id/{id}`
+`DELETE /api/v1/fleet/labels/id/:id`
 
 #### Parameters
 
@@ -4087,7 +4108,7 @@ List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are
 
 ### Download custom macOS setting (configuration profile)
 
-`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+`GET /api/v1/fleet/mdm/apple/profiles/:profile_id`
 
 #### Parameters
 
@@ -4139,7 +4160,7 @@ solely on the response status code returned by this endpoint.
 
 ### Delete custom macOS setting (configuration profile)
 
-`DELETE /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+`DELETE /api/v1/fleet/mdm/apple/profiles/:profile_id`
 
 #### Parameters
 
@@ -4317,6 +4338,8 @@ This endpoint returns the results for a specific custom MDM command.
   ]
 }
 ```
+
+> Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
 
 ### List custom MDM commands
 
@@ -4513,7 +4536,7 @@ None.
 
 ### Turn off MDM for a host
 
-`PATCH /api/v1/fleet/mdm/hosts/{id}/unenroll`
+`PATCH /api/v1/fleet/mdm/hosts/:id/unenroll`
 
 #### Parameters
 
@@ -4583,7 +4606,7 @@ _Available in Fleet Premium_
 
 Get information about a bootstrap package that was uploaded to Fleet.
 
-`GET /api/v1/fleet/mdm/apple/bootstrap/{team_id}/metadata`
+`GET /api/v1/fleet/mdm/apple/bootstrap/:team_id/metadata`
 
 #### Parameters
 
@@ -4621,7 +4644,7 @@ _Available in Fleet Premium_
 
 Delete a team's bootstrap package.
 
-`DELETE /api/v1/fleet/mdm/apple/bootstrap/{team_id}`
+`DELETE /api/v1/fleet/mdm/apple/bootstrap/:team_id`
 
 #### Parameters
 
@@ -4805,7 +4828,7 @@ _Available in Fleet Premium_
 
 Delete an EULA file.
 
-`DELETE /api/v1/fleet/mdm/apple/setup/eula/{token}`
+`DELETE /api/v1/fleet/mdm/apple/setup/eula/:token`
 
 #### Parameters
 
@@ -4827,7 +4850,7 @@ _Available in Fleet Premium_
 
 Download an EULA file
 
-`GET /api/v1/fleet/mdm/apple/setup/eula/{token}`
+`GET /api/v1/fleet/mdm/apple/setup/eula/:token`
 
 #### Parameters
 
@@ -4963,7 +4986,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ### Get policy by ID
 
-`GET /api/v1/fleet/global/policies/{id}`
+`GET /api/v1/fleet/global/policies/:id`
 
 #### Parameters
 
@@ -5143,7 +5166,7 @@ Where `query_id` references an existing `query`.
 
 ### Edit policy
 
-`PATCH /api/v1/fleet/global/policies/{policy_id}`
+`PATCH /api/v1/fleet/global/policies/:id`
 
 #### Parameters
 
@@ -5252,13 +5275,13 @@ Team policies work the same as policies, but at the team level.
 
 ### List team policies
 
-`GET /api/v1/fleet/teams/{id}/policies`
+`GET /api/v1/fleet/teams/:id/policies`
 
 #### Parameters
 
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| id                 | integer | url  | Required. Defines what team ID to operate on                                                                            |
+| id                 | integer | path  | **Required.** Defines what team ID to operate on                                                                            |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page. |
 #### Example
@@ -5331,11 +5354,12 @@ Team policies work the same as policies, but at the team level.
 
 ### Count team policies
 
-`GET /api/v1/fleet/team/{team_id}/policies/count`
+`GET /api/v1/fleet/team/:team_id/policies/count`
 
 #### Parameters
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| team_id                 | integer | path  | **Required.** Defines what team ID to operate on   
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 
 #### Example
@@ -5356,14 +5380,14 @@ Team policies work the same as policies, but at the team level.
 
 ### Get team policy by ID
 
-`GET /api/v1/fleet/teams/{team_id}/policies/{id}`
+`GET /api/v1/fleet/teams/:team_id/policies/:policy_id`
 
 #### Parameters
 
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id            | integer | url  | Defines what team ID to operate on                                                                            |
-| id                 | integer | path | **Required.** The policy's ID.                                                                                |
+| team_id            | integer | path  | **Required.** Defines what team ID to operate on                                                                            |
+| policy_id                 | integer | path | **Required.** The policy's ID.                                                                                |
 
 #### Example
 
@@ -5399,13 +5423,13 @@ Team policies work the same as policies, but at the team level.
 
 The semantics for creating a team policy are the same as for global policies, see [Add policy](#add-policy).
 
-`POST /api/v1/fleet/teams/{team_id}/policies`
+`POST /api/v1/fleet/teams/:id/policies`
 
 #### Parameters
 
 | Name        | Type    | In   | Description                          |
 | ----------  | ------- | ---- | ------------------------------------ |
-| team_id     | integer | url  | Defines what team ID to operate on.  |
+| id         | integer | path | Defines what team ID to operate on.  |
 | name        | string  | body | The query's name.                    |
 | query       | string  | body | The query in SQL.                    |
 | description | string  | body | The query's description.             |
@@ -5461,13 +5485,13 @@ Either `query` or `query_id` must be provided.
 
 ### Remove team policies
 
-`POST /api/v1/fleet/teams/{team_id}/policies/delete`
+`POST /api/v1/fleet/teams/:team_id/policies/delete`
 
 #### Parameters
 
 | Name     | Type    | In   | Description                                       |
 | -------- | ------- | ---- | ------------------------------------------------- |
-| team_id  | integer | url  | Defines what team ID to operate on                |
+| team_id  | integer | path  | **Required.** Defines what team ID to operate on                |
 | ids      | list    | body | **Required.** The IDs of the policies to delete.  |
 
 #### Example
@@ -5494,7 +5518,7 @@ Either `query` or `query_id` must be provided.
 
 ### Edit team policy
 
-`PATCH /api/v1/fleet/teams/{team_id}/policies/{policy_id}`
+`PATCH /api/v1/fleet/teams/:team_id/policies/:policy_id`
 
 #### Parameters
 
@@ -5677,7 +5701,7 @@ Returns a list of global queries or team queries.
 
 Returns the query specified by ID.
 
-`GET /api/v1/fleet/queries/{id}`
+`GET /api/v1/fleet/queries/:id`
 
 #### Parameters
 
@@ -5740,7 +5764,7 @@ Returns the query specified by ID.
 
 Returns the query report specified by ID.
 
-`GET /api/v1/fleet/queries/{id}/report`
+`GET /api/v1/fleet/queries/:id/report`
 
 #### Parameters
 
@@ -5897,7 +5921,7 @@ Creates a global query or team query.
 
 Modifies the query specified by ID.
 
-`PATCH /api/v1/fleet/queries/{id}`
+`PATCH /api/v1/fleet/queries/:id`
 
 #### Parameters
 
@@ -5970,7 +5994,7 @@ Modifies the query specified by ID.
 
 Deletes the query specified by name.
 
-`DELETE /api/v1/fleet/queries/{name}`
+`DELETE /api/v1/fleet/queries/:name`
 
 #### Parameters
 
@@ -5981,7 +6005,7 @@ Deletes the query specified by name.
 
 #### Example
 
-`DELETE /api/v1/fleet/queries/{name}`
+`DELETE /api/v1/fleet/queries/foo`
 
 ##### Default response
 
@@ -5992,7 +6016,7 @@ Deletes the query specified by name.
 
 Deletes the query specified by ID.
 
-`DELETE /api/v1/fleet/queries/id/{id}`
+`DELETE /api/v1/fleet/queries/id/:id`
 
 #### Parameters
 
@@ -6283,7 +6307,7 @@ None.
 > The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
-`PATCH /api/v1/fleet/global/schedule/{id}`
+`PATCH /api/v1/fleet/global/schedule/:id`
 
 #### Parameters
 
@@ -6339,7 +6363,7 @@ None.
 > The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
-`DELETE /api/v1/fleet/global/schedule/{id}`
+`DELETE /api/v1/fleet/global/schedule/:id`
 
 #### Parameters
 
@@ -6373,7 +6397,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 > The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
-`GET /api/v1/fleet/teams/{id}/schedule`
+`GET /api/v1/fleet/teams/:id/schedule`
 
 #### Parameters
 
@@ -6453,7 +6477,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 > The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
-`POST /api/v1/fleet/teams/{id}/schedule`
+`POST /api/v1/fleet/teams/:id/schedule`
 
 #### Parameters
 
@@ -6511,7 +6535,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 > The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
-`PATCH /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
+`PATCH /api/v1/fleet/teams/:team_id/schedule/:scheduled_query_id`
 
 #### Parameters
 
@@ -6568,7 +6592,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 > The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
-`DELETE /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
+`DELETE /api/v1/fleet/teams/:team_id/schedule/:scheduled_query_id`
 
 #### Parameters
 
@@ -6589,8 +6613,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ## Scripts
 
-- [Run script asynchronously](#run-script-asynchronously)
-- [Run script synchronously](#run-script-synchronously)
+- [Run script](#run-script)
 - [Get script result](#get-script-result)
 - [Upload a script](#upload-a-script)
 - [Delete a script](#delete-a-script)
@@ -6598,44 +6621,11 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Get or download a script](#get-or-download-a-script)
 - [Get script details by host](#get-script-details-by-host)
 
-### Run script asynchronously
+### Run script
 
 _Available in Fleet Premium_
 
-Creates a script execution request and returns the execution identifier to retrieve results at a later time.
-
-`POST /api/v1/fleet/scripts/run`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                                                                    |
-| ----            | ------- | ---- | --------------------------------------------                                                   |
-| host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
-
-> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
-
-#### Example
-
-`POST /api/v1/fleet/scripts/run`
-
-##### Default response
-
-`Status: 202`
-
-```json
-{
-  "host_id": 1227,
-  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
-}
-```
-
-### Run script synchronously
-
-_Available in Fleet Premium_
-
-Creates a script execution request and waits for a result to return (up to a 1 minute timeout).
+Execute a script and see script results (1 minute timeout).
 
 `POST /api/v1/fleet/scripts/run/sync`
 
@@ -6684,7 +6674,7 @@ Gets the result of a script that was executed.
 
 #### Example
 
-`GET /api/v1/fleet/scripts/results/{execution_id}`
+`GET /api/v1/fleet/scripts/results/:execution_id`
 
 ##### Default Response
 
@@ -6764,7 +6754,7 @@ _Available in Fleet Premium_
 
 Deletes an existing script.
 
-`DELETE /api/v1/fleet/scripts/{id}`
+`DELETE /api/v1/fleet/scripts/:id`
 
 #### Parameters
 
@@ -6831,7 +6821,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/scripts/{id}`
+`GET /api/v1/fleet/scripts/:id`
 
 #### Parameters
 
@@ -6883,7 +6873,7 @@ echo "hello"
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/hosts/{id}/scripts`
+`GET /api/v1/fleet/hosts/:id/scripts`
 
 #### Parameters
 
@@ -6894,7 +6884,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`GET /api/v1/fleet/hosts/{id}/scripts`
+`GET /api/v1/fleet/hosts/123/scripts`
 
 ##### Default response
 
@@ -6950,7 +6940,7 @@ _Available in Fleet Premium_
 
 Returns the session information for the session specified by ID.
 
-`GET /api/v1/fleet/sessions/{id}`
+`GET /api/v1/fleet/sessions/:id`
 
 #### Parameters
 
@@ -6978,7 +6968,7 @@ Returns the session information for the session specified by ID.
 
 Deletes the session specified by ID. When the user associated with the session next attempts to access Fleet, they will be asked to log in.
 
-`DELETE /api/v1/fleet/sessions/{id}`
+`DELETE /api/v1/fleet/sessions/:id`
 
 #### Parameters
 
@@ -7364,7 +7354,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/teams/{id}`
+`GET /api/v1/fleet/teams/:id`
 
 #### Parameters
 
@@ -7421,9 +7411,16 @@ _Available in Fleet Premium_
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01"
       },
+      "windows_updates": {
+        "deadline_days": 5,
+        "grace_period_days": 1
+      },
       "macos_settings": {
-        "custom_settings": ["path/to/profile.mobileconfig"],
+        "custom_settings": ["path/to/profile1.mobileconfig"],
         "enable_disk_encryption": false
+      },
+      "windows_settings": {
+        "custom_settings": ["path/to/profile2.xml"],
       },
       "macos_setup": {
         "bootstrap_package": "",
@@ -7509,7 +7506,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`PATCH /api/v1/fleet/teams/{id}`
+`PATCH /api/v1/fleet/teams/:id`
 
 #### Parameters
 
@@ -7535,13 +7532,19 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;group_id                        | integer | body | The Zendesk group id to use. Zendesk tickets will be created in this group.                                                                                                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies         | boolean | body | Whether or not that Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
 | mdm                                                     | object  | body | MDM settings for the team.                                                                                                                                                                                |
-| &nbsp;&nbsp;macos_updates                               | object  | body | MacOS updates settings.                                                                                                                                                                                   |
+| &nbsp;&nbsp;macos_updates                               | object  | body | macOS updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
-| &nbsp;&nbsp;macos_settings                              | object  | body | MacOS-specific settings.                                                                                                                                                                                  |
+| &nbsp;&nbsp;windows_updates                             | object  | body | Windows updates settings.                                                                                                                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;deadline_days                   | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;grace_period_days               | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates.                                                                    |
+| &nbsp;&nbsp;macos_settings                              | object  | body | macOS-specific settings.                                                                                                                                                                                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of .mobileconfig files to apply to macOS hosts that belong to this team.                                                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true.                                                                                        |
-| &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS devices.                                                                                                                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;enable_end_user_authentication          | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
+| &nbsp;&nbsp;windows_settings                            | object  | body | Windows-specific settings.                                                                                                                                                                                |
+| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of XML files to apply to Windows hosts that belong to this team.                                                                                                                                |
+| &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS hosts.                                                                                                                                                      |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_end_user_authentication  | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
 
 
 #### Example (add users to a team)
@@ -7601,9 +7604,16 @@ _Available in Fleet Premium_
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01"
       },
+      "windows_updates": {
+        "deadline_days": 5,
+        "grace_period_days": 1
+      },
       "macos_settings": {
-        "custom_settings": ["path/to/profile.mobileconfig"],
+        "custom_settings": ["path/to/profile1.mobileconfig"],
         "enable_disk_encryption": false
+      },
+      "windows_settings": {
+        "custom_settings": ["path/to/profile2.xml"],
       },
       "macos_setup": {
         "bootstrap_package": "",
@@ -7675,7 +7685,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`POST /api/v1/fleet/teams/{id}/agent_options`
+`POST /api/v1/fleet/teams/:id/agent_options`
 
 #### Parameters
 
@@ -7764,7 +7774,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`DELETE /api/v1/fleet/teams/{id}`
+`DELETE /api/v1/fleet/teams/:id`
 
 #### Parameters
 
@@ -8175,7 +8185,7 @@ By default, the user will be forced to reset its password upon first login.
 
 Returns all information about a specific user.
 
-`GET /api/v1/fleet/users/{id}`
+`GET /api/v1/fleet/users/:id`
 
 #### Parameters
 
@@ -8235,7 +8245,7 @@ Returns all information about a specific user.
 
 ### Modify user
 
-`PATCH /api/v1/fleet/users/{id}`
+`PATCH /api/v1/fleet/users/:id`
 
 #### Parameters
 
@@ -8343,7 +8353,7 @@ Returns all information about a specific user.
 
 Delete the specified user from Fleet.
 
-`DELETE /api/v1/fleet/users/{id}`
+`DELETE /api/v1/fleet/users/:id`
 
 #### Parameters
 
@@ -8364,7 +8374,7 @@ Delete the specified user from Fleet.
 
 The selected user is logged out of Fleet and required to reset their password during the next attempt to log in. This also revokes all active Fleet API tokens for this user. Returns the user object.
 
-`POST /api/v1/fleet/users/{id}/require_password_reset`
+`POST /api/v1/fleet/users/:id/require_password_reset`
 
 #### Parameters
 
@@ -8375,7 +8385,7 @@ The selected user is logged out of Fleet and required to reset their password du
 
 #### Example
 
-`POST /api/v1/fleet/users/{id}/require_password_reset`
+`POST /api/v1/fleet/users/123/require_password_reset`
 
 ##### Request body
 
@@ -8410,7 +8420,7 @@ The selected user is logged out of Fleet and required to reset their password du
 
 Returns a list of the user's sessions in Fleet.
 
-`GET /api/v1/fleet/users/{id}/sessions`
+`GET /api/v1/fleet/users/:id/sessions`
 
 #### Parameters
 
@@ -8450,7 +8460,7 @@ None.
 
 Deletes the selected user's sessions in Fleet. Also deletes the user's API token.
 
-`DELETE /api/v1/fleet/users/{id}/sessions`
+`DELETE /api/v1/fleet/users/:id/sessions`
 
 #### Parameters
 
@@ -8528,7 +8538,7 @@ Returns information about the current state of the database; valid keys are:
 - `innodb-status`: returns InnoDB status information.
 - `process-list`: returns running processes (queries, etc).
 
-`GET /debug/db/{key}`
+`GET /debug/db/:key`
 
 #### Parameters
 
@@ -8540,7 +8550,7 @@ Returns runtime profiling data of the server in the format expected by `go tools
 
 Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
 
-`GET /debug/pprof/{key}`
+`GET /debug/pprof/:key`
 
 #### Parameters
 None.

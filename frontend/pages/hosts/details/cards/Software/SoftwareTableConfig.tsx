@@ -75,7 +75,7 @@ const TYPE_CONVERSION: Record<string, string> = {
   rpm_packages: "Package (RPM)",
   yum_sources: "Package (YUM)",
   npm_packages: "Package (NPM)",
-  atom_packages: "Package (Atom)",
+  atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
   apps: "Application (macOS)",
   chrome_extensions: "Browser plugin (Chrome)",

@@ -126,7 +126,17 @@ type HostListOptions struct {
 	PolicyIDFilter       *uint
 	PolicyResponseFilter *bool
 
+	// Deprecated: SoftwareIDFilter is deprecated as of Fleet 4.42. It is
+	// maintained for backwards compatibility. Use SoftwareVersionIDFilter
+	// instead.
 	SoftwareIDFilter *uint
+	// SoftwareVersionIDFilter filters the hosts by the software version ID that
+	// they use. This identifies a specific version of a "software title".
+	SoftwareVersionIDFilter *uint
+	// SoftwareTitleIDFilter filers the hosts by the software title ID that they
+	// use. This identifies a "software title" independent of the specific
+	// version.
+	SoftwareTitleIDFilter *uint
 
 	OSIDFilter      *uint
 	OSNameFilter    *string
@@ -179,6 +189,8 @@ func (h HostListOptions) Empty() bool {
 		h.PolicyIDFilter == nil &&
 		h.PolicyResponseFilter == nil &&
 		h.SoftwareIDFilter == nil &&
+		h.SoftwareVersionIDFilter == nil &&
+		h.SoftwareTitleIDFilter == nil &&
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
@@ -316,6 +328,25 @@ type Host struct {
 	// The boolean is based on information ingested from the Apple DEP API that is stored in the
 	// host_dep_assignments table.
 	DEPAssignedToFleet *bool `json:"dep_assigned_to_fleet,omitempty" db:"dep_assigned_to_fleet" csv:"-"`
+
+	// LastRestartedAt is a UNIX timestamp that indicates when the Host was last restarted.
+	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at" csv:"last_restarted_at"`
+}
+
+// HostHealth contains a subset of Host data that indicates how healthy a Host is. For fields with
+// the same name, see the comments/docs for the Host field above.
+type HostHealth struct {
+	UpdatedAt             time.Time           `json:"updated_at,omitempty" db:"updated_at"`
+	OsVersion             string              `json:"os_version,omitempty" db:"os_version"`
+	DiskEncryptionEnabled *bool               `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
+	VulnerableSoftware    []HostSoftwareEntry `json:"vulnerable_software,omitempty"`
+	FailingPolicies       []*HostPolicy       `json:"failing_policies,omitempty"`
+	Platform              string              `json:"-" db:"platform"`                // Needed to fetch failing policies. Not returned in HTTP responses.
+	TeamID                *uint               `json:"team_id,omitempty" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
+}
+
+func (hh HostHealth) AuthzType() string {
+	return "host_health"
 }
 
 type MDMHostData struct {
@@ -354,7 +385,7 @@ type MDMHostData struct {
 	// It is a pointer to a slice so that when set, it gets marhsaled even
 	// if the slice is empty, but when unset, it doesn't get marshaled
 	// (e.g. we don't return that information for the List Hosts endpoint).
-	Profiles *[]HostMDMAppleProfile `json:"profiles,omitempty" db:"profiles" csv:"-"`
+	Profiles *[]HostMDMProfile `json:"profiles,omitempty" db:"profiles" csv:"-"`
 
 	// MacOSSettings indicates macOS-specific MDM settings for the host, such
 	// as disk encryption status and whether any user action is required to
@@ -629,21 +660,25 @@ func (h *Host) IsEligibleForBitLockerEncryption() bool {
 		(needsEncryption || encryptedWithoutKey)
 }
 
-// DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
+// HostDisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
 // empty. If Hostname is empty and both HardwareSerial and HardwareModel are not empty, it returns a
 // composite string with HardwareModel and HardwareSerial. If all else fails, it returns an empty
 // string.
-func (h *Host) DisplayName() string {
+func HostDisplayName(ComputerName string, Hostname string, HardwareModel string, HardwareSerial string) string {
 	switch {
-	case h.ComputerName != "":
-		return h.ComputerName
-	case h.Hostname != "":
-		return h.Hostname
-	case h.HardwareModel != "" && h.HardwareSerial != "":
-		return fmt.Sprintf("%s (%s)", h.HardwareModel, h.HardwareSerial)
+	case ComputerName != "":
+		return ComputerName
+	case Hostname != "":
+		return Hostname
+	case HardwareModel != "" && HardwareSerial != "":
+		return fmt.Sprintf("%s (%s)", HardwareModel, HardwareSerial)
 	default:
 		return ""
 	}
+}
+
+func (h *Host) DisplayName() string {
+	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
 }
 
 type HostIssues struct {
@@ -975,6 +1010,7 @@ func (h *HostMDM) UnmarshalJSON(b []byte) error {
 // HostBattery represents a host's battery, as reported by the osquery battery
 // table.
 type HostBattery struct {
+	ID           uint   `json:"-" db:"id"`
 	HostID       uint   `json:"-" db:"host_id"`
 	SerialNumber string `json:"-" db:"serial_number"`
 	CycleCount   int    `json:"cycle_count" db:"cycle_count"`

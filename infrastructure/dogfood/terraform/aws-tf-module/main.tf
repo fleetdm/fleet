@@ -19,7 +19,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "4.57.0"
+      version = "~> 5.0"
     }
   }
 }
@@ -53,10 +53,11 @@ locals {
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
   }
+  idp_metadata_file = "${path.module}/files/idp-metadata.xml"
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.1.0"
+  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.6.1"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -86,6 +87,10 @@ module "main" {
   fleet_config = {
     image  = local.fleet_image
     family = local.customer
+    autoscaling = {
+      min_capacity = 2
+      max_capacity = 5
+    }
     awslogs = {
       name      = local.customer
       retention = 365
@@ -110,70 +115,70 @@ module "main" {
     #   container_port   = 8080
     # }]
   }
- alb_config = {
-   name = local.customer
-   access_logs = {
-     bucket  = module.logging_alb.log_s3_bucket_id
-     prefix  = local.customer
-     enabled = true
-   }
-#    extra_target_groups = [
-#      {
-#        name             = module.saml_auth_proxy.name
-#        backend_protocol = "HTTP"
-#        backend_port     = 80
-#        target_type      = "ip"
-#        health_check = {
-#          path                = "/_health"
-#          matcher             = "200"
-#          timeout             = 10
-#          interval            = 15
-#          healthy_threshold   = 5
-#          unhealthy_threshold = 5
-#        }
-#      }
-#    ]
-#    https_listener_rules = [{
-#      https_listener_index = 0
-#      priority             = 9000
-#      actions = [{
-#        type               = "forward"
-#        target_group_index = 1
-#      }]
-#      conditions = [{
-#        path_patterns = ["/device/*", "/api/*/fleet/device/*", "/saml/*"]
-#      }]
-#      }, {
-#      https_listener_index = 0
-#      priority             = 1
-#      actions = [{
-#        type               = "forward"
-#        target_group_index = 0
-#      }]
-#      conditions = [{
-#        path_patterns = ["/api/*/fleet/device/*/migrate_mdm", "/api/*/fleet/device/*/rotate_encryption_key"]
-#      }]
-#      }, {
-#      https_listener_index = 0
-#      priority             = 2
-#      actions = [{
-#        type               = "forward"
-#        target_group_index = 0
-#      }]
-#      conditions = [{
-#        path_patterns = ["/api/*/fleet/device/*/debug/errors", "/api/*/fleet/device/*/desktop"]
-#      }]
-#      }, {
-#      https_listener_index = 0
-#      priority             = 3
-#      actions = [{
-#        type               = "forward"
-#        target_group_index = 0
-#      }]
-#      conditions = [{
-#        path_patterns = ["/api/*/fleet/device/*/refetch", "/api/*/fleet/device/*/transparency"]
-#      }]
-#    }]
+  alb_config = {
+    name = local.customer
+    access_logs = {
+      bucket  = module.logging_alb.log_s3_bucket_id
+      prefix  = local.customer
+      enabled = true
+    }
+    #    extra_target_groups = [
+    #      {
+    #        name             = module.saml_auth_proxy.name
+    #        backend_protocol = "HTTP"
+    #        backend_port     = 80
+    #        target_type      = "ip"
+    #        health_check = {
+    #          path                = "/_health"
+    #          matcher             = "200"
+    #          timeout             = 10
+    #          interval            = 15
+    #          healthy_threshold   = 5
+    #          unhealthy_threshold = 5
+    #        }
+    #      }
+    #    ]
+    #    https_listener_rules = [{
+    #      https_listener_index = 0
+    #      priority             = 9000
+    #      actions = [{
+    #        type               = "forward"
+    #        target_group_index = 1
+    #      }]
+    #      conditions = [{
+    #        path_patterns = ["/device/*", "/api/*/fleet/device/*", "/saml/*"]
+    #      }]
+    #      }, {
+    #      https_listener_index = 0
+    #      priority             = 1
+    #      actions = [{
+    #        type               = "forward"
+    #        target_group_index = 0
+    #      }]
+    #      conditions = [{
+    #        path_patterns = ["/api/*/fleet/device/*/migrate_mdm", "/api/*/fleet/device/*/rotate_encryption_key"]
+    #      }]
+    #      }, {
+    #      https_listener_index = 0
+    #      priority             = 2
+    #      actions = [{
+    #        type               = "forward"
+    #        target_group_index = 0
+    #      }]
+    #      conditions = [{
+    #        path_patterns = ["/api/*/fleet/device/*/debug/errors", "/api/*/fleet/device/*/desktop"]
+    #      }]
+    #      }, {
+    #      https_listener_index = 0
+    #      priority             = 3
+    #      actions = [{
+    #        type               = "forward"
+    #        target_group_index = 0
+    #      }]
+    #      conditions = [{
+    #        path_patterns = ["/api/*/fleet/device/*/refetch", "/api/*/fleet/device/*/transparency"]
+    #      }]
+    #    }]
   }
 }
 
@@ -247,7 +252,7 @@ module "mdm" {
 }
 
 module "firehose-logging" {
-  source = "github.com/fleetdm/fleet//terraform/addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.0.0"
+  source = "github.com/fleetdm/fleet//terraform/addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.1.0"
   osquery_results_s3_bucket = {
     name = "${local.customer}-osquery-results-archive"
   }
@@ -264,7 +269,7 @@ module "osquery-carve" {
 }
 
 module "monitoring" {
-  source                      = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=tf-mod-addon-monitoring-v1.1.1"
+  source                      = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=tf-mod-addon-monitoring-v1.1.3"
   customer_prefix             = local.customer
   fleet_ecs_service_name      = module.main.byo-vpc.byo-db.byo-ecs.service.name
   fleet_min_containers        = module.main.byo-vpc.byo-db.byo-ecs.service.desired_count
@@ -289,14 +294,14 @@ module "monitoring" {
     subnet_ids                 = module.main.vpc.private_subnets
     vpc_id                     = module.main.vpc.vpc_id
     # Format of https://pkg.go.dev/time#ParseDuration
-    delay_tolerance            = "2h"
+    delay_tolerance = "2h"
     # Interval format for: https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html#rate-based
-    run_interval               = "1 hour"
+    run_interval = "1 hour"
   }
 }
 
 module "logging_alb" {
-  source        = "github.com/fleetdm/fleet//terraform/addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.0.0"
+  source        = "github.com/fleetdm/fleet//terraform/addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.2.0"
   prefix        = local.customer
   enable_athena = true
 }
@@ -390,3 +395,30 @@ module "waf" {
 #   alb_target_group_arn         = module.main.byo-vpc.byo-db.alb.target_group_arns[1]
 #   cookie_max_age               = "15m"
 # }
+
+# This is intended to be public
+module "dogfood_idp_metadata_bucket" {
+  source                                = "terraform-aws-modules/s3-bucket/aws"
+  version                               = "3.15.1"
+  bucket                                = "fleet-dogfood-idp-metadata"
+  attach_deny_insecure_transport_policy = true
+  attach_require_latest_tls_policy      = true
+  attach_public_policy                  = true
+  block_public_acls                     = false
+  block_public_policy                   = false
+  ignore_public_acls                    = false
+  restrict_public_buckets               = false
+  acl                                   = "public-read"
+  control_object_ownership              = true
+  object_ownership                      = "BucketOwnerPreferred"
+}
+
+resource "aws_s3_object" "idp_metadata" {
+  bucket = module.dogfood_idp_metadata_bucket.s3_bucket_id
+  key    = "idp-metadata.xml"
+  source = local.idp_metadata_file
+  etag   = filemd5(local.idp_metadata_file)
+  acl    = "public-read"
+}
+
+

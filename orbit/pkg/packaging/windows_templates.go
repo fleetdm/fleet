@@ -159,10 +159,36 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   Return="check"
                   Impersonate="no" />                    
 
+   <SetProperty Id="CA_WaitOrbit"
+                 Before ="CA_WaitOrbit"
+                 Sequence="execute"
+                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass Wait-Process -Name orbit -Timeout 30 -ErrorAction SilentlyContinue' />
+
+    <CustomAction Id="CA_WaitOrbit"
+                  BinaryKey="WixCA"
+                  DllEntry="WixQuietExec64"
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="no" />
+
+   <SetProperty Id="CA_RemoveRebootPending"
+                 Before ="CA_RemoveRebootPending"
+                 Sequence="execute"
+                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass Remove-Item -Path "$Env:Programfiles\orbit\bin" -Recurse -Force' />
+
+    <CustomAction Id="CA_RemoveRebootPending"
+                  BinaryKey="WixCA"
+                  DllEntry="WixQuietExec64"
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="no" />
+
     <InstallExecuteSequence>
       <Custom Action='CA_RemoveOrbit' Before='RemoveFiles'>(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")</Custom> <!-- Only happens during uninstall -->
       <Custom Action='CA_UninstallOsquery' After='InstallFiles'>NOT Installed AND NOT WIX_UPGRADE_DETECTED</Custom> <!-- Only happens during first install -->
-      <Custom Action='CA_UpdateSecret' Before='InstallServices'>NOT Installed</Custom> <!-- It happens just before service creation -->      
+      <Custom Action='CA_UpdateSecret' Before='InstallServices'>NOT Installed</Custom> <!-- It happens just before service creation -->
+      <Custom Action="CA_WaitOrbit" Before="CA_RemoveRebootPending"/>
+      <Custom Action="CA_RemoveRebootPending" Before='InstallFiles'>NOT Installed</Custom> <!-- It removes reboot pending Orbit files -->
     </InstallExecuteSequence>
 
     <Feature Id="Orbit" Title="Fleet osquery" Level="1" Display="hidden">
