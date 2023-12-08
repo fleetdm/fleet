@@ -27,6 +27,12 @@ func TestValidateAgentOptions(t *testing.T) {
 			}
 		}}`, `unknown field "foo"`},
 
+		{"overrides.platform is null", `{"overrides": {
+			"platforms": {
+				"darwin": null
+			}
+		}}`, `platforms cannot be null. To remove platform overrides omit overrides from agent options.`},
+
 		{"extra top-level bytes", `{}true`, `extra bytes`},
 		{"extra config bytes", `{"config":{}true}`, `invalid character 't' after object`},
 		{"extra overrides bytes", `{"overrides":{}true}`, `invalid character 't' after object`},
