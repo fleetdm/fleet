@@ -176,6 +176,12 @@ func main() {
 			Usage:   "Enable script execution",
 			EnvVars: []string{"ORBIT_ENABLE_SCRIPTS"},
 		},
+		&cli.StringFlag{
+			Name:    "host-identifier",
+			Usage:   "Set the host identifier to use in osquery (default is 'uuid')",
+			EnvVars: []string{"ORBIT_HOST_IDENTIFIER"},
+			Value:   "uuid",
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -460,13 +466,35 @@ func main() {
 			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
-		orbitHostInfo, err := getHostInfo(osquerydPath, filepath.Join(c.String("root-dir"), "osquery.db"))
+		osqueryHostInfo, err := getHostInfo(osquerydPath, filepath.Join(c.String("root-dir"), "osquery.db"))
 		if err != nil {
 			return fmt.Errorf("get UUID: %w", err)
 		}
-		log.Debug().Str("info", fmt.Sprint(orbitHostInfo)).Msg("retrieved host info")
+		log.Debug().Str("info", fmt.Sprint(osqueryHostInfo)).Msg("retrieved host info from osquery")
+		orbitHostInfo := fleet.OrbitHostInfo{
+			HardwareSerial: osqueryHostInfo.HardwareSerial,
+			HardwareUUID:   osqueryHostInfo.HardwareUUID,
+			Hostname:       osqueryHostInfo.Hostname,
+			Platform:       osqueryHostInfo.Platform,
+		}
 
-		var options []osquery.Option
+		// Only send osquery's `instance_id` if the user is running orbit with `--host-identifier=instance`.
+		// When not set, orbit and osquery will be matched using the hardware UUID (orbitHostInfo.HardwareUUID).
+		if c.String("host-identifier") == "instance" {
+			orbitHostInfo.OsqueryIdentifier = osqueryHostInfo.InstanceID
+		}
+
+		// The hardware serial was not sent when Windows MDM was implemented,
+		// thus we clear its value here to not break any existing enroll functionality
+		// on the server.
+		if runtime.GOOS == "windows" {
+			orbitHostInfo.HardwareSerial = ""
+		}
+
+		var (
+			options              []osquery.Option
+			optionsAfterFlagfile []osquery.Option
+		)
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 		options = append(options, osquery.WithLogPath(filepath.Join(c.String("root-dir"), "osquery_log")))
 
@@ -685,7 +713,8 @@ func main() {
 			case err == nil:
 				if stat.Size() > 0 {
 					log.Debug().Msg("adding --extensions_autoload flag for file " + extensionAutoLoadFile)
-					options = append(options, osquery.WithFlags([]string{"--extensions_autoload", extensionAutoLoadFile}))
+					// We set this option after the --flagfile to prevent users from changing it on their flagfiles.
+					optionsAfterFlagfile = append(optionsAfterFlagfile, osquery.WithFlags([]string{"--extensions_autoload", extensionAutoLoadFile}))
 				} else {
 					// OK, expected as well when extensions are unloaded, just debug log
 					log.Debug().Msg("found empty extensions.load file at " + extensionAutoLoadFile)
@@ -832,6 +861,14 @@ func main() {
 		flagfilePath := filepath.Join(c.String("root-dir"), "osquery.flags")
 		if exists, err := file.Exists(flagfilePath); err == nil && exists {
 			options = append(options, osquery.WithFlags([]string{"--flagfile", flagfilePath}))
+		}
+
+		// These options must go after '--flagfile' to not allow users to change their values
+		// on their flagfiles.
+		hostIdentifier := c.String("host-identifier")
+		options = append(options, osquery.WithFlags([]string{"--host-identifier", hostIdentifier}))
+		for _, option := range optionsAfterFlagfile {
+			options = append(options, option)
 		}
 
 		// Handle additional args after '--' in the command line. These are added last and should
@@ -1097,8 +1134,8 @@ func (d *desktopRunner) interrupt(err error) {
 	}
 }
 
-// hostInfo is used to parse osquery JSON output from `system_info` and `os_version` tables.
-type hostInfo struct {
+// osqueryHostInfo is used to parse osquery JSON output from system tables.
+type osqueryHostInfo struct {
 	// HardwareUUID is the unique identifier for this device (extracted from `system_info` osquery table).
 	HardwareUUID string `json:"uuid"`
 	// HardwareSerial is the unique serial number for this device (extracted from `system_info` osquery table).
@@ -1107,47 +1144,14 @@ type hostInfo struct {
 	Hostname string `json:"hostname"`
 	// Platform is the device's platform as defined by osquery (extracted from `os_version` osquery table).
 	Platform string `json:"platform"`
+	// InstanceID is the osquery's randomly generated instance ID
+	// (extracted from `osquery_info` osquery table).
+	InstanceID string `json:"instance_id"`
 }
 
-// getHostInfo retrieves system information about the host.
-//
-// On macOS and Linux it shells out to osqueryd to retrieve the information.
-//
-// On Windows:
-//
-//   - HardwareUUID is retrieved by shelling out to wmic, if that fails
-//     then the windows API are used.
-//   - HardwareSerial is currently not retrieved for Windows devices.
-//   - Hostname is retrieved using stdlib method.
-//   - Platform is always "windows" for windows hosts.
-//
-// NOTE: Windows uses a different approach to retrieve the device information
-// as there were issues at the time with shelling out to osquery - from what the
-// team remembers it would sometimes fail due to the osquery process not being ready yet.
-// A recent CI run without the Windows special-case did succeed, but since we don't
-// need the serial number for Windows at the moment, we opted to keep the
-// code as it is.
-func getHostInfo(osqueryPath string, osqueryDBPath string) (fleet.OrbitHostInfo, error) {
-	if runtime.GOOS == "windows" {
-		uuidData, uuidSource, err := platform.GetSMBiosUUID()
-		if err != nil {
-			return fleet.OrbitHostInfo{}, err
-		}
-		log.Debug().Str("source", string(uuidSource)).Msg("UUID")
-		// Hostname might differ from the one provided by osquery but we are sending it
-		// for troubleshooting purposes and to avoid empty host entries in the UI.
-		hostname, err := os.Hostname()
-		if err != nil {
-			return fleet.OrbitHostInfo{}, err
-		}
-		return fleet.OrbitHostInfo{
-			HardwareUUID:   uuidData,
-			HardwareSerial: "", // currently not needed for Windows.
-			Hostname:       hostname,
-			Platform:       "windows",
-		}, nil
-	}
-	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform FROM system_info si, os_version os"
+// getHostInfo retrieves system information about the host by shelling out to `osqueryd -S` and performing a `SELECT` query.
+func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, error) {
+	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform, oi.instance_id FROM system_info si, os_version os, osquery_info oi"
 	args := []string{
 		"-S",
 		"--database_path", osqueryDBPath,
@@ -1156,22 +1160,17 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (fleet.OrbitHostInfo,
 	log.Debug().Str("query", systemQuery).Msg("running single query")
 	out, err := exec.Command(osqueryPath, args...).Output()
 	if err != nil {
-		return fleet.OrbitHostInfo{}, err
+		return nil, err
 	}
-	var info []hostInfo
+	var info []osqueryHostInfo
 	err = json.Unmarshal(out, &info)
 	if err != nil {
-		return fleet.OrbitHostInfo{}, err
+		return nil, err
 	}
 	if len(info) != 1 {
-		return fleet.OrbitHostInfo{}, fmt.Errorf("invalid number of rows from system info query: %d", len(info))
+		return nil, fmt.Errorf("invalid number of rows from system info query: %d", len(info))
 	}
-	return fleet.OrbitHostInfo{
-		HardwareSerial: info[0].HardwareSerial,
-		HardwareUUID:   info[0].HardwareUUID,
-		Hostname:       info[0].Hostname,
-		Platform:       info[0].Platform,
-	}, nil
+	return &info[0], nil
 }
 
 var versionCommand = &cli.Command{
