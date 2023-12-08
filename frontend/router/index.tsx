@@ -43,6 +43,7 @@ import ResetPasswordPage from "pages/ResetPasswordPage";
 import MDMAppleSSOPage from "pages/MDMAppleSSOPage";
 import MDMAppleSSOCallbackPage from "pages/MDMAppleSSOCallbackPage";
 import SoftwareDetailsPage from "pages/SoftwarePage/SoftwareDetailsPage";
+import SoftwareDetailsPage from "pages/SoftwarePage/SoftwareDetailsPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";

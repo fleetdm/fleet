@@ -24,6 +24,9 @@ const DEFAULT_SOFTWARE_MOCK: ISoftware = {
 export const createMockSoftware = (
   overrides?: Partial<ISoftware>
 ): ISoftware => {
+export const createMockSoftware = (
+  overrides?: Partial<ISoftware>
+): ISoftware => {
   return { ...DEFAULT_SOFTWARE_MOCK, ...overrides };
 };
 
