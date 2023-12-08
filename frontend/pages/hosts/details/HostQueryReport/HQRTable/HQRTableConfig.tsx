@@ -26,11 +26,13 @@ interface IDataColumn extends ColumnInterface {
   accessor: string;
 }
 
-const generateColumnConfigs = (rows: any[]) =>
-  getUniqueColumnNamesFromRows(rows).map((colName) => {
+const generateColumnConfigs = (rows: Record<string, string>[]) =>
+  // casting necessary because of loose typing of below method
+  // see note there for more details
+  (getUniqueColumnNamesFromRows(rows) as string[]).map((colName) => {
     return {
-      id: colName as string,
-      title: colName as string,
+      id: colName,
+      title: colName,
       Header: (headerProps: IHeaderProps) => (
         <HeaderCell
           value={
@@ -42,7 +44,7 @@ const generateColumnConfigs = (rows: any[]) =>
           isSortedDesc={headerProps.column.isSortedDesc}
         />
       ),
-      accessor: colName as string,
+      accessor: colName,
       Cell: (cellProps: ICellProps) => {
         // Sorts chronologically by date, but UI displays readable last fetched
         if (cellProps.column.id === "last_fetched") {

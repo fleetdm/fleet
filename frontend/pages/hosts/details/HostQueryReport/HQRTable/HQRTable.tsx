@@ -18,7 +18,7 @@ const baseClass = "hqr-table";
 interface IHQRTable {
   queryName?: string;
   hostName?: string;
-  rows: Record<string, any>[];
+  rows: Record<string, string>[];
   reportClipped?: boolean;
   lastFetched?: string | null; // timestamp
   onShowQuery: () => void;

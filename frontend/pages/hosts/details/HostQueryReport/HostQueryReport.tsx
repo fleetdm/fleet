@@ -334,6 +334,7 @@ const HostQueryReport = ({
     // TODO - remove below casting, just for testing
   } = (hqrResponse || {}) as Partial<IGetHQRResponse>;
 
+  // API response is nested this way to mirror that of the full Query Reports response (IQueryReport)
   const rows = results?.map((row) => row.columns) ?? [];
 
   const {

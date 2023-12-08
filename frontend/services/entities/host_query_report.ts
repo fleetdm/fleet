@@ -2,7 +2,7 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
 export interface IHQRResult {
-  columns: Record<string, any>;
+  columns: Record<string, string>;
 }
 export interface IGetHQRResponse {
   query_id: number;
