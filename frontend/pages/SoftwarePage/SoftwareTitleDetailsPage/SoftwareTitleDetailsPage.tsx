@@ -1,9 +1,17 @@
-import React, { useContext } from "react";
+import React, { useContext, useMemo } from "react";
+import { RouteComponentProps } from "react-router";
+import { useQuery } from "react-query";
+
+import { AppContext } from "context/app";
+import { ISoftwareTitle } from "interfaces/software";
+import softwareAPI, {
+  ISoftwareTitleResponse,
+} from "services/entities/software";
 
 import MainContent from "components/MainContent";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import { InjectedRouter, RouteComponentProps } from "react-router";
-import { AppContext } from "context/app";
+
+import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
+import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
 
 const baseClass = "SoftwareTitleDetailsPage";
 
@@ -20,46 +28,41 @@ const SoftwareTitleDetailsPage = ({
   router,
   routeParams,
 }: ISoftwareTitleDetailsPageProps) => {
+  // TODO: handle non integer values
+  const softwareId = parseInt(routeParams.id, 10);
+  const { isSandboxMode, filteredSoftwarePath } = useContext(AppContext);
+
   const {
-    isPremiumTier,
-    isSandboxMode,
-    currentTeam,
-    filteredSoftwarePath,
-  } = useContext(AppContext);
+    data: softwareTitle,
+    isLoading: isSoftwareTitleLoading,
+    isError: isSoftwareTitleError,
+  } = useQuery<ISoftwareTitleResponse, Error, ISoftwareTitle>(
+    ["softwareById", softwareId],
+    () => softwareAPI.getSoftwareTitle(softwareId),
+    {
+      select: (data) => data.software_title,
+    }
+  );
+
+  if (!softwareTitle) {
+    return null;
+  }
 
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
-        <div className="header title">
-          <div className="title__inner">
-            <div className="name-container">
-              <h1 className="name">{renderName(software)}</h1>
-            </div>
-          </div>
-          <ViewAllHostsLink
-            queryParams={{ software_id }}
-            className={`${baseClass}__hosts-link`}
-          />
-        </div>
-        <div className="section info">
-          <div className="info__inner">
-            <div className="info-flex">
-              <div className="info-flex__item info-flex__item--title">
-                <span className="info-flex__header">Type</span>
-                <span className={`info-flex__data`}>
-                  {formatSoftwareType(software.source)}
-                </span>
-              </div>
-              <div className="info-flex__item info-flex__item--title">
-                <span className="info-flex__header">Hosts</span>
-                <span className={`info-flex__data`}>
-                  {hostCount || DEFAULT_EMPTY_CELL_VALUE}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <>
+        <SoftwareDetailsSummary
+          softwareId={softwareId}
+          title={softwareTitle.name}
+          type={softwareTitle.source}
+          hosts={softwareTitle.hosts_count}
+        />
+        <SoftwareTitleDetailsTable
+          router={router}
+          data={softwareTitle.versions}
+          isLoading={isSoftwareTitleLoading}
+        />
+      </>
     </MainContent>
   );
   return <h1>script title details</h1>;

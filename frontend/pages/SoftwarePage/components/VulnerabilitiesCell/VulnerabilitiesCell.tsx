@@ -22,7 +22,7 @@ const VulnerabilitiesCell = ({
 
   let text = "";
   if (numVulnerabilities === 0) {
-    text = "No vulnerabilities";
+    text = "---";
   } else if (numVulnerabilities === 1) {
     text = "1 vulnerability";
   } else {

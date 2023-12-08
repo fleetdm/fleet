@@ -12,7 +12,8 @@ import {
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 import {
   createMockSoftwareTitle,
-  createMockSoftwareTitleReponse,
+  createMockSoftwareTitlesReponse,
+  createMockSoftwareTitleResponse,
   createMockSoftwareVersionsReponse,
 } from "__mocks__/softwareMock";
 
@@ -44,6 +45,14 @@ export interface ISoftwareVersionsResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+}
+
+export interface ISoftwareTitleResponse {
+  software_title: ISoftwareTitle;
+}
+
+export interface ISoftwareVerionResponse {
+  software: ISoftwareVersion;
 }
 
 export interface ISoftwareQueryKey extends ISoftwareApiParams {
@@ -140,12 +149,22 @@ export default {
     // TODO: integrate with API.
     return new Promise<ISoftwareTitlesResponse>((resolve, reject) => {
       resolve(
-        createMockSoftwareTitleReponse({
+        createMockSoftwareTitlesReponse({
           software_titles: [createMockSoftwareTitle()],
         })
       );
     });
     // return sendRequest("GET", path);
+  },
+
+  getSoftwareTitle: (id: number) => {
+    const { SOFTWARE_TITLE } = endpoints;
+
+    // TODO: integrate with API.
+    return new Promise<ISoftwareTitleResponse>((resolve, reject) => {
+      resolve(createMockSoftwareTitleResponse());
+    });
+    // return sendRequest("GET", SOFTWARE_TITLE(id));
   },
 
   getSoftwareVersions: (params: ISoftwareApiParams) => {
@@ -159,5 +178,10 @@ export default {
       resolve(createMockSoftwareVersionsReponse());
     });
     // return sendRequest("GET", path);
+  },
+
+  getSoftwareVersion: (id: number) => {
+    const { SOFTWARE_VERSION } = endpoints;
+    return sendRequest("GET", SOFTWARE_VERSION(id));
   },
 };

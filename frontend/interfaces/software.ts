@@ -42,6 +42,7 @@ export interface ISoftwareTitleVersion {
   id: number;
   version: string;
   vulnerabilities: string[] | null;
+  hosts_count?: number;
 }
 
 export interface ISoftwareTitle {
@@ -51,6 +52,7 @@ export interface ISoftwareTitle {
   source: string;
   hosts_count: number;
   versions: ISoftwareTitleVersion[];
+  browser: string;
 }
 
 export interface ISoftwareVulnerability {
@@ -70,9 +72,9 @@ export interface ISoftwareVersion {
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
   source: string; // e.g., "apps"
-  release: string;
+  release: string; // TODO: on software/verions/:id?
   vendor: string;
-  arch: string; // e.g., "x86_64"
+  arch: string; // e.g., "x86_64" // TODO: on software/verions/:id?
   generated_cpe: string;
   vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;

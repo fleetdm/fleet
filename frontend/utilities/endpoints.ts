@@ -95,7 +95,10 @@ export default {
   // Software endpoints
   SOFTWARE: `/${API_VERSION}/fleet/software`,
   SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`,
+  SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
+  SOFTWARE_VERSION: (id: number) =>
+    `/${API_VERSION}/fleet/software/version/${id}`,
 
   SSO: `/v1/fleet/sso`,
   STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,

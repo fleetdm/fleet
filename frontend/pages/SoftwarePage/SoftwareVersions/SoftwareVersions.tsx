@@ -4,11 +4,8 @@ import { useQuery } from "react-query";
 import { Row } from "react-table";
 
 import PATHS from "router/paths";
-import { ISoftwareCountResponse } from "interfaces/software";
 import softwareAPI, {
-  ISoftwareCountQueryKey,
   ISoftwareQueryKey,
-  ISoftwareTitlesResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
 import { AppContext } from "context/app";
@@ -24,7 +21,6 @@ import TableDataError from "components/DataError";
 import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 

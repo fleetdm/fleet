@@ -6,6 +6,7 @@ import {
 } from "interfaces/software";
 import {
   ISoftwareTitlesResponse,
+  ISoftwareTitleResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
 
@@ -33,6 +34,7 @@ const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   versions_count: 1,
   source: "apps",
   hosts_count: 1,
+  browser: "chrome",
   versions: [
     {
       id: 1,
@@ -58,7 +60,7 @@ const DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK: ISoftwareTitlesResponse = {
   },
 };
 
-export const createMockSoftwareTitleReponse = (
+export const createMockSoftwareTitlesReponse = (
   overrides?: Partial<ISoftwareTitlesResponse>
 ): ISoftwareTitlesResponse => {
   return { ...DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK, ...overrides };
@@ -115,4 +117,14 @@ export const createMockSoftwareVersionsReponse = (
   overrides?: Partial<ISoftwareVersionsResponse>
 ): ISoftwareVersionsResponse => {
   return { ...DEFAULT_SOFTWARE_VERSIONS_RESPONSE_MOCK, ...overrides };
+};
+
+const DEFAULT_SOFTWARE_TITLE_RESPONSE = {
+  software_title: createMockSoftwareTitle(),
+};
+
+export const createMockSoftwareTitleResponse = (
+  overrides?: Partial<ISoftwareTitleResponse>
+): ISoftwareTitleResponse => {
+  return { ...DEFAULT_SOFTWARE_TITLE_RESPONSE, ...overrides };
 };
