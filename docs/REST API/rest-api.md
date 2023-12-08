@@ -7017,7 +7017,7 @@ Deletes the session specified by ID. When the user associated with the session n
         "generated_cpe": "cpe:2.3:a:1password:1password:2.3.7:*:*:*:*:chrome:*:*",
         "vulnerabilities": null,
         "hosts_count": 2
-      },
+      }
     ]
 }
 ```
