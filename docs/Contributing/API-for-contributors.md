@@ -1758,7 +1758,6 @@ Counts the number of online and offline hosts included in a given set of selecte
 }
 ```
 
-
 ### Run live query
 
 Runs the specified query as a live query on the specified hosts or group of hosts and returns a new live query campaign. Individual hosts must be specified with the host's ID. Label IDs also specify groups of hosts.
@@ -1950,7 +1949,6 @@ One of `query` and `query_id` must be specified.
   }
 }
 ```
-
 
 ### Retrieve live query results (standard WebSocket API)
 
