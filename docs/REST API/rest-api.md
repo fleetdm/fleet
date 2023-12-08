@@ -929,7 +929,8 @@ None.
         }
       },
       "overrides": {},
-      "command_line_flags": {}
+      "command_line_flags": {},
+      "scripts_timeout": 180,
     }
   },
   "license": {
