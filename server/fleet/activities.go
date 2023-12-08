@@ -49,6 +49,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeMDMUnenrolled{},
 
 	ActivityTypeEditedMacOSMinVersion{},
+	ActivityTypeEditedWindowsUpdates{},
 
 	ActivityTypeReadHostDiskEncryptionKey{},
 
@@ -75,6 +76,10 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeAddedScript{},
 	ActivityTypeDeletedScript{},
 	ActivityTypeEditedScript{},
+
+	ActivityTypeCreatedWindowsProfile{},
+	ActivityTypeDeletedWindowsProfile{},
+	ActivityTypeEditedWindowsProfile{},
 }
 
 type ActivityDetails interface {
@@ -491,7 +496,7 @@ type Activity struct {
 	ActorFullName *string          `json:"actor_full_name,omitempty" db:"name"`
 	ActorID       *uint            `json:"actor_id,omitempty" db:"user_id"`
 	ActorGravatar *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
-	ActorEmail    *string          `json:"actor_email,omitempty" db:"email"`
+	ActorEmail    *string          `json:"actor_email,omitempty" db:"user_email"`
 	Type          string           `json:"type" db:"activity_type"`
 	Details       *json.RawMessage `json:"details" db:"details"`
 	Streamed      *bool            `json:"-" db:"streamed"`
@@ -762,6 +767,31 @@ func (a ActivityTypeEditedMacOSMinVersion) Documentation() (activity string, det
   "team_name": "Workstations",
   "minimum_version": "13.0.1",
   "deadline": "2023-06-01"
+}`
+}
+
+type ActivityTypeEditedWindowsUpdates struct {
+	TeamID          *uint   `json:"team_id"`
+	TeamName        *string `json:"team_name"`
+	DeadlineDays    *int    `json:"deadline_days"`
+	GracePeriodDays *int    `json:"grace_period_days"`
+}
+
+func (a ActivityTypeEditedWindowsUpdates) ActivityName() string {
+	return "edited_windows_updates"
+}
+
+func (a ActivityTypeEditedWindowsUpdates) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when the Windows OS updates deadline or grace period is modified.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the Windows OS updates settings applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the Windows OS updates settings applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "deadline_days": The number of days before updates are installed, ` + "`null`" + ` if the requirement was removed.
+- "grace_period_days": The number of days after the deadline before the host is forced to restart, ` + "`null`" + ` if the requirement was removed.`, `{
+  "team_id": 3,
+  "team_name": "Workstations",
+  "deadline_days": 5,
+  "grace_period_days": 2
 }`
 }
 
@@ -1122,6 +1152,69 @@ func (a ActivityTypeEditedScript) Documentation() (activity, details, detailsExa
 		`This activity contains the following fields:
 - "team_id": The ID of the team that the scripts apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
 - "team_name": The name of the team that the scripts apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeCreatedWindowsProfile struct {
+	ProfileName string  `json:"profile_name"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeCreatedWindowsProfile) ActivityName() string {
+	return "created_windows_profile"
+}
+
+func (a ActivityTypeCreatedWindowsProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user adds a new Windows profile to a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "team_id": The ID of the team that the profile applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the profile applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedWindowsProfile struct {
+	ProfileName string  `json:"profile_name"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedWindowsProfile) ActivityName() string {
+	return "deleted_windows_profile"
+}
+
+func (a ActivityTypeDeletedWindowsProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user deletes a Windows profile from a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the deleted profile.
+- "team_id": The ID of the team that the profile applied to, ` + "`null`" + ` if it applied to devices that are not in a team.
+- "team_name": The name of the team that the profile applied to, ` + "`null`" + ` if it applied to devices that are not in a team.`, `{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedWindowsProfile struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedWindowsProfile) ActivityName() string {
+	return "edited_windows_profile"
+}
+
+func (a ActivityTypeEditedWindowsProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user edits the Windows profiles of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
   "team_id": 123,
   "team_name": "Workstations"
 }`

@@ -3,7 +3,7 @@ import React from "react";
 const FilePdf = () => {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="34" height="40" fill="none">
-      <g clipPath="url(#a)">
+      <g>
         <path
           fill="#fff"
           stroke="#192147"

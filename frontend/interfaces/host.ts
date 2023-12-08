@@ -19,6 +19,7 @@ export default PropTypes.shape({
   updated_at: PropTypes.string,
   id: PropTypes.number,
   detail_updated_at: PropTypes.string,
+  last_restarted_at: PropTypes.string,
   label_updated_at: PropTypes.string,
   policy_updated_at: PropTypes.string,
   last_enrolled_at: PropTypes.string,
@@ -82,6 +83,38 @@ export interface IDeviceUser {
   email: string;
   source: string;
 }
+
+const DEVICE_USER_SOURCE_TO_DISPLAY: { [key: string]: string } = {
+  google_chrome_profiles: "Google Chrome",
+  mdm_idp_accounts: "identity provider",
+} as const;
+
+const getDeviceUserSourceForDisplay = (s: string): string => {
+  return DEVICE_USER_SOURCE_TO_DISPLAY[s] || s;
+};
+
+const getDeviceUserForDisplay = (d: IDeviceUser): IDeviceUser => {
+  return { ...d, source: getDeviceUserSourceForDisplay(d.source) };
+};
+
+/*
+ * mapDeviceUsersForDisplay is a helper function that takes an array of device users and returns a
+ * new array of device users with the source field mapped to a more user-friendly value. It also
+ * ensures that the identity provider account is always the first device user in the array.
+ */
+export const mapDeviceUsersForDisplay = (
+  deviceMapping: IDeviceUser[]
+): IDeviceUser[] => {
+  const newDeviceMapping: IDeviceUser[] = [];
+  deviceMapping.forEach((d) => {
+    if (d.source === "mdm_idp_accounts") {
+      newDeviceMapping.unshift(getDeviceUserForDisplay(d));
+    } else {
+      newDeviceMapping.push(getDeviceUserForDisplay(d));
+    }
+  });
+  return newDeviceMapping;
+};
 
 export interface IDeviceMappingResponse {
   device_mapping: IDeviceUser[];
@@ -199,6 +232,7 @@ export interface IHost {
   updated_at: string;
   id: number;
   detail_updated_at: string;
+  last_restarted_at: string;
   label_updated_at: string;
   policy_updated_at: string;
   last_enrolled_at: string;

@@ -201,7 +201,7 @@ const AppleBusinessManagerSection = ({
         <div className={`${baseClass}__section-information`}>
           <h4>
             <TooltipWrapper
-              position="top"
+              position="top-start"
               tipContent="macOS hosts will be added to this team when they’re first unboxed."
             >
               Team
@@ -234,11 +234,9 @@ const AppleBusinessManagerSection = ({
     <div className={baseClass}>
       <h2>Apple Business Manager</h2>
       {isLoadingMdmAppleBm ? <Spinner /> : renderAppleBMInfo()}
-      {config?.mdm_enabled && (
-        <WindowsAutomaticEnrollmentCard
-          viewDetails={navigateToWindowsAutomaticEnrollment}
-        />
-      )}
+      <WindowsAutomaticEnrollmentCard
+        viewDetails={navigateToWindowsAutomaticEnrollment}
+      />
       {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}

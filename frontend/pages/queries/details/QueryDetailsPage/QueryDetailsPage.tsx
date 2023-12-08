@@ -2,6 +2,8 @@ import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
+import ReactTooltip from "react-tooltip";
+import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -171,6 +173,7 @@ const QueryDetailsPage = ({
   const isApiError = storedQueryError || queryReportError;
   const isClipped =
     (queryReport?.results?.length ?? 0) >= QUERY_REPORT_RESULTS_LIMIT;
+  const disabledLiveQuery = config?.server_settings.live_query_disabled;
 
   const renderHeader = () => {
     const canEditQuery =
@@ -216,15 +219,33 @@ const QueryDetailsPage = ({
                   <div
                     className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
                   >
-                    <Button
-                      className={`${baseClass}__run`}
-                      variant="blue-green"
-                      onClick={() => {
-                        queryId && router.push(PATHS.LIVE_QUERY(queryId));
-                      }}
+                    <div
+                      data-tip
+                      data-for="live-query-button"
+                      // Tooltip shows when live queries are globally disabled
+                      data-tip-disable={!disabledLiveQuery}
                     >
-                      Live query
-                    </Button>
+                      <Button
+                        className={`${baseClass}__run`}
+                        variant="blue-green"
+                        onClick={() => {
+                          queryId && router.push(PATHS.LIVE_QUERY(queryId));
+                        }}
+                        disabled={disabledLiveQuery}
+                      >
+                        Live query
+                      </Button>
+                    </div>
+                    <ReactTooltip
+                      className="live-query-button-tooltip"
+                      place="top"
+                      effect="solid"
+                      backgroundColor={COLORS["tooltip-bg"]}
+                      id="live-query-button"
+                      data-html
+                    >
+                      Live queries are disabled in organization settings
+                    </ReactTooltip>
                   </div>
                 )}
               </div>
@@ -234,8 +255,15 @@ const QueryDetailsPage = ({
             <div className={`${baseClass}__settings`}>
               <div className={`${baseClass}__automations`}>
                 <TooltipWrapper
-                  // TODO - change to JSX after tooltip refactor
-                  tipContent={`Query automations let you send data to your log <br />destination on a schedule. When automations are <b>on</b>, <br />data is sent according to a query’s frequency.`}
+                  tipContent={
+                    <>
+                      Query automations let you send data to your log <br />
+                      destination on a schedule. When automations are <b>
+                        on
+                      </b>, <br />
+                      data is sent according to a query&apos;s frequency.
+                    </>
+                  }
                 >
                   Automations:
                 </TooltipWrapper>
@@ -305,7 +333,7 @@ const QueryDetailsPage = ({
         />
       );
     }
-    return <QueryReport queryReport={queryReport} isClipped={isClipped} />;
+    return <QueryReport {...{ queryReport, isClipped }} />;
   };
 
   return (

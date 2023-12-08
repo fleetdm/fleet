@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner
 
 export GO111MODULE=on
 
@@ -138,7 +138,7 @@ dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
 test-go: dump-test-schema generate-mock
-	go test -tags full,fts5,netgo ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+	go test -tags full,fts5,netgo ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
@@ -187,6 +187,16 @@ deps-js:
 
 deps-go:
 	go mod download
+
+# check that the generated files in tools/cloner-check/generated_files match
+# the current version of the cloneable structures.
+check-go-cloner:
+	go run ./tools/cloner-check/main.go --check
+
+# update the files in tools/cloner-check/generated_files with the current
+# version of the cloneable structures.
+update-go-cloner:
+	go run ./tools/cloner-check/main.go --update
 
 migration:
 	go run github.com/fleetdm/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
@@ -243,12 +253,12 @@ fleetd-tables-linux:
 fleetd-tables-darwin:
 	GOOS=darwin GOARCH=amd64 go build -o fleetd_tables_darwin.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin_arm:
-	GOOS=darwin GOARCH=arm64 go build -o fleetd_tables_darwin_arm.ext ./orbit/cmd/fleetd_tables
-fleetd-tables-darwin-universal:
-	$(MAKE) fleetd-tables-darwin fleetd-tables-darwin_arm
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -o fleetd_tables_darwin_arm.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-darwin-universal: fleetd-tables-darwin fleetd-tables-darwin_arm
 	lipo -create fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext -output fleetd_tables_darwin_universal.ext
-fleetd-tables-all:
-	$(MAKE) fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal
+fleetd-tables-all: fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal
+fleetd-tables-clean:
+	rm -f fleetd_tables_windows.exe fleetd_tables_linux.ext fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext fleetd_tables_darwin_universal.ext
 
 .pre-binary-arch:
 ifndef GOOS
@@ -435,14 +445,7 @@ desktop-linux:
 	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
 		mkdir /output/fleet-desktop && \
 		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
-		cp /usr/lib/x86_64-linux-gnu/libayatana-appindicator3.so.1 \
-		/usr/lib/x86_64-linux-gnu/libayatana-ido3-0.4.so.0 \
-		/usr/lib/x86_64-linux-gnu/libayatana-indicator3.so.7 \
-		/lib/x86_64-linux-gnu/libm.so.6 \
-		/usr/lib/x86_64-linux-gnu/libcairo.so.2 \
-		/usr/lib/x86_64-linux-gnu/libdbusmenu-gtk3.so.4 \
-		/usr/lib/x86_64-linux-gnu/libdbusmenu-glib.so.4 \
-		/output/fleet-desktop && cd /output && \
+		cd /output && \
 		tar czf desktop.tar.gz fleet-desktop && \
 		rm -r fleet-desktop"
 

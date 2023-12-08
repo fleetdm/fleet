@@ -171,7 +171,17 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 		return nil
 	}
 
-	client, err := dialTimeout(smtpHost)
+	tlsConfig := &tls.Config{
+		ServerName:         e.SMTPSettings.SMTPServer,
+		InsecureSkipVerify: !e.SMTPSettings.SMTPVerifySSLCerts,
+	}
+
+	var client *smtp.Client
+	if e.SMTPSettings.SMTPEnableTLS {
+		client, err = dialTimeout(smtpHost, tlsConfig)
+	} else {
+		client, err = dialTimeout(smtpHost, nil)
+	}
 	if err != nil {
 		return fmt.Errorf("could not dial smtp host: %w", err)
 	}
@@ -179,11 +189,7 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 
 	if e.SMTPSettings.SMTPEnableStartTLS {
 		if ok, _ := client.Extension("STARTTLS"); ok {
-			config := &tls.Config{
-				ServerName:         e.SMTPSettings.SMTPServer,
-				InsecureSkipVerify: !e.SMTPSettings.SMTPVerifySSLCerts,
-			}
-			if err = client.StartTLS(config); err != nil {
+			if err = client.StartTLS(tlsConfig); err != nil {
 				return fmt.Errorf("startTLS error: %w", err)
 			}
 		}
@@ -221,9 +227,11 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 	return nil
 }
 
+const dialTimeoutDuration = 28 * time.Second
+
 // dialTimeout sets a timeout on net.Dial to prevent email from attempting to
 // send indefinitely.
-func dialTimeout(addr string) (client *smtp.Client, err error) {
+func dialTimeout(addr string, tlsConfig *tls.Config) (client *smtp.Client, err error) {
 	// Ensure that errors are always returned after at least 5s to
 	// eliminate (some) timing attacks (in which a malicious user tries to
 	// port scan using the email functionality in Fleet)
@@ -235,7 +243,13 @@ func dialTimeout(addr string) (client *smtp.Client, err error) {
 		}
 	}()
 
-	conn, err := net.DialTimeout("tcp", addr, 28*time.Second)
+	var conn net.Conn
+	if tlsConfig == nil {
+		conn, err = net.DialTimeout("tcp", addr, dialTimeoutDuration)
+	} else {
+		conn, err = tls.DialWithDialer(&net.Dialer{Timeout: dialTimeoutDuration}, "tcp", addr, tlsConfig)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("dialing with timeout: %w", err)
 	}

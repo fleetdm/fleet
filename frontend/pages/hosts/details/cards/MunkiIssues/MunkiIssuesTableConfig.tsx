@@ -6,7 +6,7 @@ import { abbreviateTimeUnits } from "utilities/helpers";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IMunkiIssue } from "interfaces/host";
 
@@ -60,9 +60,9 @@ export const munkiIssuesTableHeaders: IDataColumn[] = [
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={`
-            Issues reported the last time Munki ran on each host.
-          `}
+          tipContent={
+            <>Issues reported the last time Munki ran on each host.</>
+          }
         >
           Issue
         </TooltipWrapper>
@@ -77,7 +77,7 @@ export const munkiIssuesTableHeaders: IDataColumn[] = [
     disableSortBy: false,
     accessor: "name",
     Cell: (cellProps: IStringCellProps) => (
-      <TruncatedTextCell value={cellProps.cell.value} />
+      <TooltipTruncatedTextCell value={cellProps.cell.value} />
     ),
     sortType: "caseInsensitive",
   },
@@ -95,9 +95,7 @@ export const munkiIssuesTableHeaders: IDataColumn[] = [
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={`
-            The first time Munki reported this issue.
-          `}
+          tipContent={<>The first time Munki reported this issue.</>}
         >
           Time
         </TooltipWrapper>

@@ -55,6 +55,7 @@ const PolicyPage = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
+    config,
   } = useContext(AppContext);
   const {
     lastEditedQueryBody,
@@ -77,6 +78,7 @@ const PolicyPage = ({
     isTeamMaintainer,
     isTeamObserver,
     teamIdForApi,
+    isObserverPlus,
   } = useTeamIdParam({
     location,
     router,
@@ -225,7 +227,7 @@ const PolicyPage = ({
   };
 
   const renderLiveQueryWarning = (): JSX.Element | null => {
-    if (isLiveQueryRunnable) {
+    if (isLiveQueryRunnable || config?.server_settings.live_query_disabled) {
       return null;
     }
 
@@ -257,6 +259,7 @@ const PolicyPage = ({
       isTeamAdmin,
       isTeamMaintainer,
       isTeamObserver,
+      isObserverPlus,
       storedPolicyError,
       createPolicy,
       onOsqueryTableSelect,

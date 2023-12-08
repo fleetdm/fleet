@@ -1,1 +1,2 @@
 .external_modules
+.terraform.lock.hcl

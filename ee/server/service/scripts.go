@@ -365,8 +365,8 @@ func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt f
 		return nil, nil, err
 	}
 
-	if h.Platform != "darwin" {
-		// only darwin is supported for now, all other platforms return empty results
+	if h.Platform != "darwin" && h.Platform != "windows" {
+		// darwin and windows are supported for now, all other platforms return empty results
 		level.Debug(svc.logger).Log("msg", "unsupported platform for host script details", "platform", h.Platform, "host_id", h.ID)
 		return []*fleet.HostScriptDetail{}, &fleet.PaginationMetadata{}, nil
 	}
@@ -381,7 +381,7 @@ func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt f
 	// always include metadata for scripts
 	opt.IncludeMetadata = true
 
-	return svc.ds.GetHostScriptDetails(ctx, h.ID, h.TeamID, opt)
+	return svc.ds.GetHostScriptDetails(ctx, h.ID, h.TeamID, opt, h.Platform)
 }
 
 func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []fleet.ScriptPayload, dryRun bool) error {

@@ -8,7 +8,7 @@ import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
 import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
-import local, { authToken } from "utilities/local";
+import { authToken, clearToken } from "utilities/local";
 import useDeepEffect from "hooks/useDeepEffect";
 
 import usersAPI from "services/entities/users";
@@ -82,15 +82,23 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       setAvailableTeams(user, available_teams);
       fetchConfig();
     } catch (error) {
-      if (!location?.pathname.includes("/login/reset")) {
-        console.log(error);
-        local.removeItem("auth_token");
-
-        // if this is not the device user page,
-        // redirect to login
-        if (!location?.pathname.includes("/device/")) {
-          window.location.href = "/login";
-        }
+      if (
+        // reseting a user's password requires the current token
+        location?.pathname.includes("/login/reset") ||
+        // these errors can occur when user refreshes their page at certain intervals,
+        // in which case we don't want to log them out
+        (typeof error === "string" &&
+          // in Firefox and Chrome, this error is "Request aborted"
+          // in Safari, it's "Network Error"
+          error.match(/request aborted|network error/i))
+      ) {
+        return true;
+      }
+      clearToken();
+      // if this is not the device user page,
+      // redirect to login
+      if (!location?.pathname.includes("/device/")) {
+        window.location.href = "/login";
       }
     }
     return true;

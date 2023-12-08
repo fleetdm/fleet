@@ -1,8 +1,16 @@
 # FAQ
 
+## Can you host Fleet for me?
+
+Fleet offers managed cloud hosting for [Fleet Premium](https://fleetdm.com/pricing) customers with large deployments.
+
+> While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, we are only currently able to provide cost-effective hosting for deployments larger than 1000 hosts.  (Instead, you can [buy a license](https://fleetdm.com/customers/register) and self-host Fleet Premium with support.)
+
+Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet).  Premium features are [available](https://fleetdm.com/pricing) either way.
+
 ## What is the easiest way to deploy Fleet?
 
-Fleet provides a standard [Terraform module](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform) that deploys Fleet with best practices, along with [cloud cost calculators](https://fleetdm.com/docs/deploy/reference-architectures#cloud-providers) used by some of Fleet’s largest customers with hundreds of thousands of hosts.  Fleet Premium customers can also opt for managed hosting provided by Fleet.  You can also deploy Fleet anywhere you want.
+Fleet provides a standard [Terraform module](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform) that deploys Fleet with best practices, along with [cloud cost calculators and reference architectures](https://fleetdm.com/docs/deploy/reference-architectures#cloud-providers) used by some of Fleet’s largest customers with tens and hundreds of thousands of hosts.  Fleet Premium customers can also opt for managed hosting provided by Fleet.  You can also deploy Fleet anywhere you want.
 
 You can enroll servers and laptops using a simple installer or automatically deliver the agent using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc.
 
@@ -63,11 +71,13 @@ We have different licenses for portions of our software which are noted in the [
 
 ## How do I contact Fleet for support?
 
-Find out how to contact support in [our handbook](https://fleetdm.com/handbook/customers#contacting-fleet).
+For community support, visit https://fleetdm.com/support.
+
+If your organization has Fleet Premium, you can [access professional support](https://fleetdm.com/customers/login) with a guaranteed response time.
 
 ## What if we choose not to renew?
 
-If you opt not to renew Fleet Premium, you can continue using the free version of Fleet (same code base, just unconfigure the license key.)
+If you opt not to renew Fleet Premium, you can continue using only the free capabilities of Fleet (same code base, just unconfigure the license key.)
 
 ## Can we buy a licence to access premium features with reduced support for a reduced cost?
 
@@ -96,11 +106,6 @@ Anyone is free to contribute to the free or paid features of the project. We are
 
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
-### Can you host Fleet for me?
-
-Fleet offers managed cloud hosting for large deployments.
-
-While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, the company does not currently provide hosting for deployments smaller than 1000 hosts.  (Fortunately, you can always [buy a license](https://fleetdm.com/customers/register) and host Fleet Premium yourself.)
 
 <!--
 ## Using Fleet
@@ -223,7 +228,11 @@ For example, let's say you want to retrieve a host's OS version, installed softw
 
 Each host’s OS version is available using the `api/v1/fleet/hosts` API endpoint. [Check out the API documentation for this endpoint](https://fleetdm.com/docs/using-fleet/rest-api#list-hosts).
 
-It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options YAML file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleet-configuration-options).
+It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options YAML file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. For more information on setting up `additional_queries`, see the [configuration documentation](https://fleetdm.com/docs/configuration/configuration-files#features-additional-queries).
+
+### How does Fleet set the `name` attribute in query automations?
+
+Query automations use the format `pack/Global/<Your query name>` to set the `name` attribute, where `<Your query name>` is the exact name you assign to your query. 
 
 ### Why is my host not updating a policy's response?
 

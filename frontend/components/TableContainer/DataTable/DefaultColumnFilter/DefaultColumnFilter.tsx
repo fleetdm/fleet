@@ -14,9 +14,10 @@ const DefaultColumnFilter = ({
   }
 
   return (
-    <div className={"filter-cell"}>
+    <div className="filter-cell">
       <SearchField
         placeholder=""
+        onClick={(e) => e.stopPropagation()}
         onChange={(searchString) => {
           setFilter(searchString || undefined); // Set undefined to remove the filter entirely
         }}

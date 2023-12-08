@@ -45,11 +45,14 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			return nil, fmt.Errorf("failed to unmarshal spec item %w: \n%s", err, specItem)
 		}
 
-		if s.Spec == nil {
-			return nil, fmt.Errorf("no spec field on %q document", s.Kind)
-		}
-
 		kind := strings.ToLower(s.Kind)
+
+		if s.Spec == nil {
+			if kind == "" {
+				return nil, errors.New(`Missing required fields ("spec", "kind") on provided configuration.`)
+			}
+			return nil, fmt.Errorf(`Missing required fields ("spec") on provided %q configuration.`, s.Kind)
+		}
 
 		switch kind {
 		case fleet.QueryKind:
