@@ -168,12 +168,14 @@ func main() {
 			return newToken
 		})
 
-		refetchToken := func() {
+		refetchTokenValueFromDisk := func() {
 			if _, err := tokenReader.Read(); err != nil {
 				log.Error().Err(err).Msg("refetch token")
 			}
 			log.Debug().Msg("successfully refetched the token from disk")
 		}
+
+		tokenChecker := token.NewChecker(identifierPath, client)
 
 		disableTray := func() {
 			log.Debug().Msg("disabling tray items")
@@ -184,46 +186,24 @@ func main() {
 			migrateMDMItem.Hide()
 		}
 
-		// checkToken performs API test calls to enable the "My device" item as
-		// soon as the device auth token is registered by Fleet.
-		checkToken := func() <-chan interface{} {
-			done := make(chan interface{})
-
-			go func() {
-				ticker := time.NewTicker(5 * time.Second)
-				defer ticker.Stop()
-				defer close(done)
-
-				for {
-					refetchToken()
-					_, err := client.DesktopSummary(tokenReader.GetCached())
-
-					if err == nil || errors.Is(err, service.ErrMissingLicense) {
-						log.Debug().Msg("enabling tray items")
-						myDeviceItem.SetTitle("My device")
-						myDeviceItem.Enable()
-						transparencyItem.Enable()
-						return
-					}
-
-					log.Error().Err(err).Msg("get device URL")
-
-					<-ticker.C
-				}
-			}()
-
-			return done
+		// checkToken perform API calls until a token is valid. When we
+		// find a valid token it refreshes the cached alue and enables
+		// basic tray items.
+		checkToken := func() {
+			tokenChecker.AwaitValid()
+			refetchTokenValueFromDisk()
+			log.Debug().Msg("enabling tray items")
+			myDeviceItem.SetTitle("My device")
+			myDeviceItem.Enable()
+			transparencyItem.Enable()
 		}
-
-		// start a check as soon as the app starts
-		deviceEnabledChan := checkToken()
 
 		// this loop checks the `mtime` value of the token file and:
 		// 1. if the token file was modified, it disables the tray items until we
 		// verify the token is valid
 		// 2. calls (blocking) `checkToken` to verify the token is valid
 		go func() {
-			<-deviceEnabledChan
+			tokenChecker.AwaitValid()
 			tic := time.NewTicker(1 * time.Second)
 			defer tic.Stop()
 
@@ -234,9 +214,8 @@ func main() {
 				case err != nil:
 					log.Error().Err(err).Msg("check token file")
 				case expired:
-					log.Info().Msg("token file changed, rechecking")
 					disableTray()
-					<-checkToken()
+					checkToken()
 				}
 			}
 		}()
@@ -279,7 +258,6 @@ func main() {
 		// poll the server to check the policy status of the host and update the
 		// tray icon accordingly
 		go func() {
-			<-deviceEnabledChan
 			tic := time.NewTicker(5 * time.Minute)
 			defer tic.Stop()
 
@@ -290,11 +268,13 @@ func main() {
 				case err == nil:
 					// OK
 				case errors.Is(err, service.ErrMissingLicense):
+					// This case is for devices using the free plan.
 					myDeviceItem.SetTitle("My device")
+					transparencyItem.Enable()
 					continue
 				case errors.Is(err, service.ErrUnauthenticated):
 					disableTray()
-					<-checkToken()
+					checkToken()
 					continue
 				default:
 					log.Error().Err(err).Msg("get failing policies")
@@ -326,6 +306,7 @@ func main() {
 					}
 				}
 				myDeviceItem.Enable()
+				transparencyItem.Enable()
 
 				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile
 
