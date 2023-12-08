@@ -5,7 +5,7 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { DEFAULT_QUERY } from "utilities/constants";
+import { DEFAULT_QUERY, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import configAPI from "services/entities/config";
 import queryAPI from "services/entities/queries";
 import statusAPI from "services/entities/status";
@@ -203,7 +203,7 @@ const EditQueryPage = ({
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // e.g., Query details | Discover TLS certificates | Fleet for osquery
-    document.title = `Edit query | ${storedQuery?.name} | Fleet for osquery`;
+    document.title = `Edit query | ${storedQuery?.name} | ${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, storedQuery?.name]);
 
   useEffect(() => {

@@ -6,7 +6,7 @@ import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { LIVE_QUERY_STEPS, DEFAULT_QUERY } from "utilities/constants";
+import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
@@ -168,7 +168,7 @@ const RunQueryPage = ({
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // e.g., Run live query | Discover TLS certificates | Fleet for osquery
-    document.title = `Run live query | ${storedQuery?.name} | Fleet for osquery`;
+    document.title = `Run live query | ${storedQuery?.name} | ${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, storedQuery?.name]);
 
   const goToQueryEditor = useCallback(

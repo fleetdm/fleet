@@ -13,7 +13,10 @@ import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import softwareAPI from "services/entities/software";
 import hostCountAPI from "services/entities/host_count";
 
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import {
+  DEFAULT_EMPTY_CELL_VALUE,
+  DOCUMENT_TITLE_SUFFIX,
+} from "utilities/constants";
 import Spinner from "components/Spinner";
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
@@ -76,7 +79,7 @@ const SoftwareDetailsPage = ({
     // e.g., Software horizon, 5.2.0 details | Fleet for osquery
     document.title = `Software details | ${
       software && renderName(software)
-    } | Fleet for osquery`;
+    } | ${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, software]);
 
   if (!software || isPremiumTier === undefined) {
