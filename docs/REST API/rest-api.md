@@ -4564,10 +4564,10 @@ _Available in Fleet Premium_
 | Name       | Type    | In    | Description                                      |
 | -----------| ------  | ----- | ------------------------------------------------ |
 | team_id    | integer | path  | **Required.** The desired bootstrap package's team's ID. |
-| alt        | string  | query | If specified and set to "media", downloads the bootstrap package's contents. |
+| alt        | string  | query | If specified and set to "media", downloads the bootstrap package. |
 | for_update | boolean | query | If set to `true`, the authorization will be for a `write` action instead of a `read`. Useful for the write-only `gitops` role when requesting the bootstrap metadata to check if the package needs to be replaced. _(Only relevant if `alt` is not specified.)_ |
 
-#### Example (get a bootstrap package)
+#### Example (get bootstrap package metadata)
 
 `GET /mdm/bootstrap/123`
 
@@ -4588,7 +4588,7 @@ In the response above:
 - `sha256` is the SHA256 digest of the bytes of the bootstrap package file.
 
 
-#### Example (download bootstrap package's contents)
+#### Example (download bootstrap package)
 
 `GET /mdm/bootstrap/123?alt=media`
 
@@ -4742,9 +4742,9 @@ _Available in Fleet Premium_
 | Name       | Type    | In    | Description                                      |
 | -----------| ------  | ----- | ------------------------------------------------ |
 | team_id    | integer | path  | **Required.** The desired EULA file's team's ID. |
-| alt        | string  | query | If specified and set to "media", downloads the EULA file's contents. |
+| alt        | string  | query | If specified and set to "media", downloads the EULA file. |
 
-#### Example (get EULA file)
+#### Example (get EULA file metadata)
 
 `GET /mdm/eula/123`
 
@@ -4759,7 +4759,7 @@ _Available in Fleet Premium_
 }
 ```
 
-#### Example (download EULA file's contents)
+#### Example (download EULA file)
 
 `GET /mdm/eula/123?alt=media`
 
@@ -6750,9 +6750,9 @@ _Available in Fleet Premium_
 | Name | Type    | In    | Description                                                       |
 | ---- | ------- | ----  | -------------------------------------                             |
 | id   | integer | path  | **Required.** The desired script's ID.                            |
-| alt  | string  | query | If specified and set to "media", downloads the script's contents. |
+| alt  | string  | query | If specified and set to "media", downloads the script. |
 
-#### Example (get a script)
+#### Example (get script metadata)
 
 `GET /api/v1/fleet/scripts/123`
 
@@ -6771,7 +6771,7 @@ _Available in Fleet Premium_
 
 ```
 
-#### Example (download a script's contents)
+#### Example (download script)
 
 `GET /api/v1/fleet/scripts/123?alt=media`
 
