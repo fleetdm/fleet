@@ -123,9 +123,10 @@ Sometimes there is a change in the champion within the customer's organization.
     3. Offer training to get them up to speed.
     4. Provide a white glove experience.
 
-### Schedule a customer call
-To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) with a Fleet customer, use the ["Customer meeting" Calendly link](https://calendly.com/fleetdm/customer).
-- **Documenting a customer call:** When we do prospect calls, add the customer's name in both the google doc title and the heading, ex. "Charlie (Fleet)."  This makes it easier when searching for the document later. 
+### Schedule a call with a customer and a Solutions Consultant and Account Executive
+To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) with a Fleet customer, the Account Executive will open an issue with [this issue template](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales%2C%23g-solutions-consultant%2C%3Adiscovery%2C%3Ademo%2C%3Ascoping%2C%3Atech-eval&projects=&template=SC+engagement.md&title=prospect+name+-+prep+%28date%29+-+discovery%2Cdemo%2Cscoping+%28date%29). The Account Executive will need to populate this issue with the appropriate dates to internally prep for the meeting as well as the dates for the external customer meeting. Please allow 1 day lead time between issue creation and actual internal prep meeting. If there is any conflict in scheduling, please feel free to reach out to your friendly neighborhood Solutions Consultant via the #help-solutions-consulting slack channel and we will try to accommodate exceptions where necessary.
+
+- **Documenting a customer call:** When we do prospect calls, add the customer's name in both the google doc title and the heading, ex. "Alex + Natalie (Fleet + Acme Co)."  This makes it easier when searching for the document later. 
 - **Before a customer call(48hrs):** Check the calendar invite 48hrs before the meeting to determine if the customer has accepted the invitation.
   - If the customer has not accepted the invitation, reach out to confirm attendance (e.g., EAs, email, Slack).
   - Test the Zoom Meeting link to make sure that it is working.
