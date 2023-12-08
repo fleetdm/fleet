@@ -38,6 +38,7 @@ type campaignStatus struct {
 type statsToSave struct {
 	hostID uint
 	*fleet.Stats
+	outputSize uint64
 }
 
 type statsTracker struct {
@@ -193,10 +194,14 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			// Receive a result and push it over the websocket
 			switch res := res.(type) {
 			case fleet.DistributedQueryResult:
+				// Calculate result size for performance stats
+				outputSize := calculateOutputSize(perfStatsTracker, res)
 				mapHostnameRows(&res)
 				err = conn.WriteJSONMessage("result", res)
 				if perfStatsTracker.saveStats && res.Stats != nil {
-					perfStatsTracker.stats = append(perfStatsTracker.stats, statsToSave{hostID: res.Host.ID, Stats: res.Stats})
+					perfStatsTracker.stats = append(
+						perfStatsTracker.stats, statsToSave{hostID: res.Host.ID, Stats: res.Stats, outputSize: outputSize},
+					)
 					if len(perfStatsTracker.stats) >= statsBatchSize {
 						svc.updateStats(ctx, campaign.QueryID, logger, &perfStatsTracker, false)
 					}
@@ -236,6 +241,21 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			}
 		}
 	}
+}
+
+func calculateOutputSize(perfStatsTracker statsTracker, res fleet.DistributedQueryResult) uint64 {
+	outputSize := uint64(0)
+	if perfStatsTracker.saveStats {
+		for _, row := range res.Rows {
+			if row == nil {
+				continue
+			}
+			for key, value := range row {
+				outputSize = outputSize + uint64(len(key)) + uint64(len(value))
+			}
+		}
+	}
+	return outputSize
 }
 
 func (svc Service) updateStats(
@@ -279,6 +299,7 @@ func (svc Service) updateStats(
 					SystemTime:    gatheredStats.SystemTime,
 					UserTime:      gatheredStats.UserTime,
 					WallTime:      wallTime,
+					OutputSize:    gatheredStats.outputSize,
 				}
 				currentStats = append(currentStats, &newStats)
 			} else {
@@ -288,6 +309,7 @@ func (svc Service) updateStats(
 				stats.SystemTime = stats.SystemTime + gatheredStats.SystemTime
 				stats.UserTime = stats.UserTime + gatheredStats.UserTime
 				stats.WallTime = stats.WallTime + wallTime
+				stats.OutputSize = stats.OutputSize + gatheredStats.outputSize
 			}
 		}
 

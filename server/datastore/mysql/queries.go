@@ -7,7 +7,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
-	"os"
 	"strings"
 )
 
@@ -662,13 +661,11 @@ func (ds *Datastore) UpdateLiveQueryStats(ctx context.Context, queryID uint, sta
 		strings.Repeat(valueStr, len(stats))
 	stmt = strings.TrimSuffix(stmt, ",")
 
-	fmt.Fprintf(os.Stderr, "VICTOR: %v\n", stmt)
-
 	var args []interface{}
 	for _, s := range stats {
-		// TODO: Put in a real output_size?? Check what osquery is doing.
 		args = append(
-			args, queryID, s.HostID, statsLiveQueryType, s.Executions, s.AverageMemory, s.SystemTime, s.UserTime, s.WallTime, 0, 0, 0,
+			args, queryID, s.HostID, statsLiveQueryType, s.Executions, s.AverageMemory, s.SystemTime, s.UserTime, s.WallTime, s.OutputSize,
+			0, 0,
 		)
 	}
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)

@@ -169,6 +169,7 @@ type LiveQueryStats struct {
 	SystemTime    uint64 `db:"system_time"`
 	UserTime      uint64 `db:"user_time"`
 	WallTime      uint64 `db:"wall_time"`
+	OutputSize    uint64 `db:"output_size"`
 }
 
 var (

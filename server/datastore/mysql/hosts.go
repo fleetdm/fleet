@@ -383,14 +383,14 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 			q.discard_data,
 			q.automations_enabled,
 			MAX(qr.last_fetched) as last_fetched,
-			COALESCE(MAX(sqs.average_memory), 0) AS average_memory,
+			COALESCE(AVG(sqs.average_memory), 0) AS average_memory,
 			COALESCE(MAX(sqs.denylisted), false) AS denylisted,
-			COALESCE(MAX(sqs.executions), 0) AS executions,
+			COALESCE(SUM(sqs.executions), 0) AS executions,
 			COALESCE(MAX(sqs.last_executed), TIMESTAMP(?)) AS last_executed,
-			COALESCE(MAX(sqs.output_size), 0) AS output_size,
-			COALESCE(MAX(sqs.system_time), 0) AS system_time,
-			COALESCE(MAX(sqs.user_time), 0) AS user_time,
-			COALESCE(MAX(sqs.wall_time), 0) AS wall_time
+			COALESCE(SUM(sqs.output_size), 0) AS output_size,
+			COALESCE(SUM(sqs.system_time), 0) AS system_time,
+			COALESCE(SUM(sqs.user_time), 0) AS user_time,
+			COALESCE(SUM(sqs.wall_time), 0) AS wall_time
 		FROM
 			queries q
 		LEFT JOIN scheduled_query_stats sqs ON (q.id = sqs.scheduled_query_id AND sqs.host_id = ?)
@@ -417,9 +417,8 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		teamID_,
 		hid,
 	}
-
 	var stats []fleet.QueryStats
-	if err := sqlx.SelectContext(ctx, db, &stats, sqlQuery, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, db, &stats, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load query stats")
 	}
 	return stats, nil
@@ -694,9 +693,6 @@ func queryStatsToScheduledQueryStats(queriesStats []fleet.QueryStats, packName s
 			Denylisted:         queryStats.Denylisted,
 			Executions:         queryStats.Executions,
 			Interval:           queryStats.Interval,
-			DiscardData:        queryStats.DiscardData,
-			AutomationsEnabled: queryStats.AutomationsEnabled,
-			LastFetched:        queryStats.LastFetched,
 			LastExecuted:       queryStats.LastExecuted,
 			OutputSize:         queryStats.OutputSize,
 			SystemTime:         queryStats.SystemTime,
