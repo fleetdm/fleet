@@ -445,20 +445,6 @@ overrides:
             - "last_modified"
 ```
 
-## Command line flags
-
-> Requires Fleet v4.22.0 or later and Orbit v1.3.0 or later**
-
-In the `command_line_flags` key, you can update the osquery flags of your Orbit enrolled agents.
-
-```yaml
-agent_options:
-  config:
-  overrides:
-  command_line_flags:
-    enable_file_events: true
-```
-
 ## Update agent options in Fleet UI
 
 <!-- Heading is kept so that the link from the Fleet UI still works -->
