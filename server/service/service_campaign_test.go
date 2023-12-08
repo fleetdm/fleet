@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"crypto/tls"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -12,7 +11,9 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -160,4 +161,13 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 		newActiveConn = s.ActiveCount
 	}
 	require.Equal(t, prevActiveConn-1, newActiveConn)
+}
+
+func TestUpdateStats(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	s, ctx := newTestService(t, ds, nil, nil)
+	svc := s.(validationMiddleware).Service.(*Service)
+
+	tracker := statsTracker{}
+	svc.updateStats(ctx, 0, svc.logger, &tracker, false)
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log/level"
 )
 
 type runLiveQueryRequest struct {
@@ -50,6 +51,8 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		logging.WithExtras(ctx, "live_query_rest_period_err", err)
 	}
 
+	// Only allow a query to be specified once
+	req.QueryIDs = server.RemoveDuplicatesFromSlice(req.QueryIDs)
 	// Only allow a host to be specified once in HostIDs
 	req.HostIDs = server.RemoveDuplicatesFromSlice(req.HostIDs)
 	res := runLiveQueryResponse{
@@ -123,6 +126,17 @@ func (svc *Service) RunLiveQueryDeadline(
 
 			var results []fleet.QueryResult
 			timeout := time.After(deadline)
+
+			// We process stats along with results as they are sent back to the user.
+			// We do a batch update of the stats.
+			// We update aggregated stats once online hosts have reported.
+			const statsBatchSize = 1000
+			perfStatsTracker := statsTracker{}
+			perfStatsTracker.saveStats, err = svc.ds.IsSavedQuery(ctx, campaign.QueryID)
+			if err != nil {
+				level.Error(svc.logger).Log("msg", "error checking saved query", "query.id", campaign.QueryID, "err", err)
+				perfStatsTracker.saveStats = false
+			}
 		loop:
 			for {
 				select {
@@ -133,11 +147,27 @@ func (svc *Service) RunLiveQueryDeadline(
 						counterMutex.Lock()
 						respondedHostIDs[res.Host.ID] = struct{}{}
 						counterMutex.Unlock()
+						if perfStatsTracker.saveStats && res.Stats != nil {
+							perfStatsTracker.stats = append(
+								perfStatsTracker.stats,
+								statsToSave{hostID: res.Host.ID, Stats: res.Stats, outputSize: calculateOutputSize(perfStatsTracker, res)},
+							)
+							if len(perfStatsTracker.stats) >= statsBatchSize {
+								svc.updateStats(ctx, campaign.QueryID, svc.logger, &perfStatsTracker, false)
+							}
+						}
 					case error:
 						resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(res.Error())}
 						return
 					}
 				case <-timeout:
+					// This is the normal path for returning results. We only update aggregated stats here, and without blocking.
+					if perfStatsTracker.saveStats {
+						ctxWithoutCancel := context.WithoutCancel(ctx) // to make sure stats DB operations don't get killed after we return results.
+						go func() {
+							svc.updateStats(ctxWithoutCancel, campaign.QueryID, svc.logger, &perfStatsTracker, true)
+						}()
+					}
 					break loop
 				case <-ctx.Done():
 					break loop
