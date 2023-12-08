@@ -20,6 +20,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import VersionCell from "./VersionCell";
+import SoftwareIcon from "../components/icons/SoftwareIcon";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -200,7 +201,7 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: IStringCellProps): JSX.Element => {
-        const { id, name } = cellProps.row.original;
+        const { id, name, source } = cellProps.row.original;
 
         const onClickSoftware = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
@@ -213,7 +214,12 @@ const generateTableHeaders = (
           <LinkCell
             path={PATHS.SOFTWARE_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
-            value={name}
+            value={
+              <>
+                <SoftwareIcon name={name} source={source} />
+                {name}
+              </>
+            }
           />
         );
       },
