@@ -217,7 +217,7 @@ const generateTableHeaders = (
             value={
               <>
                 <SoftwareIcon name={name} source={source} />
-                {name}
+                <span>{name}</span>
               </>
             }
           />

@@ -39,20 +39,20 @@ const SoftwareIcon = ({
   size = "medium",
 }: ISoftwareIconProps) => {
   // try to find a match for name
-  let Icon = matchInMap(SOFTWARE_NAME_TO_ICON_MAP, name);
+  let MatchedIcon = matchInMap(SOFTWARE_NAME_TO_ICON_MAP, name);
 
   // otherwise, try to find a match for source
-  if (!Icon) {
-    Icon = matchInMap(SOFTWARE_SOURCE_TO_ICON_MAP, source);
+  if (!MatchedIcon) {
+    MatchedIcon = matchInMap(SOFTWARE_SOURCE_TO_ICON_MAP, source);
   }
 
   // default to 'package'
-  if (!Icon) {
-    Icon = SOFTWARE_SOURCE_TO_ICON_MAP.package;
+  if (!MatchedIcon) {
+    MatchedIcon = SOFTWARE_SOURCE_TO_ICON_MAP.package;
   }
 
   return (
-    <Icon
+    <MatchedIcon
       width={SOFTWARE_ICON_SIZES[size]}
       height={SOFTWARE_ICON_SIZES[size]}
       viewBox="0 0 32 32"

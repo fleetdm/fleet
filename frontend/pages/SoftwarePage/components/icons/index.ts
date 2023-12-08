@@ -28,7 +28,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "visual studio code": VisualStudioCode,
   "microsoft word": Word,
   zoom: Zoom,
-};
+} as const;
 
 // SOFTWARE_SOURCE_TO_ICON_MAP maps different software sources to a defined
 // icon.
@@ -50,11 +50,11 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   ie_extensions: Extension,
   chocolatey_packages: Package,
   pkg_packages: Package,
-};
+} as const;
 
 export const SOFTWARE_ICON_SIZES: Record<string, string> = {
   medium: "24",
   large: "96",
-};
+} as const;
 
 export type SoftwareIconSizes = keyof typeof SOFTWARE_ICON_SIZES;
