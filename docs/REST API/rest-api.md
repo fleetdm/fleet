@@ -6995,6 +6995,17 @@ Deletes the session specified by ID. When the user associated with the session n
           }
         ],
         "hosts_count": 1
+      },
+      {
+        "id": 2,
+        "name": "1Password – Password Manager",
+        "version": "2.3.7",
+        "source": "chrome_extensions",
+        "extension_id": "aeblfdkhhhdcdjpifhhbdiojplfjncoa",
+        "browser": "chrome",
+        "generated_cpe": "cpe:2.3:a:1password:1password:2.3.7:*:*:*:*:chrome:*:*",
+        "vulnerabilities": null,
+        "hosts_count": 2
       }
     ]
 }
