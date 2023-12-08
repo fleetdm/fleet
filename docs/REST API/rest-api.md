@@ -4544,7 +4544,7 @@ Content-Type: application/octet-stream
 
 _Available in Fleet Premium_
 
-`GET /mdm/bootstrap/{team_id}`
+`GET /mdm/bootstrap/:team_id`
 
 #### Parameters
 
@@ -4722,7 +4722,7 @@ Content-Type: application/octet-stream
 
 _Available in Fleet Premium_
 
-`GET /mdm/eula/{team_id}`
+`GET /mdm/eula/:team_id`
 
 #### Parameters
 
