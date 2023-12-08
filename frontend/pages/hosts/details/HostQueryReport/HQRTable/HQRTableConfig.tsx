@@ -27,7 +27,7 @@ interface IDataColumn extends ColumnInterface {
   accessor: string;
 }
 
-const generateColumnConfigs = (rows: any[]): Column[] =>
+const generateColumnConfigs = (rows: any[]) =>
   getUniqueColumnNamesFromRows(rows).map((colName) => {
     return {
       id: colName as string,

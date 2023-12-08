@@ -148,6 +148,8 @@ const HQRTable = ({
       customControl={renderTableButtons}
       setExportRows={setFilteredResults}
       emptyComponent={() => null}
+      defaultSortHeader={columnConfigs[0].title}
+      defaultSortDirection="asc"
     />
   );
 };

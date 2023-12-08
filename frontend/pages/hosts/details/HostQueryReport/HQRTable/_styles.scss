@@ -1,7 +1,7 @@
 .hqr-table {
   &__results-count-and-last-fetched {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: $pad-small;
 
     .last-fetched {
@@ -12,5 +12,17 @@
   &__results-cta {
     display: flex;
     gap: $pad-medium;
+    .button {
+      height: auto;
+    }
+  }
+
+  &__export-btn {
+    .children-wrapper {
+      align-self: flex-end;
+    }
+    .icon {
+      display: initial;
+    }
   }
 }
