@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -218,7 +217,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			notifs.NeedsProgrammaticWindowsMDMEnrollment = true
 		}
 	}
-	if config.IsMDMFeatureFlagEnabled() && !appConfig.MDM.WindowsEnabledAndConfigured {
+	if !appConfig.MDM.WindowsEnabledAndConfigured {
 		if host.IsEligibleForWindowsMDMUnenrollment() {
 			notifs.NeedsProgrammaticWindowsMDMUnenrollment = true
 		}
@@ -271,8 +270,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 		}
 
-		if config.IsMDMFeatureFlagEnabled() &&
-			mdmConfig.EnableDiskEncryption &&
+		if mdmConfig.EnableDiskEncryption &&
 			host.IsEligibleForBitLockerEncryption() {
 			notifs.EnforceBitLockerEncryption = true
 		}
@@ -308,7 +306,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	if appConfig.MDM.WindowsEnabledAndConfigured &&
-		config.IsMDMFeatureFlagEnabled() &&
 		appConfig.MDM.EnableDiskEncryption.Value &&
 		host.IsEligibleForBitLockerEncryption() {
 		notifs.EnforceBitLockerEncryption = true

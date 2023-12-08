@@ -108,7 +108,6 @@ In the Google Admin console:
 - [Signing fleetd installer](#signing-fleetd-installer)
 - [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
 - [fleetd configuration options](#fleetd-configuration-options)
-- [Enroll hosts with plain osquery](#enroll-hosts-with-plain-osquery)
 
 ### Grant full disk access to osquery on macOS
 
