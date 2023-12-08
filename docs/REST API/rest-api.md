@@ -6032,7 +6032,6 @@ The fixed time period is configurable via environment variable on the Fleet serv
 `FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value, be sure that you do not exceed your
 load balancer timeout.
 
-> WARNING: This API endpoint collects responses in-memory (RAM) on the Fleet compute instance handling this request, which can overflow if the result set is large enough.  This has the potential to crash the process and/or cause an autoscaling event in your cloud provider, depending on how Fleet is deployed.
 
 `POST /api/v1/fleet/queries/:id/run`
 
