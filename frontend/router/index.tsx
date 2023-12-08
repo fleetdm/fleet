@@ -42,8 +42,6 @@ import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
 import MDMAppleSSOPage from "pages/MDMAppleSSOPage";
 import MDMAppleSSOCallbackPage from "pages/MDMAppleSSOCallbackPage";
-import SoftwareDetailsPage from "pages/SoftwarePage/SoftwareDetailsPage";
-import SoftwareDetailsPage from "pages/SoftwarePage/SoftwareDetailsPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
@@ -214,7 +212,6 @@ const routes = (
             <Route component={SoftwarePage}>
               <Route path="titles" component={SoftwareTitles} />
               <Route path="versions" component={SoftwareVersions} />
-              <Route path=":software_id" component={SoftwareDetailsPage} />
             </Route>
             <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
           </Route>
