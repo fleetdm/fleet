@@ -397,7 +397,9 @@ agent_options:
 
 ## Scripts execution timeout
 
-By default script execution timeout is set to 30 seconds. The `scripts_timeout` key allows you to configure different timeout. The maximum allowed timeout is `600` seconds.
+The `scripts_timeout` key allows you to configure different timeout. The maximum allowed timeout is `300` seconds. 
+
+- Default: `30` seconds
 
 ```yaml
 apiVersion: v1
