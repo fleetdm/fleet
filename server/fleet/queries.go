@@ -12,6 +12,12 @@ import (
 	"github.com/ghodss/yaml"
 )
 
+const (
+	AggregatedStatsTypeScheduledQuery = "scheduled_query"
+)
+
+type AggregatedStatsType string
+
 // QueryPayload is the payload used to create and modify queries.
 //
 // Fields are pointers to allow omitting fields when modifying existing queries.

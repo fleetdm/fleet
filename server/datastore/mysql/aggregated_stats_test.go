@@ -87,10 +87,10 @@ func TestAggregatedStats(t *testing.T) {
 
 	testcases := []struct {
 		table     string
-		aggregate aggregatedStatsType
+		aggregate fleet.AggregatedStatsType
 		aggFunc   func(ctx context.Context) error
 	}{
-		{"queries", aggregatedStatsTypeScheduledQuery, ds.UpdateQueryAggregatedStats},
+		{"queries", fleet.AggregatedStatsTypeScheduledQuery, ds.UpdateQueryAggregatedStats},
 	}
 	for _, tt := range testcases {
 		t.Run(tt.table, func(t *testing.T) {

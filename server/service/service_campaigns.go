@@ -304,10 +304,14 @@ func (svc Service) updateStats(
 	}
 
 	// Do aggregation
-	// TODO
-	/*
-		if aggregateStats && tracker.aggregationNeeded {
+	if aggregateStats && tracker.aggregationNeeded {
+		err := svc.ds.CalculateAggregatedPerfStatsPercentiles(ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID)
+		if err != nil {
+			level.Error(logger).Log("msg", "error aggregating performance stats", "err", err)
+			tracker.saveStats = false
+			return
 		}
-	*/
+		tracker.aggregationNeeded = false
+	}
 	return
 }
