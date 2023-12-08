@@ -1233,7 +1233,8 @@ Note that when making changes to the `integrations` object, all integrations mus
       }
     },
     "overrides": {},
-    "command_line_flags": {}
+    "command_line_flags": {},
+    "scripts_timeout": 180
   },
   "vulnerability_settings": {
     "databases_path": ""
