@@ -13,7 +13,7 @@ import MainContent from "components/MainContent";
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
 
-const baseClass = "SoftwareTitleDetailsPage";
+const baseClass = "software-title-details-page";
 
 interface ISoftwareTitleDetailsRouteParams {
   id: string;
@@ -57,11 +57,15 @@ const SoftwareTitleDetailsPage = ({
           type={softwareTitle.source}
           hosts={softwareTitle.hosts_count}
         />
-        <SoftwareTitleDetailsTable
-          router={router}
-          data={softwareTitle.versions}
-          isLoading={isSoftwareTitleLoading}
-        />
+        {/* TODO: can we use Card here for card styles */}
+        <div className={`${baseClass}__versions-section`}>
+          <h2>Versions</h2>
+          <SoftwareTitleDetailsTable
+            router={router}
+            data={softwareTitle.versions}
+            isLoading={isSoftwareTitleLoading}
+          />
+        </div>
       </>
     </MainContent>
   );

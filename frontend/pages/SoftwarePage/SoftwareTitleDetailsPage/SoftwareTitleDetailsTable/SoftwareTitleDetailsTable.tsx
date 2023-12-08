@@ -28,13 +28,15 @@ const SoftwareTitleDetailsTable = ({
   return (
     <TableContainer
       className={baseClass}
-      resultsTitle="version"
+      resultsTitle="version" // TODO: dynamic based on number of results
       columns={softwareTableHeaders}
       data={data}
       isLoading={isLoading}
       emptyComponent={() => <p>nothing</p>}
       showMarkAllPages={false}
       isAllPagesSelected={false}
+      disablePagination
+      // TODO: add row click handler
     />
   );
 };
