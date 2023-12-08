@@ -46,6 +46,12 @@ export default {
   // Software pages
   SOFTWARE_TITLES: `${URL_PREFIX}/software/titles`,
   SOFTWARE_VERSIONS: `${URL_PREFIX}/software/versions`,
+  SOFTWARE_TITLE_DETAILS: (id: string): string => {
+    return `${URL_PREFIX}/software/titles/${id}`;
+  },
+  SOFTWARE_VERSION_DETAILS: (id: string): string => {
+    return `${URL_PREFIX}/software/versions/${id}`;
+  },
 
   EDIT_PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}/edit`;
@@ -111,9 +117,7 @@ export default {
   DEVICE_USER_DETAILS_POLICIES: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
   },
-  SOFTWARE_DETAILS: (id: string): string => {
-    return `${URL_PREFIX}/software/${id}`;
-  },
+
   TEAM_DETAILS_MEMBERS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
       return `${URL_PREFIX}/settings/teams/members?team_id=${teamId}`;

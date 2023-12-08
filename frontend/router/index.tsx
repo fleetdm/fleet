@@ -61,6 +61,7 @@ import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/A
 import SoftwarePage from "pages/SoftwarePage";
 import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
 import SoftwareVersions from "pages/SoftwarePage/SoftwareVersions";
+import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -214,7 +215,7 @@ const routes = (
               <Route path="versions" component={SoftwareVersions} />
               <Route path=":software_id" component={SoftwareDetailsPage} />
             </Route>
-            <Route path="titles/:id" component={SoftwareDetailsPage} />
+            <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">

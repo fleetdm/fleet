@@ -90,12 +90,12 @@ const generateTableHeaders = (
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
 
-          router?.push(PATHS.SOFTWARE_DETAILS(id.toString()));
+          router?.push(PATHS.SOFTWARE_TITLE_DETAILS(id.toString()));
         };
 
         return (
           <LinkCell
-            path={PATHS.SOFTWARE_DETAILS(id.toString())}
+            path={PATHS.SOFTWARE_TITLE_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
             value={name}
           />
