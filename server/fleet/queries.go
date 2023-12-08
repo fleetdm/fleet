@@ -101,6 +101,58 @@ type Query struct {
 	// DiscardData indicates if the scheduled query results should be discarded (true)
 	// or kept (false) in a query report.
 	DiscardData bool `json:"discard_data" db:"discard_data"`
+
+	/////////////////////////////////////////////////////////////////
+	// WARNING: If you add to this struct make sure it's taken into
+	// account in the Query Clone implementation!
+	/////////////////////////////////////////////////////////////////
+}
+
+// Clone implements cloner for Query.
+func (q *Query) Clone() (Cloner, error) {
+	return q.Copy(), nil
+}
+
+// Copy returns a deep copy of the Query.
+func (q *Query) Copy() *Query {
+	if q == nil {
+		return nil
+	}
+
+	var clone Query
+	clone = *q
+
+	if q.TeamID != nil {
+		clone.TeamID = ptr.Uint(*q.TeamID)
+	}
+	if q.AuthorID != nil {
+		clone.AuthorID = ptr.Uint(*q.AuthorID)
+	}
+
+	if q.Packs != nil {
+		clone.Packs = make([]Pack, len(q.Packs))
+		for i, p := range q.Packs {
+			newP := p.Copy()
+			clone.Packs[i] = *newP
+		}
+	}
+
+	if q.AggregatedStats.SystemTimeP50 != nil {
+		clone.AggregatedStats.SystemTimeP50 = ptr.Float64(*q.AggregatedStats.SystemTimeP50)
+	}
+	if q.AggregatedStats.SystemTimeP95 != nil {
+		clone.AggregatedStats.SystemTimeP95 = ptr.Float64(*q.AggregatedStats.SystemTimeP95)
+	}
+	if q.AggregatedStats.UserTimeP50 != nil {
+		clone.AggregatedStats.UserTimeP50 = ptr.Float64(*q.AggregatedStats.UserTimeP50)
+	}
+	if q.AggregatedStats.UserTimeP95 != nil {
+		clone.AggregatedStats.UserTimeP95 = ptr.Float64(*q.AggregatedStats.UserTimeP95)
+	}
+	if q.AggregatedStats.TotalExecutions != nil {
+		clone.AggregatedStats.TotalExecutions = ptr.Float64(*q.AggregatedStats.TotalExecutions)
+	}
+	return &clone
 }
 
 var (

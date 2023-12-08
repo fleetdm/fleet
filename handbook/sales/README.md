@@ -47,6 +47,9 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 ## Responsibilities
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
+### Onboard a new sales team member
+Once the standard Fleetie onboarding issue is complete, create a new ["Sales team onboarding"](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=sales-team-onboarding.md&title=Sales%20onboarding%3A_____________) issue and complete it.
+
 ### Send a quote
 During the buying cycle, the champion will need to start the process to secure funding in cooperation with the economic buyer and the finance org.
 

@@ -15,7 +15,7 @@ export const createMockMdmSolution = (
 };
 
 const DEFAULT_MDM_PROFILE_DATA: IMdmProfile = {
-  profile_id: 1,
+  profile_uuid: "123-abc",
   team_id: 0,
   name: "Test Profile",
   platform: "darwin",

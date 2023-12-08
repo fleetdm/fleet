@@ -917,7 +917,10 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 }
 
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
-func (ds *Datastore) applyHostFilters(ctx context.Context, opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}, leftJoinFailingPolicies bool) (string, []interface{}, error) {
+func (ds *Datastore) applyHostFilters(
+	ctx context.Context, opt fleet.HostListOptions, sqlStmt string, filter fleet.TeamFilter, params []interface{},
+	leftJoinFailingPolicies bool,
+) (string, []interface{}, error) {
 	opt.OrderKey = defaultHostColumnTableAlias(opt.OrderKey)
 
 	deviceMappingJoin := `LEFT JOIN (
@@ -940,9 +943,20 @@ func (ds *Datastore) applyHostFilters(ctx context.Context, opt fleet.HostListOpt
 	}
 
 	softwareFilter := "TRUE"
-	if opt.SoftwareIDFilter != nil {
+	var softwareIDFilter *uint
+	if opt.SoftwareVersionIDFilter != nil {
+		softwareIDFilter = opt.SoftwareVersionIDFilter
+	} else if opt.SoftwareIDFilter != nil {
+		softwareIDFilter = opt.SoftwareIDFilter
+	}
+	if softwareIDFilter != nil {
 		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id = h.id AND hs.software_id = ?)"
-		params = append(params, opt.SoftwareIDFilter)
+		params = append(params, *softwareIDFilter)
+	} else if opt.SoftwareTitleIDFilter != nil {
+		// software (version) ID filter is mutually exclusive with software title ID
+		// so we're reusing the same filter to avoid adding unnecessary conditions.
+		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs INNER JOIN software sw ON hs.software_id = sw.id WHERE hs.host_id = h.id AND sw.title_id = ?)"
+		params = append(params, *opt.SoftwareTitleIDFilter)
 	}
 
 	failingPoliciesJoin := ""
@@ -977,7 +991,8 @@ func (ds *Datastore) applyHostFilters(ctx context.Context, opt fleet.HostListOpt
 		params = append(params, *opt.LowDiskSpaceFilter)
 	}
 
-	sql += fmt.Sprintf(`FROM hosts h
+	sqlStmt += fmt.Sprintf(
+		`FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
@@ -1009,26 +1024,34 @@ func (ds *Datastore) applyHostFilters(ctx context.Context, opt fleet.HostListOpt
 	)
 
 	now := ds.clock.Now()
-	sql, params = filterHostsByStatus(now, sql, opt, params)
-	sql, params = filterHostsByTeam(sql, opt, params)
-	sql, params = filterHostsByPolicy(sql, opt, params)
-	sql, params = filterHostsByMDM(sql, opt, params)
-	sql, params = filterHostsByMacOSSettingsStatus(sql, opt, params)
-	sql, params = filterHostsByMacOSDiskEncryptionStatus(sql, opt, params)
+	sqlStmt, params = filterHostsByStatus(now, sqlStmt, opt, params)
+	sqlStmt, params = filterHostsByTeam(sqlStmt, opt, params)
+	sqlStmt, params = filterHostsByPolicy(sqlStmt, opt, params)
+	sqlStmt, params = filterHostsByMDM(sqlStmt, opt, params)
+	sqlStmt, params = filterHostsByMacOSSettingsStatus(sqlStmt, opt, params)
+	sqlStmt, params = filterHostsByMacOSDiskEncryptionStatus(sqlStmt, opt, params)
 	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil, ctxerr.Wrap(
+				ctx, &fleet.BadRequestError{
+					Message:     fmt.Sprintf("team is invalid"),
+					InternalErr: err,
+				},
+			)
+		}
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		sql, params = ds.filterHostsByOSSettingsStatus(sql, opt, params, enableDiskEncryption)
+		sqlStmt, params = ds.filterHostsByOSSettingsStatus(sqlStmt, opt, params, enableDiskEncryption)
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
-		sql, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(sql, opt, params, enableDiskEncryption)
+		sqlStmt, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(sqlStmt, opt, params, enableDiskEncryption)
 	}
 
-	sql, params = filterHostsByMDMBootstrapPackageStatus(sql, opt, params)
-	sql, params = filterHostsByOS(sql, opt, params)
-	sql, params, _ = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
-	sql, params = appendListOptionsWithCursorToSQL(sql, params, &opt.ListOptions)
+	sqlStmt, params = filterHostsByMDMBootstrapPackageStatus(sqlStmt, opt, params)
+	sqlStmt, params = filterHostsByOS(sqlStmt, opt, params)
+	sqlStmt, params, _ = hostSearchLike(sqlStmt, params, opt.MatchQuery, hostSearchColumns...)
+	sqlStmt, params = appendListOptionsWithCursorToSQL(sqlStmt, params, &opt.ListOptions)
 
-	return sql, params, nil
+	return sqlStmt, params, nil
 }
 
 func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -1256,7 +1279,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
             WHEN (%s) THEN
                 'bitlocker_pending'
             WHEN (%s) THEN
-                'bitlocker_failed'				
+                'bitlocker_failed'
             ELSE
                 ''
             END`,
@@ -1268,11 +1291,11 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	}
 
 	whereWindows += fmt.Sprintf(` AND (
-    CASE (%s)	
+    CASE (%s)
     WHEN 'profiles_failed' THEN
         'failed'
     WHEN 'profiles_pending' THEN (
-        CASE (%s) 
+        CASE (%s)
         WHEN 'bitlocker_failed' THEN
             'failed'
         ELSE
@@ -1298,7 +1321,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
         ELSE
             'verified'
         END)
-    ELSE 
+    ELSE
         REPLACE((%s), 'bitlocker_', '')
     END) = ?`, profilesStatus, bitlockerStatus, bitlockerStatus, bitlockerStatus, bitlockerStatus)
 
@@ -2545,7 +2568,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
 	` + hostMDMJoin + `
-    WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
+    WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)
     LIMIT 1
 	`
 	host := &fleet.Host{}
@@ -2816,10 +2839,13 @@ func (ds *Datastore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fle
 	return mappings, nil
 }
 
-func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, mappings []*fleet.HostDeviceMapping) error {
+func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, mappings []*fleet.HostDeviceMapping, source string) error {
 	for _, m := range mappings {
 		if hid != m.HostID {
 			return ctxerr.Errorf(ctx, "host device mapping are not all for the provided host id %d, found %d", hid, m.HostID)
+		}
+		if m.Source != source {
+			return ctxerr.Errorf(ctx, "host device mapping are not all for the provided source %s, found %s", source, m.Source)
 		}
 	}
 
@@ -2834,7 +2860,7 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
       FROM
         host_emails
       WHERE
-        host_id = ?`
+        host_id = ? AND source = ?`
 
 		delStmt = `
       DELETE FROM
@@ -2850,16 +2876,16 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 		insPart = ` (?, ?, ?),`
 	)
 
-	// index the mappings by email and source, to quickly check which ones
-	// need to be deleted and inserted
-	toIns := make(map[string]*fleet.HostDeviceMapping)
-	for _, m := range mappings {
-		toIns[m.Email+"\n"+m.Source] = m
-	}
-
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// index the mappings by email and source, to quickly check which ones
+		// need to be deleted and inserted
+		toIns := make(map[string]*fleet.HostDeviceMapping)
+		for _, m := range mappings {
+			toIns[m.Email+"\n"+m.Source] = m
+		}
+
 		var prevMappings []*fleet.HostDeviceMapping
-		if err := sqlx.SelectContext(ctx, tx, &prevMappings, selStmt, hid); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &prevMappings, selStmt, hid, source); err != nil {
 			return ctxerr.Wrap(ctx, err, "select previous host emails")
 		}
 
@@ -2900,65 +2926,95 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 }
 
 func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mappings []*fleet.HostBattery) error {
+	for _, m := range mappings {
+		if hid != m.HostID {
+			return ctxerr.Errorf(ctx, "host batteries mapping are not all for the provided host id %d, found %d", hid, m.HostID)
+		}
+	}
+
+	// The following SQL statements assume a small number of batteries reported per host.
+	// This is using the same pattern as ReplaceHostDeviceMapping.
 	const (
-		replaceStmt = `
-    INSERT INTO
-      host_batteries (
+		selStmt = `
+      SELECT
+        id,
         host_id,
         serial_number,
-        cycle_count,
-        health
-      )
-    VALUES
-      %s
-    ON DUPLICATE KEY UPDATE
-      cycle_count = VALUES(cycle_count),
-      health = VALUES(health),
-      updated_at = CURRENT_TIMESTAMP
-`
-		valuesPart = `(?, ?, ?, ?),`
+		cycle_count,
+		health
+      FROM
+        host_batteries
+      WHERE
+        host_id = ?`
 
-		deleteExceptStmt = `
-    DELETE FROM
-      host_batteries
-    WHERE
-      host_id = ? AND
-      serial_number NOT IN (?)
-`
-		deleteAllStmt = `
-    DELETE FROM
-      host_batteries
-    WHERE
-      host_id = ?
-`
+		delStmt = `
+      DELETE FROM
+        host_batteries
+      WHERE
+        id IN (?)`
+
+		insStmt = `
+      INSERT INTO
+        host_batteries (host_id, serial_number, cycle_count, health)
+      VALUES`
+		insPart = ` (?, ?, ?, ?),`
 	)
 
-	replaceArgs := make([]interface{}, 0, len(mappings)*4)
-	deleteNotIn := make([]string, 0, len(mappings))
-	for _, hb := range mappings {
-		deleteNotIn = append(deleteNotIn, hb.SerialNumber)
-		replaceArgs = append(replaceArgs, hid, hb.SerialNumber, hb.CycleCount, hb.Health)
+	keyFn := func(b *fleet.HostBattery) string {
+		return b.SerialNumber + ":" + fmt.Sprint(b.CycleCount) + ":" + b.Health
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// first, insert the new batteries or update the existing ones
-		if len(replaceArgs) > 0 {
-			if _, err := tx.ExecContext(ctx, fmt.Sprintf(replaceStmt, strings.TrimSuffix(strings.Repeat(valuesPart, len(mappings)), ",")), replaceArgs...); err != nil {
-				return ctxerr.Wrap(ctx, err, "upsert host batteries")
+		// Index the mappings by serial_number, to quickly check which ones
+		// need to be deleted and inserted.
+		toIns := make(map[string]*fleet.HostBattery)
+		serials := make(map[string]struct{})
+		for _, m := range mappings {
+			if _, ok := serials[m.SerialNumber]; ok {
+				// Ignore multiple rows with the same serial number
+				// (e.g. in case of bugs in results reported by osquery).
+				continue
+			}
+			toIns[keyFn(m)] = m
+			serials[m.SerialNumber] = struct{}{}
+		}
+
+		var prevMappings []*fleet.HostBattery
+		if err := sqlx.SelectContext(ctx, tx, &prevMappings, selStmt, hid); err != nil {
+			return ctxerr.Wrap(ctx, err, "select previous host batteries")
+		}
+
+		var delIDs []uint
+		for _, pm := range prevMappings {
+			key := keyFn(pm)
+			if _, ok := toIns[key]; ok {
+				// already exists, no need to insert
+				delete(toIns, key)
+			} else {
+				// does not exist anymore, must be deleted
+				delIDs = append(delIDs, pm.ID)
 			}
 		}
 
-		// then, delete the old ones
-		if len(deleteNotIn) > 0 {
-			delStmt, args, err := sqlx.In(deleteExceptStmt, hid, deleteNotIn)
+		if len(delIDs) > 0 {
+			stmt, args, err := sqlx.In(delStmt, delIDs)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "generating host batteries delete NOT IN statement")
+				return ctxerr.Wrap(ctx, err, "prepare delete statement")
 			}
-			if _, err := tx.ExecContext(ctx, delStmt, args...); err != nil {
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete host batteries")
 			}
-		} else if _, err := tx.ExecContext(ctx, deleteAllStmt, hid); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete all host batteries")
+		}
+
+		if len(toIns) > 0 {
+			var args []interface{}
+			for _, m := range toIns {
+				args = append(args, hid, m.SerialNumber, m.CycleCount, m.Health)
+			}
+			stmt := insStmt + strings.TrimSuffix(strings.Repeat(insPart, len(toIns)), ",")
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert host batteries")
+			}
 		}
 		return nil
 	})
@@ -3234,6 +3290,7 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	serverURL string,
 	installedFromDep bool,
 	name string,
+	fleetEnrollmentRef string,
 ) error {
 	var mdmID *uint
 	if serverURL != "" {
@@ -3246,9 +3303,33 @@ func (ds *Datastore) SetOrUpdateMDMData(
 
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ?, is_server = ? WHERE host_id = ?`,
-		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, host_id) VALUES (?, ?, ?, ?, ?, ?)`,
-		enrolled, serverURL, installedFromDep, mdmID, isServer, hostID,
+		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ?, is_server = ?, fleet_enroll_ref = ? WHERE host_id = ?`,
+		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, fleet_enroll_ref, host_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		enrolled, serverURL, installedFromDep, mdmID, isServer, fleetEnrollmentRef, hostID,
+	)
+}
+
+const hostEmailsSourceMdmIdpAccounts = "mdm_idp_accounts"
+
+func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
+	ctx context.Context,
+	hostID uint,
+	fleetEnrollmentRef string,
+) error {
+	var email *string
+	if fleetEnrollmentRef != "" {
+		idp, err := ds.GetMDMIdPAccountByUUID(ctx, fleetEnrollmentRef)
+		if err != nil {
+			return err
+		}
+		email = &idp.Email
+	}
+
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
+		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
+		email, hostID, hostEmailsSourceMdmIdpAccounts,
 	)
 }
 
@@ -3282,7 +3363,11 @@ VALUES
   (?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
   /* if the key has changed, set decrypted to its initial value so it can be calculated again if necessary (if null) */
-  decryptable = IF(base64_encrypted = VALUES(base64_encrypted), decryptable, VALUES(decryptable)),
+  decryptable = IF(
+    base64_encrypted = VALUES(base64_encrypted) AND base64_encrypted != '',
+    decryptable,
+    VALUES(decryptable)
+  ),
   base64_encrypted = VALUES(base64_encrypted),
   client_error = VALUES(client_error)
 `, hostID, encryptedBase64Key, clientError, decryptable)
@@ -4489,4 +4574,45 @@ func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []strin
 	}
 
 	return result, nil
+}
+
+func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
+	sqlStmt := `
+		SELECT h.os_version, h.updated_at, h.platform, h.team_id, hd.encrypted as disk_encryption_enabled FROM hosts h
+		LEFT JOIN host_disks hd ON hd.host_id = h.id
+		WHERE id = ?
+	`
+
+	var hh fleet.HostHealth
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hh, sqlStmt, id); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Host Health").WithID(id))
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "loading host health")
+	}
+
+	host := &fleet.Host{ID: id, Platform: hh.Platform}
+	if err := ds.LoadHostSoftware(ctx, host, true); err != nil {
+		return nil, err
+	}
+
+	for _, s := range host.Software {
+		if len(s.Vulnerabilities) > 0 {
+			hh.VulnerableSoftware = append(hh.VulnerableSoftware, s)
+		}
+	}
+
+	policies, err := ds.ListPoliciesForHost(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, p := range policies {
+		if p.Response == "fail" {
+			hh.FailingPolicies = append(hh.FailingPolicies, p)
+		}
+	}
+
+	return &hh, nil
 }

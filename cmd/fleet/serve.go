@@ -553,8 +553,8 @@ the way that the Fleet server works.
 				wstepCertManager microsoft_mdm.CertManager
 			)
 
-			// Configuring WSTEP certs if Windows MDM feature flag is enabled
-			if configpkg.IsMDMFeatureFlagEnabled() && config.MDM.IsMicrosoftWSTEPSet() {
+			// Configuring WSTEP certs
+			if config.MDM.IsMicrosoftWSTEPSet() {
 				_, crtPEM, keyPEM, err := config.MDM.MicrosoftWSTEP()
 				if err != nil {
 					initFatal(err, "validate Microsoft WSTEP certificate and key")
@@ -726,7 +726,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			if appCfg.MDM.EnabledAndConfigured {
+			if appCfg.MDM.EnabledAndConfigured || appCfg.MDM.WindowsEnabledAndConfigured {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					return newMDMProfileManager(
 						ctx,
