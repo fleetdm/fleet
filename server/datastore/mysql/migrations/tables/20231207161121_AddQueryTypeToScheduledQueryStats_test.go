@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestUp_20231204161121(t *testing.T) {
+func TestUp_20231207161121(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	insertStmt := `
