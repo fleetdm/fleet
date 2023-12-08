@@ -101,6 +101,8 @@ type Datastore interface {
 	UpdateLiveQueryStats(ctx context.Context, queryID uint, stats []*LiveQueryStats) error
 	// CalculateAggregatedPerfStatsPercentiles calculates the aggregated user/system time performance statistics for the given query.
 	CalculateAggregatedPerfStatsPercentiles(ctx context.Context, aggregate AggregatedStatsType, queryID uint) error
+	// GetAggregatedStats retrieves aggregated stats for the given query
+	GetAggregatedStats(ctx context.Context, aggregate AggregatedStatsType, id uint) (AggregatedStats, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CampaignStore defines the distributed query campaign related datastore methods

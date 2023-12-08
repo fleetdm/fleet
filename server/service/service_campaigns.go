@@ -27,6 +27,7 @@ type targetTotals struct {
 const (
 	campaignStatusPending  = "pending"
 	campaignStatusFinished = "finished"
+	statsBatchSize         = 1000
 )
 
 type campaignStatus struct {
@@ -176,7 +177,6 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// We process stats along with results as they are sent back to the user.
 	// We do a batch update of the stats.
 	// We update aggregated stats once online hosts have reported, and again (if needed) on client disconnect.
-	const statsBatchSize = 1000
 	perfStatsTracker := statsTracker{}
 	perfStatsTracker.saveStats, err = svc.ds.IsSavedQuery(ctx, campaign.QueryID)
 	if err != nil {
@@ -262,7 +262,7 @@ func (svc Service) updateStats(
 	ctx context.Context, queryID uint, logger log.Logger, tracker *statsTracker, aggregateStats bool,
 ) {
 	// If we are not saving stats
-	if !tracker.saveStats ||
+	if tracker == nil || !tracker.saveStats ||
 		// Or there are no stats to save, and we don't need to calculate aggregated stats
 		(len(tracker.stats) == 0 && (!aggregateStats || !tracker.aggregationNeeded)) {
 		return

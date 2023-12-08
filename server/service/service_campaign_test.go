@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -22,6 +23,7 @@ import (
 	ws "github.com/fleetdm/fleet/v4/server/websocket"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -165,9 +167,92 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 
 func TestUpdateStats(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
 	s, ctx := newTestService(t, ds, nil, nil)
 	svc := s.(validationMiddleware).Service.(*Service)
 
 	tracker := statsTracker{}
+	// NOOP cases
+	svc.updateStats(ctx, 0, svc.logger, nil, false)
 	svc.updateStats(ctx, 0, svc.logger, &tracker, false)
+
+	// More NOOP cases
+	tracker.saveStats = true
+	svc.updateStats(ctx, 0, svc.logger, nil, false)
+	assert.True(t, tracker.saveStats)
+	svc.updateStats(ctx, 0, svc.logger, nil, true)
+	assert.True(t, tracker.saveStats)
+
+	// Populate a batch of data
+	hostIDs := []uint{}
+	queryID := uint(1)
+	myHostID := uint(10000)
+	myWallTime := uint64(5)
+	myUserTime := uint64(6)
+	mySystemTime := uint64(7)
+	myMemory := uint64(8)
+	myOutputSize := uint64(9)
+	tracker.stats = append(
+		tracker.stats, statsToSave{
+			hostID: myHostID,
+			Stats: &fleet.Stats{
+				WallTimeMs: myWallTime * 1000,
+				UserTime:   myUserTime,
+				SystemTime: mySystemTime,
+				Memory:     myMemory,
+			},
+			outputSize: myOutputSize,
+		},
+	)
+	hostIDs = append(hostIDs, myHostID)
+
+	for i := uint(1); i < statsBatchSize; i++ {
+		tracker.stats = append(
+			tracker.stats, statsToSave{
+				hostID: i,
+				Stats: &fleet.Stats{
+					WallTimeMs: rand.Uint64(),
+					UserTime:   rand.Uint64(),
+					SystemTime: rand.Uint64(),
+					Memory:     rand.Uint64(),
+				},
+				outputSize: rand.Uint64(),
+			},
+		)
+		hostIDs = append(hostIDs, i)
+	}
+	tracker.saveStats = true
+	svc.updateStats(ctx, queryID, svc.logger, &tracker, false)
+	assert.True(t, tracker.saveStats)
+	assert.Equal(t, 0, len(tracker.stats))
+	assert.True(t, tracker.aggregationNeeded)
+
+	// Get the stats from DB and make sure they match
+	currentStats, err := svc.ds.GetLiveQueryStats(ctx, queryID, hostIDs)
+	assert.NoError(t, err)
+	assert.Equal(t, statsBatchSize, len(currentStats))
+	currentStats, err = svc.ds.GetLiveQueryStats(ctx, queryID, []uint{myHostID})
+	assert.NoError(t, err)
+	require.Equal(t, 1, len(currentStats))
+	myStat := currentStats[0]
+	assert.Equal(t, myHostID, myStat.HostID)
+	assert.Equal(t, myWallTime, myStat.WallTime)
+	assert.Equal(t, myUserTime, myStat.UserTime)
+	assert.Equal(t, mySystemTime, myStat.SystemTime)
+	assert.Equal(t, myMemory, myStat.AverageMemory)
+	assert.Equal(t, myOutputSize, myStat.OutputSize)
+
+	// Aggregate stats
+	svc.updateStats(ctx, queryID, svc.logger, &tracker, true)
+	aggStats, err := svc.ds.GetAggregatedStats(ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID)
+	require.NoError(t, err)
+	assert.Equal(t, statsBatchSize, int(*aggStats.TotalExecutions))
+	// Sanity checks. Complete testing done in aggregated_stats_test.go
+	assert.True(t, *aggStats.SystemTimeP50 > 0)
+	assert.True(t, *aggStats.SystemTimeP95 > 0)
+	assert.True(t, *aggStats.UserTimeP50 > 0)
+	assert.True(t, *aggStats.UserTimeP95 > 0)
+
+	// Write new stats for the same query/hosts
+
 }

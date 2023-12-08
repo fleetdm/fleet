@@ -632,8 +632,7 @@ func (ds *Datastore) IsSavedQuery(ctx context.Context, queryID uint) (bool, erro
 // GetLiveQueryStats returns the live query stats for the given query and hosts.
 func (ds *Datastore) GetLiveQueryStats(ctx context.Context, queryID uint, hostIDs []uint) ([]*fleet.LiveQueryStats, error) {
 	stmt, args, err := sqlx.In(
-		`
-		SELECT host_id, average_memory, executions, system_time, user_time, wall_time
+		`SELECT host_id, average_memory, executions, system_time, user_time, wall_time, output_size
 		FROM scheduled_query_stats
 		WHERE host_id IN (?) AND scheduled_query_id = ? AND query_type = ?
 	`, hostIDs, queryID, statsLiveQueryType,
