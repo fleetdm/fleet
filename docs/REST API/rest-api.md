@@ -6023,14 +6023,11 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 > This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.x.x, for improved compatibility with many HTTP clients. The [deprecated endpoint](https://github.com/fleetdm/fleet/blob/fleet-v4.41.1/docs/REST%20API/rest-api.md#run-live-query) is maintained for backwards compatibility.
 
-Run one or more live queries against the specified hosts and responds with the results
-collected after 25 seconds.
+Runs a live query against the specified hosts and responds with the results after a fixed time period (default 25 seconds). 
 
-Response time is capped at 25 seconds from when the API request was received, regardless of whether all results have been gathered or not. This API does not return any results until the fixed time period elapses, at which point all of the collected results are returned.
+This API does not return any results until the fixed time period elapses, at which point all of the collected results are returned.
 
-The fixed time period is configurable via environment variable on the Fleet server (eg.
-`FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value, be sure that you do not exceed your
-load balancer timeout.
+The fixed time period is configurable via environment variable on the Fleet server (e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value than the default, be sure not to exceed your load balancer timeout.
 
 
 `POST /api/v1/fleet/queries/:id/run`
