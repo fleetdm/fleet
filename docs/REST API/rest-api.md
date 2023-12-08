@@ -5808,7 +5808,7 @@ If a query has no results stored for the specified host, then `results` will be 
 
 ```json
 {
- "query_id": 31,
+  "query_id": 31,
   "host_id": 1,
   "host_name": "foo",
   "last_fetched": "2021-01-19T17:08:31Z",
