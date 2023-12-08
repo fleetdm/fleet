@@ -492,8 +492,8 @@ module.exports.routes = {
 
   // Fleet UI
   // =============================================================================================================
-  // Redirects for external links from the Fleet UI, including to fleetdm.com and to external websites not maintained 
-  // by Fleet. These help avoid broken links by reducing surface area of links to maintain in the UI.
+  // Redirects for external links from the Fleet UI & CLI, including to fleetdm.com and to external websites not 
+  // maintained by Fleet. These help avoid broken links by reducing surface area of links to maintain in the UI.
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
 
   // Sitemap
