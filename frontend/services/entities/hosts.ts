@@ -17,6 +17,7 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
+import { ISoftwareTitle } from "./software";
 
 export interface ISortOption {
   key: string;
@@ -25,7 +26,8 @@ export interface ISortOption {
 
 export interface ILoadHostsResponse {
   hosts: IHost[];
-  software: ISoftware;
+  software: ISoftware | undefined;
+  software_title: ISoftwareTitle | undefined;
   munki_issue: IMunkiIssuesAggregate;
   mobile_device_management_solution: IMdmSolution;
 }
@@ -55,6 +57,8 @@ export interface ILoadHostsOptions {
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
+  softwareTitleId?: number;
+  softwareVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
@@ -82,6 +86,8 @@ export interface IExportHostsOptions {
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
+  softwareTitleId?: number;
+  softwareVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   munkiIssueId?: number;
@@ -177,6 +183,8 @@ export default {
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId;
+    const softwareTitleId = options?.softwareTitleId;
+    const softwareVersionId = options?.softwareVersionId;
     const macSettingsStatus = options?.macSettingsStatus;
     const status = options?.status;
     const mdmId = options?.mdmId;
@@ -209,6 +217,8 @@ export default {
         mdmEnrollmentStatus,
         munkiIssueId,
         softwareId,
+        softwareTitleId,
+        softwareVersionId,
         lowDiskSpaceHosts,
         osSettings,
         diskEncryptionStatus,
@@ -234,6 +244,8 @@ export default {
     policyResponse = "passing",
     macSettingsStatus,
     softwareId,
+    softwareTitleId,
+    softwareVersionId,
     status,
     mdmId,
     mdmEnrollmentStatus,
@@ -273,6 +285,8 @@ export default {
         mdmEnrollmentStatus,
         munkiIssueId,
         softwareId,
+        softwareTitleId,
+        softwareVersionId,
         lowDiskSpaceHosts,
         osId,
         osName,
