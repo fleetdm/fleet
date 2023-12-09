@@ -36,7 +36,7 @@ const DEFAULT_SOFTWARE_TITLE_VERSION_MOCK = {
   vulnerabilities: ["CVE-2020-0001"],
 };
 
-const createMockSoftwareTitleVersion = (
+export const createMockSoftwareTitleVersion = (
   overrides?: Partial<ISoftwareTitleVersion>
 ): ISoftwareTitleVersion => {
   return { ...DEFAULT_SOFTWARE_TITLE_VERSION_MOCK, ...overrides };
