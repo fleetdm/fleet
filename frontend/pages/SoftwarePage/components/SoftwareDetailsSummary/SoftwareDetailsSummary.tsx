@@ -1,5 +1,6 @@
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import React from "react";
+import SoftwareIcon from "../icons/SoftwareIcon";
 
 const baseClass = "software-details-summary";
 
@@ -23,6 +24,8 @@ interface ISoftwareDetailsSummaryProps {
   title: string;
   type: string;
   hosts: number;
+  name?: string;
+  source?: string;
   versions?: number;
 }
 
@@ -31,11 +34,13 @@ const SoftwareDetailsSummary = ({
   title,
   type,
   hosts,
+  name,
+  source,
   versions,
 }: ISoftwareDetailsSummaryProps) => {
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__icon`}>icon</div>
+      <SoftwareIcon name={name} source={source} size="large" />
       <dl className={`${baseClass}__info`}>
         <h1>{title}</h1>
         <dl className={`${baseClass}__description-list`}>

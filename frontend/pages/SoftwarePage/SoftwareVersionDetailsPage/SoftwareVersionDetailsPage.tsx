@@ -88,7 +88,8 @@ const SoftwareVersionDetailsPage = ({
           title={`${softwareVersion.name}, ${softwareVersion.version}`}
           type={softwareVersion.source}
           hosts={softwareVersion.hosts_count ?? 0}
-          // hosts={software.hosts_count}
+          name={softwareVersion.name}
+          source={softwareVersion.source}
         />
         <div className={`${baseClass}__vulnerabilities-section`}>
           <h2 className="section__header">Vulnerabilities</h2>

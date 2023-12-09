@@ -57,6 +57,8 @@ const SoftwareTitleDetailsPage = ({
           type={softwareTitle.source}
           versions={softwareTitle.versions.length}
           hosts={softwareTitle.hosts_count}
+          name={softwareTitle.name}
+          source={softwareTitle.source}
         />
         {/* TODO: can we use Card here for card styles */}
         <div className={`${baseClass}__versions-section`}>
