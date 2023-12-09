@@ -106,7 +106,7 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint) ([]*flee
 	return results, nil
 }
 
-// QueryResultRowsForHost counts the query report rows for a given query
+// ResultCountForQuery counts the query report rows for a given query
 // excluding rows with null data
 func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
 	var count int
@@ -118,7 +118,7 @@ func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int
 	return count, nil
 }
 
-// QueryResultRowsForHost counts the query report rows for a given query and host
+// ResultCountForQueryAndHost counts the query report rows for a given query and host
 // excluding rows with null data
 func (ds *Datastore) ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error) {
 	var count int
