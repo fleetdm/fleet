@@ -88,11 +88,6 @@
               width: 0;
             }
 
-            .vulnerabilities__header {
-              display: none;
-              width: 0;
-            }
-
             .hosts_count__header {
               width: auto;
               border-right: 0;
@@ -130,8 +125,6 @@
             }
 
             .vulnerabilities__cell {
-              display: none;
-              width: 0;
 
               span {
                 display: inline;
@@ -190,6 +183,13 @@
           }
         }
       }
+    }
+  }
+
+  // needed to handle overflow of the table data on small screens
+  .data-table {
+    &__wrapper {
+      overflow-x: auto;
     }
   }
 }

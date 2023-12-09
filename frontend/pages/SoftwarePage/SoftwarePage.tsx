@@ -356,8 +356,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         </div>
         <div className={`${baseClass}__description`}>
           {renderHeaderDescription()}
-          {renderBody()}
         </div>
+        {renderBody()}
         {showManageAutomationsModal && (
           <ManageAutomationsModal
             onCancel={toggleManageAutomationsModal}
