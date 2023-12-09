@@ -41,7 +41,7 @@ export interface ISoftware {
 export interface ISoftwareTitleVersion {
   id: number;
   version: string;
-  vulnerabilities: string[] | null;
+  vulnerabilities: string[] | null; // TODO: does this return null or is it omitted?
   hosts_count?: number;
 }
 
