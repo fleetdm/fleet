@@ -32,7 +32,7 @@ const SoftwareTitleDetailsTable = ({
       columns={softwareTableHeaders}
       data={data}
       isLoading={isLoading}
-      emptyComponent={() => <p>nothing</p>}
+      emptyComponent={() => <p>nothing</p>} // TODO: add empty component
       showMarkAllPages={false}
       isAllPagesSelected={false}
       disablePagination

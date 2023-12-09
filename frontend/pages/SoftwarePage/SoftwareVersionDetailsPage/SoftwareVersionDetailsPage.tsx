@@ -7,15 +7,15 @@ import softwareAPI, {
 } from "services/entities/software";
 import { ISoftwareVersion } from "interfaces/software";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import { AppContext } from "context/app";
 
+import MainContent from "components/MainContent";
 import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 
 import generateSoftwareVersionDetailsTableConfig from "./SoftwareVersionDetailsTableConfig";
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
-import { AppContext } from "context/app";
-import MainContent from "components/MainContent";
 
 const baseClass = "software-version-details-page";
 
@@ -90,26 +90,28 @@ const SoftwareVersionDetailsPage = ({
           hosts={1}
           // hosts={software.hosts_count}
         />
-        <p className="section__header">Vulnerabilities</p>
-        {softwareVersion?.vulnerabilities?.length ? (
-          <div className="vuln-table">
-            <TableContainer
-              columns={tableHeaders}
-              data={softwareVersion.vulnerabilities}
-              defaultSortHeader={isPremiumTier ? "epss_probability" : "cve"}
-              defaultSortDirection={"desc"}
-              emptyComponent={NoVulnsDetected}
-              isAllPagesSelected={false}
-              isLoading={isSoftwareVersionLoading}
-              isClientSidePagination
-              pageSize={20}
-              resultsTitle={"vulnerabilities"}
-              showMarkAllPages={false}
-            />
-          </div>
-        ) : (
-          <NoVulnsDetected />
-        )}
+        <div className={`${baseClass}__vulnerabilities-section`}>
+          <h2 className="section__header">Vulnerabilities</h2>
+          {softwareVersion?.vulnerabilities?.length ? (
+            <div className="vuln-table">
+              <TableContainer
+                columns={tableHeaders}
+                data={softwareVersion.vulnerabilities}
+                defaultSortHeader={isPremiumTier ? "epss_probability" : "cve"}
+                defaultSortDirection={"desc"}
+                emptyComponent={NoVulnsDetected}
+                isAllPagesSelected={false}
+                isLoading={isSoftwareVersionLoading}
+                isClientSidePagination
+                pageSize={20}
+                resultsTitle={"vulnerabilities"}
+                showMarkAllPages={false}
+              />
+            </div>
+          ) : (
+            <NoVulnsDetected />
+          )}
+        </div>
       </>
     </MainContent>
   );
