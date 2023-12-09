@@ -235,7 +235,6 @@ const SoftwareTitles = ({
     );
   };
 
-  // TODO: better handle text for different count scenarios.
   const renderSoftwareCount = () => {
     const itemText = getItemsCountText();
     const lastUpdatedText = getLastUpdatedText();

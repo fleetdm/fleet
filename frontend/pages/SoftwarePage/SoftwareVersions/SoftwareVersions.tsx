@@ -150,47 +150,37 @@ const SoftwareVersions = ({
     console.log("onQueryChange");
   };
 
-  const renderSoftwareCount = useCallback(() => {
-    const lastUpdatedAt = softwareVersionsData?.counts_updated_at;
+  const getItemsCountText = () => {
+    const count = softwareVersionsData?.count;
+    if (!softwareVersionsData || !count) return "";
 
-    if (!isSoftwareEnabled || !lastUpdatedAt) {
-      return null;
-    }
+    return count === 1 ? `${count} item` : `${count} items`;
+  };
 
-    if (isSoftwareVersionsError) {
-      return (
-        <span className={`${baseClass}__count count-error`}>
-          Failed to load software count
-        </span>
-      );
-    }
+  const getLastUpdatedText = () => {
+    if (!softwareVersionsData || !softwareVersionsData.counts_updated_at)
+      return "";
+    return (
+      <LastUpdatedText
+        lastUpdatedAt={softwareVersionsData.counts_updated_at}
+        whatToRetrieve={"software"}
+      />
+    );
+  };
 
-    const hostCount = softwareVersionsData?.count;
-    if (hostCount) {
-      return (
-        <div
-          className={`${baseClass}__count ${
-            isSoftwareVersionsLoading ? "count-loading" : ""
-          }`}
-        >
-          <span>{`${hostCount} software item${
-            hostCount === 1 ? "" : "s"
-          }`}</span>
-          <LastUpdatedText
-            lastUpdatedAt={lastUpdatedAt}
-            whatToRetrieve={"software"}
-          />
-        </div>
-      );
-    }
+  const renderSoftwareCount = () => {
+    const itemText = getItemsCountText();
+    const lastUpdatedText = getLastUpdatedText();
 
-    return null;
-  }, [
-    softwareVersionsData,
-    isSoftwareVersionsLoading,
-    isSoftwareVersionsError,
-    isSoftwareEnabled,
-  ]);
+    if (!itemText) return null;
+
+    return (
+      <div className={`${baseClass}__count`}>
+        <span>{itemText}</span>
+        {lastUpdatedText}
+      </div>
+    );
+  };
 
   const renderVulnFilterDropdown = () => {
     return (
