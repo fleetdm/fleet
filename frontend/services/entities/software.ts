@@ -146,16 +146,7 @@ export default {
     const snakeCaseParams = convertParamsToSnakeCase(params);
     const queryString = buildQueryStringFromParams(snakeCaseParams);
     const path = `${SOFTWARE_TITLES}?${queryString}`;
-
-    // TODO: integrate with API.
-    return new Promise<ISoftwareTitlesResponse>((resolve, reject) => {
-      resolve(
-        createMockSoftwareTitlesReponse({
-          software_titles: [createMockSoftwareTitle()],
-        })
-      );
-    });
-    // return sendRequest("GET", path);
+    return sendRequest("GET", path);
   },
 
   getSoftwareTitle: (id: number) => {

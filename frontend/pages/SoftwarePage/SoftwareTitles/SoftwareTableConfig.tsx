@@ -84,7 +84,7 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: IStringCellProps): JSX.Element => {
-        const { id, name } = cellProps.row.original;
+        const { id, name, source } = cellProps.row.original;
 
         const onClickSoftware = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
@@ -97,7 +97,12 @@ const generateTableHeaders = (
           <LinkCell
             path={PATHS.SOFTWARE_TITLE_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
-            value={name}
+            value={
+              <>
+                <SoftwareIcon name={name} source={source} />
+                <span>{name}</span>
+              </>
+            }
           />
         );
       },

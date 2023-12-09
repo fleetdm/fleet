@@ -142,6 +142,15 @@
               }
             }
 
+            .link-cell {
+              display: flex;
+              align-items: center;
+            }
+
+	    .software-icon {
+	      margin-right: $pad-small;
+	    }
+
             .hosts_count__cell {
               width: auto;
 
