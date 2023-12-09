@@ -4,7 +4,6 @@ import { uniqueId } from "lodash";
 import { ISoftwareTitleVersion } from "interfaces/software";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import { createMockSoftwareTitleVersion } from "__mocks__/softwareMock";
 import ReactTooltip from "react-tooltip";
 
 const baseClass = "version-cell";
