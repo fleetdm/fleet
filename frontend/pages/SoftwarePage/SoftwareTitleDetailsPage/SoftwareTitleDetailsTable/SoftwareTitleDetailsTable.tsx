@@ -7,6 +7,9 @@ import TableContainer from "components/TableContainer";
 
 import generateSoftwareTitleDetailsTableConfig from "./SoftwareTitleDetailsTableConfig";
 
+const DEFAULT_SORT_HEADER = "hosts_count";
+const DEFAULT_SORT_DIRECTION = "desc";
+
 const baseClass = "software-title-details-table";
 
 interface ISoftwareTitleDetailsTableProps {
@@ -35,6 +38,8 @@ const SoftwareTitleDetailsTable = ({
       emptyComponent={() => <p>nothing</p>} // TODO: add empty component
       showMarkAllPages={false}
       isAllPagesSelected={false}
+      defaultSortHeader={DEFAULT_SORT_HEADER}
+      defaultSortDirection={DEFAULT_SORT_DIRECTION}
       disablePagination
       // TODO: add row click handler
     />
