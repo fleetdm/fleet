@@ -52,11 +52,12 @@ const SoftwareTitleDetailsPage = ({
     <MainContent className={baseClass}>
       <>
         <SoftwareDetailsSummary
-          softwareId={softwareId}
+          id={softwareId}
           title={softwareTitle.name}
           type={softwareTitle.source}
           versions={softwareTitle.versions.length}
           hosts={softwareTitle.hosts_count}
+          queryParam="software_title_id"
           name={softwareTitle.name}
           source={softwareTitle.source}
         />

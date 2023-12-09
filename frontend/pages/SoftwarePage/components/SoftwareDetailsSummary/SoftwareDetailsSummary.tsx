@@ -20,20 +20,23 @@ const DataSet = ({ title, value }: IDescriptionSetProps) => {
 };
 
 interface ISoftwareDetailsSummaryProps {
-  softwareId: number;
+  id: number;
   title: string;
   type: string;
   hosts: number;
+  /** The query param name that will be added when user clicks on "View all hosts" link */
+  queryParam: string;
   name?: string;
   source?: string;
   versions?: number;
 }
 
 const SoftwareDetailsSummary = ({
-  softwareId,
+  id,
   title,
   type,
   hosts,
+  queryParam,
   name,
   source,
   versions,
@@ -55,7 +58,7 @@ const SoftwareDetailsSummary = ({
       </dl>
       <div>
         <ViewAllHostsLink
-          queryParams={{ software_id: softwareId }}
+          queryParams={{ [queryParam]: id }}
           className={`${baseClass}__hosts-link`}
         />
       </div>

@@ -84,10 +84,11 @@ const SoftwareVersionDetailsPage = ({
     <MainContent className={baseClass}>
       <>
         <SoftwareDetailsSummary
-          softwareId={softwareVersion.id}
+          id={softwareVersion.id}
           title={`${softwareVersion.name}, ${softwareVersion.version}`}
           type={softwareVersion.source}
           hosts={softwareVersion.hosts_count ?? 0}
+          queryParam="software_version_id"
           name={softwareVersion.name}
           source={softwareVersion.source}
         />
