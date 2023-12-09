@@ -200,7 +200,7 @@ Goal: No one else is currently LinkedIn connecting with community Slack particip
 ### Process and backup Sid agenda
 Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses dedicated (blocked, recurring) time to prepare for this meeting earlier in the week.
 
-30 minutes After each meeting (to allow all parties to collect action items), the Apprentice makes a copy of the "💻 Sid : Mike(Fleet)" doc and renames it "YYYY-MM-DD Backup of 💻 Sid : Mike(Fleet)". Then moves the backup version into the [(¶¶) Sid archive](https://drive.google.com/drive/u/0/folders/1SP6J-F6M5engq5ivV0Sv3tq8nNIwYFcq)
+30 minutes After each meeting (to allow all parties to collect action items), the Apprentice makes a copy of the "💻 Sid : Mike(Fleet)" doc and renames it "YYYY-MM-DD Backup of 💻 Sid : Mike(Fleet)". Then moves the backup version into the [(¶¶) Sid archive](https://drive.google.com/drive/folders/1izVfIBt2nr4APlkm36E6DJg1k1PDjmae)
 
 Then process the backup Sid agenda by:
 - Leaving google doc comments assigning all Fleet TODOs to correct Fleeties.
