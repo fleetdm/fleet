@@ -85,9 +85,9 @@ const SoftwareVersionDetailsPage = ({
       <>
         <SoftwareDetailsSummary
           softwareId={softwareVersion.id}
-          title={softwareVersion.name}
+          title={`${softwareVersion.name}, ${softwareVersion.version}`}
           type={softwareVersion.source}
-          hosts={1}
+          hosts={softwareVersion.hosts_count ?? 0}
           // hosts={software.hosts_count}
         />
         <div className={`${baseClass}__vulnerabilities-section`}>
