@@ -3,6 +3,7 @@ import {
   ISoftwareVersion,
   ISoftwareTitle,
   ISoftwareVulnerability,
+  ISoftwareTitleVersion,
 } from "interfaces/software";
 import {
   ISoftwareTitlesResponse,
@@ -29,6 +30,18 @@ export const createMockSoftware = (
   return { ...DEFAULT_SOFTWARE_MOCK, ...overrides };
 };
 
+const DEFAULT_SOFTWARE_TITLE_VERSION_MOCK = {
+  id: 1,
+  version: "1.0.0",
+  vulnerabilities: ["CVE-2020-0001"],
+};
+
+const createMockSoftwareTitleVersion = (
+  overrides?: Partial<ISoftwareTitleVersion>
+): ISoftwareTitleVersion => {
+  return { ...DEFAULT_SOFTWARE_TITLE_VERSION_MOCK, ...overrides };
+};
+
 const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   id: 1,
   name: "mock software 1.app",
@@ -36,13 +49,7 @@ const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   source: "apps",
   hosts_count: 1,
   browser: "chrome",
-  versions: [
-    {
-      id: 1,
-      version: "1.0.0",
-      vulnerabilities: ["CVE-2020-0001"],
-    },
-  ],
+  versions: [createMockSoftwareTitleVersion()],
 };
 
 export const createMockSoftwareTitle = (

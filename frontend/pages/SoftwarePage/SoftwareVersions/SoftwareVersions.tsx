@@ -111,6 +111,7 @@ const SoftwareVersions = ({
     [isPremiumTier, isSandboxMode, router, teamId]
   );
 
+  // TODO: figure out why this is not working
   const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
     router.replace(
       getNextLocationPath({
