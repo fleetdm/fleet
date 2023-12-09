@@ -28,7 +28,7 @@ const SoftwareTitleDetailsTable = ({
   return (
     <TableContainer
       className={baseClass}
-      resultsTitle="version" // TODO: dynamic based on number of results
+      resultsTitle={data.length === 1 ? "version" : "versions"}
       columns={softwareTableHeaders}
       data={data}
       isLoading={isLoading}
