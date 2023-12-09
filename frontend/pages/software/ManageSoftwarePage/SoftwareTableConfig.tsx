@@ -18,6 +18,7 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import { COLORS } from "styles/var/colors";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -160,7 +161,7 @@ const generateVulnColumnHeader = () => {
           </span>
           <ReactTooltip
             effect="solid"
-            backgroundColor="#3e4771"
+            backgroundColor={COLORS["tooltip-bg"]}
             id={`vulnerabilities__${cellProps.row.original.id}`}
             data-html
           >

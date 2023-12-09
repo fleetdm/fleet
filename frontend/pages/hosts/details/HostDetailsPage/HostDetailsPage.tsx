@@ -52,6 +52,7 @@ import {
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -453,7 +454,7 @@ const HostDetailsPage = ({
     // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
     document.title = `Host ${hostTab()} details ${
       host?.display_name ? `| ${host?.display_name} |` : "|"
-    } Fleet for osquery`;
+    } ${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, host]);
 
   // Used for back to software pathname
@@ -766,7 +767,7 @@ const HostDetailsPage = ({
 
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         <HostDetailsBanners
           hostMdmEnrollmentStatus={host?.mdm.enrollment_status}
           hostPlatform={host?.platform}
@@ -951,7 +952,7 @@ const HostDetailsPage = ({
             onCancel={onCancelScriptDetailsModal}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

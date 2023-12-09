@@ -74,7 +74,9 @@ const HostQueries = ({
       if (!hostId || !queryId || !should_link_to_hqr || queryReportsDisabled) {
         return;
       }
-      router.push(`${PATHS.HOST_QUERY_REPORT(hostId, queryId)}`);
+      // TODO - restore real hostId
+      router.push(`${PATHS.HOST_QUERY_REPORT(82, queryId)}`);
+      // router.push(`${PATHS.HOST_QUERY_REPORT(hostId, queryId)}`);
     },
     [hostId, queryReportsDisabled, router]
   );
@@ -94,7 +96,7 @@ const HostQueries = ({
       ) : (
         <div>
           <TableContainer
-            columns={columnConfigs}
+            columnConfigs={columnConfigs}
             data={tableData}
             onQueryChange={() => null}
             resultsTitle="queries"

@@ -113,7 +113,7 @@ const Scripts = ({
           emptyComponent={() => <></>}
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          columns={scriptColumnConfigs}
+          columnConfigs={scriptColumnConfigs}
           data={data}
           isLoading={isLoadingScriptData}
           onQueryChange={onQueryChange}
