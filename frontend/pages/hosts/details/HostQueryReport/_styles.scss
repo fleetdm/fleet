@@ -1,43 +1,24 @@
 .host-query-report {
   display: flex;
   flex-direction: column;
-  gap: $pad-medium;
+  gap: $pad-large;
+  @include color-contrasted-sections;
 
+  h1 {
+    font-weight: $xbold;
+  }
   &__header {
     display: flex;
     flex-direction: column;
-    gap: $pad-large;
+    gap: $pad-xlarge;
 
     &__row2 {
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
-    &__query-info {
-      margin-top: $pad-small;
-      display: flex;
-      flex-direction: column;
-      gap: $pad-small;
-    }
-
-    h1 {
-      font-weight: $xbold;
-    }
-    h2 {
-      font-size: $medium;
-      font-weight: $bold;
-      margin: 0;
-    }
-    h3 {
-      font-size: $x-small;
-      font-weight: $regular;
-      margin: 0;
-    }
   }
   &__direction-link {
     @include direction-link;
-  }
-  .data-table {
-    overflow-x: scroll;
   }
 }

@@ -17,6 +17,7 @@ const baseClass = "hqr-table";
 
 interface IHQRTable {
   queryName?: string;
+  queryDescription?: string;
   hostName?: string;
   rows: Record<string, string>[];
   reportClipped?: boolean;
@@ -29,6 +30,7 @@ const DEFAULT_CSV_TITLE = "Host-Specific Query Report";
 
 const HQRTable = ({
   queryName,
+  queryDescription,
   hostName,
   rows,
   reportClipped,
@@ -128,29 +130,44 @@ const HQRTable = ({
     );
   }, [filteredResults.length, lastFetched]);
 
+  const renderTableInfo = useCallback(
+    () => (
+      <div className={`${baseClass}__query-info`}>
+        <h2>{queryName}</h2>
+        <h3>{queryDescription}</h3>
+      </div>
+    ),
+    [queryDescription, queryName]
+  );
+
   if (isLoading) {
     return <Spinner />;
   }
-  return rows.length === 0 ? (
-    renderEmptyState()
-  ) : (
-    <TableContainer
-      isLoading={isLoading}
-      columnConfigs={columnConfigs}
-      data={rows}
-      renderCount={renderCount}
-      isClientSidePagination
-      isClientSideFilter
-      isMultiColumnFilter
-      showMarkAllPages={false}
-      isAllPagesSelected={false}
-      resultsTitle="results"
-      customControl={renderTableButtons}
-      setExportRows={setFilteredResults}
-      emptyComponent={() => null}
-      defaultSortHeader={columnConfigs[0].title}
-      defaultSortDirection="asc"
-    />
+  return (
+    <div className={`${baseClass} section`}>
+      {renderTableInfo()}
+      {rows.length === 0 ? (
+        renderEmptyState()
+      ) : (
+        <TableContainer
+          isLoading={isLoading}
+          columnConfigs={columnConfigs}
+          data={rows}
+          renderCount={renderCount}
+          isClientSidePagination
+          isClientSideFilter
+          isMultiColumnFilter
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          resultsTitle="results"
+          customControl={renderTableButtons}
+          setExportRows={setFilteredResults}
+          emptyComponent={() => null}
+          defaultSortHeader={columnConfigs[0].title}
+          defaultSortDirection="asc"
+        />
+      )}
+    </div>
   );
 };
 
