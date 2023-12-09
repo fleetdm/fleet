@@ -363,9 +363,11 @@ module.exports = {
               // >   <meta name="foo" value="bar">
               // >   <meta name="title" value="Sth with punctuATION and weird CAPS ... but never this long, please">
               // >   ```
+              // > Note: These meta tags are parsed from the HTML generated from markdown to prevent reading <meta> tags in code examples.
+              // > This works because HTML in Markdown files is added as-is, while any <meta> tags in codeblocks would have their brackets replaced with HTML entities when they are converted to HTML.
               let embeddedMetadata = {};
               try {
-                for (let tag of (mdString.match(/<meta[^>]*>/igm)||[])) {
+                for (let tag of (htmlString.match(/<meta[^>]*>/igm)||[])) {
                   let name = tag.match(/name="([^">]+)"/i)[1];
                   let value = tag.match(/value="([^">]+)"/i)[1];
                   embeddedMetadata[name] = value;

@@ -54,8 +54,17 @@ type listHostsRequest struct {
 }
 
 type listHostsResponse struct {
-	Hosts    []fleet.HostResponse `json:"hosts"`
-	Software *fleet.Software      `json:"software,omitempty"`
+	Hosts []fleet.HostResponse `json:"hosts"`
+	// Software is populated with the software version corresponding to the
+	// software_version_id (or software_id) filter if one is provided with the
+	// request (and it exists in the database). It is nil otherwise and absent of
+	// the JSON response payload.
+	Software *fleet.Software `json:"software,omitempty"`
+	// SoftwareTitle is populated with the title corresponding to the
+	// software_title_id filter if one is provided with the request (and it
+	// exists in the database). It is nil otherwise and absent of the JSON
+	// response payload.
+	SoftwareTitle *fleet.SoftwareTitle `json:"software_title,omitempty"`
 	// MDMSolution is populated with the MDM solution corresponding to the mdm_id
 	// filter if one is provided with the request (and it exists in the
 	// database). It is nil otherwise and absent of the JSON response payload.
@@ -75,9 +84,24 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	req := request.(*listHostsRequest)
 
 	var software *fleet.Software
-	if req.Opts.SoftwareIDFilter != nil {
+	if req.Opts.SoftwareVersionIDFilter != nil || req.Opts.SoftwareIDFilter != nil {
 		var err error
-		software, err = svc.SoftwareByID(ctx, *req.Opts.SoftwareIDFilter, false)
+
+		id := req.Opts.SoftwareVersionIDFilter
+		if id == nil {
+			id = req.Opts.SoftwareIDFilter
+		}
+		software, err = svc.SoftwareByID(ctx, *id, false)
+		if err != nil {
+			return listHostsResponse{Err: err}, nil
+		}
+	}
+
+	var softwareTitle *fleet.SoftwareTitle
+	if req.Opts.SoftwareTitleIDFilter != nil {
+		var err error
+
+		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
@@ -112,10 +136,11 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		hostResponses[i] = *h
 	}
 	return listHostsResponse{
-		Hosts:       hostResponses,
-		Software:    software,
-		MDMSolution: mdmSolution,
-		MunkiIssue:  munkiIssue,
+		Hosts:         hostResponses,
+		Software:      software,
+		SoftwareTitle: softwareTitle,
+		MDMSolution:   mdmSolution,
+		MunkiIssue:    munkiIssue,
 	}, nil
 }
 
@@ -706,7 +731,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return err
 	}
 	if !skipBulkPending {
-		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil, nil); err != nil {
+		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 	}
@@ -843,7 +868,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
 		return err
 	}
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 	serials, err := svc.ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
@@ -1703,4 +1728,47 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 	}
 
 	return key, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Host Health
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostHealthRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostHealthResponse struct {
+	Err        error             `json:"error,omitempty"`
+	HostID     uint              `json:"host_id,omitempty"`
+	HostHealth *fleet.HostHealth `json:"health,omitempty"`
+}
+
+func (r getHostHealthResponse) error() error { return r.Err }
+
+func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getHostHealthRequest)
+	hh, err := svc.GetHostHealth(ctx, req.ID)
+	if err != nil {
+		return getHostHealthResponse{Err: err}, nil
+	}
+
+	// remove TeamID as it's needed for authorization internally but is not part of the external API
+	hh.TeamID = nil
+
+	return getHostHealthResponse{HostID: req.ID, HostHealth: hh}, nil
+}
+
+func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
+	svc.authz.SkipAuthorization(ctx)
+	hh, err := svc.ds.GetHostHealth(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := svc.authz.Authorize(ctx, hh, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return hh, nil
 }

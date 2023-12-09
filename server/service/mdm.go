@@ -24,7 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -979,12 +978,12 @@ func (svc *Service) authorizeAllHostsTeams(ctx context.Context, hostUUIDs []stri
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/profiles/{id_or_uuid}
+// GET /mdm/profiles/{uuid}
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMConfigProfileRequest struct {
-	ProfileIDOrUUID string `url:"profile_id_or_uuid"`
-	Alt             string `query:"alt,optional"`
+	ProfileUUID string `url:"profile_uuid"`
+	Alt         string `query:"alt,optional"`
 }
 
 type getMDMConfigProfileResponse struct {
@@ -998,11 +997,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	req := request.(*getMDMConfigProfileRequest)
 
 	downloadRequested := req.Alt == "media"
-	appleID, isApple := isAppleProfileID(req.ProfileIDOrUUID)
 	var err error
-	if isApple {
+	if isAppleProfileUUID(req.ProfileUUID) {
 		// Apple config profile
-		cp, err := svc.GetMDMAppleConfigProfile(ctx, appleID)
+		cp, err := svc.GetMDMAppleConfigProfile(ctx, req.ProfileUUID)
 		if err != nil {
 			return &getMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1020,7 +1018,7 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	// Windows config profile
-	cp, err := svc.GetMDMWindowsConfigProfile(ctx, req.ProfileIDOrUUID)
+	cp, err := svc.GetMDMWindowsConfigProfile(ctx, req.ProfileUUID)
 	if err != nil {
 		return &getMDMConfigProfileResponse{Err: err}, nil
 	}
@@ -1058,11 +1056,11 @@ func (svc *Service) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// DELETE /mdm/profiles/{id_or_uuid}
+// DELETE /mdm/profiles/{uuid}
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMConfigProfileRequest struct {
-	ProfileIDOrUUID string `url:"profile_id_or_uuid"`
+	ProfileUUID string `url:"profile_uuid"`
 }
 
 type deleteMDMConfigProfileResponse struct {
@@ -1074,12 +1072,11 @@ func (r deleteMDMConfigProfileResponse) error() error { return r.Err }
 func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteMDMConfigProfileRequest)
 
-	appleID, isApple := isAppleProfileID(req.ProfileIDOrUUID)
 	var err error
-	if isApple {
-		err = svc.DeleteMDMAppleConfigProfile(ctx, appleID)
+	if isAppleProfileUUID(req.ProfileUUID) {
+		err = svc.DeleteMDMAppleConfigProfile(ctx, req.ProfileUUID)
 	} else {
-		err = svc.DeleteMDMWindowsConfigProfile(ctx, req.ProfileIDOrUUID)
+		err = svc.DeleteMDMWindowsConfigProfile(ctx, req.ProfileUUID)
 	}
 	return &deleteMDMConfigProfileResponse{Err: err}, nil
 }
@@ -1093,7 +1090,7 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 	// check that Windows MDM is enabled - the middleware of that endpoint checks
 	// only that any MDM is enabled, maybe it's just macOS
 	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-		err := fleet.NewInvalidArgumentError("profile_id", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		err := fleet.NewInvalidArgumentError("profile_uuid", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
 		return ctxerr.Wrap(ctx, err, "check windows MDM enabled")
 	}
 
@@ -1117,8 +1114,9 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// prevent deleting Windows OS Updates profile (controlled by the OS Updates settings)
-	if _, ok := syncml.FleetReservedProfileNames()[prof.Name]; ok {
+	// prevent deleting Fleet-managed profiles (e.g., Windows OS Updates profile controlled by the OS Updates settings)
+	fleetNames := mdm.FleetReservedProfileNames()
+	if _, ok := fleetNames[prof.Name]; ok {
 		err := &fleet.BadRequestError{Message: "Profiles managed by Fleet can't be deleted using this endpoint."}
 		return ctxerr.Wrap(ctx, err, "validate profile")
 	}
@@ -1128,7 +1126,7 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 	}
 
 	// cannot use the profile ID as it is now deleted
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -1153,14 +1151,11 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 
 // returns the numeric Apple profile ID and true if it is an Apple identifier,
 // or 0 and false otherwise.
-func isAppleProfileID(profileIDOrUUID string) (uint, bool) {
-	// parsing as 32 bits as that's the maximum value of the DB column (and can
-	// be safely converted to uint).
-	id, err := strconv.ParseUint(profileIDOrUUID, 10, 32)
-	if err != nil {
-		return 0, false
+func isAppleProfileUUID(profileUUID string) bool {
+	if strings.HasPrefix(profileUUID, "a") {
+		return true
 	}
-	return uint(id), true
+	return false
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1205,8 +1200,8 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 }
 
 type newMDMConfigProfileResponse struct {
-	ProfileID string `json:"profile_id"`
-	Err       error  `json:"error,omitempty"`
+	ProfileUUID string `json:"profile_uuid"`
+	Err         error  `json:"error,omitempty"`
 }
 
 func (r newMDMConfigProfileResponse) error() error { return r.Err }
@@ -1227,7 +1222,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
 		return &newMDMConfigProfileResponse{
-			ProfileID: fmt.Sprint(cp.ProfileID),
+			ProfileUUID: cp.ProfileUUID,
 		}, nil
 	}
 
@@ -1238,7 +1233,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
 		return &newMDMConfigProfileResponse{
-			ProfileID: cp.ProfileUUID,
+			ProfileUUID: cp.ProfileUUID,
 		}, nil
 	}
 
@@ -1312,7 +1307,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -1400,16 +1395,16 @@ func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName 
 	for _, p := range windowsProfiles {
 		winProfUUIDs = append(winProfUUIDs, p.ProfileUUID)
 	}
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, nil, winProfUUIDs, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, winProfUUIDs, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
 	}
 
 	// set pending status for apple profiles
-	appleProfIDs := []uint{}
+	appleProfUUIDs := []string{}
 	for _, p := range appleProfiles {
-		appleProfIDs = append(appleProfIDs, p.ProfileID)
+		appleProfUUIDs = append(appleProfUUIDs, p.ProfileUUID)
 	}
-	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, appleProfIDs, nil, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, appleProfUUIDs, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 	}
 

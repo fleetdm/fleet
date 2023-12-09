@@ -5,11 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -101,7 +102,6 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 }
 
 func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
-
 	// this lists custom profiles, it explicitly filters out the fleet-reserved
 	// ones (reserved identifiers for Apple profiles, reserved names for Windows).
 
@@ -109,7 +109,7 @@ func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, op
 
 	const selectStmt = `
 SELECT
-	profile_id,
+	profile_uuid,
 	team_id,
 	name,
 	platform,
@@ -119,7 +119,7 @@ SELECT
 	updated_at
 FROM (
 	SELECT
-		CONVERT(profile_id, CHAR) as profile_id,
+		profile_uuid,
 		team_id,
 		name,
 		'darwin' as platform,
@@ -136,7 +136,7 @@ FROM (
 	UNION
 
 	SELECT
-		profile_uuid as profile_id,
+		profile_uuid,
 		team_id,
 		name,
 		'windows' as platform,
@@ -162,7 +162,7 @@ FROM (
 	for k := range fleetIdentsMap {
 		fleetIdentifiers = append(fleetIdentifiers, k)
 	}
-	fleetNamesMap := syncml.FleetReservedProfileNames()
+	fleetNamesMap := mdm.FleetReservedProfileNames()
 	fleetNames := make([]string, 0, len(fleetNamesMap))
 	for k := range fleetNamesMap {
 		fleetNames = append(fleetNames, k)
@@ -196,30 +196,44 @@ FROM (
 // slice arguments can have values.
 func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	ctx context.Context,
-	hostIDs, teamIDs, profileIDs []uint,
+	hostIDs, teamIDs []uint,
 	profileUUIDs, hostUUIDs []string,
 ) error {
-	var countArgs int
+	var (
+		countArgs    int
+		macProfUUIDs []string
+		winProfUUIDs []string
+	)
+
 	if len(hostIDs) > 0 {
 		countArgs++
 	}
 	if len(teamIDs) > 0 {
 		countArgs++
 	}
-	if len(profileIDs) > 0 {
-		countArgs++
-	}
 	if len(profileUUIDs) > 0 {
 		countArgs++
+
+		// split into mac and win profiles
+		for _, puid := range profileUUIDs {
+			if strings.HasPrefix(puid, "a") {
+				macProfUUIDs = append(macProfUUIDs, puid)
+			} else {
+				winProfUUIDs = append(winProfUUIDs, puid)
+			}
+		}
 	}
 	if len(hostUUIDs) > 0 {
 		countArgs++
 	}
 	if countArgs > 1 {
-		return errors.New("only one of hostIDs, teamIDs, profileIDs, profileUUIDs or hostUUIDs can be provided")
+		return errors.New("only one of hostIDs, teamIDs, profileUUIDs or hostUUIDs can be provided")
 	}
 	if countArgs == 0 {
 		return nil
+	}
+	if len(macProfUUIDs) > 0 && len(winProfUUIDs) > 0 {
+		return errors.New("profile uuids must all be Apple or Windows profiles")
 	}
 
 	var (
@@ -258,8 +272,8 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 			}
 		}
 
-	case len(profileIDs) > 0:
-		// TODO: if a very large number (~65K) of profile IDs was provided, could
+	case len(macProfUUIDs) > 0:
+		// TODO: if a very large number (~65K) of profile UUIDs was provided, could
 		// result in too many placeholders (not an immediate concern).
 		uuidStmt = `
 SELECT DISTINCT h.uuid, h.platform
@@ -267,10 +281,10 @@ FROM hosts h
 JOIN mdm_apple_configuration_profiles macp
 	ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
 WHERE
-	macp.profile_id IN (?) AND h.platform = 'darwin'`
-		args = append(args, profileIDs)
+	macp.profile_uuid IN (?) AND h.platform = 'darwin'`
+		args = append(args, macProfUUIDs)
 
-	case len(profileUUIDs) > 0:
+	case len(winProfUUIDs) > 0:
 		// TODO: if a very large number (~65K) of profile IDs was provided, could
 		// result in too many placeholders (not an immediate concern).
 		uuidStmt = `
@@ -280,7 +294,7 @@ JOIN mdm_windows_configuration_profiles mawp
 	ON h.team_id = mawp.team_id OR (h.team_id IS NULL AND mawp.team_id = 0)
 WHERE
 	mawp.profile_uuid IN (?) AND h.platform = 'windows'`
-		args = append(args, profileUUIDs)
+		args = append(args, winProfUUIDs)
 
 	}
 

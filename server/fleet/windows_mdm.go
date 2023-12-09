@@ -29,6 +29,8 @@ type MDMWindowsBitLockerSummary struct {
 
 // MDMWindowsConfigProfile represents a Windows MDM profile in Fleet.
 type MDMWindowsConfigProfile struct {
+	// ProfileUUID is the unique identifier of the configuration profile in
+	// Fleet. For Windows profiles, it is the letter "w" followed by a uuid.
 	ProfileUUID string    `db:"profile_uuid" json:"profile_uuid"`
 	TeamID      *uint     `db:"team_id" json:"team_id"`
 	Name        string    `db:"name" json:"name"`
@@ -48,8 +50,8 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	if len(bytes.TrimSpace(m.SyncML)) == 0 {
 		return errors.New("The file should include valid XML.")
 	}
-
-	if _, ok := syncml.FleetReservedProfileNames()[m.Name]; ok {
+	fleetNames := mdm.FleetReservedProfileNames()
+	if _, ok := fleetNames[m.Name]; ok {
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
 
