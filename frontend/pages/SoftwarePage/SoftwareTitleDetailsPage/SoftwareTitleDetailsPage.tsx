@@ -55,6 +55,7 @@ const SoftwareTitleDetailsPage = ({
           softwareId={softwareId}
           title={softwareTitle.name}
           type={softwareTitle.source}
+          versions={softwareTitle.versions.length}
           hosts={softwareTitle.hosts_count}
         />
         {/* TODO: can we use Card here for card styles */}

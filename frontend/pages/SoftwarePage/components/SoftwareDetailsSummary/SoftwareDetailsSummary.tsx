@@ -23,7 +23,7 @@ interface ISoftwareDetailsSummaryProps {
   title: string;
   type: string;
   hosts: number;
-  version?: string;
+  versions?: number;
 }
 
 const SoftwareDetailsSummary = ({
@@ -31,7 +31,7 @@ const SoftwareDetailsSummary = ({
   title,
   type,
   hosts,
-  version,
+  versions,
 }: ISoftwareDetailsSummaryProps) => {
   return (
     <div className={baseClass}>
@@ -44,7 +44,7 @@ const SoftwareDetailsSummary = ({
             // value={formatSoftwareType(software.source)} TODO: format value
             value={type}
           />
-          {version && <DataSet title="Version" value={version} />}
+          {versions && <DataSet title="Versions" value={versions} />}
           <DataSet title="Hosts" value={hosts === 0 ? "---" : hosts} />
         </dl>
       </dl>
