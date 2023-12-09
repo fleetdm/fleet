@@ -8,6 +8,7 @@ import {
   ISoftwareTitlesResponse,
   ISoftwareTitleResponse,
   ISoftwareVersionsResponse,
+  ISoftwareVersionResponse,
 } from "services/entities/software";
 
 const DEFAULT_SOFTWARE_MOCK: ISoftware = {
@@ -127,4 +128,14 @@ export const createMockSoftwareTitleResponse = (
   overrides?: Partial<ISoftwareTitleResponse>
 ): ISoftwareTitleResponse => {
   return { ...DEFAULT_SOFTWARE_TITLE_RESPONSE, ...overrides };
+};
+
+const DEFAULT_SOFTWARE_VERSION_RESPONSE = {
+  software: createMockSoftwareVersion(),
+};
+
+export const createMockSoftwareVersionResponse = (
+  overrides?: Partial<ISoftwareVersionResponse>
+): ISoftwareVersionResponse => {
+  return { ...DEFAULT_SOFTWARE_VERSION_RESPONSE, ...overrides };
 };

@@ -15,6 +15,7 @@ import {
   createMockSoftwareTitlesReponse,
   createMockSoftwareTitleResponse,
   createMockSoftwareVersionsReponse,
+  createMockSoftwareVersionResponse,
 } from "__mocks__/softwareMock";
 
 interface ISoftwareApiParams {
@@ -51,7 +52,7 @@ export interface ISoftwareTitleResponse {
   software_title: ISoftwareTitle;
 }
 
-export interface ISoftwareVerionResponse {
+export interface ISoftwareVersionResponse {
   software: ISoftwareVersion;
 }
 
@@ -182,6 +183,10 @@ export default {
 
   getSoftwareVersion: (id: number) => {
     const { SOFTWARE_VERSION } = endpoints;
-    return sendRequest("GET", SOFTWARE_VERSION(id));
+    // TODO: integrate with API.
+    return new Promise<ISoftwareVersionResponse>((resolve, reject) => {
+      resolve(createMockSoftwareVersionResponse());
+    });
+    // return sendRequest("GET", SOFTWARE_VERSION(id));
   },
 };

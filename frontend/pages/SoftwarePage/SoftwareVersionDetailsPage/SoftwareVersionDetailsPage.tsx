@@ -1,0 +1,117 @@
+import React, { useContext, useMemo } from "react";
+import { useQuery } from "react-query";
+import { RouteComponentProps } from "react-router";
+
+import softwareAPI, {
+  ISoftwareVersionResponse,
+} from "services/entities/software";
+import { ISoftwareVersion } from "interfaces/software";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+
+import TableContainer from "components/TableContainer";
+import CustomLink from "components/CustomLink";
+import EmptyTable from "components/EmptyTable";
+
+import generateSoftwareVersionDetailsTableConfig from "./SoftwareVersionDetailsTableConfig";
+import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
+import { AppContext } from "context/app";
+import MainContent from "components/MainContent";
+
+const baseClass = "software-version-details-page";
+
+interface ISoftwareVersionDetailsRouteParams {
+  id: string;
+}
+
+type ISoftwareTitleDetailsPageProps = RouteComponentProps<
+  undefined,
+  ISoftwareVersionDetailsRouteParams
+>;
+
+const NoVulnsDetected = (): JSX.Element => {
+  return (
+    <EmptyTable
+      header="No vulnerabilities detected for this software item."
+      info={
+        <>
+          Expecting to see vulnerabilities?{" "}
+          <CustomLink
+            url={GITHUB_NEW_ISSUE_LINK}
+            text="File an issue on GitHub"
+            newTab
+          />
+        </>
+      }
+    />
+  );
+};
+
+const SoftwareVersionDetailsPage = ({
+  router,
+  routeParams,
+}: ISoftwareTitleDetailsPageProps) => {
+  const versionId = parseInt(routeParams.id, 10);
+  const { isPremiumTier, isSandboxMode, filteredSoftwarePath } = useContext(
+    AppContext
+  );
+
+  const {
+    data: softwareVersion,
+    isLoading: isSoftwareVersionLoading,
+    isError: isSoftwareVersionError,
+  } = useQuery<ISoftwareVersionResponse, Error, ISoftwareVersion>(
+    ["software-version", versionId],
+    () => softwareAPI.getSoftwareVersion(versionId),
+    {
+      select: (data) => data.software,
+    }
+  );
+
+  const tableHeaders = useMemo(
+    () =>
+      generateSoftwareVersionDetailsTableConfig(
+        Boolean(isPremiumTier),
+        Boolean(isSandboxMode)
+      ),
+    [isPremiumTier, isSandboxMode]
+  );
+
+  if (!softwareVersion) {
+    return null;
+  }
+
+  return (
+    <MainContent className={baseClass}>
+      <>
+        <SoftwareDetailsSummary
+          softwareId={softwareVersion.id}
+          title={softwareVersion.name}
+          type={softwareVersion.source}
+          hosts={1}
+          // hosts={software.hosts_count}
+        />
+        <p className="section__header">Vulnerabilities</p>
+        {softwareVersion?.vulnerabilities?.length ? (
+          <div className="vuln-table">
+            <TableContainer
+              columns={tableHeaders}
+              data={softwareVersion.vulnerabilities}
+              defaultSortHeader={isPremiumTier ? "epss_probability" : "cve"}
+              defaultSortDirection={"desc"}
+              emptyComponent={NoVulnsDetected}
+              isAllPagesSelected={false}
+              isLoading={isSoftwareVersionLoading}
+              isClientSidePagination
+              pageSize={20}
+              resultsTitle={"vulnerabilities"}
+              showMarkAllPages={false}
+            />
+          </div>
+        ) : (
+          <NoVulnsDetected />
+        )}
+      </>
+    </MainContent>
+  );
+};
+export default SoftwareVersionDetailsPage;
