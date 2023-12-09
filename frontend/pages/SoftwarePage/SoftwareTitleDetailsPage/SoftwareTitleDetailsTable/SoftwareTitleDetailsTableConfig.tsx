@@ -94,7 +94,7 @@ const generateSoftwareTitleDetailsTableConfig = (router: InjectedRouter) => {
           <span className="hosts-cell__link">
             <ViewAllHostsLink
               queryParams={{
-                software_id: cellProps.row.original.id,
+                software_version_id: cellProps.row.original.id,
                 // TODO: need team id?
               }}
               className="software-link"
