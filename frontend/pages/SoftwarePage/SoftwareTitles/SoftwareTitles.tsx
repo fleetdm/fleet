@@ -25,7 +25,7 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
-import generateSoftwareTableHeaders from "./SoftwareTableConfig";
+import generateSoftwareTitlesTableHeaders from "./SoftwareTitlesTableConfig";
 
 const baseClass = "software-titles";
 
@@ -101,7 +101,7 @@ const SoftwareTitles = ({
 
   const softwareTableHeaders = useMemo(
     () =>
-      generateSoftwareTableHeaders(
+      generateSoftwareTitlesTableHeaders(
         router,
         isPremiumTier,
         isSandboxMode,
