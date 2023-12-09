@@ -149,8 +149,8 @@ const generateTableHeaders = (
           <span className="hosts-cell__link">
             <ViewAllHostsLink
               queryParams={{
-                software_id: cellProps.row.original.id,
-                team_id: teamId,
+                software_version_id: cellProps.row.original.id,
+                team_id: teamId, // TODO: do we need team id here?
               }}
               className="software-link"
             />
