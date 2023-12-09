@@ -29,7 +29,7 @@ interface ISoftwareApiParams {
 }
 
 export interface ISoftwareTitlesResponse {
-  counts_updated_at: string;
+  counts_updated_at: string | null;
   count: number;
   software_titles: ISoftwareTitle[];
   meta: {
@@ -39,7 +39,7 @@ export interface ISoftwareTitlesResponse {
 }
 
 export interface ISoftwareVersionsResponse {
-  counts_updated_at: string;
+  counts_updated_at: string | null;
   count: number;
   software: ISoftwareVersion[];
   meta: {

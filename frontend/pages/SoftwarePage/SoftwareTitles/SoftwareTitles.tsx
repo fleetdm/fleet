@@ -218,42 +218,37 @@ const SoftwareTitles = ({
     // router.replace(locationPath);
   }, []);
 
-  const renderSoftwareCount = useCallback(() => {
-    const lastUpdatedAt = softwareData?.counts_updated_at;
+  const getItemsCountText = () => {
+    const count = softwareData?.count;
+    if (!softwareData || !count) return "";
 
-    if (!isSoftwareEnabled || !lastUpdatedAt) {
-      return null;
-    }
+    return count === 1 ? `${count} item` : `${count} items`;
+  };
 
-    if (isSoftwareError) {
-      return (
-        <span className={`${baseClass}__count count-error`}>
-          Failed to load software count
-        </span>
-      );
-    }
+  const getLastUpdatedText = () => {
+    if (!softwareData || !softwareData.counts_updated_at) return "";
+    return (
+      <LastUpdatedText
+        lastUpdatedAt={softwareData.counts_updated_at}
+        whatToRetrieve={"software"}
+      />
+    );
+  };
 
-    const hostCount = softwareData?.count;
-    if (hostCount) {
-      return (
-        <div
-          className={`${baseClass}__count ${
-            isSoftwareLoading ? "count-loading" : ""
-          }`}
-        >
-          <span>{`${hostCount} software item${
-            hostCount === 1 ? "" : "s"
-          }`}</span>
-          <LastUpdatedText
-            lastUpdatedAt={lastUpdatedAt}
-            whatToRetrieve={"software"}
-          />
-        </div>
-      );
-    }
+  // TODO: better handle text for different count scenarios.
+  const renderSoftwareCount = () => {
+    const itemText = getItemsCountText();
+    const lastUpdatedText = getLastUpdatedText();
 
-    return null;
-  }, [softwareData, isSoftwareLoading, isSoftwareError, isSoftwareEnabled]);
+    if (!itemText) return null;
+
+    return (
+      <div className={`${baseClass}__count`}>
+        <span>{itemText}</span>
+        {lastUpdatedText}
+      </div>
+    );
+  };
 
   const renderVulnFilterDropdown = () => {
     return (
@@ -284,8 +279,6 @@ const SoftwareTitles = ({
   if (isSoftwareError) {
     return <TableDataError />;
   }
-
-  console.log("softwareData", softwareData);
 
   return (
     <div className={baseClass}>
