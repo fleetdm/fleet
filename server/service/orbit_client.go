@@ -35,8 +35,20 @@ type OrbitClient struct {
 	lastRecordedErrMu sync.Mutex
 	lastRecordedErr   error
 
+	configCache configCache
+
 	// TestNodeKey is used for testing only.
 	TestNodeKey string
+}
+
+// time-to-live for config cache
+const configCacheTTL = 3 * time.Second
+
+type configCache struct {
+	mu          sync.Mutex
+	lastUpdated time.Time
+	config      *fleet.OrbitConfig
+	err         error
 }
 
 func (oc *OrbitClient) request(verb string, path string, params interface{}, resp interface{}) error {
@@ -103,18 +115,31 @@ func NewOrbitClient(
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
+// Since this method is called in multiple places, we use a cache with configCacheTTL time-to-live to reduce traffic to the Fleet server.
 func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
-	verb, path := "POST", "/api/fleet/orbit/config"
-	var resp orbitGetConfigResponse
-	if err := oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp); err != nil {
-		return nil, err
+	oc.configCache.mu.Lock()
+	defer oc.configCache.mu.Unlock()
+	// If time-to-live passed, we update the config cache
+	now := time.Now()
+	if now.After(oc.configCache.lastUpdated.Add(configCacheTTL)) {
+		verb, path := "POST", "/api/fleet/orbit/config"
+		var resp orbitGetConfigResponse
+		if err := oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp); err != nil {
+			// We cache the error so that we don't keep hitting the Fleet server if it is having issues
+			oc.configCache.config = nil
+			oc.configCache.err = err
+		} else {
+			oc.configCache.config = &fleet.OrbitConfig{
+				Flags:         resp.Flags,
+				Extensions:    resp.Extensions,
+				Notifications: resp.Notifications,
+				NudgeConfig:   resp.NudgeConfig,
+			}
+			oc.configCache.err = nil
+		}
+		oc.configCache.lastUpdated = now
 	}
-	return &fleet.OrbitConfig{
-		Flags:         resp.Flags,
-		Extensions:    resp.Extensions,
-		Notifications: resp.Notifications,
-		NudgeConfig:   resp.NudgeConfig,
-	}, nil
+	return oc.configCache.config, oc.configCache.err
 }
 
 // SetOrUpdateDeviceToken sends a request to the server to set or update the
