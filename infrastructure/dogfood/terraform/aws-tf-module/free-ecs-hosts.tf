@@ -1,4 +1,4 @@
-#### Linux hosts in ECS
+## Linux hosts in ECS
 
 locals {
   osquery_tags = [
@@ -17,13 +17,40 @@ locals {
 
 
 # ECR to store the images
-
-resource "aws_iam_policy" "osquery_ecr" {
-  name   = "osquery-ecr-policy"
-  policy = data.aws_iam_policy_document.osquery_ecr.json
+resource "aws_iam_role" "osquery" {
+  name               = "fleet-free-osquery-execution"
+  description        = "IAM Execution role for osquery containers"
+  assume_role_policy = data.aws_iam_policy_document.osquery_assume_role.json
 }
 
-data "aws_iam_policy_document" "osquery_ecr" {
+data "aws_iam_policy_document" "osquery_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+    principals {
+      identifiers = ["ecs.amazonaws.com", "ecs-tasks.amazonaws.com"]
+      type        = "Service"
+    }
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "osquery_execution_attachment" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+  role       = aws_iam_role.osquery.name
+}
+
+resource "aws_iam_role_policy_attachment" "osquery" {
+  policy_arn = aws_iam_policy.osquery.arn
+  role       = aws_iam_role.osquery.name
+} 
+
+resource "aws_iam_policy" "osquery" {
+  name        = "osquery-ecr-policy"
+  description = "IAM policy that Osquery containers use to define access to AWS resources"
+  policy      = data.aws_iam_policy_document.osquery.json
+}
+
+data "aws_iam_policy_document" "osquery" {
   statement {
     actions = [
       "ecr:BatchCheckLayerAvailability",
@@ -41,12 +68,19 @@ data "aws_iam_policy_document" "osquery_ecr" {
       "kms:GenerateDataKey*",
       "kms:Describe*"
     ]
-    resources = [aws_kms_key.osquery_ecr.arn]
+    resources = [aws_kms_key.osquery.arn]
+  }
+  statement {
+    actions = [ #tfsec:ignore:aws-iam-no-policy-wildcards
+      "secretsmanager:GetSecretValue"
+    ]
+    resources = [aws_secretsmanager_secret.osquery_enroll.arn]
+
   }
 }
 
 resource "aws_ecr_repository" "osquery" {
-  name                 = "fleet"
+  name                 = "osquery"
   image_tag_mutability = "IMMUTABLE"
 
   image_scanning_configuration {
@@ -55,21 +89,25 @@ resource "aws_ecr_repository" "osquery" {
 
   encryption_configuration {
     encryption_type = "KMS"
-    kms_key         = aws_kms_key.osquery_ecr.arn
+    kms_key         = aws_kms_key.osquery.arn
   }
 }
 
-resource "aws_kms_key" "osquery_ecr" {
+resource "aws_kms_key" "osquery" {
   deletion_window_in_days = 10
   enable_key_rotation     = true
 }
 
-output "osquery_ecr_repo" {
+resource "aws_secretsmanager_secret" "osquery_enroll" {
+  name = "osquery-enroll-secret"
+}
+
+output "osquery_repo" {
   value = aws_ecr_repository.osquery
 }
 
-output "osquery_ecr_iam_policy" {
-  value = aws_iam_policy.osquery_ecr
+output "osquery_iam_policy" {
+  value = aws_iam_policy.osquery
 }
 
 data "aws_region" "current" {}
@@ -89,4 +127,99 @@ module "osquery_docker" {
   source      = "./docker"
   ecr_repo    = aws_ecr_repository.osquery.repository_url
   osquery_tag = each.key
+}
+
+resource "random_uuid" "osquery" {
+  for_each = toset(local.osquery_tags)
+}
+
+resource "aws_ecs_task_definition" "osquery" {
+  for_each                 = toset(local.osquery_tags)
+  // e.g. 5-8-2-ubuntu22-04 to match naming requirements 
+  family                   = "osquery-${replace(split("@sha256", each.key)[0], ".", "-")}"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  execution_role_arn       = aws_iam_role.osquery.arn
+  cpu                      = 256
+  memory                   = 512
+  container_definitions = jsonencode(
+    [
+      {
+        name        = "osquery"
+        image       = module.osquery_docker[each.key].ecr_image
+        cpu         = 256
+        memory      = 512
+        mountPoints = []
+        volumesFrom = []
+        essential   = true
+        ulimits = [
+          {
+            softLimit = 999999,
+            hardLimit = 999999,
+            name      = "nofile"
+          }
+        ]
+        networkMode = "awsvpc"
+        logConfiguration = {
+          logDriver = "awslogs"
+          options   = module.free.byo-db.byo-ecs.logging_config
+        }
+        secrets = [
+          {
+            name      = "ENROLL_SECRET"
+            valueFrom = aws_secretsmanager_secret.osquery_enroll.arn
+          }
+        ]
+        workingDirectory = "/",
+        command = [
+          "osqueryd",
+          "--tls_hostname=free.fleetdm.com",
+          "--force=true",
+          # Ensure that the host identifier remains the same between invocations
+          "--host_identifier=specified",
+          "--specified_identifier=${random_uuid.osquery[each.key].result}",
+          "--verbose=true",
+          "--tls_dump=true",
+          "--enroll_secret_env=ENROLL_SECRET",
+          "--enroll_tls_endpoint=/api/osquery/enroll",
+          "--config_plugin=tls",
+          "--config_tls_endpoint=/api/osquery/config",
+          "--config_refresh=10",
+          "--disable_distributed=false",
+          "--distributed_plugin=tls",
+          "--distributed_interval=10",
+          "--distributed_tls_max_attempts=3",
+          "--distributed_tls_read_endpoint=/api/osquery/distributed/read",
+          "--distributed_tls_write_endpoint=/api/osquery/distributed/write",
+          "--logger_plugin=tls",
+          "--logger_tls_endpoint=/api/osquery/log",
+          "--logger_tls_period=10",
+          "--disable_carver=false",
+          "--carver_start_endpoint=/api/osquery/carve/begin",
+          "--carver_continue_endpoint=/api/osquery/carve/block",
+          "--carver_block_size=8000000",
+        ]
+      }
+  ])
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_ecs_service" "osquery" {
+  for_each                           = toset(local.osquery_tags)
+  # Name must match ^[A-Za-z-_]+$ e.g. 5-8-2-ubuntu22-04
+  name                               = "osquery_${replace(split("@sha256", each.key)[0], ".", "-")}"
+  launch_type                        = "FARGATE"
+  cluster                            = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
+  task_definition                    = aws_ecs_task_definition.osquery[each.key].arn
+  desired_count                      = 1
+  # Spin down before spin up since we are specifying the host identifier manually
+  deployment_minimum_healthy_percent = 0
+  deployment_maximum_percent         = 100
+
+  network_configuration {
+    subnets         = module.free.byo-db.byo-ecs.service.network_configuration[0].subnets
+    security_groups = module.free.byo-db.byo-ecs.service.network_configuration[0].security_groups
+  }
 }

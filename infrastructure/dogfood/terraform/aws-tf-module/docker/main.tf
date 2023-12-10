@@ -27,10 +27,15 @@ resource "docker_image" "dockerhub" {
 
 resource "docker_tag" "osquery" {
   source_image = docker_image.dockerhub.name
-  target_image = "${var.ecr_repo}:${var.ecr_repo}"
+  # We can't include the sha256 when pushing even if they match
+  target_image = "${var.ecr_repo}:${split("@sha256", var.osquery_tag)[0]}"
 }
 
 resource "docker_registry_image" "osquery" {
   name          = docker_tag.osquery.target_image
   keep_remotely = true
+}
+
+output "ecr_image" {
+  value = docker_tag.osquery.target_image
 }
