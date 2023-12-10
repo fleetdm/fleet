@@ -2,8 +2,6 @@ package mysql
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -61,7 +59,7 @@ func testGetQueryResultRows(t *testing.T, ds *Datastore) {
 			}`)),
 		},
 	}
-	err := ds.SaveQueryResultRows(context.Background(), query1Rows)
+	err := ds.OverwriteQueryResultRows(context.Background(), query1Rows)
 	require.NoError(t, err)
 
 	// Insert Result Row for different Scheduled Query
@@ -75,7 +73,7 @@ func testGetQueryResultRows(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	err = ds.SaveQueryResultRows(context.Background(), query2Rows)
+	err = ds.OverwriteQueryResultRows(context.Background(), query2Rows)
 	require.NoError(t, err)
 
 	results, err := ds.QueryResultRows(context.Background(), query.ID)
@@ -166,12 +164,13 @@ func testCountResultsForQuery(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
 	query1 := test.NewQuery(t, ds, nil, "New Query", "SELECT 1", user.ID, true)
 	query2 := test.NewQuery(t, ds, nil, "New Query 2", "SELECT 1", user.ID, true)
-	host := test.NewHost(t, ds, "hostname123", "192.168.1.100", "1234", "UI8XB1223", time.Now())
+	host := test.NewHost(t, ds, "hostname1", "192.168.1.101", "1111", "UI8XB1223", time.Now())
+	host2 := test.NewHost(t, ds, "hostname1", "192.168.1.102", "2222", "UI8XB1224", time.Now())
 
 	mockTime := time.Now().UTC().Truncate(time.Second)
 
 	// Insert 1 Result Row for Query1
-	resultRow := []*fleet.ScheduledQueryResultRow{
+	host1ResultRow := []*fleet.ScheduledQueryResultRow{
 		{
 			QueryID:     query1.ID,
 			HostID:      host.ID,
@@ -182,38 +181,39 @@ func testCountResultsForQuery(t *testing.T, ds *Datastore) {
 			}`)),
 		},
 	}
-	err := ds.SaveQueryResultRows(context.Background(), resultRow)
+	err := ds.OverwriteQueryResultRows(context.Background(), host1ResultRow)
 	require.NoError(t, err)
 
-	// Insert 1 Result Row with nil Data for Query1
-	// This should not be counted
-	resultRowNilData := []*fleet.ScheduledQueryResultRow{
+	// Insert Nil Result Row for Query1, nil data rows are not counted
+	host2ResultRow := []*fleet.ScheduledQueryResultRow{
 		{
 			QueryID:     query1.ID,
-			HostID:      host.ID,
+			HostID:      host2.ID,
 			LastFetched: mockTime,
 			Data:        nil,
 		},
 	}
-	err = ds.SaveQueryResultRows(context.Background(), resultRowNilData)
+	err = ds.OverwriteQueryResultRows(context.Background(), host2ResultRow)
 	require.NoError(t, err)
 
 	// Insert 5 Result Rows for Query2
-	resultRow2 := []*fleet.ScheduledQueryResultRow{
-		{
-			QueryID:     query2.ID,
-			HostID:      host.ID,
-			LastFetched: mockTime,
-			Data: ptr.RawMessage([]byte(`{
+	resultRow2 := &fleet.ScheduledQueryResultRow{
+		QueryID:     query2.ID,
+		HostID:      host.ID,
+		LastFetched: mockTime,
+		Data: ptr.RawMessage([]byte(`{
 				"model": "USB Mouse",
 				"vendor": "Apple Inc."
 			}`)),
-		},
 	}
+
+	var resultRows []*fleet.ScheduledQueryResultRow
 	for i := 0; i < 5; i++ {
-		err = ds.SaveQueryResultRows(context.Background(), resultRow2)
-		require.NoError(t, err)
+		resultRows = append(resultRows, resultRow2)
 	}
+
+	err = ds.OverwriteQueryResultRows(context.Background(), resultRows)
+	require.NoError(t, err)
 
 	// Assert that ResultCountForQuery returns 1
 	count, err := ds.ResultCountForQuery(context.Background(), query1.ID)
@@ -235,15 +235,16 @@ func testCountResultsForQueryAndHost(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
 	query1 := test.NewQuery(t, ds, nil, "New Query", "SELECT 1", user.ID, true)
 	query2 := test.NewQuery(t, ds, nil, "New Query 2", "SELECT 1", user.ID, true)
-	host := test.NewHost(t, ds, "host1", "192.168.1.100", "1234", "UI8XB1223", time.Now())
+	host1 := test.NewHost(t, ds, "host1", "192.168.1.100", "1234", "UI8XB1223", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "192.168.1.101", "4567", "UI8XB1224", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "192.168.1.102", "8910", "UI8XB1225", time.Now())
 
 	mockTime := time.Now().UTC().Truncate(time.Second)
 
-	resultRows := []*fleet.ScheduledQueryResultRow{
+	host1ResultRows := []*fleet.ScheduledQueryResultRow{
 		{
 			QueryID:     query1.ID,
-			HostID:      host.ID,
+			HostID:      host1.ID,
 			LastFetched: mockTime,
 			Data: ptr.RawMessage([]byte(`{
 				"model": "USB Keyboard",
@@ -252,13 +253,32 @@ func testCountResultsForQueryAndHost(t *testing.T, ds *Datastore) {
 		},
 		{
 			QueryID:     query1.ID,
-			HostID:      host.ID,
+			HostID:      host1.ID,
 			LastFetched: mockTime,
 			Data: ptr.RawMessage([]byte(`{
 				"model": "USB Mouse",
 				"vendor": "Logitech"
 			}`)),
 		},
+	}
+	err := ds.OverwriteQueryResultRows(context.Background(), host1ResultRows)
+	require.NoError(t, err)
+
+	host1Query2 := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     query2.ID,
+			HostID:      host1.ID,
+			LastFetched: mockTime,
+			Data: ptr.RawMessage([]byte(`{
+				"model": "USB Mouse",
+				"vendor": "Logitech"
+			}`)),
+		},
+	}
+	err = ds.OverwriteQueryResultRows(context.Background(), host1Query2)
+	require.NoError(t, err)
+
+	host2ResultRow := []*fleet.ScheduledQueryResultRow{
 		{
 			QueryID:     query1.ID,
 			HostID:      host2.ID,
@@ -268,40 +288,45 @@ func testCountResultsForQueryAndHost(t *testing.T, ds *Datastore) {
 				"vendor": "Logitech"
 			}`)),
 		},
+	}
+	err = ds.OverwriteQueryResultRows(context.Background(), host2ResultRow)
+	require.NoError(t, err)
+
+	host3ResultRow := []*fleet.ScheduledQueryResultRow{
 		{
 			QueryID:     query2.ID,
-			HostID:      host.ID,
-			LastFetched: mockTime,
-			Data: ptr.RawMessage([]byte(`{
-				"model": "USB Mouse",
-				"vendor": "Logitech"
-			}`)),
-		},
-		{
-			QueryID:     query2.ID, // This row should not be counted
-			HostID:      host.ID,
+			HostID:      host3.ID,
 			LastFetched: mockTime,
 			Data:        nil,
 		},
 	}
-
-	err := ds.SaveQueryResultRows(context.Background(), resultRows)
+	err = ds.OverwriteQueryResultRows(context.Background(), host3ResultRow)
 	require.NoError(t, err)
 
 	// Assert that Query1 returns 2
-	count, err := ds.ResultCountForQueryAndHost(context.Background(), query1.ID, host.ID)
+	count, err := ds.ResultCountForQueryAndHost(context.Background(), query1.ID, host1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 2, count)
 
 	// Assert that ResultCountForQuery returns 1
-	count, err = ds.ResultCountForQueryAndHost(context.Background(), query2.ID, host.ID)
+	count, err = ds.ResultCountForQueryAndHost(context.Background(), query2.ID, host1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 
-	// Returns empty result when no results are found
-	count, err = ds.ResultCountForQueryAndHost(context.Background(), 999, host.ID)
+	// Assert that host2 returns 1 row
+	count, err = ds.ResultCountForQueryAndHost(context.Background(), query1.ID, host2.ID)
 	require.NoError(t, err)
-	require.Equal(t, 0, count)
+	require.Equal(t, 1, count)
+
+	// Assert Nil Data rows are not counted
+	count, err = ds.ResultCountForQueryAndHost(context.Background(), query2.ID, host3.ID)
+	require.NoError(t, err)
+	require.Zero(t, count)
+
+	// Returns empty result when no results are found
+	count, err = ds.ResultCountForQueryAndHost(context.Background(), 999, host1.ID)
+	require.NoError(t, err)
+	require.Zero(t, count)
 }
 
 func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
@@ -312,7 +337,7 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 	mockTime := time.Now().UTC().Truncate(time.Second)
 
 	// Insert initial Result Rows
-	initialRows := []*fleet.ScheduledQueryResultRow{
+	initialRow := []*fleet.ScheduledQueryResultRow{
 		{
 			QueryID:     query.ID,
 			HostID:      host.ID,
@@ -321,7 +346,7 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	err := ds.SaveQueryResultRows(context.Background(), initialRows)
+	err := ds.OverwriteQueryResultRows(context.Background(), initialRow)
 	require.NoError(t, err)
 
 	// Overwrite Result Rows with new data
@@ -496,30 +521,4 @@ func testQueryResultRows(t *testing.T, ds *Datastore) {
 	results, err := ds.QueryResultRows(context.Background(), query.ID)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
-}
-
-func (ds *Datastore) SaveQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
-	if len(rows) == 0 {
-		return nil // Nothing to insert
-	}
-
-	valueStrings := make([]string, 0, len(rows))
-	valueArgs := make([]interface{}, 0, len(rows)*4)
-
-	for _, row := range rows {
-		valueStrings = append(valueStrings, "(?, ?, ?, ?)")
-		valueArgs = append(valueArgs, row.QueryID, row.HostID, row.LastFetched, row.Data)
-	}
-
-	insertStmt := fmt.Sprintf(`
-        INSERT INTO query_results (query_id, host_id, last_fetched, data)
-            VALUES %s
-    `, strings.Join(valueStrings, ","))
-
-	_, err := ds.writer(ctx).ExecContext(ctx, insertStmt, valueArgs...)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
