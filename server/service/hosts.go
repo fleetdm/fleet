@@ -1117,8 +1117,8 @@ func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, 
 		fetched := row.LastFetched // copy to avoid loop reuse issue
 		lastFetched = &fetched     // need to return value even if data is nil
 
-		columns := map[string]string{}
 		if row.Data != nil {
+			columns := map[string]string{}
 			if err := json.Unmarshal(*row.Data, &columns); err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal query result row data")
 			}
