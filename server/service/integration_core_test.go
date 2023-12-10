@@ -8440,7 +8440,6 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
 
-	// TODO: Add empty snapshot response for a new host
 	emptyslreq := submitLogsRequest{
 		NodeKey: *host2Global.NodeKey,
 		LogType: "result",
