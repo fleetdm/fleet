@@ -969,28 +969,42 @@ func (a *agent) hostUsers() []map[string]string {
 	return users
 }
 
+const wantTotalSharedSoftware = 127000
+const wantPerHostSharedSoftware = 200
+
 func (a *agent) softwareMacOS() []map[string]string {
 	var lastOpenedCount int
-	commonSoftware := make([]map[string]string, a.softwareCount.common)
+	commonSoftware := make([]map[string]string, wantPerHostSharedSoftware)
+	sources := []string{"apps", "chrome_extensions", "firefox_addons", "npm_packages", "homebrew_packages"}
 	for i := 0; i < len(commonSoftware); i++ {
 		var lastOpenedAt string
 		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
+		// pick a random number from the available list of numbers to
+		// use as a name suffix for this software item and generate a name
+		randomNameNumber := rand.Intn(wantTotalSharedSoftware)
+		name := fmt.Sprintf("Common_%d", randomNameNumber)
+		// pick a random version between 1.1.0 and 1.1.2
+		version := fmt.Sprintf("1.1.%d", rand.Intn(3))
+		// define the source, for a given randomNameNumber, the same
+		// source will always be picked
+		source := sources[randomNameNumber%len(sources)]
+
 		commonSoftware[i] = map[string]string{
-			"name":              fmt.Sprintf("Common_%d", i),
-			"version":           "0.0.1",
+			"name":              name,
+			"version":           version,
 			"bundle_identifier": "com.fleetdm.osquery-perf",
-			"source":            "osquery-perf",
+			"source":            source,
 			"last_opened_at":    lastOpenedAt,
-			"installed_path":    fmt.Sprintf("/some/path/Common_%d", i),
+			"installed_path":    fmt.Sprintf("/some/path/%s", name),
 		}
 	}
 	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
 		rand.Shuffle(len(commonSoftware), func(i, j int) {
 			commonSoftware[i], commonSoftware[j] = commonSoftware[j], commonSoftware[i]
 		})
-		commonSoftware = commonSoftware[:a.softwareCount.common-a.softwareCount.commonSoftwareUninstallCount]
+		commonSoftware = commonSoftware[:len(commonSoftware)-a.softwareCount.commonSoftwareUninstallCount]
 	}
 	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
@@ -998,9 +1012,10 @@ func (a *agent) softwareMacOS() []map[string]string {
 		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
+		version := fmt.Sprintf("1.1.%d", rand.Int31n(3))
 		uniqueSoftware[i] = map[string]string{
 			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
-			"version":           "1.1.1",
+			"version":           version,
 			"bundle_identifier": "com.fleetdm.osquery-perf",
 			"source":            "osquery-perf",
 			"last_opened_at":    lastOpenedAt,
