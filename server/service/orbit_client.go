@@ -123,20 +123,10 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 	now := time.Now()
 	if now.After(oc.configCache.lastUpdated.Add(configCacheTTL)) {
 		verb, path := "POST", "/api/fleet/orbit/config"
-		var resp orbitGetConfigResponse
-		if err := oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp); err != nil {
-			// We cache the error so that we don't keep hitting the Fleet server if it is having issues
-			oc.configCache.config = nil
-			oc.configCache.err = err
-		} else {
-			oc.configCache.config = &fleet.OrbitConfig{
-				Flags:         resp.Flags,
-				Extensions:    resp.Extensions,
-				Notifications: resp.Notifications,
-				NudgeConfig:   resp.NudgeConfig,
-			}
-			oc.configCache.err = nil
-		}
+		var resp fleet.OrbitConfig
+		err := oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp)
+		oc.configCache.config = &resp
+		oc.configCache.err = err
 		oc.configCache.lastUpdated = now
 	}
 	return oc.configCache.config, oc.configCache.err
