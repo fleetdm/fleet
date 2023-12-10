@@ -27,6 +27,27 @@ From time to time, you will need to schedule an interview between a candidate an
    - Add candidate's [LinkedIn url](https://www.linkedin.com/search/results/all/?keywords=people) on the first bullet for Mike.
 3. Set the Google Calendar description of the calendar event to: `Agenda: URL_FOR_NEW_COPY_OF_FINAL_INTERVIEW_DOC`
 
+### Program the CEO to do something
+
+1. If necessary or if unsure, immediately direct message the CEO on Slack to clarify priority level, timing, and level of effort.  (For example, whether to schedule 30m or 60m to complete in full, or 30m planning as an iterative step.)
+2. If there is not room on the calendar to schedule this soon enough with both Mike and Sam as needed (erring on the side of sooner), then either immediately direct message the CEO with a backup plan, or if it can obviously wait, then discuss at the next roundup.
+3. Create a calendar event with a Zoom meeting for the CEO and Apprentice.  Keep the title short.  For the description, keep it very brief and use this template:
+
+```
+Agenda:
+1. Apprentice: Is there enough context for you (CEO) to accomplish this?
+2. Apprentice: Is this still a priority for you (CEO) to do.. right now?  Or should it be "someday/maybe"?
+3. Apprentice: Is there enough time for you (CEO) to do this live? (Right now during this meeting?)
+4. Apprentice: What are the next steps after you (CEO) complete this?
+5. Apprentice: LINK_TO_DOC_OR_ISSUE
+```
+
+> Keep calendar event titles short so they are readable at a glance.  Please include any other info via link, so that information is not duplicated or lost in the calendar.
+
+
+
+
+
 ### Process the CEO's calendar
 Time management for the CEO is essential.  The Apprentice processes the CEO's calendar multiple times per day.
 
