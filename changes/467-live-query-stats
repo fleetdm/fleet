@@ -1,0 +1,2 @@
+Live Queries now collect stats. Stats are collected for saved queries present in the Queries tab.
+- After running a live query, user will see updated stats in Queries tab.
