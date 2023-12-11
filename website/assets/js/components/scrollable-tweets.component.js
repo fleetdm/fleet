@@ -161,9 +161,9 @@ parasails.registerComponent('scrollableTweets', {
         </div>
       </div>
     </div>
-    <div purpose="" class="mx-auto d-flex flex-row justify-content-center">
+    <div purpose="page-indictator-container" class="mx-auto d-flex flex-row justify-content-center">
       <nav aria-label="..." >
-        <ul purpose="tweets-page-indicator" class="pagination pagination-sm" v-if="numberOfTweetPages > 1">
+        <ul purpose="tweets-page-indicator" class="pagination pagination-sm" v-if="numberOfTweetPages > 1 && numberOfTweetPages <= numberOfTweetCards">
           <li class="page-item" :class="[currentTweetPage === index ? 'selected' : '']" v-for="(pageNumber, index) in numberOfTweetPages" @click="scrollTweetsDivToPage(index)"></li>
         </ul>
       </nav>
