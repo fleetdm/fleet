@@ -41,6 +41,9 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 ### Events
 It's important for Fleet to engage at events. This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
+### Podcast
+Fleet has created the [ExpedITioners podcast](https://expeditioners.podbean.com/) to open discussions and help IT and security professionals get ahead of the curve and prepare themselves and their organizations for what lies ahead. 
+
 ### Video
 Fleet's utilization of YouTube is an essential component of our commitment to nurturing a strong and informed user community. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it.
 
@@ -200,19 +203,36 @@ We use these prefixes to organize the Fleet Slack:
 
 
 ## Github
-Fleet uses Github as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for our product and documentation; a platfrom to allow community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
+Fleet uses Github as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for our product and documentation; a platform to allow community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
 
 ### GitHub labels
-We use special characters to define different types of GitHub labels. By combining labels, we
-organize and categorize GitHub issues. This reduces the total number of labels required while
-maintaining an expressive labeling system. For example, instead of a label called
-`platform-dev-backend`, we use `#platform :dev ~backend`.
+Fleet prefixes all GitHub labels with special characters or words to organize and categorize GitHub issues.
 
-| Special character | Label type  | Examples                            |
+| Prefix            | Label type  | Examples                            |
 |:------------------|:------------|:------------------------------------|
 | `#`               | Noun        | `#g-marketing`, `#g-ceo`, `#agent`
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
+| `customer-`       | [Customer request](TODO link to handbook section) | `customer-leo`, `customer-sagittarius`
+| `#g-`             | Group isssue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
+
+Opionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. For example, instead of a label called `platform-dev-backend`, we use `#platform :dev ~backend`.
+
+> _**Note:** There are only a few "special" labels that are exceptions to this rule:
+> - `bug`
+> - `story`
+> -  `prospect-` _(TODO: This makes sense, but I noticed on Nov 30, 2023 that `customer-` was being used in at least one place `prospect-` was supposed to be.  Let's decide what we'll be doing.  Easiest thing is probably to switch to `customer-` for everything and then clarify who is a customer in the mapping between labels and actual organization names.  Up to Luke and Zay.)_
+> - `customer request` _(FUTURE: is this needed?  if so, could use special symbol prefix in front of it)_
+> -  `needs prioritization` _(FUTURE: is this needed? could we use a symbol prefix in front of it?)_
+> - `github_actions` _(TODO: why is this here?  Instead we can use prefixes, like `~`)_
+> - `docker` _(TODO: why is this here?  Instead we can use prefixes, like `~`)_
+> -  `go` _(TODO: why is this here?  Instead we can use prefixes, like `~`)_
+> -  `javascript` _(TODO: why is this here?  Instead we can use prefixes, like `~`)_
+> - `Epic` _(TODO: Find a way to remove this.  It is an artifact from Zenhub and not something we actually want to exist or use, as it is confusing.)_
+> -  `p4` _(TODO: why is this here?  Instead we can use prefixes, like `~`.  Or better yet, delete it.  What is a P4 anyway?)_
+> -  `p5` _(TODO: why is this here?  Instead we can use prefixes, like `~`.  Same as `p4`.)_
+> -  `story to demo` _(FUTURE: is this needed?  if so, could use special symbol prefix in front of it)_
+> -  `bug to demo` _(FUTURE: is this needed?  if so, could use special symbol prefix in front of it)_
 
 ### Process new requests
 Team members [process their department's kanban boards](https://fleetdm.com/handbook/company/why-this-way#why-lean-software-development) daily, prioritizing all new requests including issues and PRs within one business day.

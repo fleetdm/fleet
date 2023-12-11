@@ -29,6 +29,10 @@ module.exports = {
     storedErrors: { type: [{}], defaultsTo: [] }, // TODO migrate all rows that have "[]" to {}
     numHostsNotResponding: { type: 'number', defaultsTo: 0, description: 'The number of hosts per deployment that have not submitted results for distibuted queries. A host is counted as not responding if Fleet hasn\'t received a distributed write to requested distibuted queries for the host during the 2-hour interval since the host was last seen. Hosts that have not been seen for 7 days or more are not counted.', },
     organization: { type: 'string', defaultsTo: 'unknown', description: 'For Fleet Premium deployments, the organization registered with the license.', },
+    mdmMacOsEnabled: {type: 'boolean', defaultsTo: false},
+    mdmWindowsEnabled: {type: 'boolean', defaultsTo: false},
+    liveQueryDisabled: {type: 'boolean', defaultsTo: false},
+    hostExpiryEnabled: {type: 'boolean', defaultsTo: false},
   },
 
 
@@ -54,6 +58,10 @@ module.exports = {
       `vuln_detection_enabled:${inputs.vulnDetectionEnabled}`,
       `system_users_enabled:${inputs.systemUsersEnabled}`,
       `host_status_webhook_enabled:${inputs.hostsStatusWebHookEnabled}`,
+      `mdm_macos_enabled:${inputs.mdmMacOsEnabled}`,
+      `mdm_windows_enabled:${inputs.mdmWindowsEnabled}`,
+      `live_query_disabled:${inputs.liveQueryDisabled}`,
+      `host_expiry_enabled:${inputs.hostExpiryEnabled}`,
     ];
 
     // Create a timestamp in seconds for these metrics

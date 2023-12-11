@@ -76,8 +76,8 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
-        Remotely encourage the installation of macOS updates on hosts assigned
-        to this team.
+        Remotely encourage the installation of software updates on hosts
+        assigned to this team.
       </p>
       <div className={`${baseClass}__content`}>
         <div className={`${baseClass}__form-table-content`}>

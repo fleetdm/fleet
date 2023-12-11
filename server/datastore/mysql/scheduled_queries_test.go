@@ -508,7 +508,7 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 		for hid, stats := range m {
 			for _, st := range stats {
 				ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-					var got int
+					var got uint64
 					err := sqlx.GetContext(ctx, tx, &got, `SELECT executions FROM scheduled_query_stats WHERE host_id = ? AND scheduled_query_id = ?`, hid, st.ScheduledQueryID)
 					if err != nil {
 						return err

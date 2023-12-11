@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 )
 
 // MDMWindowsBitLockerSummary reports the number of Windows hosts being managed by Fleet with
@@ -29,6 +29,8 @@ type MDMWindowsBitLockerSummary struct {
 
 // MDMWindowsConfigProfile represents a Windows MDM profile in Fleet.
 type MDMWindowsConfigProfile struct {
+	// ProfileUUID is the unique identifier of the configuration profile in
+	// Fleet. For Windows profiles, it is the letter "w" followed by a uuid.
 	ProfileUUID string    `db:"profile_uuid" json:"profile_uuid"`
 	TeamID      *uint     `db:"team_id" json:"team_id"`
 	Name        string    `db:"name" json:"name"`
@@ -48,8 +50,8 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	if len(bytes.TrimSpace(m.SyncML)) == 0 {
 		return errors.New("The file should include valid XML.")
 	}
-
-	if _, ok := microsoft_mdm.FleetReservedProfileNames()[m.Name]; ok {
+	fleetNames := mdm.FleetReservedProfileNames()
+	if _, ok := fleetNames[m.Name]; ok {
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
 
@@ -97,8 +99,8 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 }
 
 var fleetProvidedLocURIValidationMap = map[string][2]string{
-	microsoft_mdm.FleetBitLockerTargetLocURI: {"BitLocker", "mdm.enable_disk_encryption"},
-	microsoft_mdm.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
+	syncml.FleetBitLockerTargetLocURI: {"BitLocker", "mdm.enable_disk_encryption"},
+	syncml.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
 }
 
 func validateFleetProvidedLocURI(locURI string) error {
@@ -120,6 +122,7 @@ type MDMWindowsProfilePayload struct {
 	OperationType MDMOperationType   `db:"operation_type"`
 	Detail        string             `db:"detail"`
 	CommandUUID   string             `db:"command_uuid"`
+	Retries       int                `db:"retries"`
 }
 
 type MDMWindowsBulkUpsertHostProfilePayload struct {

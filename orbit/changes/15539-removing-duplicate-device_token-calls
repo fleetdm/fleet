@@ -1,0 +1,1 @@
+Fixing fleetd to NOT make unnecessary duplicate call to orbit/device_token endpoint.

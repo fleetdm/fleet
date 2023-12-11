@@ -4,6 +4,7 @@ import "text/template"
 
 type fileVaultProfileOptions struct {
 	PayloadIdentifier    string
+	PayloadName          string
 	Base64DerCertificate string
 }
 
@@ -79,7 +80,7 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>Disk encryption</string>
+	<string>{{ .PayloadName }}</string>
 	<key>PayloadIdentifier</key>
 	<string>{{ .PayloadIdentifier }}</string>
 	<key>PayloadType</key>

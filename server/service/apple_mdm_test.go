@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -466,6 +467,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
+	profUUID := "a" + uuid.NewString()
 	testCases := []struct {
 		name             string
 		user             *fleet.User
@@ -546,18 +548,18 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	ds.GetMDMAppleProfilesSummaryFunc = func(context.Context, *uint) (*fleet.MDMProfilesSummary, error) {
 		return nil, nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, puuids, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
 		return nil
 	}
 	mockGetFuncWithTeamID := func(teamID uint) mock.GetMDMAppleConfigProfileFunc {
-		return func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
-			require.Equal(t, uint(42), profileID)
+		return func(ctx context.Context, puid string) (*fleet.MDMAppleConfigProfile, error) {
+			require.Equal(t, profUUID, puid)
 			return &fleet.MDMAppleConfigProfile{TeamID: &teamID}, nil
 		}
 	}
 	mockDeleteFuncWithTeamID := func(teamID uint) mock.DeleteMDMAppleConfigProfileFunc {
-		return func(ctx context.Context, profileID uint) error {
-			require.Equal(t, uint(42), profileID)
+		return func(ctx context.Context, puid string) error {
+			require.Equal(t, profUUID, puid)
 			return nil
 		}
 	}
@@ -608,22 +610,22 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 
 			// test authz get config profile (no team)
 			ds.GetMDMAppleConfigProfileFunc = mockGetFuncWithTeamID(0)
-			_, err = svc.GetMDMAppleConfigProfile(ctx, 42)
+			_, err = svc.GetMDMAppleConfigProfile(ctx, profUUID)
 			checkShouldFail(err, tt.shouldFailGlobal)
 
 			// test authz delete config profile (no team)
 			ds.DeleteMDMAppleConfigProfileFunc = mockDeleteFuncWithTeamID(0)
-			err = svc.DeleteMDMAppleConfigProfile(ctx, 42)
+			err = svc.DeleteMDMAppleConfigProfile(ctx, profUUID)
 			checkShouldFail(err, tt.shouldFailGlobal)
 
 			// test authz get config profile (team 1)
 			ds.GetMDMAppleConfigProfileFunc = mockGetFuncWithTeamID(1)
-			_, err = svc.GetMDMAppleConfigProfile(ctx, 42)
+			_, err = svc.GetMDMAppleConfigProfile(ctx, profUUID)
 			checkShouldFail(err, tt.shouldFailTeam)
 
 			// test authz delete config profile (team 1)
 			ds.DeleteMDMAppleConfigProfileFunc = mockDeleteFuncWithTeamID(1)
-			err = svc.DeleteMDMAppleConfigProfile(ctx, 42)
+			err = svc.DeleteMDMAppleConfigProfile(ctx, profUUID)
 			checkShouldFail(err, tt.shouldFailTeam)
 
 			// test authz get profiles summary (no team)
@@ -648,13 +650,12 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 		require.Equal(t, "Foo", cp.Name)
 		require.Equal(t, "Bar", cp.Identifier)
 		require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
-		cp.ProfileID = 1
 		return &cp, nil
 	}
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, puuids, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
 		return nil
 	}
 
@@ -692,13 +693,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	expected := []fleet.HostMDMAppleProfile{
-		{HostUUID: "H057-UU1D-1337", Name: "NAME-5", ProfileID: uint(5), CommandUUID: "CMD-UU1D-5", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, Detail: ""},
-		{HostUUID: "H057-UU1D-1337", Name: "NAME-9", ProfileID: uint(8), CommandUUID: "CMD-UU1D-8", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall, Detail: ""},
-		{HostUUID: "H057-UU1D-1337", Name: "NAME-13", ProfileID: uint(13), CommandUUID: "CMD-UU1D-13", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove, Detail: "Error removing profile"},
-	}
-	expectedByProfileID := make(map[uint]fleet.HostMDMAppleProfile)
-	for _, ep := range expected {
-		expectedByProfileID[ep.ProfileID] = ep
+		{HostUUID: "H057-UU1D-1337", Name: "NAME-5", ProfileUUID: "a" + uuid.NewString(), CommandUUID: "CMD-UU1D-5", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, Detail: ""},
+		{HostUUID: "H057-UU1D-1337", Name: "NAME-9", ProfileUUID: "a" + uuid.NewString(), CommandUUID: "CMD-UU1D-8", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall, Detail: ""},
+		{HostUUID: "H057-UU1D-1337", Name: "NAME-13", ProfileUUID: "a" + uuid.NewString(), CommandUUID: "CMD-UU1D-13", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove, Detail: "Error removing profile"},
 	}
 
 	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
@@ -1056,7 +1053,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 		}, nil
 	}
 
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, puuids, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
 		return nil
 	}
 
@@ -1242,13 +1239,13 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 				require.Equal(t, c.want, profile)
 				return nil
 			}
-			ds.GetHostMDMProfileRetryCountByCommandUUIDFunc = func(ctx context.Context, hstUUID, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
-				require.Equal(t, hostUUID, hstUUID)
+			ds.GetHostMDMProfileRetryCountByCommandUUIDFunc = func(ctx context.Context, host *fleet.Host, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
+				require.Equal(t, hostUUID, host.UUID)
 				require.Equal(t, commandUUID, cmdUUID)
 				return fleet.HostMDMProfileRetryCount{ProfileIdentifier: profileIdentifier, Retries: c.prevRetries}, nil
 			}
-			ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, hostUUID string, toVerify, toFail, toRetry []string) error {
-				require.Equal(t, hostUUID, hostUUID)
+			ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, host *fleet.Host, toVerify, toFail, toRetry []string) error {
+				require.Equal(t, hostUUID, host.UUID)
 				require.Nil(t, toVerify)
 				require.Nil(t, toFail)
 				require.ElementsMatch(t, toRetry, []string{profileIdentifier})
@@ -1299,11 +1296,11 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, puuids, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
 		return nil
 	}
 
-	testCases := []struct {
+	type testCase struct {
 		name     string
 		user     *fleet.User
 		premium  bool
@@ -1311,7 +1308,9 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 		teamName *string
 		profiles [][]byte
 		wantErr  string
-	}{
+	}
+
+	testCases := []testCase{
 		{
 			"global admin",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
@@ -1545,6 +1544,28 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			"unsupported PayloadType(s)",
 		},
 	}
+	for name := range fleetmdm.FleetReservedProfileNames() {
+		testCases = append(testCases,
+			testCase{
+				"reserved payload outer name " + name,
+				&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				true,
+				nil,
+				nil,
+				[][]byte{mobileconfigForTest(name, "I1")},
+				name,
+			},
+			testCase{
+				"reserved payload inner name " + name,
+				&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				true,
+				nil,
+				nil,
+				[][]byte{mobileconfigForTestWithContent("N1", "I1", "I1", "PayloadType", name)},
+				name,
+			},
+		)
+	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1586,7 +1607,7 @@ func TestMDMBatchSetAppleProfilesBoolArgs(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, profileUUIDs, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, profileUUIDs, uuids []string) error {
 		return nil
 	}
 
@@ -2026,29 +2047,30 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	contents4 := []byte("test-content-4")
 	contents4Base64 := base64.StdEncoding.EncodeToString(contents4)
 
+	p1, p2, p3, p4 := "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString()
 	ds.ListMDMAppleProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
 		return []*fleet.MDMAppleProfilePayload{
-			{ProfileID: 1, ProfileIdentifier: "com.add.profile", HostUUID: hostUUID},
-			{ProfileID: 2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID},
-			{ProfileID: 2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID2},
-			{ProfileID: 4, ProfileIdentifier: "com.add.profile.four", HostUUID: hostUUID2},
+			{ProfileUUID: p1, ProfileIdentifier: "com.add.profile", HostUUID: hostUUID},
+			{ProfileUUID: p2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID},
+			{ProfileUUID: p2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID2},
+			{ProfileUUID: p4, ProfileIdentifier: "com.add.profile.four", HostUUID: hostUUID2},
 		}, nil
 	}
 
 	ds.ListMDMAppleProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
 		return []*fleet.MDMAppleProfilePayload{
-			{ProfileID: 3, ProfileIdentifier: "com.remove.profile", HostUUID: hostUUID},
-			{ProfileID: 3, ProfileIdentifier: "com.remove.profile", HostUUID: hostUUID2},
+			{ProfileUUID: p3, ProfileIdentifier: "com.remove.profile", HostUUID: hostUUID},
+			{ProfileUUID: p3, ProfileIdentifier: "com.remove.profile", HostUUID: hostUUID2},
 		}, nil
 	}
 
-	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error) {
-		require.ElementsMatch(t, []uint{1, 2, 4}, profileIDs)
+	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error) {
+		require.ElementsMatch(t, []string{p1, p2, p4}, profileUUIDs)
 		// only those profiles that are to be installed
-		return map[uint]mobileconfig.Mobileconfig{
-			1: contents1,
-			2: contents2,
-			4: contents4,
+		return map[string]mobileconfig.Mobileconfig{
+			p1: contents1,
+			p2: contents2,
+			p4: contents4,
 		}, nil
 	}
 
@@ -2121,24 +2143,24 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 
 		// first time it is called, it is to set the status to pending and all
 		// host profiles have a command uuid
-		cmdUUIDByProfileIDInstall := make(map[uint]string)
-		cmdUUIDByProfileIDRemove := make(map[uint]string)
+		cmdUUIDByProfileUUIDInstall := make(map[string]string)
+		cmdUUIDByProfileUUIDRemove := make(map[string]string)
 		copies := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(payload))
 		for i, p := range payload {
 			if p.OperationType == fleet.MDMOperationTypeInstall {
-				existing, ok := cmdUUIDByProfileIDInstall[p.ProfileID]
+				existing, ok := cmdUUIDByProfileUUIDInstall[p.ProfileUUID]
 				if ok {
 					require.Equal(t, existing, p.CommandUUID)
 				} else {
-					cmdUUIDByProfileIDInstall[p.ProfileID] = p.CommandUUID
+					cmdUUIDByProfileUUIDInstall[p.ProfileUUID] = p.CommandUUID
 				}
 			} else {
 				require.Equal(t, fleet.MDMOperationTypeRemove, p.OperationType)
-				existing, ok := cmdUUIDByProfileIDRemove[p.ProfileID]
+				existing, ok := cmdUUIDByProfileUUIDRemove[p.ProfileUUID]
 				if ok {
 					require.Equal(t, existing, p.CommandUUID)
 				} else {
-					cmdUUIDByProfileIDRemove[p.ProfileID] = p.CommandUUID
+					cmdUUIDByProfileUUIDRemove[p.ProfileUUID] = p.CommandUUID
 				}
 			}
 
@@ -2151,42 +2173,42 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 
 		require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 			{
-				ProfileID:         1,
+				ProfileUUID:       p1,
 				ProfileIdentifier: "com.add.profile",
 				HostUUID:          hostUUID,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryPending,
 			},
 			{
-				ProfileID:         2,
+				ProfileUUID:       p2,
 				ProfileIdentifier: "com.add.profile.two",
 				HostUUID:          hostUUID,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryPending,
 			},
 			{
-				ProfileID:         2,
+				ProfileUUID:       p2,
 				ProfileIdentifier: "com.add.profile.two",
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryPending,
 			},
 			{
-				ProfileID:         3,
+				ProfileUUID:       p3,
 				ProfileIdentifier: "com.remove.profile",
 				HostUUID:          hostUUID,
 				OperationType:     fleet.MDMOperationTypeRemove,
 				Status:            &fleet.MDMDeliveryPending,
 			},
 			{
-				ProfileID:         3,
+				ProfileUUID:       p3,
 				ProfileIdentifier: "com.remove.profile",
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeRemove,
 				Status:            &fleet.MDMDeliveryPending,
 			},
 			{
-				ProfileID:         4,
+				ProfileUUID:       p4,
 				ProfileIdentifier: "com.add.profile.four",
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeInstall,
@@ -2199,6 +2221,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		appCfg := &fleet.AppConfig{}
 		appCfg.ServerSettings.ServerURL = "https://test.example.com"
+		appCfg.MDM.EnabledAndConfigured = true
 		return appCfg, nil
 	}
 
@@ -2243,7 +2266,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			require.Len(t, payload, 2) // the 2 remove ops
 			require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 				{
-					ProfileID:         3,
+					ProfileUUID:       p3,
 					ProfileIdentifier: "com.remove.profile",
 					HostUUID:          hostUUID,
 					OperationType:     fleet.MDMOperationTypeRemove,
@@ -2251,7 +2274,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 					CommandUUID:       "",
 				},
 				{
-					ProfileID:         3,
+					ProfileUUID:       p3,
 					ProfileIdentifier: "com.remove.profile",
 					HostUUID:          hostUUID2,
 					OperationType:     fleet.MDMOperationTypeRemove,
@@ -2280,7 +2303,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			require.Len(t, payload, 4) // the 4 install ops
 			require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 				{
-					ProfileID:         1,
+					ProfileUUID:       p1,
 					ProfileIdentifier: "com.add.profile",
 					HostUUID:          hostUUID,
 					OperationType:     fleet.MDMOperationTypeInstall,
@@ -2288,7 +2311,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 					CommandUUID:       "",
 				},
 				{
-					ProfileID:         2,
+					ProfileUUID:       p2,
 					ProfileIdentifier: "com.add.profile.two",
 					HostUUID:          hostUUID,
 					OperationType:     fleet.MDMOperationTypeInstall,
@@ -2296,7 +2319,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 					CommandUUID:       "",
 				},
 				{
-					ProfileID:         2,
+					ProfileUUID:       p2,
 					ProfileIdentifier: "com.add.profile.two",
 					HostUUID:          hostUUID2,
 					OperationType:     fleet.MDMOperationTypeInstall,
@@ -2304,7 +2327,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 					CommandUUID:       "",
 				},
 				{
-					ProfileID:         4,
+					ProfileUUID:       p4,
 					ProfileIdentifier: "com.add.profile.four",
 					HostUUID:          hostUUID2,
 					OperationType:     fleet.MDMOperationTypeInstall,
@@ -2660,7 +2683,11 @@ func mobileconfigForTest(name, identifier string) []byte {
 `, name, identifier, uuid.New().String()))
 }
 
-func mobileconfigForTestWithContent(name, identifier, inneridentifier, innertype string) []byte {
+func mobileconfigForTestWithContent(outerName, outerIdentifier, innerIdentifier, innerType, innerName string) []byte {
+	if innerName == "" {
+		innerName = outerName + ".inner"
+	}
+
 	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -2694,5 +2721,5 @@ func mobileconfigForTestWithContent(name, identifier, inneridentifier, innertype
 	<integer>1</integer>
 </dict>
 </plist>
-`, name+".inner", inneridentifier, innertype, name, identifier, uuid.New().String()))
+`, innerName, innerIdentifier, innerType, outerName, outerIdentifier, uuid.New().String()))
 }
