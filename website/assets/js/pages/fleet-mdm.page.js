@@ -45,6 +45,9 @@ parasails.registerPage('device-management', {
     clickOpenMdmModal: function() {
       this.modal = 'mdm';
     },
+    clickOpenVideoModal: function(modalName) {
+      this.modal = modalName;
+    },
     closeModal: async function () {
       this.modal = '';
       await this._resetForms();
@@ -64,5 +67,6 @@ parasails.registerPage('device-management', {
       this.formErrors = {};
       await this.forceRender();
     },
+
   }
 });
