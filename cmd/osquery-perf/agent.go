@@ -332,6 +332,8 @@ type agent struct {
 	scheduledQueriesMu sync.Mutex
 	scheduledQueries   []string
 	scheduledQueryData []scheduledQuery
+
+	commonSoftware []map[string]string
 }
 
 type entityCount struct {
@@ -975,29 +977,42 @@ const wantPerHostSharedSoftware = 200
 func (a *agent) softwareMacOS() []map[string]string {
 	var lastOpenedCount int
 	commonSoftware := make([]map[string]string, wantPerHostSharedSoftware)
-	sources := []string{"apps", "chrome_extensions", "firefox_addons", "npm_packages", "homebrew_packages"}
-	for i := 0; i < len(commonSoftware); i++ {
-		var lastOpenedAt string
-		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
-			lastOpenedAt = l.Format(time.UnixDate)
-		}
-		// pick a random number from the available list of numbers to
-		// use as a name suffix for this software item and generate a name
-		randomNameNumber := rand.Intn(wantTotalSharedSoftware)
-		name := fmt.Sprintf("Common_%d", randomNameNumber)
-		// pick a random version between 1.1.0 and 1.1.2
-		version := fmt.Sprintf("1.1.%d", rand.Intn(3))
-		// define the source, for a given randomNameNumber, the same
-		// source will always be picked
-		source := sources[randomNameNumber%len(sources)]
+	if len(a.commonSoftware) == 0 {
+		log.Println("generating common software for host ", a.CachedString("hostname"))
+		sources := []string{"apps", "chrome_extensions", "firefox_addons", "npm_packages", "homebrew_packages"}
+		for i := 0; i < len(commonSoftware); i++ {
+			var lastOpenedAt string
+			if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+				lastOpenedAt = l.Format(time.UnixDate)
+			}
+			// pick a random number from the available list of numbers to
+			// use as a name suffix for this software item and generate a name
+			randomNameNumber := rand.Intn(wantTotalSharedSoftware)
+			name := fmt.Sprintf("Common_%d", randomNameNumber)
+			// pick a random version between 1.1.0 and 1.1.2
+			version := fmt.Sprintf("1.1.%d", rand.Intn(3))
+			// define the source, for a given randomNameNumber, the same
+			// source will always be picked
+			source := sources[randomNameNumber%len(sources)]
 
-		commonSoftware[i] = map[string]string{
-			"name":              name,
-			"version":           version,
-			"bundle_identifier": "com.fleetdm.osquery-perf",
-			"source":            source,
-			"last_opened_at":    lastOpenedAt,
-			"installed_path":    fmt.Sprintf("/some/path/%s", name),
+			commonSoftware[i] = map[string]string{
+				"name":              name,
+				"version":           version,
+				"bundle_identifier": "com.fleetdm.osquery-perf",
+				"source":            source,
+				"last_opened_at":    lastOpenedAt,
+				"installed_path":    fmt.Sprintf("/some/path/%s", name),
+			}
+		}
+
+		a.commonSoftware = commonSoftware
+	} else {
+		log.Println("using cached software for host ", a.CachedString("hostname"))
+		for i, cs := range a.commonSoftware {
+			commonSoftware[i] = make(map[string]string, len(cs))
+			for k, v := range cs {
+				commonSoftware[i][k] = v
+			}
 		}
 	}
 	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
