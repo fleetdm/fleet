@@ -1,0 +1,1 @@
+Changed query performance statistics to uint64 to match osquery reports.
