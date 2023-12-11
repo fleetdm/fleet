@@ -988,6 +988,7 @@ func testIsSavedQuery(t *testing.T, ds *Datastore) {
 		Saved:    false,
 	}
 	query, err := ds.NewQuery(context.Background(), query)
+	require.NoError(t, err)
 	isSaved, err := ds.IsSavedQuery(context.Background(), query.ID)
 	require.NoError(t, err)
 	assert.False(t, isSaved)
@@ -1001,12 +1002,13 @@ func testIsSavedQuery(t *testing.T, ds *Datastore) {
 		Saved:    true,
 	}
 	query, err = ds.NewQuery(context.Background(), query)
+	require.NoError(t, err)
 	isSaved, err = ds.IsSavedQuery(context.Background(), query.ID)
 	require.NoError(t, err)
 	assert.True(t, isSaved)
 
 	// error case
-	isSaved, err = ds.IsSavedQuery(context.Background(), math.MaxUint)
+	_, err = ds.IsSavedQuery(context.Background(), math.MaxUint)
 	require.Error(t, err)
 
 }

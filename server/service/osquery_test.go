@@ -2065,6 +2065,12 @@ func TestDistributedQueryResults(t *testing.T) {
 	results := map[string][]map[string]string{
 		queryKey: expectedRows,
 	}
+	expectedStats := fleet.Stats{
+		UserTime: uint64(1),
+	}
+	stats := map[string]*fleet.Stats{
+		queryKey: &expectedStats,
+	}
 
 	// TODO use service method
 	readChan, err := rs.ReadChannel(context.Background(), *campaign)
@@ -2085,6 +2091,7 @@ func TestDistributedQueryResults(t *testing.T) {
 				assert.Equal(t, host.ID, res.Host.ID)
 				assert.Equal(t, host.Hostname, res.Host.Hostname)
 				assert.Equal(t, host.DisplayName(), res.Host.DisplayName)
+				assert.Equal(t, expectedStats, res.Stats)
 			} else {
 				t.Error("Wrong result type")
 			}
@@ -2105,7 +2112,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	err = svc.SubmitDistributedQueryResults(
-		hostCtx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{},
+		hostCtx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, stats,
 	)
 	require.NoError(t, err)
 }

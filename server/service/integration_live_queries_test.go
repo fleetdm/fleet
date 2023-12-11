@@ -121,7 +121,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 
 		cid := getCIDForQ(s, q1)
 
-		var stats *fleet.Stats = nil
+		var stats *fleet.Stats
 		if hasStats {
 			stats = &fleet.Stats{
 				UserTime:   uint64(1),
@@ -188,7 +188,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 		Description: "desc1",
 		Name:        t.Name() + "query1",
 		Logging:     fleet.LoggingSnapshot,
-		Saved:       rand.Intn(2) == 1,
+		Saved:       rand.Intn(2) == 1, //nolint:gosec
 	})
 	require.NoError(t, err)
 
@@ -197,7 +197,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 		Description: "desc2",
 		Name:        t.Name() + "query2",
 		Logging:     fleet.LoggingSnapshot,
-		Saved:       rand.Intn(2) == 1,
+		Saved:       rand.Intn(2) == 1, //nolint:gosec
 	})
 	require.NoError(t, err)
 
@@ -301,7 +301,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 		Description: "desc1",
 		Name:        t.Name() + "query1",
 		Logging:     fleet.LoggingSnapshot,
-		Saved:       rand.Intn(2) == 1,
+		Saved:       rand.Intn(2) == 1, //nolint:gosec
 	})
 	require.NoError(t, err)
 
@@ -310,7 +310,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 		Description: "desc2",
 		Name:        t.Name() + "query2",
 		Logging:     fleet.LoggingSnapshot,
-		Saved:       rand.Intn(2) == 1,
+		Saved:       rand.Intn(2) == 1, //nolint:gosec
 	})
 	require.NoError(t, err)
 
