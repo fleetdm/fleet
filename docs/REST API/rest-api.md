@@ -7199,7 +7199,7 @@ Returns the information of the specified software title. By default `versions` a
 
 ### Get software version
 
-Returns the information of the specified software version.
+Returns information about the specified software version.
 
 `GET /api/v1/fleet/software/versions/{id}`
 
