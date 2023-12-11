@@ -76,7 +76,7 @@ func (dc *DeviceClient) request(verb, pathFmt, token, query string, params inter
 			return reqErr
 		}
 
-		delay := time.Duration(attempt) * time.Second
+		delay := time.Duration(attempt*attempt) * time.Second
 		log.Debug().Msgf("retrying API error in %s", delay)
 		time.Sleep(delay)
 		newToken := dc.invalidTokenRetryFunc()
