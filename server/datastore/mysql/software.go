@@ -1036,8 +1036,22 @@ func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE,
 	return result, nil
 }
 
-func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
-	return listSoftwareDB(ctx, ds.reader(ctx), opt)
+func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
+	software, err := listSoftwareDB(ctx, ds.reader(ctx), opt)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.ListOptions.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
+		if len(software) > int(opt.ListOptions.PerPage) {
+			metaData.HasNextResults = true
+			software = software[:len(software)-1]
+		}
+	}
+
+	return software, metaData, nil
 }
 
 func (ds *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {

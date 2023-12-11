@@ -657,9 +657,10 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	t.Run("paginates", func(t *testing.T) {
 		opts := fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
-				Page:     1,
-				PerPage:  1,
-				OrderKey: "version",
+				Page:            1,
+				PerPage:         1,
+				OrderKey:        "version",
+				IncludeMetadata: true,
 			},
 			IncludeCVEScores: true,
 		}
@@ -704,9 +705,10 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 
 		opts := fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
-				PerPage:  1,
-				Page:     1,
-				OrderKey: "id",
+				PerPage:         1,
+				Page:            1,
+				OrderKey:        "id",
+				IncludeMetadata: true,
 			},
 			TeamID: &team1.ID,
 		}
@@ -882,12 +884,33 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 }
 
 func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareListOptions, returnSorted bool) []fleet.Software {
-	software, err := ds.ListSoftware(context.Background(), opts)
+	software, meta, err := ds.ListSoftware(context.Background(), opts)
 	require.NoError(t, err)
 	require.Len(t, software, expectedListCount)
 	count, err := ds.CountSoftware(context.Background(), opts)
 	require.NoError(t, err)
 	require.Equal(t, expectedFullCount, count)
+
+	if opts.ListOptions.IncludeMetadata {
+		require.NotNil(t, meta)
+		if expectedListCount == expectedFullCount {
+			require.False(t, meta.HasPreviousResults)
+			require.True(t, meta.HasNextResults)
+		}
+
+		if expectedListCount < expectedFullCount && opts.ListOptions.Page > 1 {
+			require.False(t, meta.HasPreviousResults)
+			require.True(t, meta.HasNextResults)
+		}
+
+		if expectedListCount < expectedFullCount && opts.ListOptions.Page <= 1 {
+			require.True(t, meta.HasPreviousResults)
+			require.False(t, meta.HasNextResults)
+		}
+	} else {
+		require.Nil(t, meta)
+	}
+
 	for _, s := range software {
 		sort.Slice(s.Vulnerabilities, func(i, j int) bool {
 			return s.Vulnerabilities[i].CVE < s.Vulnerabilities[j].CVE
@@ -1372,7 +1395,7 @@ func testHostVulnSummariesBySoftwareIDs(t *testing.T, ds *Datastore) {
 
 	insertVulnSoftwareForTest(t, ds)
 
-	allSoftware, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
+	allSoftware, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
 	require.NoError(t, err)
 
 	var fooRpm fleet.Software

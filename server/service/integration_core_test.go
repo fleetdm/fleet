@@ -5757,6 +5757,8 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "0", "order_key", "hosts_count", "order_direction", "desc")
 	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18], sws[17], sws[16], sws[15]}, hostsCountTs, len(sws), 20, 19, 18, 17, 16)
+	require.False(t, versResp.Meta.HasPreviousResults)
+	require.True(t, versResp.Meta.HasNextResults)
 
 	// second page (page=1)
 	lsResp = listSoftwareResponse{}
@@ -5765,6 +5767,8 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
 	assertVersionsResp(versResp, []fleet.Software{sws[14], sws[13], sws[12], sws[11], sws[10]}, hostsCountTs, len(sws), 15, 14, 13, 12, 11)
+	require.True(t, versResp.Meta.HasPreviousResults)
+	require.True(t, versResp.Meta.HasNextResults)
 
 	// third page (page=2)
 	lsResp = listSoftwareResponse{}
@@ -5773,6 +5777,8 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
 	assertVersionsResp(versResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, len(sws), 10, 9, 8, 7, 6)
+	require.True(t, versResp.Meta.HasPreviousResults)
+	require.True(t, versResp.Meta.HasNextResults)
 
 	// last page (page=3)
 	lsResp = listSoftwareResponse{}
@@ -5781,6 +5787,8 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "3", "order_key", "hosts_count", "order_direction", "desc")
 	assertVersionsResp(versResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, len(sws), 5, 4, 3, 2, 1)
+	require.True(t, versResp.Meta.HasPreviousResults)
+	require.False(t, versResp.Meta.HasNextResults)
 
 	// past the end
 	lsResp = listSoftwareResponse{}
