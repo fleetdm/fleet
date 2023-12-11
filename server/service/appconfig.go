@@ -17,8 +17,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
-	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -50,17 +50,6 @@ type appConfigResponseFields struct {
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
 	SandboxEnabled bool  `json:"sandbox_enabled,omitempty"`
 	Err            error `json:"error,omitempty"`
-
-	// MDMEnabled is true if fleet serve was started with
-	// FLEET_DEV_MDM_ENABLED=1.
-	//
-	// Undocumented feature flag for Windows MDM, used to determine if the
-	// Windows MDM feature is visible in the UI and can be enabled. More details
-	// here: https://github.com/fleetdm/fleet/issues/12257
-	//
-	// TODO: remove this flag once the Windows MDM feature is ready for
-	// release.
-	MDMEnabled bool `json:"mdm_enabled,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -185,7 +174,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Logging:         loggingConfig,
 			Email:           emailConfig,
 			SandboxEnabled:  svc.SandboxEnabled(),
-			MDMEnabled:      config.IsMDMFeatureFlagEnabled(),
 		},
 	}
 	return response, nil
@@ -242,9 +230,8 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	response := appConfigResponse{
 		AppConfig: *appConfig,
 		appConfigResponseFields: appConfigResponseFields{
-			License:    license,
-			Logging:    loggingConfig,
-			MDMEnabled: config.IsMDMFeatureFlagEnabled(),
+			License: license,
+			Logging: loggingConfig,
 		},
 	}
 
@@ -262,12 +249,20 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
-	// we need the config from the datastore because API tokens are obfuscated at the service layer
-	// we will retrieve the obfuscated config before we return
+	// we need the config from the datastore because API tokens are obfuscated at
+	// the service layer we will retrieve the obfuscated config before we return.
+	// We bypass the mysql cache because this is a read that will be followed by
+	// modifications and a save, so we need up-to-date data.
+	ctx = ctxdb.BypassCachedMysql(ctx, true)
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
+	// the rest of the calls can use the cache safely (we read the AppConfig
+	// again before returning, either after a dry-run or after saving the
+	// AppConfig, in which case the cache will be up-to-date and safe to use).
+	ctx = ctxdb.BypassCachedMysql(ctx, false)
+
 	oldAppConfig := appConfig.Copy()
 
 	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
@@ -544,6 +539,37 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// if the Windows updates requirements changed, create the corresponding
+	// activity.
+	if !oldAppConfig.MDM.WindowsUpdates.Equal(appConfig.MDM.WindowsUpdates) {
+		var deadline, grace *int
+		if appConfig.MDM.WindowsUpdates.DeadlineDays.Valid {
+			deadline = &appConfig.MDM.WindowsUpdates.DeadlineDays.Value
+		}
+		if appConfig.MDM.WindowsUpdates.GracePeriodDays.Valid {
+			grace = &appConfig.MDM.WindowsUpdates.GracePeriodDays.Value
+		}
+
+		if deadline != nil {
+			if err := svc.EnterpriseOverrides.MDMWindowsEnableOSUpdates(ctx, nil, appConfig.MDM.WindowsUpdates); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "enable no-team windows OS updates")
+			}
+		} else if err := svc.EnterpriseOverrides.MDMWindowsDisableOSUpdates(ctx, nil); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "disable no-team windows OS updates")
+		}
+
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedWindowsUpdates{
+				DeadlineDays:    deadline,
+				GracePeriodDays: grace,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos min version modification")
+		}
+	}
+
 	if appConfig.MDM.EnableDiskEncryption.Valid && oldAppConfig.MDM.EnableDiskEncryption.Value != appConfig.MDM.EnableDiskEncryption.Value {
 		if oldAppConfig.MDM.EnabledAndConfigured {
 			var act fleet.ActivityDetails
@@ -645,14 +671,14 @@ func (svc *Service) validateMDM(
 		}
 	}
 
-	//	if !mdm.WindowsEnabledAndConfigured {
-	//		if mdm.WindowsSettings.CustomSettings.Set &&
-	//			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
-	//			!server.SliceStringsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
-	//			invalid.Append("windows_settings.custom_settings",
-	//				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
-	//		}
-	//	}
+	if !mdm.WindowsEnabledAndConfigured {
+		if mdm.WindowsSettings.CustomSettings.Set &&
+			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
+			!server.SliceStringsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
+			invalid.Append("windows_settings.custom_settings",
+				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
+		}
+	}
 
 	if name := mdm.AppleBMDefaultTeam; name != "" && name != oldMdm.AppleBMDefaultTeam {
 		if !license.IsPremium() {
@@ -680,6 +706,20 @@ func (svc *Service) validateMDM(
 	}
 	if err := mdm.MacOSUpdates.Validate(); err != nil {
 		invalid.Append("macos_updates", err.Error())
+	}
+
+	// WindowsUpdates
+	updatingWindowsUpdates := !mdm.WindowsUpdates.Equal(oldMdm.WindowsUpdates)
+	if updatingWindowsUpdates {
+		// TODO: Should we validate MDM configured on here too?
+
+		if !license.IsPremium() {
+			invalid.Append("windows_updates.deadline_days", ErrMissingLicense.Error())
+			return
+		}
+	}
+	if err := mdm.WindowsUpdates.Validate(); err != nil {
+		invalid.Append("windows_updates", err.Error())
 	}
 
 	// EndUserAuthentication
@@ -732,12 +772,6 @@ func (svc *Service) validateMDM(
 	}
 
 	// Windows validation
-	if !config.IsMDMFeatureFlagEnabled() {
-		if mdm.WindowsEnabledAndConfigured {
-			invalid.Append("mdm.windows_enabled_and_configured", "cannot enable Windows MDM without the feature flag explicitly enabled")
-			return
-		}
-	}
 	if !svc.config.MDM.IsMicrosoftWSTEPSet() {
 		if mdm.WindowsEnabledAndConfigured {
 			invalid.Append("mdm.windows_enabled_and_configured", "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.")

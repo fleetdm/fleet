@@ -39,7 +39,7 @@ func mdmRunCommand() *cli.Command {
 			debugFlag(),
 			&cli.StringSliceFlag{
 				Name:     "hosts",
-				Usage:    "Hosts specified by hostname, uuid, osquery_host_id or node_key that you want to target.",
+				Usage:    "Hosts specified by hostname, serial number, uuid, osquery_host_id or node_key that you want to target.",
 				Required: true,
 			},
 			&cli.StringFlag{

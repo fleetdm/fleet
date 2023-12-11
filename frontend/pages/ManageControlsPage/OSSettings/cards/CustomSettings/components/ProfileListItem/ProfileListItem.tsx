@@ -12,12 +12,19 @@ import ListItem from "components/ListItem";
 const baseClass = "profile-list-item";
 
 interface IProfileDetailsProps {
+  platform: string;
   createdAt: string;
 }
 
-const ProfileDetails = ({ createdAt }: IProfileDetailsProps) => {
+const ProfileDetails = ({ platform, createdAt }: IProfileDetailsProps) => {
+  const getPlatformName = () => {
+    return platform === "darwin" ? "macOS" : "Windows";
+  };
+
   return (
     <div className={`${baseClass}__profile-details`}>
+      <span className={`${baseClass}__platform`}>{getPlatformName()}</span>
+      <span>&bull;</span>
       <span className={`${baseClass}__list-item-uploaded`}>
         {`Uploaded ${formatDistanceToNow(new Date(createdAt))} ago`}
       </span>
@@ -32,9 +39,10 @@ interface IProfileListItemProps {
 
 const ProfileListItem = ({ profile, onDelete }: IProfileListItemProps) => {
   const onClickDownload = async () => {
-    const fileContent = await mdmAPI.downloadProfile(profile.profile_id);
+    const fileContent = await mdmAPI.downloadProfile(profile.profile_uuid);
     const formatDate = format(new Date(), "yyyy-MM-dd");
-    const filename = `${formatDate}_${profile.name}.mobileconfig`;
+    const extension = profile.platform === "darwin" ? "mobileconfig" : "xml";
+    const filename = `${formatDate}_${profile.name}.${extension}`;
     const file = new File([fileContent], filename);
     FileSaver.saveAs(file);
   };
@@ -44,7 +52,12 @@ const ProfileListItem = ({ profile, onDelete }: IProfileListItemProps) => {
       className={baseClass}
       graphic="file-configuration-profile"
       title={profile.name}
-      details={<ProfileDetails createdAt={profile.created_at} />}
+      details={
+        <ProfileDetails
+          platform={profile.platform}
+          createdAt={profile.created_at}
+        />
+      }
       actions={
         <>
           <Button

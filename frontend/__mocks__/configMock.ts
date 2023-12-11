@@ -150,6 +150,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
       mode: "",
       webhook_url: "",
     },
+    windows_updates: {
+      deadline_days: null,
+      grace_period_days: null,
+    },
     end_user_authentication: {
       entity_id: "",
       issuer_uri: "",

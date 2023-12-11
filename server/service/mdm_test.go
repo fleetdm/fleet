@@ -936,7 +936,7 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileIDs []uint, profileUUIDs []string, hostUUIDs []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) error {
 		return nil
 	}
 
@@ -1010,7 +1010,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		cp.ProfileUUID = uuid.New().String()
 		return &cp, nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileIDs []uint, profileUUIDs []string, hostUUIDs []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) error {
 		return nil
 	}
 
@@ -1029,8 +1029,8 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},
 		{"multiple Replace", 0, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
 		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Only <Replace> supported as a top level element."},
-		{"BitLocker profile", 0, `<Replace><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
-		{"Windows updates profile", 0, `<Replace><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
+		{"BitLocker profile", 0, `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
+		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
 		{"team empty profile", 1, "", true, "The file should include valid XML."},
 		{"team plist data", 1, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "Only <Replace> supported as a top level element."},
@@ -1040,8 +1040,8 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"team duplicate profile name", 1, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},
 		{"team multiple Replace", 1, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
 		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Only <Replace> supported as a top level element."},
-		{"team BitLocker profile", 1, `<Replace><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
-		{"team Windows updates profile", 1, `<Replace><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
+		{"team BitLocker profile", 1, `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
+		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
 	}
@@ -1093,13 +1093,13 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: id, Name: "team"}, nil
 	}
-	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
 		return nil
 	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileIDs []uint, profileUUIDs []string, hostUUIDs []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) error {
 		return nil
 	}
 
@@ -1109,7 +1109,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		premium  bool
 		teamID   *uint
 		teamName *string
-		profiles [][]byte
+		profiles map[string][]byte
 		wantErr  string
 	}{
 		{
@@ -1271,11 +1271,11 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			true,
 			ptr.Uint(1),
 			nil,
-			[][]byte{
-				mobileconfigForTest("N1", "I1"),
-				mobileconfigForTest("N1", "I2"),
+			map[string][]byte{
+				"N1": mobileconfigForTest("N1", "I1"),
+				"N2": mobileconfigForTest("N1", "I2"),
 			},
-			`More than one configuration profile have the same name `,
+			`The name provided for the profile must match the profile PayloadDisplayName: "N1"`,
 		},
 		{
 			"duplicate macOS profile identifier",
@@ -1283,12 +1283,12 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			true,
 			ptr.Uint(1),
 			nil,
-			[][]byte{
-				mobileconfigForTest("N1", "I1"),
-				mobileconfigForTest("N2", "I2"),
-				mobileconfigForTest("N3", "I1"),
+			map[string][]byte{
+				"N1": mobileconfigForTest("N1", "I1"),
+				"N2": mobileconfigForTest("N2", "I2"),
+				"N3": mobileconfigForTest("N3", "I1"),
 			},
-			`More than one configuration profile have the same identifier `,
+			`More than one configuration profile have the same identifier (PayloadIdentifier): "I1"`,
 		},
 		{
 			"only macOS",
@@ -1296,50 +1296,50 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			false,
 			nil,
 			nil,
-			[][]byte{
-				mobileconfigForTest("N1", "I1"),
-				mobileconfigForTest("N2", "I2"),
-				mobileconfigForTest("N3", "I3"),
+			map[string][]byte{
+				"N1": mobileconfigForTest("N1", "I1"),
+				"N2": mobileconfigForTest("N2", "I2"),
+				"N3": mobileconfigForTest("N3", "I3"),
 			},
 			``,
 		},
-		//		{
-		//			"mixed profiles",
-		//			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-		//			false,
-		//			nil,
-		//			nil,
-		//			[][]byte{
-		//				syncMLForTest("./foo/bar"),
-		//				syncMLForTest("./baz"),
-		//				syncMLForTest("./zab"),
-		//				mobileconfigForTest("N4", "I1"),
-		//				mobileconfigForTest("N5", "I2"),
-		//				mobileconfigForTest("N6", "I3"),
-		//			},
-		//			``,
-		//		},
-		//		{
-		//			"only windows",
-		//			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-		//			false,
-		//			nil,
-		//			nil,
-		//			[][]byte{
-		//				syncMLForTest("./foo/bar"),
-		//				syncMLForTest("./baz"),
-		//				syncMLForTest("./zab"),
-		//			},
-		//			``,
-		//		},
+		{
+			"mixed profiles",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			map[string][]byte{
+				"N1": syncMLForTest("./foo/bar"),
+				"N2": syncMLForTest("./baz"),
+				"N3": syncMLForTest("./zab"),
+				"N4": mobileconfigForTest("N4", "I1"),
+				"N5": mobileconfigForTest("N5", "I2"),
+				"N6": mobileconfigForTest("N6", "I3"),
+			},
+			``,
+		},
+		{
+			"only windows",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			map[string][]byte{
+				"N1": syncMLForTest("./foo/bar"),
+				"N2": syncMLForTest("./baz"),
+				"N3": syncMLForTest("./zab"),
+			},
+			``,
+		},
 		{
 			"unsupported payload type",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			false,
 			nil,
 			nil,
-			[][]byte{
-				[]byte(`<?xml version="1.0" encoding="UTF-8"?>
+			map[string][]byte{
+				"foo": []byte(`<?xml version="1.0" encoding="UTF-8"?>
 			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 			<plist version="1.0">
 			<dict>
@@ -1379,7 +1379,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			defer func() { ds.BatchSetMDMAppleProfilesFuncInvoked = false }()
+			defer func() { ds.BatchSetMDMProfilesFuncInvoked = false }()
 
 			// prepare the context with the user and license
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
@@ -1389,15 +1389,15 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.BatchSetMDMAppleProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false)
+			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
-				require.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
+				require.True(t, ds.BatchSetMDMProfilesFuncInvoked)
 				return
 			}
 			require.Error(t, err)
 			require.ErrorContains(t, err, tt.wantErr)
-			require.False(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
+			require.False(t, ds.BatchSetMDMProfilesFuncInvoked)
 		})
 	}
 }

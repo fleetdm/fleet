@@ -71,6 +71,12 @@ func newVulnerabilitiesSchedule(
 				return ds.SyncHostsSoftware(ctx, time.Now())
 			},
 		),
+		schedule.WithJob(
+			"cron_reconcile_software_titles",
+			func(ctx context.Context) error {
+				return ds.ReconcileSoftwareTitles(ctx)
+			},
+		),
 	)
 
 	return s, nil
@@ -976,9 +982,9 @@ func newMDMProfileManager(
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
 			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
 		}),
-		//schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
-		//	return service.ReconcileWindowsProfiles(ctx, ds, logger)
-		//}),
+		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
+			return service.ReconcileWindowsProfiles(ctx, ds, logger)
+		}),
 	)
 
 	return s, nil

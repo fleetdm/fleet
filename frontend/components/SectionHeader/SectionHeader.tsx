@@ -4,10 +4,16 @@ const baseClass = "section-header";
 
 interface ISectionHeaderProps {
   title: string;
+  subTitle?: React.ReactNode;
 }
 
-const SectionHeader = ({ title }: ISectionHeaderProps) => {
-  return <h2 className={baseClass}>{title}</h2>;
+const SectionHeader = ({ title, subTitle }: ISectionHeaderProps) => {
+  return (
+    <div className={baseClass}>
+      <h2>{title}</h2>
+      {subTitle && <div className={`${baseClass}__sub-title`}>{subTitle}</div>}
+    </div>
+  );
 };
 
 export default SectionHeader;
