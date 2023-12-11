@@ -44,6 +44,21 @@ module.exports = {
     let allNonPublicOpenPrs = [];
     let nonPublicPrsClosedInThePastThreeWeeks = [];
 
+    // Product group KPIS
+
+    // Endpoint operations
+    let allBugsCreatedInPastWeekEndpointOps = [];
+    let allBugsCreatedInPastWeekEndpointOpsUnreleased = [];
+    let allBugsCreatedInPastWeekEndpointOpsReleased = [];
+    let allBugsCreatedInPastWeekEndpointOpsCustomerImpacting = [];
+
+    // Mobile Device Management
+    let allBugsCreatedInPastWeekMobileDeviceManagement = [];
+
+    let allBugsCreatedInPastWeekMobileDeviceManagementUnreleased = [];
+    let allBugsCreatedInPastWeekMobileDeviceManagementReleased = [];
+    let allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting = [];
+
 
     await sails.helpers.flow.simultaneously([
 
@@ -90,6 +105,32 @@ module.exports = {
           let timeOpenInDays = timeOpenInMS / ONE_DAY_IN_MILLISECONDS;
           if (timeOpenInDays <= 7) {
             allBugsCreatedInPastWeek.push(issue);
+            // Get Endpoint Ops KPIs
+            if (issue.labels.some(label => label.name === '#g-endpoint-ops')) {
+              allBugsCreatedInPastWeekEndpointOps.push(issue);
+              if (issue.labels.some(label => label.name === '~unreleased bug')) {
+                allBugsCreatedInPastWeekEndpointOpsUnreleased.push(issue);
+              }
+              else if (issue.labels.some(label => label.name === '~released bug')) {
+                allBugsCreatedInPastWeekEndpointOpsReleased.push(issue);
+              }
+              if (issue.labels.some(label => label.name.indexOf('customer-') >= 0)) {
+                allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.push(issue);
+              }
+            }
+            // Get MDM KPIs
+            if (issue.labels.some(label => label.name === '#g-mdm')) {
+              allBugsCreatedInPastWeekMobileDeviceManagement.push(issue);
+              if (issue.labels.some(label => label.name === '~unreleased bug')) {
+                allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.push(issue);
+              }
+              else if (issue.labels.some(label => label.name === '~released bug')) {
+                allBugsCreatedInPastWeekMobileDeviceManagementReleased.push(issue);
+              }
+              if (issue.labels.some(label => label.name.indexOf('customer-') >= 0)) {
+                allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.push(issue);
+              }
+            }
           }
           daysSinceBugsWereOpened.push(timeOpenInDays);
           // Send to released or unreleased bugs array
@@ -335,7 +376,6 @@ module.exports = {
     }, 0);
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-
     // Log the results
     sails.log(`
     Bugs:
@@ -351,7 +391,27 @@ module.exports = {
 
     Number of issues with the "bug" label opened in the past week: ${allBugsCreatedInPastWeek.length}
 
-    Number of issues with the "bug" label closed in the past week week: ${allBugsClosedInPastWeek.length}
+    Number of issues with the "bug" label closed in the past week: ${allBugsClosedInPastWeek.length}
+
+    Endpoint Operations:
+    ---------------------------
+    Number of issues with the "#g-endpoint-ops" and "bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOps.length}
+
+    Number of issues with the "#g-endpoint-ops", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsUnreleased.length}
+
+    Number of issues with the "#g-endpoint-ops", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsReleased.length}
+
+    Number of issues with the "#g-endpoint-ops", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.length}
+
+    MDM:
+    ---------------------------
+    Number of issues with the "#g-mdm" and "bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagement.length}
+
+    Number of issues with the "#g-mdm", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.length}
+
+    Number of issues with the "#g-emdm", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementReleased.length}
+
+    Number of issues with the "#g-mdm", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.length}
 
     Closed pull requests:
     ---------------------------
