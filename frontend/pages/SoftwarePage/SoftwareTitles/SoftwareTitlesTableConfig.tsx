@@ -135,14 +135,8 @@ const generateTableHeaders = (
     },
     {
       title: "Vulnerabilities",
-      Header: (cellProps: IHeaderProps): JSX.Element => (
-        <HeaderCell
-          value={cellProps.column.title}
-          disableSortBy={false}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
-      disableSortBy: false,
+      Header: "Vulnerabilities",
+      disableSortBy: true,
       accessor: "vulnerabilities",
       Cell: (cellProps: IVulnCellProps): JSX.Element => {
         const vulnerabilities = getVulnerabilities(

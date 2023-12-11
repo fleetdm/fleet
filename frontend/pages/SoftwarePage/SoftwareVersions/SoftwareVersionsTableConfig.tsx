@@ -117,14 +117,8 @@ const generateTableHeaders = (
     },
     {
       title: "Vulnerabilities",
-      Header: (cellProps: IHeaderProps): JSX.Element => (
-        <HeaderCell
-          value={cellProps.column.title}
-          disableSortBy={false}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
-      disableSortBy: false,
+      Header: "Vulnerabilities",
+      disableSortBy: true,
       // the "vulnerabilities" accessor is used but the data is actually coming
       // from the version attribute. We do this as we already have a "versions"
       // attribute used for the "Version" column and we cannot reuse. This is a
