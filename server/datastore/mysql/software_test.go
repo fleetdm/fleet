@@ -897,15 +897,12 @@ func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, 
 			require.False(t, meta.HasPreviousResults)
 			require.True(t, meta.HasNextResults)
 		}
+		if expectedFullCount > expectedListCount {
+			shouldHavePrevious := opts.ListOptions.Page > 0
+			require.Equal(t, shouldHavePrevious, meta.HasPreviousResults)
 
-		if expectedListCount < expectedFullCount && opts.ListOptions.Page > 1 {
-			require.False(t, meta.HasPreviousResults)
-			require.True(t, meta.HasNextResults)
-		}
-
-		if expectedListCount < expectedFullCount && opts.ListOptions.Page <= 1 {
-			require.True(t, meta.HasPreviousResults)
-			require.False(t, meta.HasNextResults)
+			shouldHaveNext := uint(expectedFullCount) > (opts.ListOptions.Page+1)*opts.ListOptions.PerPage // page is 0-indexed
+			require.Equal(t, shouldHaveNext, meta.HasNextResults)
 		}
 	} else {
 		require.Nil(t, meta)

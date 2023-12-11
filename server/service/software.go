@@ -61,7 +61,16 @@ func (r listSoftwareVersionsResponse) error() error { return r.Err }
 
 func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listSoftwareRequest)
-	resp, meta, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
+
+	// always include pagination for new software versions endpoint (not included by default in
+	// legacy endpoint for backwards compatibility)
+	opt := &req.SoftwareListOptions
+	opt.ListOptions.IncludeMetadata = true
+	if opt.ListOptions.PerPage == 0 {
+		opt.ListOptions.PerPage = 20
+	}
+
+	resp, meta, err := svc.ListSoftware(ctx, *opt)
 	if err != nil {
 		return listSoftwareVersionsResponse{Err: err}, nil
 	}
@@ -100,8 +109,6 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 		opt.ListOptions.OrderDirection = fleet.OrderDescending
 	}
 	opt.WithHostCounts = true
-	// always include metadata for software
-	opt.ListOptions.IncludeMetadata = true
 
 	softwares, meta, err := svc.ds.ListSoftware(ctx, opt)
 	if err != nil {
