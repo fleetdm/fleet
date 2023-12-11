@@ -1,40 +1,41 @@
 # ExpedITioners Podcast
-## Rich Trouton: Declarative Device Management and a promising future for Mac Admins
+## Marcus Ransom: The positive future of collaboration between vendors and Apple for enterprise
 
-<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:660px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.podcasts.apple.com/us/podcast/rich-trouton-declarative-device-management-and/id1641183838?i=1000626388077"></iframe>
+<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:660px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="[https://embed.podcasts.apple.com/us/podcast/rich-trouton-declarative-device-management-and/id1641183838?i=1000626388077](https://embed.podcasts.apple.com/us/podcast/marcus-ransom-the-positive-future-of/id1641183838?i=1000638225150)"></iframe>
 
-Listen to the episode on [Apple](https://podcasts.apple.com/us/podcast/rich-trouton-declarative-device-management-and/id1641183838?i=1000626388077), [Spotify](https://open.spotify.com/episode/7AHJinyvizmoHdfVTINu9y?si=sYhKqJXzQhetv8KyNMTxdA), or [PodBean](https://www.podbean.com/ew/pb-w65bb-1494d01).
+Listen to the episode on [Apple](https://podcasts.apple.com/us/podcast/marcus-ransom-the-positive-future-of/id1641183838?i=1000638225150), [Spotify](https://open.spotify.com/episode/1DcqQhWvrrBTgGVJINvm0T?si=c0tw9fzCTxywp-6WpbZHJA), or [PodBean](https://expeditioners.podbean.com/e/marcus-ransom-the-positive-future-of-collaboration-between-vendors-and-apple-for-enterprise/).
 
 ### Show notes: 
 
-We’re joined by Rich Trouton, an IT Technology Services Expert at SAP with over twenty years of experience. Outside of work, Rich also publishes the Der Flounder MacOS blog and is Treasurer for the Mac Admins Foundation.
+We're joined by Marcus Ransom Sales Engineer at Jamf and one of the hosts of the Mac Admins podcast. In this episode, Zach and Marcus talk about the exciting future of Apple for enterprise and the MacAdmin community that supports it.
 
 ### Topics discussed:
 
-- How Rich got into Mac Administration and IT
-- IT allowing for more enticing opportunities than traditional roles
-- Biggest changes that have taken place for MacAdmins over the past twenty years
-- Introduction of MDM and Declarative Device Management (DDM)
-- What people want in MDM
-- How much of a difference will DDM make for other MacAdmins
-- Genesis of the Mac Admins Foundation and involvement
-- The next five years of the Mac Admin world
+- Marcus’ introduction to the Mac admin/IT world.
+- Opportunities with the future of Apple products
+- Changes throughout the history of the MacAdmin community.
+- Integrating MacOS devices across every ecosystem.
+- Frequent challenges and opportunities seen across the industry.
+- Enabling developers to build the tools your company needs for its customers.
+- Thoughts on the future of Mac IT.
+- Apple instituting actionable and useful feedback from vendors.
+- The importance of sharing information across the industry and community.
+
 
 ### Resources mentioned:
 
+- [Xworld Australia ](https://auc.edu.au/xworld/about/)
+- [MacAdmins Slack](https://www.macadmins.org/)
+- [MacAdmins podcast](https://podcast.macadmins.org/)
 - [MacAdmins Foundation](https://www.macadmins.org/about-the-mac-admins-foundation)
-- [Declarative Device Management](https://fleetdm.com/announcements/embracing-the-future-declarative-device-management)
-- [Rich’s talk on DDM](https://www.youtube.com/watch?v=ttKcFGOw7oo)
-- [Der flounder blog](https://derflounder.wordpress.com/)
 
 ### Where to get in touch:
 
-- [MacAdmins Slack](https://join.slack.com/t/macadmins/shared_invite/zt-20clw2xpd-fi_TB~i8n_H_i7CWxbCchw)
-- [LinkedIn](https://www.linkedin.com/in/rtrouton/)
+- [LinkedIn](https://www.linkedin.com/in/marcusransom/)
 
 <meta name="category" value="podcasts">
 <meta name="authorGitHubUsername" value="zwass">
 <meta name="authorFullName" value="Zach Wasserman">
-<meta name="publishedOn" value="2023-08-31">
-<meta name="articleTitle" value="ExpedITioners podcast with Rich Trouton">
-<meta name="articleImageUrl" value="../website/assets/images/articles/expeditioners-podcast-ep3-1600x900@2x.jpg">
+<meta name="publishedOn" value="2023-12-11">
+<meta name="articleTitle" value="ExpedITioners podcast with Marcus Ransom">
+<meta name="articleImageUrl" value="../website/assets/images/articles/expeditioners-podcast-ep7-1600x900@2x.jpg">
