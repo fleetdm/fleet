@@ -263,7 +263,7 @@ const SoftwareTitles = ({
         pageSize={perPage}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        disableNextPage // TODO: update with new API
+        disableNextPage={!softwareData?.meta.has_next_results}
         searchable={searchable}
         inputPlaceHolder="Search by name or vulnerabilities (CVEs)"
         onQueryChange={onQueryChange}
