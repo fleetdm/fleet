@@ -78,7 +78,7 @@ func testGetQueryResultRows(t *testing.T, ds *Datastore) {
 	err = ds.OverwriteQueryResultRows(context.Background(), query2Rows)
 	require.NoError(t, err)
 
-	results, err := ds.QueryResultRows(context.Background(), query.ID)
+	results, err := ds.QueryResultRows(context.Background(), query.ID, fleet.TeamFilter{User: test.UserAdmin})
 	require.NoError(t, err)
 	require.Len(t, results, 1) // Should not return rows with nil data
 	require.Equal(t, query1Rows[1].QueryID, results[0].QueryID)
@@ -87,7 +87,7 @@ func testGetQueryResultRows(t *testing.T, ds *Datastore) {
 	require.JSONEq(t, string(*query1Rows[1].Data), string(*results[0].Data))
 
 	// Assert that Query2 returns 1 result
-	results, err = ds.QueryResultRows(context.Background(), query2.ID)
+	results, err = ds.QueryResultRows(context.Background(), query2.ID, fleet.TeamFilter{User: test.UserAdmin})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, query2Rows[0].QueryID, results[0].QueryID)
