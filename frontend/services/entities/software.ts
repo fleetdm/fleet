@@ -164,10 +164,6 @@ export default {
 
   getSoftwareVersion: (id: number) => {
     const { SOFTWARE_VERSION } = endpoints;
-    // TODO: integrate with API.
-    return new Promise<ISoftwareVersionResponse>((resolve, reject) => {
-      resolve(createMockSoftwareVersionResponse());
-    });
-    // return sendRequest("GET", SOFTWARE_VERSION(id));
+    return sendRequest("GET", SOFTWARE_VERSION(id));
   },
 };

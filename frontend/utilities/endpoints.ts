@@ -98,7 +98,7 @@ export default {
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
-    `/${API_VERSION}/fleet/software/version/${id}`,
+    `/${API_VERSION}/fleet/software/versions/${id}`,
 
   SSO: `/v1/fleet/sso`,
   STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,
