@@ -151,12 +151,7 @@ export default {
 
   getSoftwareTitle: (id: number) => {
     const { SOFTWARE_TITLE } = endpoints;
-
-    // TODO: integrate with API.
-    return new Promise<ISoftwareTitleResponse>((resolve, reject) => {
-      resolve(createMockSoftwareTitleResponse());
-    });
-    // return sendRequest("GET", SOFTWARE_TITLE(id));
+    return sendRequest("GET", SOFTWARE_TITLE(id));
   },
 
   getSoftwareVersions: (params: ISoftwareApiParams) => {
