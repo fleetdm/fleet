@@ -173,56 +173,6 @@ const SoftwareTitles = ({
       });
 
       router.replace(newRoute);
-
-      // if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
-      //   return;
-      // }
-
-      // setTableQueryData({ ...newTableQuery });
-
-      // const {
-      //   pageIndex,
-      //   searchQuery: newSearchQuery,
-      //   sortDirection: newSortDirection,
-      // } = newTableQuery;
-      // let { sortHeader: newSortHeader } = newTableQuery;
-
-      // pageIndex !== page && setPage(pageIndex);
-      // searchQuery !== newSearchQuery && setSearchQuery(newSearchQuery);
-      // sortDirection !== newSortDirection &&
-      //   setSortDirection(
-      //     newSortDirection === "asc" || newSortDirection === "desc"
-      //       ? newSortDirection
-      //       : DEFAULT_SORT_DIRECTION
-      //   );
-
-      // if (isPremiumTier && newSortHeader === "vulnerabilities") {
-      //   newSortHeader = "epss_probability";
-      // }
-      // sortHeader !== newSortHeader && setSortHeader(newSortHeader);
-
-      // // Rebuild queryParams to dispatch new browser location to react-router
-      // const newQueryParams: { [key: string]: string | number | undefined } = {};
-      // if (!isEmpty(newSearchQuery)) {
-      //   newQueryParams.query = newSearchQuery;
-      // }
-      // newQueryParams.page = pageIndex;
-      // newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
-      // newQueryParams.order_direction =
-      //   newSortDirection || DEFAULT_SORT_DIRECTION;
-
-      // newQueryParams.vulnerable = filterVuln ? "true" : undefined;
-
-      // if (teamIdForApi !== undefined) {
-      //   newQueryParams.team_id = teamIdForApi;
-      // }
-
-      // const locationPath = getNextLocationPath({
-      //   pathPrefix: PATHS.SOFTWARE_TITLES,
-      //   routeTemplate,
-      //   queryParams: newQueryParams,
-      // });
-      // router.replace(locationPath);
     },
     [generateNewQueryParams, router]
   );

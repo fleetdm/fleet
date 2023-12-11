@@ -21,6 +21,7 @@ import TableDataError from "components/DataError";
 import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
@@ -115,7 +116,7 @@ const SoftwareVersions = ({
   const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
     router.replace(
       getNextLocationPath({
-        pathPrefix: PATHS.SOFTWARE_TITLES,
+        pathPrefix: PATHS.SOFTWARE_VERSIONS,
         routeTemplate: "",
         queryParams: {
           query,
@@ -146,9 +147,33 @@ const SoftwareVersions = ({
     console.log("selectedRow", row.id);
   };
 
-  const onQueryChange = () => {
-    console.log("onQueryChange");
-  };
+  const generateNewQueryParams = useCallback(
+    (newTableQuery: ITableQueryData) => {
+      return {
+        query: newTableQuery.searchQuery,
+        team_id: teamId,
+        order_direction: newTableQuery.sortDirection,
+        order_key: newTableQuery.sortHeader,
+        vulnerable: showVulnerableSoftware.toString(),
+        page: newTableQuery.pageIndex,
+      };
+    },
+    [showVulnerableSoftware, teamId]
+  );
+
+  // NOTE: this is called once on initial render and every time the query changes
+  const onQueryChange = useCallback(
+    (newTableQuery: ITableQueryData) => {
+      const newRoute = getNextLocationPath({
+        pathPrefix: PATHS.SOFTWARE_VERSIONS,
+        routeTemplate: "",
+        queryParams: generateNewQueryParams(newTableQuery),
+      });
+
+      router.replace(newRoute);
+    },
+    [generateNewQueryParams, router]
+  );
 
   const getItemsCountText = () => {
     const count = softwareVersionsData?.count;
