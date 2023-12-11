@@ -861,6 +861,12 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		`
 	}
 
+	if opt.PopulateSoftware {
+		sql += `,
+	JSON_ARRAYAGG(JSON_OBJECT("id", sw.id, "name", sw.name, "version", sw.version, "source", sw.source, "bundle_identifier", sw.bundle_identifier )) AS list_host_software
+		`
+	}
+
 	// See definition of HostFailingPoliciesCountOptimPageSizeThreshold for more details.
 	useHostPaginationOptim := opt.PerPage != 0 && opt.PerPage <= uint(HostFailingPoliciesCountOptimPageSizeThreshold)
 
@@ -901,6 +907,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	}
 
 	hosts := []*fleet.Host{}
+
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sql, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts")
 	}
@@ -980,6 +987,17 @@ func (ds *Datastore) applyHostFilters(
 		params = append(params, *opt.LowDiskSpaceFilter)
 	}
 
+	populateSoftwareJoin := ""
+	populateSoftwareGroupBy := ""
+	if opt.PopulateSoftware {
+		populateSoftwareJoin = `
+			JOIN host_software hs ON h.id = hs.host_id 
+			LEFT JOIN software_cve sc ON hs.software_id = sc.software_id
+			LEFT JOIN software sw ON hs.software_id = sw.id
+		`
+		populateSoftwareGroupBy = "GROUP BY h.id"
+	}
+
 	sqlStmt += fmt.Sprintf(
 		`FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
@@ -993,7 +1011,9 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
     %s
+    %s
 		WHERE TRUE AND %s AND %s AND %s AND %s
+	%s
     `,
 
 		// JOINs
@@ -1004,12 +1024,15 @@ func (ds *Datastore) applyHostFilters(
 		operatingSystemJoin,
 		munkiJoin,
 		displayNameJoin,
+		populateSoftwareJoin,
 
 		// Conditions
 		ds.whereFilterHostsByTeams(filter, "h"),
 		softwareFilter,
 		munkiFilter,
 		lowDiskSpaceFilter,
+		// Additional group by
+		populateSoftwareGroupBy,
 	)
 
 	now := ds.clock.Now()
@@ -1040,6 +1063,7 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, params, _ = hostSearchLike(sqlStmt, params, opt.MatchQuery, hostSearchColumns...)
 	sqlStmt, params = appendListOptionsWithCursorToSQL(sqlStmt, params, &opt.ListOptions)
 
+	fmt.Println("JVE_LOG: final sql: ", sqlStmt)
 	return sqlStmt, params, nil
 }
 

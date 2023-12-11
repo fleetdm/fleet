@@ -159,14 +159,6 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		return nil, err
 	}
 
-	if opt.PopulateSoftware {
-		for _, host := range hosts {
-			if err = svc.ds.LoadHostSoftware(ctx, host, true); err != nil {
-				return nil, err
-			}
-		}
-	}
-
 	return hosts, nil
 }
 
