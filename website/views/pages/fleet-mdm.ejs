@@ -12,13 +12,13 @@
         </div>
         <div purpose="hero-text">
           <strong>Convention over configuration</strong>
-          <p>Sed vel luctus sem. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris pretium augue.</p>
+          <p>Configure your devices with sensible defaults, or customize every traditional MDM feature exactly how you want.</p>
           <strong>Absolute certainty</strong>
-          <p>Maecenas at sollicitudin elit. Nulla eu placerat tellus, sit amet ultrices erat. Nunc id interdum.</p>
-          <strong>Transparency for end users</strong>
-          <p>Curabitur feugiat felis et suscipit sodales. Suspendisse potenti. Nullam tempor, leo a dapibus ornare, lacus.</p>
+          <p><em>Actually</em> verify that settings are applied using real data pulled from your users' devices.</p>
+          <strong>ClickOps or DevOps</strong>
+          <p>Manage your IT infrastructure in any browser or use git to make changes as code. Use the CLI or API to automate the deployment, configuration, and monitoring of your devices.</p>
           <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
-            <a purpose="cta-button" @click="clickOpenMdmModal()">See GitOps in action</a>
+            <a purpose="cta-button" @click="clickOpenMdmModal()">Show me</a>
             <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
           </div>
         </div>
@@ -28,37 +28,29 @@
       <div purpose="testimonial-quote">
         <div purpose="quote">
           <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-          <p>Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced.</p>
+          <p>We wanted an open-source MDM that is easy to integrate with our configuration-as-code environment. We want to deliver the best possible experience for our employees and make security happy.</p>
         </div>
         <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
-          <div purpose="quote-image"><img src="/images/testimonial-andre-shields-48x48@2x.png" alt="Andre shields"></div>
+          <div purpose="quote-image"><img src="/images/testimonial-kenny-botelho-48x48@2x.jpg" alt="Kenny Botelho"></div>
           <div class="d-flex flex-column">
-            <p purpose="name">Andre Shields</p>
-            <p purpose="title">Cybersecurity Security Engineer, Vulnerability Management</p>
+            <p purpose="name">Kenny Botelho</p>
+            <p purpose="title">Lead Client Platform Engineer</p>
           </div>
-        </div>
-      </div>
-      <div purpose="testimonial-videos" class="d-flex">
-        <div purpose="testimonial-video" @click="clickOpenVideoModal('austin-anderson')">
-          <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
-        </div>
-        <div purpose="testimonial-video" @click="clickOpenVideoModal('andre-shields')">
-          <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
       </div>
     </div>
 
     <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
       <div purpose="feature-image" class="right">
-        <img alt="Convention over configuration" src="/images/device-management-convention-over-configuration-380x260@2x.png">
+        <img alt="Convention over configuration" src="/images/device-management-convention-over-configuration-380x320@2x.png">
       </div>
       <div purpose="feature-text" class="d-flex flex-column">
         <h3>Convention over configuration</h3>
-        <p>NOTE: Be sure to make sure the near-term content is not just 100% gitops-focused. i.e. instead of selling only the repo commit history, _also_ sell the ability to access a comprehensive audit log</p>
+        <p>Configure your users' computers with sensible defaults, or customize every traditional MDM feature exactly how you want it with Fleet's API, CLI, and webhooks.</p>
         <div purpose="checklist" class="flex-column d-flex">
-          <p>Out-of-the-box support for CIS benchmarks</p>
-          <p>Built-in device health queries</p>
-          <p>Verify SOC2, NIST compliance</p>
+          <p>Set up and verify ongoing compliance with CIS standards (one click, 400+ queries, supported by Fleet)</p>
+          <p>Tasked with zero trust? Use sensible, enterprise-ready device health checks from the community</p>
+          <p>Use default workflows for employee offboarding, or run any low-level MDM command</p>
         </div>
       </div>
     </div>
@@ -66,22 +58,28 @@
     <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
       <div purpose="feature-text" class="d-flex flex-column">
         <h3>Absolute certainty</h3>
-        <p>Reduce time wasted hunting down whether a change actually happened.</p>
+        <p>Reduce time wasted hunting down whether a change happened. <em>Actually</em> verify that settings are applied using real data pulled from your users' devices.</p>
         <div purpose="checklist" class="flex-column d-flex">
-          <p>Point 1</p>
-          <p>Point 2</p>
-          <p>Point 3</p>
+          <p>Use a git repo as the source of truth to reduce errors (submitting the wrong patch, configuration setting etc).</p>
+          <p>Every change to a policy or security control is tracked and auditable in Fleet’s history, or via the repo commit log</p>
         </div>
       </div>
       <div purpose="feature-image" class="left">
-        <img alt="Absolute certainty" src="/images/device-management-absolute-certainty-380x260@2x.png">
+        <img alt="Absolute certainty" src="/images/device-management-absolute-certainty-380x320@2x.png">
       </div>
     </div>
 
     <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
       <div purpose="feature-image" class="right">
-        <img alt="Transparency for end users" src="/images/device-management-transparency-438x373@2x.png">
+        <img alt="ClickOps or DevOps" src="/images/device-management-clickops-or-devops-380x280@2x.png">
       </div>
+      <div purpose="feature-text" class="d-flex flex-column">
+        <h3>ClickOps or DevOps</h3>
+        <p>Manage your IT infrastructure in any browser or use git to make infrastructure changes as code. You can use the CLI or API to automate the deployment, configuration, and monitoring of your devices.</p>
+      </div>
+    </div>
+
+    <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
       <div purpose="feature-text" class="d-flex flex-column">
         <h3>Transparency for end users</h3>
         <p>Provide assurance to your end users with Fleet Desktop about what information is being collected from their device.</p>
@@ -90,6 +88,9 @@
           <p>Set clear expectations about what is and isn’t acceptable use of work computers.</p>
           <p>Let users participate in fixing failing compliance policies.</p>
         </div>
+      </div>
+      <div purpose="feature-image" class="left">
+        <img alt="Transparency for end users" src="/images/device-management-transparency-380x320@2x.png">
       </div>
     </div>
 
@@ -111,7 +112,7 @@
         <h4>Open-source endpoint ops</h4>
         <h1>Lighter than air</h1>
         <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" @click="clickOpenMdmModal()">See GitOps in action</a>
+          <a purpose="cta-button" @click="clickOpenMdmModal()">Show me</a>
           <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
         </div>
       </div>
@@ -123,11 +124,48 @@
     <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-md-flex d-lg-none" src="/images/homepage-cloud-city-banner-md-990x375@2x.png">
     <img alt="A glass city floating on top of fluffy white clouds" class="d-flex d-md-none" src="/images/homepage-cloud-city-banner-sm-375x168@2x.png">
   </div>
-  <modal purpose="video-modal" v-if="modal === 'austin-anderson'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/G5Ry_vQPaYc?si=vv0AfRe30yssWWRM&amp;controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-  </modal>
-  <modal purpose="video-modal" v-if="modal === 'andre-shields'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/siXy9aanOu4?si=fRIUQrrOu81lAqi8&amp;controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  <modal v-if="modal === 'mdm'" @close="closeModal()" data-backdrop="false" v-cloak purpose="modal">
+    <div class="container p-0 d-flex flex-column justify-content-center align-items-center" purpose="mdm-modal">
+      <div purpose="modal-form"  v-if="!showSignupFormSuccess">
+      <div class="modal-header pb-2">
+        <h2 class="text-center mb-2">Is it any good?</h2>
+        <p>Fill out the form below to see Dave bootstrapping a macOS device with MDM.</p>
+      </div>
+        <ajax-form action="deliverMdmDemoEmail" class="mdm-demo-video w-100" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
+            <div class="form-group">
+              <label for="emailAddress">Work email</label>
+              <input class="form-control" id="emailAddress" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
+              <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>Please enter a valid email address</div>
+            </div>
+            <div class="form-group">
+              <p style="padding-bottom: 12px;" class="mb-0 font-weight-bold">How many hosts do you have?</p>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" id="more-than-1000" value="true" v-model="formData.hasOverOneThousandHosts" :class="[formErrors.hasOverOneThousandHosts ? 'is-invalid' : '']">
+                  <label class="form-check-label font-weight-normal" for="more-than-1000">
+                    More than 1,000
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" id="less-than-1000" value="false" v-model="formData.hasOverOneThousandHosts" :class="[formErrors.hasOverOneThousandHosts ? 'is-invalid' : '']">
+                  <label class="form-check-label font-weight-normal" for="less-than-1000">
+                    Less than 1,000
+                  </label>
+                  <div class="invalid-feedback" style="margin-left: -20px;" v-if="formErrors.hasOverOneThousandHosts" focus-first>Please choose one option</div>
+                </div>
+            </div>
+            <cloud-error v-if="cloudError"></cloud-error>
+          <div class="border-0 justify-content-center">
+            <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Submit</ajax-button>
+          </div>
+        </ajax-form>
+        <p class="mb-0 mt-4"><a href="/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else" target="_blank">We will never spam you</a>.</p>
+      </div>
+      <div purpose="modal-form" class="text-center" v-else>
+        <h2 class="mb-2">Thank you!</h2>
+        <p class="mb-4">We just sent you an email in case you need to watch it again.</p>
+        <a purpose="cta-button" class="btn btn-primary btn-block" href="https://play.goconsensus.com/ue326b4dd" target="_blank"><p class="mb-0">Watch Dave's MDM demo</p></a>
+      </div>
+    </div>
   </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
