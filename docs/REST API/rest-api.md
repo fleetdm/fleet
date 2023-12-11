@@ -3016,7 +3016,7 @@ Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery mana
     },
     {
       "email": "user@example.com",
-      "source": "agent_configuration"
+      "source": "custom"
     }
   ]
 }
