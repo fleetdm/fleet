@@ -1,7 +1,7 @@
 package service
 
 import (
-	"fmt"
+	"errors"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -23,7 +23,7 @@ func TestGetConfig(t *testing.T) {
 		"config cache error", func(t *testing.T) {
 			oc := OrbitClient{}
 			oc.configCache.config = nil
-			oc.configCache.err = fmt.Errorf("test error")
+			oc.configCache.err = errors.New("test error")
 			oc.configCache.lastUpdated = time.Now().Add(1 * time.Second)
 			config, err := oc.GetConfig()
 			require.Error(t, err)
