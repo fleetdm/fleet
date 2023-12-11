@@ -20,8 +20,6 @@ interface IDiskEncryptionTableProps {
 }
 
 const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
-  const { config } = useContext(AppContext);
-
   const {
     data: diskEncryptionStatusData,
     error: diskEncryptionStatusError,
@@ -34,15 +32,8 @@ const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
     }
   );
 
-  // TODO: WINDOWS FEATURE FLAG: remove this when windows feature flag is removed.
-  // this is used to conditianlly show "View all hosts" link in table cells.
-  const windowsFeatureFlagEnabled = config?.mdm_enabled ?? false;
-  const tableHeaders = generateTableHeaders(windowsFeatureFlagEnabled);
-  const tableData = generateTableData(
-    windowsFeatureFlagEnabled,
-    diskEncryptionStatusData,
-    currentTeamId
-  );
+  const tableHeaders = generateTableHeaders();
+  const tableData = generateTableData(diskEncryptionStatusData, currentTeamId);
 
   if (diskEncryptionStatusError) {
     return <DataError />;

@@ -101,6 +101,58 @@ type Query struct {
 	// DiscardData indicates if the scheduled query results should be discarded (true)
 	// or kept (false) in a query report.
 	DiscardData bool `json:"discard_data" db:"discard_data"`
+
+	/////////////////////////////////////////////////////////////////
+	// WARNING: If you add to this struct make sure it's taken into
+	// account in the Query Clone implementation!
+	/////////////////////////////////////////////////////////////////
+}
+
+// Clone implements cloner for Query.
+func (q *Query) Clone() (Cloner, error) {
+	return q.Copy(), nil
+}
+
+// Copy returns a deep copy of the Query.
+func (q *Query) Copy() *Query {
+	if q == nil {
+		return nil
+	}
+
+	var clone Query
+	clone = *q
+
+	if q.TeamID != nil {
+		clone.TeamID = ptr.Uint(*q.TeamID)
+	}
+	if q.AuthorID != nil {
+		clone.AuthorID = ptr.Uint(*q.AuthorID)
+	}
+
+	if q.Packs != nil {
+		clone.Packs = make([]Pack, len(q.Packs))
+		for i, p := range q.Packs {
+			newP := p.Copy()
+			clone.Packs[i] = *newP
+		}
+	}
+
+	if q.AggregatedStats.SystemTimeP50 != nil {
+		clone.AggregatedStats.SystemTimeP50 = ptr.Float64(*q.AggregatedStats.SystemTimeP50)
+	}
+	if q.AggregatedStats.SystemTimeP95 != nil {
+		clone.AggregatedStats.SystemTimeP95 = ptr.Float64(*q.AggregatedStats.SystemTimeP95)
+	}
+	if q.AggregatedStats.UserTimeP50 != nil {
+		clone.AggregatedStats.UserTimeP50 = ptr.Float64(*q.AggregatedStats.UserTimeP50)
+	}
+	if q.AggregatedStats.UserTimeP95 != nil {
+		clone.AggregatedStats.UserTimeP95 = ptr.Float64(*q.AggregatedStats.UserTimeP95)
+	}
+	if q.AggregatedStats.TotalExecutions != nil {
+		clone.AggregatedStats.TotalExecutions = ptr.Float64(*q.AggregatedStats.TotalExecutions)
+	}
+	return &clone
 }
 
 var (
@@ -358,16 +410,16 @@ type QueryStats struct {
 	TeamID      *uint  `json:"team_id" db:"team_id"`
 
 	// From osquery directly
-	AverageMemory int  `json:"average_memory" db:"average_memory"`
-	Denylisted    bool `json:"denylisted" db:"denylisted"`
-	Executions    int  `json:"executions" db:"executions"`
+	AverageMemory uint64 `json:"average_memory" db:"average_memory"`
+	Denylisted    bool   `json:"denylisted" db:"denylisted"`
+	Executions    uint64 `json:"executions" db:"executions"`
 	// Note schedule_interval is used for DB since "interval" is a reserved word in MySQL
 	Interval     int       `json:"interval" db:"schedule_interval"`
 	LastExecuted time.Time `json:"last_executed" db:"last_executed"`
-	OutputSize   int       `json:"output_size" db:"output_size"`
-	SystemTime   int       `json:"system_time" db:"system_time"`
-	UserTime     int       `json:"user_time" db:"user_time"`
-	WallTime     int       `json:"wall_time" db:"wall_time"`
+	OutputSize   uint64    `json:"output_size" db:"output_size"`
+	SystemTime   uint64    `json:"system_time" db:"system_time"`
+	UserTime     uint64    `json:"user_time" db:"user_time"`
+	WallTime     uint64    `json:"wall_time" db:"wall_time"`
 }
 
 // MapQueryReportsResultsToRows converts the scheduled query results as stored in Fleet's database

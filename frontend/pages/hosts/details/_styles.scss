@@ -106,6 +106,16 @@
         color: $core-fleet-black;
         font-weight: $bold;
       }
+      &__data {
+        .device-mapping {
+          &__source {
+            color: $ui-fleet-black-75;
+          }
+          &__more {
+            color: $ui-fleet-black-50;
+          }
+        }
+      }
     }
 
     .list {

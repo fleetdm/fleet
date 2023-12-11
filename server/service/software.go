@@ -15,6 +15,9 @@ type listSoftwareRequest struct {
 	fleet.SoftwareListOptions
 }
 
+// DEPRECATED: listSoftwareResponse is the response struct for the deprecated
+// listSoftwareEndpoint. It differs from listSoftwareVersionsResponse in that
+// the latter includes a count of the total number of software items.
 type listSoftwareResponse struct {
 	CountsUpdatedAt *time.Time       `json:"counts_updated_at"`
 	Software        []fleet.Software `json:"software,omitempty"`
@@ -23,6 +26,7 @@ type listSoftwareResponse struct {
 
 func (r listSoftwareResponse) error() error { return r.Err }
 
+// DEPRECATED: use listSoftwareVersionsEndpoint instead
 func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listSoftwareRequest)
 	resp, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
@@ -41,6 +45,43 @@ func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if !latest.IsZero() {
 		listResp.CountsUpdatedAt = &latest
 	}
+
+	return listResp, nil
+}
+
+type listSoftwareVersionsResponse struct {
+	Count           int              `json:"count"`
+	CountsUpdatedAt *time.Time       `json:"counts_updated_at"`
+	Software        []fleet.Software `json:"software,omitempty"`
+	Err             error            `json:"error,omitempty"`
+}
+
+func (r listSoftwareVersionsResponse) error() error { return r.Err }
+
+func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*listSoftwareRequest)
+	resp, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
+	if err != nil {
+		return listSoftwareVersionsResponse{Err: err}, nil
+	}
+
+	// calculate the latest counts_updated_at
+	var latest time.Time
+	for _, sw := range resp {
+		if !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
+			latest = sw.CountsUpdatedAt
+		}
+	}
+	listResp := listSoftwareVersionsResponse{Software: resp}
+	if !latest.IsZero() {
+		listResp.CountsUpdatedAt = &latest
+	}
+
+	c, err := svc.CountSoftware(ctx, req.SoftwareListOptions)
+	if err != nil {
+		return listSoftwareVersionsResponse{Err: err}, nil
+	}
+	listResp.Count = c
 
 	return listResp, nil
 }
@@ -121,6 +162,8 @@ type countSoftwareResponse struct {
 
 func (r countSoftwareResponse) error() error { return r.Err }
 
+// DEPRECATED: counts are now included directly in the listSoftwareVersionsResponse. This
+// endpoint is retained for backwards compatibility.
 func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countSoftwareRequest)
 	count, err := svc.CountSoftware(ctx, req.SoftwareListOptions)
