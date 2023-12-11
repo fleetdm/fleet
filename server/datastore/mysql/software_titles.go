@@ -62,8 +62,10 @@ func (ds *Datastore) ListSoftwareTitles(
 
 	// perform a second query to grab the counts
 	var counts int
-	if err := sqlx.GetContext(ctx, dbReader, &counts, getTitlesCountStmt, args...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software titles count")
+	if !opt.SkipCounts {
+		if err := sqlx.GetContext(ctx, dbReader, &counts, getTitlesCountStmt, args...); err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software titles count")
+		}
 	}
 
 	// if we don't have any matching titles, there's no point trying to
