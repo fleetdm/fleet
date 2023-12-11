@@ -192,4 +192,9 @@
       }
     }
   }
+  .reveal-button {
+    .component__tooltip-wrapper__underline {
+      position: initial;
+    }
+  }
 }
