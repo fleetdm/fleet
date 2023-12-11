@@ -148,6 +148,29 @@ const SoftwareVersions = ({
     router.push(path);
   };
 
+  const determineQueryParamChange = useCallback(
+    (newTableQuery: ITableQueryData) => {
+      const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
+        switch (key) {
+          case "searchQuery":
+            return val !== query;
+          case "sortDirection":
+            return val !== orderDirection;
+          case "sortHeader":
+            return val !== orderKey;
+          case "vulnerable":
+            return val !== showVulnerableSoftware.toString();
+          case "pageIndex":
+            return val !== currentPage;
+          default:
+            return false;
+        }
+      });
+      return changedEntry?.[0] ?? "";
+    },
+    [currentPage, orderDirection, orderKey, query, showVulnerableSoftware]
+  );
+
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData) => {
       return {
@@ -165,6 +188,14 @@ const SoftwareVersions = ({
   // NOTE: this is called once on initial render and every time the query changes
   const onQueryChange = useCallback(
     (newTableQuery: ITableQueryData) => {
+      // we want to determine which query param has changed in order to
+      // reset the page index to 0 if any other param has changed.
+      const changedParam = determineQueryParamChange(newTableQuery);
+
+      // if nothing has changed, don't update the route. this can happen when
+      // this handler is called on the inital render.
+      if (changedParam === "") return;
+
       const newRoute = getNextLocationPath({
         pathPrefix: PATHS.SOFTWARE_VERSIONS,
         routeTemplate: "",
@@ -173,7 +204,7 @@ const SoftwareVersions = ({
 
       router.replace(newRoute);
     },
-    [generateNewQueryParams, router]
+    [determineQueryParamChange, generateNewQueryParams, router]
   );
 
   const getItemsCountText = () => {
