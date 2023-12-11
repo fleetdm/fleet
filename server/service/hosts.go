@@ -488,13 +488,8 @@ func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error 
 // Get Host Lite
 // //////////////////////////////////////////////////////////////////////////////
 func (svc *Service) GetHostLite(ctx context.Context, id uint) (*fleet.Host, error) {
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
-	if !alreadyAuthd {
-		// First ensure the user has access to list hosts, then check the specific
-		// host once team_id is loaded.
-		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-			return nil, err
-		}
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
 	}
 
 	host, err := svc.ds.HostLite(ctx, id)
@@ -502,11 +497,8 @@ func (svc *Service) GetHostLite(ctx context.Context, id uint) (*fleet.Host, erro
 		return nil, ctxerr.Wrap(ctx, err, "get host lite")
 	}
 
-	if !alreadyAuthd {
-		// Authorize again with team loaded now that we have team_id
-		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-			return nil, err
-		}
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, err
 	}
 
 	return host, nil
