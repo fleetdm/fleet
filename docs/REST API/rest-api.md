@@ -7201,7 +7201,7 @@ Returns the information of the specified software title. By default `versions` a
 
 Returns information about the specified software version.
 
-`GET /api/v1/fleet/software/versions/{id}`
+`GET /api/v1/fleet/software/versions/:id`
 
 #### Example
 
