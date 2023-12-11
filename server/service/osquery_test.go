@@ -2091,7 +2091,7 @@ func TestDistributedQueryResults(t *testing.T) {
 				assert.Equal(t, host.ID, res.Host.ID)
 				assert.Equal(t, host.Hostname, res.Host.Hostname)
 				assert.Equal(t, host.DisplayName(), res.Host.DisplayName)
-				assert.Equal(t, expectedStats, res.Stats)
+				assert.Equal(t, &expectedStats, res.Stats)
 			} else {
 				t.Error("Wrong result type")
 			}
@@ -2115,6 +2115,8 @@ func TestDistributedQueryResults(t *testing.T) {
 		hostCtx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, stats,
 	)
 	require.NoError(t, err)
+	// Sleep to ensure checks in the goroutine are actually done.
+	time.Sleep(10 * time.Millisecond)
 }
 
 func TestIngestDistributedQueryParseIdError(t *testing.T) {
