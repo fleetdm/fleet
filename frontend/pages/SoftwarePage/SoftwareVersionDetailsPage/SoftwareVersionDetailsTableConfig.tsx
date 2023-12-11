@@ -106,11 +106,11 @@ const generateSoftwareVersionDetailsTableConfig = (
         );
         return (
           <>
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
             <HeaderCell
               value={titleWithToolTip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -140,11 +140,11 @@ const generateSoftwareVersionDetailsTableConfig = (
         );
         return (
           <>
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
             <HeaderCell
               value={titleWithToolTip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -173,11 +173,11 @@ const generateSoftwareVersionDetailsTableConfig = (
         );
         return (
           <>
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
             <HeaderCell
               value={titleWithToolTip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -205,11 +205,11 @@ const generateSoftwareVersionDetailsTableConfig = (
         );
         return (
           <>
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
             <HeaderCell
               value={titleWithToolTip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },

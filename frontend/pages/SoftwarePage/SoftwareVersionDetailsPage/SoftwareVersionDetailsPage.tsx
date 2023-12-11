@@ -13,6 +13,7 @@ import MainContent from "components/MainContent";
 import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
+import TableDataError from "components/DataError";
 
 import generateSoftwareVersionDetailsTableConfig from "./SoftwareVersionDetailsTableConfig";
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
@@ -47,7 +48,6 @@ const NoVulnsDetected = (): JSX.Element => {
 };
 
 const SoftwareVersionDetailsPage = ({
-  router,
   routeParams,
 }: ISoftwareTitleDetailsPageProps) => {
   const versionId = parseInt(routeParams.id, 10);
@@ -78,6 +78,10 @@ const SoftwareVersionDetailsPage = ({
 
   if (!softwareVersion) {
     return null;
+  }
+
+  if (isSoftwareVersionError) {
+    return <TableDataError className={`${baseClass}__table-error`} />;
   }
 
   return (
