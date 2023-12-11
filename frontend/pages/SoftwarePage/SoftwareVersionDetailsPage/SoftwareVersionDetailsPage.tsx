@@ -80,45 +80,45 @@ const SoftwareVersionDetailsPage = ({
     return null;
   }
 
-  if (isSoftwareVersionError) {
-    return <TableDataError className={`${baseClass}__table-error`} />;
-  }
-
   return (
     <MainContent className={baseClass}>
-      <>
-        <SoftwareDetailsSummary
-          id={softwareVersion.id}
-          title={`${softwareVersion.name}, ${softwareVersion.version}`}
-          type={softwareVersion.source}
-          hosts={softwareVersion.hosts_count ?? 0}
-          queryParam="software_version_id"
-          name={softwareVersion.name}
-          source={softwareVersion.source}
-        />
-        <div className={`${baseClass}__vulnerabilities-section`}>
-          <h2 className="section__header">Vulnerabilities</h2>
-          {softwareVersion?.vulnerabilities?.length ? (
-            <div className="vuln-table">
-              <TableContainer
-                columns={tableHeaders}
-                data={softwareVersion.vulnerabilities}
-                defaultSortHeader={isPremiumTier ? "epss_probability" : "cve"}
-                defaultSortDirection={"desc"}
-                emptyComponent={NoVulnsDetected}
-                isAllPagesSelected={false}
-                isLoading={isSoftwareVersionLoading}
-                isClientSidePagination
-                pageSize={20}
-                resultsTitle={"vulnerabilities"}
-                showMarkAllPages={false}
-              />
-            </div>
-          ) : (
-            <NoVulnsDetected />
-          )}
-        </div>
-      </>
+      {isSoftwareVersionError ? (
+        <TableDataError className={`${baseClass}__table-error`} />
+      ) : (
+        <>
+          <SoftwareDetailsSummary
+            id={softwareVersion.id}
+            title={`${softwareVersion.name}, ${softwareVersion.version}`}
+            type={softwareVersion.source}
+            hosts={softwareVersion.hosts_count ?? 0}
+            queryParam="software_version_id"
+            name={softwareVersion.name}
+            source={softwareVersion.source}
+          />
+          <div className={`${baseClass}__vulnerabilities-section`}>
+            <h2 className="section__header">Vulnerabilities</h2>
+            {softwareVersion?.vulnerabilities?.length ? (
+              <div className="vuln-table">
+                <TableContainer
+                  columns={tableHeaders}
+                  data={softwareVersion.vulnerabilities}
+                  defaultSortHeader={isPremiumTier ? "epss_probability" : "cve"}
+                  defaultSortDirection={"desc"}
+                  emptyComponent={NoVulnsDetected}
+                  isAllPagesSelected={false}
+                  isLoading={isSoftwareVersionLoading}
+                  isClientSidePagination
+                  pageSize={20}
+                  resultsTitle={"vulnerabilities"}
+                  showMarkAllPages={false}
+                />
+              </div>
+            ) : (
+              <NoVulnsDetected />
+            )}
+          </div>
+        </>
+      )}
     </MainContent>
   );
 };

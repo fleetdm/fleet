@@ -4,7 +4,6 @@ import { InjectedRouter } from "react-router";
 import { ISoftwareTitleVersion } from "interfaces/software";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
-import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";

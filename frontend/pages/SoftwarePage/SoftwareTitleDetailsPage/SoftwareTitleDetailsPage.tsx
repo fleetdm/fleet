@@ -1,4 +1,4 @@
-import React, { useContext, useMemo } from "react";
+import React, { useContext } from "react";
 import { RouteComponentProps } from "react-router";
 import { useQuery } from "react-query";
 
@@ -9,6 +9,7 @@ import softwareAPI, {
 } from "services/entities/software";
 
 import MainContent from "components/MainContent";
+import TableDataError from "components/DataError";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
@@ -50,27 +51,31 @@ const SoftwareTitleDetailsPage = ({
 
   return (
     <MainContent className={baseClass}>
-      <>
-        <SoftwareDetailsSummary
-          id={softwareId}
-          title={softwareTitle.name}
-          type={softwareTitle.source}
-          versions={softwareTitle.versions.length}
-          hosts={softwareTitle.hosts_count}
-          queryParam="software_title_id"
-          name={softwareTitle.name}
-          source={softwareTitle.source}
-        />
-        {/* TODO: can we use Card here for card styles */}
-        <div className={`${baseClass}__versions-section`}>
-          <h2>Versions</h2>
-          <SoftwareTitleDetailsTable
-            router={router}
-            data={softwareTitle.versions}
-            isLoading={isSoftwareTitleLoading}
+      {isSoftwareTitleError ? (
+        <TableDataError className={`${baseClass}__table-error`} />
+      ) : (
+        <>
+          <SoftwareDetailsSummary
+            id={softwareId}
+            title={softwareTitle.name}
+            type={softwareTitle.source}
+            versions={softwareTitle.versions.length}
+            hosts={softwareTitle.hosts_count}
+            queryParam="software_title_id"
+            name={softwareTitle.name}
+            source={softwareTitle.source}
           />
-        </div>
-      </>
+          {/* TODO: can we use Card here for card styles */}
+          <div className={`${baseClass}__versions-section`}>
+            <h2>Versions</h2>
+            <SoftwareTitleDetailsTable
+              router={router}
+              data={softwareTitle.versions}
+              isLoading={isSoftwareTitleLoading}
+            />
+          </div>
+        </>
+      )}
     </MainContent>
   );
   return <h1>script title details</h1>;
