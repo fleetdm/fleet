@@ -5,7 +5,7 @@ import { Row } from "react-table";
 
 import PATHS from "router/paths";
 import softwareAPI, {
-  ISoftwareQueryKey,
+  ISoftwareApiParams,
   ISoftwareTitlesResponse,
 } from "services/entities/software";
 import { AppContext } from "context/app";
@@ -35,6 +35,9 @@ interface IRowProps extends Row {
   };
 }
 
+interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
+  scope: "software-title";
+}
 interface ISoftwareTitlesProps {
   router: InjectedRouter;
   isSoftwareEnabled: boolean;
@@ -71,11 +74,11 @@ const SoftwareTitles = ({
     ISoftwareTitlesResponse,
     Error,
     ISoftwareTitlesResponse,
-    ISoftwareQueryKey[]
+    ISoftwareTitlesQueryKey[]
   >(
     [
       {
-        scope: "software",
+        scope: "software-title",
         page: currentPage,
         perPage,
         query,
@@ -85,9 +88,11 @@ const SoftwareTitles = ({
         vulnerable: showVulnerableSoftware,
       },
     ],
-    ({ queryKey }) => softwareAPI.getSoftwareTitles(queryKey[0]),
+    ({ queryKey }) => {
+      console.log("Query key:", queryKey);
+      return softwareAPI.getSoftwareTitles(queryKey[0]);
+    },
     {
-      keepPreviousData: true,
       // stale time can be adjusted if fresher data is desired based on
       // software inventory interval
       staleTime: 30000,
@@ -144,79 +149,83 @@ const SoftwareTitles = ({
     console.log("selectedRow", row.id);
   };
 
-  const generateNewQueryParams = (newTableQuery: ITableQueryData) => {
-    return {
-      query: newTableQuery.searchQuery,
-      teamId,
-      orderDirection: newTableQuery.sortDirection,
-      orderKey: newTableQuery.sortHeader,
-      vulnerable: showVulnerableSoftware.toString(),
-      page: newTableQuery.pageIndex,
-    };
-  };
+  const generateNewQueryParams = useCallback(
+    (newTableQuery: ITableQueryData) => {
+      return {
+        query: newTableQuery.searchQuery,
+        team_id: teamId,
+        order_direction: newTableQuery.sortDirection,
+        order_key: newTableQuery.sortHeader,
+        vulnerable: showVulnerableSoftware.toString(),
+        page: newTableQuery.pageIndex,
+      };
+    },
+    [showVulnerableSoftware, teamId]
+  );
 
   // NOTE: this is called once on initial render and every time the query changes
-  const onQueryChange = useCallback((newTableQuery: ITableQueryData) => {
-    console.log("new query data:", newTableQuery);
+  const onQueryChange = useCallback(
+    (newTableQuery: ITableQueryData) => {
+      const newRoute = getNextLocationPath({
+        pathPrefix: PATHS.SOFTWARE_TITLES,
+        routeTemplate: "",
+        queryParams: generateNewQueryParams(newTableQuery),
+      });
 
-    const newRoute = getNextLocationPath({
-      pathPrefix: PATHS.SOFTWARE_TITLES,
-      routeTemplate: "",
-      queryParams: generateNewQueryParams(newTableQuery),
-    });
+      router.replace(newRoute);
 
-    router.replace(newRoute);
+      // if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
+      //   return;
+      // }
 
-    // if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
-    //   return;
-    // }
+      // setTableQueryData({ ...newTableQuery });
 
-    // setTableQueryData({ ...newTableQuery });
+      // const {
+      //   pageIndex,
+      //   searchQuery: newSearchQuery,
+      //   sortDirection: newSortDirection,
+      // } = newTableQuery;
+      // let { sortHeader: newSortHeader } = newTableQuery;
 
-    // const {
-    //   pageIndex,
-    //   searchQuery: newSearchQuery,
-    //   sortDirection: newSortDirection,
-    // } = newTableQuery;
-    // let { sortHeader: newSortHeader } = newTableQuery;
+      // pageIndex !== page && setPage(pageIndex);
+      // searchQuery !== newSearchQuery && setSearchQuery(newSearchQuery);
+      // sortDirection !== newSortDirection &&
+      //   setSortDirection(
+      //     newSortDirection === "asc" || newSortDirection === "desc"
+      //       ? newSortDirection
+      //       : DEFAULT_SORT_DIRECTION
+      //   );
 
-    // pageIndex !== page && setPage(pageIndex);
-    // searchQuery !== newSearchQuery && setSearchQuery(newSearchQuery);
-    // sortDirection !== newSortDirection &&
-    //   setSortDirection(
-    //     newSortDirection === "asc" || newSortDirection === "desc"
-    //       ? newSortDirection
-    //       : DEFAULT_SORT_DIRECTION
-    //   );
+      // if (isPremiumTier && newSortHeader === "vulnerabilities") {
+      //   newSortHeader = "epss_probability";
+      // }
+      // sortHeader !== newSortHeader && setSortHeader(newSortHeader);
 
-    // if (isPremiumTier && newSortHeader === "vulnerabilities") {
-    //   newSortHeader = "epss_probability";
-    // }
-    // sortHeader !== newSortHeader && setSortHeader(newSortHeader);
+      // // Rebuild queryParams to dispatch new browser location to react-router
+      // const newQueryParams: { [key: string]: string | number | undefined } = {};
+      // if (!isEmpty(newSearchQuery)) {
+      //   newQueryParams.query = newSearchQuery;
+      // }
+      // newQueryParams.page = pageIndex;
+      // newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
+      // newQueryParams.order_direction =
+      //   newSortDirection || DEFAULT_SORT_DIRECTION;
 
-    // // Rebuild queryParams to dispatch new browser location to react-router
-    // const newQueryParams: { [key: string]: string | number | undefined } = {};
-    // if (!isEmpty(newSearchQuery)) {
-    //   newQueryParams.query = newSearchQuery;
-    // }
-    // newQueryParams.page = pageIndex;
-    // newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
-    // newQueryParams.order_direction =
-    //   newSortDirection || DEFAULT_SORT_DIRECTION;
+      // newQueryParams.vulnerable = filterVuln ? "true" : undefined;
 
-    // newQueryParams.vulnerable = filterVuln ? "true" : undefined;
+      // if (teamIdForApi !== undefined) {
+      //   newQueryParams.team_id = teamIdForApi;
+      // }
 
-    // if (teamIdForApi !== undefined) {
-    //   newQueryParams.team_id = teamIdForApi;
-    // }
-
-    // const locationPath = getNextLocationPath({
-    //   pathPrefix: PATHS.SOFTWARE_TITLES,
-    //   routeTemplate,
-    //   queryParams: newQueryParams,
-    // });
-    // router.replace(locationPath);
-  }, []);
+      // const locationPath = getNextLocationPath({
+      //   pathPrefix: PATHS.SOFTWARE_TITLES,
+      //   routeTemplate,
+      //   queryParams: newQueryParams,
+      // });
+      // router.replace(locationPath);
+    },
+    [generateNewQueryParams, router]
+  );
 
   const getItemsCountText = () => {
     const count = softwareData?.count;

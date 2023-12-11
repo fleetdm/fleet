@@ -18,7 +18,7 @@ import {
   createMockSoftwareVersionResponse,
 } from "__mocks__/softwareMock";
 
-interface ISoftwareApiParams {
+export interface ISoftwareApiParams {
   page?: number;
   perPage?: number;
   orderKey?: string;
