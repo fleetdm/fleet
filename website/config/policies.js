@@ -60,4 +60,6 @@ module.exports.policies = {
   'deliver-mdm-demo-email': true,
   'view-support': true,
   'view-integrations': true,
+  'try-fleet/view-explore-data': true,
+  'try-fleet/view-query-report': true,
 };
