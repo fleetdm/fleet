@@ -31,7 +31,6 @@ const SoftwareTitleDetailsPage = ({
 }: ISoftwareTitleDetailsPageProps) => {
   // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
-  const { isSandboxMode, filteredSoftwarePath } = useContext(AppContext);
 
   const {
     data: softwareTitle,

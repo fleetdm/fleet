@@ -138,11 +138,8 @@
             .link-cell {
               display: flex;
               align-items: center;
+              gap: $pad-small;
             }
-
-	    .software-icon {
-	      margin-right: $pad-small;
-	    }
 
             .hosts_count__cell {
               width: auto;

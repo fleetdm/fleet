@@ -48,7 +48,6 @@ const generateSoftwareTitleDetailsTableConfig = (router: InjectedRouter) => {
       disableSortBy: true,
       accessor: "version",
       Cell: (cellProps: IVersionCellProps): JSX.Element => {
-        <TextCell value={cellProps.cell.value} />;
         const { id } = cellProps.row.original;
         const onClickSoftware = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
@@ -56,8 +55,10 @@ const generateSoftwareTitleDetailsTableConfig = (router: InjectedRouter) => {
           router?.push(PATHS.SOFTWARE_VERSION_DETAILS(id.toString()));
         };
 
+        // TODO: make only text clickable
         return (
           <LinkCell
+            className="name-link"
             path={PATHS.SOFTWARE_VERSION_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
             value={cellProps.cell.value}
