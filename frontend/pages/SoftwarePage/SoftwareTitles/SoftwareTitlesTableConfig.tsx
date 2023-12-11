@@ -2,7 +2,11 @@ import React from "react";
 import { Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
-import { ISoftwareTitleVersion, ISoftwareTitle } from "interfaces/software";
+import {
+  ISoftwareTitleVersion,
+  ISoftwareTitle,
+  formatSoftwareType,
+} from "interfaces/software";
 import PATHS from "router/paths";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -126,7 +130,7 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "source",
       Cell: (cellProps: IStringCellProps): JSX.Element => (
-        <TextCell value={cellProps.cell.value} />
+        <TextCell formatter={formatSoftwareType} value={cellProps.cell.value} />
       ),
     },
     {

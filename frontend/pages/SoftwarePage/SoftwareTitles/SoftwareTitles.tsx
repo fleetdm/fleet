@@ -116,6 +116,7 @@ const SoftwareTitles = ({
   );
 
   const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
+    console.log("calling vuln dropdown handler");
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.SOFTWARE_TITLES,
@@ -149,18 +150,44 @@ const SoftwareTitles = ({
     console.log("selectedRow", row.id);
   };
 
+  const determineQueryParamChange = useCallback(
+    (newTableQuery: ITableQueryData) => {
+      const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
+        switch (key) {
+          case "searchQuery":
+            return val !== query;
+          case "sortDirection":
+            return val !== orderDirection;
+          case "sortHeader":
+            return val !== orderKey;
+          case "vulnerable":
+            return val !== showVulnerableSoftware.toString();
+          case "pageIndex":
+            return val !== currentPage;
+          default:
+            return false;
+        }
+      });
+      return changedEntry?.[0] ?? "";
+    },
+    [currentPage, orderDirection, orderKey, query, showVulnerableSoftware]
+  );
+
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData) => {
+      // we want to determine which query param has changed in order to
+      // reset the page index to 0 if any other param has changed.
+      const changedParam = determineQueryParamChange(newTableQuery);
       return {
         query: newTableQuery.searchQuery,
         team_id: teamId,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         vulnerable: showVulnerableSoftware.toString(),
-        page: newTableQuery.pageIndex,
+        page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
       };
     },
-    [showVulnerableSoftware, teamId]
+    [determineQueryParamChange, showVulnerableSoftware, teamId]
   );
 
   // NOTE: this is called once on initial render and every time the query changes
