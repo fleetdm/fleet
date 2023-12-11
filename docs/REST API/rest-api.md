@@ -6972,7 +6972,7 @@ Get a list of all software grouped by software title.
 | ----------------------- | ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page.                                                                                                                                                          |
-| order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `vulnerabilities_count`. Default is `hosts_count` (descending).      |
+| order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, and `vulnerabilities_count`. Default is `hosts_count` (descending).      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
@@ -6998,6 +6998,7 @@ Get a list of all software grouped by software title.
       "source": "apps",
       "browser": "",
       "hosts_count": 48,
+      "vulnerabilities_count": 7,
       "versions": [ 
         {
           "id": 123,
