@@ -3024,6 +3024,46 @@ Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery mana
 
 ---
 
+### Update custom human-device mapping
+
+`POST /api/v1/fleet/hosts/1/device_mapping`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id         | integer           | path | **Required**. The host's `id`.                                                |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/1/device_mapping`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1,
+  "device_mapping": [
+    {
+      "email": "user@example.com",
+      "source": "identity_provider"
+    },
+    {
+      "email": "user@example.com",
+      "source": "google_chrome_profiles"
+    },
+    {
+      "email": "user@example.com",
+      "source": "custom"
+    }
+  ]
+}
+```
+
+---
+
 ### Get host's mobile device management (MDM) information
 
 Currently supports Windows and MacOS. On MacOS this requires the [macadmins osquery
