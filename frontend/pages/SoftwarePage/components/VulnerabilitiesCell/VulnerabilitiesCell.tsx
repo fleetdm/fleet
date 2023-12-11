@@ -4,11 +4,12 @@ import ReactTooltip from "react-tooltip";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { ISoftwareVulnerability } from "interfaces/software";
-import { is } from "date-fns/locale";
+
+const NUM_VULNERABILITIES_IN_TOOLTIP = 3;
 
 const baseClass = "vulnerabilities-cell";
 
-const generateVulnerabilitiesCell = (
+const generateCell = (
   vulnerabilities: ISoftwareVulnerability[] | string[] | null
 ) => {
   if (vulnerabilities === null) {
@@ -32,13 +33,37 @@ const generateVulnerabilitiesCell = (
   return <TextCell value={text} greyed={isGrayed} />;
 };
 
-const generateVulnerabilitiesTooltip = (
+const getName = (vulnerabiltiy: ISoftwareVulnerability | string) => {
+  return typeof vulnerabiltiy === "string" ? vulnerabiltiy : vulnerabiltiy.cve;
+};
+
+const condenseVulnerabilities = (
+  vulnerabilities: ISoftwareVulnerability[] | string[]
+) => {
+  const condensed =
+    (vulnerabilities?.length &&
+      vulnerabilities
+        .slice(-NUM_VULNERABILITIES_IN_TOOLTIP)
+        .map(getName)
+        .reverse()) ||
+    [];
+
+  return vulnerabilities.length > NUM_VULNERABILITIES_IN_TOOLTIP
+    ? condensed.concat(
+        `+${vulnerabilities.length - NUM_VULNERABILITIES_IN_TOOLTIP} more`
+      )
+    : condensed;
+};
+
+const generateTooltip = (
   vulnerabilities: ISoftwareVulnerability[] | string[],
   tooltipId: string
 ) => {
   if (vulnerabilities.length <= 1) {
     return null;
   }
+
+  const condensedVulnerabilties = condenseVulnerabilities(vulnerabilities);
 
   return (
     <ReactTooltip
@@ -48,12 +73,8 @@ const generateVulnerabilitiesTooltip = (
       data-html
     >
       <ul className={`${baseClass}__vulnerability-list`}>
-        {vulnerabilities.map((vulnerability) => {
-          const text =
-            typeof vulnerability === "string"
-              ? vulnerability
-              : vulnerability.cve;
-          return <li>&bull; {text}</li>;
+        {condensedVulnerabilties.map((vulnerability) => {
+          return <li>&bull; {vulnerability}</li>;
         })}
       </ul>
     </ReactTooltip>
@@ -69,15 +90,12 @@ const VulnerabilitiesCell = ({
   const tooltipId = uniqueId();
 
   // only one vulnerability, no need for tooltip
-  const cell = generateVulnerabilitiesCell(vulnerabilities);
+  const cell = generateCell(vulnerabilities);
   if (vulnerabilities === null || vulnerabilities.length <= 1) {
     return <>{cell}</>;
   }
 
-  const versionTooltip = generateVulnerabilitiesTooltip(
-    vulnerabilities,
-    tooltipId
-  );
+  const vulnerabilityTooltip = generateTooltip(vulnerabilities, tooltipId);
 
   return (
     <>
@@ -88,7 +106,7 @@ const VulnerabilitiesCell = ({
       >
         {cell}
       </div>
-      {versionTooltip}
+      {vulnerabilityTooltip}
     </>
   );
 };
