@@ -33,6 +33,8 @@ module.exports = {
     let daysSinceReleasedBugsWereOpened = [];
     let allBugsWithUnreleasedLabel = [];
     let allBugsWithReleasedLabel = [];
+    let allBugsCreatedInPastWeek = [];
+    let allBugsClosedInPastWeek = [];
     let daysSincePullRequestsWereOpened = [];
     let daysSinceContributorPullRequestsWereOpened = [];
     let commitToMergeTimesInDays = [];
@@ -86,6 +88,9 @@ module.exports = {
           let timeOpenInMS = Math.abs(todaysDate - issueOpenedOn);
           // Convert the miliseconds to days and add the value to the daysSinceBugsWereOpened array
           let timeOpenInDays = timeOpenInMS / ONE_DAY_IN_MILLISECONDS;
+          if (timeOpenInDays <= 7) {
+            allBugsCreatedInPastWeek.push(issue);
+          }
           daysSinceBugsWereOpened.push(timeOpenInDays);
           // Send to released or unreleased bugs array
           if (issue.labels.some(label => label.name === '~unreleased bug')) {
@@ -102,6 +107,55 @@ module.exports = {
         }
 
       },
+
+      //   ██████╗██╗      ██████╗ ███████╗███████╗██████╗     ██████╗ ██╗   ██╗ ██████╗ ███████╗
+      //  ██╔════╝██║     ██╔═══██╗██╔════╝██╔════╝██╔══██╗    ██╔══██╗██║   ██║██╔════╝ ██╔════╝
+      //  ██║     ██║     ██║   ██║███████╗█████╗  ██║  ██║    ██████╔╝██║   ██║██║  ███╗███████╗
+      //  ██║     ██║     ██║   ██║╚════██║██╔══╝  ██║  ██║    ██╔══██╗██║   ██║██║   ██║╚════██║
+      //  ╚██████╗███████╗╚██████╔╝███████║███████╗██████╔╝    ██████╔╝╚██████╔╝╚██████╔╝███████║
+      //   ╚═════╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝╚═════╝     ╚═════╝  ╚═════╝  ╚═════╝ ╚══════╝
+      //
+
+      async()=>{
+
+        let pageNumberForPaginatedResults = 0;
+        let allIssuesWithBugLabel = [];
+
+        // Fetch all closed issues in the fleetdm/fleet repo with the bug label.
+        // Note: This will send requests to GitHub until the number of results is less than the number we requested.
+        await sails.helpers.flow.until(async ()=>{
+          // Increment the page of results we're requesting.
+          pageNumberForPaginatedResults += 1;
+          let issuesWithBugLabel = await sails.helpers.http.get(
+            `https://api.github.com/repos/fleetdm/fleet/issues`,
+            {
+              'state': 'closed',
+              'labels': 'bug',
+              'per_page': NUMBER_OF_RESULTS_REQUESTED,
+              'page': pageNumberForPaginatedResults,
+            },
+            baseHeaders
+          ).retry();
+          // Add the results to the allIssuesWithBugLabel array.
+          allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
+          // Stop when we've received results from the third page.
+          return pageNumberForPaginatedResults === 3;
+        }, 10000);
+
+        // iterate through the allIssuesWithBugLabel array, adding the number
+        for (let issue of allIssuesWithBugLabel) {
+          // Create a date object from the issue's closed_at timestamp.
+          let issueClosedOn = new Date(issue.closed_at);
+          // Get the amount of time this issue has been closed in milliseconds.
+          let timeClosedInMS = Math.abs(todaysDate - issueClosedOn);
+          // Convert the miliseconds to days and add the value to the allBugsClosedInPastWeek array
+          let timeClosedInDays = timeClosedInMS / ONE_DAY_IN_MILLISECONDS;
+          if (timeClosedInDays <= 7) {
+            allBugsClosedInPastWeek.push(issue);
+          }
+        }
+      },
+
       //   ██████╗██╗      ██████╗ ███████╗███████╗██████╗     ██████╗ ██████╗ ███████╗
       //  ██╔════╝██║     ██╔═══██╗██╔════╝██╔════╝██╔══██╗    ██╔══██╗██╔══██╗██╔════╝
       //  ██║     ██║     ██║   ██║███████╗█████╗  ██║  ██║    ██████╔╝██████╔╝███████╗
@@ -294,6 +348,10 @@ module.exports = {
 
     Number of open issues with the "~released bug" label in fleetdm/fleet: ${allBugsWithReleasedLabel.length}
     Average open time: ${averageNumberOfDaysReleasedBugsAreOpenFor} days.
+
+    Number of issues with the "bug" label opened in the past week: ${allBugsCreatedInPastWeek.length}
+
+    Number of issues with the "bug" label closed in the past week week: ${allBugsClosedInPastWeek.length}
 
     Closed pull requests:
     ---------------------------
