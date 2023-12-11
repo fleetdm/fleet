@@ -164,12 +164,7 @@ export default {
     const snakeCaseParams = convertParamsToSnakeCase(params);
     const queryString = buildQueryStringFromParams(snakeCaseParams);
     const path = `${SOFTWARE_VERSIONS}?${queryString}`;
-
-    // TODO: integrate with API.
-    return new Promise<ISoftwareVersionsResponse>((resolve, reject) => {
-      resolve(createMockSoftwareVersionsReponse());
-    });
-    // return sendRequest("GET", path);
+    return sendRequest("GET", path);
   },
 
   getSoftwareVersion: (id: number) => {
