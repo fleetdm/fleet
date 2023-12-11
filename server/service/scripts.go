@@ -64,7 +64,10 @@ type runScriptSyncResponse struct {
 func (r runScriptSyncResponse) error() error { return r.Err }
 func (r runScriptSyncResponse) Status() int {
 	if r.HostTimeout {
-		return http.StatusGatewayTimeout
+		// The more proper response for a timeout on the server would be: StatusGatewayTimeout
+		// However, as described in https://github.com/fleetdm/fleet/issues/15430 we will send 408 response.
+		// StatusRequestTimeout = 408 // RFC 9110, 15.5.9
+		return http.StatusRequestTimeout
 	}
 	return http.StatusOK
 }
