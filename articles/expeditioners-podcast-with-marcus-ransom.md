@@ -1,7 +1,7 @@
 # ExpedITioners Podcast
 ## Marcus Ransom: The positive future of collaboration between vendors and Apple for enterprise
 
-<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:660px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="[https://embed.podcasts.apple.com/us/podcast/rich-trouton-declarative-device-management-and/id1641183838?i=1000626388077](https://embed.podcasts.apple.com/us/podcast/marcus-ransom-the-positive-future-of/id1641183838?i=1000638225150)"></iframe>
+<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:660px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.podcasts.apple.com/us/podcast/marcus-ransom-the-positive-future-of/id1641183838?i=1000638225150"></iframe>
 
 Listen to the episode on [Apple](https://podcasts.apple.com/us/podcast/marcus-ransom-the-positive-future-of/id1641183838?i=1000638225150), [Spotify](https://open.spotify.com/episode/1DcqQhWvrrBTgGVJINvm0T?si=c0tw9fzCTxywp-6WpbZHJA), or [PodBean](https://expeditioners.podbean.com/e/marcus-ransom-the-positive-future-of-collaboration-between-vendors-and-apple-for-enterprise/).
 
