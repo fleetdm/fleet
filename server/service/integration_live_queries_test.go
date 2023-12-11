@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"sort"
 	"sync"
@@ -80,67 +82,100 @@ func (s *liveQueriesTestSuite) TearDownTest() {
 }
 
 func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
-	t := s.T()
+	test := func(savedQuery bool, hasStats bool) {
+		t := s.T()
 
-	host := s.hosts[0]
+		host := s.hosts[0]
 
-	q1, err := s.ds.NewQuery(context.Background(), &fleet.Query{
-		Query:       "select 1 from osquery;",
-		Description: "desc1",
-		Name:        t.Name() + "query1",
-		Logging:     fleet.LoggingSnapshot,
-	})
-	require.NoError(t, err)
+		q1, err := s.ds.NewQuery(
+			context.Background(), &fleet.Query{
+				Query:       "select 1 from osquery;",
+				Description: "desc1",
+				Name:        t.Name() + "query1",
+				Logging:     fleet.LoggingSnapshot,
+				Saved:       savedQuery,
+			},
+		)
+		require.NoError(t, err)
 
-	s.lq.On("QueriesForHost", uint(1)).Return(map[string]string{fmt.Sprint(q1.ID): "select 1 from osquery;"}, nil)
-	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
-	s.lq.On("RunQuery", mock.Anything, "select 1 from osquery;", []uint{host.ID}).Return(nil)
-	s.lq.On("StopQuery", mock.Anything).Return(nil)
+		s.lq.On("QueriesForHost", uint(1)).Return(map[string]string{fmt.Sprint(q1.ID): "select 1 from osquery;"}, nil)
+		s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+		s.lq.On("RunQuery", mock.Anything, "select 1 from osquery;", []uint{host.ID}).Return(nil)
+		s.lq.On("StopQuery", mock.Anything).Return(nil)
 
-	liveQueryRequest := runLiveQueryRequest{
-		QueryIDs: []uint{q1.ID},
-		HostIDs:  []uint{host.ID},
+		liveQueryRequest := runLiveQueryRequest{
+			QueryIDs: []uint{q1.ID},
+			HostIDs:  []uint{host.ID},
+		}
+		liveQueryResp := runLiveQueryResponse{}
+
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
+		}()
+
+		// Give the above call a couple of seconds to create the campaign
+		time.Sleep(2 * time.Second)
+
+		cid := getCIDForQ(s, q1)
+
+		var stats *fleet.Stats = nil
+		if hasStats {
+			stats = &fleet.Stats{
+				UserTime:   uint64(1),
+				SystemTime: uint64(2),
+			}
+		}
+		distributedReq := submitDistributedQueryResultsRequestShim{
+			NodeKey: *host.NodeKey,
+			Results: map[string]json.RawMessage{
+				hostDistributedQueryPrefix + cid:          json.RawMessage(`[{"col1": "a", "col2": "b"}]`),
+				hostDistributedQueryPrefix + "invalidcid": json.RawMessage(`""`), // empty string is sometimes sent for no results
+				hostDistributedQueryPrefix + "9999":       json.RawMessage(`""`),
+			},
+			Statuses: map[string]interface{}{
+				hostDistributedQueryPrefix + cid:    0,
+				hostDistributedQueryPrefix + "9999": "0",
+			},
+			Messages: map[string]string{
+				hostDistributedQueryPrefix + cid: "some msg",
+			},
+			Stats: map[string]*fleet.Stats{
+				hostDistributedQueryPrefix + cid: stats,
+			},
+		}
+		distributedResp := submitDistributedQueryResultsResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+
+		wg.Wait()
+
+		require.Len(t, liveQueryResp.Results, 1)
+		assert.Equal(t, 1, liveQueryResp.Summary.RespondedHostCount)
+		assert.Equal(t, q1.ID, liveQueryResp.Results[0].QueryID)
+		require.Len(t, liveQueryResp.Results[0].Results[0].Rows, 1)
+		assert.Equal(t, "a", liveQueryResp.Results[0].Results[0].Rows[0]["col1"])
+		assert.Equal(t, "b", liveQueryResp.Results[0].Results[0].Rows[0]["col2"])
+
+		// Allow time for aggregated stats to update
+		time.Sleep(500 * time.Millisecond)
+		aggStats, err := s.ds.GetAggregatedStats(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, q1.ID)
+		if savedQuery && hasStats {
+			require.NoError(t, err)
+			assert.Equal(t, 1, int(*aggStats.TotalExecutions))
+			assert.Equal(t, float64(2), *aggStats.SystemTimeP50)
+			assert.Equal(t, float64(2), *aggStats.SystemTimeP95)
+			assert.Equal(t, float64(1), *aggStats.UserTimeP50)
+			assert.Equal(t, float64(1), *aggStats.UserTimeP95)
+		} else {
+			require.ErrorAs(t, err, &sql.ErrNoRows)
+		}
+
 	}
-	liveQueryResp := runLiveQueryResponse{}
-
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
-	}()
-
-	// Give the above call a couple of seconds to create the campaign
-	time.Sleep(2 * time.Second)
-
-	cid := getCIDForQ(s, q1)
-
-	distributedReq := submitDistributedQueryResultsRequestShim{
-		NodeKey: *host.NodeKey,
-		Results: map[string]json.RawMessage{
-			hostDistributedQueryPrefix + cid:          json.RawMessage(`[{"col1": "a", "col2": "b"}]`),
-			hostDistributedQueryPrefix + "invalidcid": json.RawMessage(`""`), // empty string is sometimes sent for no results
-			hostDistributedQueryPrefix + "9999":       json.RawMessage(`""`),
-		},
-		Statuses: map[string]interface{}{
-			hostDistributedQueryPrefix + cid:    0,
-			hostDistributedQueryPrefix + "9999": "0",
-		},
-		Messages: map[string]string{
-			hostDistributedQueryPrefix + cid: "some msg",
-		},
-	}
-	distributedResp := submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
-
-	wg.Wait()
-
-	require.Len(t, liveQueryResp.Results, 1)
-	assert.Equal(t, 1, liveQueryResp.Summary.RespondedHostCount)
-	assert.Equal(t, q1.ID, liveQueryResp.Results[0].QueryID)
-	require.Len(t, liveQueryResp.Results[0].Results[0].Rows, 1)
-	assert.Equal(t, "a", liveQueryResp.Results[0].Results[0].Rows[0]["col1"])
-	assert.Equal(t, "b", liveQueryResp.Results[0].Results[0].Rows[0]["col2"])
+	s.Run("not saved query", func() { test(false, true) })
+	s.Run("saved query without stats", func() { test(true, false) })
+	s.Run("saved query with stats", func() { test(true, true) })
 }
 
 func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
@@ -153,6 +188,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 		Description: "desc1",
 		Name:        t.Name() + "query1",
 		Logging:     fleet.LoggingSnapshot,
+		Saved:       rand.Intn(2) == 1,
 	})
 	require.NoError(t, err)
 
@@ -161,6 +197,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 		Description: "desc2",
 		Name:        t.Name() + "query2",
 		Logging:     fleet.LoggingSnapshot,
+		Saved:       rand.Intn(2) == 1,
 	})
 	require.NoError(t, err)
 
@@ -205,6 +242,12 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 		Messages: map[string]string{
 			hostDistributedQueryPrefix + cid1: "some msg",
 			hostDistributedQueryPrefix + cid2: "some other msg",
+		},
+		Stats: map[string]*fleet.Stats{
+			hostDistributedQueryPrefix + cid1: &fleet.Stats{
+				UserTime:   uint64(1),
+				SystemTime: uint64(2),
+			},
 		},
 	}
 	distributedResp := submitDistributedQueryResultsResponse{}
@@ -258,6 +301,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 		Description: "desc1",
 		Name:        t.Name() + "query1",
 		Logging:     fleet.LoggingSnapshot,
+		Saved:       rand.Intn(2) == 1,
 	})
 	require.NoError(t, err)
 
@@ -266,6 +310,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 		Description: "desc2",
 		Name:        t.Name() + "query2",
 		Logging:     fleet.LoggingSnapshot,
+		Saved:       rand.Intn(2) == 1,
 	})
 	require.NoError(t, err)
 
@@ -313,6 +358,12 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 			Messages: map[string]string{
 				hostDistributedQueryPrefix + cid1: "some msg",
 				hostDistributedQueryPrefix + cid2: "some other msg",
+			},
+			Stats: map[string]*fleet.Stats{
+				hostDistributedQueryPrefix + cid1: &fleet.Stats{
+					UserTime:   uint64(1),
+					SystemTime: uint64(2),
+				},
 			},
 		}
 		distributedResp := submitDistributedQueryResultsResponse{}

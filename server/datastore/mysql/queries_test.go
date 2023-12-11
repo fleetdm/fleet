@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"testing"
 
@@ -33,6 +34,7 @@ func TestQueries(t *testing.T) {
 		{"ListQueriesFiltersByTeamID", testListQueriesFiltersByTeamID},
 		{"ListQueriesFiltersByIsScheduled", testListQueriesFiltersByIsScheduled},
 		{"ListScheduledQueriesForAgents", testListScheduledQueriesForAgents},
+		{"IsSavedQuery", testIsSavedQuery},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -972,4 +974,39 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 		})
 		test.QueryElementsMatch(t, result, []*fleet.Query{q14, q15, q16, q17}, i)
 	}
+}
+
+func testIsSavedQuery(t *testing.T, ds *Datastore) {
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+
+	// NOT saved query
+	query := &fleet.Query{
+		Name:     "foo",
+		Query:    "bar",
+		AuthorID: &user.ID,
+		Logging:  fleet.LoggingSnapshot,
+		Saved:    false,
+	}
+	query, err := ds.NewQuery(context.Background(), query)
+	isSaved, err := ds.IsSavedQuery(context.Background(), query.ID)
+	require.NoError(t, err)
+	assert.False(t, isSaved)
+
+	// Saved query
+	query = &fleet.Query{
+		Name:     "foo2",
+		Query:    "bar",
+		AuthorID: &user.ID,
+		Logging:  fleet.LoggingSnapshot,
+		Saved:    true,
+	}
+	query, err = ds.NewQuery(context.Background(), query)
+	isSaved, err = ds.IsSavedQuery(context.Background(), query.ID)
+	require.NoError(t, err)
+	assert.True(t, isSaved)
+
+	// error case
+	isSaved, err = ds.IsSavedQuery(context.Background(), math.MaxUint)
+	require.Error(t, err)
+
 }

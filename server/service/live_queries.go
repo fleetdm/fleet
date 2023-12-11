@@ -150,7 +150,9 @@ func (svc *Service) RunLiveQueryDeadline(
 						if perfStatsTracker.saveStats && res.Stats != nil {
 							perfStatsTracker.stats = append(
 								perfStatsTracker.stats,
-								statsToSave{hostID: res.Host.ID, Stats: res.Stats, outputSize: calculateOutputSize(perfStatsTracker, res)},
+								statsToSave{
+									hostID: res.Host.ID, Stats: res.Stats, outputSize: calculateOutputSize(&perfStatsTracker, &res),
+								},
 							)
 							if len(perfStatsTracker.stats) >= statsBatchSize {
 								svc.updateStats(ctx, campaign.QueryID, svc.logger, &perfStatsTracker, false)

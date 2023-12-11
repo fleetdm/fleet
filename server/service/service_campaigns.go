@@ -195,7 +195,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			switch res := res.(type) {
 			case fleet.DistributedQueryResult:
 				// Calculate result size for performance stats
-				outputSize := calculateOutputSize(perfStatsTracker, res)
+				outputSize := calculateOutputSize(&perfStatsTracker, &res)
 				mapHostnameRows(&res)
 				err = conn.WriteJSONMessage("result", res)
 				if perfStatsTracker.saveStats && res.Stats != nil {
@@ -243,7 +243,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	}
 }
 
-func calculateOutputSize(perfStatsTracker statsTracker, res fleet.DistributedQueryResult) uint64 {
+func calculateOutputSize(perfStatsTracker *statsTracker, res *fleet.DistributedQueryResult) uint64 {
 	outputSize := uint64(0)
 	if perfStatsTracker.saveStats {
 		for _, row := range res.Rows {
