@@ -428,7 +428,10 @@ func MapQueryReportResultsToRows(rows []*ScheduledQueryResultRow) ([]HostQueryRe
 	var results []HostQueryResultRow
 	for _, row := range rows {
 		var columns map[string]string
-		if err := json.Unmarshal(row.Data, &columns); err != nil {
+		if row.Data == nil {
+			continue
+		}
+		if err := json.Unmarshal(*row.Data, &columns); err != nil {
 			return nil, err
 		}
 		results = append(results, HostQueryResultRow{
@@ -455,6 +458,12 @@ type HostQueryResultRow struct {
 	Columns map[string]string `json:"columns"`
 }
 
+type HostQueryReportResult struct {
+	// Columns contains the key-value pairs of a result row.
+	// The map key is the name of the column, and the map value is the value.
+	Columns map[string]string `json:"columns"`
+}
+
 // ScheduledQueryResult holds results of a scheduled query received from a osquery agent.
 type ScheduledQueryResult struct {
 	// QueryName is the name of the query.
@@ -463,7 +472,7 @@ type ScheduledQueryResult struct {
 	OsqueryHostID string `json:"hostIdentifier"`
 	// Snapshot holds the result rows. It's an array of maps, where the map keys
 	// are column names and map values are the values.
-	Snapshot []json.RawMessage `json:"snapshot"`
+	Snapshot []*json.RawMessage `json:"snapshot"`
 	// LastFetched is the time this result was received.
 	UnixTime uint `json:"unixTime"`
 }
@@ -484,7 +493,7 @@ type ScheduledQueryResultRow struct {
 	HardwareSerial sql.NullString `db:"hardware_serial"`
 	// Data holds a single result row. It holds a map where the map keys
 	// are column names and map values are the values.
-	Data json.RawMessage `db:"data"`
+	Data *json.RawMessage `db:"data"`
 	// LastFetched is the time this result was received.
 	LastFetched time.Time `db:"last_fetched"`
 }
