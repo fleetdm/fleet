@@ -397,7 +397,7 @@ agent_options:
 
 ## Scripts execution timeout
 
-The `scripts_timeout` key allows you to configure different timeout. The maximum allowed timeout is `300` seconds. 
+The `scripts_timeout` key allows you to configure execution timeout. The maximum allowed timeout is `300` seconds.  If the load balancer timeout is reached before the server timeout, the load balancer will terminate the connection and return an error to the client.
 
 - Default: `30` seconds
 
