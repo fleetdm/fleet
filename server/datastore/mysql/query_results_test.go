@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ func TestQueryResults(t *testing.T) {
 		{"Overwrite", testOverwriteQueryResultRows},
 		{"MaxRows", testQueryResultRowsDoNotExceedMaxRows},
 		{"QueryResultRows", testQueryResultRows},
+		{"QueryResultRowsFilter", testQueryResultRowsTeamFilter},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -158,6 +160,108 @@ func testGetQueryResultRowsForHost(t *testing.T, ds *Datastore) {
 	require.Equal(t, host2ResultRows[0].HostID, results[0].HostID)
 	require.Equal(t, host2ResultRows[0].LastFetched.Unix(), results[0].LastFetched.Unix())
 	require.JSONEq(t, string(*host2ResultRows[0].Data), string(*results[0].Data))
+}
+
+func testQueryResultRowsTeamFilter(t *testing.T, ds *Datastore) {
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "teamFoo",
+	})
+	require.NoError(t, err)
+	observerTeam, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "observerTeam",
+	})
+	require.NoError(t, err)
+
+	teamUser, err := ds.NewUser(context.Background(), &fleet.User{
+		Password:   []byte("foo"),
+		Salt:       "bar",
+		Name:       "teamUser",
+		Email:      "teamUser@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team,
+				Role: fleet.RoleAdmin,
+			},
+			{
+				Team: *observerTeam,
+				Role: fleet.RoleObserver,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	query := test.NewQuery(t, ds, nil, "New Query", "SELECT 1", teamUser.ID, true)
+	globalHost := test.NewHost(t, ds, "globalHost", "192.168.1.100", "1111", "UI8XB1223", time.Now())
+	teamHost := test.NewHost(t, ds, "teamHost", "192.168.1.100", "2222", "UI8XB1223", time.Now())
+	err = ds.AddHostsToTeam(context.Background(), &team.ID, []uint{teamHost.ID})
+	require.NoError(t, err)
+	observerTeamHost := test.NewHost(t, ds, "teamHost", "192.168.1.100", "3333", "UI8XB1223", time.Now())
+	err = ds.AddHostsToTeam(context.Background(), &observerTeam.ID, []uint{observerTeamHost.ID})
+	require.NoError(t, err)
+
+	mockTime := time.Now().UTC().Truncate(time.Second)
+
+	globalRow := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     query.ID,
+			HostID:      globalHost.ID,
+			LastFetched: mockTime,
+			Data: ptr.RawMessage(json.RawMessage(`{
+				"model": "Global USB Keyboard",
+				"vendor": "Global Inc."
+			}`)),
+		},
+	}
+
+	err = ds.OverwriteQueryResultRows(context.Background(), globalRow)
+	require.NoError(t, err)
+
+	teamRow := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     query.ID,
+			HostID:      teamHost.ID,
+			LastFetched: mockTime,
+			Data: ptr.RawMessage(json.RawMessage(`{
+				"model": "Team USB Keyboard",
+				"vendor": "Team Inc."
+			}`)),
+		},
+	}
+	err = ds.OverwriteQueryResultRows(context.Background(), teamRow)
+	require.NoError(t, err)
+
+	observerTeamRow := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     query.ID,
+			HostID:      observerTeamHost.ID,
+			LastFetched: mockTime,
+			Data: ptr.RawMessage(json.RawMessage(`{
+				"model": "Team USB Keyboard",
+				"vendor": "Team Inc."
+			}`)),
+		},
+	}
+	err = ds.OverwriteQueryResultRows(context.Background(), observerTeamRow)
+	require.NoError(t, err)
+
+	filter := fleet.TeamFilter{
+		User:            teamUser,
+		IncludeObserver: true,
+	}
+
+	results, err := ds.QueryResultRows(context.Background(), query.ID, filter)
+	require.NoError(t, err)
+
+	require.Len(t, results, 2)
+	require.Equal(t, teamRow[0].HostID, results[0].HostID)
+	require.Equal(t, teamRow[0].QueryID, results[0].QueryID)
+	require.Equal(t, teamRow[0].LastFetched, results[0].LastFetched)
+	require.JSONEq(t, string(*teamRow[0].Data), string(*results[0].Data))
+	require.Equal(t, observerTeamRow[0].HostID, results[1].HostID)
+	require.Equal(t, observerTeamRow[0].QueryID, results[1].QueryID)
+	require.Equal(t, observerTeamRow[0].LastFetched, results[1].LastFetched)
+	require.JSONEq(t, string(*observerTeamRow[0].Data), string(*results[1].Data))
 }
 
 func testCountResultsForQuery(t *testing.T, ds *Datastore) {
@@ -517,8 +621,10 @@ func testQueryResultRows(t *testing.T, ds *Datastore) {
 	err := ds.OverwriteQueryResultRows(context.Background(), overwriteRows)
 	require.NoError(t, err)
 
+	filter := fleet.TeamFilter{User: user, IncludeObserver: true}
+
 	// Test calling QueryResultRows with a query that has an entry with a host that doesn't exist anymore.
-	results, err := ds.QueryResultRows(context.Background(), query.ID)
+	results, err := ds.QueryResultRows(context.Background(), query.ID, filter)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 }

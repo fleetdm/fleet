@@ -9,6 +9,7 @@ import SearchField from "components/forms/fields/SearchField";
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
+import { COLORS } from "styles/var/colors";
 
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
@@ -32,7 +33,7 @@ interface IRowProps extends Row {
 }
 
 interface ITableContainerProps {
-  columns: any; // TODO: Figure out type
+  columnConfigs: any; // TODO: Figure out type
   data: any; // TODO: Figure out type
   isLoading: boolean;
   manualSortBy?: boolean;
@@ -99,7 +100,7 @@ const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PAGE_INDEX = 0;
 
 const TableContainer = ({
-  columns,
+  columnConfigs,
   data,
   filters,
   isLoading,
@@ -367,7 +368,7 @@ const TableContainer = ({
                 </div>
                 <ReactTooltip
                   effect="solid"
-                  backgroundColor="#3e4771"
+                  backgroundColor={COLORS["tooltip-bg"]}
                   id="search-tooltip"
                   data-html
                 >
@@ -415,7 +416,7 @@ const TableContainer = ({
             >
               <DataTable
                 isLoading={isLoading}
-                columns={columns}
+                columns={columnConfigs}
                 data={data}
                 filters={filters}
                 manualSortBy={manualSortBy}

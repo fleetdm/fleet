@@ -166,7 +166,13 @@ func (svc *Service) GetQueryReportResults(ctx context.Context, id uint) ([]fleet
 		return nil, err
 	}
 
-	queryReportResultRows, err := svc.ds.QueryResultRows(ctx, id)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+
+	queryReportResultRows, err := svc.ds.QueryResultRows(ctx, id, filter)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get query report results")
 	}

@@ -1701,14 +1701,9 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 		return &teamNumber, parts[2], nil
 	}
 
-	// For pattern: pack/PackName/Query (legacy pack)
-	if strings.HasPrefix(path, "pack/") {
-		parts := strings.SplitN(path, "/", 3)
-		if len(parts) != 3 {
-			return nil, "", fmt.Errorf("unknown format: %q", path)
-		}
-		return nil, parts[2], nil
-	}
+	// 2017/legacy packs with the format "pack/<Pack name>/<Query name> are
+	// considered unknown format (they are not considered global or team
+	// scheduled queries).
 
 	// If none of the above patterns match, return error
 	return nil, "", fmt.Errorf("unknown format: %q", path)

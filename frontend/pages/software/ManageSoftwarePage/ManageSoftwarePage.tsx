@@ -11,7 +11,6 @@ import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
 import { isEmpty, isEqual } from "lodash";
-// import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -48,7 +47,6 @@ import TableDataError from "components/DataError";
 import Dropdown from "components/forms/fields/Dropdown";
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
-import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TeamsDropdown from "components/TeamsDropdown";
@@ -91,7 +89,7 @@ interface ISoftwareAutomations {
   };
 }
 
-interface IRowProps extends Row {
+interface ISoftwareRowProps extends Row {
   original: {
     id?: number;
   };
@@ -593,7 +591,7 @@ const ManageSoftwarePage = ({
       ),
     [isPremiumTier, isSandboxMode, router, currentTeamId]
   );
-  const handleRowSelect = (row: IRowProps) => {
+  const onSelectSingleRow = (row: ISoftwareRowProps) => {
     const hostsBySoftwareParams = {
       software_id: row.original.id,
       team_id: currentTeamId,
@@ -623,7 +621,7 @@ const ManageSoftwarePage = ({
     }
     return (
       <TableContainer
-        columns={softwareTableHeaders}
+        columnConfigs={softwareTableHeaders}
         data={(isSoftwareEnabled && software?.software) || []}
         isLoading={
           isFetchingCount ||
@@ -631,7 +629,7 @@ const ManageSoftwarePage = ({
           !globalConfig ||
           (!softwareConfig && !softwareConfigError)
         }
-        resultsTitle={"software items"}
+        resultsTitle="software items"
         emptyComponent={() => (
           <EmptySoftwareTable
             isSoftwareDisabled={!isSoftwareEnabled}
@@ -650,11 +648,8 @@ const ManageSoftwarePage = ({
         pageSize={DEFAULT_PAGE_SIZE}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        resetPageIndex={resetPageIndex}
         disableNextPage={isLastPage}
-        searchable={searchable}
         inputPlaceHolder="Search by name or vulnerabilities (CVEs)"
-        onQueryChange={onQueryChange}
         additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
         // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
         // the TableContainer
@@ -663,7 +658,7 @@ const ManageSoftwarePage = ({
         renderCount={renderSoftwareCount}
         renderFooter={renderTableFooter}
         disableMultiRowSelect
-        onSelectSingleRow={handleRowSelect}
+        {...{ resetPageIndex, searchable, onQueryChange, onSelectSingleRow }}
       />
     );
   };
@@ -709,15 +704,17 @@ const ManageSoftwarePage = ({
         {showManageAutomationsModal && (
           <ManageAutomationsModal
             onCancel={toggleManageAutomationsModal}
-            onCreateWebhookSubmit={onCreateWebhookSubmit}
-            togglePreviewPayloadModal={togglePreviewPayloadModal}
-            togglePreviewTicketModal={togglePreviewTicketModal}
-            showPreviewPayloadModal={showPreviewPayloadModal}
-            showPreviewTicketModal={showPreviewTicketModal}
             softwareVulnerabilityAutomationEnabled={isAnyVulnAutomationEnabled}
             softwareVulnerabilityWebhookEnabled={isVulnWebhookEnabled}
             currentDestinationUrl={vulnWebhookSettings?.destination_url || ""}
-            recentVulnerabilityMaxAge={recentVulnerabilityMaxAge}
+            {...{
+              onCreateWebhookSubmit,
+              togglePreviewPayloadModal,
+              togglePreviewTicketModal,
+              showPreviewPayloadModal,
+              showPreviewTicketModal,
+              recentVulnerabilityMaxAge,
+            }}
           />
         )}
       </div>

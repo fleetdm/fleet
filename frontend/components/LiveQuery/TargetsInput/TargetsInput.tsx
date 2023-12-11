@@ -63,7 +63,7 @@ const TargetsInput = ({
         {isActiveSearch && (
           <div className={`${baseClass}__hosts-search-dropdown`}>
             <TableContainer
-              columns={resultsDropdownTableHeaders}
+              columnConfigs={resultsDropdownTableHeaders}
               data={dropdownHosts}
               isLoading={isTargetsLoading}
               resultsTitle=""
@@ -94,7 +94,7 @@ const TargetsInput = ({
         )}
         <div className={`${baseClass}__hosts-selected-table`}>
           <TableContainer
-            columns={selectedTableHeaders}
+            columnConfigs={selectedTableHeaders}
             data={targetedHosts}
             isLoading={false}
             resultsTitle=""

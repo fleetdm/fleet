@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -88,15 +89,15 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 // TODO(lucas): Any chance we can store hostname in the query_results table?
 // (to avoid having to left join hosts).
 // QueryResultRows returns the query result rows for a given query
-// excluding rows with null data
-func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint) ([]*fleet.ScheduledQueryResultRow, error) {
-	selectStmt := `
+func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter fleet.TeamFilter) ([]*fleet.ScheduledQueryResultRow, error) {
+	selectStmt := fmt.Sprintf(`
 		SELECT qr.query_id, qr.host_id, qr.last_fetched, qr.data,
 			h.hostname, h.computer_name, h.hardware_model, h.hardware_serial
 			FROM query_results qr
 			LEFT JOIN hosts h ON (qr.host_id=h.id)
-			WHERE query_id = ? AND data IS NOT NULL
-		`
+			WHERE query_id = ? AND data IS NOT NULL AND %s
+		`, ds.whereFilterHostsByTeams(filter, "h"))
+
 	results := []*fleet.ScheduledQueryResultRow{}
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID)
 	if err != nil {

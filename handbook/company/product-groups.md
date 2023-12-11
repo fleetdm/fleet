@@ -218,7 +218,7 @@ Anyone in the product group can initiate an air guitar session.
 
 5. Document: Summarize the learnings, decisions, and next steps in the user story issue.
 
-6. Decide: Bring the issue to a design review to determine an outcome:
+6. Decide: Assign the issue to the Head of Product Design to determine an outcome:
   1. Move forward with the formal drafting process leading to engineering.
   2. Keep it open for future consideration.
   3. Discard if it is invalidated through the process.

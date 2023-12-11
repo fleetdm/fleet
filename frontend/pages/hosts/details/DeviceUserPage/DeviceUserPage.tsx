@@ -23,8 +23,9 @@ import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
 import Icon from "components/Icon/Icon";
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -309,7 +310,7 @@ const DeviceUserPage = ({
     // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
     document.title = `My device ${hostTab()} details | ${
       host?.display_name || "Unknown host"
-    } | Fleet for osquery`;
+    } | ${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, host]);
 
   const renderActionButtons = () => {
