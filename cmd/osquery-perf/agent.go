@@ -1027,10 +1027,9 @@ func (a *agent) softwareMacOS() []map[string]string {
 		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
-		version := fmt.Sprintf("1.1.%d", rand.Int31n(3))
 		uniqueSoftware[i] = map[string]string{
 			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
-			"version":           version,
+			"version":           "1.1.1",
 			"bundle_identifier": "com.fleetdm.osquery-perf",
 			"source":            "osquery-perf",
 			"last_opened_at":    lastOpenedAt,
