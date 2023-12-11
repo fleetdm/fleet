@@ -1,2 +1,3 @@
 Live Queries now collect stats. Stats are collected for saved queries present in the Queries tab.
 - After running a live query, user will see updated stats in Queries tab.
+- Query stats on Host Details page will no longer be cleared after host/agent reboots.
