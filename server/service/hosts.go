@@ -484,6 +484,34 @@ func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error 
 	return nil
 }
 
+// //////////////////////////////////////////////////////////////////////////////
+// Get Host Lite
+// //////////////////////////////////////////////////////////////////////////////
+func (svc *Service) GetHostLite(ctx context.Context, id uint) (*fleet.Host, error) {
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
+	if !alreadyAuthd {
+		// First ensure the user has access to list hosts, then check the specific
+		// host once team_id is loaded.
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return nil, err
+		}
+	}
+
+	host, err := svc.ds.HostLite(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host lite")
+	}
+
+	if !alreadyAuthd {
+		// Authorize again with team loaded now that we have team_id
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return nil, err
+		}
+	}
+
+	return host, nil
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Get Host Summary
 ////////////////////////////////////////////////////////////////////////////////
@@ -1067,7 +1095,7 @@ func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fl
 	req := request.(*getHostQueryReportRequest)
 
 	// Need to return hostname in response even if there are no report results
-	host, err := svc.GetHost(ctx, req.ID, fleet.HostDetailOptions{})
+	host, err := svc.GetHostLite(ctx, req.ID)
 	if err != nil {
 		return getHostQueryReportResponse{Err: err}, nil
 	}
