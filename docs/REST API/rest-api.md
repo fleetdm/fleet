@@ -3028,15 +3028,26 @@ Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery mana
 
 `POST /api/v1/fleet/hosts/1/device_mapping`
 
+Updates the email for the `custom` data source in the human-device mapping.
+
 #### Parameters
 
 | Name       | Type              | In   | Description                                                                   |
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
 | id         | integer           | path | **Required**. The host's `id`.                                                |
+| email      | string            | body | **Required**. The custom email.                                               |
 
 #### Example
 
 `POST /api/v1/fleet/hosts/1/device_mapping`
+
+##### Request body
+
+```json
+{
+  "email": "user@example.com"
+}
+```
 
 ##### Default response
 
