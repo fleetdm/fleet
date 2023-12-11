@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"strings"
 )
@@ -346,6 +347,16 @@ func (ds *Datastore) DeleteQuery(ctx context.Context, teamID *uint, name string)
 		return ctxerr.Wrap(ctx, notFound("queries").WithName(name))
 	}
 
+	// Delete any associated stats asynchronously.
+	ctxWithoutCancel := context.WithoutCancel(ctx)
+	go func() {
+		stmt := "DELETE FROM scheduled_query_stats WHERE scheduled_query_id = ?"
+		_, err := ds.writer(ctxWithoutCancel).ExecContext(ctxWithoutCancel, stmt, queryID)
+		if err != nil {
+			level.Error(ds.logger).Log("msg", "error deleting query stats", "err", err)
+		}
+	}()
+
 	// Opportunistically delete associated query_results.
 	//
 	// TODO(lucas): We should run this on a transaction but we found
@@ -364,6 +375,21 @@ func (ds *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error
 	if err != nil {
 		return deleted, err
 	}
+
+	// Delete any associated stats asynchronously.
+	ctxWithoutCancel := context.WithoutCancel(ctx)
+	go func() {
+		stmt := "DELETE FROM scheduled_query_stats WHERE scheduled_query_id IN (?)"
+		stmt, args, err := sqlx.In(stmt, ids)
+		if err != nil {
+			level.Error(ds.logger).Log("msg", "error creating delete query statement", "err", err)
+			return
+		}
+		_, err = ds.writer(ctxWithoutCancel).ExecContext(ctxWithoutCancel, stmt, args...)
+		if err != nil {
+			level.Error(ds.logger).Log("msg", "error deleting multiple query stats", "err", err)
+		}
+	}()
 
 	// Opportunistically delete associated query_results.
 	//

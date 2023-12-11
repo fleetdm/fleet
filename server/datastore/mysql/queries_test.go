@@ -164,6 +164,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 func testQueriesDelete(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
+	hostID := uint(1)
 	query := &fleet.Query{
 		Name:     "foo",
 		Query:    "bar",
@@ -174,6 +175,14 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, query)
 	assert.NotEqual(t, query.ID, 0)
+	err = ds.UpdateLiveQueryStats(
+		context.Background(), query.ID, []*fleet.LiveQueryStats{
+			&fleet.LiveQueryStats{
+				HostID: hostID,
+			},
+		},
+	)
+	require.NoError(t, err)
 
 	err = ds.DeleteQuery(context.Background(), query.TeamID, query.Name)
 	require.NoError(t, err)
@@ -182,6 +191,13 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	_, err = ds.Query(context.Background(), query.ID)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+
+	// Ensure stats were deleted.
+	// The actual delete occurs asynchronously, but enough time should have passed
+	// given the above DB access to ensure the original query completed.
+	stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
+	require.NoError(t, err)
+	require.Equal(t, 0, len(stats))
 }
 
 func testQueriesGetByName(t *testing.T, ds *Datastore) {
@@ -232,6 +248,28 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	assert.Len(t, queries, 4)
 
+	// Add query stats
+	hostIDs := []uint{10, 20}
+	err = ds.UpdateLiveQueryStats(
+		context.Background(), q1.ID, []*fleet.LiveQueryStats{
+			{
+				HostID: hostIDs[0],
+			},
+			{
+				HostID: hostIDs[1],
+			},
+		},
+	)
+	require.NoError(t, err)
+	err = ds.UpdateLiveQueryStats(
+		context.Background(), q3.ID, []*fleet.LiveQueryStats{
+			{
+				HostID: hostIDs[0],
+			},
+		},
+	)
+	require.NoError(t, err)
+
 	deleted, err := ds.DeleteQueries(context.Background(), []uint{q1.ID, q3.ID})
 	require.Nil(t, err)
 	assert.Equal(t, uint(2), deleted)
@@ -239,6 +277,15 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 2)
+	// Ensure stats were deleted.
+	// The actual delete occurs asynchronously, but enough time should have passed
+	// given the above DB access to ensure the original query completed.
+	stats, err := ds.GetLiveQueryStats(context.Background(), q1.ID, hostIDs)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(stats))
+	stats, err = ds.GetLiveQueryStats(context.Background(), q3.ID, hostIDs)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(stats))
 
 	deleted, err = ds.DeleteQueries(context.Background(), []uint{q2.ID})
 	require.Nil(t, err)
