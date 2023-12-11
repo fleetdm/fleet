@@ -234,7 +234,7 @@ const SoftwareVersions = ({
   };
 
   if (isSoftwareVersionsError) {
-    return <TableDataError />;
+    return <TableDataError className={`${baseClass}__table-error`} />;
   }
 
   return (

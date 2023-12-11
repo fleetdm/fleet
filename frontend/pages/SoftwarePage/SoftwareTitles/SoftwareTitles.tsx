@@ -235,7 +235,7 @@ const SoftwareTitles = ({
   };
 
   if (isSoftwareError) {
-    return <TableDataError />;
+    return <TableDataError className={`${baseClass}__table-error`} />;
   }
 
   return (
