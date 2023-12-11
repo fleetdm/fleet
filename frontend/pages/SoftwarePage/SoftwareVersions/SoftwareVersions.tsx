@@ -14,6 +14,7 @@ import {
   VULNERABLE_DROPDOWN_OPTIONS,
 } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
+import { buildQueryStringFromParams } from "utilities/url";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -135,20 +136,16 @@ const SoftwareVersions = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    // const hostsBySoftwareParams = {
-    //   software_id: row.original.id,
-    //   team_id: teamId,
-    // };
+    const hostsBySoftwareParams = {
+      software_version_id: row.original.id,
+      team_id: teamId,
+    };
 
-    // const path = hostsBySoftwareParams
-    //   ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-    //       hostsBySoftwareParams
-    //     )}`
-    //   : PATHS.MANAGE_HOSTS;
+    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
+      hostsBySoftwareParams
+    )}`;
 
-    // router.push(path);
-    // TODO: navigation to software details page.
-    console.log("selectedRow", row.id);
+    router.push(path);
   };
 
   const generateNewQueryParams = useCallback(
