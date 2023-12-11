@@ -1800,6 +1800,7 @@ None.
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
 - [Bulk delete hosts by filter or ids](#bulk-delete-hosts-by-filter-or-ids)
 - [Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles)
+- [Get host's software](#get-hosts-software)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's macadmin mobile device management (MDM) and Munki information](#get-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
@@ -2215,11 +2216,7 @@ Returns the information of the specified host.
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
         "vulnerabilities": null,
-        "installed_paths": ["/usr/lib/some-path-2"],
-        "software_status": {
-	        "status": "installed",
-	        detail: ""
-        }
+        "installed_paths": ["/usr/lib/some-path-2"]
       }
     ],
     "id": 1,
@@ -2664,11 +2661,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
-        "vulnerabilities": null,
-        "software_status": {
-	        "status": "installed",
-	        detail: ""
-        }
+        "vulnerabilities": null
       }
     ],
     "id": 1,
@@ -3002,6 +2995,48 @@ Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery mana
     {
       "email": "user@example.com",
       "source": "google_chrome_profiles"
+    }
+  ]
+}
+```
+---
+
+### Get host's software
+
+Retrieves a host's software.
+
+`GET /api/v1/fleet/hosts/:id/software`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id         | integer           | path | **Required**. The host's `id`.                                                |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/1/software`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software": [
+    {
+      "id": 123,
+      "name": "Google Chrome.app"
+      "versions": ["121.0"]
+      "source": "apps"
+      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+    },
+    {
+      "id": 127,
+      "name": "Firefox.app"
+      "versions": ["118.0, 119.0"]
+      "source": "apps"
+      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
     }
   ]
 }
@@ -7217,7 +7252,7 @@ Get a list of all software versions.
 
 Returns the information of the specified software title. By default `versions` are sorted in descending order by the `hosts_count` field.
 
-`GET /api/v1/fleet/software/titles/{id}`
+`GET /api/v1/fleet/software/titles/:id`
 
 #### Example
 
@@ -7234,17 +7269,36 @@ Returns the information of the specified software title. By default `versions` a
     "title": "Firefox.app",
     "source": "apps",
     "hosts_count": 48,
-    "managed": true,
-    "installer": {
-      "file_name": "Firefox 120.0.dmg",
-      "version": "120.0",
-      "uploaded_at": "2023-08-12T15:20:00Z",
-      "status": {
-        "installed": 3,
-        "pending": 2,
-        "failed": 3
+    "managed": [
+      {
+        "file_name": "ZoomInstallFull.pkg",
+        "version": "116.0",
+        "uploaded_at": "2023-08-12T15:20:00Z",
+        "team": {
+          "id": 2,
+          "name": "Workstations"
+        },
+        "status": {
+          "installed": 10,
+          "pending": 0,
+          "failed": 3
+        }
+      },
+      {
+        "file_name": "ZoomInstallFull.pkg",
+        "version": "117.5",
+        "uploaded_at": "2023-10-12T15:32:00Z",
+        "team": {
+          "id": 1,
+          "name": "Test team"
+        },
+        "status": {
+          "installed": 2,
+          "pending": 0,
+          "failed": 0
+        }
       }
-    }
+    ],
     "versions": [ 
       {
         "id": 123,
