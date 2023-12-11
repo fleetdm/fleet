@@ -2,8 +2,12 @@ import React, { useMemo } from "react";
 import { InjectedRouter } from "react-router";
 
 import { ISoftwareTitleVersion } from "interfaces/software";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
+import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import TableContainer from "components/TableContainer";
+import EmptyTable from "components/EmptyTable";
+import CustomLink from "components/CustomLink";
 
 import generateSoftwareTitleDetailsTableConfig from "./SoftwareTitleDetailsTableConfig";
 
@@ -11,6 +15,24 @@ const DEFAULT_SORT_HEADER = "hosts_count";
 const DEFAULT_SORT_DIRECTION = "desc";
 
 const baseClass = "software-title-details-table";
+
+const NoVersionsDetected = (): JSX.Element => {
+  return (
+    <EmptyTable
+      header="No versions detected for this software item."
+      info={
+        <>
+          Expecting to see versions?{" "}
+          <CustomLink
+            url={GITHUB_NEW_ISSUE_LINK}
+            text="File an issue on GitHub"
+            newTab
+          />
+        </>
+      }
+    />
+  );
+};
 
 interface ISoftwareTitleDetailsTableProps {
   router: InjectedRouter;
@@ -35,7 +57,7 @@ const SoftwareTitleDetailsTable = ({
       columns={softwareTableHeaders}
       data={data}
       isLoading={isLoading}
-      emptyComponent={() => <p>nothing</p>} // TODO: add empty component
+      emptyComponent={NoVersionsDetected}
       showMarkAllPages={false}
       isAllPagesSelected={false}
       defaultSortHeader={DEFAULT_SORT_HEADER}

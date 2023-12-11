@@ -5,7 +5,7 @@ import { Row } from "react-table";
 
 import PATHS from "router/paths";
 import softwareAPI, {
-  ISoftwareQueryKey,
+  ISoftwareApiParams,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
 import { AppContext } from "context/app";
@@ -33,6 +33,10 @@ interface IRowProps extends Row {
   original: {
     id?: number;
   };
+}
+
+interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
+  scope: "software-versions";
 }
 
 interface ISoftwareVersionsProps {
@@ -71,11 +75,11 @@ const SoftwareVersions = ({
     ISoftwareVersionsResponse,
     Error,
     ISoftwareVersionsResponse,
-    ISoftwareQueryKey[]
+    ISoftwareVersionsQueryKey[]
   >(
     [
       {
-        scope: "software",
+        scope: "software-versions",
         page: currentPage,
         perPage,
         query,

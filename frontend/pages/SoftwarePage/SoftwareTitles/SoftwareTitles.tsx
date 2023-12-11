@@ -14,6 +14,7 @@ import {
   VULNERABLE_DROPDOWN_OPTIONS,
 } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
+import { buildQueryStringFromParams } from "utilities/url";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -36,8 +37,9 @@ interface IRowProps extends Row {
 }
 
 interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
-  scope: "software-title";
+  scope: "software-titles";
 }
+
 interface ISoftwareTitlesProps {
   router: InjectedRouter;
   isSoftwareEnabled: boolean;
@@ -78,7 +80,7 @@ const SoftwareTitles = ({
   >(
     [
       {
-        scope: "software-title",
+        scope: "software-titles",
         page: currentPage,
         perPage,
         query,
@@ -88,10 +90,7 @@ const SoftwareTitles = ({
         vulnerable: showVulnerableSoftware,
       },
     ],
-    ({ queryKey }) => {
-      console.log("Query key:", queryKey);
-      return softwareAPI.getSoftwareTitles(queryKey[0]);
-    },
+    ({ queryKey }) => softwareAPI.getSoftwareTitles(queryKey[0]),
     {
       // stale time can be adjusted if fresher data is desired based on
       // software inventory interval
@@ -134,20 +133,16 @@ const SoftwareTitles = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    // const hostsBySoftwareParams = {
-    //   software_id: row.original.id,
-    //   team_id: teamId,
-    // };
+    const hostsBySoftwareParams = {
+      software_title_id: row.original.id,
+      team_id: teamId,
+    };
 
-    // const path = hostsBySoftwareParams
-    //   ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-    //       hostsBySoftwareParams
-    //     )}`
-    //   : PATHS.MANAGE_HOSTS;
+    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
+      hostsBySoftwareParams
+    )}`;
 
-    // router.push(path);
-    // TODO: navigation to software details page.
-    console.log("selectedRow", row.id);
+    router.push(path);
   };
 
   const determineQueryParamChange = useCallback(

@@ -298,24 +298,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     );
   };
 
-  console.log(
-    "Software Page params",
-    "query:",
-    query,
-    "DEFAULT_PAGE_SIZE:",
-    DEFAULT_PAGE_SIZE,
-    "sortDirection:",
-    sortDirection,
-    "sortHeader:",
-    sortHeader,
-    "showVulnerableSoftware:",
-    showVulnerableSoftware,
-    "page:",
-    page,
-    "teamIdForApi:",
-    teamIdForApi
-  );
-
   const renderBody = () => {
     return (
       <div>
