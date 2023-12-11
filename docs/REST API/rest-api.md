@@ -7155,7 +7155,7 @@ Get a list of all software versions.
 
 Returns information about the specified software title. By default, `versions` are sorted in descending order by the `hosts_count` field.
 
-`GET /api/v1/fleet/software/titles/{id}`
+`GET /api/v1/fleet/software/titles/:id`
 
 #### Example
 
