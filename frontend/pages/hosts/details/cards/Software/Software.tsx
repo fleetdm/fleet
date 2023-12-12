@@ -13,7 +13,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import EmptySoftwareTable from "pages/software/components/EmptySoftwareTable";
+import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import { getNextLocationPath } from "utilities/helpers";
 
 import SoftwareVulnCount from "./SoftwareVulnCount";

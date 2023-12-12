@@ -94,7 +94,15 @@ export default {
     return `/${API_VERSION}/fleet/packs/${packId}/scheduled`;
   },
   SETUP: `/v1/setup`, // not a typo - hasn't been updated yet
+
+  // Software endpoints
   SOFTWARE: `/${API_VERSION}/fleet/software`,
+  SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`,
+  SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
+  SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
+  SOFTWARE_VERSION: (id: number) =>
+    `/${API_VERSION}/fleet/software/versions/${id}`,
+
   SSO: `/v1/fleet/sso`,
   STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,
   STATUS_LIVE_QUERY: `/${API_VERSION}/fleet/status/live_query`,
@@ -129,7 +137,7 @@ export default {
   USERS_ADMIN: `/${API_VERSION}/fleet/users/admin`,
   VERSION: `/${API_VERSION}/fleet/version`,
 
-  // SCRIPTS
+  // Script endpoints
   HOST_SCRIPTS: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/scripts`,
   SCRIPTS: `/${API_VERSION}/fleet/scripts`,
   SCRIPT: (id: number) => `/${API_VERSION}/fleet/scripts/${id}`,

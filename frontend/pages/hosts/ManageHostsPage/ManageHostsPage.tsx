@@ -219,6 +219,14 @@ const ManageHostsPage = ({
     queryParams?.software_id !== undefined
       ? parseInt(queryParams.software_id, 10)
       : undefined;
+  const softwareVersionId =
+    queryParams?.software_version_id !== undefined
+      ? parseInt(queryParams.software_version_id, 10)
+      : undefined;
+  const softwareTitleId =
+    queryParams?.software_title_id !== undefined
+      ? parseInt(queryParams.software_title_id, 10)
+      : undefined;
   const status = isAcceptableStatus(queryParams?.status)
     ? queryParams?.status
     : undefined;
@@ -360,6 +368,8 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        softwareTitleId,
+        softwareVersionId,
         status,
         mdmId,
         mdmEnrollmentStatus,
@@ -400,6 +410,8 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        softwareTitleId,
+        softwareVersionId,
         status,
         mdmId,
         mdmEnrollmentStatus,
@@ -491,7 +503,13 @@ const ManageHostsPage = ({
 
   // TODO: cleanup this effect
   useEffect(() => {
-    if (location.search.includes("software_id")) {
+    if (
+      location.search.match(
+        /software_id|software_version_id|software_title_id/gi
+      )
+    ) {
+      // regex matches any of "software_id", "software_version_id", or "software_title_id"
+      // so we don't set the filtered hosts path in those cases
       return;
     }
     const path = location.pathname + location.search;
@@ -520,6 +538,8 @@ const ManageHostsPage = ({
         "policy_id",
         "policy_response",
         "software_id",
+        "software_version_id",
+        "software_title_id",
       ]);
     }
 
@@ -783,6 +803,10 @@ const ManageHostsPage = ({
         newQueryParams.macos_settings = macSettingsStatus;
       } else if (softwareId) {
         newQueryParams.software_id = softwareId;
+      } else if (softwareVersionId) {
+        newQueryParams.software_version_id = softwareVersionId;
+      } else if (softwareTitleId) {
+        newQueryParams.software_title_id = softwareTitleId;
       } else if (mdmId) {
         newQueryParams.mdm_id = mdmId;
       } else if (mdmEnrollmentStatus) {
@@ -828,6 +852,8 @@ const ManageHostsPage = ({
       policyResponse,
       macSettingsStatus,
       softwareId,
+      softwareVersionId,
+      softwareTitleId,
       mdmId,
       mdmEnrollmentStatus,
       munkiIssueId,
@@ -1244,6 +1270,8 @@ const ManageHostsPage = ({
       policyResponse,
       macSettingsStatus,
       softwareId,
+      softwareTitleId,
+      softwareVersionId,
       status,
       mdmId,
       mdmEnrollmentStatus,
@@ -1557,6 +1585,8 @@ const ManageHostsPage = ({
               policy,
               macSettingsStatus,
               softwareId,
+              softwareTitleId,
+              softwareVersionId,
               mdmId,
               mdmEnrollmentStatus,
               lowDiskSpaceHosts,
@@ -1566,7 +1596,8 @@ const ManageHostsPage = ({
               osVersions,
               munkiIssueId,
               munkiIssueDetails: hostsData?.munki_issue || null,
-              softwareDetails: hostsData?.software || null,
+              softwareDetails:
+                hostsData?.software || hostsData?.software_title || null,
               mdmSolutionDetails:
                 hostsData?.mobile_device_management_solution || null,
               osSettingsStatus,

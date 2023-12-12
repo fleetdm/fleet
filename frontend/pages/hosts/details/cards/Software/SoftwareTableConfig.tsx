@@ -211,12 +211,12 @@ export const generateSoftwareTableHeaders = ({
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
           setFilteredSoftwarePath(pathname);
-          router?.push(PATHS.SOFTWARE_DETAILS(id.toString()));
+          router?.push(PATHS.SOFTWARE_VERSION_DETAILS(id.toString()));
         };
 
         return (
           <LinkCell
-            path={PATHS.SOFTWARE_DETAILS(id.toString())}
+            path={PATHS.SOFTWARE_VERSION_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
             value={name}
             tooltipContent={

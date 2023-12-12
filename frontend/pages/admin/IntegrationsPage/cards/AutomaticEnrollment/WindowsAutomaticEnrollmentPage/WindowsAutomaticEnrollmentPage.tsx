@@ -50,7 +50,7 @@ const WindowsAutomaticEnrollmentPage = () => {
             <CustomLink
               newTab
               text="Sign in to Azure portal"
-              url="portal.azure.com"
+              url="https://fleetdm.com/sign-in-to/microsoft-automatic-enrollment-tool"
             />
           </li>
           <li>

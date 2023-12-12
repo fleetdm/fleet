@@ -95,7 +95,6 @@ const SiteTopNav = ({
     isGlobalMaintainer,
     isAnyTeamMaintainer,
     isNoAccess,
-    isMdmEnabledAndConfigured, // TODO: confirm
     isSandboxMode,
   } = useContext(AppContext);
 
@@ -160,9 +159,6 @@ const SiteTopNav = ({
               {name}
             </span>
           </Link>
-          {/* <div className={`${navItemBaseClass}__link`}>
-            <span className={`${navItemBaseClass}__name`}>{name}</span>
-          </div> */}
         </li>
       );
     }

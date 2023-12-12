@@ -691,6 +691,7 @@ spec:
   versions:
   - id: 0
     version: 0.0.3
+    vulnerabilities: null
   versions_count: 1
 `
 
@@ -741,7 +742,8 @@ spec:
       "versions": [
         {
           "id": 0,
-          "version": "0.0.3"
+          "version": "0.0.3",
+		  "vulnerabilities": null
         }
       ]
     }
