@@ -511,6 +511,7 @@ module.exports.routes = {
   // These are external links not maintained by Fleet. We can point the Fleet UI to redirects here instead of the
   // original sources to help avoid broken links.
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
+  'GET /learn-more-about/just-in-tim-provisioning': 'https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning'
 
   // Sitemap
   // =============================================================================================================
