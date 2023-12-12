@@ -740,12 +740,6 @@ func main() {
 				return orbitClient.SetOrUpdateDeviceToken(token)
 			})
 
-			// ensure the token value is written to the remote server, we might have
-			// a token on disk that wasn't written to the server yet
-			if err := trw.Write(trw.GetCached()); err != nil {
-				return fmt.Errorf("writing token: %w", err)
-			}
-
 			// Note that the deviceClient used by orbit must not define a retry on
 			// invalid token, because its goal is to detect invalid tokens when
 			// making requests with this client.
@@ -760,9 +754,10 @@ func main() {
 				return fmt.Errorf("initializing client: %w", err)
 			}
 
-			// perform an initial check to see if the token
-			// has not been revoked by the server
-			if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
+			// Check if token is not expired and still good.
+			// If not, rotate the token.
+			expired, _ := trw.HasExpired()
+			if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
 				if err := trw.Rotate(); err != nil {
 					return fmt.Errorf("rotating token: %w", err)
 				}
@@ -883,6 +878,8 @@ func main() {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
 		}
 		capabilitiesChecker := newCapabilitiesChecker(checkerClient)
+		// We populate the known capabilities so that the capability checker does not need to do the initial check on startup.
+		checkerClient.GetServerCapabilities().Copy(orbitClient.GetServerCapabilities())
 		g.Add(capabilitiesChecker.actor())
 
 		registerExtensionRunner(
@@ -1273,9 +1270,11 @@ func (f *capabilitiesChecker) execute() error {
 	defer close(f.executeDoneCh)
 	capabilitiesCheckTicker := time.NewTicker(5 * time.Minute)
 
-	// do an initial ping to store the initial capabilities
-	if err := f.client.Ping(); err != nil {
-		logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
+	// Do an initial ping to store the initial capabilities if needed
+	if len(f.client.GetServerCapabilities()) == 0 {
+		if err := f.client.Ping(); err != nil {
+			logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
+		}
 	}
 
 	for {
