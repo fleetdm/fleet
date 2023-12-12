@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/slices"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestSoftware(t *testing.T) {
@@ -39,6 +40,7 @@ func TestSoftware(t *testing.T) {
 		{"HostsByCVE", testHostsByCVE},
 		{"HostVulnSummariesBySoftwareIDs", testHostVulnSummariesBySoftwareIDs},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
+		{"UpdateHostSoftwareDeadlock", testUpdateHostSoftwareDeadlock},
 		{"UpdateHostSoftwareUpdatesSoftware", testUpdateHostSoftwareUpdatesSoftware},
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 		{"ListSoftwareVulnerabilitiesByHostIDsSource", testListSoftwareVulnerabilitiesByHostIDsSource},
@@ -1953,7 +1955,6 @@ func testSoftwareByIDNoDuplicatedVulns(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.LoadHostSoftware(ctx, hostB, false))
 
 		// Add one vulnerability to each software
-		var vulns []fleet.SoftwareVulnerability
 		for i, s := range hostA.Software {
 			inserted, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
 				SoftwareID: s.ID,
@@ -1961,7 +1962,6 @@ func testSoftwareByIDNoDuplicatedVulns(t *testing.T, ds *Datastore) {
 			}, fleet.UbuntuOVALSource)
 			require.NoError(t, err)
 			require.True(t, inserted)
-			vulns = append(vulns)
 		}
 
 		for _, s := range hostA.Software {
@@ -2577,4 +2577,265 @@ func testInsertHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &actual, `SELECT host_id, software_id, installed_path FROM host_software_installed_paths`))
 
 	require.ElementsMatch(t, actual, toInsert)
+}
+
+func TestReconcileSoftwareTitles(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := context.Background()
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
+
+	expectedSoftware := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", Browser: "chrome"},
+		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "baz", Version: "0.0.1", Source: "deb_packages"},
+	}
+
+	software1 := []fleet.Software{expectedSoftware[0], expectedSoftware[2]}
+	software2 := []fleet.Software{expectedSoftware[1], expectedSoftware[2], expectedSoftware[3]}
+	software3 := []fleet.Software{expectedSoftware[4]}
+
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host3.ID, software3)
+	require.NoError(t, err)
+
+	getSoftware := func() ([]fleet.Software, error) {
+		var sw []fleet.Software
+		err := ds.writer(ctx).SelectContext(ctx, &sw, `SELECT * FROM software ORDER BY name, source, browser, version`)
+		if err != nil {
+			return nil, err
+		}
+		return sw, nil
+	}
+
+	getTitles := func() ([]fleet.SoftwareTitle, error) {
+		var swt []fleet.SoftwareTitle
+		err := ds.writer(ctx).SelectContext(ctx, &swt, `SELECT * FROM software_titles ORDER BY name, source, browser`)
+		if err != nil {
+			return nil, err
+		}
+		return swt, nil
+	}
+
+	expectedTitlesByNSB := map[string]fleet.SoftwareTitle{}
+	assertSoftware := func(t *testing.T, wantSoftware []fleet.Software, wantNilTitleID []fleet.Software) {
+		gotSoftware, err := getSoftware()
+		require.NoError(t, err)
+		require.Len(t, gotSoftware, len(wantSoftware))
+
+		byNSBV := map[string]fleet.Software{}
+		for _, s := range wantSoftware {
+			byNSBV[s.Name+s.Source+s.Browser+s.Version] = s
+		}
+
+		for _, r := range gotSoftware {
+			_, ok := byNSBV[r.Name+r.Source+r.Browser+r.Version]
+			require.True(t, ok)
+
+			if r.TitleID == nil {
+				var found bool
+				for _, s := range wantNilTitleID {
+					if s.Name == r.Name && s.Source == r.Source && s.Browser == r.Browser && s.Version == r.Version {
+						found = true
+						break
+					}
+				}
+				require.True(t, found)
+			} else {
+				require.NotNil(t, r.TitleID)
+				swt, ok := expectedTitlesByNSB[r.Name+r.Source+r.Browser]
+				require.True(t, ok)
+				require.NotNil(t, r.TitleID)
+				require.Equal(t, swt.ID, *r.TitleID)
+				require.Equal(t, swt.Name, r.Name)
+				require.Equal(t, swt.Source, r.Source)
+				require.Equal(t, swt.Browser, r.Browser)
+			}
+		}
+	}
+
+	assertTitles := func(t *testing.T, gotTitles []fleet.SoftwareTitle, expectMissing []string) {
+		for _, r := range gotTitles {
+			if len(expectMissing) > 0 {
+				require.NotContains(t, expectMissing, r.Name)
+			}
+			e, ok := expectedTitlesByNSB[r.Name+r.Source+r.Browser]
+			require.True(t, ok)
+			require.Equal(t, e.ID, r.ID)
+			require.Equal(t, e.Name, r.Name)
+			require.Equal(t, e.Source, r.Source)
+			require.Equal(t, e.Browser, r.Browser)
+		}
+	}
+
+	// title_id is initially nil for all software entries
+	assertSoftware(t, expectedSoftware, expectedSoftware)
+
+	// reconcile software titles
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	swt, err := getTitles()
+	require.NoError(t, err)
+	require.Len(t, swt, 4)
+
+	require.Equal(t, swt[0].Name, "bar")
+	require.Equal(t, swt[0].Source, "deb_packages")
+	require.Equal(t, swt[0].Browser, "")
+	expectedTitlesByNSB[swt[0].Name+swt[0].Source+swt[0].Browser] = swt[0]
+
+	require.Equal(t, swt[1].Name, "baz")
+	require.Equal(t, swt[1].Source, "deb_packages")
+	require.Equal(t, swt[1].Browser, "")
+	expectedTitlesByNSB[swt[1].Name+swt[1].Source+swt[1].Browser] = swt[1]
+
+	require.Equal(t, swt[2].Name, "foo")
+	require.Equal(t, swt[2].Source, "chrome_extensions")
+	require.Equal(t, swt[2].Browser, "")
+	expectedTitlesByNSB[swt[2].Name+swt[2].Source+swt[2].Browser] = swt[2]
+
+	require.Equal(t, swt[3].Name, "foo")
+	require.Equal(t, swt[3].Source, "chrome_extensions")
+	require.Equal(t, swt[3].Browser, "chrome")
+	expectedTitlesByNSB[swt[3].Name+swt[3].Source+swt[3].Browser] = swt[3]
+
+	// title_id is now populated for all software entries
+	assertSoftware(t, expectedSoftware, nil)
+
+	// remove the bar software title from host 2
+	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2[:2])
+	require.NoError(t, err)
+	assertSoftware(t, []fleet.Software{expectedSoftware[0], expectedSoftware[1], expectedSoftware[2], expectedSoftware[4]}, nil)
+
+	// bar is no longer associated with any host so the title should be deleted
+	require.NoError(t, ds.ReconcileSoftwareTitles(context.Background()))
+	gotTitles, err := getTitles()
+	require.NoError(t, err)
+	require.Len(t, gotTitles, 3)
+	assertTitles(t, gotTitles, []string{"bar"})
+
+	// add bar to host 3
+	_, err = ds.UpdateHostSoftware(context.Background(), host3.ID, []fleet.Software{expectedSoftware[3], expectedSoftware[4]})
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
+
+	// title_id is initially nil for new software entries
+	assertSoftware(t, expectedSoftware, []fleet.Software{expectedSoftware[3]})
+
+	// bar isn't added back to software titles until we reconcile software titles
+	gotTitles, err = getTitles()
+	require.NoError(t, err)
+	require.Len(t, gotTitles, 3)
+	assertTitles(t, gotTitles, []string{"bar"})
+
+	// reconcile software titles
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	gotTitles, err = getTitles()
+	require.NoError(t, err)
+	require.Len(t, gotTitles, 4)
+
+	// bar was added back to software titles with a new ID
+	require.Equal(t, "bar", gotTitles[0].Name)
+	require.Equal(t, "deb_packages", gotTitles[0].Source)
+	require.NotEqual(t, expectedTitlesByNSB[gotTitles[0].Name+gotTitles[0].Source], gotTitles[0].ID)
+	expectedTitlesByNSB[gotTitles[0].Name+gotTitles[0].Source] = gotTitles[0]
+	assertTitles(t, gotTitles, nil)
+
+	// title_id is now populated for bar
+	assertSoftware(t, expectedSoftware, nil)
+
+	// add a new version of foo to host 3
+	expectedSoftware = append(expectedSoftware, fleet.Software{Name: "foo", Version: "0.0.4", Source: "chrome_extensions"})
+	_, err = ds.UpdateHostSoftware(ctx, host3.ID, expectedSoftware[3:])
+	require.NoError(t, err)
+
+	// title_id is initially nil for new software entries
+	assertSoftware(t, expectedSoftware, []fleet.Software{expectedSoftware[5]})
+
+	// new version of foo doesn't result in a new software title entry
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	gotTitles, err = getTitles()
+	require.NoError(t, err)
+	require.Len(t, gotTitles, 4)
+	assertTitles(t, gotTitles, nil)
+
+	// title_id is now populated for new version of foo
+	assertSoftware(t, expectedSoftware, nil)
+
+	// add a new source of foo to host 3
+	expectedSoftware = append(expectedSoftware, fleet.Software{Name: "foo", Version: "0.0.4", Source: "rpm_packages"})
+	_, err = ds.UpdateHostSoftware(ctx, host3.ID, expectedSoftware[3:])
+	require.NoError(t, err)
+
+	// title_id is initially nil for new software entries
+	assertSoftware(t, expectedSoftware, []fleet.Software{expectedSoftware[6]})
+
+	// new source of foo results in a new software title entry
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	gotTitles, err = getTitles()
+	require.NoError(t, err)
+	require.Len(t, gotTitles, 5)
+	require.Equal(t, "foo", gotTitles[4].Name)
+	require.Equal(t, "rpm_packages", gotTitles[4].Source)
+	require.Equal(t, "", gotTitles[4].Browser)
+	expectedTitlesByNSB[gotTitles[4].Name+gotTitles[4].Source+gotTitles[4].Browser] = gotTitles[4]
+	assertTitles(t, gotTitles, nil)
+
+	// title_id is now populated for new source of foo
+	assertSoftware(t, expectedSoftware, nil)
+}
+
+func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
+	// To increase chance of deadlock increase these numbers.
+	// We are keeping them low to not cause CI issues ("too many connections" errors
+	// due to concurrent tests).
+	const (
+		hostCount   = 10
+		updateCount = 10
+	)
+	ctx := context.Background()
+	var hosts []*fleet.Host
+	for i := 1; i <= hostCount; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			ID:              uint(i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("id-%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("key-%d", i)),
+			Platform:        "linux",
+			Hostname:        fmt.Sprintf("host-%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+	}
+	var g errgroup.Group
+	for _, h := range hosts {
+		hostID := h.ID
+		g.Go(func() error {
+			for i := 0; i < updateCount; i++ {
+				software := []fleet.Software{
+					{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo"},
+					{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar"},
+					{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz"},
+				}
+				removeIdx := rand.Intn(len(software))
+				software = append(software[:removeIdx], software[removeIdx+1:]...)
+				if _, err := ds.UpdateHostSoftware(ctx, hostID, software); err != nil {
+					return err
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			return nil
+		})
+	}
+
+	err := g.Wait()
+	require.NoError(t, err)
 }

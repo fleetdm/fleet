@@ -79,7 +79,7 @@ func TestAppleMDM(t *testing.T) {
 				return err
 			})
 		}
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "http://example.com", depAssignedToFleet, fleet.WellKnownMDMFleet)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "http://example.com", depAssignedToFleet, fleet.WellKnownMDMFleet, "")
 		require.NoError(t, err)
 		return h
 	}

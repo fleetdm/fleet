@@ -438,31 +438,48 @@ var extraDetailQueries = map[string]DetailQuery{
 		Discovery:        discoveryTable("mdm"),
 	},
 	"mdm_windows": {
+		// we get most of the MDM information for Windows from the
+		// `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%`
+		// registry keys. A computer might many different folders under
+		// that path, for different enrollments, so we need to group by
+		// enrollment (key in this case) and try to grab the most
+		// likely candiate to be an MDM solution.
+		//
+		// The best way I have found, is to filter by groups of entries
+		// with an UPN value, and pick the first one.
+		//
+		// An example of a host having more than one entry: when
+		// the `mdm_bridge` table is used, the `mdmlocalmanagement.dll`
+		// registers an MDM with ProviderID = `Local_Management`
+		//
+		// For more information, refer to issue #15362
 		Query: `
-			SELECT * FROM (
-				SELECT "provider_id" AS "key", data as "value" FROM registry
-				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\ProviderID'
-				LIMIT 1
+			WITH registry_keys AS (
+			    SELECT *
+			    FROM registry
+			    WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
+			),
+			enrollment_info AS (
+			    SELECT
+			        MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
+			        MAX(CASE WHEN name = 'IsFederated' THEN data END) AS is_federated,
+			        MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
+			        MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id
+			    FROM registry_keys
+			    GROUP BY key
 			)
-			UNION ALL
-			SELECT * FROM (
-				SELECT "discovery_service_url" AS "key", data as "value" FROM registry
-				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\DiscoveryServiceFullURL'
-				LIMIT 1
-			)
-			UNION ALL
-			SELECT * FROM (
-				SELECT "is_federated" AS "key", data as "value" FROM registry
-				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\IsFederated'
-				LIMIT 1
-			)
-			UNION ALL
-			SELECT * FROM (
-				SELECT "installation_type" AS "key", data as "value" FROM registry
-				WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
-				LIMIT 1
-			)
-			;
+			SELECT
+			    e.is_federated,
+			    e.discovery_service_url,
+			    e.provider_id,
+			    (
+			        SELECT data
+			        FROM registry
+			        WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+			    ) AS installation_type
+			FROM enrollment_info e
+			WHERE e.upn IS NOT NULL
+			LIMIT 1;
 		`,
 		DirectIngestFunc: directIngestMDMWindows,
 		Platforms:        []string{"windows"},
@@ -1064,7 +1081,7 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 			Source: "google_chrome_profiles",
 		})
 	}
-	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
+	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, "google_chrome_profiles")
 }
 
 func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -1160,16 +1177,16 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 		stats := fleet.ScheduledQueryStats{
 			ScheduledQueryName: scheduledName,
 			PackName:           packName,
-			AverageMemory:      cast.ToInt(row["average_memory"]),
+			AverageMemory:      cast.ToUint64(row["average_memory"]),
 			Denylisted:         cast.ToBool(row["denylisted"]),
-			Executions:         cast.ToInt(row["executions"]),
+			Executions:         cast.ToUint64(row["executions"]),
 			Interval:           cast.ToInt(row["interval"]),
 			// Cast to int first to allow cast.ToTime to interpret the unix timestamp.
 			LastExecuted: time.Unix(cast.ToInt64(row["last_executed"]), 0).UTC(),
-			OutputSize:   cast.ToInt(row["output_size"]),
-			SystemTime:   cast.ToInt(row["system_time"]),
-			UserTime:     cast.ToInt(row["user_time"]),
-			WallTime:     cast.ToInt(row["wall_time"]),
+			OutputSize:   cast.ToUint64(row["output_size"]),
+			SystemTime:   cast.ToUint64(row["system_time"]),
+			UserTime:     cast.ToUint64(row["user_time"]),
+			WallTime:     cast.ToUint64(row["wall_time"]),
 		}
 		packs[packName] = append(packs[packName], stats)
 	}
@@ -1424,6 +1441,19 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing server_url")
 	}
+
+	// if the MDM solution is Fleet, we need to extract the enrollment reference from the URL and
+	// upsert host emails based on the MDM IdP account associated with the enrollment reference
+	var fleetEnrollRef string
+	if mdmSolutionName == fleet.WellKnownMDMFleet {
+		fleetEnrollRef = serverURL.Query().Get("enrollment_reference")
+		if fleetEnrollRef != "" {
+			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
+			}
+		}
+	}
+
 	// strip any query parameters from the URL
 	serverURL.RawQuery = ""
 
@@ -1434,6 +1464,7 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		serverURL.String(),
 		installedFromDep,
 		mdmSolutionName,
+		fleetEnrollRef,
 	)
 }
 
@@ -1458,10 +1489,19 @@ func deduceMDMNameWindows(data map[string]string) string {
 }
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	data := make(map[string]string, len(rows))
-	for _, r := range rows {
-		data[r["key"]] = r["value"]
+	if len(rows) != 1 {
+		logger.Log("component", "service", "method", "directIngestMDMWindows", "warn",
+			fmt.Sprintf("mdm expected single result got %d", len(rows)))
+		// assume the extension is not there
+		return nil
 	}
+
+	if len(rows) > 1 {
+		logger.Log("component", "service", "method", "directIngestMDMWindows", "warn",
+			fmt.Sprintf("mdm expected single result got %d", len(rows)))
+	}
+
+	data := rows[0]
 	var enrolled bool
 	var automatic bool
 	serverURL := data["discovery_service_url"]
@@ -1483,6 +1523,7 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 		serverURL,
 		automatic,
 		deduceMDMNameWindows(data),
+		"",
 	)
 }
 

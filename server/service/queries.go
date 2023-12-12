@@ -123,7 +123,7 @@ func onlyShowObserverCanRunQueries(user *fleet.User, teamID *uint) bool {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get query report
+// Query Reports
 ////////////////////////////////////////////////////////////////////////////////
 
 type getQueryReportRequest struct {
@@ -166,7 +166,13 @@ func (svc *Service) GetQueryReportResults(ctx context.Context, id uint) ([]fleet
 		return nil, err
 	}
 
-	queryReportResultRows, err := svc.ds.QueryResultRows(ctx, id)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+
+	queryReportResultRows, err := svc.ds.QueryResultRows(ctx, id, filter)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get query report results")
 	}
@@ -175,6 +181,23 @@ func (svc *Service) GetQueryReportResults(ctx context.Context, id uint) ([]fleet
 		return nil, ctxerr.Wrap(ctx, err, "map db rows to results")
 	}
 	return queryReportResults, nil
+}
+
+func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error) {
+	query, err := svc.ds.Query(ctx, queryID)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return false, ctxerr.Wrap(ctx, err, "get query from datastore")
+	}
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
+		return false, err
+	}
+
+	count, err := svc.ds.ResultCountForQuery(ctx, queryID)
+	if err != nil {
+		return false, err
+	}
+	return count >= fleet.MaxQueryReportRows, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

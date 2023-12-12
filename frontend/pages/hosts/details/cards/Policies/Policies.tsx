@@ -86,7 +86,7 @@ const Policies = ({
             </InfoBanner>
           )}
           <TableContainer
-            columns={tableHeaders}
+            columnConfigs={tableHeaders}
             data={generatePolicyDataSet(policies)}
             isLoading={isLoading}
             defaultSortHeader={"name"}

@@ -3,6 +3,7 @@ import classnames from "classnames";
 import { uniqueId } from "lodash";
 
 import ReactTooltip from "react-tooltip";
+import { COLORS } from "styles/var/colors";
 
 interface IPillCellProps {
   value: { indicator: string; id: number };
@@ -97,7 +98,7 @@ const PillCell = ({
       <ReactTooltip
         place="top"
         effect="solid"
-        backgroundColor="#3e4771"
+        backgroundColor={COLORS["tooltip-bg"]}
         id={`${customIdPrefix || "pill"}__${id?.toString() || tooltipId}`}
         data-html
       >

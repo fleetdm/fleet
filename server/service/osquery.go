@@ -1402,15 +1402,44 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	return submitLogsResponse{Err: err}, nil
 }
 
-func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults []json.RawMessage, queryReportsDisabled bool) (unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
+// preProcessOsqueryResults will attempt to unmarshal `osqueryResults` and will return:
+//   - `unmarshaledResults` with each result unmarshaled to `fleet.ScheduledQueryResult`s, where if an item is `nil` it means the corresponding
+//     `osqueryResults` item could not be unmarshaled.
+//   - queriesDBData has the corresponding DB query to each unmarshalled result in `osqueryResults`.
+//
+// If queryReportsDisabled is true then it returns only t he `unmarshaledResults` without querying the DB.
+func (svc *Service) preProcessOsqueryResults(
+	ctx context.Context,
+	osqueryResults []json.RawMessage,
+	queryReportsDisabled bool,
+) (unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
+
+	lograw := func(raw json.RawMessage) string {
+		logr := raw
+		if len(raw) >= 64 {
+			logr = raw[:64]
+		}
+		return string(logr)
+	}
 
 	for _, raw := range osqueryResults {
 		var result *fleet.ScheduledQueryResult
 		if err := json.Unmarshal(raw, &result); err != nil {
-			level.Error(svc.logger).Log("msg", "unmarshalling result", "err", err)
-			// Note we store a nil item if the result could not be unmarshaled.
+			level.Debug(svc.logger).Log("msg", "unmarshalling result", "err", err, "result", lograw(raw))
+			// Note that if err != nil we have two scenarios:
+			// 	- result == nil: which means the result could not be unmarshalled, e.g. not JSON.
+			//	- result != nil: which means that the result was (partially) unmarshalled but some specific
+			// 	field could not be unmarshalled.
+			//
+			// In both scenarios we want to add `result` to `unmarshaledResults`.
+		} else {
+			// If the unmarshaled result doesn't have a "name" field then we ignore the result.
+			if result != nil && result.QueryName == "" {
+				level.Debug(svc.logger).Log("msg", "missing name field", "result", lograw(raw))
+				result = nil
+			}
 		}
 		unmarshaledResults = append(unmarshaledResults, result)
 	}
@@ -1427,7 +1456,7 @@ func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults
 		}
 		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
+			level.Debug(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
 			continue
 		}
 		if _, ok := queriesDBData[queryResult.QueryName]; ok {
@@ -1463,6 +1492,9 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	// otherwise the results will never clear from its local DB and
 	// will keep retrying forever.
 	//
+	// We do return errors if we fail to write to the external logging destination,
+	// so that the logs are not lost and osquery retries on its next log interval.
+	//
 
 	var queryReportsDisabled bool
 	appConfig, err := svc.ds.AppConfig(ctx)
@@ -1486,32 +1518,35 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 			// Ignore results that could not be unmarshaled.
 			continue
 		}
+
 		if queryReportsDisabled {
-			// If query_reports_disabled=true we write the logs
-			// to the logging destination without any extra processing.
+			// If query_reports_disabled=true we write the logs to the logging destination without any extra processing.
 			//
-			// If a query has automations_enabled = 0 we may still write the results for it here.
-			// Eventually the query will be removed from the host schedule and thus Fleet
-			// won't receive any further results anymore (/api/v1/osquery/config).
+			// If a query was recently configured with automations_enabled = 0 we may still write
+			// the results for it here. Eventually the query will be removed from the host schedule
+			// and thus Fleet won't receive any further results anymore.
 			filteredLogs = append(filteredLogs, logs[i])
 			continue
 		}
 
-		//
-		// If query_reports_disabled=false then we need to filter
-		// the queries that have automations_enabled=false because
-		// the query might have been scheduled because of discard_data=false.
-		//
-
 		dbQuery, ok := queriesDBData[unmarshaledResult.QueryName]
 		if !ok {
-			// Ignore results for unknown queries.
+			// If Fleet doesn't know of the query we write the logs to the logging destination
+			// without any extra processing. This is to support osquery nodes that load their
+			// config from elsewhere (e.g. using `--config_plugin=filesystem`).
+			//
+			// If a query was configured from Fleet but was recently removed, we may still write
+			// the results for it here. Eventually the query will be removed from the host schedule
+			// and thus Fleet won't receive any further results anymore.
+			filteredLogs = append(filteredLogs, logs[i])
 			continue
 		}
+
 		if !dbQuery.AutomationsEnabled {
 			// Ignore results for queries that have automations disabled.
 			continue
 		}
+
 		filteredLogs = append(filteredLogs, logs[i])
 	}
 
@@ -1543,11 +1578,6 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 	filtered := getMostRecentResults(unmarshaledResults)
 
 	for _, result := range filtered {
-		// Discard result if there is no snapshot
-		if len(result.Snapshot) == 0 {
-			continue
-		}
-
 		dbQuery, ok := queriesDBData[result.QueryName]
 		if !ok {
 			// Means the query does not exist with such name anymore. Thus we ignore its result.
@@ -1586,6 +1616,18 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 	fetchTime := time.Now()
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
+
+	// If the snapshot is empty, we still want to save a row with a null value
+	// to capture LastFetched.
+	if len(result.Snapshot) == 0 {
+		rows = append(rows, &fleet.ScheduledQueryResultRow{
+			QueryID:     queryID,
+			HostID:      hostID,
+			Data:        nil,
+			LastFetched: fetchTime,
+		})
+	}
+
 	for _, snapshotItem := range result.Snapshot {
 		row := &fleet.ScheduledQueryResultRow{
 			QueryID:     queryID,
@@ -1646,7 +1688,7 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 	if strings.HasPrefix(path, "pack/team-") {
 		parts := strings.SplitN(path, "/", 3)
 		if len(parts) != 3 {
-			return nil, "", fmt.Errorf("unknown format: %s", path)
+			return nil, "", fmt.Errorf("unknown format: %q", path)
 		}
 
 		teamNumberStr := strings.TrimPrefix(parts[1], "team-")
@@ -1659,15 +1701,10 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 		return &teamNumber, parts[2], nil
 	}
 
-	// For pattern: pack/PackName/Query (legacy pack)
-	if strings.HasPrefix(path, "pack/") {
-		parts := strings.SplitN(path, "/", 3)
-		if len(parts) != 3 {
-			return nil, "", fmt.Errorf("unknown format: %s", path)
-		}
-		return nil, parts[2], nil
-	}
+	// 2017/legacy packs with the format "pack/<Pack name>/<Query name> are
+	// considered unknown format (they are not considered global or team
+	// scheduled queries).
 
 	// If none of the above patterns match, return error
-	return nil, "", fmt.Errorf("unknown format: %s", path)
+	return nil, "", fmt.Errorf("unknown format: %q", path)
 }

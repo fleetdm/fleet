@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -45,7 +46,7 @@ type Software struct {
 	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons)
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// Browser is the browser type (from osquery chrome_extensions)
-	Browser string `json:"browser,omitempty" db:"browser"`
+	Browser string `json:"browser" db:"browser"`
 
 	// Release is the version of the OS this software was released on
 	// (e.g. "30.el7" for a CentOS package).
@@ -100,6 +101,61 @@ func (s Software) ToUniqueStr() string {
 		ss = append(ss, s.ExtensionID, s.Browser)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
+}
+
+type SliceString []string
+
+func (c *SliceString) Scan(v interface{}) error {
+	switch tv := v.(type) {
+	case []byte:
+		return json.Unmarshal(tv, &c)
+	}
+	return errors.New("unsupported type")
+}
+
+// SoftwareVersion is an abstraction over the `software` table to support the
+// software titles APIs
+type SoftwareVersion struct {
+	ID uint `db:"id" json:"id"`
+	// Version is the version string we grab for this specific software.
+	Version string `db:"version" json:"version"`
+	// Vulnerabilities is the list of CVE names for vulnerabilities found for this version.
+	Vulnerabilities *SliceString `db:"vulnerabilities" json:"vulnerabilities,omitempty"`
+	// HostsCount is the number of hosts that use this software version.
+	HostsCount *uint `db:"hosts_count" json:"hosts_count,omitempty"`
+
+	// TitleID is used only as an auxiliary field and it's not part of the
+	// JSON response.
+	TitleID uint `db:"title_id" json:"-"`
+}
+
+// SoftwareTitle represents a title backed by the `software_titles` table.
+type SoftwareTitle struct {
+	ID uint `json:"id" db:"id"`
+	// Name is the name reported by osquery.
+	Name string `json:"name" db:"name"`
+	// Source is the source reported by osquery.
+	Source string `json:"source" db:"source"`
+	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
+	Browser string `json:"browser" db:"browser"`
+	// HostsCount is the number of hosts that use this software title.
+	HostsCount uint `json:"hosts_count" db:"hosts_count"`
+	// VesionsCount is the number of versions that have the same title.
+	VersionsCount uint `json:"versions_count" db:"versions_count"`
+	// Versions countains information about the versions that use this title.
+	Versions []SoftwareVersion `json:"versions" db:"-"`
+	// CountsUpdatedAt is the timestamp when the hosts count
+	// was last updated for that software, filled only if hosts
+	// count is requested.
+	CountsUpdatedAt time.Time `json:"-" db:"counts_updated_at"`
+}
+
+type SoftwareTitleListOptions struct {
+	// ListOptions cannot be embedded in order to unmarshall with validation.
+	ListOptions ListOptions `url:"list_options"`
+
+	TeamID         *uint `query:"team_id,optional"`
+	VulnerableOnly bool  `query:"vulnerable,optional"`
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.

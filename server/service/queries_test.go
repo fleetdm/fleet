@@ -447,6 +447,11 @@ func TestQueryAuth(t *testing.T) {
 		}
 		return nil, newNotFoundError()
 	}
+
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
+	}
+
 	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool) error {
 		return nil
 	}
@@ -660,6 +665,9 @@ func TestQueryAuth(t *testing.T) {
 			_, err = svc.GetQuery(ctx, tt.qid)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
+			_, err = svc.QueryReportIsClipped(ctx, tt.qid)
+			checkAuthErr(t, tt.shouldFailRead, err)
+
 			_, err = svc.ListQueries(ctx, fleet.ListOptions{}, query.TeamID, nil)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
@@ -681,4 +689,32 @@ func TestQueryAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailRead, err)
 		})
 	}
+}
+
+func TestQueryReportIsClipped(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+		ID:         1,
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}})
+
+	ds.QueryFunc = func(ctx context.Context, queryID uint) (*fleet.Query, error) {
+		return &fleet.Query{}, nil
+	}
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
+	}
+
+	isClipped, err := svc.QueryReportIsClipped(viewerCtx, 1)
+	require.NoError(t, err)
+	require.False(t, isClipped)
+
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return fleet.MaxQueryReportRows, nil
+	}
+
+	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
+	require.NoError(t, err)
+	require.True(t, isClipped)
 }

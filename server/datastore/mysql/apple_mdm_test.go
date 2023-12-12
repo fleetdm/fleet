@@ -85,18 +85,25 @@ func testNewMDMAppleConfigProfileDuplicateName(t *testing.T, ds *Datastore) {
 	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 0))
 	require.NoError(t, err)
 	require.NotZero(t, profA.ProfileID)
+	require.NotEmpty(t, profA.ProfileUUID)
+	require.Equal(t, "a", string(profA.ProfileUUID[0]))
 	profB, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 0))
 	require.NoError(t, err)
 	require.NotZero(t, profB.ProfileID)
+	require.NotEmpty(t, profB.ProfileUUID)
+	require.Equal(t, "a", string(profB.ProfileUUID[0]))
 	// create a Windows profile for no-team
 	profC, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "c", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
 	require.NoError(t, err)
 	require.NotEmpty(t, profC.ProfileUUID)
+	require.Equal(t, "w", string(profC.ProfileUUID[0]))
 
 	// create the same name for team 1 as Apple profile
 	profATm, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 1))
 	require.NoError(t, err)
 	require.NotZero(t, profATm.ProfileID)
+	require.NotEmpty(t, profATm.ProfileUUID)
+	require.Equal(t, "a", string(profATm.ProfileUUID[0]))
 	require.NotNil(t, profATm.TeamID)
 	require.Equal(t, uint(1), *profATm.TeamID)
 	// create the same B profile for team 1 as Windows profile
@@ -151,7 +158,12 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	newCP, err := ds.NewMDMAppleConfigProfile(ctx, duplicateCP)
 	require.NoError(t, err)
 	checkConfigProfile(t, duplicateCP, *newCP)
-	storedCP, err := ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileID)
+
+	// get it back from both the deprecated ID and the uuid methods
+	storedCP, err := ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, newCP.ProfileID)
+	require.NoError(t, err)
+	checkConfigProfile(t, *newCP, *storedCP)
+	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileUUID)
 	require.NoError(t, err)
 	checkConfigProfile(t, *newCP, *storedCP)
 }
@@ -226,15 +238,25 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 
 func testDeleteMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+
+	// first via the deprecated ID
 	initialCP := storeDummyConfigProfileForTest(t, ds)
-
-	err := ds.DeleteMDMAppleConfigProfile(ctx, initialCP.ProfileID)
+	err := ds.DeleteMDMAppleConfigProfileByDeprecatedID(ctx, initialCP.ProfileID)
 	require.NoError(t, err)
-
-	_, err = ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileID)
+	_, err = ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, initialCP.ProfileID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
-	err = ds.DeleteMDMAppleConfigProfile(ctx, initialCP.ProfileID)
+	err = ds.DeleteMDMAppleConfigProfileByDeprecatedID(ctx, initialCP.ProfileID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	// next via the uuid
+	initialCP = storeDummyConfigProfileForTest(t, ds)
+	err = ds.DeleteMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
+	require.NoError(t, err)
+	_, err = ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	err = ds.DeleteMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
@@ -245,7 +267,7 @@ func testDeleteMDMAppleConfigProfileByTeamAndIdentifier(t *testing.T, ds *Datast
 	err := ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, initialCP.TeamID, initialCP.Identifier)
 	require.NoError(t, err)
 
-	_, err = ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileID)
+	_, err = ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	err = ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, initialCP.TeamID, initialCP.Identifier)
@@ -266,7 +288,7 @@ func storeDummyConfigProfileForTest(t *testing.T, ds *Datastore) *fleet.MDMApple
 	newCP, err := ds.NewMDMAppleConfigProfile(ctx, dummyCP)
 	require.NoError(t, err)
 	checkConfigProfile(t, dummyCP, *newCP)
-	storedCP, err := ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileID)
+	storedCP, err := ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileUUID)
 	require.NoError(t, err)
 	checkConfigProfile(t, *newCP, *storedCP)
 
@@ -338,30 +360,30 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Nil(t, gotProfs)
 
-	expectedProfiles0 := map[uint]fleet.HostMDMAppleProfile{
-		p0.ProfileID: {HostUUID: h0.UUID, Name: p0.Name, ProfileID: p0.ProfileID, CommandUUID: "cmd0-uuid", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, Detail: ""},
-		p1.ProfileID: {HostUUID: h0.UUID, Name: p1.Name, ProfileID: p1.ProfileID, CommandUUID: "cmd1-uuid", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall, Detail: ""},
-		p2.ProfileID: {HostUUID: h0.UUID, Name: p2.Name, ProfileID: p2.ProfileID, CommandUUID: "cmd2-uuid", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove, Detail: "Error removing profile"},
+	expectedProfiles0 := map[string]fleet.HostMDMAppleProfile{
+		p0.ProfileUUID: {HostUUID: h0.UUID, Name: p0.Name, ProfileUUID: p0.ProfileUUID, CommandUUID: "cmd0-uuid", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, Detail: ""},
+		p1.ProfileUUID: {HostUUID: h0.UUID, Name: p1.Name, ProfileUUID: p1.ProfileUUID, CommandUUID: "cmd1-uuid", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall, Detail: ""},
+		p2.ProfileUUID: {HostUUID: h0.UUID, Name: p2.Name, ProfileUUID: p2.ProfileUUID, CommandUUID: "cmd2-uuid", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove, Detail: "Error removing profile"},
 	}
 
-	expectedProfiles1 := map[uint]fleet.HostMDMAppleProfile{
-		p0.ProfileID: {HostUUID: h1.UUID, Name: p0.Name, ProfileID: p0.ProfileID, CommandUUID: "cmd0-uuid", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, Detail: "Error installing profile"},
-		p1.ProfileID: {HostUUID: h1.UUID, Name: p1.Name, ProfileID: p1.ProfileID, CommandUUID: "cmd1-uuid", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall, Detail: ""},
-		p2.ProfileID: {HostUUID: h1.UUID, Name: p2.Name, ProfileID: p2.ProfileID, CommandUUID: "cmd2-uuid", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove, Detail: "Error removing profile"},
+	expectedProfiles1 := map[string]fleet.HostMDMAppleProfile{
+		p0.ProfileUUID: {HostUUID: h1.UUID, Name: p0.Name, ProfileUUID: p0.ProfileUUID, CommandUUID: "cmd0-uuid", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, Detail: "Error installing profile"},
+		p1.ProfileUUID: {HostUUID: h1.UUID, Name: p1.Name, ProfileUUID: p1.ProfileUUID, CommandUUID: "cmd1-uuid", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall, Detail: ""},
+		p2.ProfileUUID: {HostUUID: h1.UUID, Name: p2.Name, ProfileUUID: p2.ProfileUUID, CommandUUID: "cmd2-uuid", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeRemove, Detail: "Error removing profile"},
 	}
 
 	var args []interface{}
 	for _, p := range expectedProfiles0 {
-		args = append(args, p.HostUUID, p.ProfileID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name)
+		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name)
 	}
 	for _, p := range expectedProfiles1 {
-		args = append(args, p.HostUUID, p.ProfileID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name)
+		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name)
 	}
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
 	INSERT INTO host_mdm_apple_profiles (
-		host_uuid, profile_id, command_uuid, status, operation_type, detail, profile_name)
+		host_uuid, profile_uuid, command_uuid, status, operation_type, detail, profile_name)
 	VALUES (?,?,?,?,?,?,?),(?,?,?,?,?,?,?),(?,?,?,?,?,?,?),(?,?,?,?,?,?,?),(?,?,?,?,?,?,?),(?,?,?,?,?,?,?)
 		`, args...,
 		)
@@ -379,7 +401,7 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, gotProfs, 3)
 	for _, gp := range gotProfs {
-		ep, ok := expectedProfiles0[gp.ProfileID]
+		ep, ok := expectedProfiles0[gp.ProfileUUID]
 		require.True(t, ok)
 		require.Equal(t, ep.Name, gp.Name)
 		require.Equal(t, *ep.Status, *gp.Status)
@@ -395,7 +417,7 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, gotProfs, 3)
 	for _, gp := range gotProfs {
-		ep, ok := expectedProfiles1[gp.ProfileID]
+		ep, ok := expectedProfiles1[gp.ProfileUUID]
 		require.True(t, ok)
 		require.Equal(t, ep.Name, gp.Name)
 		require.Equal(t, *ep.Status, *gp.Status)
@@ -404,11 +426,11 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	}
 
 	// mark h1's install+failed profile as install+pending
-	h1InstallFailed := expectedProfiles1[p0.ProfileID]
+	h1InstallFailed := expectedProfiles1[p0.ProfileUUID]
 	err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 		HostUUID:      h1InstallFailed.HostUUID,
 		CommandUUID:   h1InstallFailed.CommandUUID,
-		ProfileID:     h1InstallFailed.ProfileID,
+		ProfileUUID:   h1InstallFailed.ProfileUUID,
 		Name:          h1InstallFailed.Name,
 		Status:        &fleet.MDMDeliveryPending,
 		OperationType: fleet.MDMOperationTypeInstall,
@@ -417,11 +439,11 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// mark h1's remove+failed profile as remove+verifying, deletes the host profile row
-	h1RemoveFailed := expectedProfiles1[p2.ProfileID]
+	h1RemoveFailed := expectedProfiles1[p2.ProfileUUID]
 	err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 		HostUUID:      h1RemoveFailed.HostUUID,
 		CommandUUID:   h1RemoveFailed.CommandUUID,
-		ProfileID:     h1RemoveFailed.ProfileID,
+		ProfileUUID:   h1RemoveFailed.ProfileUUID,
 		Name:          h1RemoveFailed.Name,
 		Status:        &fleet.MDMDeliveryVerifying,
 		OperationType: fleet.MDMOperationTypeRemove,
@@ -436,10 +458,10 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	h1InstallPending := h1InstallFailed
 	h1InstallPending.Status = &fleet.MDMDeliveryPending
 	h1InstallPending.Detail = ""
-	expectedProfiles1[p0.ProfileID] = h1InstallPending
-	delete(expectedProfiles1, p2.ProfileID)
+	expectedProfiles1[p0.ProfileUUID] = h1InstallPending
+	delete(expectedProfiles1, p2.ProfileUUID)
 	for _, gp := range gotProfs {
-		ep, ok := expectedProfiles1[gp.ProfileID]
+		ep, ok := expectedProfiles1[gp.ProfileUUID]
 		require.True(t, ok)
 		require.Equal(t, ep.Name, gp.Name)
 		require.Equal(t, *ep.Status, *gp.Status)
@@ -618,7 +640,7 @@ func testIngestMDMAppleHostAlreadyExistsInFleet(t *testing.T, ds *Datastore) {
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "")
 	require.NoError(t, err)
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
@@ -656,7 +678,7 @@ func testIngestMDMNonDarwinHostAlreadyExistsInFleet(t *testing.T, ds *Datastore)
 		Platform:        "linux",
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, "Fleet MDM")
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, "Fleet MDM", "")
 	require.NoError(t, err)
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
@@ -791,7 +813,7 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 
 	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
-			ProfileID:         profiles[0].ProfileID,
+			ProfileUUID:       profiles[0].ProfileUUID,
 			ProfileIdentifier: profiles[0].Identifier,
 			ProfileName:       profiles[0].Name,
 			HostUUID:          testUUID,
@@ -844,7 +866,7 @@ func expectAppleProfiles(
 	ds *Datastore,
 	tmID *uint,
 	want []*fleet.MDMAppleConfigProfile,
-) map[string]uint {
+) map[string]string {
 	if tmID == nil {
 		tmID = ptr.Uint(0)
 	}
@@ -857,14 +879,15 @@ func expectAppleProfiles(
 	})
 
 	// compare only the fields we care about, and build the resulting map of
-	// profile identifier as key to profile ID as value
-	m := make(map[string]uint)
+	// profile identifier as key to profile UUID as value
+	m := make(map[string]string)
 	for _, gotp := range got {
-		m[gotp.Identifier] = gotp.ProfileID
+		m[gotp.Identifier] = gotp.ProfileUUID
 		if gotp.TeamID != nil && *gotp.TeamID == 0 {
 			gotp.TeamID = nil
 		}
 		gotp.ProfileID = 0
+		gotp.ProfileUUID = ""
 		gotp.CreatedAt = time.Time{}
 		gotp.UpdatedAt = time.Time{}
 	}
@@ -874,7 +897,7 @@ func expectAppleProfiles(
 }
 
 func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
-	applyAndExpect := func(newSet []*fleet.MDMAppleConfigProfile, tmID *uint, want []*fleet.MDMAppleConfigProfile) map[string]uint {
+	applyAndExpect := func(newSet []*fleet.MDMAppleConfigProfile, tmID *uint, want []*fleet.MDMAppleConfigProfile) map[string]string {
 		ctx := context.Background()
 		err := ds.BatchSetMDMAppleProfiles(ctx, tmID, newSet)
 		require.NoError(t, err)
@@ -1112,9 +1135,9 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileID: globalPfs[0].ProfileID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1"},
-		{ProfileID: globalPfs[1].ProfileID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1"},
-		{ProfileID: globalPfs[2].ProfileID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1"},
+		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1"},
+		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1"},
+		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1"},
 	}, profiles)
 
 	// add another host, it belongs to a team
@@ -1135,9 +1158,9 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileID: globalPfs[0].ProfileID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1"},
-		{ProfileID: globalPfs[1].ProfileID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1"},
-		{ProfileID: globalPfs[2].ProfileID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1"},
+		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1"},
+		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1"},
+		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1"},
 	}, profiles)
 
 	// assign profiles to team 1
@@ -1159,11 +1182,11 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileID: globalPfs[0].ProfileID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1"},
-		{ProfileID: globalPfs[1].ProfileID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1"},
-		{ProfileID: globalPfs[2].ProfileID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1"},
-		{ProfileID: teamPfs[0].ProfileID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-2"},
-		{ProfileID: teamPfs[1].ProfileID, ProfileIdentifier: teamPfs[1].Identifier, ProfileName: teamPfs[1].Name, HostUUID: "test-uuid-2"},
+		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1"},
+		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1"},
+		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1"},
+		{ProfileUUID: teamPfs[0].ProfileUUID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-2"},
+		{ProfileUUID: teamPfs[1].ProfileUUID, ProfileIdentifier: teamPfs[1].Identifier, ProfileName: teamPfs[1].Name, HostUUID: "test-uuid-2"},
 	}, profiles)
 
 	// add another global host
@@ -1182,21 +1205,21 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileID: globalPfs[0].ProfileID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1"},
-		{ProfileID: globalPfs[1].ProfileID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1"},
-		{ProfileID: globalPfs[2].ProfileID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1"},
-		{ProfileID: teamPfs[0].ProfileID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-2"},
-		{ProfileID: teamPfs[1].ProfileID, ProfileIdentifier: teamPfs[1].Identifier, ProfileName: teamPfs[1].Name, HostUUID: "test-uuid-2"},
-		{ProfileID: globalPfs[0].ProfileID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-3"},
-		{ProfileID: globalPfs[1].ProfileID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-3"},
-		{ProfileID: globalPfs[2].ProfileID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-3"},
+		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-1"},
+		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-1"},
+		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-1"},
+		{ProfileUUID: teamPfs[0].ProfileUUID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-2"},
+		{ProfileUUID: teamPfs[1].ProfileUUID, ProfileIdentifier: teamPfs[1].Identifier, ProfileName: teamPfs[1].Name, HostUUID: "test-uuid-2"},
+		{ProfileUUID: globalPfs[0].ProfileUUID, ProfileIdentifier: globalPfs[0].Identifier, ProfileName: globalPfs[0].Name, HostUUID: "test-uuid-3"},
+		{ProfileUUID: globalPfs[1].ProfileUUID, ProfileIdentifier: globalPfs[1].Identifier, ProfileName: globalPfs[1].Name, HostUUID: "test-uuid-3"},
+		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-3"},
 	}, profiles)
 
 	// cron runs and updates the status
 	err = ds.BulkUpsertMDMAppleHostProfiles(
 		ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 			{
-				ProfileID:         globalPfs[0].ProfileID,
+				ProfileUUID:       globalPfs[0].ProfileUUID,
 				ProfileIdentifier: globalPfs[0].Identifier,
 				ProfileName:       globalPfs[0].Name,
 				Checksum:          globalProfiles[0].Checksum,
@@ -1206,7 +1229,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				CommandUUID:       "command-uuid",
 			},
 			{
-				ProfileID:         globalPfs[0].ProfileID,
+				ProfileUUID:       globalPfs[0].ProfileUUID,
 				ProfileIdentifier: globalPfs[0].Identifier,
 				ProfileName:       globalPfs[0].Name,
 				Checksum:          globalProfiles[0].Checksum,
@@ -1216,7 +1239,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				CommandUUID:       "command-uuid",
 			},
 			{
-				ProfileID:         globalPfs[1].ProfileID,
+				ProfileUUID:       globalPfs[1].ProfileUUID,
 				ProfileIdentifier: globalPfs[1].Identifier,
 				ProfileName:       globalPfs[1].Name,
 				Checksum:          globalProfiles[1].Checksum,
@@ -1226,7 +1249,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				CommandUUID:       "command-uuid",
 			},
 			{
-				ProfileID:         globalPfs[1].ProfileID,
+				ProfileUUID:       globalPfs[1].ProfileUUID,
 				ProfileIdentifier: globalPfs[1].Identifier,
 				ProfileName:       globalPfs[1].Name,
 				Checksum:          globalProfiles[1].Checksum,
@@ -1236,7 +1259,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				CommandUUID:       "command-uuid",
 			},
 			{
-				ProfileID:         globalPfs[2].ProfileID,
+				ProfileUUID:       globalPfs[2].ProfileUUID,
 				ProfileIdentifier: globalPfs[2].Identifier,
 				ProfileName:       globalPfs[2].Name,
 				Checksum:          globalProfiles[2].Checksum,
@@ -1246,7 +1269,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				CommandUUID:       "command-uuid",
 			},
 			{
-				ProfileID:         globalPfs[2].ProfileID,
+				ProfileUUID:       globalPfs[2].ProfileUUID,
 				ProfileIdentifier: globalPfs[2].Identifier,
 				ProfileName:       globalPfs[2].Name,
 				Checksum:          globalProfiles[2].Checksum,
@@ -1256,7 +1279,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				CommandUUID:       "command-uuid",
 			},
 			{
-				ProfileID:         teamPfs[0].ProfileID,
+				ProfileUUID:       teamPfs[0].ProfileUUID,
 				ProfileIdentifier: teamPfs[0].Identifier,
 				ProfileName:       teamPfs[0].Name,
 				Checksum:          teamProfiles[0].Checksum,
@@ -1266,7 +1289,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 				CommandUUID:       "command-uuid",
 			},
 			{
-				ProfileID:         teamPfs[1].ProfileID,
+				ProfileUUID:       teamPfs[1].ProfileUUID,
 				ProfileIdentifier: teamPfs[1].Identifier,
 				ProfileName:       teamPfs[1].Name,
 				Checksum:          teamProfiles[1].Checksum,
@@ -1316,8 +1339,8 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
-		{ProfileID: teamPfs[0].ProfileID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-1"},
-		{ProfileID: teamPfs[1].ProfileID, ProfileIdentifier: teamPfs[1].Identifier, ProfileName: teamPfs[1].Name, HostUUID: "test-uuid-1"},
+		{ProfileUUID: teamPfs[0].ProfileUUID, ProfileIdentifier: teamPfs[0].Identifier, ProfileName: teamPfs[0].Name, HostUUID: "test-uuid-1"},
+		{ProfileUUID: teamPfs[1].ProfileUUID, ProfileIdentifier: teamPfs[1].Identifier, ProfileName: teamPfs[1].Name, HostUUID: "test-uuid-1"},
 	}, profiles)
 
 	// profiles to be removed includes host1's old profiles
@@ -1325,7 +1348,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	matchProfiles([]*fleet.MDMAppleProfilePayload{
 		{
-			ProfileID:         globalPfs[0].ProfileID,
+			ProfileUUID:       globalPfs[0].ProfileUUID,
 			ProfileIdentifier: globalPfs[0].Identifier,
 			ProfileName:       globalPfs[0].Name,
 			Status:            &fleet.MDMDeliveryVerified,
@@ -1334,7 +1357,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 			CommandUUID:       "command-uuid",
 		},
 		{
-			ProfileID:         globalPfs[1].ProfileID,
+			ProfileUUID:       globalPfs[1].ProfileUUID,
 			ProfileIdentifier: globalPfs[1].Identifier,
 			ProfileName:       globalPfs[1].Name,
 			OperationType:     fleet.MDMOperationTypeInstall,
@@ -1343,7 +1366,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 			CommandUUID:       "command-uuid",
 		},
 		{
-			ProfileID:         globalPfs[2].ProfileID,
+			ProfileUUID:       globalPfs[2].ProfileUUID,
 			ProfileIdentifier: globalPfs[2].Identifier,
 			ProfileName:       globalPfs[2].Name,
 			OperationType:     fleet.MDMOperationTypeInstall,
@@ -1404,24 +1427,24 @@ func testGetMDMAppleProfilesContents(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	cases := []struct {
-		ids  []uint
-		want map[uint]mobileconfig.Mobileconfig
+		uuids []string
+		want  map[string]mobileconfig.Mobileconfig
 	}{
-		{[]uint{}, nil},
+		{[]string{}, nil},
 		{nil, nil},
-		{[]uint{profiles[0].ProfileID}, map[uint]mobileconfig.Mobileconfig{profiles[0].ProfileID: profiles[0].Mobileconfig}},
+		{[]string{profiles[0].ProfileUUID}, map[string]mobileconfig.Mobileconfig{profiles[0].ProfileUUID: profiles[0].Mobileconfig}},
 		{
-			[]uint{profiles[0].ProfileID, profiles[1].ProfileID, profiles[2].ProfileID},
-			map[uint]mobileconfig.Mobileconfig{
-				profiles[0].ProfileID: profiles[0].Mobileconfig,
-				profiles[1].ProfileID: profiles[1].Mobileconfig,
-				profiles[2].ProfileID: profiles[2].Mobileconfig,
+			[]string{profiles[0].ProfileUUID, profiles[1].ProfileUUID, profiles[2].ProfileUUID},
+			map[string]mobileconfig.Mobileconfig{
+				profiles[0].ProfileUUID: profiles[0].Mobileconfig,
+				profiles[1].ProfileUUID: profiles[1].Mobileconfig,
+				profiles[2].ProfileUUID: profiles[2].Mobileconfig,
 			},
 		},
 	}
 
 	for _, c := range cases {
-		out, err := ds.GetMDMAppleProfilesContents(ctx, c.ids)
+		out, err := ds.GetMDMAppleProfilesContents(ctx, c.uuids)
 		require.NoError(t, err)
 		require.Equal(t, c.want, out)
 	}
@@ -1507,7 +1530,7 @@ func upsertHostCPs(
 				csum = cp.Checksum
 			}
 			payload := fleet.MDMAppleBulkUpsertHostProfilePayload{
-				ProfileID:         cp.ProfileID,
+				ProfileUUID:       cp.ProfileUUID,
 				ProfileIdentifier: cp.Identifier,
 				ProfileName:       cp.Name,
 				HostUUID:          h.UUID,
@@ -2143,7 +2166,7 @@ func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {
 
 	// create new record for remove pending
 	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
-		ProfileID:         uint(1),
+		ProfileUUID:       "a" + uuid.NewString(),
 		ProfileIdentifier: "p1",
 		ProfileName:       "name1",
 		HostUUID:          "h1",
@@ -2174,7 +2197,7 @@ func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {
 
 	// create another new record
 	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
-		ProfileID:         uint(2),
+		ProfileUUID:       "a" + uuid.NewString(),
 		ProfileIdentifier: "p2",
 		ProfileName:       "name2",
 		HostUUID:          "h2",
@@ -2224,7 +2247,7 @@ func testDeleteMDMAppleProfilesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
-		ProfileID:         uint(1),
+		ProfileUUID:       "a" + uuid.NewString(),
 		ProfileIdentifier: "p1",
 		ProfileName:       "name1",
 		HostUUID:          h.UUID,
@@ -3580,9 +3603,9 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 	// simulate expired grace period by setting updated_at timestamp of profiles back by 24 hours
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx,
-			`UPDATE mdm_apple_configuration_profiles SET updated_at = ? WHERE profile_id IN(?, ?, ?)`,
+			`UPDATE mdm_apple_configuration_profiles SET updated_at = ? WHERE profile_uuid IN(?, ?, ?)`,
 			time.Now().Add(-24*time.Hour),
-			cp1.ProfileID, cp2.ProfileID, cp3.ProfileID,
+			cp1.ProfileUUID, cp2.ProfileUUID, cp3.ProfileUUID,
 		)
 		return err
 	})
@@ -3889,7 +3912,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.True(t, *h.DEPAssignedToFleet)
 
 		// simulate osquery report of MDM detail query
-		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet)
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "")
 		require.NoError(t, err)
 
 		// enrollment status changes to "On (automatic)"
@@ -3932,7 +3955,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.True(t, *h.DEPAssignedToFleet)
 
 		// simulate osquery report of MDM detail query reflecting re-enrollment to MDM
-		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet)
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "")
 		require.NoError(t, err)
 
 		// host MDM row is re-created when osquery reports MDM detail query
@@ -3954,7 +3977,7 @@ func TestHostDEPAssignments(t *testing.T) {
 
 		// simulate osquery report of MDM detail query with empty server URL (signals unenrollment
 		// from MDM)
-		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, false, "", false, "")
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, false, "", false, "", "")
 		require.NoError(t, err)
 
 		// host MDM row is reset to defaults when osquery reports MDM detail query with empty server URL
@@ -4091,7 +4114,7 @@ func testMDMAppleConfigProfileHash(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			t.Cleanup(func() {
-				err := ds.DeleteMDMAppleConfigProfile(ctx, prof.ProfileID)
+				err := ds.DeleteMDMAppleConfigProfile(ctx, prof.ProfileUUID)
 				require.NoError(t, err)
 			})
 
@@ -4099,11 +4122,11 @@ func testMDMAppleConfigProfileHash(t *testing.T, ds *Datastore) {
 			goHash := goProf.HexMD5Hash()
 			require.NotEmpty(t, goHash)
 
-			var id uint
+			var uid string
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				return sqlx.GetContext(ctx, q, &id, `SELECT profile_id FROM mdm_apple_configuration_profiles WHERE checksum = UNHEX(?)`, goHash)
+				return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE checksum = UNHEX(?)`, goHash)
 			})
-			require.Equal(t, prof.ProfileID, id)
+			require.Equal(t, prof.ProfileUUID, uid)
 		})
 	}
 }
@@ -4169,7 +4192,7 @@ func testResetMDMAppleEnrollment(t *testing.T, ds *Datastore) {
 		ON DUPLICATE KEY UPDATE added_at = CURRENT_TIMESTAMP, deleted_at = NULL
 	`, host.ID)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", true, "")
+	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", true, "", "")
 	require.NoError(t, err)
 
 	sum, err := ds.GetMDMAppleBootstrapPackageSummary(ctx, uint(0))
@@ -4269,7 +4292,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 
 	setProfileUpdatedAt := func(t *testing.T, cp *fleet.MDMAppleConfigProfile, ua time.Time) {
 		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles SET updated_at = ? WHERE profile_id = ?`, ua, cp.ProfileID)
+			_, err := tx.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles SET updated_at = ? WHERE profile_uuid = ?`, ua, cp.ProfileUUID)
 			return err
 		})
 	}
@@ -4729,7 +4752,7 @@ func TestRestorePendingDEPHost(t *testing.T) {
 			require.Equal(t, depHostID, h.ID)
 
 			// simulate osquery report of MDM detail query
-			err = ds.SetOrUpdateMDMData(ctx, depHostID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet)
+			err = ds.SetOrUpdateMDMData(ctx, depHostID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "")
 			require.NoError(t, err)
 
 			// enrollment status changes to "On (automatic)"

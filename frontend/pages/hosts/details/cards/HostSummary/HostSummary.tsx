@@ -18,6 +18,7 @@ import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTool
 import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
+import { COLORS } from "styles/var/colors";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
 import HostSummaryIndicator from "./HostSummaryIndicator";
@@ -141,7 +142,7 @@ const HostSummary = ({
           place="top"
           effect="solid"
           id="refetch-tooltip"
-          backgroundColor="#3e4771"
+          backgroundColor={COLORS["tooltip-bg"]}
         >
           <span className={`${baseClass}__tooltip-text`}>
             You can’t fetch data from <br /> an offline host.
@@ -168,7 +169,7 @@ const HostSummary = ({
         <ReactTooltip
           place="bottom"
           effect="solid"
-          backgroundColor="#3e4771"
+          backgroundColor={COLORS["tooltip-bg"]}
           id="host-issue-count"
           data-html
         >
@@ -340,10 +341,10 @@ const HostSummary = ({
                 : titleData.display_name || DEFAULT_EMPTY_CELL_VALUE}
             </h1>
 
-            <p className="last-fetched">
+            <div className="last-fetched">
               {"Last fetched"} {lastFetched}
               &nbsp;
-            </p>
+            </div>
             {renderRefetch()}
           </div>
         </div>

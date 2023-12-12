@@ -13,6 +13,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import { COLORS } from "styles/var/colors";
 
 const baseClass = "activity-item";
 
@@ -919,7 +920,7 @@ const ActivityItem = ({
             type="dark"
             effect="solid"
             id={`activity-${activity.id}`}
-            backgroundColor="#3e4771"
+            backgroundColor={COLORS["tooltip-bg"]}
           >
             {internationalTimeFormat(activityCreatedAt)}
           </ReactTooltip>

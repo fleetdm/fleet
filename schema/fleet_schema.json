@@ -993,16 +993,6 @@
     ]
   },
   {
-    "name": "atom_packages",
-    "examples": "List installed Atom packages and their version.\n```\nSELECT name, version, description FROM atom_packages;\n```",
-    "columns": [
-      {
-        "name": "uid",
-        "requires_user_context": true
-      }
-    ]
-  },
-  {
     "name": "chrome_extension_content_scripts",
     "columns": [
       {

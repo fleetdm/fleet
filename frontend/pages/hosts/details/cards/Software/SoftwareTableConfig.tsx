@@ -75,7 +75,7 @@ const TYPE_CONVERSION: Record<string, string> = {
   rpm_packages: "Package (RPM)",
   yum_sources: "Package (YUM)",
   npm_packages: "Package (NPM)",
-  atom_packages: "Package (Atom)",
+  atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
   apps: "Application (macOS)",
   chrome_extensions: "Browser plugin (Chrome)",
@@ -293,7 +293,7 @@ export const generateSoftwareTableHeaders = ({
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`vulnerabilities__${cellProps.row.original.id}`}
               data-html
             >
@@ -333,7 +333,7 @@ export const generateSoftwareTableHeaders = ({
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`last_used__${cellProps.row.original.id}`}
               className="last_used_tooltip"
               data-tip-disable={hasLastUsed}

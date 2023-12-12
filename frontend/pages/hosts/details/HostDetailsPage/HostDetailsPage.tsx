@@ -52,6 +52,7 @@ import {
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -62,7 +63,7 @@ import ScriptsCard from "../cards/Scripts";
 import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
-import ScheduleCard from "../cards/Schedule";
+import QueriesCard from "../cards/Queries";
 import PacksCard from "../cards/Packs";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
@@ -238,6 +239,96 @@ const HostDetailsPage = ({
     mdm?.enrollment_status !== null && refetchMdm();
   };
 
+  // TODO - remove dummy schedule
+  const dummySchedule: IQueryStats[] = [
+    {
+      scheduled_query_name: "cached query 1 - Never reported",
+      query_name: "query 1",
+      description: "should render 'Never' ",
+      discard_data: false,
+      last_fetched: null,
+      automations_enabled: false,
+      interval: 1000,
+      scheduled_query_id: 1,
+
+      pack_id: 1,
+      pack_name: "Team: 💻 Workstations",
+      average_memory: 435814,
+      denylisted: false,
+      executions: 5,
+      last_executed: "2023-11-29T15:20:02Z",
+      output_size: 1204,
+      system_time: 9,
+      user_time: 3,
+      wall_time: 0,
+    },
+    {
+      scheduled_query_name: "cached query 2 - stored results",
+      description: "should render with row clickable to its report",
+      discard_data: false,
+      query_name: "query 2",
+      last_fetched: "2023-11-29T15:20:02Z",
+      automations_enabled: false,
+      interval: 1000,
+      scheduled_query_id: 2,
+
+      pack_id: 1,
+      pack_name: "Team: 💻 Workstations",
+      average_memory: 435814,
+      denylisted: false,
+      executions: 5,
+      last_executed: "2023-11-29T15:20:02Z",
+      output_size: 1204,
+      system_time: 9,
+      user_time: 3,
+      wall_time: 0,
+    },
+    {
+      scheduled_query_name:
+        "cached query 3 - sending results to a log destination, not storing in Fleet",
+      description: "should render '---', not link to report",
+      interval: 1000,
+      discard_data: true,
+      automations_enabled: true,
+      query_name: "query 3",
+      last_fetched: null,
+      scheduled_query_id: 3,
+
+      pack_id: 1,
+      pack_name: "Team: 💻 Workstations",
+      average_memory: 435814,
+      denylisted: false,
+      executions: 5,
+      last_executed: "2023-11-29T15:20:02Z",
+      output_size: 1204,
+      system_time: 9,
+      user_time: 3,
+      wall_time: 0,
+    },
+    {
+      scheduled_query_name:
+        "cached query 4 - stored results, but no current interval",
+      description: "should render with row clickable to its report",
+      discard_data: false,
+      query_name: "query 4",
+      last_fetched: "2023-11-29T15:20:02Z",
+      automations_enabled: false,
+      interval: 0,
+      scheduled_query_id: 4,
+
+      pack_id: 1,
+      pack_name: "Team: 💻 Workstations",
+      average_memory: 435814,
+      denylisted: false,
+      executions: 5,
+      last_executed: "2023-11-29T15:20:02Z",
+      output_size: 1204,
+      system_time: 9,
+      user_time: 3,
+      wall_time: 0,
+    },
+  ];
+
   const {
     isLoading: isLoadingHost,
     data: host,
@@ -300,6 +391,8 @@ const HostDetailsPage = ({
         }
         setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
+        // TODO – remove dummy data
+        setSchedule(dummySchedule);
         if (returnedHost.pack_stats) {
           const packStatsByType = returnedHost.pack_stats.reduce(
             (
@@ -318,7 +411,8 @@ const HostDetailsPage = ({
             },
             { packs: [], schedule: [] }
           );
-          setSchedule(packStatsByType.schedule);
+          // TODO - restore real data
+          // setSchedule(packStatsByType.schedule);
           setPacksState(packStatsByType.packs);
         }
       },
@@ -360,7 +454,7 @@ const HostDetailsPage = ({
     // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
     document.title = `Host ${hostTab()} details ${
       host?.display_name ? `| ${host?.display_name} |` : "|"
-    } Fleet for osquery`;
+    } ${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, host]);
 
   // Used for back to software pathname
@@ -583,7 +677,7 @@ const HostDetailsPage = ({
     );
   };
 
-  if (isLoadingHost) {
+  if (!host || isLoadingHost) {
     return <Spinner />;
   }
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
@@ -605,9 +699,9 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
     },
     {
-      name: "Schedule",
-      title: "schedule",
-      pathname: PATHS.HOST_SCHEDULE(hostIdFromURL),
+      name: "Queries",
+      title: "queries",
+      pathname: PATHS.HOST_QUERIES(hostIdFromURL),
     },
     {
       name: (
@@ -673,7 +767,7 @@ const HostDetailsPage = ({
 
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         <HostDetailsBanners
           hostMdmEnrollmentStatus={host?.mdm.enrollment_status}
           hostPlatform={host?.platform}
@@ -768,10 +862,14 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              <ScheduleCard
-                isChromeOSHost={host?.platform === "chrome"}
+              <QueriesCard
+                hostId={host.id}
+                router={router}
+                isChromeOSHost={host.platform === "chrome"}
                 schedule={schedule}
-                isLoading={isLoadingHost}
+                queryReportsDisabled={
+                  config?.server_settings?.query_reports_disabled
+                }
               />
               {canViewPacks && (
                 <PacksCard packsState={packsState} isLoading={isLoadingHost} />
@@ -854,7 +952,7 @@ const HostDetailsPage = ({
             onCancel={onCancelScriptDetailsModal}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };
