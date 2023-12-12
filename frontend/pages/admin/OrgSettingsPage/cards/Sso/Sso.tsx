@@ -228,7 +228,7 @@ const Sso = ({
               <>
                 Create user and sync permissions on login{" "}
                 <CustomLink
-                  url="https://fleetdm.com/docs/deploy/single-sign-on-sso?utm_medium=fleetui&utm_source=sso-settings#just-in-time-jit-user-provisioning"
+                  url="https://fleetdm.com/learn-more-about/just-in-time-provisioning"
                   text="Learn more"
                   newTab
                 />
