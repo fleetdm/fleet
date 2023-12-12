@@ -315,7 +315,7 @@ SELECT
     s.release,
     s.vendor,
     s.arch,
-    s.extension_id, -- TODO: validate that this should be added
+    s.extension_id,
     hs.last_opened_at
 FROM
     software s
@@ -1136,7 +1136,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 			"s.release",
 			"s.vendor",
 			"s.arch",
-			"s.extension_id", // TODO: validate that this is required
+			"s.extension_id",
 			"scv.cve",
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
 		).
@@ -1657,7 +1657,6 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 			goqu.I("s.version"),
 			goqu.I("s.release"),
 			goqu.I("s.arch"),
-			// TODO: validate that we don't need the new fields here (browser, extension_id, etc.)
 			goqu.COALESCE(goqu.I("cpe.cpe"), "").As("generated_cpe"),
 		).
 		Where(goqu.C("host_id").Eq(hostID))
