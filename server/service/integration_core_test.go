@@ -5116,7 +5116,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// a normal request works fine
 	var resp listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp)
-	require.Equal(t, 0, resp.Count)
+	require.NotEmpty(t, 0, resp.Count)
 	require.Nil(t, resp.SoftwareTitles)
 
 	// a request with a team_id parameter returns a license error
