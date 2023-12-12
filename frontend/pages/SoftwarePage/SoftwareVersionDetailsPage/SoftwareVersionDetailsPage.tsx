@@ -5,6 +5,10 @@ import { RouteComponentProps } from "react-router";
 import softwareAPI, {
   ISoftwareVersionResponse,
 } from "services/entities/software";
+import hostsCountAPI, {
+  IHostsCountQueryKey,
+  IHostsCountResponse,
+} from "services/entities/host_count";
 import { ISoftwareVersion, formatSoftwareType } from "interfaces/software";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import { AppContext } from "context/app";
@@ -67,6 +71,21 @@ const SoftwareVersionDetailsPage = ({
     }
   );
 
+  // TODO: Confirm desired UX for error and loading states
+  const {
+    data: hostsCount,
+    // isError: isHostsCountError,
+    // isLoading: isHostsCountLoading,
+  } = useQuery<IHostsCountResponse, Error, number, IHostsCountQueryKey[]>(
+    [{ scope: "hosts_count", softwareVersionId: versionId }],
+    ({ queryKey }) => hostsCountAPI.load(queryKey[0]),
+    {
+      keepPreviousData: true,
+      staleTime: 10000, // stale time can be adjusted if fresher data is desired
+      select: (data) => data.count,
+    }
+  );
+
   const tableHeaders = useMemo(
     () =>
       generateSoftwareVersionDetailsTableConfig(
@@ -90,7 +109,7 @@ const SoftwareVersionDetailsPage = ({
             id={softwareVersion.id}
             title={`${softwareVersion.name}, ${softwareVersion.version}`}
             type={formatSoftwareType(softwareVersion)}
-            hosts={softwareVersion.hosts_count ?? 0}
+            hosts={hostsCount ?? 0}
             queryParam="software_version_id"
             name={softwareVersion.name}
             source={softwareVersion.source}
