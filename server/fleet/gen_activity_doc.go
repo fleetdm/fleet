@@ -17,7 +17,7 @@ func main() {
 	b.WriteString(`<!-- DO NOT EDIT. This document is automatically generated. -->
 # Audit logs
 
-Fleet logs the following information for administrative actions (in JSON):
+Fleet logs the following information for administrative activities (in JSON):
 
 - ` + "`" + `created_at` + "`" + `: Timestamp of the event.
 - ` + "`" + `id` + "`" + `: Unique ID of the generated event in Fleet.
@@ -44,8 +44,12 @@ Example:
 	}
 }
 ` + "```" + `
-	
-## List of activities and their specific details
+
+You can automatically send these logs to your log destination. Learn how to configure this [here](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
+
+To view activities in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
+
+Following is a summary of the types of administrative activities logged by Fleet:
 
 `)
 
@@ -56,7 +60,7 @@ Example:
 		}
 		activityMap[activity.ActivityName()] = struct{}{}
 
-		fmt.Fprintf(&b, "### Type `%s`\n\n", activity.ActivityName())
+		fmt.Fprintf(&b, "## %s\n\n", activity.ActivityName())
 		activityTypeDoc, detailsDoc, detailsExampleDoc := activity.Documentation()
 		fmt.Fprintf(&b, activityTypeDoc+"\n\n"+detailsDoc+"\n\n")
 		if detailsExampleDoc != "" {
@@ -64,6 +68,7 @@ Example:
 		}
 	}
 	b.WriteString(`
+<meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
 <meta name="description" value="Learn how Fleet logs administrative actions in JSON format.">
 <meta name="navSection" value="Dig deeper">

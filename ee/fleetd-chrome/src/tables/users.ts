@@ -6,6 +6,6 @@ export default class TableUsers extends Table {
 
   async generate() {
     const { email, id } = await chrome.identity.getProfileUserInfo({});
-    return [{ uid: id, email, username: email }];
+    return { data: [{ uid: id, email, username: email }] };
   }
 }

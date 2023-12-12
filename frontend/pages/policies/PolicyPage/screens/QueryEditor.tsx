@@ -173,7 +173,7 @@ const QueryEditor = ({
     return null;
   }
 
-  // Function instead of constant eliminates race condition with filteredSoftwarePath
+  // Function instead of constant eliminates race condition with filteredPoliciesPath
   const backToPoliciesPath = () => {
     return filteredPoliciesPath || PATHS.MANAGE_POLICIES;
   };

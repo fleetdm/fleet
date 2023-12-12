@@ -14,7 +14,7 @@ export default {
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
   CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
-  CONTROLS_MAC_SCRIPTS: `${URL_PREFIX}/controls/mac-scripts`,
+  CONTROLS_SCRIPTS: `${URL_PREFIX}/controls/scripts`,
 
   DASHBOARD: `${URL_PREFIX}/dashboard`,
   DASHBOARD_LINUX: `${URL_PREFIX}/dashboard/linux`,
@@ -53,6 +53,16 @@ export default {
     return `${URL_PREFIX}/labels/${labelId}`;
   },
   EDIT_QUERY: (queryId: number, teamId?: number): string => {
+    return `${URL_PREFIX}/queries/${queryId}/edit${
+      teamId ? `?team_id=${teamId}` : ""
+    }`;
+  },
+  LIVE_QUERY: (queryId: number | null, teamId?: number): string => {
+    return `${URL_PREFIX}/queries/${queryId || "new"}/live${
+      teamId ? `?team_id=${teamId}` : ""
+    }`;
+  },
+  QUERY: (queryId: number, teamId?: number): string => {
     return `${URL_PREFIX}/queries/${queryId}${
       teamId ? `?team_id=${teamId}` : ""
     }`;
@@ -75,6 +85,9 @@ export default {
   },
   HOST_DETAILS: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}`;
+  },
+  HOST_SCRIPTS: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/scripts`;
   },
   HOST_SOFTWARE: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/software`;

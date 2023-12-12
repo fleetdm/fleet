@@ -6,7 +6,10 @@ import ReactTooltip from "react-tooltip";
 import { formatSoftwareType, ISoftware } from "interfaces/software";
 import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
-import { formatFloatAsPercentage } from "utilities/helpers";
+import {
+  formatFloatAsPercentage,
+  getSoftwareBundleTooltipJSX,
+} from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -65,23 +68,6 @@ const condenseVulnerabilities = (
     : condensed;
 };
 
-const renderBundleTooltip = (name: string, bundle: string) => (
-  <span className="name-container">
-    <TooltipWrapper
-      position="top"
-      tipContent={`
-        <span>
-          <b>Bundle identifier: </b>
-          <br />
-          ${bundle}
-        </span>
-      `}
-    >
-      {name}
-    </TooltipWrapper>
-  </span>
-);
-
 const getMaxProbability = (vulns: IVulnerability[]) =>
   vulns.reduce(
     (max, { epss_probability }) => Math.max(max, epss_probability || 0),
@@ -93,13 +79,15 @@ const generateEPSSColumnHeader = (isSandboxMode = false) => {
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={`
-            The probability that this software will be exploited
-            <br />
-            in the next 30 days (EPSS probability). This data is
-            <br />
-            reported by FIRST.org.
-          `}
+          tipContent={
+            <>
+              The probability that this software will be exploited
+              <br />
+              in the next 30 days (EPSS probability). This data is
+              <br />
+              reported by FIRST.org.
+            </>
+          }
         >
           Probability of exploit
         </TooltipWrapper>
@@ -217,8 +205,10 @@ const generateTableHeaders = (
           <LinkCell
             path={PATHS.SOFTWARE_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
-            value={bundle ? renderBundleTooltip(name, bundle) : name}
-            withTooltip={!!bundle}
+            value={name}
+            tooltipContent={
+              bundle ? getSoftwareBundleTooltipJSX(bundle) : undefined
+            }
           />
         );
       },

@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -136,7 +136,7 @@ func queryCommand() *cli.Command {
 			s := spinner.New(spinner.CharSets[24], 200*time.Millisecond)
 			s.Writer = os.Stderr
 			if flQuiet {
-				s.Writer = ioutil.Discard
+				s.Writer = io.Discard
 			}
 			s.Start()
 

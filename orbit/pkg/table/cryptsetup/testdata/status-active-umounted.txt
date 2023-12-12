@@ -1,0 +1,10 @@
+/dev/mapper/dm-crypto-plain is active.
+  type:    PLAIN
+  cipher:  aes-cbc-essiv:sha256
+  keysize: 256 bits
+  key location: dm-crypt
+  device:  /dev/sdc3
+  sector size:  512
+  offset:  0 sectors
+  size:    8388608 sectors
+  mode:    read/write

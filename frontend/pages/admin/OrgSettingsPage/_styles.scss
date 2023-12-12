@@ -119,6 +119,7 @@
       }
 
       &__inputs {
+        margin-top: 1.1rem;
         width: 100%;
         float: left;
         padding-right: $pad-small;
@@ -203,6 +204,10 @@
 
       &__advanced-options {
         margin-bottom: $pad-large;
+      }
+
+      &__disabled-usage-statistics-checkbox {
+        @include disabled;
       }
 
       .component__tooltip-wrapper {

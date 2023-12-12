@@ -14,6 +14,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+// TODO(mna): those methods are unused except for an internal tool, remove or
+// migrate to new endpoints (those apple-specific endpoints are deprecated)?
+
 func (c *Client) DeleteProfile(profileID uint) error {
 	verb, path := "DELETE", "/api/latest/fleet/mdm/apple/profiles/"+strconv.FormatUint(uint64(profileID), 10)
 	var responseBody deleteMDMAppleConfigProfileResponse
@@ -96,15 +99,15 @@ func (c *Client) AddProfile(teamID uint, configurationProfile []byte) (uint, err
 	return addProfileResponse.ProfileID, nil
 }
 
-func (c *Client) GetConfigProfilesSummary(teamID *uint) (*fleet.MDMAppleConfigProfilesSummary, error) {
-	verb, path := "GET", "/api/latest/fleet/mdm/apple/profiles/summary"
+func (c *Client) GetConfigProfilesSummary(teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	verb, path := "GET", "/api/latest/fleet/mdm/profiles/summary"
 	query := make(url.Values)
 	if teamID != nil {
 		query.Add("team_id", strconv.FormatUint(uint64(*teamID), 10))
 	}
-	var responseBody getMDMAppleProfilesSummaryResponse
+	var responseBody getMDMProfilesSummaryResponse
 	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode()); err != nil {
 		return nil, err
 	}
-	return &responseBody.MDMAppleConfigProfilesSummary, nil
+	return &responseBody.MDMProfilesSummary, nil
 }

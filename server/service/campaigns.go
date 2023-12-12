@@ -72,6 +72,8 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 			Query:    queryString,
 			Saved:    false,
 			AuthorID: ptr.Uint(vc.UserID()),
+			// We must set a valid value for this field, even if unused by live queries.
+			Logging: fleet.LoggingSnapshot,
 		}
 		if err := query.Verify(); err != nil {
 			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{

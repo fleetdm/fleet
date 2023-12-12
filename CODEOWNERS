@@ -72,7 +72,6 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/website/views/pages/pricing.ejs                      @mikermcneil # « CEO is DRI for pricing
 /handbook/company/pricing-features-table.yml          @mikermcneil # « CEO is current DRI for features table
 
 ##############################################################################################

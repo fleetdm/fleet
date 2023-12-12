@@ -25,7 +25,7 @@ For webhook automations, if a new CVE is detected on more than one host during t
 
 Example webhook payload:
 
-```
+```http
 POST https://server.com/example
 ```
 
@@ -39,6 +39,7 @@ POST https://server.com/example
     "cvss_score": 5.7, // Premium feature only
     "cisa_known_exploit": true, // Premium feature only
     "cve_published": "2020-10-28T00:00:00Z", // Premium feature only
+    "cve_description": "The parse_datetime function in GNU coreutils allows remote attackers to cause a denial of service (crash) or possibly execute arbitrary code via a crafted date string, as demonstrated by the \"--date=TZ=\"123\"345\" @1\" string to the touch or date command.", // Premium feature only
     "hosts_affected": [
       {
         "id": 1,
@@ -69,8 +70,6 @@ Follow the steps below to configure Jira or Zendesk as a ticket destination:
 6. Select **Enable vulnerability automations** and choose **Ticket**.
 7. Under **Ticket destination**, select your ticket destination and select **Save**.
 
-The Jira and Zendesk ticket automations are currently in beta.
-
 ## Policy automations
 
 Policy automations are triggered if a policy is newly failing on at least one host. Policy automations are triggered separately for each failing policy.
@@ -83,7 +82,7 @@ For webhooks automations, if a policy is newly failing on more than one host dur
 
 Example webhook payload:
 
-```
+```http
 POST https://server.com/example
 ```
 
@@ -129,8 +128,6 @@ Follow the steps below to configure Jira or Zendesk as a ticket destination:
 6. Select **Enable policy automations**, check the policies you'd like to listen to, and choose **Ticket**.
 7. Under **Ticket destination**, select your ticket destination and select **Save**.
 
-The Jira and Zendesk ticket destinations are currently in beta.
-
 ## Host status automations
 
 Host status automations send a webhook request if a configured percentage of hosts have not checked in to Fleet for a configured number of days.
@@ -139,7 +136,7 @@ Fleet sends these webhook requests once per day by default. This interval can be
 
 Example webhook payload:
 
-```
+```http
 POST https://server.com/example
 ```
 

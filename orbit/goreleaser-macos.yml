@@ -1,12 +1,11 @@
 project_name: orbit
-timeout: 60m
 
 builds:
   - id: orbit-macos
     dir: ./orbit/cmd/orbit/
     binary: orbit
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     goos:
       - darwin
     goarch:

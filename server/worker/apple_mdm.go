@@ -79,7 +79,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			return ctxerr.Wrap(ctx, err, "getting app config")
 		}
 
-		acct, err := a.Datastore.GetMDMIdPAccount(ctx, ref)
+		acct, err := a.Datastore.GetMDMIdPAccountByUUID(ctx, ref)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "getting idp account details for enroll reference %s", ref)
 		}

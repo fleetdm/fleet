@@ -25,7 +25,7 @@ const SandboxExpiryMessage = ({
       <div className={baseClass}>
         <p>Your Fleet Sandbox expires in {expiry}.</p>
         <div className={`${baseClass}__tip`}>
-          <Icon name="lightbulb" />
+          <Icon name="lightbulb" size="large" />
           <p>
             <b>Quick tip: </b> Enroll a host to get started.
           </p>

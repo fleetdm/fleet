@@ -5,7 +5,7 @@ import { IApiError } from "interfaces/errors";
 import mdmAPI from "services/entities/mdm";
 import { NotificationContext } from "context/notification";
 
-import FileUploader from "pages/ManageControlsPage/components/FileUploader/FileUploader";
+import FileUploader from "components/FileUploader/FileUploader";
 import CustomLink from "components/CustomLink";
 
 import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
@@ -56,13 +56,13 @@ const EulaUploader = ({ onUpload }: IEulaUploaderProps) => {
         Require end users to agree to a EULA when they first setup their new
         macOS hosts.{" "}
         <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup"
+          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience"
           text="Learn more"
           newTab
         />
       </p>
       <FileUploader
-        icon="file-pdf"
+        graphicName="file-pdf"
         message="PDF (.pdf)"
         onFileUpload={onUploadFile}
         accept=".pdf"

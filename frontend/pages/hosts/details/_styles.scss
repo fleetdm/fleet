@@ -110,6 +110,16 @@
         color: $core-fleet-black;
         font-weight: $bold;
       }
+      &__data {
+        .device-mapping {
+          &__source {
+            color: $ui-fleet-black-75;
+          }
+          &__more {
+            color: $ui-fleet-black-50;
+          }
+        }
+      }
     }
 
     .list {
@@ -262,7 +272,7 @@
 
     &--offline {
       &:before {
-        background-color: $ui-fleet-black-25;
+        background-color: $ui-fleet-black-50;
         border-radius: 100%;
         content: " ";
         display: inline-block;

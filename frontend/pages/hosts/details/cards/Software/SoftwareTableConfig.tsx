@@ -14,6 +14,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { COLORS } from "styles/var/colors";
+import { getSoftwareBundleTooltipJSX } from "utilities/helpers";
 
 interface IHeaderProps {
   column: {
@@ -74,7 +75,7 @@ const TYPE_CONVERSION: Record<string, string> = {
   rpm_packages: "Package (RPM)",
   yum_sources: "Package (YUM)",
   npm_packages: "Package (NPM)",
-  atom_packages: "Package (Atom)",
+  atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
   apps: "Application (macOS)",
   chrome_extensions: "Browser plugin (Chrome)",
@@ -105,14 +106,13 @@ const condenseVulnerabilities = (vulns: string[]): string[] => {
 const renderBundleTooltip = (name: string, bundle: string) => (
   <span className="name-container">
     <TooltipWrapper
-      position="top"
-      tipContent={`
+      position="top-start"
+      tipContent={
         <span>
           <b>Bundle identifier: </b>
-          <br />
-          ${bundle}
+          <br />${bundle}
         </span>
-      `}
+      }
     >
       {name}
     </TooltipWrapper>
@@ -218,8 +218,10 @@ export const generateSoftwareTableHeaders = ({
           <LinkCell
             path={PATHS.SOFTWARE_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
-            value={bundle ? renderBundleTooltip(name, bundle) : name}
-            withTooltip={!!bundle}
+            value={name}
+            tooltipContent={
+              bundle ? getSoftwareBundleTooltipJSX(bundle) : undefined
+            }
           />
         );
       },
@@ -353,7 +355,14 @@ export const generateSoftwareTableHeaders = ({
       title: "File path",
       Header: () => {
         return (
-          <TooltipWrapper tipContent="This is where the software is <br />located on this host.">
+          <TooltipWrapper
+            tipContent={
+              <>
+                This is where the software is <br />
+                located on this host.
+              </>
+            }
+          >
             File path
           </TooltipWrapper>
         );

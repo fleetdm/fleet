@@ -114,6 +114,240 @@ func TestListQueries(t *testing.T) {
 	}
 }
 
+func TestQueryPayloadValidationCreate(t *testing.T) {
+	ds := new(mock.Store)
+	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		return query, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		act, ok := activity.(fleet.ActivityTypeCreatedSavedQuery)
+		assert.True(t, ok)
+		assert.NotEmpty(t, act.Name)
+		return nil
+	}
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testCases := []struct {
+		name         string
+		queryPayload fleet.QueryPayload
+		shouldErr    bool
+	}{
+		{
+			"All valid",
+			fleet.QueryPayload{
+				Name:     ptr.String("test query"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("snapshot"),
+				Platform: ptr.String(""),
+			},
+			false,
+		},
+		{
+			"Invalid  - empty string name",
+			fleet.QueryPayload{
+				Name:     ptr.String(""),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("snapshot"),
+				Platform: ptr.String(""),
+			},
+			true,
+		},
+		{
+			"Empty SQL",
+			fleet.QueryPayload{
+				Name:     ptr.String("bad sql"),
+				Query:    ptr.String(""),
+				Logging:  ptr.String("snapshot"),
+				Platform: ptr.String(""),
+			},
+			true,
+		},
+		{
+			"Invalid logging",
+			fleet.QueryPayload{
+				Name:     ptr.String("bad logging"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("hopscotch"),
+				Platform: ptr.String(""),
+			},
+			true,
+		},
+		{
+			"Unsupported platform",
+			fleet.QueryPayload{
+				Name:     ptr.String("invalid platform"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("differential"),
+				Platform: ptr.String("charles"),
+			},
+			true,
+		},
+		{
+			"Missing comma",
+			fleet.QueryPayload{
+				Name:     ptr.String("invalid platform"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("differential"),
+				Platform: ptr.String("darwin windows"),
+			},
+			true,
+		},
+		{
+			"Unsupported platform 'sphinx' ",
+			fleet.QueryPayload{
+				Name:     ptr.String("invalid platform"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("differential"),
+				Platform: ptr.String("darwin,windows,sphinx"),
+			},
+			true,
+		},
+	}
+
+	testAdmin := fleet.User{
+		ID:         1,
+		Teams:      []fleet.UserTeam{},
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+			query, err := svc.NewQuery(viewerCtx, tt.queryPayload)
+			if tt.shouldErr {
+				assert.Error(t, err)
+				assert.Nil(t, query)
+			} else {
+				assert.NoError(t, err)
+				assert.NotEmpty(t, query)
+			}
+		})
+	}
+}
+
+// similar for modify
+func TestQueryPayloadValidationModify(t *testing.T) {
+	ds := new(mock.Store)
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+		return &fleet.Query{
+			ID:             id,
+			Name:           "mock saved query",
+			Description:    "some desc",
+			Query:          "select 1;",
+			Platform:       "",
+			Saved:          true,
+			ObserverCanRun: false,
+		}, nil
+	}
+	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool) error {
+		assert.NotEmpty(t, query)
+		return nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		act, ok := activity.(fleet.ActivityTypeEditedSavedQuery)
+		assert.True(t, ok)
+		assert.NotEmpty(t, act.Name)
+		return nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testCases := []struct {
+		name         string
+		queryPayload fleet.QueryPayload
+		shouldErr    bool
+	}{
+		{
+			"All valid",
+			fleet.QueryPayload{
+				Name:     ptr.String("updated test query"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("snapshot"),
+				Platform: ptr.String(""),
+			},
+			false,
+		},
+		{
+			"Invalid  - empty string name",
+			fleet.QueryPayload{
+				Name:     ptr.String(""),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("snapshot"),
+				Platform: ptr.String(""),
+			},
+			true,
+		},
+		{
+			"Empty SQL",
+			fleet.QueryPayload{
+				Name:     ptr.String("bad sql"),
+				Query:    ptr.String(""),
+				Logging:  ptr.String("snapshot"),
+				Platform: ptr.String(""),
+			},
+			true,
+		},
+		{
+			"Invalid logging",
+			fleet.QueryPayload{
+				Name:     ptr.String("bad logging"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("hopscotch"),
+				Platform: ptr.String(""),
+			},
+			true,
+		},
+		{
+			"Unsupported platform",
+			fleet.QueryPayload{
+				Name:     ptr.String("invalid platform"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("differential"),
+				Platform: ptr.String("charles"),
+			},
+			true,
+		},
+		{
+			"Missing comma delimeter in platform string",
+			fleet.QueryPayload{
+				Name:     ptr.String("invalid platform"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("differential"),
+				Platform: ptr.String("darwin windows"),
+			},
+			true,
+		},
+		{
+			"Unsupported platform 2",
+			fleet.QueryPayload{
+				Name:     ptr.String("invalid platform"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("differential"),
+				Platform: ptr.String("darwin,windows,sphinx"),
+			},
+			true,
+		},
+	}
+
+	testAdmin := fleet.User{
+		ID:         1,
+		Teams:      []fleet.UserTeam{},
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+			_, err := svc.ModifyQuery(viewerCtx, 1, tt.queryPayload)
+			if tt.shouldErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -194,7 +428,7 @@ func TestQueryAuth(t *testing.T) {
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return query, nil
 	}
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		if teamID == nil && name == "global query" {
 			return &globalQuery, nil
 		} else if teamID != nil && *teamID == team.ID && name == "team query" {
@@ -213,7 +447,7 @@ func TestQueryAuth(t *testing.T) {
 		}
 		return nil, newNotFoundError()
 	}
-	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query) error {
+	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool) error {
 		return nil
 	}
 	ds.DeleteQueryFunc = func(ctx context.Context, teamID *uint, name string) error {
@@ -225,7 +459,7 @@ func TestQueryAuth(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) {
 		return nil, nil
 	}
-	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query) error {
+	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		return nil
 	}
 

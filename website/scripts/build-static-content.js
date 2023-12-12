@@ -26,6 +26,7 @@ module.exports = {
     let builtStaticContent = {};
     let rootRelativeUrlPathsSeen = [];
     let baseHeadersForGithubRequests;
+    let osqueryTables = [];
     if(!skipGithubRequests){
       baseHeadersForGithubRequests = {
         'User-Agent': 'Fleet-Standard-Query-Library',
@@ -69,6 +70,8 @@ module.exports = {
                   // If a query has a 'requires MDM' tag, we'll set requiresMDM to true for this query, and we'll ingore this tag.
                   if(_.trim(tag.toLowerCase()) === 'mdm required'){
                     query.requiresMdm = true;
+                  } else if(_.trim(tag.toLowerCase()) === 'critical') {
+                    query.critical = true;
                   } else {
                     // Removing any extra whitespace from tags and changing them to be in lower case.
                     formattedTags.push(_.trim(tag.toLowerCase()));
@@ -255,32 +258,9 @@ module.exports = {
               if(mdString.match(/\{\{([^}]+)\}\}/gi)) {
                 throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.match(/\{\{([^}]+)\}\}/gi)[0]}) that will cause client-side javascript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
               }
-              mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
               mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
+              // [?] Looking for code that used to be here related to syntax highlighting?  Please see https://github.com/fleetdm/fleet/pull/14124/files  -mikermcneil, 2023-09-25
               let htmlString = await sails.helpers.strings.toHtml(mdString);
-              htmlString = (// « Add the appropriate class to the `<code>` based on the temporary "LANG" markers that were just added above
-                htmlString
-                .replace(// Interpret `js` as `javascript`
-                  // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%js\%__ --\&gt;)\s*/gm,
-                  '$1 class="javascript"$2$3'
-                )
-                .replace(// Interpret `sh` and `bash` as `bash`
-                  // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%(bash|sh)\%__ --\&gt;)\s*/gm,
-                  '$1 class="bash"$2$3'
-                )
-                .replace(// When unspecified, default to `text`
-                  // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%\%__ --\&gt;)\s*/gm,
-                  '$1 class="nohighlight"$2$3'
-                )
-                .replace(// Finally, nab the rest, leaving the code language as-is.
-                  // $1     $2     $3   $4               $5    $6
-                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%)([^%]+)(\%__ --\&gt;)\s*/gm,
-                  '$1 class="$5"$2$3'
-                )
-              );
               // Throw an error if the compiled Markdown contains nested codeblocks (nested codeblocks meaning 3 backtick codeblocks nested inside a 4 backtick codeblock, or vice versa). Note: We're checking this after the markdown has been compiled because backticks (`) within codeblocks will be replaced with HTML entities (&#96;) and nested triple backticks can be easy to overmatch.
               if(htmlString.match(/(&#96;){3,4}[\s\S]+(&#96;){3}/g)){
                 throw new Error('The compiled markdown has a codeblock (\`\`\`) nested inside of another codeblock (\`\`\`\`) at '+pageSourcePath+'. To resolve this error, remove the codeblock nested inside another codeblock from this file.');
@@ -383,9 +363,11 @@ module.exports = {
               // >   <meta name="foo" value="bar">
               // >   <meta name="title" value="Sth with punctuATION and weird CAPS ... but never this long, please">
               // >   ```
+              // > Note: These meta tags are parsed from the HTML generated from markdown to prevent reading <meta> tags in code examples.
+              // > This works because HTML in Markdown files is added as-is, while any <meta> tags in codeblocks would have their brackets replaced with HTML entities when they are converted to HTML.
               let embeddedMetadata = {};
               try {
-                for (let tag of (mdString.match(/<meta[^>]*>/igm)||[])) {
+                for (let tag of (htmlString.match(/<meta[^>]*>/igm)||[])) {
                   let name = tag.match(/name="([^">]+)"/i)[1];
                   let value = tag.match(/value="([^">]+)"/i)[1];
                   embeddedMetadata[name] = value;
@@ -566,6 +548,14 @@ module.exports = {
         // Now build EJS partials from open positions in open-positions.yml. Note: We don't build these
         builtStaticContent.openPositions = [];// This will be passed into a component on the company handbook page to render a list of open positions.
         let RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO = 'handbook/company/open-positions.yml';
+
+        // Get last modified timestamp using git, and represent it as a JS timestamp.
+        // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+        let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+          command: `git log -1 --format="%ai" '${path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)}'`,
+          dir: topLvlRepoPath,
+        })).stdout)).getTime();
+
         let openPositionsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find open positions YAML file at "${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let openPositionsToCreatePartialsFor = YAML.parse(openPositionsYaml, {prettyErrors: true});
 
@@ -601,7 +591,7 @@ module.exports = {
 
           let pageTitle = openPosition.jobTitle;
 
-          let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n\n## Want to join the team?\n\nWant to join the team?\n\nReach out to [${openPosition.hiringManagerName} on Linkedin](${openPosition.hiringManagerLinkedInUrl}).`;
+          let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div><div purpose="quote-attribution"><strong>Dhruv Majumdar</strong><p>Director Of Cyber Risk & Advisory</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\nReach out to [${openPosition.hiringManagerName} on Linkedin](${openPosition.hiringManagerLinkedInUrl}).`;
 
 
           let htmlStringForThisPosition = await sails.helpers.strings.toHtml.with({mdString: mdStringForThisOpenPosition});
@@ -640,7 +630,7 @@ module.exports = {
           ).replace(/[^a-z0-9\-]/ig,'');
 
           // Determine the rootRelativeUrlPath for this open position, this will be used as the page's URL and to check if a markdown page already exists with this page's URL
-          let rootRelativeUrlPath = '/handbook/company/'+encodeURIComponent(_.kebabCase(openPosition.jobTitle));
+          let rootRelativeUrlPath = '/handbook/company/open-positions/'+encodeURIComponent(_.kebabCase(openPosition.jobTitle));
 
           // If there is an existing page with the generated url, throw an error.
           if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
@@ -658,7 +648,7 @@ module.exports = {
           builtStaticContent.markdownPages.push({
             url: rootRelativeUrlPath,
             title: pageTitle,
-            lastModifiedAt: Date.now(),
+            lastModifiedAt: lastModifiedAt,
             htmlId: htmlId,
             sectionRelativeRepoPath: 'company/open-positions.yml', // This is used to create the url for the "Edit this page" link
             meta: {maintainedBy: openPosition.hiringManagerGithubUsername},// Set the page maintainer to be the position's hiring manager.
@@ -671,13 +661,15 @@ module.exports = {
         }
 
         // After we build the Markdown pages, we'll merge the osquery schema with the Fleet schema overrides, then create EJS partials for each table in the merged schema.
-        let expandedTables = await sails.helpers.getExtendedOsquerySchema();
+        let expandedTables = await sails.helpers.getExtendedOsquerySchema.with({includeLastModifiedAtValue: true});
 
         // Once we have our merged schema, we'll create ejs partials for each table.
         for(let table of expandedTables) {
           let keywordsForSyntaxHighlighting = [];
           keywordsForSyntaxHighlighting.push(table.name);
           if(!table.hidden) { // If a table has `"hidden": true` the table won't be shown in the final schema, and we'll ignore it
+            // If the table is not hidden, we'l ladd it to our osquery tables configuration.
+            let tableInfoForQueryReports = { name: table.name, columns: [], platforms: table.platforms};
             // Start building the markdown string for this table.
             let tableMdString = '\n## '+table.name;
             if(table.evented){
@@ -686,14 +678,29 @@ module.exports = {
             }
             // Add the tables description to the markdown string and start building the table in the markdown string
             tableMdString += '\n\n'+table.description+'\n\n|Column | Type | Description |\n|-|-|-|\n';
+            if(table.description !== ''){
+              let tableDescriptionForQueryReports = table.description;
+              if(table.notes){
+                tableDescriptionForQueryReports += '\n\n**Notes:**\n\n'+table.notes;
+              }
+              let htmlDescriptionForTableInfo = await sails.helpers.strings.toHtml.with({mdString: tableDescriptionForQueryReports, addIdsToHeadings: false});
+              tableInfoForQueryReports.description = htmlDescriptionForTableInfo;
+            }
 
             // Iterate through the columns of the table, we'll add a row to the markdown table element for each column in this schema table
             for(let column of table.columns) {
-              if(!column.hidden) { // If te column is hidden, we won't add it to the final table.
+              if(!column.hidden) { // If the column is hidden, we won't add it to the final table.
+                // Create an object for this column to add to the osqueryTables config.
+                let columnInfoForQueryReports = {
+                  name: column.name
+                };
                 let columnDescriptionForTable = '';// Set the initial value of the description that will be added to the table for this column.
                 if(column.description) {
                   columnDescriptionForTable = column.description;
+                  // Convert the markdown description for this table into HTML for tooltips on /try-fleet/explore-data/* pages
+                  columnInfoForQueryReports.description = await sails.helpers.strings.toHtml.with({mdString: column.description, addIdsToHeadings: false});
                 }
+                tableInfoForQueryReports.columns.push(columnInfoForQueryReports);
                 // Replacing pipe characters and newlines with html entities in column descriptions to keep it from breaking markdown tables.
                 columnDescriptionForTable = columnDescriptionForTable.replace(/\|/g, '&#124;').replace(/\n/gm, '&#10;');
 
@@ -776,12 +783,15 @@ module.exports = {
             } else {
               await sails.helpers.fs.write(htmlOutputPath, htmlString);
             }
+            // Add information about this table to the osqueryTables array
+            osqueryTables.push(tableInfoForQueryReports);
             // Add this table to the array of schemaTables in builtStaticContent.
             builtStaticContent.markdownPages.push({
               url: '/tables/'+encodeURIComponent(table.name),
               title: table.name,
               htmlId: htmlId,
               evented: table.evented,
+              lastModifiedAt: table.lastModifiedAt,
               platforms: table.platforms,
               keywordsForSyntaxHighlighting: keywordsForSyntaxHighlighting,
               sectionRelativeRepoPath: table.name, // Setting the sectionRelativeRepoPath to an arbitrary string to work with existing pages.
@@ -798,36 +808,47 @@ module.exports = {
         // Validate the pricing table yaml and add it to builtStaticContent.pricingTable.
         let RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO = 'handbook/company/pricing-features-table.yml';
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find pricing table features YAML file at "${RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
-        let pricingTableCategories = YAML.parse(yaml, {prettyErrors: true});
-
-        for(let category of pricingTableCategories){
-          if(!category.categoryName){ // Throw an error if a category is missing a categoryName.
-            throw new Error('Could not build pricing table config from pricing-features-table.yml, a category in the pricing table configuration is missing a categoryName. To resolve, make sure every category in the pricing table YAML file has a categoryName');
+        let pricingTableFeatures = YAML.parse(yaml, {prettyErrors: true});
+        let VALID_PRODUCT_CATEGORIES = ['Endpoint operations', 'Device management', 'Vulnerability management'];
+        for(let feature of pricingTableFeatures){
+          if(feature.name) {// Compatibility check
+            throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature has a "name" (${feature.name}) which is no longer supported. To resolve, add a "industryName" to this feature: ${feature}`);
           }
-          if(!category.features){// Throw an error if a category is missing `features`.
-            throw new Error('Could not build pricing table config from pricing-features-table.yml, the "'+category.categoryName+'" category in the yaml file is missing features. To resolve, add an array of features to this category.');
-          }
-          if(!_.isArray(category.features)){ // Throw an error if a category's `features`` is not an array.
-            throw new Error('Could not build pricing table config from pricing-features-table.yml, The value of the "'+category.categoryName+'" category is invalid, to resolve, change the features for this category to be an array of objects.');
-          }
-          // Validate all features in a category.
-          for(let feature of category.features){
-            if(!feature.name) { // Throw an error if a feature is missing a `name`.
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category is missing a "name". To resolve, add a "name" to this feature '+feature);
+          if(feature.industryName !== undefined) {
+            if(!feature.industryName || typeof feature.industryName !== 'string') {
+              throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature has a missing or invalid "industryName". To resolve, set an "industryName" as a valid, non-empty string for this feature ${feature}`);
             }
-            if(!feature.tier) { // Throw an error if a feature is missing a `tier`.
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature is missing a "tier". To resolve, add a "tier" (either "Free" or "Premium") to this feature.');
-            } else if(!_.contains(['Free', 'Premium'], feature.tier)){ // Throw an error if a feature's `tier` is not "Free" or "Premium".
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature has an invalid "tier". to resolve, change the value of this features "tier" (currently set to '+feature.tier+') to be either "Free" or "Premium".');
-            }
-            if(feature.comingSoon === undefined) { // Throw an error if a feature is missing a `comingSoon` value
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature is missing a "comingSoon" value (boolean). To resolve, add a comingSoon value to this feature.');
-            } else if(typeof feature.comingSoon !== 'boolean'){ // Throw an error if the `comingSoon` value is not a boolean.
-              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature has an invalid "comingSoon" value (currently set to '+feature.comingSoon+'). To resolve, change the value of "comingSoon" for this feature to be either "true" or "false".');
+            feature.name = feature.industryName;//« This is just an alias. FUTURE: update code elsewhere to use the new property instead, and delete this aliasing.
+          }
+          if(!feature.productCategories){
+            throw new Error(`Could not build pricing table config from pricing-features-table.yml. The '${feature.industryName}' feature is missing a 'productCategories' value. Please add an array of product categories to this feature and try running this script again`);
+          } else {
+            if(!_.isArray(feature.productCategories)){
+              throw new Error(`Could not build pricing table config from pricing-features-table.yml. The '${feature.industryName}' feature has an invalid 'productCategories' value. Please change the productCategories for this feature to be an array of product categories`);
+            } else {
+              for(let category of feature.productCategories){
+                if(!_.contains(VALID_PRODUCT_CATEGORIES, category)){
+                  throw new Error(`Could not build pricing table config from pricing-features-table.yml. The '${feature.industryName}' feature has a 'productCategories' with an an invalid product category (${category}). Please change the values in this array to be one of: ${VALID_PRODUCT_CATEGORIES.join(', ')}`);
+                }
+              }
             }
           }
+          if(!feature.tier) { // Throw an error if a feature is missing a `tier`.
+            throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature is missing a "tier". To resolve, add a "tier" (either "Free" or "Premium") to this feature.`);
+          } else if(!_.contains(['Free', 'Premium'], feature.tier)){ // Throw an error if a feature's `tier` is not "Free" or "Premium".
+            throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature has an invalid "tier". to resolve, change the value of this features "tier" (currently set to '+feature.tier+') to be either "Free" or "Premium".`);
+          }
+          if(feature.comingSoon) {// Compatibility check
+            throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature (industryName: ${feature.industryName}) category has "comingSoon", which is no longer supported. To resolve, remove "comingSoon" or add "comingSoonOn" (YYYY-MM-DD) to this feature ${feature}`);
+          }
+          if(feature.comingSoonOn !== undefined) {
+            if(typeof feature.comingSoonOn !== 'string'){
+              throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature has an invalid "comingSoonOn" value (currently set to ${feature.comingSoonOn}, but expecting a string like 'YYYY-MM-DD'.)`);
+            }
+            feature.comingSoon = true;//« This is just an alias. FUTURE: update code elsewhere to use the new property instead, and delete this aliasing.
+          }//ﬁ
         }
-        builtStaticContent.pricingTable = pricingTableCategories;
+        builtStaticContent.pricingTable = pricingTableFeatures;
       },
       async()=>{
         let rituals = {};
@@ -937,7 +958,7 @@ module.exports = {
       },
 
     ]);
-
+    builtStaticContent.osqueryTables = osqueryTables;
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
     //  ██╔══██╗██╔════╝██╔══██╗██║     ██╔══██╗██╔════╝██╔════╝       ██╔════╝██╔══██╗██║██║     ██╔════╝██╔══██╗██╔════╝██╗
     //  ██████╔╝█████╗  ██████╔╝██║     ███████║██║     █████╗         ███████╗███████║██║██║     ███████╗██████╔╝██║     ╚═╝

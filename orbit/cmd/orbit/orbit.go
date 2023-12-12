@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -144,8 +145,9 @@ func main() {
 			Usage: "Get Orbit version",
 		},
 		&cli.StringFlag{
-			Name:  "log-file",
-			Usage: "Log to this file path in addition to stderr",
+			Name:    "log-file",
+			Usage:   "Log to this file path in addition to stderr",
+			EnvVars: []string{"ORBIT_LOG_FILE"},
 		},
 		&cli.BoolFlag{
 			Name:    "fleet-desktop",
@@ -346,7 +348,7 @@ func main() {
 		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
 
 		// sofwareupdated is a macOS daemon that automatically updates Apple software.
-		if !c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
+		if c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
 			log.Warn().Msg("fleetd no longer automatically kickstarts softwareupdated. The --disable-kickstart-softwareupdated flag, which was previously used to disable this behavior, has been deprecated and will be removed in a future version")
 		}
 
@@ -403,21 +405,44 @@ func main() {
 
 			g.Add(updateRunner.Execute, updateRunner.Interrupt)
 
-			osquerydLocalTarget, err := updater.Get("osqueryd")
-			if err != nil {
-				return fmt.Errorf("get osqueryd target: %w", err)
-			}
-			osquerydPath = osquerydLocalTarget.ExecPath
-			if c.Bool("fleet-desktop") {
-				fleetDesktopLocalTarget, err := updater.Get("desktop")
+			// if getting any of the targets fails, keep on
+			// retrying, the `updater.Get` method has built-in backoff functionality.
+			//
+			// NOTE: it used to be the case that we would return an
+			// error on the first attempt here, causing orbit to
+			// restart. This was changed to have control over
+			// how/when we want to retry to download the packages.
+			err = retrypkg.Do(func() error {
+				osquerydLocalTarget, err := updater.Get("osqueryd")
 				if err != nil {
-					return fmt.Errorf("get desktop target: %w", err)
+					log.Info().Err(err).Msg("get osqueryd target failed")
+					return fmt.Errorf("get osqueryd target: %w", err)
 				}
-				if runtime.GOOS == "darwin" {
-					desktopPath = fleetDesktopLocalTarget.DirPath
-				} else {
-					desktopPath = fleetDesktopLocalTarget.ExecPath
+				osquerydPath = osquerydLocalTarget.ExecPath
+				if c.Bool("fleet-desktop") {
+					fleetDesktopLocalTarget, err := updater.Get("desktop")
+					if err != nil {
+						log.Info().Err(err).Msg("get desktop target failed")
+						return fmt.Errorf("get desktop target: %w", err)
+					}
+					if runtime.GOOS == "darwin" {
+						desktopPath = fleetDesktopLocalTarget.DirPath
+					} else {
+						desktopPath = fleetDesktopLocalTarget.ExecPath
+					}
 				}
+
+				return nil
+			},
+				// retry every 5 minutes to not flood the logs,
+				// but actual pings to the remote server are
+				// handled by `updater.Get`
+				retrypkg.WithInterval(5*time.Minute),
+			)
+			if err != nil {
+				// this should never happen because `retry.Do` is
+				// executed without a defined number of max attempts
+				return fmt.Errorf("getting targets after retry: %w", err)
 			}
 		} else {
 			log.Info().Msg("running with auto updates disabled")
@@ -622,6 +647,7 @@ func main() {
 		const (
 			renewEnrollmentProfileCommandFrequency = time.Hour
 			windowsMDMEnrollmentCommandFrequency   = time.Hour
+			windowsMDMBitlockerCommandFrequency    = time.Hour
 		)
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL)
 		configFetcher = update.ApplyRunScriptsConfigFetcherMiddleware(configFetcher, c.Bool("enable-scripts"), orbitClient)
@@ -638,6 +664,7 @@ func main() {
 			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
 		case "windows":
 			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient)
+			configFetcher = update.ApplyWindowsMDMBitlockerFetcherMiddleware(configFetcher, windowsMDMBitlockerCommandFrequency, orbitClient)
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
@@ -719,6 +746,9 @@ func main() {
 				return fmt.Errorf("writing token: %w", err)
 			}
 
+			// Note that the deviceClient used by orbit must not define a retry on
+			// invalid token, because its goal is to detect invalid tokens when
+			// making requests with this client.
 			deviceClient, err := service.NewDeviceClient(
 				fleetURL,
 				c.Bool("insecure"),
@@ -761,18 +791,31 @@ func main() {
 				for {
 					select {
 					case <-rotationTicker.C:
+						rotationTicker.Reset(rotationDuration)
+
 						log.Debug().Msgf("checking if token has changed or expired, cached mtime: %s", trw.GetMtime())
 						hasChanged, err := trw.HasChanged()
 						if err != nil {
 							log.Error().Err(err).Msg("error checking if token has changed")
 						}
-						if hasChanged || trw.HasExpired() {
+
+						exp, remain := trw.HasExpired()
+
+						// rotate if the token file has been modified, if the token is
+						// expired or if it is very close to expire.
+						if hasChanged || exp || remain <= time.Second {
 							log.Info().Msg("token TTL expired, rotating token")
 
 							if err := trw.Rotate(); err != nil {
 								log.Error().Err(err).Msg("error rotating token")
 							}
+						} else if remain > 0 && remain < rotationDuration {
+							// check again when the token will expire, which will happen
+							// before the next rotation check
+							rotationTicker.Reset(remain)
+							log.Debug().Msgf("token will expire soon, checking again in: %s", remain)
 						}
+
 					case <-remoteCheckTicker.C:
 						log.Debug().Msgf("initiating remote token check after %s", remoteCheckDuration)
 						if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
@@ -1196,7 +1239,7 @@ func (s *serviceChecker) Execute() error {
 }
 
 func (s *serviceChecker) Interrupt(err error) {
-	log.Debug().Err(err).Msg("interrupt serviceChecker")
+	log.Error().Err(err).Msg("interrupt serviceChecker")
 	close(s.localInterruptCh) // Signal execute to return.
 }
 

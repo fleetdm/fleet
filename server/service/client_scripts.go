@@ -51,3 +51,10 @@ func (c *Client) RunHostScriptSync(hostID uint, scriptContents []byte) (*fleet.H
 
 	return &result, nil
 }
+
+// ApplyNoTeamScripts sends the list of scripts to be applied for the hosts in
+// no team.
+func (c *Client) ApplyNoTeamScripts(scripts []fleet.ScriptPayload, opts fleet.ApplySpecOptions) error {
+	verb, path := "POST", "/api/latest/fleet/scripts/batch"
+	return c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, nil, opts.RawQuery())
+}

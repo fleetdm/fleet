@@ -59,7 +59,7 @@ const ForgotPasswordPage = ({ router }: IForgotPasswordPage) => {
             <br />
             You can find more information on resetting passwords at the{" "}
             <CustomLink
-              url="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user?utm_medium=fleetui&utm_campaign=get-api-token"
+              url="https://fleetdm.com/docs/using-fleet/fleetctl-cli?utm_medium=fleetui&utm_campaign=get-api-token#using-fleetctl-with-an-api-only-user"
               text="Password reset FAQ"
               newTab
             />

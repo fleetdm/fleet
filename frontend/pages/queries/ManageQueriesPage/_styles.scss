@@ -137,6 +137,8 @@
 
               .query-name-cell {
                 display: flex; // required for inline icon
+                gap: $pad-xsmall;
+
                 .children-wrapper {
                   .query-name-text {
                     text-overflow: ellipsis;

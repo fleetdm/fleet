@@ -109,7 +109,7 @@ You’ll find the enroll-secret after clicking “Add hosts”. This is a specia
 
 To install `fleetctl`, which is the command line interface (CLI) used to communicate between your computer and Fleet, you either run `npm install -g fleetctl` or [download fleetctl](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.3.0) from Github. Once it's installed try the following command (Docker require) on your terminal:
 
-```
+```sh
 fleetctl package --type=msi --enroll-secret <secret> --fleet-url https://<your-unique-service-name>.onrender.com
 ```
 
@@ -119,7 +119,7 @@ Now we need some awesome queries to run against the hosts we enroll, check out t
 
 To get them into Fleet we can use `fleetctl` again. Run the following on your terminal:
 
-```
+```sh
 curl https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml -o standard-query-library.yaml
 ```
 
@@ -127,13 +127,13 @@ Now that we downloaded the standard query library, we’ll apply it using `fleet
 
 Try running:
 
-```
+```sh
 fleetctl config set --address https://<your-unique-service-name>.onrender.com
 ```
 
 Next, login with your credentials from when you set up the Fleet instance by running `fleetctl login`:
 
-```
+```sh
 fleetctl login
 Log in using the standard Fleet credentials.
 Email: <enter user you just setup>
@@ -143,7 +143,7 @@ Fleet login successful and context configured!
 
 Applying the query library is simple. Just run:
 
-```
+```sh
 fleetctl apply -f standard-query-library.yaml
 ```
 

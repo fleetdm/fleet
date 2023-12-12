@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -289,7 +288,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			var buf []byte
 			if fp := c.String(stdQueryLibFilePath); fp != "" {
 				var err error
-				buf, err = ioutil.ReadFile(fp)
+				buf, err = os.ReadFile(fp)
 				if err != nil {
 					return fmt.Errorf("failed to read standard query library file %q: %w", fp, err)
 				}
@@ -417,7 +416,7 @@ func downloadFiles(branch string) error {
 		return fmt.Errorf("download got status %d", resp.StatusCode)
 	}
 
-	zipContents, err := ioutil.ReadAll(resp.Body)
+	zipContents, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("read download contents: %w", err)
 	}
@@ -443,7 +442,7 @@ func downloadStandardQueryLibrary() ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("status: %d", resp.StatusCode)
 	}
-	buf, err := ioutil.ReadAll(resp.Body)
+	buf, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read response body: %w", err)
 	}

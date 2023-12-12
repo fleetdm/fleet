@@ -33,6 +33,7 @@ const AddPolicyModal = ({
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
+    setLastEditedQueryId,
     setPolicyTeamId,
     setDefaultPolicy,
   } = useContext(PolicyContext);
@@ -46,6 +47,7 @@ const AddPolicyModal = ({
     setLastEditedQueryBody(selectedPolicy.query);
     setLastEditedQueryResolution(selectedPolicy.resolution);
     setLastEditedQueryCritical(selectedPolicy.critical || false);
+    setLastEditedQueryId(null);
     setPolicyTeamId(teamId);
     setLastEditedQueryPlatform(selectedPolicy.platform || null);
     router.push(
@@ -56,10 +58,17 @@ const AddPolicyModal = ({
   const onCreateYourOwnPolicyClick = useCallback(() => {
     setPolicyTeamId(teamId);
     setLastEditedQueryBody(DEFAULT_POLICY.query);
+    setLastEditedQueryId(null);
     router.push(
       !teamId ? PATHS.NEW_POLICY : `${PATHS.NEW_POLICY}?team_id=${teamId}`
     );
-  }, [router, setLastEditedQueryBody, setPolicyTeamId, teamId]);
+  }, [
+    router,
+    setLastEditedQueryBody,
+    setLastEditedQueryId,
+    setPolicyTeamId,
+    teamId,
+  ]);
 
   const policiesAvailable = DEFAULT_POLICIES.map((policy: IPolicyNew) => {
     return (

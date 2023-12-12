@@ -44,6 +44,7 @@
       - [Debugging tips](#debugging-tips)
     - [Bootstrap package](#bootstrap-package)
     - [Puppet module](#puppet-module)
+    - [Testing the end user flow for MDM migrations](#testing-the-end-user-flow-for-mdm-migrations)
 
 ## License key
 
@@ -53,7 +54,7 @@ Use the `--dev_license` flag to use the default development license key.
 
 For example:
 
-```
+```sh
 ./build/fleet serve --dev --dev_license
 ```
 
@@ -67,19 +68,19 @@ Check out [`/tools/osquery` directory instructions](https://github.com/fleetdm/f
 
 You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
-```
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1
+```sh
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.2
 ```
 
 Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
 
-```
+```sh
 REDIS_TEST=1 MYSQL_TEST=1 make test
 ```
 
 Note that on a Linux system, the Redis tests will include running in cluster mode, so the docker Redis Cluster setup must be running. This implies starting the docker dependencies as follows:
 
-```
+```sh
 # start both the default docker-compose.yml and the redis cluster-specific
 # docker-compose-redis-cluster.yml
 $ docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up
@@ -89,15 +90,15 @@ $ docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up
 
 To run all Go unit tests, run the following:
 
-```
-REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 make test-go
+```bash
+REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make test-go
 ```
 
 ### Go linters
 
 To run all Go linters and static analyzers, run the following:
 
-```
+```sh
 make lint-go
 ```
 
@@ -105,13 +106,13 @@ make lint-go
 
 To run all JS unit tests, run the following:
 
-```
+```sh
 make test-js
 ```
 
 or
 
-```
+```sh
 yarn test
 ```
 
@@ -119,13 +120,13 @@ yarn test
 
 To run all JS linters and static analyzers, run the following:
 
-```
+```sh
 make lint-js
 ```
 
 or
 
-```
+```sh
 yarn lint
 ```
 
@@ -133,7 +134,7 @@ yarn lint
 
 To run MySQL integration tests, set environment variables as follows:
 
-```
+```sh
 MYSQL_TEST=1 make test-go
 ```
 
@@ -141,7 +142,7 @@ MYSQL_TEST=1 make test-go
 
 To run email related integration tests using MailHog set environment as follows:
 
-```
+```sh
 MAIL_TEST=1 make test-go
 ```
 
@@ -149,7 +150,7 @@ MAIL_TEST=1 make test-go
 
 A few tests require network access as they make requests to external hosts. Given that the network is unreliable and may not be available. Those hosts may also be unavailable so these tests are skipped by default. They are opt-in via the `NETWORK_TEST` environment variable. To run them:
 
-```
+```sh
 NETWORK_TEST=1 make test-go
 ```
 
@@ -187,21 +188,21 @@ Make sure dependencies are up to date and to build the [Fleet binaries locally](
 
 For Fleet Free tests:
 
-```
+```sh
 make e2e-reset-db
 make e2e-serve-free
 ```
 
 For Fleet Premium tests:
 
-```
+```sh
 make e2e-reset-db
 make e2e-serve-premium
 ```
 
 This will start a local Fleet server connected to the E2E database. Leave this server running for the duration of end-to-end testing.
 
-```
+```sh
 make e2e-setup
 ```
 
@@ -215,13 +216,13 @@ Tests can be run in interactive mode or from the command line.
 
 For Fleet Free tests:
 
-```
+```sh
 yarn e2e-browser:free
 ```
 
 For Fleet Premium tests:
 
-```
+```sh
 yarn e2e-browser:premium
 ```
 
@@ -231,13 +232,13 @@ Use the graphical UI controls to run and view tests.
 
 For Fleet Free tests:
 
-```
+```sh
 yarn e2e-cli:free
 ```
 
 For Fleet Premium tests:
 
-```
+```sh
 yarn e2e-cli:premium
 ```
 
@@ -277,7 +278,7 @@ backup, restore, and reset the MySQL database. This can be achieved with the fol
 
 Backup:
 
-```
+```sh
 make db-backup
 ```
 
@@ -285,7 +286,7 @@ The database dump is stored in `backup.sql.gz`.
 
 Restore:
 
-```
+```sh
 make db-restore
 ```
 
@@ -293,7 +294,7 @@ Note that a "restore" will replace the state of the development database with th
 
 Reset:
 
-```
+```sh
 make db-reset
 ```
 
@@ -304,7 +305,7 @@ Connect to the MySQL shell to view and interact directly with the contents of th
 
 To connect via Docker:
 
-```
+```sh
 docker-compose exec mysql mysql -uroot -ptoor -Dfleet
 ```
 
@@ -312,7 +313,7 @@ docker-compose exec mysql mysql -uroot -ptoor -Dfleet
 
 Connect to the `redis-cli` in REPL mode to view and interact directly with the contents stored in Redis.
 
-```
+```sh
 docker-compose exec redis redis-cli
 ```
 
@@ -377,7 +378,7 @@ First, create one stream for "status" logs and one for "result" logs (see
 https://osquery.readthedocs.io/en/stable/deployment/logging/ for more information around the two
 types of logs):
 
-```
+```sh
 $ awslocal kinesis create-stream --stream-name "sample_status" --shard-count 1
 $ awslocal kinesis create-stream --stream-name "sample_result" --shard-count 1
 $ awslocal kinesis list-streams
@@ -390,7 +391,7 @@ $ awslocal kinesis list-streams
 ```
 
 Use the following configuration to run Fleet:
-```
+```sh
 FLEET_OSQUERY_RESULT_LOG_PLUGIN=kinesis
 FLEET_OSQUERY_STATUS_LOG_PLUGIN=kinesis
 FLEET_KINESIS_REGION=us-east-1
@@ -402,7 +403,7 @@ FLEET_KINESIS_RESULT_STREAM=sample_result
 ```
 
 Here's a sample command for running `fleet serve`:
-```
+```sh
 make fleet && FLEET_OSQUERY_RESULT_LOG_PLUGIN=kinesis FLEET_OSQUERY_STATUS_LOG_PLUGIN=kinesis FLEET_KINESIS_REGION=us-east-1 FLEET_KINESIS_ENDPOINT_URL=http://localhost:4566 FLEET_KINESIS_ACCESS_KEY_ID=default FLEET_KINESIS_SECRET_ACCESS_KEY=default FLEET_KINESIS_STATUS_STREAM=sample_status FLEET_KINESIS_RESULT_STREAM=sample_result ./build/fleet serve --dev --dev_license --logging_debug
 ```
 Fleet will now be relaying "status" and "result" logs from osquery agents to the LocalStack's
@@ -470,7 +471,7 @@ Pre-built installers are kept in a blob storage like AWS S3. As part of your you
 3. Configure your fleet server setting `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` to match your global enroll secret.
 4. Set `FLEET_SERVER_SANDBOX_ENABLED=1`, as the endpoint to retrieve the installer is only available in the sandbox.
 
-```
+```sh
 FLEET_SERVER_SANDBOX_ENABLED=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build/fleet serve --dev
 ```
 
@@ -512,13 +513,13 @@ To enable the [DEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/g
 
 First ask @zwass to create an account for you in [ABM](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#abm-apple-business-manager). You'll need an account to generate an encrypted token.
 
-Once you have access to ABM, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm) in the user facing docs to generate the private key, certificate, and encrypted token.
+Once you have access to ABM, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-business-manager-abm) in the user facing docs to generate the private key, certificate, and encrypted token.
 
 ### APNs and SCEP setup
 
 The server also needs a private key + certificate to identify with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers, and another for [SCEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#scep-simple-certificate-enrollment-protocol).
 
-To generate both, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-setup#apple-push-notification-service-apns).
+To generate both, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-push-notification-service-apns).
 
 Note that:
 
@@ -529,7 +530,7 @@ Note that:
 
 Another option, if for some reason, generating the certificates and keys fails or you don't have a supported email address handy is to use `openssl` to generate your SCEP key pair:
 
-```
+```sh
 $ openssl genrsa -out fleet-mdm-apple-scep.key 4096
 
 $ openssl req -x509 -new -nodes -key fleet-mdm-apple-scep.key -sha256 -days 1826 -out fleet-mdm-apple-scep.crt -subj '/CN=Fleet Root CA/C=US/O=Fleet DM.'
@@ -539,7 +540,7 @@ $ openssl req -x509 -new -nodes -key fleet-mdm-apple-scep.key -sha256 -days 1826
 
 Try to store all the certificates and tokens you generated in the earlier steps together in a safe place outside of the repo, then start the server with:
 
-```
+```sh
 FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge \
 FLEET_MDM_APPLE_SCEP_CERT=/path/to/fleet-mdm-apple-scep.crt \
 FLEET_MDM_APPLE_SCEP_KEY=/path/to/fleet-mdm-apple-scep.key \
@@ -553,7 +554,7 @@ FLEET_MDM_APPLE_APNS_KEY=/path/to/mdmcert.download.push.key \
 
 Note: if you need to enroll VMs using MDM, the server needs to run behind TLS with a valid certificate. In a separate terminal window/tab, create a local tunnel to your server using `ngrok` (`brew install ngrok/ngrok/ngrok` if you don't have it.)
 
-```
+```sh
 ngrok http https://localhost:8080
 ```
 
@@ -593,7 +594,7 @@ If you are using QEMU for Linux, follow the instruction guide to install a recen
 1. Create a fleetd package that you will install on your host machine. You can get this command from the fleet
    UI on the manage hosts page when you click the `add hosts` button. Alternatively, you can run the command:
 
-  ```
+  ```sh
   ./build/fleetctl package --type=pkg --fleet-desktop --fleet-url=<url-of-fleet-instance> --enroll-secret=<your-fleet-enroll-secret>
   ```
 
@@ -647,7 +648,7 @@ We use [Nudge](https://github.com/macadmins/nudge) to enforce macOS updates. Our
 
 - Orbit launches Nudge using the following command, you can try and run the command yourself to see if you spot anything suspicious:
 
-```
+```sh
 open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json
 ```
 
@@ -655,13 +656,13 @@ open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/or
 
 - Nudge has a great [guide](https://github.com/macadmins/nudge/wiki/Logging) to stream/parse their logs, the TL;DR version is that you probably want a terminal running:
 
-```
+```sh
 log stream --predicate 'subsystem == "com.github.macadmins.Nudge"' --info --style json --debug
 ```
 
 - Nudge has a couple of flags that you can provide to see what config values are actually being used. You can try launching Nudge with `-print-json-config` or `-print-profile-config` like this:
 
-```
+```sh
 open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json -print-json-config
 ```
 
@@ -669,13 +670,19 @@ open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/or
 
 A bootstrap package is a `pkg` file that gets automatically installed on hosts when they enroll via DEP.
 
-The `pkg` file needs to be a signed "distribution package", you can find a dummy file that meets all the requirements [in Drive](https://drive.google.com/file/d/1adwAOTD5G6D4WzWvJeMId6mDhyeFy-lm/view). We have instructions in [the docs](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#bootstrap-package) to upload a new bootstrap package to your Fleet instance.
+The `pkg` file needs to be a signed "distribution package", you can find a dummy file that meets all the requirements [in Drive](https://drive.google.com/file/d/1adwAOTD5G6D4WzWvJeMId6mDhyeFy-lm/view). We have instructions in [the docs](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#bootstrap-package) to upload a new bootstrap package to your Fleet instance.
 
 The dummy package linked above adds a Fleet logo in `/Library/FleetDM/fleet-logo.png`. To verify if the package was installed, you can open that folder and verify that the logo is there.
 
 ### Puppet module
 
 Instructions to develop and test the module can be found in the [`CONTRIBUTING.md` file](https://github.com/fleetdm/fleet/blob/main/ee/tools/puppet/fleetdm/CONTRIBUTING.md) that sits alongside the module code.
+
+### Testing the end user flow for MDM migrations
+
+The [end user flow](https://fleetdm.com/docs/using-fleet/mdm-migration-guide#end-user-workflow) requires you to have a webserver running to receive a webhook from the Fleet server and perform an unenrollment.
+
+We have a few servers in `tools/mdm/migration` that you can use. Follow the instructions on their README and configure your Fleet server to point to them.
 
 <meta name="pageOrderInSection" value="1500">
 <meta name="description" value="An overview of Fleet's full test suite and integration tests.">

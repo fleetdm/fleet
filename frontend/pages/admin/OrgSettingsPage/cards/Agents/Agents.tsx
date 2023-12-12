@@ -74,7 +74,7 @@ const Agents = ({
           Agent options configure the osquery agent. When you update agent
           options, they will be applied the next time a host checks in to Fleet.{" "}
           <CustomLink
-            url="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
+            url="https://fleetdm.com/docs/configuration/agent-configuration"
             text="Learn more about agent options"
             newTab
             multiline

@@ -3,18 +3,18 @@ import TableOSVersion from "./os_version";
 
 describe("os_version", () => {
   describe("getName", () => {
-    const sut = new TableOSVersion(null, null)
+    const sut = new TableOSVersion(null, null);
     it("returns platform name properly formatted", () => {
-      expect(sut.getName("Chrome OS")).toBe("ChromeOS")
-    })
-  })
+      expect(sut.getName("Chrome OS")).toBe("ChromeOS");
+    });
+  });
 
   describe("getCodename", () => {
-    const sut = new TableOSVersion(null, null)
+    const sut = new TableOSVersion(null, null);
     it("has the proper prefix", () => {
-      expect(sut.getCodename("10.0.0").startsWith("ChromeOS")).toBe(true)
-    })
-  })
+      expect(sut.getCodename("10.0.0").startsWith("ChromeOS")).toBe(true);
+    });
+  });
 
   test("success", async () => {
     // @ts-expect-error Typescript doesn't include the userAgentData API yet.
@@ -40,20 +40,22 @@ describe("os_version", () => {
 
     const db = await VirtualDatabase.init();
     const res = await db.query("select * from os_version");
-    expect(res).toEqual([
-      {
-        name: "ChromeOS",
-        platform: "chrome",
-        platform_like: "chrome",
-        version: "110.0.5481.177",
-        major: "110",
-        minor: "0",
-        build: "5481",
-        patch: "177",
-        arch: "x86-64",
-        codename: "ChromeOS 13.2.1",
-      },
-    ]);
+    expect(res).toEqual({
+      data: [
+        {
+          name: "ChromeOS",
+          platform: "chrome",
+          platform_like: "chrome",
+          version: "110.0.5481.177",
+          major: "110",
+          minor: "0",
+          build: "5481",
+          patch: "177",
+          arch: "x86-64",
+          codename: "ChromeOS 13.2.1",
+        },
+      ],
+    });
   });
 
   test("unexpected version string", async () => {
@@ -81,20 +83,22 @@ describe("os_version", () => {
 
     const db = await VirtualDatabase.init();
     const res = await db.query("select * from os_version");
-    expect(res).toEqual([
-      {
-        name: "ChromeOS",
-        platform: "chrome",
-        platform_like: "chrome",
-        version: "110.weird_version",
-        major: "",
-        minor: "",
-        build: "",
-        patch: "",
-        arch: "x86-64",
-        codename: "ChromeOS 13.2.1",
-      },
-    ]);
+    expect(res).toEqual({
+      data: [
+        {
+          name: "ChromeOS",
+          platform: "chrome",
+          platform_like: "chrome",
+          version: "110.weird_version",
+          major: "",
+          minor: "",
+          build: "",
+          patch: "",
+          arch: "x86-64",
+          codename: "ChromeOS 13.2.1",
+        },
+      ],
+    });
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining("expected 4 segments")
     );
@@ -105,9 +109,11 @@ describe("os_version", () => {
     global.navigator.userAgentData = {
       getHighEntropyValues: jest.fn(() =>
         Promise.resolve({
-          fullVersionList: [
-            { brand: "Not even chrome", version: "110.0.5481.177" },
-          ],
+          data: {
+            fullVersionList: [
+              { brand: "Not even chrome", version: "110.0.5481.177" },
+            ],
+          },
         })
       ),
     };

@@ -50,7 +50,7 @@ const StatusIndicator = ({
           data-for={`status-${tooltipId}`}
           data-tip-disable={false}
         >
-          {value}
+          <span>{value}</span>
         </span>
         <ReactTooltip
           className="status-tooltip"
@@ -65,7 +65,7 @@ const StatusIndicator = ({
       </>
     );
   } else {
-    indicatorContent = <>{value}</>;
+    indicatorContent = <span>{value}</span>;
   }
   return <span className={indicatorClassNames}>{indicatorContent}</span>;
 };

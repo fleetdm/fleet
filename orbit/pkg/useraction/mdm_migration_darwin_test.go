@@ -32,7 +32,7 @@ func TestWaitForUnenrollment(t *testing.T) {
 	}{
 		{"unenroll after 3 tries", nil, 3, false},
 		{"unenroll after one try", nil, 1, false},
-		{"error after max number of tries is exceeded", nil, 99, true},
+		{"error after max number of tries is exceeded", nil, 1000, true},
 		{"always error calling profiles func", errors.New("test"), 1, true},
 	}
 

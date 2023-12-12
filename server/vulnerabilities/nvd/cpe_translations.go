@@ -108,10 +108,10 @@ func (r *regexpCache) Get(pattern string) (*regexp.Regexp, error) {
 //
 //	[
 //	  {
-//	    "match": {
+//	    "software": {
 //	      "bundle_identifier": ["com.1password.1password"]
 //	    },
-//	    "translation": {
+//	    "filter": {
 //	      "product": ["1password"],
 //	      "vendor": ["agilebits"]
 //	    }

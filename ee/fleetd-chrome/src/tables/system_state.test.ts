@@ -8,10 +8,12 @@ describe("screenlock", () => {
     const db = await VirtualDatabase.init();
 
     const res = await db.query("select * from system_state");
-    expect(res).toEqual([
-      {
-        idle_state: "active",
-      },
-    ]);
+    expect(res).toEqual({
+      data: [
+        {
+          idle_state: "active",
+        },
+      ],
+    });
   });
 });

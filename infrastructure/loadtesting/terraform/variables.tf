@@ -20,6 +20,12 @@ variable "loadtest_containers" {
   default     = 0
 }
 
+variable "fleet_containers" {
+  description = "The number of containers running Fleet"
+  type        = number
+  default     = 10
+}
+
 variable "db_instance_type" {
   description = "The type of the loadtesting db instances.  Default is db.r6g.4xlarge."
   type        = string

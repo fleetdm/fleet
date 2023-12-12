@@ -1,0 +1,11 @@
+/dev/mapper/dm-crypto-luks1 is active and is in use.
+  type:    LUKS1
+  cipher:  aes-xts-plain64
+  keysize: 512 bits
+  key location: dm-crypt
+  device:  /dev/sdc1
+  sector size:  512
+  offset:  4096 sectors
+  size:    8382464 sectors
+  mode:    read/write
+

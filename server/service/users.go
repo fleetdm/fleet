@@ -832,7 +832,9 @@ func performRequiredPasswordResetEndpoint(ctx context.Context, request interface
 func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password string) (*fleet.User, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, fleet.ErrNoContext
+		// No user in the context -- authentication issue
+		svc.authz.SkipAuthorization(ctx)
+		return nil, authz.ForbiddenWithInternal("No user in the context", nil, nil, nil)
 	}
 	if !vc.CanPerformPasswordReset() {
 		svc.authz.SkipAuthorization(ctx)
@@ -863,7 +865,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	}
 
 	if err := fleet.ValidatePasswordRequirements(password); err != nil {
-		return nil, fleet.NewInvalidArgumentError("new_password", "Password does not meet required criteria")
+		return nil, fleet.NewInvalidArgumentError("new_password", "Password does not meet required criteria: Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#).")
 	}
 
 	user.AdminForcedPasswordReset = false

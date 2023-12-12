@@ -1,0 +1,1 @@
+* Fix possible deadlocks when deleting `software` during data ingestion (found during load test).

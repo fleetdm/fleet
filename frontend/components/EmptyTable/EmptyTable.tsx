@@ -1,7 +1,7 @@
 import React from "react";
 import classnames from "classnames";
-import Icon from "components/Icon";
-import { IconNames } from "components/icons";
+import Graphic from "components/Graphic";
+import { GraphicNames } from "components/graphics";
 
 const baseClass = "empty-table";
 
@@ -9,14 +9,14 @@ export interface IEmptyTableProps {
   header?: JSX.Element | string;
   info?: JSX.Element | string;
   additionalInfo?: JSX.Element | string;
-  iconName?: IconNames;
+  graphicName?: GraphicNames;
   primaryButton?: JSX.Element;
   secondaryButton?: JSX.Element;
   className?: string;
 }
 
 const EmptyTable = ({
-  iconName,
+  graphicName,
   header,
   info,
   additionalInfo,
@@ -28,9 +28,9 @@ const EmptyTable = ({
 
   return (
     <div className={emptyTableClass}>
-      {iconName && (
+      {graphicName && (
         <div className={`${baseClass}__image-wrapper`}>
-          <Icon name={iconName} />
+          <Graphic name={graphicName} />
         </div>
       )}
       <div className={`${baseClass}__inner`}>

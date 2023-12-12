@@ -75,7 +75,7 @@ const Modal = ({
           <span>{title}</span>
           <div className={`${baseClass}__ex`}>
             <Button className="button button--unstyled" onClick={onExit}>
-              <Icon name="ex" color="core-fleet-black" size="medium" />
+              <Icon name="close" color="core-fleet-black" size="medium" />
             </Button>
           </div>
         </div>

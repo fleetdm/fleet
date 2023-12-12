@@ -85,7 +85,7 @@
             <button purpose="docs-nav-button" class="btn btn-block d-flex align-items-center docs-nav-button" type="button" @click="toggleDocsNav">
               <span class="pr-2 m-0">Docs</span>
               <img class="my-auto" style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
-              <span class="font-weight-bold px-2 m-0">{{thisPage.title}}</span>
+              <span class="font-weight-bold px-2 m-0">{{getTitleFromUrl(breadcrumbs[1])}}</span>
               <img style="width: 6px; height: 9px;" class="ml-auto my-auto" alt="right chevron" src="/images/chevron-right-6x9@2x.png" v-if="!showDocsNav"/>
               <img style="width: 9px; height: 6px;" class="ml-auto my-auto" alt="down chevron" src="/images/chevron-down-9x6@2x.png" v-else/>
             </button>

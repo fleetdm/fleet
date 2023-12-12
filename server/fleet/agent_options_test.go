@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -25,6 +26,12 @@ func TestValidateAgentOptions(t *testing.T) {
 				"linux": {"foo":1}
 			}
 		}}`, `unknown field "foo"`},
+
+		{"overrides.platform is null", `{"overrides": {
+			"platforms": {
+				"darwin": null
+			}
+		}}`, `platforms cannot be null. To remove platform overrides omit overrides from agent options.`},
 
 		{"extra top-level bytes", `{}true`, `extra bytes`},
 		{"extra config bytes", `{"config":{}true}`, `invalid character 't' after object`},
@@ -140,7 +147,7 @@ func TestValidateAgentOptions(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			err := ValidateJSONAgentOptions([]byte(c.in))
+			err := ValidateJSONAgentOptions(context.Background(), nil, []byte(c.in), true)
 			t.Logf("%T", errors.Unwrap(err))
 			if c.wantErr != "" {
 				require.ErrorContains(t, err, c.wantErr)

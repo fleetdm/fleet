@@ -16,7 +16,7 @@ https://github.com/fleetdm/fleet/tree/main/tools/tuf/test
 
 
 ### MacOS - Prepare a script file with this content. Call it my_build.sh:
-```
+```sh
 SYSTEMS="macos" \
 PKG_FLEET_URL=https://localhost:8080 \
 PKG_TUF_URL=http://localhost:8081 \
@@ -38,7 +38,9 @@ Put the real key here: ```ENROLL_SECRET=<REPLACE WITH REAL SECRET KEY>```
 ### Remove previous local TUF
 If you already have a local TUF running, remove it.
 
-```rm -rf test_tuf```
+```sh
+rm -rf test_tuf
+```
 
 ### Run the local build
 chmod +x my_build.sh

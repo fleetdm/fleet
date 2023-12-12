@@ -2,7 +2,6 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React, { useMemo, useEffect, useCallback, useContext } from "react";
-import { TableContext } from "context/table";
 import classnames from "classnames";
 import {
   Column,
@@ -15,7 +14,7 @@ import {
   useSortBy,
   useTable,
 } from "react-table";
-import { kebabCase, noop, omit, pick } from "lodash";
+import { kebabCase, noop } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
 import useDeepEffect from "hooks/useDeepEffect";
@@ -102,7 +101,6 @@ const DataTable = ({
   renderPagination,
   setExportRows,
 }: IDataTableProps): JSX.Element => {
-  const { resetSelectedRows } = useContext(TableContext);
   const { isOnlyObserver } = useContext(AppContext);
 
   const columns = useMemo(() => {
@@ -152,8 +150,8 @@ const DataTable = ({
       disableMultiSort: true,
       disableSortRemove: true,
       manualSortBy,
-      // Initializes as false, but changes briefly to true on successful notification
-      autoResetSelectedRows: resetSelectedRows,
+      // Resets row selection on (server-side) pagination
+      autoResetSelectedRows: true,
       // Expands the enumerated `filterTypes` for react-table
       // (see https://github.com/TanStack/react-table/blob/alpha/packages/react-table/src/filterTypes.ts)
       // with custom `filterTypes` defined for this `useTable` instance
@@ -254,12 +252,14 @@ const DataTable = ({
 
   useEffect(() => {
     if (isClientSideFilter && searchQueryColumn) {
+      toggleAllRowsSelected(false); // Resets row selection on query change (client-side)
       setDebouncedClientFilter(searchQueryColumn, searchQuery || "");
     }
   }, [searchQuery, searchQueryColumn]);
 
   useEffect(() => {
     if (isClientSideFilter && selectedDropdownFilter) {
+      toggleAllRowsSelected(false); // Resets row selection on filter change (client-side)
       selectedDropdownFilter === "all"
         ? setDebouncedClientFilter("platforms", "")
         : setDebouncedClientFilter("platforms", selectedDropdownFilter);
@@ -325,16 +325,9 @@ const DataTable = ({
   );
 
   const renderColumnHeader = (column: IHeaderGroup) => {
-    // if there is a column filter, we want the `onClick` event listener attached
-    // just to the child title span so that clicking into the column filter input
-    // doesn't also sort the column
-    const spanProps = column.Filter
-      ? pick(column.getSortByToggleProps(), "onClick")
-      : {};
-
     return (
       <div className="column-header">
-        <span {...spanProps}>{column.render("Header")}</span>
+        {column.render("Header")}
         {column.Filter && column.render("Filter")}
       </div>
     );
@@ -504,21 +497,10 @@ const DataTable = ({
             {headerGroups.map((headerGroup) => (
               <tr {...headerGroup.getHeaderGroupProps()}>
                 {headerGroup.headers.map((column) => {
-                  let thProps = column.getSortByToggleProps({
-                    title: undefined,
-                  });
-                  if (column.Filter) {
-                    // if there is a column filter, we want the `onClick` event listener attached
-                    // just to the child title span so that clicking into the column filter input
-                    // doesn't also sort the column
-                    thProps = omit(thProps, "onClick");
-                  }
-
                   return (
                     <th
-                      key={column.id}
                       className={column.id ? `${column.id}__header` : ""}
-                      {...thProps}
+                      {...column.getHeaderProps(column.getSortByToggleProps())}
                     >
                       {renderColumnHeader(column)}
                     </th>
@@ -575,6 +557,7 @@ const DataTable = ({
             <Button
               variant="unstyled"
               onClick={() => {
+                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
                 onClientSidePaginationChange &&
                   onClientSidePaginationChange(pageIndex - 1);
                 previousPage();
@@ -586,6 +569,7 @@ const DataTable = ({
             <Button
               variant="unstyled"
               onClick={() => {
+                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
                 onClientSidePaginationChange &&
                   onClientSidePaginationChange(pageIndex + 1);
                 nextPage();

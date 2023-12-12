@@ -12,7 +12,7 @@ Fleetctl (pronouced “fleet control”) is a CLI (command line interface) tool 
 
 ## Fleetd
 
-Fleetd is a bundle of agents provided by Fleet to gather information about your devices. Fleetd includes [osquery](https://www.osquery.io/), Orbit, and Fleet Desktop. [Docs](https://fleetdm.com/docs/using-fleet/fleet-ui).
+Fleetd is a bundle of agents provided by Fleet to gather information about your devices. Fleetd includes [osquery](https://www.osquery.io/), Orbit, and Fleet Desktop. [Docs](https://fleetdm.com/docs/using-fleet/fleetd).
 
 ## Osquery
 Osquery is an open-source tool for gathering information about the state of any device that the osquery agent has been installed on. [Learn more](https://www.osquery.io/).

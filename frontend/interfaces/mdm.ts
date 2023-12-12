@@ -22,8 +22,6 @@ export const MDM_ENROLLMENT_STATUS = {
 
 export type MdmEnrollmentStatus = keyof typeof MDM_ENROLLMENT_STATUS;
 
-export type ProfileSummaryResponse = Record<MdmProfileStatus, number>;
-
 export interface IMdmStatusCardData {
   status: MdmEnrollmentStatus;
   hosts: number;
@@ -57,33 +55,33 @@ export interface IMdmSummaryResponse {
   mobile_device_management_solution: IMdmSolution[] | null;
 }
 
+type ProfilePlatform = "darwin" | "windows";
+
 export interface IMdmProfile {
-  profile_id: number;
+  profile_uuid: string;
   team_id: number;
   name: string;
-  identifier: string;
+  platform: ProfilePlatform;
+  identifier: string | null; // null for windows profiles
   created_at: string;
   updated_at: string;
-}
-
-export interface IMdmProfilesResponse {
-  profiles: IMdmProfile[] | null;
+  checksum: string | null; // null for windows profiles
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
 
-export type MacMdmProfileOperationType = "remove" | "install";
+export type ProfileOperationType = "remove" | "install";
 
-export interface IHostMacMdmProfile {
-  profile_id: number;
+export interface IHostMdmProfile {
+  profile_uuid: string;
   name: string;
-  // identifier?: string; // TODO: add when API is updated to return this
-  operation_type: MacMdmProfileOperationType;
+  operation_type: ProfileOperationType | null;
+  platform: ProfilePlatform;
   status: MdmProfileStatus;
   detail: string;
 }
 
-export type FileVaultProfileStatus =
+export type DiskEncryptionStatus =
   | "verified"
   | "verifying"
   | "action_required"
@@ -91,22 +89,28 @@ export type FileVaultProfileStatus =
   | "failed"
   | "removing_enforcement";
 
-// // TODO: update when list profiles API returns identifier
-// export const FLEET_FILEVAULT_PROFILE_IDENTIFIER =
-//   "com.fleetdm.fleet.mdm.filevault";
+/** Currently windows disk enxryption status will only be one of these four
+values. In the future we may add more. */
+export type IWindowsDiskEncryptionStatus = Extract<
+  DiskEncryptionStatus,
+  "verified" | "verifying" | "enforcing" | "failed"
+>;
+
+export const isWindowsDiskEncryptionStatus = (
+  status: DiskEncryptionStatus
+): status is IWindowsDiskEncryptionStatus => {
+  switch (status) {
+    case "verified":
+    case "verifying":
+    case "enforcing":
+    case "failed":
+      return true;
+    default:
+      return false;
+  }
+};
 
 export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
-
-// TODO: update when we have API
-export interface IMdmScript {
-  id: number;
-  name: string;
-  ran: number;
-  pending: number;
-  errors: number;
-  created_at: string;
-  updated_at: string;
-}
 
 export interface IMdmSSOReponse {
   url: string;

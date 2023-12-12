@@ -12,6 +12,7 @@ interface requestArgs {
   body?: Record<string, any>;
   reenroll?: boolean;
 }
+
 const request = async ({ path, body = {} }: requestArgs): Promise<any> => {
   const { fleet_url } = await chrome.storage.managed.get({
     fleet_url: FLEET_URL,
@@ -67,8 +68,8 @@ const authenticatedRequest = async ({
 };
 
 const enroll = async () => {
-  const os_version = await DATABASE.query("SELECT * FROM os_version");
-  const system_info = await DATABASE.query("SELECT * FROM system_info");
+  const os_version = (await DATABASE.query("SELECT * FROM os_version")).data;
+  const system_info = (await DATABASE.query("SELECT * FROM system_info")).data;
   const host_details = {
     os_version: os_version[0],
     system_info: system_info[0],
@@ -118,7 +119,8 @@ const live_query = async () => {
     const query_discovery_sql = response.discovery[query_name];
     if (query_discovery_sql) {
       try {
-        const discovery_result = await DATABASE.query(query_discovery_sql);
+        const discovery_result = (await DATABASE.query(query_discovery_sql))
+          .data;
         if (discovery_result.length == 0) {
           // Discovery queries that return no results mean skip running the query.
           continue;
@@ -129,6 +131,9 @@ const live_query = async () => {
         console.debug(
           `Discovery (${query_name} sql: "${query_discovery_sql}") failed: ${err}`
         );
+        results[query_name] = null;
+        statuses[query_name] = 1;
+        messages[query_name] = err.toString();
         continue;
       }
     }
@@ -137,8 +142,12 @@ const live_query = async () => {
     const query_sql = response.queries[query_name];
     try {
       const query_result = await DATABASE.query(query_sql);
-      results[query_name] = query_result;
+      results[query_name] = query_result.data;
       statuses[query_name] = 0;
+      if (query_result.warnings.length !== 0) {
+        statuses[query_name] = 1; // Set to show warnings in errors table and campaign.ts returned host_counts to +1 failing instead of +1 successful
+        messages[query_name] = query_result.warnings; // Warnings array is concatenated in Table.ts xfilter
+      }
     } catch (err) {
       console.warn(`Query (${query_name} sql: "${query_sql}") failed: ${err}`);
       results[query_name] = null;

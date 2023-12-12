@@ -110,7 +110,7 @@ There’s no one-size-fits-all approach for successful end user self-remediation
 
 The benefits of self-remediation go beyond security. By making computer problems more approachable, you’ll empower employees to be more confident end users. So, they might be more inclined to troubleshoot issues before making a request.
 
-See how easy implementing end user self-remediation can be. [Sign up for Sandbox](https://fleetdm.com/try-fleet/register) to try Fleet on your device for free.
+See how easy implementing end user self-remediation can be. [Try `fleetctl preview`](https://fleetdm.com/try-fleet/register) to test Fleet on your device for free.
 
 <meta name="category" value="security">
 <meta name="authorFullName" value="Chris McGillicuddy">

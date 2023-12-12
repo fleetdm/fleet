@@ -2,7 +2,7 @@
 
 ## Cloud Security Technical Lead — F100 security and networking company.
 
-![Two people talking about Fleet](../website/assets/images/articles/fleet-user-stories-f100-cover-800x450@2x.jpeg)
+![Two people talking about Fleet](../website/assets/images/articles/fleet-user-stories-f100-cover-800x450@2x.png)
 
 When we spoke recently, our next Fleet user (whose name and employer must remain anonymous for contractual reasons) gave us candid insights into how osquery and Fleet has been adopted at their F100 security and networking company.
 
@@ -39,4 +39,4 @@ I don’t directly deal with that — that’s our security operations team, mos
 <meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-09-29">
 <meta name="articleTitle" value="Fleet user stories — F100">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-user-stories-f100-cover-800x450@2x.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-user-stories-f100-cover-800x450@2x.png">

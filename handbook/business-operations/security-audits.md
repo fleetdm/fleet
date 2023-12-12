@@ -28,6 +28,8 @@ We are also planning to add [more testing](https://github.com/fleetdm/fleet/issu
 
 It is possible to create or rename an existing team with a malicious name, which, once exported to CSV, could trigger code execution in Microsoft Excel. We assume there are other ways that inserting this type of data could have similar effects, including via osquery data. For this reason, we will evaluate the feasibility of [escaping CSV output](https://github.com/fleetdm/fleet/issues/5460).
 
+Our current recommendation is to review CSV contents before opening in Excel or other programs that may execute commands.
+
 #### 4 - Insecure storage of authentication tokens
 | Type                   | Lares Severity |
 | ---------------------- | -------------- |
@@ -40,7 +42,9 @@ This issue is not as straightforward as it may seem. While it is true that Fleet
 | -------------- | -------------- |
 | Authentication | Medium risk    |
 
-Account lockouts on Fleet are handled as a “leaky bucket” with 10 available slots. Once the bucket is full, a four second timeout must expire before another login attempt is allowed. We will increase this timeout duration to [10 seconds](https://github.com/fleetdm/fleet/issues/5464). We believe that any longer, including full account lockout, could bring user experience issues as well as denial of service issues without improving security, as brute-forcing passwords at a rate of one password per 10 seconds is very unlikely.
+Account lockouts on Fleet are handled as a “leaky bucket” with 10 available slots. Once the bucket is full, a four second timeout must expire before another login attempt is allowed. We believe that any longer, including full account lockout, could bring user experience issues as well as denial of service issues without improving security, as brute-forcing passwords at a rate of one password per 4 seconds is very unlikely.
+
+We have additionally added very prominent activity feed notifications of failed logins that make brute forcing attempts apparent to Fleet admins.
 
 #### 6 - Session timeout - insufficient session expiration
 | Type               | Lares Severity |
@@ -54,11 +58,7 @@ Fleet sessions are currently [configurable](https://fleetdm.com/docs/deploying/c
 | -------------- | -------------- |
 | Weak passwords | Medium risk    |
 
-The default password policy in Fleet requires passwords that are seven characters long. We will [increase this to 12](https://github.com/fleetdm/fleet/issues/5477) while leaving all other requirements the same. As per NIST [SP 800-63B](https://pages.nist.gov/800-63-3/sp800-63b.html), we believe password length is the most important requirement. If you have additional requirements for passwords, we highly recommend implementing them in your identity provider and setting up [SSO](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso). 
-
-While it is not mentioned directly in the report, we believe that the lack of 2FA in Fleet is a problem for organizations that can’t use SSO. For this reason, we have opened an issue to gather comments as we consider how this could be implemented.
-
-We also opened an issue a few weeks ago to investigate adding a feature to Fleet to make SSO required for all users in an instance.
+The default password policy in Fleet requires passwords that are seven characters long. We have [increased this to 12](https://github.com/fleetdm/fleet/issues/5477) while leaving all other requirements the same. As per NIST [SP 800-63B](https://pages.nist.gov/800-63-3/sp800-63b.html), we believe password length is the most important requirement. If you have additional requirements for passwords, we highly recommend implementing them in your identity provider and setting up [SSO](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
 
 #### 8 - User enumeration
 | Type        | Lares Severity |
@@ -87,8 +87,6 @@ If this endpoint is a concern in your Fleet environment, consider that the infor
 
 [Evaluate current CSV escaping and feasibility of adding if missing #5460](https://github.com/fleetdm/fleet/issues/5460)
 
-[Increase length of login throttling delay from 4 to 10 seconds #5464](https://github.com/fleetdm/fleet/issues/5464)
-
 [Set session duration to total session length #5476](https://github.com/fleetdm/fleet/issues/5476)
 
 [Increase default minimum password length to 12 #5477](https://github.com/fleetdm/fleet/issues/5477)
@@ -96,8 +94,6 @@ If this endpoint is a concern in your Fleet environment, consider that the infor
 [Add basic auth to /metrics endpoint #2322](https://github.com/fleetdm/fleet/issues/2322)
 
 [Ensure only team admins can list other users #5657](https://github.com/fleetdm/fleet/issues/5657)
-
-You can also view them on the [remediation board](https://github.com/fleetdm/fleet/issues/5657).
 
 ## August 2021 security of Orbit auto-updater
 

@@ -30,7 +30,7 @@ For testing purposes it is okay to initialize the repository in an online enviro
 
 Initialize the repository:
 
-```
+```sh
 fleetctl updates init
 ```
 
@@ -38,19 +38,19 @@ Choose and record secure passphrases, _different for each key_. If the passphras
 
 Make multiple copies of the `keys` directory to be stored offline on USB drives. These copies contain the root key:
 
-```
+```sh
 cp -r keys <destination>
 ```
 
 Delete the root key from the `keys` directory:
 
-```
+```sh
 rm keys/root.json
 ```
 
 Copy the `keys`, `repository`, and `staged` directories to a separate "working" USB drive:
 
-```
+```sh
 cp -r keys repository staged <destination>
 ```
 
@@ -70,7 +70,7 @@ The following commands will prompt for key passphrases if not specified in the e
 
 To stage updates for `osqueryd`:
 
-```
+```sh
 fleetctl updates add --target ./path/to/linux/osqueryd  --platform linux --name osqueryd --version 4.6.0 -t 4.6 -t 4 -t stable 
 ```
 
@@ -80,7 +80,7 @@ In a typical scenario, each platform is staged before the repository is publishe
 
 Stage the equivalent macOS update:
 
-```
+```sh
 fleetctl updates add --target ./path/to/macos/osqueryd  --platform macos --name osqueryd --version 4.6.0 -t 4.6 -t 4 -t stable 
 ```
 
@@ -94,13 +94,13 @@ Publishing updates is as simple as making the contents of the `repository` direc
 
 Python's `SimpleHTTPServer` can be used for quick local testing:
 
-```
+```sh
 cd repository && python -m SimpleHTTPServer
 ```
 
 Or, for Python version 3.0 and greater:
 
-```
+```sh
 cd repository && python -m http.server
 ```
 
@@ -112,7 +112,7 @@ Fleetd verifies freshness of the update metadata using the signed [timestamp fil
 
 To update the timestamp metadata:
 
-```
+```sh
 fleetctl updates timestamp
 ```
 
@@ -124,7 +124,7 @@ Note that `osqueryd` and `orbit` updates must be published before packages can b
 
 Record the root key metadata with a copy of the repository:
 
-```
+```sh
 fleetctl updates roots
 ```
 
@@ -154,7 +154,7 @@ more in-depth discussion of the implications of key compromise in the TUF system
 
 To rotate (for example) the targets key:
 
-```
+```sh
 fleetctl updates rotate targets
 ```
 

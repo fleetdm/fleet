@@ -1,1 +1,0 @@
-* Added database migrations to create the new `scripts` table to store saved scripts.

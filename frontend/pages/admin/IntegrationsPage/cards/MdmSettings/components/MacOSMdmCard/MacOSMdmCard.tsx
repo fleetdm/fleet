@@ -41,7 +41,7 @@ const SeeDetailsMacOSMdm = ({ onClickDetails }: ITurnOffMacOSMdmProps) => {
       </div>
       <Button onClick={onClickDetails} variant="text-icon">
         Details
-        <Icon name="chevron" direction="right" color="core-fleet-blue" />
+        <Icon name="chevron-right" color="core-fleet-blue" />
       </Button>
     </div>
   );

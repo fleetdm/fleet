@@ -573,3 +573,67 @@ func TestRunScripts(t *testing.T) {
 		require.Contains(t, logBuf.String(), "running scripts [c] succeeded")
 	})
 }
+
+type mockDiskEncryptionKeySetter struct{}
+
+func (m mockDiskEncryptionKeySetter) SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error {
+	return nil
+}
+
+func TestBitlockerOperations(t *testing.T) {
+	var logBuf bytes.Buffer
+
+	oldLog := log.Logger
+	log.Logger = log.Output(&logBuf)
+	t.Cleanup(func() { log.Logger = oldLog })
+
+	var (
+		shouldEncrypt     = true
+		shouldReturnError = false
+	)
+
+	fetcher := &dummyConfigFetcher{
+		cfg: &fleet.OrbitConfig{
+			Notifications: fleet.OrbitConfigNotifications{
+				EnforceBitLockerEncryption: shouldEncrypt,
+			},
+		},
+	}
+
+	enrollFetcher := &windowsMDMBitlockerConfigFetcher{
+		Fetcher:          fetcher,
+		Frequency:        time.Hour, // doesn't matter for this test
+		EncryptionResult: mockDiskEncryptionKeySetter{},
+		execEncryptVolumeFn: func(string) (string, error) {
+			if shouldReturnError {
+				return "", errors.New("error")
+			}
+
+			return "123456", nil
+		},
+	}
+
+	t.Run("bitlocker encryption is performed", func(t *testing.T) {
+		shouldEncrypt = true
+		shouldReturnError = false
+		cfg, err := enrollFetcher.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the bitlocker wrapper properly returns the expected config
+	})
+
+	t.Run("bitlocker encryption is not performed", func(t *testing.T) {
+		shouldEncrypt = false
+		shouldReturnError = false
+		cfg, err := enrollFetcher.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the bitlocker wrapper properly returns the expected config
+	})
+
+	t.Run("bitlocker encryption returns an error", func(t *testing.T) {
+		shouldEncrypt = true
+		shouldReturnError = true
+		cfg, err := enrollFetcher.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the bitlocker wrapper properly returns the expected config
+	})
+}

@@ -156,7 +156,7 @@ const AgentOptionsPage = ({
         options, they will be applied the next time a host checks in to Fleet.
         <br />
         <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
+          url="https://fleetdm.com/docs/configuration/configuration-files#team-agent-options"
           text="Learn more about agent options"
           newTab
           multiline

@@ -44,9 +44,10 @@ export interface ITeam extends ITeamSummary {
   secrets?: IEnrollSecret[];
   role?: UserRole; // role value is included when the team is in the context of a user
   mdm?: {
+    enable_disk_encryption: boolean;
     macos_updates: {
-      minimum_version: string;
-      deadline: string;
+      minimum_version: string | null;
+      deadline: string | null;
     };
     macos_settings: {
       custom_settings: null; // TODO: types?
@@ -56,6 +57,10 @@ export interface ITeam extends ITeamSummary {
       bootstrap_package: string | null;
       enable_end_user_authentication: boolean;
       macos_setup_assistant: string | null; // TODO: types?
+    };
+    windows_updates: {
+      deadline_days: number | null;
+      grace_period_days: number | null;
     };
   };
 }

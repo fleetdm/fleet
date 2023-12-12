@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/require"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -17,7 +17,7 @@ func TestKafkaRestWrite(t *testing.T) {
 	var buf []byte
 	var err error
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		buf, err = ioutil.ReadAll(r.Body)
+		buf, err = io.ReadAll(r.Body)
 		require.NoError(t, err)
 		require.Equal(t, r.URL.Path, "/topics/foo")
 		require.Equal(t, r.Header.Get("Content-Type"), "foobar")

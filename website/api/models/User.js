@@ -174,23 +174,26 @@ without necessarily having a billing card.`
       type: 'string',
       description: 'The URL of the Fleet sandbox instance that was provisioned for this user',
       example: 'https://billybobcat.sandbox.fleetdm.com',
+      extendedDescription: 'As of Oct. 2023, new user records will not have this value set.'
     },
 
     fleetSandboxExpiresAt: {
       type: 'number',
       description: 'An JS timestamp (epoch ms) representing when this user\'s fleet sandbox instance will expire',
       example: '1502844074211',
+      extendedDescription: 'As of Oct. 2023, new user records will not have this value set.'
     },
 
     fleetSandboxDemoKey: {
       type: 'string',
       description: 'The UUID that is used as the password of this user\'s Fleet Sandbox instance that is generated when the user signs up. Only used to log the user into their Fleet Sandbox instance while it is still live.',
+      extendedDescription: 'As of Oct. 2023, new user records will not have this value set.'
     },
 
     signupReason: {
       type: 'string',
       description: 'The reason this user signed up for a fleetdm.com account',
-      isIn: ['Try Fleet Sandbox', 'Buy a license'],
+      isIn: ['Try Fleet Sandbox', 'Buy a license', 'Try Fleet'],
     },
 
     inSandboxWaitlist: {
