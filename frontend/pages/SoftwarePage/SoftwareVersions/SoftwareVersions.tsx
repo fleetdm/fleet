@@ -295,9 +295,7 @@ const SoftwareVersions = ({
           pageSize={perPage}
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          disableNextPage
-          // TODO: uncomment when pagination metadata is added to API.
-          // disableNextPage={!softwareData?.meta.has_next_results}
+          disableNextPage={!softwareVersionsData?.meta.has_next_results}
           searchable={searchable}
           inputPlaceHolder="Search by name or vulnerabilities (CVEs)"
           onQueryChange={onQueryChange}
