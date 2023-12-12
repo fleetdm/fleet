@@ -1,89 +1,107 @@
 <div id="device-management" v-cloak>
-
-  <div purpose="hero-background" class="container-lg d-flex justify-content-center">
-
-    <div purpose="hero-container" class="d-flex flex-column align-items-center">
-      <div purpose="hero-text">
-        <h4 class="mb-2">Device management built for IT, security approved</h4>
-        <h1>Open-source MDM</h1>
-        <p>The future of IT and security is smart people using open-source tools.  Whether you do pull requests or click around, Fleet is 100% open-source.</p>
-        <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
-          <a purpose="cta-button" @click="clickOpenMdmModal()">See GitOps in action</a>
-          <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
+  <div purpose="page-container">
+    <div purpose="page-content" class="mx-auto">
+    <div purpose="hero">
+      <div purpose="page-headline">
+        <h4>Device management (MDM)</h4>
+        <h2>Manage devices like code</h2>
+      </div>
+      <div purpose="hero-content" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
+        <div purpose="hero-image">
+          <img alt="A laptop using Fleet to accurately display the status of MDM configurations" src="/images/device-management-hero-image-380x396@2x.png">
         </div>
+        <div purpose="hero-text">
+          <strong>Convention over configuration</strong>
+          <p>Configure your devices with sensible defaults, or customize every traditional MDM feature exactly how you want it.</p>
+          <strong>Absolute certainty</strong>
+          <p><em>Actually</em> verify that settings are applied using real data pulled from your users' devices.</p>
+          <strong>ClickOps or DevOps</strong>
+          <p>Manage your IT infrastructure in any browser or use git to make changes as code. Use the CLI or API to automate the deployment, configuration, and monitoring of your devices.</p>
+          <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
+            <a purpose="cta-button" @click="clickOpenMdmModal()">Show me</a>
+            <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
+      <div purpose="testimonial-quote">
+        <div purpose="quote">
+          <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
+          <p>We wanted an open-source MDM that is easy to integrate with our configuration-as-code environment and to deliver the best possible experience for our employees and make security happy.</p>
+        </div>
+        <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
+          <div purpose="quote-image"><img src="/images/testimonial-kenny-botelho-48x48@2x.jpg" alt="Kenny Botelho"></div>
+          <div class="d-flex flex-column">
+            <p purpose="name">Kenny Botelho</p>
+            <p purpose="title">Lead Client Platform Engineer</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+      <div purpose="feature-image" class="right">
+        <img alt="Convention over configuration" src="/images/device-management-convention-over-configuration-380x320@2x.png">
+      </div>
+      <div purpose="feature-text" class="d-flex flex-column">
+        <h3>Convention over configuration</h3>
+        <p>Configure your users' computers with sensible defaults, or customize every traditional MDM feature exactly how you want it with Fleet's API, CLI, and webhooks.</p>
+        <div purpose="checklist" class="flex-column d-flex">
+          <p>Set up and verify ongoing compliance with CIS standards (one click, 400+ queries, supported by Fleet)</p>
+          <p>Tasked with zero trust? Use sensible, enterprise-ready device health checks from the community</p>
+          <p>Use default workflows for employee offboarding, or run any low-level MDM command</p>
+        </div>
+      </div>
+    </div>
+
+    <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
+      <div purpose="feature-text" class="d-flex flex-column">
+        <h3>Absolute certainty</h3>
+        <p>Reduce time wasted hunting down whether a change happened. <em>Actually</em> verify that settings are applied using real data pulled from your users' devices.</p>
+        <div purpose="checklist" class="flex-column d-flex">
+          <p>Use a git repo as the source of truth to reduce errors (submitting the wrong patch, configuration setting etc).</p>
+          <p>Every change to a policy or security control is tracked and auditable in Fleet’s history, or via the repo commit log</p>
+        </div>
+      </div>
+      <div purpose="feature-image" class="left">
+        <img alt="Absolute certainty" src="/images/device-management-absolute-certainty-380x320@2x.png">
+      </div>
+    </div>
+
+    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+      <div purpose="feature-image" class="right">
+        <img alt="ClickOps or DevOps" src="/images/device-management-clickops-or-devops-380x280@2x.png">
+      </div>
+      <div purpose="feature-text" class="d-flex flex-column">
+        <h3>ClickOps or DevOps</h3>
+        <p>Manage your IT infrastructure in any browser or use git to make infrastructure changes as code. You can use the CLI or API to automate the deployment, configuration, and monitoring of your devices.</p>
+      </div>
+    </div>
+
+    <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
+      <div purpose="feature-text" class="d-flex flex-column">
+        <h3>Transparency for end users</h3>
+        <p>Provide assurance to your end users with Fleet Desktop about what information is being collected from their device.</p>
+        <div purpose="checklist" class="flex-column d-flex">
+          <p>Let end users see the source code for exactly how they are being monitored.</p>
+          <p>Set clear expectations about what is and isn’t acceptable use of work computers.</p>
+          <p>Let users participate in fixing failing compliance policies.</p>
+        </div>
+      </div>
+      <div purpose="feature-image" class="left">
+        <img alt="Transparency for end users" src="/images/device-management-transparency-380x320@2x.png">
       </div>
     </div>
 
   </div>
-
-  <div purpose="page-container" class="container-lg">
-
-    <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
-      <div purpose="feature-left-text-block" class="d-flex flex-column">
-          <h3>Made for customization</h3>
-          <p>Integrations with leading configuration management platforms, including Chef, Munki, and Puppet, allow for efficiency in your management workflows. Our API and CLI provide the flexibility to program Fleet as you see fit.</p>
-        </div>
-        <div purpose="feature-image">
-          <img alt="A bento box featuring all the tools Fleet can bring together" src="/images/device-management-bento-logos-320x295@2x.png">
-      </div>
-    </div>
-    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
-      <div purpose="feature-image">
-        <img alt="A Fleet orb scanning a Laptop" src="/images/device-management-realtime-visibility-320x294@2x.png">
-      </div>
-      <div purpose="feature-right-text-block" class="d-flex flex-column">
-        <h3>Real-time visibility</h3>
-        <p>Don't worry about your workstation configuration being out of date. Fleet makes it easy to see which settings have been applied to your devices. Real-time results allow you to see the status of your entire fleet at any given moment.</p>
-      </div>
-    </div>
-    <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
-      <div purpose="feature-left-text-block" class="d-flex flex-column">
-        <h3>All platforms welcome</h3>
-        <p>Give your teams access to any machine regardless of OS or manufacturer. Fleet supports Mac, Linux, Chromebooks, and Windows devices. So, you can make the most of your resources (and make everybody’s lives easier).</p>
-      </div>
-      <div purpose="feature-image">
-        <img alt="All platforms welcome" src="/images/device-management-all-platforms-welcome-320-249@2x.png">
-      </div>
-    </div>
-
-    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
-      <div purpose="scope-tansparency-feature-image">
-        <img alt="Transparency for end users" src="/images/device-management-transparency-438x373@2x.png">
-      </div>
-      <div purpose="feature-right-text-block" class="d-flex flex-column">
-        <h3>Transparency for end users</h3>
-
-        <p>Provide assurance to your end users about what information is being collected from their device.</p>
-        <div class="d-flex flex-column pb-4">
-          <div purpose="checklist">
-            <img alt="A green circle containing a checkmark" src="/images/icon-checkmark-circle-green-16x16@2x.png">
-            <p>Let end users see the source code for exactly how they are being monitored.</p>
-          </div>
-          <div purpose="checklist">
-            <img alt="A green circle containing a checkmark" src="/images/icon-checkmark-circle-green-16x16@2x.png">
-            <p>Set clear expectations about what is and isn’t acceptable use of work computers.</p>
-          </div>
-          <div purpose="checklist">
-            <img alt="A green circle containing a checkmark" src="/images/icon-checkmark-circle-green-16x16@2x.png">
-            <p>Let users participate in fixing things.</p>
-          </div>
-        </div>
-        <a purpose="scope-transparency-animated-arrow-button" href="/docs/using-fleet/fleet-desktop">Learn more about scope transparency</a>
-      </div>
-    </div>
-    <div purpose="bottom-button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-      <a purpose="cta-button" @click="clickOpenMdmModal()">See GitOps in action</a>
-      <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
-    </div>
-
   </div>
   <%/* End of page gradient */%>
   <div purpose="bottom-gradient">
-    <div purpose="tweets-container" class="container-fluid px-md-0 py-0 d-flex flex-column justify-content-center">
-      <div purpose="section-heading" style="max-width: 720px" class="mx-auto text-center">
-        <h4>Don’t know osquery?</h4>
-        <h2>Dedicated support from osquery experts</h2>
-        <p>Osquery is the open-source agent that powers Fleet. And we have the most osquery experts around. We’ll help you realize the potential of this tool for your organization.</p>
+    <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
+      <div purpose="section-heading" class="mx-auto text-center">
+        <h4>Who else uses Fleet?</h4>
+        <h2>Empowering IT teams</h2>
       </div>
     </div>
 
@@ -93,21 +111,19 @@
       <div purpose="bottom-cta" class="text-center">
         <h4>Open-source device management</h4>
         <h1>Lighter than air</h1>
-        <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
+        <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" @click="clickOpenMdmModal()">Show me</a>
           <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
         </div>
       </div>
     </div>
-    <%/* Cloud city banner */%>
   </div>
+  <%/* Cloud city banner */%>
   <div class="d-flex flex-column" purpose="bottom-cloud-city-banner">
     <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-lg-flex" src="/images/homepage-cloud-city-banner-lg-1600x375@2x.png">
     <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-md-flex d-lg-none" src="/images/homepage-cloud-city-banner-md-990x375@2x.png">
     <img alt="A glass city floating on top of fluffy white clouds" class="d-flex d-md-none" src="/images/homepage-cloud-city-banner-sm-375x168@2x.png">
   </div>
-
-
   <modal v-if="modal === 'mdm'" @close="closeModal()" data-backdrop="false" v-cloak purpose="modal">
     <div class="container p-0 d-flex flex-column justify-content-center align-items-center" purpose="mdm-modal">
       <div purpose="modal-form"  v-if="!showSignupFormSuccess">
@@ -151,6 +167,5 @@
       </div>
     </div>
   </modal>
-
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

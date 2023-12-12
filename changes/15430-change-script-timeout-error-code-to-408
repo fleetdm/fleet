@@ -1,0 +1,1 @@
+- POST /api/v1/fleet/scripts/run/sync timeout (longer than 60 seconds) will now return error code: 408 instead of 504

@@ -410,16 +410,16 @@ type QueryStats struct {
 	TeamID      *uint  `json:"team_id" db:"team_id"`
 
 	// From osquery directly
-	AverageMemory int  `json:"average_memory" db:"average_memory"`
-	Denylisted    bool `json:"denylisted" db:"denylisted"`
-	Executions    int  `json:"executions" db:"executions"`
+	AverageMemory uint64 `json:"average_memory" db:"average_memory"`
+	Denylisted    bool   `json:"denylisted" db:"denylisted"`
+	Executions    uint64 `json:"executions" db:"executions"`
 	// Note schedule_interval is used for DB since "interval" is a reserved word in MySQL
 	Interval     int       `json:"interval" db:"schedule_interval"`
 	LastExecuted time.Time `json:"last_executed" db:"last_executed"`
-	OutputSize   int       `json:"output_size" db:"output_size"`
-	SystemTime   int       `json:"system_time" db:"system_time"`
-	UserTime     int       `json:"user_time" db:"user_time"`
-	WallTime     int       `json:"wall_time" db:"wall_time"`
+	OutputSize   uint64    `json:"output_size" db:"output_size"`
+	SystemTime   uint64    `json:"system_time" db:"system_time"`
+	UserTime     uint64    `json:"user_time" db:"user_time"`
+	WallTime     uint64    `json:"wall_time" db:"wall_time"`
 }
 
 // MapQueryReportsResultsToRows converts the scheduled query results as stored in Fleet's database
