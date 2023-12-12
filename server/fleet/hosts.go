@@ -321,8 +321,6 @@ type Host struct {
 
 	// LastRestartedAt is a UNIX timestamp that indicates when the Host was last restarted.
 	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at" csv:"last_restarted_at"`
-
-	ListHostSoftware *json.RawMessage `json:"list_host_software,omitempty" db:"list_host_software" csv:"-"`
 }
 
 type MDMHostData struct {
