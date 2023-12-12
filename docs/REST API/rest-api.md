@@ -7254,9 +7254,15 @@ Returns the information of the specified software title. By default `versions` a
 
 `GET /api/v1/fleet/software/titles/:id`
 
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                             |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters installers uploaded and versions installed to hosts that belong to the specified team.                             |
+
 #### Example
 
-`GET /api/v1/fleet/software/titles/12`
+`GET /api/v1/fleet/software/titles/12?team_id=2`
 
 ##### Default response
 
@@ -7269,36 +7275,17 @@ Returns the information of the specified software title. By default `versions` a
     "title": "Firefox.app",
     "source": "apps",
     "hosts_count": 48,
-    "managed": [
-      {
-        "file_name": "ZoomInstallFull.pkg",
-        "version": "116.0",
-        "uploaded_at": "2023-08-12T15:20:00Z",
-        "team": {
-          "id": 2,
-          "name": "Workstations"
-        },
-        "status": {
-          "installed": 10,
-          "pending": 0,
-          "failed": 3
-        }
-      },
-      {
-        "file_name": "ZoomInstallFull.pkg",
-        "version": "117.5",
-        "uploaded_at": "2023-10-12T15:32:00Z",
-        "team": {
-          "id": 1,
-          "name": "Test team"
-        },
-        "status": {
-          "installed": 2,
-          "pending": 0,
-          "failed": 0
-        }
+    "managed": {
+      "file_name": "ZoomInstallFull.pkg",
+      "version": "116.0",
+      "uploaded_at": "2023-08-12T15:20:00Z",
+      "team_id": 2,
+      "status": {
+        "installed": 10,
+        "pending": 0,
+        "failed": 3
       }
-    ],
+    }
     "versions": [ 
       {
         "id": 123,
