@@ -851,6 +851,84 @@ module.exports = {
         builtStaticContent.pricingTable = pricingTableFeatures;
       },
       async()=>{
+        // Validate the pricing table yaml and add it to builtStaticContent.pricingTable.
+        let RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO = 'handbook/company/testimonials.yml';
+        // let url = require('url');
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find testimonials YAML file at "${RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let testimonials = YAML.parse(yaml, {prettyErrors: true});
+        for(let testimonial of testimonials){
+          // Throw an error if any value in the testimonial yaml is not a string.
+          for(let key of _.keys(testimonial)){
+            if(typeof testimonial[key] !== 'string'){
+              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial contains a ${key} with a non-string value. Please make sure all values in testimonials.yml are strings, and try running this script again. Invalid (${typeof testimonial[key]}) ${key} value: ${testimonial[key]}`);
+            }
+          }
+          // Check for required values.
+          if(!testimonial.quote) {
+            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quote". To resolve, make sure all testimonials have a "quote" and try running this script again. Testimonial missing a quote: ${testimonial}`);
+          }
+          if(!testimonial.quoteAuthorName) {
+            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quoteAuthorName". To resolve, make sure all testimonials have a "quoteAuthorName", and try running this script again. Testimonial with missing "quoteAuthorName": ${testimonial} `);
+          }
+          // If quoteAuthorSocialHandle is provided, quoteAuthorSocialLink is required.
+          if(testimonial.quoteAuthorSocialHandle) {
+            if(!testimonial.quoteAuthorSocialLink){
+              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial with a "quoteAuthorSocialHandle" value is missing a "quoteAuthorSocialLink". To resolve, make sure all testimonials with a "quoteAuthorSocialHandle" have a "quoteAuthorSocialLink", and try running this script again. Testimonial with missing "quoteAuthorSocialLink": ${testimonial} `);
+            }
+          }
+          if(testimonial.youtubeVideoUrl) {
+            if(!URL.canParse(testimonial.youtubeVideoUrl)){
+              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial has a "youtubeVideoUrl" value with an invalid URL.  Please make sure all "youtubeVideoUrl" values are valid URLs, and try running this script again.`);
+            }
+            let videoLinkToCheck = new URL(testimonial.youtubeVideoUrl);
+            // If this is a youtu.be link, the video ID will be the pathname of the URL.
+            if(_.endsWith(videoLinkToCheck.host, 'youtu.be')) {
+              if(!videoLinkToCheck.pathName) {
+                throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a "youtubeVideoUrl" value that does not link to a youtube video. Invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
+              }
+              testimonial.videoIdForEmbed = videoLinkToCheck.pathName;
+            } else if(_.endsWith(videoLinkToCheck.host, 'youtube.com')) {
+              // If this is a youtube.com link, the video ID will be in a query string.
+              if(!videoLinkToCheck.search){
+                // Throw an error if there is no video
+                throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a "youtubeVideoUrl" that does not link to a youtube video. Invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
+              }
+              let linkSearchParams = new URLSearchParams(videoLinkToCheck.search);
+              if(!linkSearchParams.has('v')){
+                throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a "youtubeVideoUrl" that does not link to a youtube video. Invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
+              }
+              testimonial.videoIdForEmbed = linkSearchParams.get('v');
+            } else {
+              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial has a "youtubeVideoUrl" value that does not point to a youtube video. Please make sure all "youtubeVideoUrl" values are valid youtube links, and try running this script again. invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
+            }
+          }
+          // Validate that all linked images exist, and that they match the website image name conventsions.
+          // We'll also get the images dimensions from the filename, and add an imageHeight value to the testimonial.
+          if(testimonial.quoteImagePathInAssetsFolder) {
+            // Throw an error if a testimonial with an image does not have a "quoteImageLinkUrl"
+            if(!testimonial.quoteImageLinkUrl){
+              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial with a 'quoteImagePathInAssetsFolder' value is missing a 'quoteImageLinkUrl'. If providing a 'quoteImagePathInAssetsFolder', a quoteImageLinkUrl (The link that the image will go to) is required. Testimonial missing a quoteImageLinkUrl: ${testimonial}`);
+            }
+            // Check if the image used for the testimonials exists.
+            let imageFileExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+testimonial.quoteImagePathInAssetsFolder));
+            if(!imageFileExists){
+              throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a 'quoteImagePathInAssetsFolder' value that points to an image that doesn't exist. Please make sure the file exists in the /website/assets/images/ folder. Invalid quoteImagePathInAssetsFolder value: ${testimonial.quoteImagePathInAssetsFolder}`);
+            }
+            let imageFilenameMatchesWebsiteConventions = testimonial.quoteImagePathInAssetsFolder.match(/\d+x\d+@2x\.png|jpg|jpeg$/g);
+            if(!imageFilenameMatchesWebsiteConventions){
+              throw new Error('image naming conventions (but secretly, we\'ll be relying on this to set the images height in frontend land)');
+            }
+            // Strip the 2x from the filename, using image dimensions we matched when we checked if the filename matches website conventions.
+            let extensionlessFilenameWithPostfixRemoved = imageFilenameMatchesWebsiteConventions[0].split('@2x')[0];
+            // Get the height from the filename.
+            let imagePathStringSections = extensionlessFilenameWithPostfixRemoved.split('x');
+            let imageHeight = imagePathStringSections[imagePathStringSections.length - 1];
+            testimonial.imageHeight = Number(imageHeight);
+          }
+        }
+        builtStaticContent.testimonials = testimonials;
+      },
+      async()=>{
         let rituals = {};
         // Find all the files in the top level /handbook folder and it's sub-folders
         let FILES_IN_HANDBOOK_FOLDER = await sails.helpers.fs.ls.with({
