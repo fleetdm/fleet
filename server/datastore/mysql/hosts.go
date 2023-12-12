@@ -1064,6 +1064,7 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, params, _ = hostSearchLike(sqlStmt, params, opt.MatchQuery, hostSearchColumns...)
 	sqlStmt, params = appendListOptionsWithCursorToSQL(sqlStmt, params, &opt.ListOptions)
 
+	fmt.Println("JVE_LOG: final sql: ", sqlStmt)
 	return sqlStmt, params, nil
 }
 
