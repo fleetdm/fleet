@@ -315,6 +315,7 @@ SELECT
     s.release,
     s.vendor,
     s.arch,
+    s.extension_id, -- TODO: validate that this should be added
     hs.last_opened_at
 FROM
     software s
@@ -436,9 +437,9 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	}
 
 	_, err := tx.ExecContext(ctx,
-		"INSERT INTO software "+
-			"(name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser) "+
-			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		fmt.Sprintf("INSERT INTO software "+
+			"(name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, checksum) "+
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, %s)", SoftwareChecksumComputedColumn("s")),
 		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier, s.ExtensionID, s.Browser,
 	)
 	if err != nil {
@@ -1107,6 +1108,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 			"s.release",
 			"s.vendor",
 			"s.arch",
+			"s.extension_id", // TODO: validate that this is required
 			"scv.cve",
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
 		).
@@ -1336,8 +1338,8 @@ SELECT DISTINCT
 	browser
 FROM
 	software s
-WHERE 
-	NOT EXISTS (SELECT 1 FROM software_titles st WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser)) 
+WHERE
+	NOT EXISTS (SELECT 1 FROM software_titles st WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser))
 ON DUPLICATE KEY UPDATE software_titles.id = software_titles.id`
 	// TODO: consider the impact of on duplicate key update vs. risk of insert ignore
 	// or performing a select first to see if the title exists and only inserting
@@ -1370,8 +1372,8 @@ WHERE
 
 	// clean up orphaned software titles
 	cleanupStmt := `
-DELETE st FROM software_titles st 
-	LEFT JOIN software s ON s.title_id = st.id 
+DELETE st FROM software_titles st
+	LEFT JOIN software s ON s.title_id = st.id
 	WHERE s.title_id IS NULL`
 
 	res, err = ds.writer(ctx).ExecContext(ctx, cleanupStmt)
@@ -1536,8 +1538,8 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 	var args []interface{}
 
 	stmt := `
-		INSERT INTO software_cve (cve, source, software_id, resolved_in_version) 
-		VALUES (?,?,?,?) 
+		INSERT INTO software_cve (cve, source, software_id, resolved_in_version)
+		VALUES (?,?,?,?)
 		ON DUPLICATE KEY UPDATE
 			source = VALUES(source),
 			resolved_in_version = VALUES(resolved_in_version),
@@ -1627,6 +1629,7 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 			goqu.I("s.version"),
 			goqu.I("s.release"),
 			goqu.I("s.arch"),
+			// TODO: validate that we don't need the new fields here (browser, extension_id, etc.)
 			goqu.COALESCE(goqu.I("cpe.cpe"), "").As("generated_cpe"),
 		).
 		Where(goqu.C("host_id").Eq(hostID))
