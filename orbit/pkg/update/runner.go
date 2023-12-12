@@ -2,8 +2,10 @@ package update
 
 import (
 	"bytes"
+	"crypto/rand"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -144,7 +146,21 @@ func (r *Runner) HasLocalHash(target string) bool {
 func (r *Runner) Execute() error {
 	log.Debug().Msg("start updater")
 
-	ticker := time.NewTicker(r.opt.CheckInterval)
+	// Randomize the initial interval so that all agents don't synchronize their updates
+	initialInterval := r.opt.CheckInterval
+	// Assuming CheckInterval > 0 because we validated it in NewRunner
+	nBig, err := rand.Int(rand.Reader, big.NewInt(int64(r.opt.CheckInterval)))
+	if err != nil {
+		log.Info().Err(err).Msg("randomization of initial update interval failed")
+	} else {
+		initialInterval = time.Duration(nBig.Int64())
+	}
+	const minInitialInterval = 2 * time.Second
+	if initialInterval < minInitialInterval {
+		initialInterval = minInitialInterval
+	}
+
+	ticker := time.NewTicker(initialInterval)
 	defer ticker.Stop()
 
 	// Run until cancel or returning an error
@@ -153,6 +169,7 @@ func (r *Runner) Execute() error {
 		case <-r.cancel:
 			return nil
 		case <-ticker.C:
+			ticker.Reset(r.opt.CheckInterval)
 			didUpdate, err := r.UpdateAction()
 			if err != nil {
 				log.Info().Err(err).Msg("update failed")
