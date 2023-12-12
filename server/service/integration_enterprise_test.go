@@ -5806,6 +5806,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		var resp listSoftwareTitlesResponse
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp)
 		require.Equal(t, 2, resp.Count)
+		require.NotEmpty(t, resp.CountsUpdatedAt)
 		softwareTitlesMatch([]fleet.SoftwareTitle{
 			{
 				Name:          "foo",
@@ -5840,6 +5841,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			"order_direction", "desc",
 		)
 		require.Equal(t, 2, resp.Count)
+		require.NotEmpty(t, resp.CountsUpdatedAt)
 		softwareTitlesMatch([]fleet.SoftwareTitle{
 			{
 				Name:          "foo",
@@ -5865,6 +5867,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			"order_direction", "desc",
 		)
 		require.Equal(t, 2, resp.Count)
+		require.NotEmpty(t, resp.CountsUpdatedAt)
 		softwareTitlesMatch([]fleet.SoftwareTitle{
 			{
 				Name:          "bar",
@@ -5889,6 +5892,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			"order_direction", "desc",
 		)
 		require.Equal(t, 2, resp.Count)
+		require.NotEmpty(t, resp.CountsUpdatedAt)
 		softwareTitlesMatch(nil, resp.SoftwareTitles)
 
 		// asking for vulnerable only software returns the expected values
@@ -5900,6 +5904,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			"vulnerable", "true",
 		)
 		require.Equal(t, 1, resp.Count)
+		require.NotEmpty(t, resp.CountsUpdatedAt)
 		softwareTitlesMatch([]fleet.SoftwareTitle{
 			{
 				Name:          "bar",
@@ -5921,6 +5926,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			"team_id", "1",
 		)
 		require.Equal(t, 0, resp.Count)
+		require.NotEmpty(t, resp.CountsUpdatedAt)
 		softwareTitlesMatch(nil, resp.SoftwareTitles)
 
 		// add new software for tmHost
@@ -5948,6 +5954,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			"order_direction", "desc",
 		)
 		require.Equal(t, 2, resp.Count)
+		require.NotEmpty(t, resp.CountsUpdatedAt)
 		softwareTitlesMatch([]fleet.SoftwareTitle{
 			{
 				Name:          "baz",
@@ -5980,6 +5987,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			"order_direction", "desc",
 		)
 		require.Equal(t, 3, resp.Count)
+		require.NotEmpty(t, resp.CountsUpdatedAt)
 		softwareTitlesMatch([]fleet.SoftwareTitle{
 			{
 				Name:          "baz",
@@ -6041,6 +6049,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			"query", "ba",
 		)
 		require.Equal(t, 2, resp.Count)
+		require.NotEmpty(t, resp.CountsUpdatedAt)
 		softwareTitlesMatch([]fleet.SoftwareTitle{
 			{
 				Name:          "bar",
@@ -6074,6 +6083,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		)
 		require.Equal(t, 1, softwareListResp.Count)
 		require.Len(t, softwareListResp.SoftwareTitles, 1)
+		require.NotEmpty(t, softwareListResp.CountsUpdatedAt)
 		fooTitle := softwareListResp.SoftwareTitles[0]
 		require.Equal(t, "foo", fooTitle.Name)
 

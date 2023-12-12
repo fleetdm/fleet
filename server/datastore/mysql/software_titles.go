@@ -19,7 +19,8 @@ SELECT
 	st.name,
 	st.source,
 	st.browser,
-	sthc.hosts_count AS hosts_count
+	sthc.hosts_count,
+	sthc.updated_at  as counts_updated_at
 FROM software_titles st
 JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id
 WHERE st.id = ?
@@ -126,7 +127,8 @@ SELECT
 	st.name,
 	st.source,
 	st.browser,
-	sthc.hosts_count
+	MAX(sthc.hosts_count) as hosts_count,
+	MAX(sthc.updated_at) as counts_updated_at
 FROM software_titles st
 JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id
 -- placeholder for JOIN on software/software_cve
