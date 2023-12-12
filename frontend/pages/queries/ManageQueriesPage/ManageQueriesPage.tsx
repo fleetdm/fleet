@@ -319,8 +319,12 @@ const ManageQueriesPage = ({
           inheritedQueryCount === 1 ? "y" : "ies"
         }`}
         caretPosition={"before"}
-        tooltipHtml={
-          'Queries from the "All teams"<br/>schedule run on this team’s hosts.'
+        tooltipContent={
+          <>
+            Queries from the &quot;All teams&quot;
+            <br />
+            schedule run on this team&apos;s hosts.
+          </>
         }
         onClick={() => {
           setShowInheritedQueries(!showInheritedQueries);

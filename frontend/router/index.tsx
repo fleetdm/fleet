@@ -57,6 +57,7 @@ import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/Windo
 import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
+import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
 import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
 import SoftwareVersions from "pages/SoftwarePage/SoftwareVersions";
@@ -179,16 +180,21 @@ const routes = (
               path="manage/:active_label/labels/:label_id"
               component={ManageHostsPage}
             />
-
-            <IndexRedirect to=":host_id" />
-            <Route component={HostDetailsPage}>
-              <Route path=":host_id" component={HostDetailsPage}>
-                <Route path="scripts" component={HostDetailsPage} />
-                <Route path="software" component={HostDetailsPage} />
-                <Route path="schedule" component={HostDetailsPage} />
-                <Route path="policies" component={HostDetailsPage} />
-              </Route>
+            <Route path=":host_id" component={HostDetailsPage}>
+              <Route path="scripts" component={HostDetailsPage} />
+              <Route path="software" component={HostDetailsPage} />
+              <Route path="queries" component={HostDetailsPage} />
+              <Route path=":query_id" component={HostQueryReport} />
+              <Route path="policies" component={HostDetailsPage} />
+              {/* legacy route */}
+              <Redirect from="schedule" to="queries" />
             </Route>
+
+            <Route
+              // outside of '/hosts' nested routes to avoid react-tabs-specific routing issues
+              path=":host_id/queries/:query_id"
+              component={HostQueryReport}
+            />
           </Route>
 
           <Route component={ExcludeInSandboxRoutes}>

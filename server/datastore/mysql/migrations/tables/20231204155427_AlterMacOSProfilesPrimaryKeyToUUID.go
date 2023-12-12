@@ -47,6 +47,11 @@ SET
 		return fmt.Errorf("failed to update host_mdm_windows_profiles table: %w", err)
 	}
 
+	// TODO(mna): this cannot be done as-is, see
+	// https://fleetdm.slack.com/archives/C019WG4GH0A/p1702399444800589 some
+	// customers run custom mysql variants that prevent dropping a PK, even
+	// temporarily.
+
 	// update the apple profiles table to add the profile_uuid column and
 	// temporarily drop the primary key until we fill those uuids.
 	_, err = tx.Exec(`

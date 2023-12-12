@@ -4,6 +4,7 @@ import classnames from "classnames";
 
 import ReactTooltip from "react-tooltip";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { COLORS } from "styles/var/colors";
 
 interface ITooltipTruncatedTextCellProps {
   value: string | number | boolean;
@@ -46,7 +47,7 @@ const TooltipTruncatedTextCell = ({
       <ReactTooltip
         place="top"
         effect="solid"
-        backgroundColor="#3e4771"
+        backgroundColor={COLORS["tooltip-bg"]}
         id={tooltipId}
         data-html
         className={"truncated-tooltip"} // responsive widths

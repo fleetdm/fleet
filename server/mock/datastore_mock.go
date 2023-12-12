@@ -300,6 +300,8 @@ type ScheduledQueryIDsByNameFunc func(ctx context.Context, batchSize int, packAn
 
 type QueryResultRowsFunc func(ctx context.Context, queryID uint, filter fleet.TeamFilter) ([]*fleet.ScheduledQueryResultRow, error)
 
+type QueryResultRowsForHostFunc func(ctx context.Context, queryID uint, hostID uint) ([]*fleet.ScheduledQueryResultRow, error)
+
 type ResultCountForQueryFunc func(ctx context.Context, queryID uint) (int, error)
 
 type ResultCountForQueryAndHostFunc func(ctx context.Context, queryID uint, hostID uint) (int, error)
@@ -1197,6 +1199,9 @@ type DataStore struct {
 
 	QueryResultRowsFunc        QueryResultRowsFunc
 	QueryResultRowsFuncInvoked bool
+
+	QueryResultRowsForHostFunc        QueryResultRowsForHostFunc
+	QueryResultRowsForHostFuncInvoked bool
 
 	ResultCountForQueryFunc        ResultCountForQueryFunc
 	ResultCountForQueryFuncInvoked bool
@@ -2897,6 +2902,13 @@ func (s *DataStore) QueryResultRows(ctx context.Context, queryID uint, filter fl
 	s.QueryResultRowsFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueryResultRowsFunc(ctx, queryID, filter)
+}
+
+func (s *DataStore) QueryResultRowsForHost(ctx context.Context, queryID uint, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
+	s.mu.Lock()
+	s.QueryResultRowsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueryResultRowsForHostFunc(ctx, queryID, hostID)
 }
 
 func (s *DataStore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {

@@ -53,7 +53,7 @@ const SoftwareTitleDetailsTable = ({
     <TableContainer
       className={baseClass}
       resultsTitle={data.length === 1 ? "version" : "versions"}
-      columns={softwareTableHeaders}
+      columnConfigs={softwareTableHeaders}
       data={data}
       isLoading={isLoading}
       emptyComponent={NoVersionsDetected}

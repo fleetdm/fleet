@@ -315,6 +315,7 @@ SELECT
     s.release,
     s.vendor,
     s.arch,
+    s.extension_id,
     hs.last_opened_at
 FROM
     software s
@@ -436,13 +437,18 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	}
 
 	_, err := tx.ExecContext(ctx,
-		"INSERT INTO software "+
-			"(name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser) "+
-			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		fmt.Sprintf("INSERT INTO software "+
+			"(name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, checksum) "+
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, %s)", softwareChecksumComputedColumn("")),
 		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier, s.ExtensionID, s.Browser,
 	)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insert software")
+		if !isDuplicate(err) {
+			return 0, ctxerr.Wrap(ctx, err, "insert software")
+		}
+		// if the error is a duplicate software entry, there was a race and another
+		// process inserted that software, so continue and try to get its id as it
+		// now exists.
 	}
 
 	// LastInsertId sometimes returns 0 as it's dependent on connections and how mysql is
@@ -455,6 +461,29 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	default:
 		return 0, ctxerr.Wrap(ctx, err, "get software")
 	}
+}
+
+func softwareChecksumComputedColumn(tableAlias string) string {
+	if tableAlias != "" && !strings.HasSuffix(tableAlias, ".") {
+		tableAlias += "."
+	}
+
+	// concatenate with separator \x00
+	return fmt.Sprintf(` UNHEX(
+		MD5(
+			CONCAT_WS(CHAR(0),
+				%sname,
+				%[1]sversion,
+				%[1]ssource,
+				COALESCE(%[1]sbundle_identifier, ''),
+				`+"%[1]s`release`"+`,
+				%[1]sarch,
+				%[1]svendor,
+				%[1]sbrowser,
+				%[1]sextension_id
+			)
+		)
+	) `, tableAlias)
 }
 
 // insert host_software that is in incoming map, but not in current map.
@@ -932,7 +961,7 @@ func (ds *Datastore) AllSoftwareIterator(
 	var args []interface{}
 
 	stmt := `SELECT
-		s.* ,
+		s.id, s.name, s.version, s.source, s.bundle_identifier, s.release, s.arch, s.vendor, s.browser, s.extension_id, s.title_id ,
 		COALESCE(sc.cpe, '') AS generated_cpe
 	FROM software s
 	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
@@ -1107,6 +1136,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 			"s.release",
 			"s.vendor",
 			"s.arch",
+			"s.extension_id",
 			"scv.cve",
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
 		).
@@ -1336,8 +1366,8 @@ SELECT DISTINCT
 	browser
 FROM
 	software s
-WHERE 
-	NOT EXISTS (SELECT 1 FROM software_titles st WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser)) 
+WHERE
+	NOT EXISTS (SELECT 1 FROM software_titles st WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser))
 ON DUPLICATE KEY UPDATE software_titles.id = software_titles.id`
 	// TODO: consider the impact of on duplicate key update vs. risk of insert ignore
 	// or performing a select first to see if the title exists and only inserting
@@ -1370,8 +1400,8 @@ WHERE
 
 	// clean up orphaned software titles
 	cleanupStmt := `
-DELETE st FROM software_titles st 
-	LEFT JOIN software s ON s.title_id = st.id 
+DELETE st FROM software_titles st
+	LEFT JOIN software s ON s.title_id = st.id
 	WHERE s.title_id IS NULL`
 
 	res, err = ds.writer(ctx).ExecContext(ctx, cleanupStmt)
@@ -1536,8 +1566,8 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 	var args []interface{}
 
 	stmt := `
-		INSERT INTO software_cve (cve, source, software_id, resolved_in_version) 
-		VALUES (?,?,?,?) 
+		INSERT INTO software_cve (cve, source, software_id, resolved_in_version)
+		VALUES (?,?,?,?)
 		ON DUPLICATE KEY UPDATE
 			source = VALUES(source),
 			resolved_in_version = VALUES(resolved_in_version),

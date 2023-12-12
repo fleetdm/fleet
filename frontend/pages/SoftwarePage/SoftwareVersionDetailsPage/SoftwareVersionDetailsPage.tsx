@@ -100,7 +100,7 @@ const SoftwareVersionDetailsPage = ({
             {softwareVersion?.vulnerabilities?.length ? (
               <div className="vuln-table">
                 <TableContainer
-                  columns={tableHeaders}
+                  columnConfigs={tableHeaders}
                   data={softwareVersion.vulnerabilities}
                   defaultSortHeader={isPremiumTier ? "epss_probability" : "cve"}
                   defaultSortDirection={"desc"}
