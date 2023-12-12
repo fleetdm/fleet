@@ -119,12 +119,6 @@ const generateTableHeaders = (
       title: "Vulnerabilities",
       Header: "Vulnerabilities",
       disableSortBy: true,
-      // the "vulnerabilities" accessor is used but the data is actually coming
-      // from the version attribute. We do this as we already have a "versions"
-      // attribute used for the "Version" column and we cannot reuse. This is a
-      // limitation of react-table.
-      // With the versions data, we can sum up the vulnerabilities to get the
-      // total number of vulnerabilities for the software title
       accessor: "vulnerabilities",
       Cell: (cellProps: IVulnCellProps): JSX.Element => (
         <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />
