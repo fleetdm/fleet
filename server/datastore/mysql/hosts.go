@@ -382,15 +382,15 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 			q.schedule_interval AS schedule_interval,
 			q.discard_data,
 			q.automations_enabled,
-			qr.last_fetched,
-			COALESCE(sqs.average_memory, 0) AS average_memory,
-			COALESCE(sqs.denylisted, false) AS denylisted,
-			COALESCE(sqs.executions, 0) AS executions,
-			COALESCE(sqs.last_executed, TIMESTAMP(?)) AS last_executed,
-			COALESCE(sqs.output_size, 0) AS output_size,
-			COALESCE(sqs.system_time, 0) AS system_time,
-			COALESCE(sqs.user_time, 0) AS user_time,
-			COALESCE(sqs.wall_time, 0) AS wall_time
+			MAX(qr.last_fetched) as last_fetched,
+			COALESCE(MAX(sqs.average_memory), 0) AS average_memory,
+			COALESCE(MAX(sqs.denylisted), false) AS denylisted,
+			COALESCE(MAX(sqs.executions), 0) AS executions,
+			COALESCE(MAX(sqs.last_executed), TIMESTAMP(?)) AS last_executed,
+			COALESCE(MAX(sqs.output_size), 0) AS output_size,
+			COALESCE(MAX(sqs.system_time), 0) AS system_time,
+			COALESCE(MAX(sqs.user_time), 0) AS user_time,
+			COALESCE(MAX(sqs.wall_time), 0) AS wall_time
 		FROM
 			queries q
 		LEFT JOIN scheduled_query_stats sqs ON (q.id = sqs.scheduled_query_id AND sqs.host_id = ?)
@@ -405,6 +405,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 				WHERE query_results.query_id = q.id 
 				AND query_results.host_id = ?
 			)
+		GROUP BY q.id
 	`
 
 	args := []interface{}{

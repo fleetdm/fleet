@@ -3925,7 +3925,12 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 		{
 			QueryID: query4.ID, // no interval
 			HostID:  host.ID,
-			Data:    nil,
+			Data:    ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
+		},
+		{
+			QueryID: query4.ID, // no interval
+			HostID:  host.ID,
+			Data:    ptr.RawMessage(json.RawMessage(`{"foo": "baz"}`)),
 		},
 	}
 	err = ds.OverwriteQueryResultRows(context.Background(), queryResultRow)
