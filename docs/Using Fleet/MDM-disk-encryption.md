@@ -14,7 +14,7 @@ You can enforce disk encryption in the Fleet UI, with Fleet API, or with the fle
 
 Fleet UI:
 
-1. In Fleet, head to the **Controls > OS setting > Disk encryption** page.
+1. In Fleet, head to the **Controls > OS settings > Disk encryption** page.
 
 2. Choose which team you want to enforce disk encryption on by selecting the desired team in the teams dropdown in the upper left corner.
 
