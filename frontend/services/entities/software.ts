@@ -6,10 +6,12 @@ import {
   ISoftwareResponse,
   ISoftwareCountResponse,
   IGetSoftwareByIdResponse,
+  ISoftwareVersion,
+  ISoftwareTitle,
 } from "interfaces/software";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 
-interface ISoftwareApiParams {
+export interface ISoftwareApiParams {
   page?: number;
   perPage?: number;
   orderKey?: string;
@@ -17,6 +19,34 @@ interface ISoftwareApiParams {
   query?: string;
   vulnerable?: boolean;
   teamId?: number;
+}
+
+export interface ISoftwareTitlesResponse {
+  counts_updated_at: string | null;
+  count: number;
+  software_titles: ISoftwareTitle[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
+
+export interface ISoftwareVersionsResponse {
+  counts_updated_at: string | null;
+  count: number;
+  software: ISoftwareVersion[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
+
+export interface ISoftwareTitleResponse {
+  software_title: ISoftwareTitle;
+}
+
+export interface ISoftwareVersionResponse {
+  software: ISoftwareVersion;
 }
 
 export interface ISoftwareQueryKey extends ISoftwareApiParams {
@@ -102,5 +132,31 @@ export default {
     const path = `${SOFTWARE}/${softwareId}`;
 
     return sendRequest("GET", path);
+  },
+
+  getSoftwareTitles: (params: ISoftwareApiParams) => {
+    const { SOFTWARE_TITLES } = endpoints;
+    const snakeCaseParams = convertParamsToSnakeCase(params);
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const path = `${SOFTWARE_TITLES}?${queryString}`;
+    return sendRequest("GET", path);
+  },
+
+  getSoftwareTitle: (id: number) => {
+    const { SOFTWARE_TITLE } = endpoints;
+    return sendRequest("GET", SOFTWARE_TITLE(id));
+  },
+
+  getSoftwareVersions: (params: ISoftwareApiParams) => {
+    const { SOFTWARE_VERSIONS } = endpoints;
+    const snakeCaseParams = convertParamsToSnakeCase(params);
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const path = `${SOFTWARE_VERSIONS}?${queryString}`;
+    return sendRequest("GET", path);
+  },
+
+  getSoftwareVersion: (id: number) => {
+    const { SOFTWARE_VERSION } = endpoints;
+    return sendRequest("GET", SOFTWARE_VERSION(id));
   },
 };

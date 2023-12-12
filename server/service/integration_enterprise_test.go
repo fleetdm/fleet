@@ -4356,7 +4356,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// create a valid sync script execution request, fails because the
 	// request will time-out waiting for a result.
 	runSyncResp = runScriptSyncResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusGatewayTimeout, &runSyncResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusRequestTimeout, &runSyncResp)
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.True(t, runSyncResp.HostTimeout)
@@ -4574,7 +4574,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// create a valid sync script execution request, fails because the
 	// request will time-out waiting for a result.
 	var runSyncResp runScriptSyncResponse
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedNoTmScript.ID}, http.StatusGatewayTimeout, &runSyncResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedNoTmScript.ID}, http.StatusRequestTimeout, &runSyncResp)
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.NotNil(t, runSyncResp.ScriptID)

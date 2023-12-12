@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import vulnerabilityInterface, { IVulnerability } from "./vulnerability";
+import vulnerabilityInterface from "./vulnerability";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -23,6 +23,8 @@ export interface IGetSoftwareByIdResponse {
   software: ISoftware;
 }
 
+// TODO: old software interface. replaced with ISoftwareVersion
+// check to see if we still need this.
 export interface ISoftware {
   id: number;
   name: string; // e.g., "Figma.app"
@@ -30,10 +32,52 @@ export interface ISoftware {
   bundle_identifier?: string | null; // e.g., "com.figma.Desktop"
   source: string; // e.g., "apps"
   generated_cpe: string;
-  vulnerabilities: IVulnerability[] | null;
+  vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;
   last_opened_at?: string | null; // e.g., "2021-08-18T15:11:35Z”
   installed_paths?: string[];
+}
+
+export interface ISoftwareTitleVersion {
+  id: number;
+  version: string;
+  vulnerabilities: string[] | null; // TODO: does this return null or is it omitted?
+  hosts_count?: number;
+}
+
+export interface ISoftwareTitle {
+  id: number;
+  name: string;
+  versions_count: number;
+  source: string;
+  hosts_count: number;
+  versions: ISoftwareTitleVersion[];
+  browser: string;
+}
+
+export interface ISoftwareVulnerability {
+  cve: string;
+  details_link: string;
+  cvss_score?: number | null;
+  epss_probability?: number | null;
+  cisa_known_exploit?: boolean | null;
+  cve_published?: string | null;
+  cve_description?: string | null;
+  resolved_in_version?: string | null;
+}
+
+export interface ISoftwareVersion {
+  id: number;
+  name: string; // e.g., "Figma.app"
+  version: string; // e.g., "2.1.11"
+  bundle_identifier?: string; // e.g., "com.figma.Desktop"
+  source: string; // e.g., "apps"
+  release: string; // TODO: on software/verions/:id?
+  vendor: string;
+  arch: string; // e.g., "x86_64" // TODO: on software/verions/:id?
+  generated_cpe: string;
+  vulnerabilities: ISoftwareVulnerability[] | null;
+  hosts_count?: number;
 }
 
 export const TYPE_CONVERSION: Record<string, string> = {
@@ -56,7 +100,8 @@ export const TYPE_CONVERSION: Record<string, string> = {
   pkg_packages: "Package (pkg)",
 } as const;
 
-export const formatSoftwareType = (source: string): string => {
+// TODO: update with new software types
+export const formatSoftwareType = (source: string) => {
   const DICT = TYPE_CONVERSION;
   return DICT[source] || "Unknown";
 };
