@@ -2628,7 +2628,9 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 	getSoftware := func() ([]fleet.Software, error) {
 		var sw []fleet.Software
-		err := ds.writer(ctx).SelectContext(ctx, &sw, `SELECT * FROM software ORDER BY name, source, browser, version`)
+		err := ds.writer(ctx).SelectContext(ctx, &sw, `SELECT
+			id, name, version, bundle_identifier, source, extension_id, browser, `+"`release`"+`, vendor, arch, title_id
+		FROM software ORDER BY name, source, browser, version`)
 		if err != nil {
 			return nil, err
 		}
@@ -2637,7 +2639,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 	getTitles := func() ([]fleet.SoftwareTitle, error) {
 		var swt []fleet.SoftwareTitle
-		err := ds.writer(ctx).SelectContext(ctx, &swt, `SELECT * FROM software_titles ORDER BY name, source, browser`)
+		err := ds.writer(ctx).SelectContext(ctx, &swt, `SELECT id, name, source, browser FROM software_titles ORDER BY name, source, browser`)
 		if err != nil {
 			return nil, err
 		}

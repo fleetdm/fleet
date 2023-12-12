@@ -439,11 +439,16 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	_, err := tx.ExecContext(ctx,
 		fmt.Sprintf("INSERT INTO software "+
 			"(name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, checksum) "+
-			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, %s)", softwareChecksumComputedColumn("s")),
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, %s)", softwareChecksumComputedColumn("")),
 		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier, s.ExtensionID, s.Browser,
 	)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insert software")
+		if !isDuplicate(err) {
+			return 0, ctxerr.Wrap(ctx, err, "insert software")
+		}
+		// if the error is a duplicate software entry, there was a race and another
+		// process inserted that software, so continue and try to get its id as it
+		// now exists.
 	}
 
 	// LastInsertId sometimes returns 0 as it's dependent on connections and how mysql is
@@ -456,6 +461,29 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	default:
 		return 0, ctxerr.Wrap(ctx, err, "get software")
 	}
+}
+
+func softwareChecksumComputedColumn(tableAlias string) string {
+	if tableAlias != "" && !strings.HasSuffix(tableAlias, ".") {
+		tableAlias += "."
+	}
+
+	// concatenate with separator \x00
+	return fmt.Sprintf(` UNHEX(
+		MD5(
+			CONCAT_WS(CHAR(0),
+				%sname,
+				%[1]sversion,
+				%[1]ssource,
+				COALESCE(%[1]sbundle_identifier, ''),
+				`+"%[1]s`release`"+`,
+				%[1]sarch,
+				%[1]svendor,
+				%[1]sbrowser,
+				%[1]sextension_id
+			)
+		)
+	) `, tableAlias)
 }
 
 // insert host_software that is in incoming map, but not in current map.
@@ -933,7 +961,7 @@ func (ds *Datastore) AllSoftwareIterator(
 	var args []interface{}
 
 	stmt := `SELECT
-		s.* ,
+		s.id, s.name, s.version, s.source, s.bundle_identifier, s.release, s.arch, s.vendor, s.browser, s.extension_id, s.title_id ,
 		COALESCE(sc.cpe, '') AS generated_cpe
 	FROM software s
 	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
