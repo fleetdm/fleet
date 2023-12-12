@@ -59,7 +59,6 @@ const HostQueryReport = ({
     ["query", queryId],
     () => queryAPI.load(queryId),
     {
-      select: (data: IListQueriesResponse) => data.queries,
       enabled: !!queryId,
       refetchOnMount: false,
       refetchOnReconnect: false,
