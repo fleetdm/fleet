@@ -130,9 +130,9 @@ Follow the steps below to configure Jira or Zendesk as a ticket destination:
 
 ## Host status automations
 
-Host status automations send a webhook request if a configured percentage of hosts have not checked in to Fleet for a configured number of days. This can be customized [globally](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings) or [per-team](https://fleetdm.com/docs/using-fleet/configuration-files#teams).
+Host status automations send a webhook request if a configured percentage of hosts have not checked in to Fleet for a configured number of days. This can be customized [globally](https://fleetdm.com/docs/configuration/configuration-files#organization-settingss) or [per-team](https://fleetdm.com/docs/configuration/configuration-files#teams).
 
-Fleet sends these webhook requests once per day by default. This interval can be updated with the `webhook_settings.interval` [configuration option](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings).  Note that this interval currently configures both host status and failing policy automations.
+Fleet sends these webhook requests once per day by default. This interval can be updated with the `webhook_settings.interval` [configuration option](https://fleetdm.com/docs/configuration/configuration-files#organization-settings).  Note that this interval currently configures both host status and failing policy automations.
 
 Example webhook payload:
 
