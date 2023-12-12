@@ -127,8 +127,8 @@ const generateTableHeaders = (
       Header: "Type",
       disableSortBy: true,
       accessor: "source",
-      Cell: (cellProps: IStringCellProps): JSX.Element => (
-        <TextCell formatter={formatSoftwareType} value={cellProps.cell.value} />
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <TextCell value={formatSoftwareType(cellProps.row.original)} />
       ),
     },
     // the "vulnerabilities" accessor is used but the data is actually coming
