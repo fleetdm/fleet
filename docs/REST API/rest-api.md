@@ -891,6 +891,7 @@ None.
       "custom_settings": ["path/to/profile2.xml"],
     },
     "scripts": ["path/to/script.sh"],
+    "software": ["https://github.com/organinzation/repository/installer.pkg","https://software.com/releases/windows/installer.msi"],
     "end_user_authentication": {
       "entity_id": "",
       "issuer_uri": "",
@@ -1095,6 +1096,7 @@ Modifies the Fleet's configuration with the supplied information.
 | enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
 | custom_settings                   | list    | body  | _mdm.windows_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
 | scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
+| software                           | list    | body  | A list of software installer URLs (PKG, DMG, and MSI) to add so they get installed during enrollment. |
 | enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
@@ -1816,6 +1818,7 @@ None.
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
 - [Bulk delete hosts by filter or ids](#bulk-delete-hosts-by-filter-or-ids)
 - [Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles)
+- [Get host's software](#get-hosts-software)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's macadmin mobile device management (MDM) and Munki information](#get-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
@@ -1869,6 +1872,7 @@ the `software` table.
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| software_status      | string | query |  Filters the hosts by the status of the managed software. Valid options are 'installed', 'pending', or 'failed'. **Note: Filter must be used in combination with _software_version_id_. If this filter is used with non-managed software, the filter will be ignored.**   |
 | os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -3027,6 +3031,48 @@ Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery mana
     {
       "email": "user@example.com",
       "source": "google_chrome_profiles"
+    }
+  ]
+}
+```
+---
+
+### Get host's software
+
+Retrieves a host's software.
+
+`GET /api/v1/fleet/hosts/:id/software`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id         | integer           | path | **Required**. The host's `id`.                                                |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/1/software`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software": [
+    {
+      "id": 123,
+      "name": "Google Chrome.app"
+      "versions": ["121.0"]
+      "source": "apps"
+      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+    },
+    {
+      "id": 127,
+      "name": "Firefox.app"
+      "versions": ["118.0, 119.0"]
+      "source": "apps"
+      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
     }
   ]
 }
@@ -6581,10 +6627,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
-- [Upload a script](#upload-a-script)
-- [Delete a script](#delete-a-script)
+- [Add script](#add-script)
+- [Delete script](#delete-script)
 - [List scripts](#list-scripts)
-- [Get or download a script](#get-or-download-a-script)
+- [Get or download script](#get-or-download-script)
 - [Get script details by host](#get-script-details-by-host)
 
 ### Run script
@@ -6662,11 +6708,11 @@ Gets the result of a script that was executed.
 
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
 
-### Upload a script
+### Add script
 
 _Available in Fleet Premium_
 
-Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
+Add script to make it available to run on hosts assigned to the specified team (or no team).
 
 `POST /api/v1/fleet/scripts`
 
@@ -6714,7 +6760,7 @@ echo "hello"
 }
 ```
 
-### Delete a script
+### Delete script
 
 _Available in Fleet Premium_
 
@@ -6783,7 +6829,7 @@ _Available in Fleet Premium_
 
 ```
 
-### Get or download a script
+### Get or download script
 
 _Available in Fleet Premium_
 
@@ -6796,7 +6842,7 @@ _Available in Fleet Premium_
 | id   | integer | path  | **Required.** The desired script's ID.                            |
 | alt  | string  | query | If specified and set to "media", downloads the script's contents. |
 
-#### Example (get a script)
+#### Example (get script metadata)
 
 `GET /api/v1/fleet/scripts/123`
 
@@ -6955,10 +7001,96 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
+- [Add software](#add-software)
+- [Download software](#download-software)
+- [Delete software](#delete-software)
 - [List software titles](#list-software-titles)
 - [List software versions](#list-software-versions)
 - [Get software title](#get-software-title)
 - [Get software version](#get-software-version)
+
+### Add software
+
+Add software to install on macOS and Windows hosts during enrollment.
+
+`POST /api/v1/fleet/software/manage`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| software        | file    | form | **Required**. Installer file. PKG or DMG for macOS and MSI for Windows hosts.   |
+| team_id         | integer | form | The team ID. If specified, the software will only be available to hosts assigned to this team. If not specified, the software will only be available to hosts that are not assigned to any team (No team).  |
+
+#### Example
+
+`POST /api/v1/fleet/software/manage`
+
+##### Request header
+
+```http
+Content-Length: 8500
+Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+
+##### Request body
+
+```http
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="team_id"
+1
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="software"; filename="ZoomInstallFull.pkg"
+Content-Type: application/octet-stream
+<BINARY_DATA>
+--------------------------d8c247122f594ba0
+```
+
+### Download managed software
+
+Download the uploaded software installer.
+
+`GET /api/v1/fleet/software/manage/{id}?alt=media`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| id              | integer | path | **Required**. The ID of uploaded software version to download.|
+| alt             | integer | path | **Required**. If specified and set to "media", downloads the specified software installer. |
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
+### Delete software
+
+Delete managed software.
+
+`DELETE /api/v1/fleet/software/manage/{id}`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| id              | integer | path | **Required**. The ID of the managed software version to delete.|
+
+#### Example
+
+`DELETE /api/v1/fleet/software/manage/24`
+
+##### Default response
+
+`Status: 204`
+
 
 ### List software titles
 
@@ -7173,6 +7305,36 @@ Returns information about the specified software title. By default, `versions` a
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
+    "managed": [
+      {
+        "file_name": "ZoomInstallFull.pkg",
+        "version": "116.0",
+        "uploaded_at": "2023-08-12T15:20:00Z",
+        "team": {
+          "id": 2,
+          "name": "Workstations"
+        },
+        "status": {
+          "installed": 10,
+          "pending": 0,
+          "failed": 3
+        }
+      },
+      {
+        "file_name": "ZoomInstallFull.pkg",
+        "version": "117.5",
+        "uploaded_at": "2023-10-12T15:32:00Z",
+        "team": {
+          "id": 1,
+          "name": "Test team"
+        },
+        "status": {
+          "installed": 2,
+          "pending": 0,
+          "failed": 0
+        }
+      }
+    ],
     "versions": [ 
       {
         "id": 123,
@@ -7188,7 +7350,7 @@ Returns information about the specified software title. By default, `versions` a
       },
       {
         "id": 127,
-        "version": "115.5",
+        "version": "120.0",
         "vulnerabilities": ["CVE-2023-7654"],
         "hosts_count": 4
       }

@@ -346,14 +346,14 @@ List of saved scripts that can be run on hosts that are part of the team.
 - Default value: none
 - Config file format:
   ```yaml
-apiVersion: v1
-kind: team
-spec:
-  team:
-    name: Client Platform Engineering
-    scripts:
-      - path/to/script1.sh
-      - path/to/script2.sh
+  apiVersion: v1
+  kind: team
+  spec:
+    team:
+      name: Client Platform Engineering
+      scripts:
+        - path/to/script1.sh
+        - path/to/script2.sh
   ```
 
 ## Organization settings
@@ -1229,6 +1229,22 @@ List of saved scripts that can be run on all hosts.
   scripts:
     - path/to/script1.sh
     - path/to/script2.sh
+  ```
+
+#### Software
+
+List of the software that will be installed on macOS and Windows hosts during enrollment.  
+
+`url` must be an absolute URL to the software installer.
+
+> If you want to add scripts to hosts on a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](#teams).
+
+- Default value: none
+- Config file format:
+  ```yaml
+  software:
+    - url: https://github.com/organinzation/repository/installer.pkg
+    - url: https://software.com/releases/windows/installer.msi
   ```
 
 #### Advanced configuration

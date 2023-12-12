@@ -1282,6 +1282,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.macos_settings                        | object | body  | The macOS-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.macos_settings.custom_settings        | list   | body  | The list of .mobileconfig files to apply to hosts that belong to this team.                                                                                                                                                         |
 | scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
+| software                                | list   | body  | A list of software installer URLs (PKG, APP, and MSI) to add so they get installed during enrollment. |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | mdm.windows_settings                      | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                  |
 | mdm.windows_settings.custom_settings      | list   | body  | The list of .xml files to apply to hosts that belong to this team.                                                                                                                                                                  |
@@ -1350,6 +1351,7 @@ If the `name` is not already associated with an existing team, this API route cr
         }
       },
       "scripts": ["path/to/script.sh"],
+      "software": ["https://cdn.zoom.us/prod/5.16.10.26186/x64/ZoomInstallerFull.msi", "https://github.com/organinzation/repository/installer.pkg"],
     }
   ]
 }
@@ -2762,7 +2764,30 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 #### Example
 
-`POST /api/v1/fleet/mdm/scripts/batch`
+`POST /api/v1/fleet/scripts/batch`
+
+##### Default response
+
+`204`
+
+## Software
+
+### Batch-apply software 
+
+`POST /api/v1/fleet/software/batch`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| team_id | number | query | The ID of the team to add software to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. 
+| team_name | string | query | The name of the team to add software to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. 
+| dry_run   | bool   | query | Validate the provided software files and return any validation errors, but do not apply the changes.                                                                         |
+| software   | array  | body  | An array of URLs with the software files.                    |
+
+#### Example
+
+`POST /api/v1/fleet/software/batch`
 
 ##### Default response
 
