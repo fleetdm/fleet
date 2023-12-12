@@ -14,7 +14,7 @@ interface IPreviewPayloadModalProps {
   onCancel: () => void;
 }
 
-export interface IHostsAffected {
+interface IHostsAffected {
   id: number;
   display_name: string;
   url: string;

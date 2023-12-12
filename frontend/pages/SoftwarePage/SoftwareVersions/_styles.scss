@@ -124,19 +124,6 @@
               width: 0;
             }
 
-            .vulnerabilities__cell {
-              display: none;
-              width: 0;
-
-              span {
-                display: inline;
-              }
-
-              .text-muted {
-                color: $ui-fleet-black-50;
-              }
-            }
-
             .link-cell {
               display: flex;
               align-items: center;
@@ -183,6 +170,13 @@
           }
         }
       }
+    }
+  }
+
+  // needed to handle overflow of the table data on small screens
+  .data-table {
+    &__wrapper {
+      overflow-x: auto;
     }
   }
 

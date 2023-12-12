@@ -77,7 +77,6 @@ const SoftwareTitleDetailsPage = ({
       )}
     </MainContent>
   );
-  return <h1>script title details</h1>;
 };
 
 export default SoftwareTitleDetailsPage;

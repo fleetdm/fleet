@@ -10,13 +10,6 @@ import {
   ISoftwareTitle,
 } from "interfaces/software";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
-import {
-  createMockSoftwareTitle,
-  createMockSoftwareTitlesReponse,
-  createMockSoftwareTitleResponse,
-  createMockSoftwareVersionsReponse,
-  createMockSoftwareVersionResponse,
-} from "__mocks__/softwareMock";
 
 export interface ISoftwareApiParams {
   page?: number;
