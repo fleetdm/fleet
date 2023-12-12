@@ -2628,11 +2628,7 @@ Returns a subset of information about the host specified by `token`. To get all 
 
 This is the API route used by the **My device** page in Fleet desktop to display information about the host to the end user.
 
-<<<<<<< HEAD
-`GET /api/v1/fleet/device/{token}`
-=======
 `GET /api/v1/fleet/device/:token`
->>>>>>> 52f704b42394cca71227e338d0299957bceb433a
 
 ##### Parameters
 
@@ -2796,15 +2792,12 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "detail": "",
         "bootstrap_package_name": "test.pkg"
       },
-<<<<<<< HEAD
-=======
       "os_settings": {
         "disk_encryption": {
           "status": null,
           "detail": ""
         }
       },
->>>>>>> 52f704b42394cca71227e338d0299957bceb433a
       "profiles": [
         {
           "profile_id": 999,
