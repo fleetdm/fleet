@@ -1296,7 +1296,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 
 	// remove any software count row for software that don't exist anymore
 	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupOrphanedStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
+		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing software")
 	}
 
 	// remove any software count row for teams that don't exist anymore

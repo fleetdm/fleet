@@ -5798,8 +5798,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
 	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	t.Run("GET /software/titles", func(t *testing.T) {
 		var resp listSoftwareTitlesResponse
@@ -5934,6 +5935,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		hostsCountTs := time.Now().UTC()
 		require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
 		require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+		require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 		// request software for the team, this time we get results
 		resp = listSoftwareTitlesResponse{}
@@ -5962,8 +5964,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				VersionsCount: 1, // NOTE: this value is 1 because the team has only 1 matching host
 				HostsCount:    1, // NOTE: this value is 1 because the team has only 1 matching host
 				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.1", Vulnerabilities: nil},
-					{Version: "0.0.3", Vulnerabilities: nil},
+					{Version: "0.0.1", Vulnerabilities: nil}, // NOTE: this only includes versions present in the team
 				},
 			},
 		}, resp.SoftwareTitles)
