@@ -6,7 +6,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (svc *Service) ListSoftware(ctx context.Context, opts fleet.SoftwareListOptions) ([]fleet.Software, error) {
+func (svc *Service) ListSoftware(ctx context.Context, opts fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
 	// reuse ListSoftware, but include cve scores in premium version
 	opts.IncludeCVEScores = true
 	return svc.Service.ListSoftware(ctx, opts)

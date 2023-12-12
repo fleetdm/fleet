@@ -774,9 +774,9 @@ func TestGetSoftwareVersions(t *testing.T) {
 
 	var gotTeamID *uint
 
-	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
 		gotTeamID = opt.TeamID
-		return []fleet.Software{foo001, foo002, foo003, bar003}, nil
+		return []fleet.Software{foo001, foo002, foo003, bar003}, &fleet.PaginationMetadata{}, nil
 	}
 
 	ds.CountSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
