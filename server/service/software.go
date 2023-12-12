@@ -64,13 +64,9 @@ func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc 
 
 	// always include pagination for new software versions endpoint (not included by default in
 	// legacy endpoint for backwards compatibility)
-	opt := &req.SoftwareListOptions
-	opt.ListOptions.IncludeMetadata = true
-	if opt.ListOptions.PerPage == 0 {
-		opt.ListOptions.PerPage = 20
-	}
+	req.SoftwareListOptions.ListOptions.IncludeMetadata = true
 
-	resp, meta, err := svc.ListSoftware(ctx, *opt)
+	resp, meta, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
 		return listSoftwareVersionsResponse{Err: err}, nil
 	}

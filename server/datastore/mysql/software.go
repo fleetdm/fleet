@@ -1042,10 +1042,14 @@ func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 		return nil, nil, err
 	}
 
+	perPage := opt.ListOptions.PerPage
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
+		if perPage <= 0 {
+			perPage = defaultSelectLimit
+		}
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
-		if len(software) > int(opt.ListOptions.PerPage) {
+		if len(software) > int(perPage) {
 			metaData.HasNextResults = true
 			software = software[:len(software)-1]
 		}
