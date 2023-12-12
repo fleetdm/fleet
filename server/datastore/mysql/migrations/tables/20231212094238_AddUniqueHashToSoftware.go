@@ -26,7 +26,12 @@ func Up_20231212094238(tx *sql.Tx) error {
 	}
 
 	// fill the checksum for existing rows - order of column used to generate the
-	// checksum is important, we will need to use the same everywhere.
+	// checksum is important, we will need to use the same everywhere. The logic
+	// of that computed checksum is captured in
+	// mysql.softwareChecksumComputedColumn, but we don't use it here because if
+	// the function's implementation changes in the future, it should not affect
+	// this DB migration (e.g. the function might use columns that don't exist at
+	// the point in time when this migration is run).
 	_, err = tx.Exec(`
 UPDATE
 	software

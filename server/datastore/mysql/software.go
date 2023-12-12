@@ -439,7 +439,7 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	_, err := tx.ExecContext(ctx,
 		fmt.Sprintf("INSERT INTO software "+
 			"(name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, checksum) "+
-			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, %s)", SoftwareChecksumComputedColumn("s")),
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, %s)", softwareChecksumComputedColumn("s")),
 		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier, s.ExtensionID, s.Browser,
 	)
 	if err != nil {
