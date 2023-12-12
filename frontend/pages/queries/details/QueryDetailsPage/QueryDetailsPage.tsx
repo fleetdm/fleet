@@ -18,6 +18,10 @@ import { IQueryReport } from "interfaces/query_report";
 import queryAPI from "services/entities/queries";
 import queryReportAPI, { ISortOption } from "services/entities/query_report";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import {
+  isGlobalObserver,
+  isTeamObserver,
+} from "utilities/permissions/permissions";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
@@ -76,6 +80,7 @@ const QueryDetailsPage = ({
 
   const handlePageError = useErrorHandler();
   const {
+    currentUser,
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamMaintainerOrTeamAdmin,
@@ -301,8 +306,15 @@ const QueryDetailsPage = ({
     >
       <div>
         <b>Report clipped.</b> A sample of this query&apos;s results is included
-        below. You can still use query automations to complete this report in
-        your log destination.
+        below.
+        {
+          // Exclude below message for global and team observers/observer+s
+          !(
+            (currentUser && isGlobalObserver(currentUser)) ||
+            isTeamObserver(currentUser, teamId ?? null)
+          ) &&
+            " You can still use query automations to complete this report in your log destination."
+        }
       </div>
     </InfoBanner>
   );

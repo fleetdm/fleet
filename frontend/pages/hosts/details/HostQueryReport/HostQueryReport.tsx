@@ -4,7 +4,10 @@ import MainContent from "components/MainContent";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import Spinner from "components/Spinner";
 import { AppContext } from "context/app";
-import { ISchedulableQuery } from "interfaces/schedulable_query";
+import {
+  IGetQueryResponse,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
 import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { browserHistory, InjectedRouter, Link } from "react-router";
@@ -55,10 +58,12 @@ const HostQueryReport = ({
     isLoading: queryLoading,
     data: queryResponse,
     error: queryError,
-  } = useQuery<ISchedulableQuery, Error, ISchedulableQuery>(
+  } = useQuery<IGetQueryResponse, Error, ISchedulableQuery>(
     ["query", queryId],
     () => queryAPI.load(queryId),
+
     {
+      select: (data) => data.query,
       enabled: !!queryId,
       refetchOnMount: false,
       refetchOnReconnect: false,

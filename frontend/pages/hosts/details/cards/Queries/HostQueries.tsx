@@ -98,7 +98,7 @@ const HostQueries = ({
             data={tableData}
             onQueryChange={() => null}
             resultsTitle="queries"
-            defaultSortHeader="scheduled_query_name"
+            defaultSortHeader="query_name"
             defaultSortDirection="asc"
             showMarkAllPages={false}
             isAllPagesSelected={false}
