@@ -259,7 +259,7 @@ const SoftwareTitles = ({
   return (
     <div className={baseClass}>
       <TableContainer
-        columns={softwareTableHeaders}
+        columnConfigs={softwareTableHeaders}
         data={softwareData?.software_titles || []}
         isLoading={isSoftwareLoading}
         resultsTitle={"items"}

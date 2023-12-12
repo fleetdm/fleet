@@ -293,7 +293,7 @@ export const generateSoftwareTableHeaders = ({
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`vulnerabilities__${cellProps.row.original.id}`}
               data-html
             >
@@ -333,7 +333,7 @@ export const generateSoftwareTableHeaders = ({
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`last_used__${cellProps.row.original.id}`}
               className="last_used_tooltip"
               data-tip-disable={hasLastUsed}

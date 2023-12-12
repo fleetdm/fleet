@@ -72,7 +72,7 @@ export default {
       teamId ? `?team_id=${teamId}` : ""
     }`;
   },
-  QUERY: (queryId: number, teamId?: number): string => {
+  QUERY_DETAILS: (queryId: number, teamId?: number): string => {
     return `${URL_PREFIX}/queries/${queryId}${
       teamId ? `?team_id=${teamId}` : ""
     }`;
@@ -102,12 +102,14 @@ export default {
   HOST_SOFTWARE: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/software`;
   },
-  HOST_SCHEDULE: (id: number): string => {
-    return `${URL_PREFIX}/hosts/${id}/schedule`;
+  HOST_QUERIES: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/queries`;
   },
   HOST_POLICIES: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/policies`;
   },
+  HOST_QUERY_REPORT: (hostId: number, queryId: number): string =>
+    `${URL_PREFIX}/hosts/${hostId}/queries/${queryId}`,
   DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },

@@ -535,7 +535,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
     return (
       <TableContainer
-        columns={tableHeaders}
+        columnConfigs={tableHeaders}
         data={tableData}
         isLoading={loadingTableData}
         defaultSortHeader={"name"}

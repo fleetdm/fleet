@@ -1466,7 +1466,7 @@ const ManageHostsPage = ({
     return (
       <TableContainer
         resultsTitle="hosts"
-        columns={tableColumns}
+        columnConfigs={tableColumns}
         data={hostsData?.hosts || []}
         isLoading={isLoadingHosts || isLoadingHostsCount || isLoadingPolicy}
         manualSortBy
