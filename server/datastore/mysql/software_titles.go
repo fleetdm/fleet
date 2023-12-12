@@ -18,6 +18,7 @@ SELECT
 	st.id,
 	st.name,
 	st.source,
+	st.browser,
 	sthc.hosts_count AS hosts_count
 FROM software_titles st
 JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id
@@ -124,6 +125,7 @@ SELECT
 	st.id,
 	st.name,
 	st.source,
+	st.browser,
 	sthc.hosts_count
 FROM software_titles st
 JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id

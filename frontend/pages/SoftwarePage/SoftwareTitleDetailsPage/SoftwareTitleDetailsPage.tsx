@@ -1,9 +1,8 @@
-import React, { useContext } from "react";
+import React from "react";
 import { RouteComponentProps } from "react-router";
 import { useQuery } from "react-query";
 
-import { AppContext } from "context/app";
-import { ISoftwareTitle } from "interfaces/software";
+import { ISoftwareTitle, formatSoftwareType } from "interfaces/software";
 import softwareAPI, {
   ISoftwareTitleResponse,
 } from "services/entities/software";
@@ -57,7 +56,7 @@ const SoftwareTitleDetailsPage = ({
           <SoftwareDetailsSummary
             id={softwareId}
             title={softwareTitle.name}
-            type={softwareTitle.source}
+            type={formatSoftwareType(softwareTitle)}
             versions={softwareTitle.versions.length}
             hosts={softwareTitle.hosts_count}
             queryParam="software_title_id"
