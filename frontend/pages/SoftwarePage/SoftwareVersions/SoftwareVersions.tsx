@@ -273,7 +273,7 @@ const SoftwareVersions = ({
     <div className={baseClass}>
       <div className={baseClass}>
         <TableContainer
-          columns={softwareTableHeaders}
+          columnConfigs={softwareTableHeaders}
           data={softwareVersionsData?.software || []}
           isLoading={isSoftwareVersionsLoading}
           resultsTitle={"items"}
