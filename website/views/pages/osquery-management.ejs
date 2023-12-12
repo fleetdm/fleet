@@ -15,7 +15,7 @@
           <p>Consolidate your security tooling on top of open data standards like YAML, SQL, and JSON.</p>
           <strong>Ship data to any platform</strong>
           <p>Export anything. Ship data to any platform like Splunk, Snowflake, or any streaming infrastructure like AWS Kinesis and Apache Kafka.</p>
-          <strong>Pulse check any agent or security config on any endpoint</strong>
+          <strong>Pulse check anything</strong>
           <p>Simplify security audits, build definitive reports, and discover and verify ongoing compliance for every endpoint, from workstations to data centers.</p>
           <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
             <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
@@ -38,60 +38,76 @@
           </div>
         </div>
       </div>
-      <div purpose="testimonial-videos" class="d-flex">
+<!--       <div purpose="testimonial-videos" class="d-flex">
         <div purpose="testimonial-video" @click="clickOpenVideoModal('austin-anderson')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
         <div purpose="testimonial-video" @click="clickOpenVideoModal('andre-shields')">
           <span><img src="/images/icon-play-video-8x9@2x.png" alt="Play">Play video</span>
         </div>
-      </div>
+      </div> -->
     </div>
 
-    <div purpose="homepage-text-block" class="mx-auto">
+    <div purpose="feature-headline" class="mr-auto">
       <h3>Simplify security tooling</h3>
       <p>Consolidate your security tooling on top of open data standards like YAML, SQL, and JSON.</p>
     </div>
 
     <div purpose="three-column-features" class="mx-auto">
 
-      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-start justify-content-center mb-5">
+      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-sm-start align-items-center justify-content-center">
         <div purpose="feature-item" class="ml-sm-0">
-          <img alt="transparency" src="/images/endpoint-ops-feature-icon-64x64@2x.png" class="mx-auto mx-sm-0">
+          <img alt="File integrity monitoring" src="/images/icon-file-integrity-monitoring-61x64@2x.png" class="mx-auto mx-sm-0">
           <h5>File integrity monitoring</h5>
           <p>Specify files to monitor for changes or deletions, then log those events to your SIEM or data lake.</p>
         </div>
 
         <div purpose="feature-item">
-          <img alt="Free as in free" src="/images/endpoint-ops-feature-icon-64x64@2x.png">
+          <img alt="Host-based intrusion detection" src="/images/icon-host-intrustion-detection-57x64@2x.png" class="mx-auto mx-sm-0">
           <h5>Host-based intrusion detection</h5>
           <p>Generate alerts when an IOC is detected and ship logs to your SIEM or data lake.</p>
         </div>
 
         <div purpose="feature-item" class="mr-sm-0 mb-0">
-          <img alt="An open book" src="/images/endpoint-ops-feature-icon-64x64@2x.png">
+          <img alt="Attack surface management" src="/images/icon-attack-surface-management-66x64@2x.png" class="mx-auto mx-sm-0">
           <h5>Attack surface management</h5>
-          <p>Something about attack surface management</p>
+          <p>Something about attack surface management “CAASM”</p>
         </div>
       </div>
-      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-start justify-content-center">
+      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-sm-start align-items-center justify-content-center">
         <div purpose="feature-item" class="ml-sm-0">
-          <img alt="transparency" src="/images/endpoint-ops-feature-icon-64x64@2x.png" class="mx-auto mx-sm-0">
+          <img alt="See logins for every computer" src="/images/icon-unknown-login-55x64@2x.png" class="mx-auto mx-sm-0">
           <h5>See logins for every computer</h5>
           <p>Identify who logs in to any system, including login history and current sessions.  Look up any host by the email address of the person using it.</p>
         </div>
 
         <div purpose="feature-item">
-          <img alt="Free as in free" src="/images/endpoint-ops-feature-icon-64x64@2x.png">
+          <img alt="Granular access control" src="/images/endpoint-ops-feature-icon-64x64@2x.png" class="mx-auto mx-sm-0">
           <h5>Granular access control</h5>
-          <p>Limit access to sensitive apps to people running healthy, up-to-date company laptops, and block access by unrecognized users. </p>
+          <p>Limit access to sensitive apps to people running healthy, up-to-date company laptops, and block access by unrecognized users.</p>
         </div>
 
         <div purpose="feature-item" class="mr-sm-0 mb-0">
-          <img alt="An open book" src="/images/endpoint-ops-feature-icon-64x64@2x.png">
+          <img alt="Encourage security updates" src="/images/endpoint-ops-feature-icon-64x64@2x.png" class="mx-auto mx-sm-0">
           <h5>Encourage security updates</h5>
           <p>Set and track progress towards deadlines for security posture remediation projects, and enforce due dates.</p>
         </div>
+      </div>
+      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-sm-start align-items-center justify-content-center">
+        <div purpose="feature-item" class="ml-sm-0">
+          <img alt="Health checks made simple" src="/images/endpoint-ops-feature-icon-64x64@2x.png" class="mx-auto mx-sm-0">
+          <h5>Health checks made simple</h5>
+          <p>Identify who logs in to any system, including login history and current sessions.s Look up any host by the email address of the person using it.</p>
+        </div>
+
+        <div purpose="feature-item">
+          <img alt="CI/CD and DevOps" src="/images/endpoint-ops-feature-icon-64x64@2x.png" class="mx-auto mx-sm-0">
+          <h5>CI/CD and DevOps</h5>
+          <p>Easily enroll hosts and configure the agent using CI/CD and DevOps workflows for a deployment model that scales quickly.</p>
+        </div>
+        <div purpose="feature-item">
+        </div>
+
       </div>
 
     </div>
@@ -106,18 +122,18 @@
         </div>
       </div>
       <div purpose="feature-image" class="left">
-        <img alt="Ship data to any platform" src="/images/endpoint-operations-ship-data-to-any-platform-380x260@2x.png">
+        <img alt="Ship data to any platform" src="/images/endpoint-ops-feature-image-1-381x282@2x.png">
       </div>
     </div>
 
-    <div purpose="homepage-text-block" class="mx-auto">
-      <h3>Pulse check any agent or security config</h3>
+    <div purpose="feature-headline" class="mr-auto">
+      <h3>Pulse check anything</h3>
       <p>Simplify security audits, build definitive reports, and discover and verify ongoing compliance for every endpoint, from workstations to data centers.</p>
     </div>
 
     <div purpose="three-column-features" class="mx-auto">
 
-      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-start justify-content-center">
+      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-sm-start align-items-center justify-content-center">
         <div purpose="feature-item" class="ml-sm-0">
           <img alt="transparency" src="/images/endpoint-ops-feature-icon-64x64@2x.png" class="mx-auto mx-sm-0">
           <h5>Software and asset inventory</h5>
@@ -125,13 +141,13 @@
         </div>
 
         <div purpose="feature-item">
-          <img alt="Free as in free" src="/images/endpoint-ops-feature-icon-64x64@2x.png">
+          <img alt="Free as in free" src="/images/endpoint-ops-feature-icon-64x64@2x.png" class="mx-auto mx-sm-0">
           <h5>EDR health checks</h5>
           <p>Verify that your EDR tools are installed and working so you can quickly identify and address any configuration issues. </p>
         </div>
 
         <div purpose="feature-item" class="mr-sm-0 mb-0">
-          <img alt="An open book" src="/images/endpoint-ops-feature-icon-64x64@2x.png">
+          <img alt="An open book" src="/images/endpoint-ops-feature-icon-64x64@2x.png" class="mx-auto mx-sm-0">
           <h5>Configuration deployment</h5>
           <p>Automatically deploy changes to server configurations and execute system-level scripts when issues are detected.</p>
         </div>
@@ -139,49 +155,21 @@
 
     </div>
 
-    <div purpose="homepage-text-block" class="mx-auto">
-      <h3>Osquery on easy mode</h3>
-      <p>Accelerate deployment and get more out of osquery. You don’t need to be an osquery expert to get the answers you need from your devices, Fleet takes care of some of that for you.</p>
-    </div>
 
-    <div purpose="three-column-features" class="mx-auto">
-
-      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-start justify-content-center mb-5">
-        <div purpose="feature-item" class="ml-sm-0">
-          <img alt="transparency" src="/images/endpoint-ops-feature-icon-64x64@2x.png" class="mx-auto mx-sm-0">
-          <h5>Health checks made simple</h5>
-          <p>Get answers with Fleet’s growing query library or easily create your own with autocomplete and live syntax checking.</p>
-        </div>
-
-        <div purpose="feature-item">
-          <img alt="Free as in free" src="/images/endpoint-ops-feature-icon-64x64@2x.png">
-          <h5>Borrow from the community</h5>
-          <p>Import community queries from other security teams at top brands like Palantir and Fastly.</p>
-        </div>
-
-        <div purpose="feature-item" class="mr-sm-0 mb-0">
-          <img alt="An open book" src="/images/endpoint-ops-feature-icon-64x64@2x.png">
-          <h5>CI/CD and DevOps</h5>
-          <p>Easily enroll hosts and configure the agent using CI/CD and DevOps workflows for a deployment model that scales quickly.</p>
-        </div>
+    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center mb-0">
+      <div purpose="feature-image" class="right">
+        <img alt="Ship data to any platform" src="/images/endpoint-ops-feature-image-2-380x380@2x.png">
       </div>
-      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-start justify-content-center">
-        <div purpose="feature-item" class="ml-sm-0">
-          <img alt="transparency" src="/images/endpoint-ops-feature-icon-64x64@2x.png" class="mx-auto mx-sm-0">
-          <h5>CIS benchmark policies</h5>
-          <p>Up to date CIS benchmark policies in Fleet Premium help you to implement CIS in your organization.</p>
-        </div>
-
-        <div purpose="feature-item">
-          <img alt="Free as in free" src="/images/endpoint-ops-feature-icon-64x64@2x.png">
-          <h5>Set flags remotely</h5>
+      <div purpose="feature-text" class="d-flex flex-column">
+        <h3>Osquery on easy mode</h3>
+        <p>Accelerate deployment and get more out of osquery. You don’t need to be an osquery expert to get the answers you need from your devices, Fleet takes care of some of that for you.</p>
+        <div purpose="checklist" class="flex-column d-flex">
           <p>Remotely set osquery flags to control initialization, disable/enable features, and select plugins.</p>
+          <p>Import community queries from other security teams at top brands like Palantir and Fastly.</p>
+          <p>Implement the Center for Internet Security (CIS) benchmarks (one click, 400+ queries, supported by Fleet). Or customize exactly the queries you need.</p>
         </div>
-
       </div>
-
     </div>
-
   </div>
   </div>
   <%/* End of page gradient */%>
