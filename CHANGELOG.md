@@ -1,3 +1,9 @@
+## Fleet 4.41.1 (Dec 7, 2023)
+
+### Bug fix
+
+* Fixed logging of results for scheduled queries configured outside of Fleet when `server_settings.query_reports_disabled` is set to `true`.
+
 ## Fleet 4.41.0 (Nov 28, 2023)
 
 ### Changes

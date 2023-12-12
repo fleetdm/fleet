@@ -667,6 +667,7 @@ spec:
   id: 0
   name: foo
   source: chrome_extensions
+  browser: ""
   versions:
   - id: 0
     version: 0.0.1
@@ -686,6 +687,7 @@ spec:
   id: 0
   name: bar
   source: deb_packages
+  browser: ""
   versions:
   - id: 0
     version: 0.0.3
@@ -701,6 +703,7 @@ spec:
       "id": 0,
       "name": "foo",
       "source": "chrome_extensions",
+	  "browser": "",
       "hosts_count": 2,
       "versions_count": 3,
       "versions": [
@@ -732,6 +735,7 @@ spec:
       "id": 0,
       "name": "bar",
       "source": "deb_packages",
+	  "browser": "",
       "hosts_count": 0,
       "versions_count": 1,
       "versions": [
@@ -770,9 +774,9 @@ func TestGetSoftwareVersions(t *testing.T) {
 
 	var gotTeamID *uint
 
-	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
 		gotTeamID = opt.TeamID
-		return []fleet.Software{foo001, foo002, foo003, bar003}, nil
+		return []fleet.Software{foo001, foo002, foo003, bar003}, &fleet.PaginationMetadata{}, nil
 	}
 
 	ds.CountSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {

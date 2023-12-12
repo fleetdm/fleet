@@ -114,7 +114,10 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 
 func onlyShowObserverCanRunQueries(user *fleet.User, teamID *uint) bool {
 	if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleObserver {
-		return true
+		// Return false here because Global Observers should be able to access all queries via API.
+		// However, the UI will only show queries that have "observer can run" set to true.
+		// See the user permissions matrix: https://fleetdm.com/docs/using-fleet/manage-access#user-permissions
+		return false
 	}
 
 	return teamID != nil && user.TeamMembership(func(ut fleet.UserTeam) bool {

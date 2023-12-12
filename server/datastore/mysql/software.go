@@ -310,7 +310,7 @@ SELECT
     s.name,
     s.version,
     s.source,
-	s.browser,
+    s.browser,
     s.bundle_identifier,
     s.release,
     s.vendor,
@@ -1036,8 +1036,26 @@ func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE,
 	return result, nil
 }
 
-func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
-	return listSoftwareDB(ctx, ds.reader(ctx), opt)
+func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
+	software, err := listSoftwareDB(ctx, ds.reader(ctx), opt)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	perPage := opt.ListOptions.PerPage
+	var metaData *fleet.PaginationMetadata
+	if opt.ListOptions.IncludeMetadata {
+		if perPage <= 0 {
+			perPage = defaultSelectLimit
+		}
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
+		if len(software) > int(perPage) {
+			metaData.HasNextResults = true
+			software = software[:len(software)-1]
+		}
+	}
+
+	return software, metaData, nil
 }
 
 func (ds *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
@@ -1311,14 +1329,15 @@ func (ds *Datastore) ReconcileSoftwareTitles(ctx context.Context) error {
 
 	// ensure all software titles are in the software_titles table
 	upsertTitlesStmt := `
-INSERT INTO software_titles (name, source)
+INSERT INTO software_titles (name, source, browser)
 SELECT DISTINCT
 	name,
-	source
+	source,
+	browser
 FROM
 	software s
 WHERE 
-	NOT EXISTS (SELECT 1 FROM software_titles st WHERE (s.name, s.source) = (st.name, st.source)) 
+	NOT EXISTS (SELECT 1 FROM software_titles st WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser)) 
 ON DUPLICATE KEY UPDATE software_titles.id = software_titles.id`
 	// TODO: consider the impact of on duplicate key update vs. risk of insert ignore
 	// or performing a select first to see if the title exists and only inserting
@@ -1339,15 +1358,15 @@ UPDATE
 SET
 	s.title_id = st.id
 WHERE
-	(s.name, s.source) = (st.name, st.source)
+	(s.name, s.source, s.browser) = (st.name, st.source, st.browser)
 	AND (s.title_id IS NULL OR s.title_id != st.id)`
 
 	res, err = ds.writer(ctx).ExecContext(ctx, updateSoftwareStmt)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "update software titles")
+		return ctxerr.Wrap(ctx, err, "update software title_id")
 	}
 	n, _ = res.RowsAffected()
-	level.Debug(ds.logger).Log("msg", "update software titles", "rows_affected", n)
+	level.Debug(ds.logger).Log("msg", "update software title_id", "rows_affected", n)
 
 	// clean up orphaned software titles
 	cleanupStmt := `

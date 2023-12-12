@@ -53,10 +53,6 @@ func (rw *ReadWriter) Rotate() error {
 	}
 
 	id := uuid.String()
-	if err := rw.Write(id); err != nil {
-		return fmt.Errorf("writing token: %w", err)
-	}
-
 	attempts := 3
 	interval := 5 * time.Second
 	err = retry.Do(func() error {
