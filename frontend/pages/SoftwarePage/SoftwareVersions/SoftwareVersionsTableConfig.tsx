@@ -111,9 +111,9 @@ const generateTableHeaders = (
       Header: "Type",
       disableSortBy: true,
       accessor: "source",
-      Cell: (cellProps: ICellProps): JSX.Element => {
-        return <TextCell value={formatSoftwareType(cellProps.row.original)} />;
-      },
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <TextCell value={formatSoftwareType(cellProps.row.original)} />
+      ),
     },
     {
       title: "Vulnerabilities",

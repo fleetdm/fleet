@@ -119,7 +119,6 @@ export const formatSoftwareType = ({
   source: string;
   browser: string;
 }) => {
-  console.log("formatSoftwareType", source, browser);
   let type = SOURCE_TYPE_CONVERSION[source] || "Unknown";
   if (browser) {
     type = `Browser plugin (${
