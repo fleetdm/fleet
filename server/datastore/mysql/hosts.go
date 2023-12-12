@@ -863,7 +863,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 
 	if opt.PopulateSoftware {
 		sql += `,
-	JSON_ARRAYAGG(JSON_OBJECT("id", sw.id, "name", sw.name, "version", sw.version, "source", sw.source, "bundle_identifier", sw.bundle_identifier, "installed_path", hsip.installed_path )) AS list_host_software
+	JSON_ARRAYAGG(JSON_OBJECT("id", sw.id, "name", sw.name, "version", sw.version, "source", sw.source, "bundle_identifier", sw.bundle_identifier )) AS list_host_software
 		`
 	}
 
@@ -994,7 +994,6 @@ func (ds *Datastore) applyHostFilters(
 			JOIN host_software hs ON h.id = hs.host_id 
 			LEFT JOIN software_cve sc ON hs.software_id = sc.software_id
 			LEFT JOIN software sw ON hs.software_id = sw.id
-			LEFT JOIN host_software_installed_paths hsip ON hsip.host_id = h.id AND sw.id = hsip.software_id
 		`
 		populateSoftwareGroupBy = "GROUP BY h.id"
 	}
