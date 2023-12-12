@@ -1395,6 +1395,8 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.NoError(t, err)
 	err = s.ds.ReconcileSoftwareTitles(context.Background())
 	require.NoError(t, err)
+	err = s.ds.SyncHostsSoftwareTitles(context.Background(), time.Now())
+	require.NoError(t, err)
 
 	var fooV1ID, fooV2ID, barAppTitleID, fooTitleID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
