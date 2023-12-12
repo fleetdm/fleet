@@ -180,6 +180,22 @@ module.exports.routes = {
     }
   },
 
+  'GET /try-fleet/explore-data': {
+    action: 'try-fleet/view-explore-data',
+    locals: {
+      pageTitleForMeta: 'Explore real data | Fleet for osquery',
+      pageDescriptionForMeta: 'See live data collected from a real device enrolled in Fleet.',
+    }
+  },
+
+  'GET /try-fleet/explore-data/:hostPlatform/:tableName': {// [?]: https://github.com/fleetdm/fleet/blob/97a0d419e1a25d2155606c09b9c483ae5067544e/website/api/controllers/try-fleet/view-query-report.js#L16
+    action: 'try-fleet/view-query-report',
+    locals: {
+      pageTitleForMeta: 'Explore real data | Fleet for osquery',
+      pageDescriptionForMeta: 'See live data collected from a real device enrolled in Fleet.',
+    }
+  },
+
   'GET /admin/email-preview': {
     action: 'admin/view-email-templates',
     locals: {
@@ -478,7 +494,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
-  'GET /get-started':            '/try-fleet/fleetctl-preview',
+  'GET /get-started':            '/try-fleet/explore-data',
   'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
   'GET /test-fleet-sandbox':     '/try-fleet/register',
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
