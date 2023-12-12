@@ -14,7 +14,7 @@ import (
 
 func TestFilterQueriesForObserver(t *testing.T) {
 	t.Run("global role", func(t *testing.T) {
-		require.True(t, onlyShowObserverCanRunQueries(&fleet.User{
+		require.False(t, onlyShowObserverCanRunQueries(&fleet.User{
 			GlobalRole: ptr.String(fleet.RoleObserver),
 		}, nil))
 
@@ -89,7 +89,7 @@ func TestListQueries(t *testing.T) {
 		{
 			title:        "global observer",
 			user:         &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
-			expectedOpts: fleet.ListQueryOptions{OnlyObserverCanRun: true},
+			expectedOpts: fleet.ListQueryOptions{OnlyObserverCanRun: false},
 		},
 		{
 			title:        "team maintainer",

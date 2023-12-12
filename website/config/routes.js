@@ -512,6 +512,7 @@ module.exports.routes = {
   // original sources to help avoid broken links.
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
   'GET /learn-more-about/just-in-time-provisioning': 'https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning',
+  'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
 
   // Sitemap
   // =============================================================================================================
