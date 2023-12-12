@@ -1,0 +1,104 @@
+# -
+#   quote: 
+#   quoteAuthorName:  # required
+#   quoteAuthorSocialHandle:  # required
+#   quoteAuthorSocialLink: # required
+#   quoteImagePathInAssetsFolder: # optional
+#   quoteImageLinkUrl:  # optional/required if there is an image
+#   quoteAuthorJobTitle: # optional
+#   youtubeVideoUrl: # optional
+-
+  quote: The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
+  quoteAuthorName: Andre Shields
+  quoteAuthorJobTitle: Cybersecurity Security Engineer, Vulnerability Management
+  youtubeVideoUrl: https://www.youtube.com/watch?v=siXy9aanOu4
+-
+  quote: I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work. ❤️
+  quoteImagePathInAssetsFolder: social-proof-linktree-logo-119x24@2x.png
+  quoteImageLinkUrl: https://twitter.com/Linktree_
+  quoteAuthorName: Daniel Grzelak
+  quoteAuthorJobTitle: CISO of 
+  quoteAuthorSocialHandle: Linktree
+  quoteAuthorSocialLink: https://twitter.com/Linktree_
+-
+  quote: We can build it exactly the way we want it. Which is just not possible on other platforms.
+  quoteAuthorName: Austin Anderson
+  quoteAuthorJobTitle: Cybersecurity team senior manager
+  youtubeVideoUrl: https://www.youtube.com/watch?v=G5Ry_vQPaYc
+-
+  quote: Exciting. This is a team that listens to feedback.
+  quoteImagePathInAssetsFolder: social-proof-logo-uber-87x38@2x.png
+  quoteImageLinkUrl: https://twitter.com/Uber
+  quoteAuthorName: Erik Gomez
+  quoteAuthorJobTitle: Staff Software Engineer 
+  quoteAuthorSocialHandle: "@Uber"
+  quoteAuthorSocialLink: https://twitter.com/Uber
+-
+  quote: Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners.
+  quoteAuthorName: Nick Fohs
+  quoteAuthorJobTitle: Systems and infrastructure manager
+  youtubeVideoUrl: https://www.youtube.com/watch?v=fs5ULAR4e4A
+-
+  quote: Keeping up with the latest issues in endpoint security is a never-ending task, because engineers have to regularly ensure every laptop and server is still sufficiently patched and securely configured. The problem is, software vendors release new versions all the time, and no matter how much you lock it down, end users find ways to change things.
+  quoteImagePathInAssetsFolder: social-proof-logo-lyft-145x103@2x.png
+  quoteImageLinkUrl: https://twitter.com/lyft
+  quoteAuthorName: Nico Waisman
+  quoteAuthorJobTitle: CISO of
+  quoteAuthorSocialHandle: Lyft
+  quoteAuthorSocialLink: https://twitter.com/lyft
+-
+  quote: Fleet has been highly effective for our needs. We appreciate your team for always being so open to hearing our feedback.
+  quoteAuthorName: Kenny Botelho
+  quoteAuthorSocialHandle: "@kennyb-222"
+  quoteAuthorSocialLink: https://github.com/kennyb-222
+-
+  quote: Mad props to how easy making a deploy pkg of Orbit was. I wish everyone made stuff that easy.
+  quoteImagePathInAssetsFolder: social-proof-logo-square-131x38@2x.png
+  quoteImageLinkUrl: https://twitter.com/Square
+  quoteAuthorName: Wesley Whetstone
+  quoteAuthorJobTitle: CPE
+  quoteAuthorSocialHandle: "@Square"
+  quoteAuthorSocialLink: https://twitter.com/Square
+-
+  quote: "#Fleet’s come a long way - to now being the top open-source #osquery manager. Just in the past 6 months."
+  quoteImagePathInAssetsFolder: social-proof-logo-atlassian-162x20@2x.png
+  quoteImageLinkUrl: https://twitter.com/atlassian
+  quoteAuthorName: Brendan Shaklovitz
+  quoteAuthorJobTitle: Senior SRE
+  quoteAuthorSocialHandle: "@Atlassian"
+  quoteAuthorSocialLink: https://twitter.com/atlassian
+-
+  quote: It’s great to see the new release of Fleet containing some really cool new features that make @osquery much more usable in practical environments. I’m really impressed with the work that @thezachw and crew are doing at @fleetctl.
+  quoteImagePathInAssetsFolder: social-proof-logo-osquery-140x36@2x.png
+  quoteImageLinkUrl: https://twitter.com/osquery
+  quoteAuthorName: Mike Arpaia
+  quoteAuthorJobTitle: Creator of 
+  quoteAuthorSocialHandle: "@osquery"
+  quoteAuthorSocialLink: https://twitter.com/osquery
+-
+  quote: "#osquery is one of the best tools out there and #fleetdm makes it even better. Highly recommend it if you want to monitor, detect and investigate threats on a scale and also for infra/sys admin. I have used it on 15k servers and it’s really scalable."
+  quoteImagePathInAssetsFolder: social-proof-logo-wayfair-136x32@2x.png
+  quoteImageLinkUrl: https://twitter.com/Wayfair
+  quoteAuthorName: Ahmed Elshaer
+  quoteAuthorJobTitle: DFIR, Blue Teaming, SecOps
+  quoteAuthorSocialHandle: "@wayfair"
+  quoteAuthorSocialLink: https://twitter.com/Wayfair
+-
+  quote: With the power of osquery, you need a scalable & resilient platform to manage your workloads. Fleet is the "just right" open-source, enterprise grade solution.
+  quoteImagePathInAssetsFolder: social-proof-logo-comcast-107x38@2x.png
+  quoteImageLinkUrl:  https://twitter.com/comcast
+  quoteAuthorName:  Abubakar Yousafzai
+  quoteAuthorJobTitle: Security Software Development & Engineering
+  quoteAuthorSocialHandle: "@Comcast"
+  quoteAuthorSocialLink: https://twitter.com/comcast
+-
+  quote: One of the best teams out there to go work for and help shape security platforms.
+  quoteImagePathInAssetsFolder: logo-deloitte-166x36@2x.png
+  quoteImageLinkUrl: https://www.linkedin.com/company/deloitte/
+  quoteAuthorName: Dhruv Majumdar
+  quoteAuthorJobTitle: Director Of Cyber Risk & Advisory
+  quoteAuthorSocialHandle: "@Deloitte"
+  quoteAuthorSocialLink: https://www.linkedin.com/company/deloitte/
+
+
+
