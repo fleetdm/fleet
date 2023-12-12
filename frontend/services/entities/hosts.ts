@@ -9,7 +9,7 @@ import {
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { SelectedPlatform } from "interfaces/platform";
-import { ISoftware } from "interfaces/software";
+import { ISoftwareTitle, ISoftware } from "interfaces/software";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -17,7 +17,6 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
-import { ISoftwareTitle } from "./software";
 
 export interface ISortOption {
   key: string;

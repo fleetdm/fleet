@@ -1,6 +1,5 @@
 import React from "react";
 
-import { ISoftwareVulnerability } from "interfaces/software";
 import { formatFloatAsPercentage } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
@@ -10,6 +9,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import { ISoftwareVulnerability } from "interfaces/software";
 
 interface IHeaderProps {
   column: {
@@ -62,7 +62,7 @@ const formatSeverity = (float: number | null) => {
   return `${severity} (${float.toFixed(1)})`;
 };
 
-const generateVulnTableHeaders = (
+const generateSoftwareVersionDetailsTableConfig = (
   isPremiumTier: boolean,
   isSandboxMode: boolean
 ): IDataColumn[] => {
@@ -106,11 +106,11 @@ const generateVulnTableHeaders = (
         );
         return (
           <>
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
             <HeaderCell
               value={titleWithToolTip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -140,11 +140,11 @@ const generateVulnTableHeaders = (
         );
         return (
           <>
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
             <HeaderCell
               value={titleWithToolTip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -173,11 +173,11 @@ const generateVulnTableHeaders = (
         );
         return (
           <>
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
             <HeaderCell
               value={titleWithToolTip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -205,11 +205,11 @@ const generateVulnTableHeaders = (
         );
         return (
           <>
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
             <HeaderCell
               value={titleWithToolTip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -228,4 +228,4 @@ const generateVulnTableHeaders = (
   return isPremiumTier ? tableHeaders.concat(premiumHeaders) : tableHeaders;
 };
 
-export default generateVulnTableHeaders;
+export default generateSoftwareVersionDetailsTableConfig;

@@ -42,7 +42,6 @@ import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
 import MDMAppleSSOPage from "pages/MDMAppleSSOPage";
 import MDMAppleSSOCallbackPage from "pages/MDMAppleSSOCallbackPage";
-import SoftwareDetailsPage from "pages/SoftwarePage/SoftwareDetailsPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
@@ -61,6 +60,8 @@ import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/A
 import SoftwarePage from "pages/SoftwarePage";
 import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
 import SoftwareVersions from "pages/SoftwarePage/SoftwareVersions";
+import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
+import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -212,9 +213,9 @@ const routes = (
             <Route component={SoftwarePage}>
               <Route path="titles" component={SoftwareTitles} />
               <Route path="versions" component={SoftwareVersions} />
-              <Route path=":software_id" component={SoftwareDetailsPage} />
             </Route>
-            <Route path="titles/:id" component={SoftwareDetailsPage} />
+            <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
+            <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">

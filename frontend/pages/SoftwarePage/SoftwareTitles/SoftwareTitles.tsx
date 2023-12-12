@@ -4,10 +4,8 @@ import { useQuery } from "react-query";
 import { Row } from "react-table";
 
 import PATHS from "router/paths";
-import { ISoftwareCountResponse } from "interfaces/software";
 import softwareAPI, {
-  ISoftwareCountQueryKey,
-  ISoftwareQueryKey,
+  ISoftwareApiParams,
   ISoftwareTitlesResponse,
 } from "services/entities/software";
 import { AppContext } from "context/app";
@@ -16,6 +14,7 @@ import {
   VULNERABLE_DROPDOWN_OPTIONS,
 } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
+import { buildQueryStringFromParams } from "utilities/url";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -27,7 +26,7 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
-import generateSoftwareTableHeaders from "./SoftwareTableConfig";
+import generateSoftwareTitlesTableHeaders from "./SoftwareTitlesTableConfig";
 
 const baseClass = "software-titles";
 
@@ -35,6 +34,10 @@ interface IRowProps extends Row {
   original: {
     id?: number;
   };
+}
+
+interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
+  scope: "software-titles";
 }
 
 interface ISoftwareTitlesProps {
@@ -73,11 +76,11 @@ const SoftwareTitles = ({
     ISoftwareTitlesResponse,
     Error,
     ISoftwareTitlesResponse,
-    ISoftwareQueryKey[]
+    ISoftwareTitlesQueryKey[]
   >(
     [
       {
-        scope: "software",
+        scope: "software-titles",
         page: currentPage,
         perPage,
         query,
@@ -89,38 +92,12 @@ const SoftwareTitles = ({
     ],
     ({ queryKey }) => softwareAPI.getSoftwareTitles(queryKey[0]),
     {
-      keepPreviousData: true,
       // stale time can be adjusted if fresher data is desired based on
       // software inventory interval
       staleTime: 30000,
     }
   );
 
-  // request to get software count
-  const {
-    data: softwareCountData,
-    isError: isSoftwareCountError,
-    isLoading: isSoftwareCountLoading,
-  } = useQuery<ISoftwareCountResponse, Error, number, ISoftwareCountQueryKey[]>(
-    [
-      {
-        scope: "softwareCount",
-        query,
-        vulnerable: showVulnerableSoftware,
-        teamId,
-      },
-    ],
-    ({ queryKey }) => softwareAPI.getCount(queryKey[0]),
-    {
-      keepPreviousData: true,
-      // stale time can be adjusted if fresher data is desired based on
-      // software inventory interval
-      staleTime: 30000,
-      refetchOnWindowFocus: false,
-      retry: 1,
-      select: (data) => data.count,
-    }
-  );
   // determines if a user be able to search in the table
   const searchable =
     isSoftwareEnabled &&
@@ -128,7 +105,7 @@ const SoftwareTitles = ({
 
   const softwareTableHeaders = useMemo(
     () =>
-      generateSoftwareTableHeaders(
+      generateSoftwareTitlesTableHeaders(
         router,
         isPremiumTier,
         isSandboxMode,
@@ -155,137 +132,107 @@ const SoftwareTitles = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    // const hostsBySoftwareParams = {
-    //   software_id: row.original.id,
-    //   team_id: teamId,
-    // };
-
-    // const path = hostsBySoftwareParams
-    //   ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-    //       hostsBySoftwareParams
-    //     )}`
-    //   : PATHS.MANAGE_HOSTS;
-
-    // router.push(path);
-    // TODO: navigation to software details page.
-    console.log("selectedRow", row.id);
-  };
-
-  const generateNewQueryParams = (newTableQuery: ITableQueryData) => {
-    return {
-      query: newTableQuery.searchQuery,
-      teamId,
-      orderDirection: newTableQuery.sortDirection,
-      orderKey: newTableQuery.sortHeader,
-      vulnerable: showVulnerableSoftware.toString(),
-      page: newTableQuery.pageIndex,
+    const hostsBySoftwareParams = {
+      software_title_id: row.original.id,
+      team_id: teamId,
     };
+
+    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
+      hostsBySoftwareParams
+    )}`;
+
+    router.push(path);
   };
+
+  const determineQueryParamChange = useCallback(
+    (newTableQuery: ITableQueryData) => {
+      const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
+        switch (key) {
+          case "searchQuery":
+            return val !== query;
+          case "sortDirection":
+            return val !== orderDirection;
+          case "sortHeader":
+            return val !== orderKey;
+          case "vulnerable":
+            return val !== showVulnerableSoftware.toString();
+          case "pageIndex":
+            return val !== currentPage;
+          default:
+            return false;
+        }
+      });
+      return changedEntry?.[0] ?? "";
+    },
+    [currentPage, orderDirection, orderKey, query, showVulnerableSoftware]
+  );
+
+  const generateNewQueryParams = useCallback(
+    (newTableQuery: ITableQueryData, changedParam: string) => {
+      return {
+        query: newTableQuery.searchQuery,
+        team_id: teamId,
+        order_direction: newTableQuery.sortDirection,
+        order_key: newTableQuery.sortHeader,
+        vulnerable: showVulnerableSoftware.toString(),
+        page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+      };
+    },
+    [showVulnerableSoftware, teamId]
+  );
 
   // NOTE: this is called once on initial render and every time the query changes
-  const onQueryChange = useCallback((newTableQuery: ITableQueryData) => {
-    console.log("new query data:", newTableQuery);
+  const onQueryChange = useCallback(
+    (newTableQuery: ITableQueryData) => {
+      // we want to determine which query param has changed in order to
+      // reset the page index to 0 if any other param has changed.
+      const changedParam = determineQueryParamChange(newTableQuery);
 
-    const newRoute = getNextLocationPath({
-      pathPrefix: PATHS.SOFTWARE_TITLES,
-      routeTemplate: "",
-      queryParams: generateNewQueryParams(newTableQuery),
-    });
+      // if nothing has changed, don't update the route. this can happen when
+      // this handler is called on the inital render.
+      if (changedParam === "") return;
 
-    router.replace(newRoute);
+      const newRoute = getNextLocationPath({
+        pathPrefix: PATHS.SOFTWARE_TITLES,
+        routeTemplate: "",
+        queryParams: generateNewQueryParams(newTableQuery, changedParam),
+      });
 
-    // if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
-    //   return;
-    // }
+      router.replace(newRoute);
+    },
+    [determineQueryParamChange, generateNewQueryParams, router]
+  );
 
-    // setTableQueryData({ ...newTableQuery });
+  const getItemsCountText = () => {
+    const count = softwareData?.count;
+    if (!softwareData || !count) return "";
 
-    // const {
-    //   pageIndex,
-    //   searchQuery: newSearchQuery,
-    //   sortDirection: newSortDirection,
-    // } = newTableQuery;
-    // let { sortHeader: newSortHeader } = newTableQuery;
+    return count === 1 ? `${count} item` : `${count} items`;
+  };
 
-    // pageIndex !== page && setPage(pageIndex);
-    // searchQuery !== newSearchQuery && setSearchQuery(newSearchQuery);
-    // sortDirection !== newSortDirection &&
-    //   setSortDirection(
-    //     newSortDirection === "asc" || newSortDirection === "desc"
-    //       ? newSortDirection
-    //       : DEFAULT_SORT_DIRECTION
-    //   );
+  const getLastUpdatedText = () => {
+    if (!softwareData || !softwareData.counts_updated_at) return "";
+    return (
+      <LastUpdatedText
+        lastUpdatedAt={softwareData.counts_updated_at}
+        whatToRetrieve={"software"}
+      />
+    );
+  };
 
-    // if (isPremiumTier && newSortHeader === "vulnerabilities") {
-    //   newSortHeader = "epss_probability";
-    // }
-    // sortHeader !== newSortHeader && setSortHeader(newSortHeader);
+  const renderSoftwareCount = () => {
+    const itemText = getItemsCountText();
+    const lastUpdatedText = getLastUpdatedText();
 
-    // // Rebuild queryParams to dispatch new browser location to react-router
-    // const newQueryParams: { [key: string]: string | number | undefined } = {};
-    // if (!isEmpty(newSearchQuery)) {
-    //   newQueryParams.query = newSearchQuery;
-    // }
-    // newQueryParams.page = pageIndex;
-    // newQueryParams.order_key = newSortHeader || DEFAULT_SORT_HEADER;
-    // newQueryParams.order_direction =
-    //   newSortDirection || DEFAULT_SORT_DIRECTION;
+    if (!itemText) return null;
 
-    // newQueryParams.vulnerable = filterVuln ? "true" : undefined;
-
-    // if (teamIdForApi !== undefined) {
-    //   newQueryParams.team_id = teamIdForApi;
-    // }
-
-    // const locationPath = getNextLocationPath({
-    //   pathPrefix: PATHS.SOFTWARE_TITLES,
-    //   routeTemplate,
-    //   queryParams: newQueryParams,
-    // });
-    // router.replace(locationPath);
-  }, []);
-
-  const renderSoftwareCount = useCallback(() => {
-    const lastUpdatedAt = softwareData?.counts_updated_at;
-
-    if (!isSoftwareEnabled || !lastUpdatedAt) {
-      return null;
-    }
-
-    if (isSoftwareCountError) {
-      return (
-        <span className={`${baseClass}__count count-error`}>
-          Failed to load software count
-        </span>
-      );
-    }
-
-    if (softwareCountData) {
-      return (
-        <div
-          className={`${baseClass}__count ${
-            isSoftwareCountLoading ? "count-loading" : ""
-          }`}
-        >
-          <span>{`${softwareCountData} software item${
-            softwareCountData === 1 ? "" : "s"
-          }`}</span>
-          <LastUpdatedText
-            lastUpdatedAt={lastUpdatedAt}
-            whatToRetrieve={"software"}
-          />
-        </div>
-      );
-    }
-
-    return null;
-  }, [
-    isSoftwareCountLoading,
-    softwareData,
-    isSoftwareCountError,
-    softwareCountData,
-    isSoftwareEnabled,
-  ]);
+    return (
+      <div className={`${baseClass}__count`}>
+        <span>{itemText}</span>
+        {lastUpdatedText}
+      </div>
+    );
+  };
 
   const renderVulnFilterDropdown = () => {
     return (
@@ -313,22 +260,16 @@ const SoftwareTitles = ({
     );
   };
 
-  // combined software and software count states.
-  const isLoading = isSoftwareLoading || isSoftwareCountLoading;
-  const isError = isSoftwareError || isSoftwareCountError;
-
-  if (isError) {
-    return <TableDataError />;
+  if (isSoftwareError) {
+    return <TableDataError className={`${baseClass}__table-error`} />;
   }
-
-  console.log("softwareData", softwareData);
 
   return (
     <div className={baseClass}>
       <TableContainer
         columns={softwareTableHeaders}
         data={softwareData?.software_titles || []}
-        isLoading={isLoading}
+        isLoading={isSoftwareLoading}
         resultsTitle={"items"}
         emptyComponent={() => (
           <EmptySoftwareTable
@@ -348,7 +289,7 @@ const SoftwareTitles = ({
         pageSize={perPage}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        disableNextPage // TODO: update with new API
+        disableNextPage={!softwareData?.meta.has_next_results}
         searchable={searchable}
         inputPlaceHolder="Search by name or vulnerabilities (CVEs)"
         onQueryChange={onQueryChange}

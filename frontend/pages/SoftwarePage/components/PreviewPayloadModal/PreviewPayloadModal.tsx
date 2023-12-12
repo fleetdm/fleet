@@ -1,8 +1,9 @@
 import React, { useContext } from "react";
-import { syntaxHighlight } from "utilities/helpers";
 
 import { AppContext } from "context/app";
-import { IVulnerability } from "interfaces/vulnerability";
+import { syntaxHighlight } from "utilities/helpers";
+import { ISoftwareVulnerability } from "interfaces/software";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -12,9 +13,21 @@ const baseClass = "preview-data-modal";
 interface IPreviewPayloadModalProps {
   onCancel: () => void;
 }
+
+interface IHostsAffected {
+  id: number;
+  display_name: string;
+  url: string;
+  software_installed_paths?: string[];
+}
+
+type IWebhookPayload = {
+  hosts_affected?: IHostsAffected[] | null;
+} & ISoftwareVulnerability;
+
 interface IJsonPayload {
   timestamp: string;
-  vulnerability: IVulnerability;
+  vulnerability: IWebhookPayload;
 }
 
 const PreviewPayloadModal = ({
