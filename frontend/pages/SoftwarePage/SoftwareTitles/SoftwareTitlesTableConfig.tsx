@@ -75,8 +75,6 @@ const getVulnerabilities = (versions: ISoftwareTitleVersion[]) => {
 
 const generateTableHeaders = (
   router: InjectedRouter,
-  isPremiumTier?: boolean,
-  isSandboxMode?: boolean,
   teamId?: number
 ): Column[] => {
   const softwareTableHeaders = [
@@ -107,7 +105,7 @@ const generateTableHeaders = (
             value={
               <>
                 <SoftwareIcon name={name} source={source} />
-                <span>{name}</span>
+                <span className="software-name">{name}</span>
               </>
             }
           />

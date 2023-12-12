@@ -63,9 +63,7 @@ const SoftwareTitles = ({
   currentPage,
   teamId,
 }: ISoftwareTitlesProps) => {
-  const { isPremiumTier, isSandboxMode, noSandboxHosts } = useContext(
-    AppContext
-  );
+  const { isSandboxMode, noSandboxHosts } = useContext(AppContext);
 
   // request to get software data
   const {
@@ -104,14 +102,8 @@ const SoftwareTitles = ({
     (!!softwareData?.software_titles || query !== "" || showVulnerableSoftware);
 
   const softwareTableHeaders = useMemo(
-    () =>
-      generateSoftwareTitlesTableHeaders(
-        router,
-        isPremiumTier,
-        isSandboxMode,
-        teamId
-      ),
-    [isPremiumTier, isSandboxMode, router, teamId]
+    () => generateSoftwareTitlesTableHeaders(router, teamId),
+    [router, teamId]
   );
 
   const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
