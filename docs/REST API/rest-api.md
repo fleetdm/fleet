@@ -3005,7 +3005,7 @@ Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery mana
 
 Retrieves a host's software.
 
-`GET /api/v1/fleet/hosts/:id/software`
+`GET /api/v1/fleet/hosts/:id/software/titles`
 
 #### Parameters
 
@@ -3015,7 +3015,7 @@ Retrieves a host's software.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/1/software`
+`GET /api/v1/fleet/hosts/1/software/titles`
 
 ##### Default response
 
@@ -3023,7 +3023,7 @@ Retrieves a host's software.
 
 ```json
 {
-  "software": [
+  "software_titles": [
     {
       "id": 123,
       "name": "Google Chrome.app"
