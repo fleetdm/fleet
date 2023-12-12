@@ -6998,7 +6998,6 @@ Get a list of all software grouped by software title.
       "source": "apps",
       "browser": "",
       "hosts_count": 48,
-      "vulnerabilities_count": 7,
       "versions": [ 
         {
           "id": 123,
@@ -7024,7 +7023,6 @@ Get a list of all software grouped by software title.
       "source": "apps",
       "browser": "",
       "hosts_count": 345,
-      "vulnerabilities_count": 9,
       "versions": [
         {
           "id": 331,
@@ -7055,7 +7053,6 @@ Get a list of all software grouped by software title.
       "source": "chrome_extensions",
       "browser": "chrome",
       "hosts_count": 345,
-      "vulnerabilities_count": 0,
       "versions": [
         {
           "id": 4242,
