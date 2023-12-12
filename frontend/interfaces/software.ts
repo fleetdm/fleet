@@ -1,3 +1,4 @@
+import { startCase } from "lodash";
 import PropTypes from "prop-types";
 import vulnerabilityInterface from "./vulnerability";
 
@@ -72,6 +73,7 @@ export interface ISoftwareVersion {
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
   source: string; // e.g., "apps"
+  browser: string; // e.g., "chrome"
   release: string; // TODO: on software/verions/:id?
   vendor: string;
   arch: string; // e.g., "x86_64" // TODO: on software/verions/:id?
@@ -80,7 +82,7 @@ export interface ISoftwareVersion {
   hosts_count?: number;
 }
 
-export const TYPE_CONVERSION: Record<string, string> = {
+export const SOURCE_TYPE_CONVERSION: Record<string, string> = {
   apt_sources: "Package (APT)",
   deb_packages: "Package (deb)",
   portage_packages: "Package (Portage)",
@@ -90,7 +92,7 @@ export const TYPE_CONVERSION: Record<string, string> = {
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
   apps: "Application (macOS)",
-  chrome_extensions: "Browser plugin (Chrome)",
+  chrome_extensions: "Browser plugin", // chrome_extensions can include any chrome-based browser (e.g., edge), so we rely instead on the `browser` field computed by Fleet server and fallback to this value if it is not present.
   firefox_addons: "Browser plugin (Firefox)",
   safari_extensions: "Browser plugin (Safari)",
   homebrew_packages: "Package (Homebrew)",
@@ -100,8 +102,29 @@ export const TYPE_CONVERSION: Record<string, string> = {
   pkg_packages: "Package (pkg)",
 } as const;
 
-// TODO: update with new software types
-export const formatSoftwareType = (source: string) => {
-  const DICT = TYPE_CONVERSION;
-  return DICT[source] || "Unknown";
+const BROWSER_TYPE_CONVERSION: Record<string, string> = {
+  chrome: "Chrome",
+  chromium: "Chromium",
+  opera: "Opera",
+  yandex: "Yandex",
+  brave: "Brave",
+  edge: "Edge",
+  edge_beta: "Edge Beta",
+} as const;
+
+export const formatSoftwareType = ({
+  source,
+  browser,
+}: {
+  source: string;
+  browser: string;
+}) => {
+  console.log("formatSoftwareType", source, browser);
+  let type = SOURCE_TYPE_CONVERSION[source] || "Unknown";
+  if (browser) {
+    type = `Browser plugin (${
+      BROWSER_TYPE_CONVERSION[browser] || startCase(browser)
+    })`;
+  }
+  return type;
 };

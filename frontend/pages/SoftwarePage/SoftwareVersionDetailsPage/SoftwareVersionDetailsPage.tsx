@@ -5,7 +5,7 @@ import { RouteComponentProps } from "react-router";
 import softwareAPI, {
   ISoftwareVersionResponse,
 } from "services/entities/software";
-import { ISoftwareVersion } from "interfaces/software";
+import { ISoftwareVersion, formatSoftwareType } from "interfaces/software";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import { AppContext } from "context/app";
 
@@ -89,7 +89,7 @@ const SoftwareVersionDetailsPage = ({
           <SoftwareDetailsSummary
             id={softwareVersion.id}
             title={`${softwareVersion.name}, ${softwareVersion.version}`}
-            type={softwareVersion.source}
+            type={formatSoftwareType(softwareVersion)}
             hosts={softwareVersion.hosts_count ?? 0}
             queryParam="software_version_id"
             name={softwareVersion.name}

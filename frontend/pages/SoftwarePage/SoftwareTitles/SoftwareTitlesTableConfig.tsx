@@ -127,9 +127,9 @@ const generateTableHeaders = (
       Header: "Type",
       disableSortBy: true,
       accessor: "source",
-      Cell: (cellProps: IStringCellProps): JSX.Element => (
-        <TextCell formatter={formatSoftwareType} value={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        return <TextCell value={formatSoftwareType(cellProps.row.original)} />;
+      },
     },
     // the "vulnerabilities" accessor is used but the data is actually coming
     // from the version attribute. We do this as we already have a "versions"

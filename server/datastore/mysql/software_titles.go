@@ -16,6 +16,7 @@ SELECT
 	st.id,
 	st.name,
 	st.source,
+	st.browser,
 	COUNT(DISTINCT hs.host_id) AS hosts_count,
 	COUNT(DISTINCT s.id) AS versions_count
 FROM software_titles st
@@ -123,6 +124,7 @@ SELECT
 	st.id,
 	st.name,
 	st.source,
+	st.browser,
 	COUNT(DISTINCT hs.host_id) AS hosts_count,
 	COUNT(DISTINCT s.id) AS versions_count
 FROM software_titles st

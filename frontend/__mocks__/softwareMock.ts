@@ -97,6 +97,7 @@ const DEFAULT_SOFTWARE_VERSION_MOCK: ISoftwareVersion = {
   version: "1.2.3",
   bundle_identifier: "com.test.Desktop",
   source: "test_package",
+  browser: "",
   release: "1",
   vendor: "test_vendor",
   arch: "x86_64",
