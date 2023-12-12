@@ -290,7 +290,7 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 			if batchCount == batchSize {
 				values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
 				if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
-					return ctxerr.Wrapf(ctx, err, "insert %s batch into software_host_counts", stmtLabel[i])
+					return ctxerr.Wrapf(ctx, err, "insert %s batch into software_titles_host_counts", stmtLabel[i])
 				}
 
 				args = args[:0]
@@ -300,7 +300,7 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 		if batchCount > 0 {
 			values := strings.TrimSuffix(strings.Repeat(valuesPart, batchCount), ",")
 			if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
-				return ctxerr.Wrapf(ctx, err, "insert last %s batch into software_host_counts", stmtLabel[i])
+				return ctxerr.Wrapf(ctx, err, "insert last %s batch into software_titles_host_counts", stmtLabel[i])
 			}
 		}
 		if err := rows.Err(); err != nil {
@@ -311,12 +311,12 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 
 	// remove any software count row for software that don't exist anymore
 	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupOrphanedStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
+		return ctxerr.Wrap(ctx, err, "delete software_titles_host_counts for non-existing software")
 	}
 
 	// remove any software count row for teams that don't exist anymore
 	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupTeamStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
+		return ctxerr.Wrap(ctx, err, "delete software_titles_host_counts for non-existing teams")
 	}
 	return nil
 }
