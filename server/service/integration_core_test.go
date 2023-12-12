@@ -7107,6 +7107,8 @@ func (s *integrationTestSuite) TestOSVersions() {
 }
 
 func (s *integrationTestSuite) TestPingEndpoints() {
+	t := s.T()
+
 	s.DoRaw("HEAD", "/api/fleet/orbit/ping", nil, http.StatusOK)
 	// unauthenticated works too
 	s.DoRawNoAuth("HEAD", "/api/fleet/orbit/ping", nil, http.StatusOK)
@@ -7114,6 +7116,13 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 	s.DoRaw("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
 	// unauthenticated works too
 	s.DoRawNoAuth("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
+
+	// device authenticated ping
+	createHostAndDeviceToken(t, s.ds, "ping-token")
+	s.DoRaw("HEAD", fmt.Sprintf("/api/v1/fleet/device/%s/ping", "ping-token"), nil, http.StatusOK)
+	s.DoRawNoAuth("HEAD", fmt.Sprintf("/api/v1/fleet/device/%s/ping", "ping-token"), nil, http.StatusOK)
+	s.DoRaw("HEAD", fmt.Sprintf("/api/v1/fleet/device/%s/ping", "bozo-token"), nil, http.StatusUnauthorized)
+	s.DoRawNoAuth("HEAD", fmt.Sprintf("/api/v1/fleet/device/%s/ping", "bozo-token"), nil, http.StatusUnauthorized)
 }
 
 func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
