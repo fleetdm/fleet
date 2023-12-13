@@ -218,7 +218,7 @@ Fleet prefixes all GitHub labels with special characters or words to organize an
 
 Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. For example, instead of a label called `platform-dev-backend`, we use `#platform :dev ~backend`.
 
-Labels with a `#` prefix shall reflect their own Zenhub board and since it is best practice to have an issue on a single board, an effort should be made to have only one label with the `#` prefix per issue.
+Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
 > _**Note:** There are only a few "special" labels that are exceptions to this rule:
 > - `bug`
