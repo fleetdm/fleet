@@ -2269,6 +2269,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Refetch device's host](#refetch-devices-host)
 - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
+- [Get device's software](#get-devices-software)
 - [Get device's policies](#get-devices-policies)
 - [Get device's API features](#get-devices-api-features)
 - [Get device's transparency URL](#get-devices-transparency-url)
@@ -2365,6 +2366,48 @@ In regards to the `notifications` key:
 - `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
 - `enforce_bitlocker_encryption` applies only to Windows devices and means that it should encrypt the disk and report the encryption key back to Fleet.
 
+#### Get device's software
+
+Lists the software installed on the current device.
+
+`GET /api/v1/fleet/device/{token}/software/titles`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/software/titles`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_titles": [
+    {
+      "id": 123,
+      "name": "Google Chrome.app"
+      "versions": ["121.0"]
+      "source": "apps"
+      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+      "status": "installed",
+      "detail": ""
+    },
+    {
+      "id": 127,
+      "name": "Firefox.app"
+      "versions": ["118.0, 119.0"]
+      "source": "apps"
+      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+    }
+  ]
+}
+```
 
 #### Get device's policies
 
