@@ -24,6 +24,7 @@ SELECT
 FROM software_titles st
 JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id
 WHERE st.id = ?
+AND sthc.team_id = 0
 	`
 	var title fleet.SoftwareTitle
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id); err != nil {
