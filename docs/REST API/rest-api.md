@@ -7316,7 +7316,13 @@ Returns the information of the specified software title. By default `versions` a
 
 Returns the information of the specified software version.
 
-`GET /api/v1/fleet/software/versions/{id}`
+`GET /api/v1/fleet/software/versions/:id`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                             |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters information related to hosts that are assigned to specified team.                                                  |
 
 #### Example
 
@@ -7335,6 +7341,7 @@ Returns the information of the specified software version.
     "bundle_identifier": "org.mozilla.firefox",
     "source": "apps",
     "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
+    "hosts_count": 48,
     "vulnerabilities": [
       {
         "cve": "CVE-2023-4863",
