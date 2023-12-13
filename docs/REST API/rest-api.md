@@ -3030,6 +3030,8 @@ Retrieves a host's software.
       "versions": ["121.0"]
       "source": "apps"
       "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+      "status": "installed",
+      "detail": ""
     },
     {
       "id": 127,
