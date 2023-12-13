@@ -222,7 +222,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "host-identifier",
-				Usage:       "Set the host identifier to use in osquery (default is 'uuid')",
+				Usage:       "Set the host identifier to use in osquery (requires Fleet >= v4.42.0)",
 				Value:       "uuid",
 				EnvVars:     []string{"FLEETCTL_HOST_IDENTIFIER"},
 				Destination: &opt.HostIdentifier,
