@@ -484,6 +484,11 @@ type Datastore interface {
 	// It is intended to be run after SyncHostsSoftware.
 	ReconcileSoftwareTitles(ctx context.Context) error
 
+	// SyncHostsSoftwareTitles calculates the number of hosts having each
+	// software_title installed and stores that information in the
+	// software_titles_host_counts table.
+	SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.Time) error
+
 	// HostVulnSummariesBySoftwareIDs returns a list of all hosts that have at least one of the
 	// specified Software installed. Includes the path were the software was installed.
 	HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]HostVulnerabilitySummary, error)

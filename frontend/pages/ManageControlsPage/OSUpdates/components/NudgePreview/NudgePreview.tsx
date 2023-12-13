@@ -15,6 +15,7 @@ interface INudgeDescriptionProps {
 const NudgeDescription = ({ platform }: INudgeDescriptionProps) => {
   return platform === "darwin" ? (
     <>
+      <h2>End user experience on macOS</h2>
       <p>
         When a minimum version is saved, the end user sees the below window
         until their macOS version is at or above the minimum version.
@@ -28,6 +29,7 @@ const NudgeDescription = ({ platform }: INudgeDescriptionProps) => {
     </>
   ) : (
     <>
+      <h2>End user experience on Windows</h2>
       <p>
         When a new Windows update is published, the update will be downloaded
         and installed automatically before 8am and after 5pm (end user’s local
@@ -65,7 +67,6 @@ interface INudgePreviewProps {
 const NudgePreview = ({ platform }: INudgePreviewProps) => {
   return (
     <div className={baseClass}>
-      <h2>End user experience</h2>
       <NudgeDescription platform={platform} />
       <NudgeImage platform={platform} />
     </div>
