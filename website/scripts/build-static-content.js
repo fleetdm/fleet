@@ -870,10 +870,10 @@ module.exports = {
           if(!testimonial.quoteAuthorName) {
             throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quoteAuthorName". To resolve, make sure all testimonials have a "quoteAuthorName", and try running this script again. Testimonial with missing "quoteAuthorName": ${testimonial} `);
           }
-          // If quoteAuthorSocialHandle is provided, quoteAuthorSocialLink is required.
+          // If quoteAuthorSocialHandle is provided, quoteLinkUrl is required.
           if(testimonial.quoteAuthorSocialHandle) {
-            if(!testimonial.quoteAuthorSocialLink){
-              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial with a "quoteAuthorSocialHandle" value is missing a "quoteAuthorSocialLink". To resolve, make sure all testimonials with a "quoteAuthorSocialHandle" have a "quoteAuthorSocialLink", and try running this script again. Testimonial with missing "quoteAuthorSocialLink": ${testimonial} `);
+            if(!testimonial.quoteLinkUrl){
+              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial with a "quoteAuthorSocialHandle" value is missing a "quoteLinkUrl". To resolve, make sure all testimonials with a "quoteAuthorSocialHandle" have a "quoteLinkUrl", and try running this script again. Testimonial with missing "quoteLinkUrl": ${testimonial} `);
             }
           }
           if(testimonial.youtubeVideoUrl) {
@@ -904,17 +904,17 @@ module.exports = {
           }
           // Validate that all linked images exist, and that they match the website image name conventsions.
           // We'll also get the images dimensions from the filename, and add an imageHeight value to the testimonial.
-          if(testimonial.quoteImagePathInAssetsFolder) {
-            // Throw an error if a testimonial with an image does not have a "quoteImageLinkUrl"
-            if(!testimonial.quoteImageLinkUrl){
-              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial with a 'quoteImagePathInAssetsFolder' value is missing a 'quoteImageLinkUrl'. If providing a 'quoteImagePathInAssetsFolder', a quoteImageLinkUrl (The link that the image will go to) is required. Testimonial missing a quoteImageLinkUrl: ${testimonial}`);
+          if(testimonial.quoteImageFilename) {
+            // Throw an error if a testimonial with an image does not have a "quoteLinkUrl"
+            if(!testimonial.quoteLinkUrl){
+              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial with a 'quoteImageFilename' value is missing a 'quoteLinkUrl'. If providing a 'quoteImageFilename', a quoteLinkUrl (The link that the image will go to) is required. Testimonial missing a quoteLinkUrl: ${testimonial}`);
             }
             // Check if the image used for the testimonials exists.
-            let imageFileExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+testimonial.quoteImagePathInAssetsFolder));
+            let imageFileExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+testimonial.quoteImageFilename));
             if(!imageFileExists){
-              throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a 'quoteImagePathInAssetsFolder' value that points to an image that doesn't exist. Please make sure the file exists in the /website/assets/images/ folder. Invalid quoteImagePathInAssetsFolder value: ${testimonial.quoteImagePathInAssetsFolder}`);
+              throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a 'quoteImageFilename' value that points to an image that doesn't exist. Please make sure the file exists in the /website/assets/images/ folder. Invalid quoteImageFilename value: ${testimonial.quoteImageFilename}`);
             }
-            let imageFilenameMatchesWebsiteConventions = testimonial.quoteImagePathInAssetsFolder.match(/\d+x\d+@2x\.png|jpg|jpeg$/g);
+            let imageFilenameMatchesWebsiteConventions = testimonial.quoteImageFilename.match(/\d+x\d+@2x\.png|jpg|jpeg$/g);
             if(!imageFilenameMatchesWebsiteConventions){
               throw new Error('image naming conventions (but secretly, we\'ll be relying on this to set the images height in frontend land)');
             }
