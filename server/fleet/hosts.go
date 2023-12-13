@@ -168,6 +168,7 @@ type HostListOptions struct {
 	// disable it).
 	LowDiskSpaceFilter *int
 
+	// PopulateSoftware adds the `Software` field to all Hosts returned.
 	PopulateSoftware bool
 }
 
