@@ -93,6 +93,14 @@ type Datastore interface {
 	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
 	// CleanupGlobalDiscardQueryResults deletes all cached query results. Used in cleanups_then_aggregation cron.
 	CleanupGlobalDiscardQueryResults(ctx context.Context) error
+	// IsSavedQuery returns true if the given query is a saved query.
+	IsSavedQuery(ctx context.Context, queryID uint) (bool, error)
+	// GetLiveQueryStats returns the live query stats for the given query and hosts.
+	GetLiveQueryStats(ctx context.Context, queryID uint, hostIDs []uint) ([]*LiveQueryStats, error)
+	// UpdateLiveQueryStats writes new live query stats as a single operation.
+	UpdateLiveQueryStats(ctx context.Context, queryID uint, stats []*LiveQueryStats) error
+	// CalculateAggregatedPerfStatsPercentiles calculates the aggregated user/system time performance statistics for the given query.
+	CalculateAggregatedPerfStatsPercentiles(ctx context.Context, aggregate AggregatedStatsType, queryID uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CampaignStore defines the distributed query campaign related datastore methods
