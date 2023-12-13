@@ -178,7 +178,7 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:    "host-identifier",
-			Usage:   "Set the host identifier to use in osquery (default is 'uuid')",
+			Usage:   "Set the host identifier to use in osquery (requires Fleet >= v4.42.0)",
 			EnvVars: []string{"ORBIT_HOST_IDENTIFIER"},
 			Value:   "uuid",
 		},
