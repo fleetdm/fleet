@@ -90,7 +90,6 @@ const HostQueryReport = ({
     discard_data: queryDiscardData,
   } = queryResponse || {};
 
-  // TODO - finalize local setting reroute conditions
   // previous reroute can be done before API call, not this one, hence 2
   if (queryDiscardData) {
     router.push(PATHS.HOST_QUERIES(hostId));
