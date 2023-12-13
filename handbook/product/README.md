@@ -170,9 +170,6 @@ Every week, a member of the product team looks up whether there is:
 
 The DRI should record the latest versions in the [maintenance tracker](https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit#gid=0) and then notify the [#help-product-design Slack channel](https://fleetdm.slack.com/archives/C02A8BRABB5) with an update, noting the current versions and highlighting any changes.
 
-### Submit a new CIS benchmark set for certification
-When we create new CIS benchmarks, also submit the new CIS benchmark set to CIS for [certification](https://www.cisecurity.org/cis-securesuite/pricing-and-categories/product-vendor/cis-benchmark-assessment#:~:text=In%20order%20to%20incorporate%20and,recommendations%20in%20the%20associated%20CIS). 
-
 ### View Fleet usage statistics
 In order to understand the usage of the Fleet product, we [collect statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
 
