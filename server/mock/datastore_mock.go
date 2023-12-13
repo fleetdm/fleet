@@ -356,6 +356,8 @@ type SyncHostsSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
 type ReconcileSoftwareTitlesFunc func(ctx context.Context) error
 
+type SyncHostsSoftwareTitlesFunc func(ctx context.Context, updatedAt time.Time) error
+
 type HostVulnSummariesBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error)
 
 type HostsByCVEFunc func(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error)
@@ -1281,6 +1283,9 @@ type DataStore struct {
 
 	ReconcileSoftwareTitlesFunc        ReconcileSoftwareTitlesFunc
 	ReconcileSoftwareTitlesFuncInvoked bool
+
+	SyncHostsSoftwareTitlesFunc        SyncHostsSoftwareTitlesFunc
+	SyncHostsSoftwareTitlesFuncInvoked bool
 
 	HostVulnSummariesBySoftwareIDsFunc        HostVulnSummariesBySoftwareIDsFunc
 	HostVulnSummariesBySoftwareIDsFuncInvoked bool
@@ -3093,6 +3098,13 @@ func (s *DataStore) ReconcileSoftwareTitles(ctx context.Context) error {
 	s.ReconcileSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReconcileSoftwareTitlesFunc(ctx)
+}
+
+func (s *DataStore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.Time) error {
+	s.mu.Lock()
+	s.SyncHostsSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SyncHostsSoftwareTitlesFunc(ctx, updatedAt)
 }
 
 func (s *DataStore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
