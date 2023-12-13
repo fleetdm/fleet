@@ -882,12 +882,12 @@ module.exports = {
             }
             let videoLinkToCheck = new URL(testimonial.youtubeVideoUrl);
             // If this is a youtu.be link, the video ID will be the pathname of the URL.
-            if(_.endsWith(videoLinkToCheck.host, 'youtu.be')) {
+            if(videoLinkToCheck.host === 'youtu.be') {
               if(!videoLinkToCheck.pathName) {
                 throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a "youtubeVideoUrl" value that does not link to a youtube video. Invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
               }
               testimonial.videoIdForEmbed = videoLinkToCheck.pathName;
-            } else if(_.endsWith(videoLinkToCheck.host, 'youtube.com')) {
+            } else if(videoLinkToCheck.host === 'youtube.com') {
               // If this is a youtube.com link, the video ID will be in a query string.
               if(!videoLinkToCheck.search){
                 // Throw an error if there is no video
