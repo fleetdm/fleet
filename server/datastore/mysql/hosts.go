@@ -330,7 +330,7 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 	).LeftJoin(
 		goqu.L(
 			`
-        (SELECT
+		(SELECT
 			stats.scheduled_query_id,
 			CAST(AVG(stats.average_memory) AS UNSIGNED) AS average_memory,
 			MAX(stats.denylisted) AS denylisted,
@@ -406,7 +406,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		FROM
 			queries q
 		LEFT JOIN
-        (SELECT
+		(SELECT
 			stats.scheduled_query_id,
 			CAST(AVG(stats.average_memory) AS UNSIGNED) AS average_memory,
 			MAX(stats.denylisted) AS denylisted,
