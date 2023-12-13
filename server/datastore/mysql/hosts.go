@@ -1675,14 +1675,15 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 
 	var host fleet.Host
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// If the osquery identifier that osqueryd will use was not sent by Orbit, then use the hardware
-		// UUID to match the osqueryd instance (using the hardware UUID is Orbit's default behavior).
+		hostID, _, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isMDMEnabled, hostInfo.OsqueryIdentifier, hostInfo.HardwareUUID, hostInfo.HardwareSerial)
+
+		// If the osquery identifier that osqueryd will use was not sent by Orbit, then use the hardware UUID as identifier
+		// (using the hardware UUID is Orbit's default behavior).
 		osqueryIdentifier := hostInfo.OsqueryIdentifier
 		if osqueryIdentifier == "" {
 			osqueryIdentifier = hostInfo.HardwareUUID
 		}
 
-		hostID, _, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isMDMEnabled, osqueryIdentifier, hostInfo.HardwareUUID, hostInfo.HardwareSerial)
 		switch {
 		case err == nil:
 			sqlUpdate := `
