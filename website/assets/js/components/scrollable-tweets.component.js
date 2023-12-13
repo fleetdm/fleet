@@ -86,7 +86,7 @@ parasails.registerComponent('scrollableTweets', {
         <div class="mb-4">
           <a target="_blank" href="https://twitter.com/Square"><img width="131" height="38" alt="Square logo" src="/images/social-proof-logo-square-131x38@2x.png"/></a>
         </div>
-        <p class="pb-2 mb-1">Mad props to how easy making a deploy pkg of Orbit was. I wish everyone made stuff that easy.</p>
+        <p class="pb-2 mb-1">Mad props to how easy making a deploy pkg of fleetd was. I wish everyone made stuff that easy.</p>
         <div class="row px-3 pt-2">
           <div>
             <p class="font-weight-bold m-0">Wesley Whetstone</p>
