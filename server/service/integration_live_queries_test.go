@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -160,7 +161,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 
 		// Allow time for aggregated stats to update
 		time.Sleep(500 * time.Millisecond)
-		aggStats, err := s.ds.GetAggregatedStats(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, q1.ID)
+		aggStats, err := mysql.GetAggregatedStats(context.Background(), s.ds, fleet.AggregatedStatsTypeScheduledQuery, q1.ID)
 		if savedQuery && hasStats {
 			require.NoError(t, err)
 			assert.Equal(t, 1, int(*aggStats.TotalExecutions))

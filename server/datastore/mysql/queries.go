@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	statsLiveQueryType = 1
+	statsScheduledQueryType = iota
+	statsLiveQueryType
 )
 
 func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
@@ -644,15 +645,9 @@ func (ds *Datastore) IsSavedQuery(ctx context.Context, queryID uint) (bool, erro
 		FROM queries
 		WHERE id = ?
 	`
-	args := []interface{}{queryID}
-	results := []bool{}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, args...); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "is saved query")
-	}
-	if len(results) == 0 {
-		return false, sql.ErrNoRows
-	}
-	return results[0], nil
+	var result bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, queryID)
+	return result, err
 }
 
 // GetLiveQueryStats returns the live query stats for the given query and hosts.

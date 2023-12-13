@@ -245,7 +245,7 @@ func TestUpdateStats(t *testing.T) {
 
 	// Aggregate stats
 	svc.updateStats(ctx, queryID, svc.logger, &tracker, true)
-	aggStats, err := svc.ds.GetAggregatedStats(ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID)
+	aggStats, err := mysql.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
 	require.NoError(t, err)
 	assert.Equal(t, statsBatchSize, int(*aggStats.TotalExecutions))
 	// Sanity checks. Complete testing done in aggregated_stats_test.go
@@ -307,7 +307,7 @@ func TestUpdateStats(t *testing.T) {
 	assert.Equal(t, myOutputSize+myNewOutputSize, myStat.OutputSize)
 
 	// Check that aggregated stats were updated
-	aggStats, err = svc.ds.GetAggregatedStats(ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID)
+	aggStats, err = mysql.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
 	require.NoError(t, err)
 	assert.Equal(t, statsBatchSize*2, int(*aggStats.TotalExecutions))
 	// Sanity checks. Complete testing done in aggregated_stats_test.go

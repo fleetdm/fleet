@@ -168,19 +168,3 @@ func walkIdsInTable(
 	}
 	return nil
 }
-
-// GetAggregatedStats retrieves aggregated stats for the given query
-func (ds *Datastore) GetAggregatedStats(ctx context.Context, aggregate fleet.AggregatedStatsType, id uint) (fleet.AggregatedStats, error) {
-	result := fleet.AggregatedStats{}
-	stmt := `
-	SELECT
-		   JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
-		   JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
-		   JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50,
-		   JSON_EXTRACT(json_value, '$.system_time_p95') as system_time_p95,
-		   JSON_EXTRACT(json_value, '$.total_executions') as total_executions
-	FROM aggregated_stats WHERE id=? AND type=?
-	`
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, id, aggregate)
-	return result, err
-}

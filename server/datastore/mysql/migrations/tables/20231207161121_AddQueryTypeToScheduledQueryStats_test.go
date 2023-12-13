@@ -63,4 +63,10 @@ func TestUp_20231207161121(t *testing.T) {
 		require.Equal(t, 1, queryType)
 	}
 	require.Equal(t, 1, count)
+
+	// Testing unique constraint -- expect error due to duplicate entry for primary key
+	stmt = fmt.Sprintf(insertStmt, 1, 2, 30, 40, 50, 60, 70, 80, 90, 100, 1)
+	_, err = db.Exec(stmt)
+	require.Error(t, err)
+
 }

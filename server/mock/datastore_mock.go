@@ -86,8 +86,6 @@ type UpdateLiveQueryStatsFunc func(ctx context.Context, queryID uint, stats []*f
 
 type CalculateAggregatedPerfStatsPercentilesFunc func(ctx context.Context, aggregate fleet.AggregatedStatsType, queryID uint) error
 
-type GetAggregatedStatsFunc func(ctx context.Context, aggregate fleet.AggregatedStatsType, id uint) (fleet.AggregatedStats, error)
-
 type NewDistributedQueryCampaignFunc func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
 
 type DistributedQueryCampaignFunc func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error)
@@ -886,9 +884,6 @@ type DataStore struct {
 
 	CalculateAggregatedPerfStatsPercentilesFunc        CalculateAggregatedPerfStatsPercentilesFunc
 	CalculateAggregatedPerfStatsPercentilesFuncInvoked bool
-
-	GetAggregatedStatsFunc        GetAggregatedStatsFunc
-	GetAggregatedStatsFuncInvoked bool
 
 	NewDistributedQueryCampaignFunc        NewDistributedQueryCampaignFunc
 	NewDistributedQueryCampaignFuncInvoked bool
@@ -2173,13 +2168,6 @@ func (s *DataStore) CalculateAggregatedPerfStatsPercentiles(ctx context.Context,
 	s.CalculateAggregatedPerfStatsPercentilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CalculateAggregatedPerfStatsPercentilesFunc(ctx, aggregate, queryID)
-}
-
-func (s *DataStore) GetAggregatedStats(ctx context.Context, aggregate fleet.AggregatedStatsType, id uint) (fleet.AggregatedStats, error) {
-	s.mu.Lock()
-	s.GetAggregatedStatsFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetAggregatedStatsFunc(ctx, aggregate, id)
 }
 
 func (s *DataStore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
