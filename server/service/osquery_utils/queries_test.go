@@ -605,35 +605,35 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 
 	for _, tc := range []testCase{
 		{
-			name:                 "Fleet enroll ref",
+			name:                 "Fleet enroll_reference",
 			mdmData:              generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
 			wantServerURL:        "https://test.example.com",
 			wantEnrollRef:        "test-reference",
 			wantHostEmailsCalled: true,
 		},
 		{
-			name:                 "Fleet no enroll ref",
+			name:                 "Fleet no enroll_reference",
 			mdmData:              generateRows("https://test.example.com", apple_mdm.FleetPayloadIdentifier),
 			wantServerURL:        "https://test.example.com",
 			wantEnrollRef:        "",
 			wantHostEmailsCalled: false,
 		},
 		{
-			name:                 "Fleet wrong enroll ref key",
+			name:                 "Fleet enrollment_reference",
 			mdmData:              generateRows("https://test.example.com?enrollment_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
 			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "",
-			wantHostEmailsCalled: false,
+			wantEnrollRef:        "test-reference",
+			wantHostEmailsCalled: true,
 		},
 		{
-			name:                 "Fleet enroll ref with other query params",
+			name:                 "Fleet enroll_reference with other query params",
 			mdmData:              generateRows("https://test.example.com?token=abcdefg&enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
 			wantServerURL:        "https://test.example.com",
 			wantEnrollRef:        "test-reference",
 			wantHostEmailsCalled: true,
 		},
 		{
-			name:                 "non-Fleet enroll ref",
+			name:                 "non-Fleet enroll_reference",
 			mdmData:              generateRows("https://test.example.com?enroll_reference=test-reference", "com.unknown.mdm"),
 			wantServerURL:        "https://test.example.com",
 			wantEnrollRef:        "",

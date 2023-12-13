@@ -1448,6 +1448,13 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 	var fleetEnrollRef string
 	if mdmSolutionName == fleet.WellKnownMDMFleet {
 		fleetEnrollRef = serverURL.Query().Get(mobileconfig.FleetEnrollReferenceKey)
+		if fleetEnrollRef == "" {
+			// TODO: We have some inconsistencies where we use enroll_reference sometimes and
+			// enrollment_reference other times. It really should be the same everywhere, but
+			// it seems to be working now because the values are matching where they need to match.
+			// We should clean this up at some point, but for now we'll just check both.
+			fleetEnrollRef = serverURL.Query().Get("enrollment_reference")
+		}
 		if fleetEnrollRef != "" {
 			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")

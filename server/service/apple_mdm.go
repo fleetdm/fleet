@@ -2249,7 +2249,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 				worker.AppleMDMPostDEPEnrollmentTask,
 				r.ID,
 				tmID,
-				r.Params["enroll_reference"],
+				r.Params[mobileconfig.FleetEnrollReferenceKey],
 			); err != nil {
 				return ctxerr.Wrap(r.Context, err, "queue DEP post-enroll task")
 			}

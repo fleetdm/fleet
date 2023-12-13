@@ -23,6 +23,11 @@ const (
 	// FleetEnrollReferenceKey is the key used by Fleet of the URL query parameter representing a unique
 	// identifier for an MDM enrollment. The unique value of the query parameter is appended to the
 	// Fleet server URL when an MDM enrollment profile is generated for download by a device.
+	//
+	// TODO: We have some inconsistencies where we use enroll_reference sometimes and
+	// enrollment_reference other times. It really should be the same everywhere, but
+	// it seems to be working now because the values are matching where they need to match.
+	// We should clean this up at some point and update hardcoded values in the codebase.
 	FleetEnrollReferenceKey = "enroll_reference"
 )
 
