@@ -328,8 +328,20 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 		goqu.I("queries").As("q"),
 		goqu.On(goqu.I("sq.query_id").Eq(goqu.I("q.id"))),
 	).LeftJoin(
-		dialect.From("scheduled_query_stats").As("sqs").Where(
-			goqu.I("host_id").Eq(hid),
+		goqu.L(
+			`
+        (SELECT
+			stats.scheduled_query_id,
+			CAST(AVG(stats.average_memory) AS UNSIGNED) AS average_memory,
+			MAX(stats.denylisted) AS denylisted,
+			SUM(stats.executions) AS executions,
+			MAX(stats.last_executed) AS last_executed,
+			SUM(stats.output_size) AS output_size,
+			SUM(stats.system_time) AS system_time,
+			SUM(stats.user_time) AS user_time,
+			SUM(stats.wall_time) AS wall_time
+		FROM scheduled_query_stats stats WHERE stats.host_id = ? GROUP BY stats.scheduled_query_id) as sqs
+		`, hid,
 		),
 		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("sq.query_id"))),
 	).Where(
@@ -383,17 +395,28 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 			q.discard_data,
 			q.automations_enabled,
 			MAX(qr.last_fetched) as last_fetched,
-			COALESCE(AVG(sqs.average_memory), 0) AS average_memory,
-			COALESCE(MAX(sqs.denylisted), false) AS denylisted,
-			COALESCE(SUM(sqs.executions), 0) AS executions,
-			COALESCE(MAX(sqs.last_executed), TIMESTAMP(?)) AS last_executed,
-			COALESCE(SUM(sqs.output_size), 0) AS output_size,
-			COALESCE(SUM(sqs.system_time), 0) AS system_time,
-			COALESCE(SUM(sqs.user_time), 0) AS user_time,
-			COALESCE(SUM(sqs.wall_time), 0) AS wall_time
+			COALESCE(sqs.average_memory, 0) AS average_memory,
+			COALESCE(sqs.denylisted, false) AS denylisted,
+			COALESCE(sqs.executions, 0) AS executions,
+			COALESCE(sqs.last_executed, TIMESTAMP(?)) AS last_executed,
+			COALESCE(sqs.output_size, 0) AS output_size,
+			COALESCE(sqs.system_time, 0) AS system_time,
+			COALESCE(sqs.user_time, 0) AS user_time,
+			COALESCE(sqs.wall_time, 0) AS wall_time
 		FROM
 			queries q
-		LEFT JOIN scheduled_query_stats sqs ON (q.id = sqs.scheduled_query_id AND sqs.host_id = ?)
+		LEFT JOIN
+        (SELECT
+			stats.scheduled_query_id,
+			CAST(AVG(stats.average_memory) AS UNSIGNED) AS average_memory,
+			MAX(stats.denylisted) AS denylisted,
+			SUM(stats.executions) AS executions,
+			MAX(stats.last_executed) AS last_executed,
+			SUM(stats.output_size) AS output_size,
+			SUM(stats.system_time) AS system_time,
+			SUM(stats.user_time) AS user_time,
+			SUM(stats.wall_time) AS wall_time
+		FROM scheduled_query_stats stats WHERE stats.host_id = ? GROUP BY stats.scheduled_query_id) as sqs ON (q.id = sqs.scheduled_query_id)
 		LEFT JOIN query_results qr ON (q.id = qr.query_id AND qr.host_id = ?)
 		WHERE
 			(q.platform = '' OR q.platform IS NULL OR FIND_IN_SET(?, q.platform) != 0)

@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20231207161121, Down_20231207161121)
+	MigrationClient.AddMigration(Up_20231212161121, Down_20231212161121)
 }
 
-func Up_20231207161121(tx *sql.Tx) error {
+func Up_20231212161121(tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE scheduled_query_stats
 		ADD COLUMN query_type TINYINT NOT NULL DEFAULT 0;
@@ -31,7 +31,7 @@ func Up_20231207161121(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20231207161121(*sql.Tx) error {
+func Down_20231212161121(*sql.Tx) error {
 	/*
 		ALTER TABLE scheduled_query_stats
 		DROP PRIMARY KEY,
