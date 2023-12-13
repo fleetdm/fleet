@@ -126,7 +126,6 @@ Sometimes there is a change in the champion within the customer's organization.
 ### Schedule a customer or prospect call and add a Solutions Consultant (SC)
 To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) with a Fleet customer or prospect, the Account Executive (AE) will [open an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales%2C%23solutions-consultant%2C%3Adiscovery%2C%3Ademo%2C%3Ascoping%2C%3Atech-eval&projects=&template=custom-request.md&title=prospect+name+-+prep+%28date%29+-+discovery%2Cdemo%2Cscoping+%28date%29). 
  - The AE will populate this issue with the appropriate dates for an internal prep meeting as well as the dates for the external customer meeting.
- - Secure dates for the external customer meeting whilst consulting the openings available via [this internal calendly](https://calendly.com/fleetdm/talk-to-a-solutions-consultant) (round-robin selection of an available SC). The Account Executive will ensure that there is sufficient lead time to book an internal prep call before the external customer or prospect call. 
  - Please allow 1 day lead time between issue creation and actual internal prep meeting.
  - If there is any conflict in scheduling, please feel free to reach out to your friendly neighborhood SC via the #help-solutions-consulting slack channel and we will try to accommodate exceptions where necessary.
 
