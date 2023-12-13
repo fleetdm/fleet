@@ -1177,16 +1177,16 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 		stats := fleet.ScheduledQueryStats{
 			ScheduledQueryName: scheduledName,
 			PackName:           packName,
-			AverageMemory:      cast.ToInt(row["average_memory"]),
+			AverageMemory:      cast.ToUint64(row["average_memory"]),
 			Denylisted:         cast.ToBool(row["denylisted"]),
-			Executions:         cast.ToInt(row["executions"]),
+			Executions:         cast.ToUint64(row["executions"]),
 			Interval:           cast.ToInt(row["interval"]),
 			// Cast to int first to allow cast.ToTime to interpret the unix timestamp.
 			LastExecuted: time.Unix(cast.ToInt64(row["last_executed"]), 0).UTC(),
-			OutputSize:   cast.ToInt(row["output_size"]),
-			SystemTime:   cast.ToInt(row["system_time"]),
-			UserTime:     cast.ToInt(row["user_time"]),
-			WallTime:     cast.ToInt(row["wall_time"]),
+			OutputSize:   cast.ToUint64(row["output_size"]),
+			SystemTime:   cast.ToUint64(row["system_time"]),
+			UserTime:     cast.ToUint64(row["user_time"]),
+			WallTime:     cast.ToUint64(row["wall_time"]),
 		}
 		packs[packName] = append(packs[packName], stats)
 	}

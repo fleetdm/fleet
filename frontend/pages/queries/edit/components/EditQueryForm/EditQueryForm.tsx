@@ -331,7 +331,10 @@ const EditQueryForm = ({
         .then((response: { query: ISchedulableQuery }) => {
           setIsSaveAsNewLoading(false);
           router.push(
-            PATHS.QUERY(response.query.id, response.query.team_id ?? undefined)
+            PATHS.QUERY_DETAILS(
+              response.query.id,
+              response.query.team_id ?? undefined
+            )
           );
           renderFlash("success", `Successfully added query.`);
         })

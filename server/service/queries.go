@@ -114,7 +114,10 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 
 func onlyShowObserverCanRunQueries(user *fleet.User, teamID *uint) bool {
 	if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleObserver {
-		return true
+		// Return false here because Global Observers should be able to access all queries via API.
+		// However, the UI will only show queries that have "observer can run" set to true.
+		// See the user permissions matrix: https://fleetdm.com/docs/using-fleet/manage-access#user-permissions
+		return false
 	}
 
 	return teamID != nil && user.TeamMembership(func(ut fleet.UserTeam) bool {
@@ -123,7 +126,7 @@ func onlyShowObserverCanRunQueries(user *fleet.User, teamID *uint) bool {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get query report
+// Query Reports
 ////////////////////////////////////////////////////////////////////////////////
 
 type getQueryReportRequest struct {
@@ -181,6 +184,23 @@ func (svc *Service) GetQueryReportResults(ctx context.Context, id uint) ([]fleet
 		return nil, ctxerr.Wrap(ctx, err, "map db rows to results")
 	}
 	return queryReportResults, nil
+}
+
+func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error) {
+	query, err := svc.ds.Query(ctx, queryID)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return false, ctxerr.Wrap(ctx, err, "get query from datastore")
+	}
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
+		return false, err
+	}
+
+	count, err := svc.ds.ResultCountForQuery(ctx, queryID)
+	if err != nil {
+		return false, err
+	}
+	return count >= fleet.MaxQueryReportRows, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

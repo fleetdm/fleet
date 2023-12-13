@@ -15,7 +15,7 @@ const OSSettingsTable = ({ tableData }: IOSSettingsTableProps) => {
       <TableContainer
         resultsTitle="settings"
         defaultSortHeader="name"
-        columns={tableHeaders}
+        columnConfigs={tableHeaders}
         data={tableData}
         emptyComponent={"symbol"}
         isLoading={false}

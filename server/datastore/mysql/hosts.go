@@ -372,50 +372,54 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 	if teamID != nil {
 		teamID_ = *teamID
 	}
-	ds := dialect.From(goqu.I("queries").As("q")).Select(
-		goqu.I("q.id"),
-		goqu.I("q.name"),
-		goqu.I("q.description"),
-		goqu.I("q.team_id"),
-		goqu.I("q.schedule_interval").As("schedule_interval"),
-		goqu.COALESCE(goqu.I("sqs.average_memory"), 0).As("average_memory"),
-		goqu.COALESCE(goqu.I("sqs.denylisted"), false).As("denylisted"),
-		goqu.COALESCE(goqu.I("sqs.executions"), 0).As("executions"),
-		goqu.COALESCE(goqu.I("sqs.last_executed"), goqu.L("timestamp(?)", pastDate)).As("last_executed"),
-		goqu.COALESCE(goqu.I("sqs.output_size"), 0).As("output_size"),
-		goqu.COALESCE(goqu.I("sqs.system_time"), 0).As("system_time"),
-		goqu.COALESCE(goqu.I("sqs.user_time"), 0).As("user_time"),
-		goqu.COALESCE(goqu.I("sqs.wall_time"), 0).As("wall_time"),
-	).LeftJoin(
-		dialect.From("scheduled_query_stats").As("sqs").Where(
-			goqu.I("host_id").Eq(hid),
-		),
-		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("q.id"))),
-	).Where(
-		goqu.And(
-			goqu.Or(
-				// sq.platform empty or NULL means the scheduled query is set to
-				// run on all hosts.
-				goqu.I("q.platform").Eq(""),
-				goqu.I("q.platform").IsNull(),
-				// scheduled_queries.platform can be a comma-separated list of
-				// platforms, e.g. "darwin,windows".
-				goqu.L("FIND_IN_SET(?, q.platform)", fleet.PlatformFromHost(hostPlatform)).Neq(0),
-			),
-			goqu.I("q.schedule_interval").Gt(0),
-			goqu.I("q.automations_enabled").IsTrue(),
-			goqu.Or(
-				goqu.I("q.team_id").IsNull(),
-				goqu.I("q.team_id").Eq(teamID_),
-			),
-		),
-	)
-	sql, args, err := ds.ToSQL()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sql build")
+
+	sqlQuery := `
+		SELECT
+			q.id,
+			q.name,
+			q.description,
+			q.team_id,
+			q.schedule_interval AS schedule_interval,
+			q.discard_data,
+			q.automations_enabled,
+			MAX(qr.last_fetched) as last_fetched,
+			COALESCE(MAX(sqs.average_memory), 0) AS average_memory,
+			COALESCE(MAX(sqs.denylisted), false) AS denylisted,
+			COALESCE(MAX(sqs.executions), 0) AS executions,
+			COALESCE(MAX(sqs.last_executed), TIMESTAMP(?)) AS last_executed,
+			COALESCE(MAX(sqs.output_size), 0) AS output_size,
+			COALESCE(MAX(sqs.system_time), 0) AS system_time,
+			COALESCE(MAX(sqs.user_time), 0) AS user_time,
+			COALESCE(MAX(sqs.wall_time), 0) AS wall_time
+		FROM
+			queries q
+		LEFT JOIN scheduled_query_stats sqs ON (q.id = sqs.scheduled_query_id AND sqs.host_id = ?)
+		LEFT JOIN query_results qr ON (q.id = qr.query_id AND qr.host_id = ?)
+		WHERE
+			(q.platform = '' OR q.platform IS NULL OR FIND_IN_SET(?, q.platform) != 0)
+			AND q.schedule_interval > 0
+			AND (q.automations_enabled IS TRUE OR (q.discard_data IS FALSE AND q.logging_type = ?))
+			AND (q.team_id IS NULL OR q.team_id = ?)
+			OR EXISTS (
+				SELECT 1 FROM query_results
+				WHERE query_results.query_id = q.id 
+				AND query_results.host_id = ?
+			)
+		GROUP BY q.id
+	`
+
+	args := []interface{}{
+		pastDate,
+		hid,
+		hid,
+		fleet.PlatformFromHost(hostPlatform),
+		fleet.LoggingSnapshot,
+		teamID_,
+		hid,
 	}
+
 	var stats []fleet.QueryStats
-	if err := sqlx.SelectContext(ctx, db, &stats, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, db, &stats, sqlQuery, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load query stats")
 	}
 	return stats, nil
@@ -690,6 +694,9 @@ func queryStatsToScheduledQueryStats(queriesStats []fleet.QueryStats, packName s
 			Denylisted:         queryStats.Denylisted,
 			Executions:         queryStats.Executions,
 			Interval:           queryStats.Interval,
+			DiscardData:        queryStats.DiscardData,
+			AutomationsEnabled: queryStats.AutomationsEnabled,
+			LastFetched:        queryStats.LastFetched,
 			LastExecuted:       queryStats.LastExecuted,
 			OutputSize:         queryStats.OutputSize,
 			SystemTime:         queryStats.SystemTime,

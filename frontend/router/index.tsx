@@ -29,7 +29,6 @@ import LabelPage from "pages/LabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
 import ManageHostsPage from "pages/hosts/ManageHostsPage";
-import ManageSoftwarePage from "pages/software/ManageSoftwarePage";
 import ManageQueriesPage from "pages/queries/ManageQueriesPage";
 import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
@@ -43,7 +42,6 @@ import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
 import MDMAppleSSOPage from "pages/MDMAppleSSOPage";
 import MDMAppleSSOCallbackPage from "pages/MDMAppleSSOCallbackPage";
-import SoftwareDetailsPage from "pages/software/SoftwareDetailsPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
@@ -59,6 +57,12 @@ import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/Windo
 import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
+import HostQueryReport from "pages/hosts/details/HostQueryReport";
+import SoftwarePage from "pages/SoftwarePage";
+import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
+import SoftwareVersions from "pages/SoftwarePage/SoftwareVersions";
+import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
+import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -176,16 +180,21 @@ const routes = (
               path="manage/:active_label/labels/:label_id"
               component={ManageHostsPage}
             />
-
-            <IndexRedirect to=":host_id" />
-            <Route component={HostDetailsPage}>
-              <Route path=":host_id" component={HostDetailsPage}>
-                <Route path="scripts" component={HostDetailsPage} />
-                <Route path="software" component={HostDetailsPage} />
-                <Route path="schedule" component={HostDetailsPage} />
-                <Route path="policies" component={HostDetailsPage} />
-              </Route>
+            <Route path=":host_id" component={HostDetailsPage}>
+              <Route path="scripts" component={HostDetailsPage} />
+              <Route path="software" component={HostDetailsPage} />
+              <Route path="queries" component={HostDetailsPage} />
+              <Route path=":query_id" component={HostQueryReport} />
+              <Route path="policies" component={HostDetailsPage} />
+              {/* legacy route */}
+              <Redirect from="schedule" to="queries" />
             </Route>
+
+            <Route
+              // outside of '/hosts' nested routes to avoid react-tabs-specific routing issues
+              path=":host_id/queries/:query_id"
+              component={HostQueryReport}
+            />
           </Route>
 
           <Route component={ExcludeInSandboxRoutes}>
@@ -206,9 +215,13 @@ const routes = (
           </Route>
 
           <Route path="software">
-            <IndexRedirect to="manage" />
-            <Route path="manage" component={ManageSoftwarePage} />
-            <Route path=":software_id" component={SoftwareDetailsPage} />
+            <IndexRedirect to="titles" />
+            <Route component={SoftwarePage}>
+              <Route path="titles" component={SoftwareTitles} />
+              <Route path="versions" component={SoftwareVersions} />
+            </Route>
+            <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
+            <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">

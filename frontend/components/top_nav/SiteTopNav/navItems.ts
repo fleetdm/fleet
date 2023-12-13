@@ -67,7 +67,7 @@ export default (
       name: "Software",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/software/`),
-        pathname: PATHS.MANAGE_SOFTWARE,
+        pathname: PATHS.SOFTWARE_TITLES,
       },
       withParams: { type: "query", names: ["team_id"] },
     },

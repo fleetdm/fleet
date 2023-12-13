@@ -787,12 +787,18 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	if perPage == 0 {
 		perPage = defaultSelectLimit
 	}
-	ds = ds.Limit(perPage)
 
 	offset := perPage * opts.Page
 	if offset > 0 {
 		ds = ds.Offset(offset)
 	}
+
+	if opts.IncludeMetadata {
+		perPage++
+	}
+
+	ds = ds.Limit(perPage)
+
 	return ds
 }
 

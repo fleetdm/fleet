@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"crypto/md5" // nolint:gosec (only used for tests)
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -57,6 +59,7 @@ func TestSoftware(t *testing.T) {
 		{"hostSoftwareInstalledPathsDelta", testHostSoftwareInstalledPathsDelta},
 		{"deleteHostSoftwareInstalledPaths", testDeleteHostSoftwareInstalledPaths},
 		{"insertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
+		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -657,9 +660,10 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	t.Run("paginates", func(t *testing.T) {
 		opts := fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
-				Page:     1,
-				PerPage:  1,
-				OrderKey: "version",
+				Page:            1,
+				PerPage:         1,
+				OrderKey:        "version",
+				IncludeMetadata: true,
 			},
 			IncludeCVEScores: true,
 		}
@@ -704,9 +708,10 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 
 		opts := fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
-				PerPage:  1,
-				Page:     1,
-				OrderKey: "id",
+				PerPage:         1,
+				Page:            1,
+				OrderKey:        "id",
+				IncludeMetadata: true,
 			},
 			TeamID: &team1.ID,
 		}
@@ -882,12 +887,30 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 }
 
 func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareListOptions, returnSorted bool) []fleet.Software {
-	software, err := ds.ListSoftware(context.Background(), opts)
+	software, meta, err := ds.ListSoftware(context.Background(), opts)
 	require.NoError(t, err)
 	require.Len(t, software, expectedListCount)
 	count, err := ds.CountSoftware(context.Background(), opts)
 	require.NoError(t, err)
 	require.Equal(t, expectedFullCount, count)
+
+	if opts.ListOptions.IncludeMetadata {
+		require.NotNil(t, meta)
+		if expectedListCount == expectedFullCount {
+			require.False(t, meta.HasPreviousResults)
+			require.True(t, meta.HasNextResults)
+		}
+		if expectedFullCount > expectedListCount {
+			shouldHavePrevious := opts.ListOptions.Page > 0
+			require.Equal(t, shouldHavePrevious, meta.HasPreviousResults)
+
+			shouldHaveNext := uint(expectedFullCount) > (opts.ListOptions.Page+1)*opts.ListOptions.PerPage // page is 0-indexed
+			require.Equal(t, shouldHaveNext, meta.HasNextResults)
+		}
+	} else {
+		require.Nil(t, meta)
+	}
+
 	for _, s := range software {
 		sort.Slice(s.Vulnerabilities, func(i, j int) bool {
 			return s.Vulnerabilities[i].CVE < s.Vulnerabilities[j].CVE
@@ -974,7 +997,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	checkTableTotalCount(3)
 
 	// create a software entry without any host and any counts
-	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO software (name, version, source) VALUES ('baz', '0.0.1', 'testing')`)
+	_, err = ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(`INSERT INTO software (name, version, source, checksum) VALUES ('baz', '0.0.1', 'testing', %s)`, softwareChecksumComputedColumn("")))
 	require.NoError(t, err)
 
 	// listing does not return the new software entry
@@ -1372,7 +1395,7 @@ func testHostVulnSummariesBySoftwareIDs(t *testing.T, ds *Datastore) {
 
 	insertVulnSoftwareForTest(t, ds)
 
-	allSoftware, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
+	allSoftware, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
 	require.NoError(t, err)
 
 	var fooRpm fleet.Software
@@ -2608,7 +2631,9 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 	getSoftware := func() ([]fleet.Software, error) {
 		var sw []fleet.Software
-		err := ds.writer(ctx).SelectContext(ctx, &sw, `SELECT * FROM software ORDER BY name, source, browser, version`)
+		err := ds.writer(ctx).SelectContext(ctx, &sw, `SELECT
+			id, name, version, bundle_identifier, source, extension_id, browser, `+"`release`"+`, vendor, arch, title_id
+		FROM software ORDER BY name, source, browser, version`)
 		if err != nil {
 			return nil, err
 		}
@@ -2617,7 +2642,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 	getTitles := func() ([]fleet.SoftwareTitle, error) {
 		var swt []fleet.SoftwareTitle
-		err := ds.writer(ctx).SelectContext(ctx, &swt, `SELECT * FROM software_titles ORDER BY name, source, browser`)
+		err := ds.writer(ctx).SelectContext(ctx, &swt, `SELECT id, name, source, browser FROM software_titles ORDER BY name, source, browser`)
 		if err != nil {
 			return nil, err
 		}
@@ -2838,4 +2863,40 @@ func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
 
 	err := g.Wait()
 	require.NoError(t, err)
+}
+func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	computeChecksum := func(sw fleet.Software) string {
+		h := md5.New()
+		// compute the same way as the DB, see the softwareChecksumComputedColumn function
+		cols := []string{sw.Name, sw.Version, sw.Source, sw.BundleIdentifier, sw.Release, sw.Arch, sw.Vendor, sw.Browser, sw.ExtensionID}
+		fmt.Fprint(h, strings.Join(cols, "\x00"))
+		checksum := h.Sum(nil)
+		return hex.EncodeToString(checksum)
+	}
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "test"},
+		{Name: "foo", Version: "0.0.1", Source: "test", Browser: "firefox"},
+		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionID: "ext"},
+		{Name: "foo", Version: "0.0.2", Source: "test"},
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	checksums := make([]string, len(software))
+	for i, sw := range software {
+		checksums[i] = computeChecksum(sw)
+	}
+	for i, cs := range checksums {
+		var got fleet.Software
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &got,
+				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, browser, extension_id FROM software WHERE checksum = UNHEX(?)`, cs)
+		})
+		require.Equal(t, software[i], got)
+	}
 }

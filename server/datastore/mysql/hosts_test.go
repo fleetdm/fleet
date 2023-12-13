@@ -116,6 +116,7 @@ func TestHosts(t *testing.T) {
 		{"HostsListByDiskEncryptionStatus", testHostsListMacOSSettingsDiskEncryptionStatus},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
+		{"HostsIncludesScheduledQueriesInPackStats", testHostsIncludesScheduledQueriesInPackStats},
 		{"HostsAllPackStats", testHostsAllPackStats},
 		{"HostsPackStatsMultipleHosts", testHostsPackStatsMultipleHosts},
 		{"HostsPackStatsForPlatform", testHostsPackStatsForPlatform},
@@ -618,17 +619,20 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 			PackName:           pack1.Name,
 			ScheduledQueryName: squery1.Name,
 
-			QueryName:     query1.Name,
-			PackID:        pack1.ID,
-			AverageMemory: 8000,
-			Denylisted:    false,
-			Executions:    164,
-			Interval:      30,
-			LastExecuted:  time.Unix(1620325191, 0).UTC(),
-			OutputSize:    1337,
-			SystemTime:    150,
-			UserTime:      180,
-			WallTime:      0,
+			QueryName:          query1.Name,
+			PackID:             pack1.ID,
+			DiscardData:        false,
+			AutomationsEnabled: false,
+			LastFetched:        nil,
+			AverageMemory:      8000,
+			Denylisted:         false,
+			Executions:         164,
+			Interval:           30,
+			LastExecuted:       time.Unix(1620325191, 0).UTC(),
+			OutputSize:         1337,
+			SystemTime:         150,
+			UserTime:           180,
+			WallTime:           0,
 		},
 	}
 	stats2 := []fleet.ScheduledQueryStats{
@@ -636,17 +640,20 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 			PackName:           fmt.Sprintf("team-%d", team.ID),
 			ScheduledQueryName: tpQuery.Name,
 
-			QueryName:     tpQuery.Name,
-			PackID:        0, // pack_id will be 0 for stats of queries not in packs.
-			AverageMemory: 8000,
-			Denylisted:    false,
-			Executions:    164,
-			Interval:      30,
-			LastExecuted:  time.Unix(1620325191, 0).UTC(),
-			OutputSize:    1337,
-			SystemTime:    150,
-			UserTime:      180,
-			WallTime:      0,
+			QueryName:          tpQuery.Name,
+			PackID:             0, // pack_id will be 0 for stats of queries not in packs.
+			LastFetched:        nil,
+			DiscardData:        tpQuery.DiscardData,
+			AutomationsEnabled: tpQuery.AutomationsEnabled,
+			AverageMemory:      8000,
+			Denylisted:         false,
+			Executions:         164,
+			Interval:           30,
+			LastExecuted:       time.Unix(1620325191, 0).UTC(),
+			OutputSize:         1337,
+			SystemTime:         150,
+			UserTime:           180,
+			WallTime:           0,
 		},
 	}
 
@@ -3598,7 +3605,7 @@ func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 						PackID:             pack1.ID,
 						AverageMemory:      8000,
 						Denylisted:         false,
-						Executions:         rand.Intn(1000),
+						Executions:         uint64(rand.Intn(1000)),
 						Interval:           30,
 						LastExecuted:       time.Now().UTC(),
 						OutputSize:         1337,
@@ -3619,7 +3626,7 @@ func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 						PackID:             pack2.ID,
 						AverageMemory:      8000,
 						Denylisted:         false,
-						Executions:         rand.Intn(1000),
+						Executions:         uint64(rand.Intn(1000)),
 						Interval:           30,
 						LastExecuted:       time.Now().UTC(),
 						OutputSize:         1337,
@@ -3783,6 +3790,171 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
+}
+
+func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	query1 := &fleet.Query{
+		Name:               "Only Logged in Query Report",
+		Query:              "select * from time",
+		AuthorID:           nil,
+		Platform:           "darwin",
+		Saved:              true,
+		TeamID:             nil,
+		Interval:           60,
+		Logging:            fleet.LoggingSnapshot,
+		DiscardData:        false,
+		AutomationsEnabled: false,
+	}
+
+	_, err = ds.NewQuery(context.Background(), query1)
+	require.NoError(t, err)
+
+	query2 := &fleet.Query{
+		Name:               "Logged In Report and Log Destination",
+		Query:              "select * from time",
+		AuthorID:           nil,
+		Platform:           "darwin",
+		Saved:              true,
+		TeamID:             nil,
+		Interval:           60,
+		Logging:            fleet.LoggingSnapshot,
+		DiscardData:        false,
+		AutomationsEnabled: true,
+	}
+	_, err = ds.NewQuery(context.Background(), query2)
+	require.NoError(t, err)
+
+	// This query should not be included in the pack stats
+	query3 := &fleet.Query{
+		Name:               "Not LoggingSnapshot",
+		Query:              "select * from time",
+		AuthorID:           nil,
+		Platform:           "darwin",
+		Saved:              true,
+		TeamID:             nil,
+		Interval:           60,
+		Logging:            fleet.LoggingDifferential,
+		DiscardData:        false,
+		AutomationsEnabled: false, // automations not on
+	}
+	_, err = ds.NewQuery(context.Background(), query3)
+	require.NoError(t, err)
+
+	// This query should not be included in the pack stats
+	query4 := &fleet.Query{
+		Name:               "Query Report No Interval",
+		Query:              "select * from time",
+		AuthorID:           nil,
+		Platform:           "darwin",
+		Saved:              true,
+		TeamID:             nil,
+		Interval:           0,
+		Logging:            fleet.LoggingSnapshot,
+		DiscardData:        false,
+		AutomationsEnabled: false,
+	}
+	_, err = ds.NewQuery(context.Background(), query4)
+	require.NoError(t, err)
+
+	// this query should not be included in the pack stats
+	query5 := &fleet.Query{
+		Name:               "Automations No Interval",
+		Query:              "select * from time",
+		AuthorID:           nil,
+		Platform:           "darwin",
+		Saved:              true,
+		TeamID:             nil,
+		Interval:           0,
+		Logging:            fleet.LoggingSnapshot,
+		DiscardData:        true,
+		AutomationsEnabled: true,
+	}
+	_, err = ds.NewQuery(context.Background(), query5)
+	require.NoError(t, err)
+
+	query6 := &fleet.Query{
+		Name:               "Team Query",
+		Query:              "select * from time",
+		AuthorID:           nil,
+		Platform:           "darwin",
+		Saved:              true,
+		TeamID:             &team.ID,
+		Interval:           60,
+		Logging:            fleet.LoggingSnapshot,
+		DiscardData:        false,
+		AutomationsEnabled: true,
+	}
+	_, err = ds.NewQuery(context.Background(), query6)
+	require.NoError(t, err)
+
+	hostResult, err := ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+
+	globalQueryStats := hostResult.PackStats[0].QueryStats
+	require.NotNil(t, hostResult)
+	require.Equal(t, 2, len(globalQueryStats))
+	require.Equal(t, query1.Name, globalQueryStats[0].ScheduledQueryName)
+	require.Equal(t, query2.Name, globalQueryStats[1].ScheduledQueryName)
+
+	teamQueryStats := hostResult.PackStats[1].QueryStats
+	require.Equal(t, query6.Name, teamQueryStats[0].ScheduledQueryName)
+
+	// Queries with Query Results should be included in the pack stats
+	// regardless of the query interval
+	queryResultRow := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID: query4.ID, // no interval
+			HostID:  host.ID,
+			Data:    ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
+		},
+		{
+			QueryID: query4.ID, // no interval
+			HostID:  host.ID,
+			Data:    ptr.RawMessage(json.RawMessage(`{"foo": "baz"}`)),
+		},
+	}
+	err = ds.OverwriteQueryResultRows(context.Background(), queryResultRow)
+	require.NoError(t, err)
+
+	hostResult, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, hostResult)
+
+	assertContains := func(stats []fleet.ScheduledQueryStats, name string) {
+		t.Helper()
+		for _, stat := range stats {
+			if stat.ScheduledQueryName == name {
+				return
+			}
+		}
+		t.Errorf("expected to find %s in stats", name)
+	}
+
+	globalQueryStats = hostResult.PackStats[0].QueryStats
+	require.Equal(t, 3, len(globalQueryStats))
+	assertContains(globalQueryStats, query1.Name)
+	assertContains(globalQueryStats, query2.Name)
+	assertContains(globalQueryStats, query4.Name) // no interval, but has a query result
 }
 
 func testHostsAllPackStats(t *testing.T, ds *Datastore) {

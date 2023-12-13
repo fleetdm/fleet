@@ -15,6 +15,7 @@ import {
   DEFAULT_EMPTY_CELL_VALUE,
   MDM_STATUS_TOOLTIP,
 } from "utilities/constants";
+import { COLORS } from "styles/var/colors";
 
 const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
   if (deviceMapping.length === 0) {
@@ -60,7 +61,7 @@ const About = ({
         <ReactTooltip
           place="bottom"
           effect="solid"
-          backgroundColor="#3e4771"
+          backgroundColor={COLORS["tooltip-bg"]}
           id={"public-ip-tooltip"}
           data-html
           clickable
