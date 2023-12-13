@@ -124,16 +124,6 @@ const ManageQueriesPage = ({
   const [showInheritedQueries, setShowInheritedQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
 
-  const filterGlobalQueriesForObserverUI = (queries: any) => {
-    if (isGlobalObserver) {
-      return queries
-        .filter((q: ISchedulableQuery) => q.observer_can_run)
-        .map(enhanceQuery);
-    }
-
-    return queries.map(enhanceQuery);
-  };
-
   const {
     data: curTeamEnhancedQueries,
     error: curTeamQueriesError,
@@ -149,7 +139,7 @@ const ManageQueriesPage = ({
     ({ queryKey: [{ teamId }] }) =>
       queriesAPI
         .loadAll(teamId)
-        .then(({ queries }) => filterGlobalQueriesForObserverUI(queries)),
+        .then(({ queries }) => queries.map(enhanceQuery)),
     {
       refetchOnWindowFocus: false,
       enabled: isRouteOk,
@@ -173,7 +163,7 @@ const ManageQueriesPage = ({
     ({ queryKey: [{ teamId }] }) =>
       queriesAPI
         .loadAll(teamId)
-        .then(({ queries }) => filterGlobalQueriesForObserverUI(queries)),
+        .then(({ queries }) => queries.map(enhanceQuery)),
     {
       refetchOnWindowFocus: false,
       enabled: isRouteOk && isAnyTeamSelected,
