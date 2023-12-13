@@ -1007,7 +1007,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 						CmdID:   uuid.NewString(),
 						CmdRef:  &ref,
 						Items: []mdm_types.CmdItem{
-							{Target: ptr.String(p.LocURI), Data: ptr.String(p.Data)},
+							{Target: ptr.String(p.LocURI), Data: &fleet.RawXmlData{Content: p.Data}},
 						},
 					})
 				}
@@ -7873,7 +7873,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Items: []fleet.CmdItem{
 			{
 				Source: ptr.String("./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID"),
-				Data:   ptr.String("0"),
+				Data:   &fleet.RawXmlData{Content: "0"},
 			},
 		},
 		CmdID: cmdTwoRespUUID,

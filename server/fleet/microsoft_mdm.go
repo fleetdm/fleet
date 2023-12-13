@@ -1001,10 +1001,15 @@ func (cmd SyncMLCmd) DataType() SyncMLDataType {
 }
 
 type CmdItem struct {
-	Source *string `xml:"Source>LocURI,omitempty"`
-	Target *string `xml:"Target>LocURI,omitempty"`
-	Meta   *Meta   `xml:"Meta,omitempty"`
-	Data   *string `xml:"Data"`
+	Source *string     `xml:"Source>LocURI,omitempty"`
+	Target *string     `xml:"Target>LocURI,omitempty"`
+	Meta   *Meta       `xml:"Meta,omitempty"`
+	Data   *RawXmlData `xml:"Data"`
+}
+
+type RawXmlData struct {
+	Attrs   []xml.Attr `xml:",any,attr"`
+	Content string     `xml:",innerxml"`
 }
 
 type Meta struct {
@@ -1334,7 +1339,7 @@ func (cmd *SyncMLCmd) GetTargetData() string {
 	}
 
 	if cmd.Items[0].Data != nil {
-		return *cmd.Items[0].Data
+		return cmd.Items[0].Data.Content
 	}
 
 	return ""
