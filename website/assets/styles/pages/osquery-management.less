@@ -200,87 +200,87 @@
 
     }
   }
-  // [purpose='testimonial-video'] {
-  //   cursor: pointer;
-  //   width: 223px;
-  //   height: 168px;
-  //   border-radius: 22.265px;
-  //   border: 0.975px solid @core-fleet-black-50;
-  //   display: flex;
-  //   margin-bottom: 0px;
-  //   position: relative;
-  //   span {
-  //     img {
-  //       height: 10.235px;
-  //       width: auto;
-  //       margin-right: 5.5px;
-  //     }
-  //     position: absolute;
-  //     left: 20px;
-  //     bottom: 20px;
-  //     border-radius: 16.698px;
-  //     background: rgba(0, 2, 10, 0.50);
-  //     backdrop-filter: blur(5.566145420074463px);
-  //     display: inline-flex;
-  //     padding: 5.566px 11.132px;
-  //     justify-content: center;
-  //     align-items: center;
-  //     color: #FFF;
-  //     font-size: 11.132px;
-  //     font-style: normal;
-  //     font-weight: 400;
-  //     line-height: 16.698px;
-  //   }
-  //   &:hover {
-  //     box-shadow: 0px 4px 16px 0px #E2E4EA;
-  //   }
-  //   &:first-of-type {
-  //     background: url('/images/video-testimonial-thumbnail-austin-anderson-223x168@2x.jpg');
-  //     background-position: center;
-  //     background-size: cover;
-  //     margin-right: 12px;
-  //     margin-left: 0px;
-  //   }
-  //   &:last-of-type {
-  //     background: url('/images/video-testimonial-thumbnail-andre-shields-223x168@2x.png');
-  //     background-position: center;
-  //     background-size: cover;
-  //     margin-right: 0px;
-  //     margin-left: 12px;
-  //   }
-  // }
-  // [purpose='video-modal'] {
-  //   [purpose='modal-dialog'] {
-  //     width: 100%;
-  //     max-width: 100%;
-  //   }
-  //   [purpose='modal-content'] {
-  //     max-width: 1140px;
-  //     height: 641px;
-  //     background-color: transparent;
-  //     box-shadow: none;
-  //     border: none;
-  //     padding: 0px;
-  //     margin-top: 150px;
-  //     margin-left: auto;
-  //     margin-right: auto;
-  //     [purpose='modal-close-button'] {
-  //       top: -40px;
-  //       right: 0px;
-  //       border-radius: 50%;
-  //       width: 32px;
-  //       height: 32px;
-  //       padding: 0px 0px 4px 0px;
-  //       background-color: #192147;
-  //       color: #FFF;
-  //       opacity: 1;
-  //     }
-  //   }
-  //   iframe {
-  //     width: 1140px;
-  //     height: 641px;
-  //   }
-  // }
+  [purpose='testimonial-video'] {
+    cursor: pointer;
+    width: 223px;
+    height: 168px;
+    border-radius: 22.265px;
+    border: 0.975px solid @core-fleet-black-50;
+    display: flex;
+    margin-bottom: 0px;
+    position: relative;
+      span {
+         img {
+         height: 10.235px;
+         width: auto;
+         margin-right: 5.5px;
+       }
+       position: absolute;
+       left: 20px;
+       bottom: 20px;
+       border-radius: 16.698px;
+       background: rgba(0, 2, 10, 0.50);
+       backdrop-filter: blur(5.566145420074463px);
+       display: inline-flex;
+       padding: 5.566px 11.132px;
+       justify-content: center;
+       align-items: center;
+       color: #FFF;
+       font-size: 11.132px;
+       font-style: normal;
+       font-weight: 400;
+       line-height: 16.698px;
+     }
+     &:hover {
+       box-shadow: 0px 4px 16px 0px #E2E4EA;
+     }
+     &:first-of-type {
+       background: url('/images/video-testimonial-thumbnail-austin-anderson-223x168@2x.jpg');
+       background-position: center;
+       background-size: cover;
+       margin-right: 12px;
+       margin-left: 0px;
+     }
+     &:last-of-type {
+       background: url('/images/video-testimonial-thumbnail-nick-fohs-223x168@2x.png');
+       background-position: center;
+       background-size: cover;
+       margin-right: 0px;
+       margin-left: 12px;
+     }
+   }
+   [purpose='video-modal'] {
+     [purpose='modal-dialog'] {
+       width: 100%;
+       max-width: 100%;
+     }
+     [purpose='modal-content'] {
+       max-width: 1140px;
+       height: 641px;
+       background-color: transparent;
+       box-shadow: none;
+       border: none;
+       padding: 0px;
+       margin-top: 150px;
+       margin-left: auto;
+       margin-right: auto;
+       [purpose='modal-close-button'] {
+         top: -40px;
+         right: 0px;
+         border-radius: 50%;
+         width: 32px;
+         height: 32px;
+         padding: 0px 0px 4px 0px;
+         background-color: #192147;
+         color: #FFF;
+         opacity: 1;
+       }
+     }
+     iframe {
+       width: 1140px;
+       height: 641px;
+     }
+   }
   [purpose='feature-headline'] {
     margin-top: 160px;
     margin-bottom: 80px;
@@ -321,13 +321,13 @@
 
   [purpose='feature-item'] {
     img {
-      height: 64px;
+      height: 48px;
       width: auto;
       margin-bottom: 16px;
     }
     h5 {
       font-weight: 800;
-      font-size: 18px;
+      font-size: 16px;
       line-height: 27px;
       margin-bottom: 16px;
     }
@@ -358,6 +358,13 @@
     [purpose='animated-arrow-button-red'] {
       margin-top: 32px;
     }
+  }
+
+  [purpose='feature-footnote'] {
+    max-width: 480px;
+    font-size: 12px;
+    padding-top: 60px;
+    line-height: 1.5;
   }
 
   [purpose='checklist'] {
