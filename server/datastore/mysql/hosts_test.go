@@ -644,7 +644,7 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 			PackID:             0, // pack_id will be 0 for stats of queries not in packs.
 			LastFetched:        nil,
 			DiscardData:        tpQuery.DiscardData,
-			AutomationsEnabled: false, // scheduled queries don't have automations_enabled field
+			AutomationsEnabled: tpQuery.AutomationsEnabled,
 			AverageMemory:      8000,
 			Denylisted:         false,
 			Executions:         164,
