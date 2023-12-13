@@ -659,10 +659,16 @@ func TestHostAuth(t *testing.T) {
 			_, err := svc.GetHost(ctx, 1, opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
+			_, err = svc.GetHostLite(ctx, 1)
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+
 			_, err = svc.HostByIdentifier(ctx, "1", opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
 			_, err = svc.GetHost(ctx, 2, opts)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			_, err = svc.GetHostLite(ctx, 2)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			_, err = svc.HostByIdentifier(ctx, "2", opts)

@@ -47,17 +47,12 @@ SET
 		return fmt.Errorf("failed to update host_mdm_windows_profiles table: %w", err)
 	}
 
-	// update the apple profiles table to add the profile_uuid column and
-	// temporarily drop the primary key until we fill those uuids.
+	// update the apple profiles table to add the profile_uuid column.
 	_, err = tx.Exec(`
 ALTER TABLE mdm_apple_configuration_profiles
 	-- 37 and not 36 because the UUID will be prefixed with 'a' to indicate
 	-- that it's an Apple profile.
-	ADD COLUMN profile_uuid VARCHAR(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-	-- auto-increment column must have an index, so we create one before
-	-- dropping the primary key to make it profile_uuid later.
-	ADD UNIQUE KEY idx_mdm_apple_config_prof_id (profile_id),
-	DROP PRIMARY KEY
+	ADD COLUMN profile_uuid VARCHAR(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''
 `)
 	if err != nil {
 		return fmt.Errorf("failed to alter mdm_apple_configuration_profiles table: %w", err)
@@ -78,17 +73,19 @@ SET
 	// set the profile uuid as the new primary key
 	_, err = tx.Exec(`
 ALTER TABLE mdm_apple_configuration_profiles
+	-- auto-increment column must have an index, so we create one before
+	-- dropping the primary key.
+	ADD UNIQUE KEY idx_mdm_apple_config_prof_id (profile_id),
+	DROP PRIMARY KEY,
 	ADD PRIMARY KEY (profile_uuid)`)
 	if err != nil {
 		return fmt.Errorf("failed to set primary key of mdm_apple_configuration_profiles table: %w", err)
 	}
 
 	// add the profile_uuid column to the host apple profiles table, keeping the
-	// old id for now. Cannot be set as primary key yet as it may have duplicates
-	// until we generate the uuids.
+	// old id for now.
 	_, err = tx.Exec(`
 ALTER TABLE host_mdm_apple_profiles
-	DROP PRIMARY KEY,
 	ADD COLUMN profile_uuid VARCHAR(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''
 `)
 	if err != nil {
@@ -116,6 +113,7 @@ SET
 
 	// drop the now unused profile_id column from the host apple profiles table
 	_, err = tx.Exec(`ALTER TABLE host_mdm_apple_profiles
+		DROP PRIMARY KEY,
 		ADD PRIMARY KEY (host_uuid, profile_uuid),
 		DROP COLUMN profile_id`)
 	if err != nil {

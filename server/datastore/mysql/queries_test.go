@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"testing"
 
@@ -33,6 +34,7 @@ func TestQueries(t *testing.T) {
 		{"ListQueriesFiltersByTeamID", testListQueriesFiltersByTeamID},
 		{"ListQueriesFiltersByIsScheduled", testListQueriesFiltersByIsScheduled},
 		{"ListScheduledQueriesForAgents", testListScheduledQueriesForAgents},
+		{"IsSavedQuery", testIsSavedQuery},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -162,6 +164,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 func testQueriesDelete(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
+	hostID := uint(1)
 	query := &fleet.Query{
 		Name:     "foo",
 		Query:    "bar",
@@ -172,6 +175,14 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, query)
 	assert.NotEqual(t, query.ID, 0)
+	err = ds.UpdateLiveQueryStats(
+		context.Background(), query.ID, []*fleet.LiveQueryStats{
+			&fleet.LiveQueryStats{
+				HostID: hostID,
+			},
+		},
+	)
+	require.NoError(t, err)
 
 	err = ds.DeleteQuery(context.Background(), query.TeamID, query.Name)
 	require.NoError(t, err)
@@ -180,6 +191,13 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	_, err = ds.Query(context.Background(), query.ID)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+
+	// Ensure stats were deleted.
+	// The actual delete occurs asynchronously, but enough time should have passed
+	// given the above DB access to ensure the original query completed.
+	stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
+	require.NoError(t, err)
+	require.Equal(t, 0, len(stats))
 }
 
 func testQueriesGetByName(t *testing.T, ds *Datastore) {
@@ -230,6 +248,28 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	assert.Len(t, queries, 4)
 
+	// Add query stats
+	hostIDs := []uint{10, 20}
+	err = ds.UpdateLiveQueryStats(
+		context.Background(), q1.ID, []*fleet.LiveQueryStats{
+			{
+				HostID: hostIDs[0],
+			},
+			{
+				HostID: hostIDs[1],
+			},
+		},
+	)
+	require.NoError(t, err)
+	err = ds.UpdateLiveQueryStats(
+		context.Background(), q3.ID, []*fleet.LiveQueryStats{
+			{
+				HostID: hostIDs[0],
+			},
+		},
+	)
+	require.NoError(t, err)
+
 	deleted, err := ds.DeleteQueries(context.Background(), []uint{q1.ID, q3.ID})
 	require.Nil(t, err)
 	assert.Equal(t, uint(2), deleted)
@@ -237,6 +277,15 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 2)
+	// Ensure stats were deleted.
+	// The actual delete occurs asynchronously, but enough time should have passed
+	// given the above DB access to ensure the original query completed.
+	stats, err := ds.GetLiveQueryStats(context.Background(), q1.ID, hostIDs)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(stats))
+	stats, err = ds.GetLiveQueryStats(context.Background(), q3.ID, hostIDs)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(stats))
 
 	deleted, err = ds.DeleteQueries(context.Background(), []uint{q2.ID})
 	require.Nil(t, err)
@@ -336,7 +385,8 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 
 	_, err = ds.writer(context.Background()).Exec(
 		`INSERT INTO aggregated_stats(id,global_stats,type,json_value) VALUES (?,?,?,?)`,
-		idWithAgg, false, aggregatedStatsTypeScheduledQuery, `{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
+		idWithAgg, false, fleet.AggregatedStatsTypeScheduledQuery,
+		`{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
 	)
 	require.NoError(t, err)
 
@@ -971,4 +1021,41 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 		})
 		test.QueryElementsMatch(t, result, []*fleet.Query{q14, q15, q16, q17}, i)
 	}
+}
+
+func testIsSavedQuery(t *testing.T, ds *Datastore) {
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+
+	// NOT saved query
+	query := &fleet.Query{
+		Name:     "foo",
+		Query:    "bar",
+		AuthorID: &user.ID,
+		Logging:  fleet.LoggingSnapshot,
+		Saved:    false,
+	}
+	query, err := ds.NewQuery(context.Background(), query)
+	require.NoError(t, err)
+	isSaved, err := ds.IsSavedQuery(context.Background(), query.ID)
+	require.NoError(t, err)
+	assert.False(t, isSaved)
+
+	// Saved query
+	query = &fleet.Query{
+		Name:     "foo2",
+		Query:    "bar",
+		AuthorID: &user.ID,
+		Logging:  fleet.LoggingSnapshot,
+		Saved:    true,
+	}
+	query, err = ds.NewQuery(context.Background(), query)
+	require.NoError(t, err)
+	isSaved, err = ds.IsSavedQuery(context.Background(), query.ID)
+	require.NoError(t, err)
+	assert.True(t, isSaved)
+
+	// error case
+	_, err = ds.IsSavedQuery(context.Background(), math.MaxUint)
+	require.Error(t, err)
+
 }
