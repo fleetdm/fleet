@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -1446,7 +1447,7 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 	// upsert host emails based on the MDM IdP account associated with the enrollment reference
 	var fleetEnrollRef string
 	if mdmSolutionName == fleet.WellKnownMDMFleet {
-		fleetEnrollRef = serverURL.Query().Get("enrollment_reference")
+		fleetEnrollRef = serverURL.Query().Get(mobileconfig.FleetEnrollReferenceKey)
 		if fleetEnrollRef != "" {
 			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")

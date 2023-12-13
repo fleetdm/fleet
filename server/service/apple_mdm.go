@@ -1087,7 +1087,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 			return nil, ctxerr.Wrap(ctx, err, "parsing configured server URL")
 		}
 		q := u.Query()
-		q.Add("enroll_reference", ref)
+		q.Add(mobileconfig.FleetEnrollReferenceKey, ref)
 		u.RawQuery = q.Encode()
 		enrollURL = u.String()
 	}
