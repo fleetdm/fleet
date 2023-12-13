@@ -2316,6 +2316,24 @@ Same as [Get host's mobile device management and Munki information](https://flee
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
 
+#### Ping Server with Device Token
+Ping the server. OK response expected if the device token is still valid.
+
+`HEAD /api/v1/fleet/device/{token}/ping`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`HEAD /api/v1/fleet/device/abcdef012456789/ping`
+
+##### Default response
+
+`Status: 200`
 
 #### Get Fleet Desktop information
 _Available in Fleet Premium_
