@@ -1306,7 +1306,7 @@ CREATE TABLE `software_titles` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `software_titles_host_counts` (
   `software_title_id` int(10) unsigned NOT NULL,
-  `hosts_count` bigint(20) unsigned NOT NULL,
+  `hosts_count` int(10) unsigned NOT NULL,
   `team_id` int(10) unsigned NOT NULL DEFAULT '0',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

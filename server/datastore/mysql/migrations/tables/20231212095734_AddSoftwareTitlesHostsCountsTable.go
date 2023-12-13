@@ -13,11 +13,11 @@ func init() {
 func Up_20231212095734(tx *sql.Tx) error {
 	softwareTitlesHostCountsTable := `
     CREATE TABLE IF NOT EXISTS software_titles_host_counts (
-      software_title_id int(10) unsigned NOT NULL,
-      hosts_count bigint(20) unsigned NOT NULL,
-      team_id INT(10) UNSIGNED NOT NULL DEFAULT 0,
-      created_at  timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at  timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      software_title_id  int(10) unsigned NOT NULL,
+      hosts_count        int(10) unsigned NOT NULL,
+      team_id            int(10) unsigned NOT NULL DEFAULT 0,
+      created_at         timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at         timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
       PRIMARY KEY (software_title_id, team_id),
       INDEX idx_software_titles_host_counts_team_counts_title (team_id,hosts_count,software_title_id),
