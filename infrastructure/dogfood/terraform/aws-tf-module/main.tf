@@ -91,7 +91,7 @@ module "main" {
     cluster_name = local.customer
   }
   fleet_config = {
-    image  = local.fleet_image
+    image  = local.geolite2_image
     family = local.customer
     autoscaling = {
       min_capacity = 2
@@ -113,7 +113,7 @@ module "main" {
     }
     extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
     extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn]) #, module.saml_auth_proxy.fleet_extra_execution_policies)
-    extra_environment_variables  = merge(module.mdm.extra_environment_variables, module.firehose-logging.fleet_extra_environment_variables, module.osquery-carve.fleet_extra_environment_variables, module.ses.fleet_extra_environment_variables, local.extra_environment_variables)
+    extra_environment_variables  = merge(module.mdm.extra_environment_variables, module.firehose-logging.fleet_extra_environment_variables, module.osquery-carve.fleet_extra_environment_variables, module.ses.fleet_extra_environment_variables, local.extra_environment_variables, module.geolite2.extra_environment_variables)
     extra_secrets                = merge(module.mdm.extra_secrets, local.sentry_secrets)
     # extra_load_balancers         = [{
     #   target_group_arn = module.saml_auth_proxy.lb_target_group_arn
@@ -428,7 +428,7 @@ resource "aws_s3_object" "idp_metadata" {
 }
 
 module "geolite2" {
-  source = "../../../../terraform/addons/geolite2"
+  source = "github.com/fleetdm/fleet//terraform/addons/geolite2?ref=tf-mod-addon-geolite2-v1.0.0"
   fleet_image = var.fleet_image
   destination_image = local.geolite2_image
   license_key = var.geolite2_license
