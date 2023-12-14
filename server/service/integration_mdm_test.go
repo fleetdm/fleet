@@ -35,6 +35,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -122,6 +123,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	)
 	mdmCommander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
+	s.withServer.lq = live_query_mock.New(s.T())
 
 	var depSchedule *schedule.Schedule
 	var profileSchedule *schedule.Schedule
@@ -135,6 +137,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		SCEPStorage: scepStorage,
 		MDMPusher:   mdmPushService,
 		Pool:        redisPool,
+		Lq:          s.lq,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
@@ -10274,4 +10277,40 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
+}
+
+func (s *integrationMDMTestSuite) TestWindowsFreshEnrollEmptyQuery() {
+	t := s.T()
+	host, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// make sure we don't have any profiles
+	s.Do(
+		"POST",
+		"/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: map[string][]byte{}},
+		http.StatusNoContent,
+	)
+
+	// Ensure we can read distributed queries for the host.
+	err := s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
+	require.NoError(t, err)
+
+	s.lq.On("QueriesForHost", host.ID).Return(map[string]string{fmt.Sprintf("%d", host.ID): "SELECT 1 FROM osquery;"}, nil)
+
+	req := getDistributedQueriesRequest{NodeKey: *host.NodeKey}
+	var dqResp getDistributedQueriesResponse
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	require.NotContains(t, dqResp.Queries, "fleet_detail_query_mdm_config_profiles_windows")
+
+	// add two profiles
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: map[string][]byte{
+		"N1": mobileconfigForTest("N1", "I1"),
+		"N2": syncMLForTest("./Foo/Bar"),
+	}}, http.StatusNoContent)
+
+	req = getDistributedQueriesRequest{NodeKey: *host.NodeKey}
+	dqResp = getDistributedQueriesResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_mdm_config_profiles_windows")
+	require.NotEmpty(t, dqResp.Queries, "fleet_detail_query_mdm_config_profiles_windows")
 }

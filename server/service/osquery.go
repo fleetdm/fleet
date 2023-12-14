@@ -654,7 +654,19 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	//
 	// Thus, we set the alwaysTrueQuery for all queries, except for those where we set
 	// an explicit discovery query (e.g. orbit_info, google_chrome_profiles).
-	for name := range queries {
+	for name, query := range queries {
+		// there's a bug somewhere (Fleet, osquery or both?)
+		// that causes hosts to check-in in a loop if you send
+		// an empty query string.
+		//
+		// we previously fixed this for detail query overrides (see
+		// #14286, #14296) but I'm also adding this here as a safeguard
+		// for issues like #15524
+		if query == "" {
+			delete(queries, name)
+			delete(discovery, name)
+			continue
+		}
 		discoveryQuery := discovery[name]
 		if discoveryQuery == "" {
 			discoveryQuery = alwaysTrueQuery
