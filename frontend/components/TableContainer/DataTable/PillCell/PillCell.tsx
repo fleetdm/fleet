@@ -76,8 +76,8 @@ const PillCell = ({
       case "Undetermined":
         return (
           <>
-            To see performance impact, this query must have run with{" "}
-            <b>automations</b> on {hostDetails ? "this" : "at least one"} host.
+            Performance impact will be available when this <br />
+            query runs.
           </>
         );
       default:
