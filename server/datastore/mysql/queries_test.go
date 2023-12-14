@@ -3,8 +3,8 @@ package mysql
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"math"
+	"math/rand"
 	"sort"
 	"testing"
 
@@ -177,7 +177,7 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	assert.NotEqual(t, query.ID, 0)
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), query.ID, []*fleet.LiveQueryStats{
-			&fleet.LiveQueryStats{
+			{
 				HostID: hostID,
 			},
 		},
@@ -1021,5 +1021,4 @@ func testIsSavedQuery(t *testing.T, ds *Datastore) {
 	// error case
 	_, err = ds.IsSavedQuery(context.Background(), math.MaxUint)
 	require.Error(t, err)
-
 }
