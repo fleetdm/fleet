@@ -4,7 +4,10 @@
 import React from "react";
 import { find } from "lodash";
 
-import { performanceIndicator, secondsToDhms } from "utilities/helpers";
+import {
+  getPerformanceImpactDescription,
+  secondsToDhms,
+} from "utilities/helpers";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -291,7 +294,7 @@ const enhancePackQueriesData = (
       query_name: query.query_name,
       actions: generateActionDropdownOptions(),
       performance: [
-        performanceIndicator(scheduledQueryPerformance),
+        getPerformanceImpactDescription(scheduledQueryPerformance),
         query.query_id,
       ],
       stats: query.stats,

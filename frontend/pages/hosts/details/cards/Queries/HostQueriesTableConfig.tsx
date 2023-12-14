@@ -1,7 +1,7 @@
 import React from "react";
 
 import { IQueryStats } from "interfaces/query_stats";
-import { performanceIndicator } from "utilities/helpers";
+import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
@@ -145,7 +145,7 @@ const enhanceScheduleData = (
       query_name,
       id: scheduled_query_id,
       performance: {
-        indicator: performanceIndicator(scheduledQueryPerformance),
+        indicator: getPerformanceImpactDescription(scheduledQueryPerformance),
         id: scheduled_query_id,
       },
       last_fetched,

@@ -5,8 +5,12 @@ import { uniqueId } from "lodash";
 import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
 
+interface IPerformanceImpactCellValue {
+  indicator: string;
+  id?: number;
+}
 interface IPerformanceImpactCellProps {
-  value: { indicator: string; id: number };
+  value: IPerformanceImpactCellValue;
   isHostSpecific?: boolean;
   customIdPrefix?: string;
 }

@@ -13,7 +13,7 @@ import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
-import { performanceIndicator } from "utilities/helpers";
+import { getPerformanceImpactDescription } from "utilities/helpers";
 import { SupportedPlatform } from "interfaces/platform";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 import {
@@ -67,7 +67,7 @@ const getPlatforms = (queryString: string): SupportedPlatform[] => {
 const enhanceQuery = (q: ISchedulableQuery): IEnhancedQuery => {
   return {
     ...q,
-    performance: performanceIndicator(
+    performance: getPerformanceImpactDescription(
       pick(q.stats, ["user_time_p50", "system_time_p50", "total_executions"])
     ),
     platforms: getPlatforms(q.query),

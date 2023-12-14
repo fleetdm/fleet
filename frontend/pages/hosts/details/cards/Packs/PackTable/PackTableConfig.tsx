@@ -4,7 +4,7 @@ import { uniqueId } from "lodash";
 import { IQueryStats } from "interfaces/query_stats";
 import {
   humanQueryLastRun,
-  performanceIndicator,
+  getPerformanceImpactDescription,
   secondsToHms,
 } from "utilities/helpers";
 
@@ -139,7 +139,7 @@ const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
       frequency: secondsToHms(query.interval),
       last_run: humanQueryLastRun(query.last_executed),
       performance: {
-        indicator: performanceIndicator(scheduledQueryPerformance),
+        indicator: getPerformanceImpactDescription(scheduledQueryPerformance),
         id: query.scheduled_query_id || parseInt(uniqueId(), 10),
       },
     };
