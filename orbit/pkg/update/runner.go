@@ -162,7 +162,7 @@ func (r *Runner) Execute() error {
 		// Developers use a shorter update interval (10s), so they need a faster first update check
 		randomizedInterval, err = randomizeDuration(0, initialInterval)
 	} else {
-		randomizedInterval, err = randomizeDuration(time.Minute, 10*time.Minute)
+		randomizedInterval, err = randomizeDuration(0, 10*time.Minute)
 	}
 	if err != nil {
 		log.Info().Err(err).Msg("randomization of initial update interval failed")
