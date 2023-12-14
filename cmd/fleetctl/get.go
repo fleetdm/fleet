@@ -343,7 +343,7 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 
 func printInheritedQueriesMsg(client *service.Client, teamID *uint) error {
 	if teamID != nil {
-		globalQueries, err := client.GetQueries(nil)
+		globalQueries, err := client.GetQueries(nil, nil)
 		if err != nil {
 			return fmt.Errorf("could not list global queries: %w", err)
 		}
@@ -410,7 +410,7 @@ func getQueriesCommand() *cli.Command {
 
 			// if name wasn't provided, list either all global queries or all team queries...
 			if name == "" {
-				queries, err := client.GetQueries(teamID)
+				queries, err := client.GetQueries(teamID, nil)
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
@@ -559,7 +559,7 @@ func getPacksCommand() *cli.Command {
 				}
 
 				// Get global queries (teamID==nil), because 2017 packs reference global queries.
-				queries, err := client.GetQueries(nil)
+				queries, err := client.GetQueries(nil, nil)
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
 				}

@@ -2823,6 +2823,11 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	require.Len(t, listQryResp.Queries, 1)
 	assert.Equal(t, query.Name, listQryResp.Queries[0].Name)
 
+	// Return that query by name
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries?query=%s", query.Name), nil, http.StatusOK, &listQryResp)
+	require.Len(t, listQryResp.Queries, 1)
+	assert.Equal(t, query.Name, listQryResp.Queries[0].Name)
+
 	// next page returns nothing
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "per_page", "2", "page", "1")
 	require.Len(t, listQryResp.Queries, 0)
