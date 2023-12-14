@@ -54,8 +54,8 @@ func TestNewRunner(t *testing.T) {
 }
 
 func TestRandomizeDuration(t *testing.T) {
-	rand, err := randomizeDuration(time.Minute, 10*time.Minute)
+	rand, err := randomizeDuration(10 * time.Minute)
 	require.NoError(t, err)
-	assert.True(t, rand >= time.Minute)
+	assert.True(t, rand >= 0)
 	assert.True(t, rand < 10*time.Minute)
 }
