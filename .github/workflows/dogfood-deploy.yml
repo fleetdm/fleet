@@ -30,6 +30,7 @@ env:
   TF_VAR_fleet_sentry_dsn: ${{ secrets.DOGFOOD_SENTRY_DSN }}
   TF_VAR_elastic_url: ${{ secrets.ELASTIC_APM_SERVER_URL }}
   TF_VAR_elastic_token: ${{ secrets.ELASTIC_APM_SECRET_TOKEN }}
+  TF_VAR_geolite2_license: ${{ secrets.MAXMIND_LICENSE }}
 
 permissions:
   id-token: write
