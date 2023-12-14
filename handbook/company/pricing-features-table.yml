@@ -629,7 +629,7 @@
     - description: Report on disk encryption status
     - description: Encrypt hard disks on macOS with FileVault
     - description: Escrow FileVault keys on macOS
-    - description: Encrypt hard disks on Windows with BitLocker. Coming soon (2023-12-30) #Customer-preston
+    - description: Encrypt hard disks on Windows with BitLocker.
 - industryName: Audit queries and user activities
   productCategories: [Endpoint operations,Device management]
   tier: Free
