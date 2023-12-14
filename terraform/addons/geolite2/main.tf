@@ -1,15 +1,27 @@
+terraform {
+  required_providers {
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "3.0.2"
+    }
+  }
+}
+
+# Setup our dockerfile from template 
 data "template_file" "dockerfile" {
-  template = "${file("${path.module}/Dockerfile.tmpl")}"
+  template = "${file("${path.module}/Dockerfile.tpl")}"
   vars = {
     fleet_image = vars.fleet_image
   }
 }
 
+# Write it to disk for usage
 resource "local_file" "dockerfile" {
   filename = "${path.module}/Dockerfile"
   content  = data.template_file.dockerfile.rendered
 }
 
+# Build the new image
 resource "docker_image" "maxmind_fleet" {
   name = var.destination_image
 
@@ -21,4 +33,13 @@ resource "docker_image" "maxmind_fleet" {
     }
     pull_parent = true
   }
+}
+
+# push it to the specified repo
+resource "docker_registry_image" "maxmind_fleet" {
+  triggers = {
+    fleet_digest = docker_image.maxmind_fleet.repo_digest
+  }
+  name          = docker_image.maxmind_fleet.name
+  keep_remotely = true
 } 
