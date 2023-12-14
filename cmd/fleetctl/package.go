@@ -222,7 +222,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "host-identifier",
-				Usage:       "Set the host identifier to use in osquery (requires Fleet >= v4.42.0)",
+				Usage:       "Sets the host identifier that orbit and osquery will use when enrolling to Fleet. Options: 'uuid' and 'instance' (requires Fleet >= v4.42.0)",
 				Value:       "uuid",
 				EnvVars:     []string{"FLEETCTL_HOST_IDENTIFIER"},
 				Destination: &opt.HostIdentifier,
@@ -244,7 +244,7 @@ func packageCommand() *cli.Command {
 			}
 
 			if opt.HostIdentifier != "uuid" && opt.HostIdentifier != "instance" {
-				return fmt.Errorf("--host-identifier=%q is not supported, currently supported --host-identifier values are 'uuid' and 'instance'", opt.HostIdentifier)
+				return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", opt.HostIdentifier)
 			}
 
 			// Perform checks on the provided fleet client certificate and key.

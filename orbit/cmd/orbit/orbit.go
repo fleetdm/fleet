@@ -178,7 +178,7 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:    "host-identifier",
-			Usage:   "Set the host identifier to use in osquery (requires Fleet >= v4.42.0)",
+			Usage:   "Sets the host identifier that orbit and osquery will use when enrolling to Fleet. Options: 'uuid' and 'instance' (requires Fleet >= v4.42.0)",
 			EnvVars: []string{"ORBIT_HOST_IDENTIFIER"},
 			Value:   "uuid",
 		},
@@ -261,6 +261,10 @@ func main() {
 			if err := c.Set("enroll-secret", strings.TrimSpace(string(b))); err != nil {
 				return fmt.Errorf("set enroll secret from file: %w", err)
 			}
+		}
+
+		if hostIdentifier := c.String("host-identifier"); hostIdentifier != "uuid" && hostIdentifier != "instance" {
+			return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
 		}
 
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
