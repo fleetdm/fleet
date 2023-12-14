@@ -1195,6 +1195,7 @@ func TestGetDistributedQueriesEmptyQuery(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
+	require.NotEmpty(t, queries)
 	for n, q := range queries {
 		require.NotEmpty(t, q, n)
 	}
