@@ -1670,6 +1670,51 @@ func (s *integrationTestSuite) TestListHosts() {
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID+1337))
 	require.Len(t, resp.Hosts, 0)
+
+	// populate software for hosts
+	now := time.Now()
+
+	inserted, err := s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
+		SoftwareID: host2.Software[0].ID,
+		CVE:        "cve-123-123-123",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	require.True(t, inserted)
+
+	require.NoError(t, s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{{
+		CVE:              "cve-123-123-123",
+		CVSSScore:        ptr.Float64(5.4),
+		EPSSProbability:  ptr.Float64(0.5),
+		CISAKnownExploit: ptr.Bool(true),
+		Published:        &now,
+		Description:      "a long description of the cve",
+	}}))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "true")
+	require.Len(t, resp.Hosts, 4)
+	for _, h := range resp.Hosts {
+		if h.ID == hosts[2].ID {
+			require.NotEmpty(t, h.Software)
+			require.Len(t, h.Software, 1)
+			require.NotEmpty(t, h.Software[0].Vulnerabilities)
+
+			// all these should be nil because this isn't Premium
+			require.Nil(t, h.Software[0].Vulnerabilities[0].CVSSScore)
+			require.Nil(t, h.Software[0].Vulnerabilities[0].EPSSProbability)
+			require.Nil(t, h.Software[0].Vulnerabilities[0].CISAKnownExploit)
+			require.Nil(t, h.Software[0].Vulnerabilities[0].CVEPublished)
+			require.Nil(t, h.Software[0].Vulnerabilities[0].Description)
+			require.Nil(t, h.Software[0].Vulnerabilities[0].ResolvedInVersion)
+		}
+	}
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "false")
+	require.Len(t, resp.Hosts, 4)
+	for _, h := range resp.Hosts {
+		require.Empty(t, h.Software)
+	}
 }
 
 func (s *integrationTestSuite) TestInvites() {
