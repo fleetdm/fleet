@@ -458,10 +458,6 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	args := []interface{}{false, aggregatedStatsTypeScheduledQuery}
 	whereClauses := "WHERE saved = true"
 
-	if opt.OnlyObserverCanRun {
-		whereClauses += " AND q.observer_can_run=true"
-	}
-
 	if opt.TeamID != nil {
 		args = append(args, *opt.TeamID)
 		whereClauses += " AND team_id = ?"
