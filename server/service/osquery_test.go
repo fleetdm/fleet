@@ -1164,6 +1164,46 @@ func TestGetDistributedQueriesMissingHost(t *testing.T) {
 	assert.Contains(t, err.Error(), "missing host")
 }
 
+func TestGetDistributedQueriesEmptyQuery(t *testing.T) {
+	mockClock := clock.NewMockClock()
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	svc, ctx := newTestServiceWithClock(t, ds, nil, lq, mockClock)
+
+	host := &fleet.Host{
+		Platform: "darwin",
+	}
+
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"empty_label_query": ""}, nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return host, nil
+	}
+	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+	}
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"empty_policy_query": ""}, nil
+	}
+
+	lq.On("QueriesForHost", uint(0)).Return(map[string]string{"empty_live_query": ""}, nil)
+
+	ctx = hostctx.NewContext(ctx, host)
+	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, queries)
+	for n, q := range queries {
+		require.NotEmpty(t, q, n)
+	}
+	for n, q := range discovery {
+		require.NotEmpty(t, q, n)
+	}
+}
+
 func TestLabelQueries(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
