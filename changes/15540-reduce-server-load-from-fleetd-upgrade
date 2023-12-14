@@ -1,0 +1,1 @@
+Added fleet/device/{token}/ping endpoint to be used by agents to check their token.

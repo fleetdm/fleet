@@ -293,7 +293,7 @@ const QueriesTable = ({
       <TableContainer
         disableCount={isInherited}
         resultsTitle="queries"
-        columns={tableHeaders}
+        columnConfigs={tableHeaders}
         data={queriesList}
         filters={{ name: isInherited ? "" : searchQuery }}
         isLoading={isLoading}

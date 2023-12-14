@@ -52,6 +52,7 @@ import {
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -62,7 +63,7 @@ import ScriptsCard from "../cards/Scripts";
 import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
-import ScheduleCard from "../cards/Schedule";
+import QueriesCard from "../cards/Queries";
 import PacksCard from "../cards/Packs";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
@@ -300,6 +301,7 @@ const HostDetailsPage = ({
         }
         setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
+        setSchedule(schedule);
         if (returnedHost.pack_stats) {
           const packStatsByType = returnedHost.pack_stats.reduce(
             (
@@ -319,7 +321,6 @@ const HostDetailsPage = ({
             { packs: [], schedule: [] }
           );
           setSchedule(packStatsByType.schedule);
-          setPacksState(packStatsByType.packs);
         }
       },
       onError: (error) => handlePageError(error),
@@ -360,7 +361,7 @@ const HostDetailsPage = ({
     // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
     document.title = `Host ${hostTab()} details ${
       host?.display_name ? `| ${host?.display_name} |` : "|"
-    } Fleet for osquery`;
+    } ${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, host]);
 
   // Used for back to software pathname
@@ -583,7 +584,7 @@ const HostDetailsPage = ({
     );
   };
 
-  if (isLoadingHost) {
+  if (!host || isLoadingHost) {
     return <Spinner />;
   }
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
@@ -605,9 +606,9 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
     },
     {
-      name: "Schedule",
-      title: "schedule",
-      pathname: PATHS.HOST_SCHEDULE(hostIdFromURL),
+      name: "Queries",
+      title: "queries",
+      pathname: PATHS.HOST_QUERIES(hostIdFromURL),
     },
     {
       name: (
@@ -673,7 +674,7 @@ const HostDetailsPage = ({
 
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         <HostDetailsBanners
           hostMdmEnrollmentStatus={host?.mdm.enrollment_status}
           hostPlatform={host?.platform}
@@ -768,10 +769,14 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              <ScheduleCard
-                isChromeOSHost={host?.platform === "chrome"}
+              <QueriesCard
+                hostId={host.id}
+                router={router}
+                isChromeOSHost={host.platform === "chrome"}
                 schedule={schedule}
-                isLoading={isLoadingHost}
+                queryReportsDisabled={
+                  config?.server_settings?.query_reports_disabled
+                }
               />
               {canViewPacks && (
                 <PacksCard packsState={packsState} isLoading={isLoadingHost} />
@@ -854,7 +859,7 @@ const HostDetailsPage = ({
             onCancel={onCancelScriptDetailsModal}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

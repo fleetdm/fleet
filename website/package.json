@@ -7,14 +7,14 @@
   "dependencies": {
     "@sailshq/connect-redis": "^6.1.3",
     "@sailshq/lodash": "^3.10.3",
-    "@sailshq/socket.io-redis": "^5.2.0",
+    "@sailshq/socket.io-redis": "^6.1.2",
     "jsonwebtoken": "9.0.0",
     "moment": "2.29.4",
     "sails": "^1.5.7",
     "sails-hook-apianalytics": "^2.0.5",
-    "sails-hook-organics": "^2.2.0",
+    "sails-hook-organics": "^2.2.2",
     "sails-hook-orm": "^4.0.2",
-    "sails-hook-sockets": "^2.0.1",
+    "sails-hook-sockets": "^3.0.0",
     "sails-postgresql": "^5.0.0"
   },
   "devDependencies": {
