@@ -40,7 +40,7 @@ const PoliciesTable = ({
     >
       <TableContainer
         resultsTitle={resultsTitle || "policies"}
-        columns={generateTableHeaders()}
+        columnConfigs={generateTableHeaders()}
         data={generateDataSet(errorsList)}
         isLoading={isLoading}
         defaultSortHeader={"name"}

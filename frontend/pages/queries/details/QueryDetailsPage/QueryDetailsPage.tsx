@@ -17,6 +17,11 @@ import { IQueryReport } from "interfaces/query_report";
 
 import queryAPI from "services/entities/queries";
 import queryReportAPI, { ISortOption } from "services/entities/query_report";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import {
+  isGlobalObserver,
+  isTeamObserver,
+} from "utilities/permissions/permissions";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
@@ -55,6 +60,9 @@ const QueryDetailsPage = ({
   location,
 }: IQueryDetailsPageProps): JSX.Element => {
   const queryId = parseInt(paramsQueryId, 10);
+  if (isNaN(queryId)) {
+    router.push(PATHS.MANAGE_QUERIES);
+  }
   const queryParams = location.query;
   const teamId = location.query.team_id
     ? parseInt(location.query.team_id, 10)
@@ -72,6 +80,7 @@ const QueryDetailsPage = ({
 
   const handlePageError = useErrorHandler();
   const {
+    currentUser,
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamMaintainerOrTeamAdmin,
@@ -81,7 +90,6 @@ const QueryDetailsPage = ({
     filteredQueriesPath,
     availableTeams,
     setCurrentTeam,
-    currentTeam,
   } = useContext(AppContext);
   const {
     lastEditedQueryName,
@@ -102,7 +110,7 @@ const QueryDetailsPage = ({
   } = useContext(QueryContext);
 
   // Title that shows up on browser tabs (e.g., Query details | Discover TLS certificates | Fleet for osquery)
-  document.title = `Query details | ${lastEditedQueryName} | Fleet for osquery`;
+  document.title = `Query details | ${lastEditedQueryName} | ${DOCUMENT_TITLE_SUFFIX}`;
 
   const [disabledCachingGlobally, setDisabledCachingGlobally] = useState(true);
 
@@ -298,8 +306,15 @@ const QueryDetailsPage = ({
     >
       <div>
         <b>Report clipped.</b> A sample of this query&apos;s results is included
-        below. You can still use query automations to complete this report in
-        your log destination.
+        below.
+        {
+          // Exclude below message for global and team observers/observer+s
+          !(
+            (currentUser && isGlobalObserver(currentUser)) ||
+            isTeamObserver(currentUser, teamId ?? null)
+          ) &&
+            " You can still use query automations to complete this report in your log destination."
+        }
       </div>
     </InfoBanner>
   );

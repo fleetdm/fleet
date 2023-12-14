@@ -3,7 +3,7 @@ parasails.registerPage('osquery-management', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    //…
+    modal: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -25,5 +25,11 @@ parasails.registerPage('osquery-management', {
         window.HubSpotConversations.widget.open();
       }
     },
+    clickOpenVideoModal: function(modalName) {
+      this.modal = modalName;
+    },
+    closeModal: function() {
+      this.modal = undefined;
+    }
   }
 });

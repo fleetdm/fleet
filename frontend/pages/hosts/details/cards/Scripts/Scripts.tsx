@@ -15,6 +15,7 @@ import Card from "components/Card";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import DataError from "components/DataError";
+import Spinner from "components/Spinner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { IHost } from "interfaces/host";
 import { IUser } from "interfaces/user";
@@ -102,18 +103,20 @@ const Scripts = ({
   return (
     <Card className={baseClass} borderRadiusSize="large" includeShadow>
       <h2>Scripts</h2>
-      {data && data.length === 0 ? (
+      {isLoadingScriptData && <Spinner />}
+      {!isLoadingScriptData && data && data.length === 0 && (
         <EmptyTable
           header="No scripts are available for this host"
           info="Expecting to see scripts? Try selecting “Refetch” to ask this host to report new vitals."
         />
-      ) : (
+      )}
+      {!isLoadingScriptData && data && data.length > 0 && (
         <TableContainer
           resultsTitle=""
           emptyComponent={() => <></>}
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          columns={scriptColumnConfigs}
+          columnConfigs={scriptColumnConfigs}
           data={data}
           isLoading={isLoadingScriptData}
           onQueryChange={onQueryChange}

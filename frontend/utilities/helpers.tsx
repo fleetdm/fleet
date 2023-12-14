@@ -11,8 +11,6 @@ import {
   trimEnd,
   union,
 } from "lodash";
-import { buildQueryStringFromParams } from "utilities/url";
-
 import md5 from "js-md5";
 import {
   formatDistanceToNow,
@@ -23,6 +21,7 @@ import {
 } from "date-fns";
 import yaml from "js-yaml";
 
+import { buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
@@ -828,6 +827,22 @@ export const internallyTruncateText = (
   </>
 );
 
+export const getUniqueColumnNamesFromRows = (rows: any[]) =>
+  // rows of type {col:val, col:val, ...}[]
+  // cannot type more narrowly due to loose typing of websocket API and use of this function
+  // by QueryResultsTableConfig, where results come from that API
+  // TODO – narrow this entire chain down to the websocket API level
+  Array.from(
+    rows.reduce(
+      (accOuter, row) =>
+        Object.keys(row).reduce(
+          (accInner, colNameInRow) => accInner.add(colNameInRow),
+          accOuter
+        ),
+      new Set()
+    )
+  );
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -843,6 +858,7 @@ export default {
   formatPackTargetsForApi,
   generateRole,
   generateTeam,
+  getUniqueColumnNamesFromRows,
   greyCell,
   humanHostLastSeen,
   humanHostEnrolled,

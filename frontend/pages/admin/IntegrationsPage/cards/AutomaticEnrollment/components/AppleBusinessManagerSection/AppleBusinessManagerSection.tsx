@@ -234,11 +234,9 @@ const AppleBusinessManagerSection = ({
     <div className={baseClass}>
       <h2>Apple Business Manager</h2>
       {isLoadingMdmAppleBm ? <Spinner /> : renderAppleBMInfo()}
-      {config?.mdm_enabled && (
-        <WindowsAutomaticEnrollmentCard
-          viewDetails={navigateToWindowsAutomaticEnrollment}
-        />
-      )}
+      <WindowsAutomaticEnrollmentCard
+        viewDetails={navigateToWindowsAutomaticEnrollment}
+      />
       {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}

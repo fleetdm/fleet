@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -26,12 +27,25 @@ type targetTotals struct {
 const (
 	campaignStatusPending  = "pending"
 	campaignStatusFinished = "finished"
+	statsBatchSize         = 1000
 )
 
 type campaignStatus struct {
 	ExpectedResults uint   `json:"expected_results"`
 	ActualResults   uint   `json:"actual_results"`
 	Status          string `json:"status"`
+}
+
+type statsToSave struct {
+	hostID uint
+	*fleet.Stats
+	outputSize uint64
+}
+
+type statsTracker struct {
+	saveStats         bool
+	aggregationNeeded bool
+	stats             []statsToSave
 }
 
 func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
@@ -159,6 +173,17 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// Push status updates every 5 seconds at most
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
+
+	// We process stats along with results as they are sent back to the user.
+	// We do a batch update of the stats.
+	// We update aggregated stats once online hosts have reported, and again (if needed) on client disconnect.
+	perfStatsTracker := statsTracker{}
+	perfStatsTracker.saveStats, err = svc.ds.IsSavedQuery(ctx, campaign.QueryID)
+	if err != nil {
+		level.Error(logger).Log("msg", "error checking saved query", "query.id", campaign.QueryID, "err", err)
+		perfStatsTracker.saveStats = false
+	}
+
 	// Loop, pushing updates to results and expected totals
 	for {
 		// Update the expected hosts total (Should happen before
@@ -169,9 +194,20 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			// Receive a result and push it over the websocket
 			switch res := res.(type) {
 			case fleet.DistributedQueryResult:
+				// Calculate result size for performance stats
+				outputSize := calculateOutputSize(&perfStatsTracker, &res)
 				mapHostnameRows(&res)
 				err = conn.WriteJSONMessage("result", res)
+				if perfStatsTracker.saveStats && res.Stats != nil {
+					perfStatsTracker.stats = append(
+						perfStatsTracker.stats, statsToSave{hostID: res.Host.ID, Stats: res.Stats, outputSize: outputSize},
+					)
+					if len(perfStatsTracker.stats) >= statsBatchSize {
+						svc.updateStats(ctx, campaign.QueryID, logger, &perfStatsTracker, false)
+					}
+				}
 				if ctxerr.Cause(err) == sockjs.ErrSessionNotOpen {
+					svc.updateStats(ctx, campaign.QueryID, logger, &perfStatsTracker, true)
 					// return and stop sending the query if the session was closed
 					// by the client
 					return
@@ -189,6 +225,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 
 		case <-ticker.C:
 			if conn.GetSessionState() == sockjs.SessionClosed {
+				svc.updateStats(ctx, campaign.QueryID, logger, &perfStatsTracker, true)
 				// return and stop sending the query if the session was closed
 				// by the client
 				return
@@ -196,8 +233,107 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			// Update status
 			if err := updateStatus(); err != nil {
 				level.Error(logger).Log("msg", "error updating status", "err", err)
+				svc.updateStats(ctx, campaign.QueryID, logger, &perfStatsTracker, true)
 				return
+			}
+			if status.ActualResults == status.ExpectedResults {
+				svc.updateStats(ctx, campaign.QueryID, logger, &perfStatsTracker, true)
 			}
 		}
 	}
+}
+
+func calculateOutputSize(perfStatsTracker *statsTracker, res *fleet.DistributedQueryResult) uint64 {
+	outputSize := uint64(0)
+	if perfStatsTracker.saveStats {
+		for _, row := range res.Rows {
+			if row == nil {
+				continue
+			}
+			for key, value := range row {
+				outputSize = outputSize + uint64(len(key)) + uint64(len(value))
+			}
+		}
+	}
+	return outputSize
+}
+
+func (svc Service) updateStats(
+	ctx context.Context, queryID uint, logger log.Logger, tracker *statsTracker, aggregateStats bool,
+) {
+	// If we are not saving stats
+	if tracker == nil || !tracker.saveStats ||
+		// Or there are no stats to save, and we don't need to calculate aggregated stats
+		(len(tracker.stats) == 0 && (!aggregateStats || !tracker.aggregationNeeded)) {
+		return
+	}
+
+	if len(tracker.stats) > 0 {
+		// Get the existing stats from DB
+		hostIDs := []uint{}
+		for i := range tracker.stats {
+			hostIDs = append(hostIDs, tracker.stats[i].hostID)
+		}
+		currentStats, err := svc.ds.GetLiveQueryStats(ctx, queryID, hostIDs)
+		if err != nil {
+			level.Error(logger).Log("msg", "error getting current live query stats", "err", err)
+			tracker.saveStats = false
+			return
+		}
+		// Convert current Stats to a map
+		statsMap := make(map[uint]*fleet.LiveQueryStats)
+		for i := range currentStats {
+			statsMap[currentStats[i].HostID] = currentStats[i]
+		}
+
+		// Update stats
+		for _, gatheredStats := range tracker.stats {
+			stats, ok := statsMap[gatheredStats.hostID]
+			// We round here to get more accurate wall time
+			wallTime := uint64(math.Floor(float64(gatheredStats.WallTimeMs)/1000 + 0.5))
+			if !ok {
+				newStats := fleet.LiveQueryStats{
+					HostID:        gatheredStats.hostID,
+					Executions:    1,
+					AverageMemory: gatheredStats.Memory,
+					SystemTime:    gatheredStats.SystemTime,
+					UserTime:      gatheredStats.UserTime,
+					WallTime:      wallTime,
+					OutputSize:    gatheredStats.outputSize,
+				}
+				currentStats = append(currentStats, &newStats)
+			} else {
+				// Combine old and new stats.
+				stats.AverageMemory = (stats.AverageMemory*stats.Executions + gatheredStats.Memory) / (stats.Executions + 1)
+				stats.Executions = stats.Executions + 1
+				stats.SystemTime = stats.SystemTime + gatheredStats.SystemTime
+				stats.UserTime = stats.UserTime + gatheredStats.UserTime
+				stats.WallTime = stats.WallTime + wallTime
+				stats.OutputSize = stats.OutputSize + gatheredStats.outputSize
+			}
+		}
+
+		// Insert/overwrite updated stats
+		err = svc.ds.UpdateLiveQueryStats(ctx, queryID, currentStats)
+		if err != nil {
+			level.Error(logger).Log("msg", "error updating live query stats", "err", err)
+			tracker.saveStats = false
+			return
+		}
+
+		tracker.aggregationNeeded = true
+		tracker.stats = nil
+	}
+
+	// Do aggregation
+	if aggregateStats && tracker.aggregationNeeded {
+		err := svc.ds.CalculateAggregatedPerfStatsPercentiles(ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID)
+		if err != nil {
+			level.Error(logger).Log("msg", "error aggregating performance stats", "err", err)
+			tracker.saveStats = false
+			return
+		}
+		tracker.aggregationNeeded = false
+	}
+	return
 }
