@@ -878,10 +878,12 @@ module.exports = {
           }
           // If the testimonial has a youtubeVideoUrl, we'll validate the link and add the video ID so we can embed the video in a modal.
           if(testimonial.youtubeVideoUrl) {
-            if(!URL.canParse(testimonial.youtubeVideoUrl)){
-              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial has a "youtubeVideoUrl" value with an invalid URL.  Please make sure all "youtubeVideoUrl" values are valid URLs and standard Youtube links, and try running this script again.`);
+            let videoLinkToCheck;
+            try {
+              videoLinkToCheck = new URL(testimonial.youtubeVideoUrl);
+            } catch(err) {
+              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial has a "youtubeVideoUrl" value with an invalid URL. Please make sure all "youtubeVideoUrl" values are valid URLs and standard Youtube links (e.g, https://www.youtube.com/watch?v=siXy9aanOu4), and try running this script again. Invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
             }
-            let videoLinkToCheck = new URL(testimonial.youtubeVideoUrl);
             // If this is a youtu.be link, the video ID will be the pathname of the URL.
             if(!videoLinkToCheck.host.match(/w*\.*youtube\.com$/)) {
               throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a "youtubeVideoUrl" that is a valid youtube link, but does not link to a video. Please make sure all "youtubeVideoLink" values are standard youtube links (e.g, https://www.youtube.com/watch?v=siXy9aanOu4) and try running this script again. invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
