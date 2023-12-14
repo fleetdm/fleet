@@ -1853,7 +1853,7 @@ the `software` table.
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                                                                                                                                                                                                                  |
-| software_status      | string | query |  Filters the hosts by the status of the managed software. Valid options are 'installed', 'pending', or 'failed'. **Note: Filter must be used in combination with _software_version_id_. If this filter is used with non-managed software, the filter will be ignored.**   |
+| software_status      | string | query |  Filters the hosts by the status of the managed software. Valid options are 'installed', 'pending', or 'failed'. **Note: Filter must be used in combination with _software_title_id_. If this filter is used with non-managed software, the filter will be ignored.**   |
 | os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -7326,7 +7326,7 @@ Returns the information of the specified software version.
 
 #### Example
 
-`GET /api/v1/fleet/software/versions/12`
+`GET /api/v1/fleet/software/versions/12?team_id=2`
 
 ##### Default response
 
