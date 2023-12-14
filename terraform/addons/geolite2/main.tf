@@ -7,18 +7,15 @@ terraform {
   }
 }
 
-# Setup our dockerfile from template 
-data "template_file" "dockerfile" {
-  template = "${file("${path.module}/Dockerfile.tpl")}"
-  vars = {
-    fleet_image = vars.fleet_image
-  }
-}
-
 # Write it to disk for usage
 resource "local_file" "dockerfile" {
   filename = "${path.module}/Dockerfile"
-  content  = data.template_file.dockerfile.rendered
+  content  = templatefile(
+    "${path.module}/Dockerfile.tpl",
+    {
+      fleet_image = var.fleet_image
+    }
+  )
 }
 
 # Build the new image
@@ -26,7 +23,7 @@ resource "docker_image" "maxmind_fleet" {
   name = var.destination_image
 
   build {
-    context  = "${path.module}"
+    context  = path.module
     platform = "linux/amd64"
     build_args = {
       LICENSE_KEY = var.license_key
@@ -42,4 +39,4 @@ resource "docker_registry_image" "maxmind_fleet" {
   }
   name          = docker_image.maxmind_fleet.name
   keep_remotely = true
-} 
+}
