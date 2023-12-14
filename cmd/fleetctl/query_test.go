@@ -92,6 +92,18 @@ func TestLiveQuery(t *testing.T) {
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
 		return &fleet.Query{}, nil
 	}
+	ds.IsSavedQueryFunc = func(ctx context.Context, queryID uint) (bool, error) {
+		return true, nil
+	}
+	ds.GetLiveQueryStatsFunc = func(ctx context.Context, queryID uint, hostIDs []uint) ([]*fleet.LiveQueryStats, error) {
+		return nil, nil
+	}
+	ds.UpdateLiveQueryStatsFunc = func(ctx context.Context, queryID uint, stats []*fleet.LiveQueryStats) error {
+		return nil
+	}
+	ds.CalculateAggregatedPerfStatsPercentilesFunc = func(ctx context.Context, aggregate fleet.AggregatedStatsType, queryID uint) error {
+		return nil
+	}
 
 	go func() {
 		time.Sleep(2 * time.Second)
@@ -104,6 +116,12 @@ func TestLiveQuery(t *testing.T) {
 					Hostname:    "somehostname",
 					DisplayName: "somehostname",
 				},
+				Stats: &fleet.Stats{
+					WallTimeMs: 10,
+					UserTime:   20,
+					SystemTime: 30,
+					Memory:     40,
+				},
 			},
 		))
 	}()
@@ -111,4 +129,7 @@ func TestLiveQuery(t *testing.T) {
 	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"query", "--hosts", "1234", "--query", "select 42, * from time"}))
+	assert.True(t, ds.GetLiveQueryStatsFuncInvoked)
+	assert.True(t, ds.UpdateLiveQueryStatsFuncInvoked)
+	assert.True(t, ds.CalculateAggregatedPerfStatsPercentilesFuncInvoked)
 }

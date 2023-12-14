@@ -4,10 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
+	"strings"
+)
+
+const (
+	statsScheduledQueryType = iota
+	statsLiveQueryType
 )
 
 func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
@@ -342,6 +348,16 @@ func (ds *Datastore) DeleteQuery(ctx context.Context, teamID *uint, name string)
 		return ctxerr.Wrap(ctx, notFound("queries").WithName(name))
 	}
 
+	// Delete any associated stats asynchronously.
+	ctxWithoutCancel := context.WithoutCancel(ctx)
+	go func() {
+		stmt := "DELETE FROM scheduled_query_stats WHERE scheduled_query_id = ?"
+		_, err := ds.writer(ctxWithoutCancel).ExecContext(ctxWithoutCancel, stmt, queryID)
+		if err != nil {
+			level.Error(ds.logger).Log("msg", "error deleting query stats", "err", err)
+		}
+	}()
+
 	// Opportunistically delete associated query_results.
 	//
 	// TODO(lucas): We should run this on a transaction but we found
@@ -360,6 +376,21 @@ func (ds *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error
 	if err != nil {
 		return deleted, err
 	}
+
+	// Delete any associated stats asynchronously.
+	ctxWithoutCancel := context.WithoutCancel(ctx)
+	go func() {
+		stmt := "DELETE FROM scheduled_query_stats WHERE scheduled_query_id IN (?)"
+		stmt, args, err := sqlx.In(stmt, ids)
+		if err != nil {
+			level.Error(ds.logger).Log("msg", "error creating delete query statement", "err", err)
+			return
+		}
+		_, err = ds.writer(ctxWithoutCancel).ExecContext(ctxWithoutCancel, stmt, args...)
+		if err != nil {
+			level.Error(ds.logger).Log("msg", "error deleting multiple query stats", "err", err)
+		}
+	}()
 
 	// Opportunistically delete associated query_results.
 	//
@@ -407,7 +438,7 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 		WHERE q.id = ?
 	`
 	query := &fleet.Query{}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), query, sqlQuery, false, aggregatedStatsTypeScheduledQuery, id); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), query, sqlQuery, false, fleet.AggregatedStatsTypeScheduledQuery, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(id))
 		}
@@ -455,7 +486,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		LEFT JOIN aggregated_stats ag ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
 	`
 
-	args := []interface{}{false, aggregatedStatsTypeScheduledQuery}
+	args := []interface{}{false, fleet.AggregatedStatsTypeScheduledQuery}
 	whereClauses := "WHERE saved = true"
 
 	if opt.TeamID != nil {
@@ -600,5 +631,62 @@ func (ds *Datastore) CleanupGlobalDiscardQueryResults(ctx context.Context) error
 		return ctxerr.Wrapf(ctx, err, "delete all from query_results")
 	}
 
+	return nil
+}
+
+// IsSavedQuery returns true if the given query is a saved query.
+func (ds *Datastore) IsSavedQuery(ctx context.Context, queryID uint) (bool, error) {
+	stmt := `
+		SELECT saved
+		FROM queries
+		WHERE id = ?
+	`
+	var result bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, queryID)
+	return result, err
+}
+
+// GetLiveQueryStats returns the live query stats for the given query and hosts.
+func (ds *Datastore) GetLiveQueryStats(ctx context.Context, queryID uint, hostIDs []uint) ([]*fleet.LiveQueryStats, error) {
+	stmt, args, err := sqlx.In(
+		`SELECT host_id, average_memory, executions, system_time, user_time, wall_time, output_size
+		FROM scheduled_query_stats
+		WHERE host_id IN (?) AND scheduled_query_id = ? AND query_type = ?
+	`, hostIDs, queryID, statsLiveQueryType,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building get live query stats stmt")
+	}
+
+	results := []*fleet.LiveQueryStats{}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get live query stats")
+	}
+	return results, nil
+}
+
+// UpdateLiveQueryStats writes new stats as a batch
+func (ds *Datastore) UpdateLiveQueryStats(ctx context.Context, queryID uint, stats []*fleet.LiveQueryStats) error {
+	if len(stats) == 0 {
+		return nil
+	}
+
+	// Bulk insert/update
+	const valueStr = "(?,?,?,?,?,?,?,?,?,?,?),"
+	stmt := "REPLACE INTO scheduled_query_stats (scheduled_query_id, host_id, query_type, executions, average_memory, system_time, user_time, wall_time, output_size, denylisted, schedule_interval) VALUES " +
+		strings.Repeat(valueStr, len(stats))
+	stmt = strings.TrimSuffix(stmt, ",")
+
+	var args []interface{}
+	for _, s := range stats {
+		args = append(
+			args, queryID, s.HostID, statsLiveQueryType, s.Executions, s.AverageMemory, s.SystemTime, s.UserTime, s.WallTime, s.OutputSize,
+			0, 0,
+		)
+	}
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update live query stats")
+	}
 	return nil
 }
