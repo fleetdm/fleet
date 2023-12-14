@@ -223,7 +223,6 @@ module.exports.routes = {
     action: 'view-osquery-table-details',// Meta title and description set in view action
     locals: {
       currentSection: 'documentation',
-      // Note: this page's meta title and description are set in the view action
     }
   },
 
