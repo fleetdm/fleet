@@ -50,7 +50,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Run queries designated "**observer can run**" as live queries against all hosts                                                            | ✅       | ✅         | ✅         | ✅    |         |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete queries                                                                                                           |          |            | ✅         | ✅    | ✅      |
-| View all queries and their reports\**                                                                                                      | ✅       | ✅         | ✅         | ✅    |         |
+| View all queries and their reports                                                                                                      | ✅       | ✅         | ✅         | ✅    |         |
 | Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                                 |          |            | ✅         | ✅    | ✅      |
 | Create, edit, view, and delete packs                                                                                                       |          |            | ✅         | ✅    | ✅      |
 | View all policies                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
@@ -95,8 +95,6 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 \* Applies only to Fleet Premium
 
-\** Global observers can view all queries via the API. The UI and fleetctl only list the ones they can run (**observer can run**).
-
 \*** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
 ## Team member permissions
@@ -128,7 +126,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Run queries designated "**observer can run**" as live queries against hosts                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅              | ✅         | ✅          |
-| View all queries and their reports\**                                                                                            | ✅            | ✅             | ✅              | ✅         |             |
+| View all queries and their reports                                                                                           | ✅            | ✅             | ✅              | ✅         |             |
 | Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                       |               |                | ✅              | ✅         | ✅          |
 | View team policies                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
 | Run team policies as a live policy                                                                                               |               | ✅             | ✅              | ✅         |             |
@@ -163,7 +161,6 @@ Users that are members of multiple teams can be assigned different roles for eac
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
-\** Team observers can view all queries via the API. The UI and fleetctl only list the ones they can run (**observer can run**).
 
 <meta name="pageOrderInSection" value="900">
 <meta name="description" value="Learn about the different roles and permissions in Fleet.">
