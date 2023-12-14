@@ -3415,7 +3415,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		ctx, fleet.SoftwareVulnerability{
 			SoftwareID:        bar.ID,
 			CVE:               "cve-123",
-			ResolvedInVersion: "1.2.3",
+			ResolvedInVersion: ptr.String("1.2.3"),
 		}, fleet.NVDSource,
 	)
 	require.NoError(t, err)
