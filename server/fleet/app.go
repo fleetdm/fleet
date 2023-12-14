@@ -967,8 +967,7 @@ type ListQueryOptions struct {
 	// team.
 	TeamID *uint
 	// IsScheduled filters queries that are meant to run at a set interval.
-	IsScheduled        *bool
-	OnlyObserverCanRun bool
+	IsScheduled *bool
 }
 
 type ListActivitiesOptions struct {
