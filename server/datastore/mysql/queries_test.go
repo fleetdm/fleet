@@ -6,6 +6,7 @@ import (
 	"math"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -193,8 +194,9 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err))
 
 	// Ensure stats were deleted.
-	// The actual delete occurs asynchronously, but enough time should have passed
-	// given the above DB access to ensure the original query completed.
+	// The actual delete occurs asynchronously, so enough time should have passed
+	// to ensure the original query completed.
+	time.Sleep(10 * time.Millisecond)
 	stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
 	require.NoError(t, err)
 	require.Equal(t, 0, len(stats))
@@ -278,8 +280,9 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	assert.Len(t, queries, 2)
 	// Ensure stats were deleted.
-	// The actual delete occurs asynchronously, but enough time should have passed
-	// given the above DB access to ensure the original query completed.
+	// The actual delete occurs asynchronously, so enough time should have passed
+	// to ensure the original query completed.
+	time.Sleep(10 * time.Millisecond)
 	stats, err := ds.GetLiveQueryStats(context.Background(), q1.ID, hostIDs)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(stats))

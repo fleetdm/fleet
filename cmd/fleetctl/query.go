@@ -110,7 +110,8 @@ func queryCommand() *cli.Command {
 				// For backwards compatibility with older fleet server, we explicitly find the query in the result array
 				for _, query := range queries {
 					if query.Name == flQueryName {
-						queryID = &query.ID
+						id := query.ID // making an explicit copy of ID
+						queryID = &id
 						break
 					}
 				}
