@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: config
+spec:
+  features:
+    detail_query_overrides:
+      system_info: "select   case     when (select count(value) from process_envs where key = 'FAKE_HOSTNAME') > 0     then (select value from process_envs where key = 'FAKE_HOSTNAME' limit 1)     else hostname   end as hostname,   uuid,   cpu_type,   cpu_subtype,   cpu_brand,   cpu_physical_cores,   cpu_logical_cores,   cpu_microcode,   physical_memory,   hardware_vendor,   hardware_model,   hardware_version,   hardware_serial,   board_vendor,    board_model,   board_version,   board_serial,   case     when (select count(value) from process_envs where key = 'FAKE_HOSTNAME') > 0     then (select value from process_envs where key = 'FAKE_HOSTNAME' limit 1)     else computer_name   end as computer_name,   case     when (select count(value) from process_envs where key = 'FAKE_HOSTNAME') > 0     then (select value from process_envs where key = 'FAKE_HOSTNAME' limit 1)     else local_hostname   end as local_hostname from system_info;"

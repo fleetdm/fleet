@@ -1159,6 +1159,17 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			continue
 		}
 
+		// Do not save stats without executions so that we do not overwrite existing stats.
+		// It is normal for host to have no executions when the query just got scheduled.
+		executions := cast.ToUint64(row["executions"])
+		if executions == 0 {
+			level.Debug(logger).Log(
+				"msg", "host reported scheduled query with no executions",
+				"host", host.Hostname,
+			)
+			continue
+		}
+
 		// Split with a limit of 2 in case query name includes the
 		// delimiter. Not much we can do if pack name includes the
 		// delimiter.
@@ -1180,7 +1191,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			PackName:           packName,
 			AverageMemory:      cast.ToUint64(row["average_memory"]),
 			Denylisted:         cast.ToBool(row["denylisted"]),
-			Executions:         cast.ToUint64(row["executions"]),
+			Executions:         executions,
 			Interval:           cast.ToInt(row["interval"]),
 			// Cast to int first to allow cast.ToTime to interpret the unix timestamp.
 			LastExecuted: time.Unix(cast.ToInt64(row["last_executed"]), 0).UTC(),

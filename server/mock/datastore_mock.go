@@ -78,6 +78,14 @@ type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, erro
 
 type CleanupGlobalDiscardQueryResultsFunc func(ctx context.Context) error
 
+type IsSavedQueryFunc func(ctx context.Context, queryID uint) (bool, error)
+
+type GetLiveQueryStatsFunc func(ctx context.Context, queryID uint, hostIDs []uint) ([]*fleet.LiveQueryStats, error)
+
+type UpdateLiveQueryStatsFunc func(ctx context.Context, queryID uint, stats []*fleet.LiveQueryStats) error
+
+type CalculateAggregatedPerfStatsPercentilesFunc func(ctx context.Context, aggregate fleet.AggregatedStatsType, queryID uint) error
+
 type NewDistributedQueryCampaignFunc func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
 
 type DistributedQueryCampaignFunc func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error)
@@ -355,6 +363,8 @@ type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fle
 type SyncHostsSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
 type ReconcileSoftwareTitlesFunc func(ctx context.Context) error
+
+type SyncHostsSoftwareTitlesFunc func(ctx context.Context, updatedAt time.Time) error
 
 type HostVulnSummariesBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error)
 
@@ -865,6 +875,18 @@ type DataStore struct {
 	CleanupGlobalDiscardQueryResultsFunc        CleanupGlobalDiscardQueryResultsFunc
 	CleanupGlobalDiscardQueryResultsFuncInvoked bool
 
+	IsSavedQueryFunc        IsSavedQueryFunc
+	IsSavedQueryFuncInvoked bool
+
+	GetLiveQueryStatsFunc        GetLiveQueryStatsFunc
+	GetLiveQueryStatsFuncInvoked bool
+
+	UpdateLiveQueryStatsFunc        UpdateLiveQueryStatsFunc
+	UpdateLiveQueryStatsFuncInvoked bool
+
+	CalculateAggregatedPerfStatsPercentilesFunc        CalculateAggregatedPerfStatsPercentilesFunc
+	CalculateAggregatedPerfStatsPercentilesFuncInvoked bool
+
 	NewDistributedQueryCampaignFunc        NewDistributedQueryCampaignFunc
 	NewDistributedQueryCampaignFuncInvoked bool
 
@@ -1281,6 +1303,9 @@ type DataStore struct {
 
 	ReconcileSoftwareTitlesFunc        ReconcileSoftwareTitlesFunc
 	ReconcileSoftwareTitlesFuncInvoked bool
+
+	SyncHostsSoftwareTitlesFunc        SyncHostsSoftwareTitlesFunc
+	SyncHostsSoftwareTitlesFuncInvoked bool
 
 	HostVulnSummariesBySoftwareIDsFunc        HostVulnSummariesBySoftwareIDsFunc
 	HostVulnSummariesBySoftwareIDsFuncInvoked bool
@@ -2120,6 +2145,34 @@ func (s *DataStore) CleanupGlobalDiscardQueryResults(ctx context.Context) error 
 	s.CleanupGlobalDiscardQueryResultsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupGlobalDiscardQueryResultsFunc(ctx)
+}
+
+func (s *DataStore) IsSavedQuery(ctx context.Context, queryID uint) (bool, error) {
+	s.mu.Lock()
+	s.IsSavedQueryFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsSavedQueryFunc(ctx, queryID)
+}
+
+func (s *DataStore) GetLiveQueryStats(ctx context.Context, queryID uint, hostIDs []uint) ([]*fleet.LiveQueryStats, error) {
+	s.mu.Lock()
+	s.GetLiveQueryStatsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetLiveQueryStatsFunc(ctx, queryID, hostIDs)
+}
+
+func (s *DataStore) UpdateLiveQueryStats(ctx context.Context, queryID uint, stats []*fleet.LiveQueryStats) error {
+	s.mu.Lock()
+	s.UpdateLiveQueryStatsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateLiveQueryStatsFunc(ctx, queryID, stats)
+}
+
+func (s *DataStore) CalculateAggregatedPerfStatsPercentiles(ctx context.Context, aggregate fleet.AggregatedStatsType, queryID uint) error {
+	s.mu.Lock()
+	s.CalculateAggregatedPerfStatsPercentilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CalculateAggregatedPerfStatsPercentilesFunc(ctx, aggregate, queryID)
 }
 
 func (s *DataStore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
@@ -3093,6 +3146,13 @@ func (s *DataStore) ReconcileSoftwareTitles(ctx context.Context) error {
 	s.ReconcileSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReconcileSoftwareTitlesFunc(ctx)
+}
+
+func (s *DataStore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.Time) error {
+	s.mu.Lock()
+	s.SyncHostsSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SyncHostsSoftwareTitlesFunc(ctx, updatedAt)
 }
 
 func (s *DataStore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {

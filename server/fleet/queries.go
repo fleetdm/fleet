@@ -155,6 +155,17 @@ func (q *Query) Copy() *Query {
 	return &clone
 }
 
+type LiveQueryStats struct {
+	// host_id, average_memory, execution, system_time, user_time
+	HostID        uint   `db:"host_id"`
+	Executions    uint64 `db:"executions"`
+	AverageMemory uint64 `db:"average_memory"`
+	SystemTime    uint64 `db:"system_time"`
+	UserTime      uint64 `db:"user_time"`
+	WallTime      uint64 `db:"wall_time"`
+	OutputSize    uint64 `db:"output_size"`
+}
+
 var (
 	LoggingSnapshot                   = "snapshot"
 	LoggingDifferential               = "differential"
