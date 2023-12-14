@@ -1,16 +1,16 @@
 module.exports = {
 
 
-  friendlyName: 'View compliance',
+  friendlyName: 'View endpoint ops',
 
 
-  description: 'Display "Compliance" page.',
+  description: 'Display "Endpoint ops" page.',
 
 
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/compliance'
+      viewTemplatePath: 'pages/endpoint-ops'
     }
 
   },
