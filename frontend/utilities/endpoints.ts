@@ -1,3 +1,5 @@
+import { IBootstrapPackageMetadata } from "interfaces/mdm";
+
 const API_VERSION = "latest";
 
 export default {
@@ -66,8 +68,17 @@ export default {
     return `/api/mdm/apple/enroll?${query}`;
   },
   MDM_BOOTSTRAP_PACKAGE_METADATA: (teamId: number) =>
-    `/${API_VERSION}/fleet/mdm/apple/bootstrap/${teamId}/metadata`,
-  MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/apple/bootstrap`,
+    `/${API_VERSION}/fleet/mdm/apple/bootstrap/${teamId}`,
+  MDM_BOOTSTRAP_PACKAGE_DOWNLOAD: ({
+    team_id,
+    token,
+  }: Pick<IBootstrapPackageMetadata, "team_id" | "token">) => {
+    const query = new URLSearchParams({ token, alt: "media" });
+    return `/${API_VERSION}/fleet/mdm/apple/bootstrap/${team_id}?${query}`;
+  },
+  MDM_BOOTSTRAP_PACKAGE_UPLOAD: `/${API_VERSION}/fleet/mdm/apple/bootstrap`,
+  MDM_BOOTSTRAP_PACKAGE_DELETE: (teamId: number) =>
+    `/${API_VERSION}/fleet/mdm/apple/bootstrap/${teamId}`,
   MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/apple/bootstrap/summary`,
   MDM_SETUP: `/${API_VERSION}/fleet/mdm/apple/setup`,
   MDM_EULA: (token: string) =>

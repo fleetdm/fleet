@@ -1783,59 +1783,13 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Download a bootstrap package
+// Download or get metadata about a bootstrap package
 ////////////////////////////////////////////////////////////////////////////////
 
-type downloadBootstrapPackageRequest struct {
-	Token string `query:"token"`
-}
-
-type downloadBootstrapPackageResponse struct {
-	Err error `json:"error,omitempty"`
-
-	// fields used by hijackRender for the response.
-	pkg *fleet.MDMAppleBootstrapPackage
-}
-
-func (r downloadBootstrapPackageResponse) error() error { return r.Err }
-
-func (r downloadBootstrapPackageResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Length", strconv.Itoa(len(r.pkg.Bytes)))
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.pkg.Name))
-
-	// OK to just log the error here as writing anything on
-	// `http.ResponseWriter` sets the status code to 200 (and it can't be
-	// changed.) Clients should rely on matching content-length with the
-	// header provided
-	if n, err := w.Write(r.pkg.Bytes); err != nil {
-		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
-	}
-}
-
-func downloadBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*downloadBootstrapPackageRequest)
-	pkg, err := svc.GetMDMAppleBootstrapPackageBytes(ctx, req.Token)
-	if err != nil {
-		return downloadBootstrapPackageResponse{Err: err}, nil
-	}
-	return downloadBootstrapPackageResponse{pkg: pkg}, nil
-}
-
-func (svc *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return nil, fleet.ErrMissingLicense
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Get metadata about a bootstrap package
-////////////////////////////////////////////////////////////////////////////////
-
-type bootstrapPackageMetadataRequest struct {
-	TeamID uint `url:"team_id"`
+type getBootstrapPackageRequest struct {
+	TeamID uint   `url:"team_id"`
+	Alt    string `query:"alt,optional"`
+	Token  string `query:"token,optional"`
 
 	// ForUpdate is used to indicate that the authorization should be for a
 	// "write" instead of a "read", this is needed specifically for the gitops
@@ -1844,20 +1798,46 @@ type bootstrapPackageMetadataRequest struct {
 	ForUpdate bool `query:"for_update,optional"`
 }
 
-type bootstrapPackageMetadataResponse struct {
-	Err                             error `json:"error,omitempty"`
-	*fleet.MDMAppleBootstrapPackage `json:",omitempty"`
+type getBootstrapPackageResponse struct {
+	*fleet.MDMAppleBootstrapPackage
+	Err error `json:"error,omitempty"`
 }
 
-func (r bootstrapPackageMetadataResponse) error() error { return r.Err }
+func (r getBootstrapPackageResponse) error() error { return r.Err }
 
-func bootstrapPackageMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*bootstrapPackageMetadataRequest)
+func getBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getBootstrapPackageRequest)
+	downloadRequested := req.Alt == "media"
+	var err error
+
+	if downloadRequested {
+		if req.Token == "" {
+			return getBootstrapPackageResponse{Err: fleet.NewInvalidArgumentError("token", "token is required")}, nil
+		}
+		pkg, err := svc.GetMDMAppleBootstrapPackageBytes(ctx, req.Token)
+		if err != nil {
+			return getBootstrapPackageResponse{Err: err}, nil
+		}
+		return downloadFileResponse{
+			content:     pkg.Bytes,
+			contentType: "application/octet-stream",
+			filename:    pkg.Name,
+		}, nil
+	}
+
 	meta, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, req.TeamID, req.ForUpdate)
 	if err != nil {
-		return bootstrapPackageMetadataResponse{Err: err}, nil
+		return getBootstrapPackageResponse{Err: err}, nil
 	}
-	return bootstrapPackageMetadataResponse{MDMAppleBootstrapPackage: meta}, nil
+	return getBootstrapPackageResponse{MDMAppleBootstrapPackage: meta}, nil
+}
+
+func (svc *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }
 
 func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {

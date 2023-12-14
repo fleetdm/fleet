@@ -55,9 +55,9 @@ func (c *Client) RequestAppleCSR(email, org string) (*fleet.AppleCSR, error) {
 }
 
 func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
-	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/%d/metadata", teamID)
-	request := bootstrapPackageMetadataRequest{}
-	var responseBody bootstrapPackageMetadataResponse
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/%d", teamID)
+	request := getBootstrapPackageRequest{}
+	var responseBody getBootstrapPackageResponse
 	var err error
 	if forUpdate {
 		err = c.authenticatedRequestWithQuery(request, verb, path, &responseBody, "for_update=true")

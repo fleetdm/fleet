@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import {
   DiskEncryptionStatus,
+  IBootstrapPackageMetadata,
   IMdmProfile,
   MdmProfileStatus,
 } from "interfaces/mdm";
@@ -152,14 +153,10 @@ const mdmService = {
   },
 
   getBootstrapPackageMetadata: (teamId: number) => {
-    const { MDM_BOOTSTRAP_PACKAGE_METADATA } = endpoints;
-
-    return sendRequest("GET", MDM_BOOTSTRAP_PACKAGE_METADATA(teamId));
+    return sendRequest("GET", endpoints.MDM_BOOTSTRAP_PACKAGE_METADATA(teamId));
   },
 
   uploadBootstrapPackage: (file: File, teamId?: number) => {
-    const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
-
     const formData = new FormData();
     formData.append("package", file);
 
@@ -167,12 +164,24 @@ const mdmService = {
       formData.append("team_id", teamId.toString());
     }
 
-    return sendRequest("POST", MDM_BOOTSTRAP_PACKAGE, formData);
+    return sendRequest(
+      "POST",
+      endpoints.MDM_BOOTSTRAP_PACKAGE_UPLOAD,
+      formData
+    );
+  },
+
+  downloadBootstrapPackage: (
+    params: Pick<IBootstrapPackageMetadata, "team_id" | "token">
+  ) => {
+    return sendRequest("GET", endpoints.MDM_BOOTSTRAP_PACKAGE_DOWNLOAD(params));
   },
 
   deleteBootstrapPackage: (teamId: number) => {
-    const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
-    return sendRequest("DELETE", `${MDM_BOOTSTRAP_PACKAGE}/${teamId}`);
+    return sendRequest(
+      "DELETE",
+      endpoints.MDM_BOOTSTRAP_PACKAGE_DELETE(teamId)
+    );
   },
 
   getBootstrapPackageAggregate: (teamId?: number) => {

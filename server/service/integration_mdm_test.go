@@ -5013,24 +5013,24 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	)
 
 	// get package metadata
-	var metadataResp bootstrapPackageMetadataResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0/metadata", nil, http.StatusOK, &metadataResp)
+	var metadataResp getBootstrapPackageResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0", nil, http.StatusOK, &metadataResp)
 	require.Equal(t, metadataResp.MDMAppleBootstrapPackage.Name, "pkg.pkg")
 	require.NotEmpty(t, metadataResp.MDMAppleBootstrapPackage.Sha256, "")
 	require.NotEmpty(t, metadataResp.MDMAppleBootstrapPackage.Token)
 
 	// download a package, wrong token
-	var downloadResp downloadBootstrapPackageResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap?token=bad", nil, http.StatusNotFound, &downloadResp)
+	var downloadResp downloadFileResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0?alt=media&token=bad", nil, http.StatusNotFound, &downloadResp)
 
-	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap?token=%s", metadataResp.MDMAppleBootstrapPackage.Token), nil, http.StatusOK)
+	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/0?alt=media&token=%s", metadataResp.MDMAppleBootstrapPackage.Token), nil, http.StatusOK)
 	respBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.EqualValues(t, signedPkg, respBytes)
 
 	// missing package
-	metadataResp = bootstrapPackageMetadataResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/1/metadata", nil, http.StatusNotFound, &metadataResp)
+	metadataResp = getBootstrapPackageResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/1", nil, http.StatusNotFound, &metadataResp)
 
 	// delete package
 	var deleteResp deleteBootstrapPackageResponse
@@ -5042,8 +5042,8 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 		0,
 	)
 
-	metadataResp = bootstrapPackageMetadataResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0/metadata", nil, http.StatusNotFound, &metadataResp)
+	metadataResp = getBootstrapPackageResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0", nil, http.StatusNotFound, &metadataResp)
 	// trying to delete again is a bad request
 	s.DoJSON("DELETE", "/api/latest/fleet/mdm/apple/bootstrap/0", nil, http.StatusNotFound, &deleteResp)
 }
@@ -5057,8 +5057,8 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "")
 
 	// get package metadata
-	var metadataResp bootstrapPackageMetadataResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0/metadata", nil, http.StatusOK, &metadataResp)
+	var metadataResp getBootstrapPackageResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0", nil, http.StatusOK, &metadataResp)
 	globalBootstrapPackage := metadataResp.MDMAppleBootstrapPackage
 
 	// create a team and upload a bootstrap package for that team.
@@ -5076,8 +5076,8 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "pkg.pkg", TeamID: team.ID}, http.StatusOK, "")
 
 	// get package metadata
-	metadataResp = bootstrapPackageMetadataResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/%d/metadata", team.ID), nil, http.StatusOK, &metadataResp)
+	metadataResp = getBootstrapPackageResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/%d", team.ID), nil, http.StatusOK, &metadataResp)
 	teamBootstrapPackage := metadataResp.MDMAppleBootstrapPackage
 
 	type deviceWithResponse struct {
@@ -5403,7 +5403,7 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	require.EqualValues(t, pdfBytes, respBytes)
 
 	// try to download EULA with a bad token
-	var downloadResp downloadBootstrapPackageResponse
+	var downloadResp getMDMAppleEULAResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/bad-token", nil, http.StatusNotFound, &downloadResp)
 
 	// trying to upload any EULA without deleting the previous one first results in an error

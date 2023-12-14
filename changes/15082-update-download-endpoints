@@ -1,0 +1,4 @@
+- Added `GET /mdm/apple/bootstrap/{team_id:[0-9]+}` API endpoint to support getting bootstrap
+  package metadata or downloading bootstrap package.
+- Removed `GET /mdm/apple/bootstrap/{team_id:[0-9]+}/metadata` API endpoint, which is replaced by
+  `GET /mdm/apple/bootstrap/{team_id:[0-9]+}`.
