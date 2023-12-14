@@ -49,6 +49,15 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		if err := JSONStrictDecode(bytes.NewReader(opts.CommandLineStartUpFlags), &flags); err != nil {
 			return fmt.Errorf("command-line flags: %w", err)
 		}
+
+		// We prevent setting the following flags because they can break fleetd.
+		flagNotSupportedErr := "The %s flag isn't supported. Please remove this flag."
+		if flags.HostIdentifier != "" {
+			return fmt.Errorf(flagNotSupportedErr, "--host_identifier")
+		}
+		if flags.ExtensionsAutoload != "" {
+			return fmt.Errorf(flagNotSupportedErr, "--extensions_autoload")
+		}
 	}
 
 	if len(opts.Config) > 0 {
