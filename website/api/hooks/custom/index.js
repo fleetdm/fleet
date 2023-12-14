@@ -135,9 +135,6 @@ will be disabled and/or hidden in the UI.
               }
               res.locals._environment = sails.config.environment;
 
-              if(sails.config.builtStaticContent && sails.config.builtStaticContent.testimonials){
-                res.locals.testimonialsForScrollableTweets = sails.config.builtStaticContent.testimonials;
-              }
               // The `me` local is set explicitly to `undefined` here just to avoid having to
               // do `typeof me !== 'undefined'` checks in our views/layouts/partials.
               // > Note that, depending on the request, this may or may not be set to the

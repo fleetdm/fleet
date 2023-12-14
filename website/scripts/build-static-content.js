@@ -876,31 +876,26 @@ module.exports = {
               throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial with a "quoteAuthorSocialHandle" value is missing a "quoteLinkUrl". To resolve, make sure all testimonials with a "quoteAuthorSocialHandle" have a "quoteLinkUrl", and try running this script again. Testimonial with missing "quoteLinkUrl": ${testimonial} `);
             }
           }
+          // If the testimonial has a youtubeVideoUrl, we'll validate the link and add the video ID so we can embed the video in a modal.
           if(testimonial.youtubeVideoUrl) {
             if(!URL.canParse(testimonial.youtubeVideoUrl)){
-              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial has a "youtubeVideoUrl" value with an invalid URL.  Please make sure all "youtubeVideoUrl" values are valid URLs, and try running this script again.`);
+              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial has a "youtubeVideoUrl" value with an invalid URL.  Please make sure all "youtubeVideoUrl" values are valid URLs and standard Youtube links, and try running this script again.`);
             }
             let videoLinkToCheck = new URL(testimonial.youtubeVideoUrl);
             // If this is a youtu.be link, the video ID will be the pathname of the URL.
-            if(videoLinkToCheck.host === 'youtu.be') {
-              if(!videoLinkToCheck.pathName) {
-                throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a "youtubeVideoUrl" value that does not link to a youtube video. Invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
-              }
-              testimonial.videoIdForEmbed = videoLinkToCheck.pathName;
-            } else if(videoLinkToCheck.host === 'youtube.com') {
-              // If this is a youtube.com link, the video ID will be in a query string.
-              if(!videoLinkToCheck.search){
-                // Throw an error if there is no video
-                throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a "youtubeVideoUrl" that does not link to a youtube video. Invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
-              }
-              let linkSearchParams = new URLSearchParams(videoLinkToCheck.search);
-              if(!linkSearchParams.has('v')){
-                throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a "youtubeVideoUrl" that does not link to a youtube video. Invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
-              }
-              testimonial.videoIdForEmbed = linkSearchParams.get('v');
-            } else {
-              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial has a "youtubeVideoUrl" value that does not point to a youtube video. Please make sure all "youtubeVideoUrl" values are valid youtube links, and try running this script again. invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
+            if(!videoLinkToCheck.host.match(/w*\.*youtube\.com$/)) {
+              throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a "youtubeVideoUrl" that is a valid youtube link, but does not link to a video. Please make sure all "youtubeVideoLink" values are standard youtube links (e.g, https://www.youtube.com/watch?v=siXy9aanOu4) and try running this script again. invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
             }
+            // If this is a youtube.com link, the video ID will be in a query string.
+            if(!videoLinkToCheck.search){
+              // Throw an error if there is no video
+              throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a "youtubeVideoUrl" that is a valid youtube link, but does not link to a video. Please make sure all "youtubeVideoLink" values are standard youtube links (e.g, https://www.youtube.com/watch?v=siXy9aanOu4) and try running this script again. Invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
+            }
+            let linkSearchParams = new URLSearchParams(videoLinkToCheck.search);
+            if(!linkSearchParams.has('v')){
+              throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a "youtubeVideoUrl" that is a valid youtube link, but does not link to a video. Please make sure all "youtubeVideoLink" values are standard youtube links (e.g, https://www.youtube.com/watch?v=siXy9aanOu4) and try running this script again. Invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
+            }
+            testimonial.videoIdForEmbed = linkSearchParams.get('v');
           }
           // Validate that all linked images exist, and that they match the website image name conventsions.
           // We'll also get the images dimensions from the filename, and add an imageHeight value to the testimonial.
