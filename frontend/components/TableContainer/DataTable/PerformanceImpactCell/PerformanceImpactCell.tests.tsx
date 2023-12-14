@@ -2,13 +2,15 @@ import React from "react";
 import { screen } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
-import PillCell from "./PillCell";
+import PerformanceImpactCell from "./PerformanceImpactCell";
 
 const PERFORMANCE_IMPACT = { indicator: "Minimal", id: 3 };
 
-describe("Pill cell", () => {
+describe("Query performance cell", () => {
   it("renders pill text and tooltip on hover", async () => {
-    const { user } = renderWithSetup(<PillCell value={PERFORMANCE_IMPACT} />);
+    const { user } = renderWithSetup(
+      <PerformanceImpactCell value={PERFORMANCE_IMPACT} />
+    );
 
     await user.hover(screen.getByText("Minimal"));
 

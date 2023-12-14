@@ -642,9 +642,9 @@ export const readableDate = (date: string) => {
   }).format(dateString);
 };
 
-export const performanceIndicator = (
+export const getPerformanceImpactDescription = (
   scheduledQueryStats: IScheduledQueryStats
-): string => {
+) => {
   if (
     !scheduledQueryStats.total_executions ||
     scheduledQueryStats.total_executions === 0 ||
