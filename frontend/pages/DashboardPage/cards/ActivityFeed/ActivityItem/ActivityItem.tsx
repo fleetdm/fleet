@@ -109,11 +109,12 @@ const TAGGED_TEMPLATES = {
       <>a live query</>
     );
 
-    const impactCopy = impactDescription ? (
-      <>with {impactDescription.toLowerCase()} performance impact</>
-    ) : (
-      <></>
-    );
+    const impactCopy =
+      impactDescription && impactDescription !== "Undetermined" ? (
+        <>with {impactDescription.toLowerCase()} performance impact</>
+      ) : (
+        <></>
+      );
     const hostCountCopy =
       count !== undefined
         ? ` on ${count} ${count === 1 ? "host" : "hosts"}`
