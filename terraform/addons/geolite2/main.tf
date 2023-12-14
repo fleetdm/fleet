@@ -10,7 +10,7 @@ terraform {
 # Write it to disk for usage
 resource "local_file" "dockerfile" {
   filename = "${path.module}/Dockerfile"
-  content  = templatefile(
+  content = templatefile(
     "${path.module}/Dockerfile.tpl",
     {
       fleet_image = var.fleet_image
