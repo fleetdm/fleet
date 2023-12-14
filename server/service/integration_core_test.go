@@ -1539,7 +1539,7 @@ func (s *integrationTestSuite) TestListHosts() {
 			require.Len(t, h.Software, 1)
 			require.NotEmpty(t, h.Software[0].Vulnerabilities)
 
-			// All these should be nil because this isn't Premium
+			// all these should be nil because this isn't Premium
 			require.Nil(t, h.Software[0].Vulnerabilities[0].CVSSScore)
 			require.Nil(t, h.Software[0].Vulnerabilities[0].EPSSProbability)
 			require.Nil(t, h.Software[0].Vulnerabilities[0].CISAKnownExploit)
