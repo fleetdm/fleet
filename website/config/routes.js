@@ -65,25 +65,26 @@ module.exports.routes = {
   },
 
   'GET /queries/:slug': {
-    action: 'view-query-detail',
+    action: 'view-query-detail',// Meta title and description set in view action
     locals: {
       currentSection: 'documentation',
+      // Note: this page's meta title and description are set in the page's view action
     }
   },
 
   'r|^/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
     skipAssets: false,
-    action: 'articles/view-basic-article',
+    action: 'articles/view-basic-article',// Meta title and description set in view action
   },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
 
   'r|^/((success-stories|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/*$|category': {
     skipAssets: false,
-    action: 'articles/view-articles',
+    action: 'articles/view-articles',// Meta title and description set in view action
   },// Handles the article landing page /articles, and the article cateogry pages (e.g. /device-management, /securing, /releases, etc)
 
   'GET /docs/?*': {
     skipAssets: false,
-    action: 'docs/view-basic-documentation',
+    action: 'docs/view-basic-documentation',// Meta title and description set in view action
     locals: {
       currentSection: 'documentation',
     }
@@ -91,7 +92,7 @@ module.exports.routes = {
 
   'GET /handbook/?*':  {
     skipAssets: false,
-    action: 'handbook/view-basic-handbook',
+    action: 'handbook/view-basic-handbook',// Meta title and description set in view action
     locals: {
       currentSection: 'community',
     }
@@ -219,9 +220,10 @@ module.exports.routes = {
   },
 
   'GET /tables/:tableName': {
-    action: 'view-osquery-table-details',
+    action: 'view-osquery-table-details',// Meta title and description set in view action
     locals: {
       currentSection: 'documentation',
+      // Note: this page's meta title and description are set in the view action
     }
   },
 
@@ -459,7 +461,7 @@ module.exports.routes = {
   'GET /handbook/company/customer-solutions-architect': '/handbook/company/open-positions/customer-solutions-architect',
   'GET /handbook/company/software-engineer': '/handbook/company/open-positions/software-engineer',
   'GET /handbook/company/software-engineer-windows-go': '/handbook/company/open-positions/software-engineer-windows-go',
-  'GET /osquery-management': '/endpoint-ops',  
+  'GET /osquery-management': '/endpoint-ops',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
