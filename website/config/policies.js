@@ -54,7 +54,6 @@ module.exports.policies = {
   'download-rss-feed': true,
   'view-upgrade': true,
   'deliver-premium-upgrade-form': true,
-  'view-compliance': true,
   'view-endpoint-ops': true,
   'view-vulnerability-management': true,
   'deliver-mdm-demo-email': true,

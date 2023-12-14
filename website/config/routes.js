@@ -264,15 +264,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /compliance': {
-    action: 'view-compliance',
-    locals: {
-      currentSection: 'platform',
-      pageTitleForMeta: 'Security compliance | Fleet',
-      pageDescriptionForMeta: 'Automate security workflows by creating or installing policies to maintain your organization\'s compliance goals. Simplify security compliance with Fleet.',
-    }
-  },
-
   'GET /endpoint-ops': {
     action: 'view-endpoint-ops',
     locals: {
