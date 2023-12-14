@@ -1675,7 +1675,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	now := time.Now()
 
 	inserted, err := s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
-		SoftwareID: host.Software[0].ID,
+		SoftwareID: host2.Software[0].ID,
 		CVE:        "cve-123-123-123",
 	}, fleet.NVDSource)
 	require.NoError(t, err)
