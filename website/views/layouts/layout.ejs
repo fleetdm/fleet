@@ -359,9 +359,14 @@
     <% /* Sticky header */ %>
     <script>
         var lastScrollTop = 0;
-        var header = document.querySelector('.header')
+        var header = document.querySelector('.header');
+        let mobileNavMenu = document.getElementById('navbarToggleExternalContent');
         window.addEventListener('scroll', windowScrolled);
         function windowScrolled() {
+          let isMobileNavOpen = [...mobileNavMenu.classList].includes('show');
+          if(isMobileNavOpen) {
+            return;
+          }
           let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
           if(scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
             header.classList.add('translate-y-0');
