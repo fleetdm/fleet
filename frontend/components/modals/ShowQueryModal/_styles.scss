@@ -22,6 +22,7 @@
       padding: 6px 12px;
 
       .__react_component_tooltip {
+        @include tooltip-text;
       }
     }
   }

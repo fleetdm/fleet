@@ -19,6 +19,8 @@ const generateClassTag = (rawValue: string): string => {
   return rawValue.replace(" ", "-").toLowerCase();
 };
 
+const baseClass = "performance-impact-cell";
+
 const PerformanceImpactCell = ({
   value,
   isHostSpecific = false,
@@ -43,24 +45,22 @@ const PerformanceImpactCell = ({
       case "Minimal":
         return (
           <>
-            Running this query very <br />
-            frequently has little to no <br /> impact on your device&apos;s{" "}
-            <br />
-            performance.
+            Running this query very frequently has little to no <br /> impact on
+            your device&apos;s performance.
           </>
         );
       case "Considerable":
         return (
           <>
-            Running this query <br /> frequently can have a <br /> noticeable
-            impact on your <br /> device&apos;s performance.
+            Running this query frequently can have a noticeable <br />
+            impact on your device&apos;s performance.
           </>
         );
       case "Excessive":
         return (
           <>
-            Running this query, even <br /> infrequently, can have a <br />
-            significant impact on your <br /> device&apos;s performance.
+            Running this query, even infrequently, can have a <br />
+            significant impact on your device&apos;s performance.
           </>
         );
       case "Denylisted":
@@ -85,7 +85,7 @@ const PerformanceImpactCell = ({
   const tooltipId = uniqueId();
 
   return (
-    <>
+    <span className={`${baseClass}`}>
       <span
         data-tip
         data-for={`${customIdPrefix || "pill"}__${id?.toString() || tooltipId}`}
@@ -108,7 +108,7 @@ const PerformanceImpactCell = ({
           {tooltipText()}
         </span>
       </ReactTooltip>
-    </>
+    </span>
   );
 };
 

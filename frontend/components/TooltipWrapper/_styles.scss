@@ -16,20 +16,6 @@
   }
 
   &__tip-text {
-    width: max-content;
-    max-width: 360px;
-    padding: 6px;
-    color: $core-white;
-    background-color: $tooltip-bg;
-    font-weight: $regular;
-    font-size: $xx-small;
-    border-radius: 4px;
-    box-sizing: border-box;
-    z-index: 99; // not more than the site nav
-    line-height: 1.375;
-    white-space: initial;
-    p {
-      margin: 0;
-    }
+    @include tooltip-text;
   }
 }
