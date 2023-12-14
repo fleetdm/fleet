@@ -11,7 +11,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import Checkbox from "components/forms/fields/Checkbox";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import PillCell from "components/TableContainer/DataTable/PillCell";
+import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -45,7 +45,7 @@ interface ICellProps extends IRowProps {
   };
 }
 
-interface IPillCellProps extends IRowProps {
+interface IPerformanceImpactCellProps extends IRowProps {
   cell: {
     value: { indicator: string; id: number };
   };
@@ -64,7 +64,7 @@ interface IDataColumn {
   accessor?: string;
   Cell:
     | ((props: ICellProps) => JSX.Element)
-    | ((props: IPillCellProps) => JSX.Element)
+    | ((props: IPerformanceImpactCellProps) => JSX.Element)
     | ((props: IDropdownCellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
@@ -170,8 +170,8 @@ const generateTableHeaders = (
       },
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps: IPillCellProps) => (
-        <PillCell value={cellProps.cell.value} />
+      Cell: (cellProps: IPerformanceImpactCellProps) => (
+        <PerformanceImpactCell value={cellProps.cell.value} />
       ),
     },
     {

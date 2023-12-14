@@ -5,7 +5,7 @@ import { uniqueId } from "lodash";
 import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
 
-interface IPillCellProps {
+interface IPerformanceImpactCellProps {
   value: { indicator: string; id: number };
   isHostSpecific?: boolean;
   customIdPrefix?: string;
@@ -15,11 +15,11 @@ const generateClassTag = (rawValue: string): string => {
   return rawValue.replace(" ", "-").toLowerCase();
 };
 
-const PillCell = ({
+const PerformanceImpactCell = ({
   value,
   isHostSpecific = false,
   customIdPrefix,
-}: IPillCellProps): JSX.Element => {
+}: IPerformanceImpactCellProps): JSX.Element => {
   const { indicator, id } = value;
   const pillClassName = classnames(
     "data-table__pill",
@@ -108,4 +108,4 @@ const PillCell = ({
   );
 };
 
-export default PillCell;
+export default PerformanceImpactCell;

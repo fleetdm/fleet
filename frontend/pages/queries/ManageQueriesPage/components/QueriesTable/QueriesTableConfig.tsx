@@ -21,7 +21,7 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import PillCell from "components/TableContainer/DataTable/PillCell";
+import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { COLORS } from "styles/var/colors";
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
@@ -205,7 +205,7 @@ const generateTableHeaders = ({
       disableSortBy: true,
       accessor: "performance",
       Cell: (cellProps: IStringCellProps) => (
-        <PillCell
+        <PerformanceImpactCell
           value={{
             indicator: cellProps.cell.value,
             id: cellProps.row.original.id,
