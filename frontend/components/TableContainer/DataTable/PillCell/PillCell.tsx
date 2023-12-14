@@ -7,8 +7,8 @@ import { COLORS } from "styles/var/colors";
 
 interface IPillCellProps {
   value: { indicator: string; id: number };
+  isHostSpecific?: boolean;
   customIdPrefix?: string;
-  hostDetails?: boolean;
 }
 
 const generateClassTag = (rawValue: string): string => {
@@ -17,8 +17,8 @@ const generateClassTag = (rawValue: string): string => {
 
 const PillCell = ({
   value,
+  isHostSpecific = false,
   customIdPrefix,
-  hostDetails,
 }: IPillCellProps): JSX.Element => {
   const { indicator, id } = value;
   const pillClassName = classnames(
@@ -27,20 +27,12 @@ const PillCell = ({
     "tooltip"
   );
 
-  const disable = () => {
-    switch (indicator) {
-      case "Minimal":
-        return false;
-      case "Considerable":
-        return false;
-      case "Excessive":
-        return false;
-      case "Undetermined":
-        return false;
-      default:
-        return true;
-    }
-  };
+  const disableTooltip = ![
+    "Minimal",
+    "Considerable",
+    "Excessive",
+    "Undetermined",
+  ].includes(indicator);
 
   const tooltipText = () => {
     switch (indicator) {
@@ -48,7 +40,8 @@ const PillCell = ({
         return (
           <>
             Running this query very <br />
-            frequently has little to no <br /> impact on your device’s <br />
+            frequently has little to no <br /> impact on your device&apos;s{" "}
+            <br />
             performance.
           </>
         );
@@ -56,14 +49,14 @@ const PillCell = ({
         return (
           <>
             Running this query <br /> frequently can have a <br /> noticeable
-            impact on your <br /> device’s performance.
+            impact on your <br /> device&apos;s performance.
           </>
         );
       case "Excessive":
         return (
           <>
             Running this query, even <br /> infrequently, can have a <br />
-            significant impact on your <br /> device’s performance.
+            significant impact on your <br /> device&apos;s performance.
           </>
         );
       case "Denylisted":
@@ -76,8 +69,9 @@ const PillCell = ({
       case "Undetermined":
         return (
           <>
-            Performance impact will be available when this <br />
-            query runs.
+            Performance impact will be available when{" "}
+            {isHostSpecific ? "the" : "this"} <br />
+            query runs{isHostSpecific && " on this host"}.
           </>
         );
       default:
@@ -91,7 +85,7 @@ const PillCell = ({
       <span
         data-tip
         data-for={`${customIdPrefix || "pill"}__${id?.toString() || tooltipId}`}
-        data-tip-disable={disable()}
+        data-tip-disable={disableTooltip}
       >
         <span className={pillClassName}>{indicator}</span>
       </span>

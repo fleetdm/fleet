@@ -91,7 +91,7 @@ const generateColumnConfigs = (
             <PillCell
               value={cellProps.cell.value}
               customIdPrefix="query-perf-pill"
-              hostDetails
+              isHostSpecific
             />
             {!queryReportsDisabled &&
               cellProps.row.original.should_link_to_hqr && (
