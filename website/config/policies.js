@@ -55,7 +55,7 @@ module.exports.policies = {
   'view-upgrade': true,
   'deliver-premium-upgrade-form': true,
   'view-compliance': true,
-  'view-osquery-management': true,
+  'view-endpoint-ops': true,
   'view-vulnerability-management': true,
   'deliver-mdm-demo-email': true,
   'view-support': true,
