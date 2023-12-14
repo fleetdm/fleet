@@ -145,7 +145,7 @@ func (r *Runner) HasLocalHash(target string) bool {
 func randomizeDuration(max time.Duration) (time.Duration, error) {
 	nBig, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 	return time.Duration(nBig.Int64()), nil
 }
