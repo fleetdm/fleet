@@ -142,22 +142,32 @@ func (r *Runner) HasLocalHash(target string) bool {
 	return ok
 }
 
+func randomizeDuration(min time.Duration, max time.Duration) (time.Duration, error) {
+	nBig, err := rand.Int(rand.Reader, big.NewInt(int64(max-min)))
+	if err != nil {
+		return 0, nil
+	}
+	return time.Duration(nBig.Int64()) + min, nil
+}
+
 // Execute begins a loop checking for updates.
 func (r *Runner) Execute() error {
 	log.Debug().Msg("start updater")
 
 	// Randomize the initial interval so that all agents don't synchronize their updates
 	initialInterval := r.opt.CheckInterval
-	// Assuming CheckInterval > 0 because we validated it in NewRunner
-	nBig, err := rand.Int(rand.Reader, big.NewInt(int64(r.opt.CheckInterval)))
+	var randomizedInterval time.Duration
+	var err error
+	if initialInterval < 10*time.Minute {
+		// Developers use a shorter update interval (10s), so they need a faster first update check
+		randomizedInterval, err = randomizeDuration(0, initialInterval)
+	} else {
+		randomizedInterval, err = randomizeDuration(time.Minute, 10*time.Minute)
+	}
 	if err != nil {
 		log.Info().Err(err).Msg("randomization of initial update interval failed")
 	} else {
-		initialInterval = time.Duration(nBig.Int64())
-	}
-	const minInitialInterval = 2 * time.Second
-	if initialInterval < minInitialInterval {
-		initialInterval = minInitialInterval
+		initialInterval = initialInterval + randomizedInterval
 	}
 
 	ticker := time.NewTicker(initialInterval)

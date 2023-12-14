@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,4 +51,11 @@ func TestNewRunner(t *testing.T) {
 	didUpdate, err = r2.UpdateAction()
 	require.NoError(t, err)
 	require.False(t, didUpdate)
+}
+
+func TestRandomizeDuration(t *testing.T) {
+	rand, err := randomizeDuration(time.Minute, 10*time.Minute)
+	require.NoError(t, err)
+	assert.True(t, rand >= time.Minute)
+	assert.True(t, rand < 10*time.Minute)
 }
