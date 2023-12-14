@@ -32,6 +32,7 @@ variable "fleet_license" {}
 variable "fleet_image" {
   default = "160035666661.dkr.ecr.us-east-2.amazonaws.com/fleet:1f68e7a5e39339d763da26a0c8ae3e459b2e1f016538d7962312310493381f7c"
 }
+variable "geolite2_license" {}
 variable "fleet_sentry_dsn" {}
 variable "elastic_url" {}
 variable "elastic_token" {}
@@ -41,6 +42,7 @@ data "aws_caller_identity" "current" {}
 locals {
   customer    = "fleet-dogfood"
   fleet_image = var.fleet_image # Set this to the version of fleet to be deployed
+  geolite2_image = "${aws_ecr_repository.fleet.repository_url}:${split(":", var.fleet_image)[1]}-geolite2"
   extra_environment_variables = {
     FLEET_LICENSE_KEY                          = var.fleet_license
     FLEET_LOGGING_DEBUG                        = "true"
@@ -425,4 +427,9 @@ resource "aws_s3_object" "idp_metadata" {
   acl    = "public-read"
 }
 
-
+module "geolite2" {
+  source = "../../../../terraform/addons/geolite2"
+  fleet_image = var.fleet_image
+  destination_image = local.geolite2_image
+  license_key = var.geolite2_license
+}
