@@ -2583,8 +2583,6 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 
 	require.NoError(t, s.ds.InsertCVEMeta(context.Background(), vulnMeta))
 
-	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), time.Now().UTC()))
-
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "true")
 	require.Len(t, resp.Hosts, 3)
