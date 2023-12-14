@@ -121,7 +121,7 @@ func main() {
 		},
 		&cli.DurationFlag{
 			Name:    "update-interval",
-			Usage:   "How often to check for updates",
+			Usage:   "How often to check for updates. Note: fleetd checks for updates at startup. The next update check adds some randomization and may take up to 10 minutes longer",
 			Value:   15 * time.Minute,
 			EnvVars: []string{"ORBIT_UPDATE_INTERVAL"},
 		},
