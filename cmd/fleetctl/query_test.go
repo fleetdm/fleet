@@ -76,9 +76,6 @@ func TestSavedLiveQuery(t *testing.T) {
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 		return fleet.TargetMetrics{TotalHosts: 1, OnlineHosts: 1}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-		return nil
-	}
 
 	lq.On("QueriesForHost", uint(1)).Return(
 		map[string]string{
@@ -149,7 +146,9 @@ func TestSavedLiveQuery(t *testing.T) {
 
 	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
 `
-	assert.Equal(t, expected, runAppForTest(t, []string{"query", "--hosts", "1234", "--query-name", "saved-query"}))
+	// Note: runAppForTest never closes the WebSocket connection and does not exit,
+	// so we are unable to see the activity data that is written after WebSocket disconnects.
+	assert.Equal(t, expected, runAppForTest(t, []string{"query", "--hosts", "1234", "--query-name", queryName}))
 
 	// We need to use waitGroups to detect whether Database functions were called because this is an asynchronous test which will flag data races otherwise.
 	c := make(chan struct{})
@@ -224,9 +223,6 @@ func TestAdHocLiveQuery(t *testing.T) {
 		ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time,
 	) (fleet.TargetMetrics, error) {
 		return fleet.TargetMetrics{TotalHosts: 1, OnlineHosts: 1}, nil
-	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-		return nil
 	}
 
 	lq.On("QueriesForHost", uint(1)).Return(
