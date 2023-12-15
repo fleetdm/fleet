@@ -10,6 +10,10 @@ func init() {
 }
 
 func Up_20231215122713(tx *sql.Tx) error {
+	// NOTE these queries are duplicated in the mysql method here.  Updates
+	// to these queries should be reflected there as well.
+	// https://github.com/fleetdm/fleet/blob/main/server/datastore/mysql/policies.go#L1125
+
 	// Update Counts for Inherited Global Policies for each Team
 	inheritedStatsQuery := `
 		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
