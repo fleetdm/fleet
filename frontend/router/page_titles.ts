@@ -1,6 +1,7 @@
 // Note: Dynamic page titles are constructed for host, software, query, and policy details on their respective *DetailsPage.tsx file
 
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import PATHS from "router/paths";
 
 // Note: Order matters for use of array.find() (specific subpaths must be listed before their parent path)
 export default [
@@ -19,16 +20,23 @@ export default [
     title: `Manage setup experience | ${DOCUMENT_TITLE_SUFFIX}`,
   },
   {
-    path: `/software/manage", title: "Manage software | ${DOCUMENT_TITLE_SUFFIX}`,
+    path: PATHS.SOFTWARE_TITLES,
+    title: `Software titles | ${DOCUMENT_TITLE_SUFFIX}`,
   },
   {
-    path: `/queries/manage", title: "Manage queries | ${DOCUMENT_TITLE_SUFFIX}`,
+    path: PATHS.SOFTWARE_VERSIONS,
+    title: `Software versions | ${DOCUMENT_TITLE_SUFFIX}`,
   },
-  { path: `/queries/new", title: "New query | ${DOCUMENT_TITLE_SUFFIX}` },
   {
-    path: `/policies/manage", title: "Manage policies | ${DOCUMENT_TITLE_SUFFIX}`,
+    path: "/queries/manage",
+    title: `Manage queries | ${DOCUMENT_TITLE_SUFFIX}`,
   },
-  { path: `/policies/new", title: "New policy | ${DOCUMENT_TITLE_SUFFIX}` },
+  { path: "/queries/new", title: `New query | ${DOCUMENT_TITLE_SUFFIX}` },
+  {
+    path: "/policies/manage",
+    title: `Manage policies | ${DOCUMENT_TITLE_SUFFIX}`,
+  },
+  { path: "/policies/new", title: `New policy | ${DOCUMENT_TITLE_SUFFIX}` },
   {
     path: "/settings/organization",
     title: `Manage organization settings | ${DOCUMENT_TITLE_SUFFIX}`,
