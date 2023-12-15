@@ -220,6 +220,13 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_ENABLE_SCRIPTS"},
 				Destination: &opt.EnableScripts,
 			},
+			&cli.StringFlag{
+				Name:        "host-identifier",
+				Usage:       "Sets the host identifier that orbit and osquery will use when enrolling to Fleet. Options: 'uuid' and 'instance' (requires Fleet >= v4.42.0)",
+				Value:       "uuid",
+				EnvVars:     []string{"FLEETCTL_HOST_IDENTIFIER"},
+				Destination: &opt.HostIdentifier,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {
@@ -234,6 +241,10 @@ func packageCommand() *cli.Command {
 
 			if opt.Insecure && opt.UpdateTLSServerCertificate != "" {
 				return errors.New("--insecure and --update-tls-certificate may not be provided together")
+			}
+
+			if opt.HostIdentifier != "uuid" && opt.HostIdentifier != "instance" {
+				return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", opt.HostIdentifier)
 			}
 
 			// Perform checks on the provided fleet client certificate and key.

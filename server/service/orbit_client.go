@@ -185,11 +185,12 @@ func (oc *OrbitClient) Ping() error {
 func (oc *OrbitClient) enroll() (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/enroll"
 	params := EnrollOrbitRequest{
-		EnrollSecret:   oc.enrollSecret,
-		HardwareUUID:   oc.hostInfo.HardwareUUID,
-		HardwareSerial: oc.hostInfo.HardwareSerial,
-		Hostname:       oc.hostInfo.Hostname,
-		Platform:       oc.hostInfo.Platform,
+		EnrollSecret:      oc.enrollSecret,
+		HardwareUUID:      oc.hostInfo.HardwareUUID,
+		HardwareSerial:    oc.hostInfo.HardwareSerial,
+		Hostname:          oc.hostInfo.Hostname,
+		Platform:          oc.hostInfo.Platform,
+		OsqueryIdentifier: oc.hostInfo.OsqueryIdentifier,
 	}
 	var resp EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)

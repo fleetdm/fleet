@@ -1609,12 +1609,19 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	return &summary, nil
 }
 
+type enroll uint
+
+const (
+	osqueryEnroll enroll = iota
+	orbitEnroll
+	mdmEnroll
+)
+
 // Attempts to find the matching host ID by osqueryID, host UUID or serial
 // number. Any of those fields can be left empty if not available, and it will
 // use the best match in this order:
 // * if it matched on osquery_host_id (with osqueryID or uuid), use that host
-// * otherwise if it matched on uuid, use that host
-// * otherwise use the match on serial
+// * otherwise if it matched on serial, use that host
 //
 // Note that in general, all options should result in a single match anyway.
 // It's just that our DB schema doesn't enforce this (only osquery_host_id has
@@ -1624,7 +1631,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 // able to match by serial in this scenario, since this is the only information
 // we get when enrolling hosts via Apple DEP) AND if the matched host is on the
 // macOS platform (darwin).
-func matchHostDuringEnrollment(ctx context.Context, q sqlx.QueryerContext, isMDMEnabled bool, osqueryID, uuid, serial string) (uint, time.Time, error) {
+func matchHostDuringEnrollment(ctx context.Context, q sqlx.QueryerContext, enrollType enroll, isMDMEnabled bool, osqueryID, uuid, serial string) (uint, time.Time, error) {
 	type hostMatch struct {
 		ID             uint
 		LastEnrolledAt time.Time `db:"last_enrolled_at"`
@@ -1639,32 +1646,22 @@ func matchHostDuringEnrollment(ctx context.Context, q sqlx.QueryerContext, isMDM
 
 	if osqueryID != "" || uuid != "" {
 		_, _ = query.WriteString(`(SELECT id, last_enrolled_at, 1 priority FROM hosts WHERE osquery_host_id = ?)`)
+		osqueryHostID := osqueryID
 		if osqueryID == "" {
 			// special-case, if there's no osquery identifier, use the uuid
-			osqueryID = uuid
+			osqueryHostID = uuid
 		}
-		args = append(args, osqueryID)
+		args = append(args, osqueryHostID)
 	}
 
-	// TODO(mna): for now do not match by UUID on the `uuid` field as it is not indexed.
-	// See https://github.com/fleetdm/fleet/issues/9372 and
-	// https://github.com/fleetdm/fleet/issues/9033#issuecomment-1411150758
-	// (the latter shows that it might not be top priority to index this field, if we're
-	// going to recommend using the host uuid as osquery identifier, as osquery_host_id
-	// _is_ indexed and unique).
-	// if uuid != "" {
-	//	if query.Len() > 0 {
-	//		_, _ = query.WriteString(" UNION ")
-	//	}
-	//	_, _ = query.WriteString(`(SELECT id, last_enrolled_at, 2 priority FROM hosts WHERE uuid = ? ORDER BY id LIMIT 1)`)
-	//	args = append(args, uuid)
-	// }
+	// We want to prevent orbit enrolling with an osquery identifier to be matched with the serial number.
+	orbitEnrollingWithOsqueryIdentifier := enrollType == orbitEnroll && osqueryID != ""
 
-	if serial != "" && isMDMEnabled {
+	if serial != "" && isMDMEnabled && !orbitEnrollingWithOsqueryIdentifier {
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(`(SELECT id, last_enrolled_at, 3 priority FROM hosts WHERE hardware_serial = ? AND platform = ? ORDER BY id LIMIT 1)`)
+		_, _ = query.WriteString(`(SELECT id, last_enrolled_at, 2 priority FROM hosts WHERE hardware_serial = ? AND platform = ? ORDER BY id LIMIT 1)`)
 		args = append(args, serial, "darwin")
 	}
 
@@ -1692,7 +1689,15 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 
 	var host fleet.Host
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		hostID, _, err := matchHostDuringEnrollment(ctx, tx, isMDMEnabled, "", hostInfo.HardwareUUID, hostInfo.HardwareSerial)
+		hostID, _, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isMDMEnabled, hostInfo.OsqueryIdentifier, hostInfo.HardwareUUID, hostInfo.HardwareSerial)
+
+		// If the osquery identifier that osqueryd will use was not sent by Orbit, then use the hardware UUID as identifier
+		// (using the hardware UUID is Orbit's default behavior).
+		osqueryIdentifier := hostInfo.OsqueryIdentifier
+		if osqueryIdentifier == "" {
+			osqueryIdentifier = hostInfo.HardwareUUID
+		}
+
 		switch {
 		case err == nil:
 			sqlUpdate := `
@@ -1708,7 +1713,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 			_, err := tx.ExecContext(ctx, sqlUpdate,
 				orbitNodeKey,
 				hostInfo.HardwareUUID,
-				hostInfo.HardwareUUID,
+				osqueryIdentifier,
 				hostInfo.HardwareSerial,
 				teamID,
 				hostID,
@@ -1747,7 +1752,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 				zeroTime,
 				zeroTime,
 				zeroTime,
-				hostInfo.HardwareUUID,
+				osqueryIdentifier,
 				hostInfo.HardwareUUID,
 				orbitNodeKey,
 				teamID,
@@ -1791,7 +1796,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
 
-		matchedID, lastEnrolledAt, err := matchHostDuringEnrollment(ctx, tx, isMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial)
+		matchedID, lastEnrolledAt, err := matchHostDuringEnrollment(ctx, tx, osqueryEnroll, isMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial)
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
