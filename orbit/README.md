@@ -13,35 +13,12 @@ To report a bug or request a feature, [click here](https://github.com/fleetdm/fl
 
 #### Orbit Development
 
-##### Run Orbit From Source
-
-To execute orbit from source directly, run the following command:
-
-```sh
-go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
-    --dev-mode \
-    --disable-updates \
-    --root-dir /tmp/orbit \
-    --fleet-url https://localhost:8080 \
-    --insecure \
-    --enroll-secret Pz3zC0NMDdZfb3FtqiLgwoexItojrYh/ \
-    -- --verbose
-```
-
-Or, using a `flagfile.txt` for osqueryd:
-```sh 
-go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
-    --dev-mode \
-    --disable-updates \
-    --root-dir /tmp/orbit \
-    -- --flagfile=flagfile.txt --verbose
-```
-
-##### Generate Installer Packages from Orbit Source
+##### Generate fleetd installer packages from source
 
 The `fleetctl package` command generates installers by fetching the targets/executables from a [TUF](https://theupdateframework.io/) repository.
 To generate an installer that contains an Orbit built from source you need to setup a local TUF repository.
 The following document explains how you can generate a TUF repository, and installers that use it [tools/tuf/test](../tools/tuf/test/README.md).
+
 ## FAQs
 
 ### How does Orbit compare with Kolide Launcher?

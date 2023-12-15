@@ -131,11 +131,6 @@ func main() {
 			EnvVars: []string{"ORBIT_DISABLE_UPDATES"},
 		},
 		&cli.BoolFlag{
-			Name:    "dev-mode",
-			Usage:   "Runs in development mode",
-			EnvVars: []string{"ORBIT_DEV_MODE"},
-		},
-		&cli.BoolFlag{
 			Name:    "debug",
 			Usage:   "Enable debug logging",
 			EnvVars: []string{"ORBIT_DEBUG"},
@@ -390,11 +385,9 @@ func main() {
 			opt.ClientCertificate = &updateClientCrt.Crt
 		}
 
-		// NOTE: When running in dev-mode, even if `disable-updates` is set,
-		// it fetches osqueryd once as part of initialization.
 		var updater *update.Updater
 		var updateRunner *update.Runner
-		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
+		if !c.Bool("disable-updates") {
 			updater, err = update.NewUpdater(opt)
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
@@ -406,9 +399,6 @@ func main() {
 			targets := []string{"orbit", "osqueryd"}
 			if c.Bool("fleet-desktop") {
 				targets = append(targets, "desktop")
-			}
-			if c.Bool("dev-mode") {
-				targets = targets[1:] // exclude orbit itself on dev-mode.
 			}
 			updateRunner, err = update.NewRunner(updater, update.RunnerOptions{
 				CheckInterval: c.Duration("update-interval"),
@@ -437,7 +427,7 @@ func main() {
 			if err != nil {
 				log.Info().Err(err).Msg("early update check failed")
 			}
-			if didUpdate && !c.Bool("dev-mode") {
+			if didUpdate {
 				log.Info().Msg("exiting due to successful early update")
 				return nil
 			}
@@ -758,7 +748,7 @@ func main() {
 		// only setup extensions autoupdate if we have enabled updates
 		// for extensions autoupdate, we can only proceed after orbit is enrolled in fleet
 		// and all relevant things for it (like certs, enroll secrets, tls proxy, etc) is configured
-		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
+		if !c.Bool("disable-updates") {
 			const orbitExtensionUpdateInterval = 60 * time.Second
 			extRunner := update.NewExtensionConfigUpdateRunner(configFetcher, update.ExtensionUpdateOptions{
 				CheckInterval: orbitExtensionUpdateInterval,
