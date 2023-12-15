@@ -863,6 +863,25 @@ Windows MDM features are not ready for production and are currently in developme
 
 This activity does not contain any detail fields.
 
+## queued_script
+
+Generated when a script is sent to the queue to run on offline hosts when they come online.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "script_name": Name of the saved script that's queued.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "script_name": "set-timezone.sh",
+}
+```
+
 ## ran_script
 
 Generated when a script is sent to be run for a host.
