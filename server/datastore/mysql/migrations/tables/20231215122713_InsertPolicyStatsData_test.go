@@ -28,6 +28,7 @@ func TestUp_20231215122713(t *testing.T) {
 
 	// insert 1 team policy
 	_, err = db.Exec(`INSERT INTO policies (name, description, query, platforms, critical, team_id) VALUES ('policy2', 'policy2', 'select 1', 'mac', 1, 1)`)
+	require.NoError(t, err)
 
 	// insert policy_membership rows
 	_, err = db.Exec(`INSERT INTO policy_membership (policy_id, host_id, passes) VALUES (1, ?, 1)`, h1)
