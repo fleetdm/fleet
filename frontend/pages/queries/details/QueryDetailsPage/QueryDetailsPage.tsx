@@ -110,7 +110,13 @@ const QueryDetailsPage = ({
   } = useContext(QueryContext);
 
   // Title that shows up on browser tabs (e.g., Query details | Discover TLS certificates | Fleet for osquery)
-  document.title = `Query details | ${lastEditedQueryName} | ${DOCUMENT_TITLE_SUFFIX}`;
+
+  useEffect(() => {
+    const queryNameTitle = lastEditedQueryName
+      ? `${lastEditedQueryName} |`
+      : null;
+    document.title = `Query details | ${queryNameTitle} ${DOCUMENT_TITLE_SUFFIX}`;
+  }, [lastEditedQueryName]);
 
   const [disabledCachingGlobally, setDisabledCachingGlobally] = useState(true);
 
