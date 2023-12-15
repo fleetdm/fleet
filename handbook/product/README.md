@@ -65,10 +65,10 @@ When starting a new draft:
 
 > As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
 
-### Ensure product user-story is complete
-Once the draft has been approved, it moves to the "Settled" column on the drafting board. 
+### Ensure story drafting is complete
+Once a story has gone through design and is considered "Settled", it moves to the "Settled" column on the drafting board and assign to the Engineering Manager (EM).
 
-Before assigning an engineering manager to [estimate](https://fleetdm.com/handbook/engineering#sprint-ceremonies) a user story, the product designer ensures the product section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
+Before assigning an EM to [estimate](https://fleetdm.com/handbook/engineering#sprint-ceremonies) a user story, the product designer ensures the product section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
 
 Once a bug has gone through design and is considered "Settled", the designer removes the `:product` label and moves the issue to the 'Sprint backlog' column on the "Bugs" board and assigns the group engineering manager. 
 
@@ -158,8 +158,8 @@ The following highlights should be considered when deciding if we promote a feat
   explains why the feature is advertised as "beta" and tracking the feature's progress towards advertising the feature as "stable."
 - The feature will be advertised as "beta" in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
-### Maintain compatibility with current versions of operating systems and CIS benchmarks
-Fleet's product offerings depend on the capabilities of other platforms. This requires the ongoing attention of the product and engineering teams to ensure that we are up-to-date with new capabilities and that our existing capabilities continue to function. The first step to staying up-to-date with Fleet's partners is to know when the partner platform changes. 
+### Maintain current versions
+Fleet's product depends on the capabilities of other platforms.
 
 Every week, a member of the product team looks up whether there is:
 1. a new major or minor version of [macOS](https://support.apple.com/en-us/HT201260)
@@ -169,9 +169,6 @@ Every week, a member of the product team looks up whether there is:
 5. a new major or minor version of [ChromeOS](https://chromereleases.googleblog.com/search/label/Chrome%20OS)
 
 The DRI should record the latest versions in the [maintenance tracker](https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit#gid=0) and then notify the [#help-product-design Slack channel](https://fleetdm.slack.com/archives/C02A8BRABB5) with an update, noting the current versions and highlighting any changes.
-
-### Submit a new CIS benchmark set for certification
-When we create new CIS benchmarks, also submit the new CIS benchmark set to CIS for [certification](https://www.cisecurity.org/cis-securesuite/pricing-and-categories/product-vendor/cis-benchmark-assessment#:~:text=In%20order%20to%20incorporate%20and,recommendations%20in%20the%20associated%20CIS). 
 
 ### View Fleet usage statistics
 In order to understand the usage of the Fleet product, we [collect statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
@@ -270,7 +267,7 @@ Please see [handbook/product#revise-a-draft-currently-in-development](https://fl
 Please see [handbook/product#outside-contributions](https://fleetdm.com/handbook/product#outside-contributions)
 
 ##### Prioritizing bugs
-handbook/product#correctly-prioritize-a-bug](https://fleetdm.com/handbook/product#correctly-prioritize-a-bug)
+Please see [handbook/product#correctly-prioritize-a-bug](https://fleetdm.com/handbook/product#correctly-prioritize-a-bug)
 
 ##### Writing user stories
 Please see [handbook/product#write-a-user-story](https://fleetdm.com/handbook/product#write-a-user-story)

@@ -250,6 +250,12 @@ The maximum open connections to the database.
     max_open_conns: 50
   ```
 
+- Note: Fleet server uses SQL prepared statements, and the default setting of MySQL DB server's [max_prepared_stmt_count](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_prepared_stmt_count)
+may need to be adjusted for large deployments. This setting should be greater than or equal to:
+```
+FLEET_MYSQL_MAX_OPEN_CONNS * (max number of fleet servers) * 4
+```
+
 ##### mysql_max_idle_conns
 
 The maximum idle connections to the database. This value should be equal to or less than `mysql_max_open_conns`.
@@ -1332,7 +1338,7 @@ This flag only has effect if one of the following is true:
 - `activity_audit_log_plugin` is set to `filesystem` and `activity_enable_audit_log` is set to `true`.
 
 This flag will cause the osquery result and status log files to be automatically
-rotated when files reach a size of 500 Mb or an age of 28 days.
+rotated when files reach a size of 500 MB or an age of 28 days.
 
 - Default value: `false`
 - Environment variable: `FLEET_FILESYSTEM_ENABLE_LOG_ROTATION`

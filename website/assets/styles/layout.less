@@ -23,9 +23,6 @@ html, body {
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
-  transition-property: background-color, transform, bottom;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 500ms;
 }
 
 // Styles for the page header
@@ -39,6 +36,9 @@ html, body {
   position: sticky;
   position: -webkit-sticky; //lesshint-disable-line duplicateProperty
   top: 0;
+  transition-property: transform, bottom;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 500ms;
 }
 
 [purpose='header-ribbon-cta'] {
@@ -448,7 +448,8 @@ body.detected-mobile {
   }
 }
 
-// Some utilities for the sticky nav behaviour
-.translate-y-0 {
-    transform: translateY(-235px);
+// Some utilities for the sticky nav behaviour.
+// Note: this will not be applied if a navigation menu open.
+.translate-y-0:not(:has(.show)) {
+  transform: translateY(-235px);
 }

@@ -104,7 +104,7 @@ const PacksTable = ({
     <div className={`${baseClass}`}>
       <TableContainer
         resultsTitle={"packs"}
-        columns={tableHeaders}
+        columnConfigs={tableHeaders}
         data={generateDataSet(filteredPacks)}
         isLoading={isLoading}
         defaultSortHeader={"pack"}

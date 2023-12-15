@@ -218,19 +218,18 @@ module.exports = {
         const softwareList = detailedInformationAboutThisHost.host.software;
         if (softwareList) {
           for (let software of softwareList) {
-            let softwareToAdd = {};
-            if (software.source === 'firefox_addons') {
-              softwareToAdd.name = software.name;
-              softwareToAdd.browser = 'FIREFOX';
+            let softwareToAdd = {
+              name: software.name,
+            };
+            if(software.source === 'firefox_addons' || software.source === 'chrome_extensions') {
+              softwareToAdd.browser = software.source.toUpperCase().split('_')[0];// Get the uppercased first word of the software source, this will either be CHROME or FIREFOX.
               softwareToAdd.extensionId = software.name + ' ' + software.version;// Set the extensionId to be the software's name and the software version.
+              if(software.extension_id !== undefined && software.extension_id !== null) {// If the Fleet instance reported an extension_id for the extension, we'll use that value.
+                softwareToAdd.extensionId = software.extension_id;
+              }
               macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
-            } else if (software.source === 'chrome_extensions') {
-              softwareToAdd.name = software.name;
-              softwareToAdd.extensionId = software.name + ' ' + software.version;
-              softwareToAdd.browser = 'CHROME';
-              macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
-            } else if (software.source === 'apps') {
-              softwareToAdd.name = software.name + ' ' + software.version;
+            } else if(software.source === 'apps'){
+              softwareToAdd.name += ' '+software.version;// Add the version to the software name
               softwareToAdd.bundleId = software.bundle_identifier ? software.bundle_identifier : ' '; // If the software is missing a bundle identifier, we'll set it to a blank string.
               macOsHostToSyncWithVanta.applications.push(softwareToAdd);
             }
@@ -306,19 +305,17 @@ module.exports = {
         const softwareList = detailedInformationAboutThisHost.host.software;
         if (softwareList) {
           for (let software of softwareList) {
-            let softwareToAdd = {};
-            if (software.source === 'firefox_addons') {
-              softwareToAdd.name = software.name;
-              softwareToAdd.browser = 'FIREFOX';
+            let softwareToAdd = {
+              name: software.name,
+            };
+            if (software.source === 'firefox_addons' || software.source === 'chrome_extensions') {
+              softwareToAdd.browser = software.source.toUpperCase().split('_')[0];// Get the uppercased first word of the software source, this will either be CHROME or FIREFOX.
               softwareToAdd.extensionId = software.name + ' ' + software.version;// Set the extensionId to be the software's name and the software version.
-              windowsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
-            } else if (software.source === 'chrome_extensions') {
-              softwareToAdd.name = software.name;
-              softwareToAdd.extensionId = software.name + ' ' + software.version;
-              softwareToAdd.browser = 'CHROME';
+              if(software.extension_id !== undefined && software.extension_id !== null) {// If the Fleet instance reported an extension_id for this extension, we'll use that value.
+                softwareToAdd.extensionId = software.extension_id;
+              }
               windowsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
             } else if (software.source === 'programs') {
-              softwareToAdd.name = software.name;
               windowsHostToSyncWithVanta.programs.push(softwareToAdd);
             }
           }

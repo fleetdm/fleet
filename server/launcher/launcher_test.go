@@ -68,6 +68,7 @@ func TestLauncherPublishResults(t *testing.T) {
 		results fleet.OsqueryDistributedQueryResults,
 		statuses map[string]fleet.OsqueryStatus,
 		messages map[string]string,
+		stats map[string]*fleet.Stats,
 	) (err error) {
 		assert.Equal(t, results["query"][0], result)
 		return nil
@@ -151,6 +152,7 @@ func newTLSService(t *testing.T) *mock.TLSService {
 			results fleet.OsqueryDistributedQueryResults,
 			statuses map[string]fleet.OsqueryStatus,
 			messages map[string]string,
+			stats map[string]*fleet.Stats,
 		) (err error) {
 			return
 		},

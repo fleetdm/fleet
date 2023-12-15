@@ -120,6 +120,7 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
     return (
       <>
         <UploadList
+          keyAttribute="id"
           listItems={scripts || []}
           HeadingComponent={ScriptListHeading}
           ListItemComponent={({ listItem }) => (

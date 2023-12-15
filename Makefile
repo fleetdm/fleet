@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner
 
 export GO111MODULE=on
 
@@ -187,6 +187,16 @@ deps-js:
 
 deps-go:
 	go mod download
+
+# check that the generated files in tools/cloner-check/generated_files match
+# the current version of the cloneable structures.
+check-go-cloner:
+	go run ./tools/cloner-check/main.go --check
+
+# update the files in tools/cloner-check/generated_files with the current
+# version of the cloneable structures.
+update-go-cloner:
+	go run ./tools/cloner-check/main.go --update
 
 migration:
 	go run github.com/fleetdm/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)

@@ -6,12 +6,12 @@
         <div class="d-flex flex-row justify-content-center align-items-start">
           <%/* Hero text */%>
           <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
-            <h4>For teams with thousands of computers</h4>
-            <h1>Untangle your endpoints</h1>
+            <h4>For teams with lots of endpoints</h4>
+            <h1>Focus on data, not vendors</h1>
             <p>Replace the sprawl you inherited with open-source code that works the way you want.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
-              <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
-              <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
+              <a purpose="cta-button" href="/try-fleet">Try it out</a>
+              <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Show me</a>
             </div>
           </div>
         </div>
@@ -97,7 +97,7 @@
       <div purpose="category-text-block" class="d-flex flex-column">
         <h3>Focus on data, not vendors</h3>
         <p>Use a consistent interface to deploy, update, and manage thousands of workstations and servers with open standards and data.</p>
-        <a purpose="animated-arrow-button-red" href="/osquery-management">More about endpoint ops</a>
+        <a purpose="animated-arrow-button-red" href="/endpoint-ops">More about endpoint ops</a>
       </div>
       <div purpose="category-image">
         <img purpose="endpoint-ops-image" alt="Endpoint ops" src="/images/homepage-endpoint-ops-617x440@2x.png">
@@ -108,7 +108,7 @@
     <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" :class="[selectedCategory === 'device-management' ? 'show' : 'hidden']">
       <div purpose="category-text-block" class="d-flex flex-column">
         <h3>Manage devices like code</h3>
-        <p>Automate the management of your fleet of devices with increased visibility and control, improved stability, all while automating configuration deployments using GitOps.</p>
+        <p>Manage your IT infrastructure in any browser, or use git to make changes using your existing approval processes and audit trail.</p>
         <a purpose="animated-arrow-button-red" class="text-nowrap" href="/device-management">More about device management</a>
       </div>
       <div purpose="category-image">
@@ -124,8 +124,8 @@
     <%/* Vulnerability management block */%>
     <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" :class="[selectedCategory === 'vulnerability-management' ? 'show' : 'hidden']">
       <div purpose="category-text-block" class="d-flex flex-column">
-        <h3>Build the security platform your team actually wants</h3>
-        <p>Monitor vulnerabilities in operating systems, software packages, and browser plugins. Show how quickly CVEs are resolved, and which teams need extra help.</p>
+        <h3>Build the vulnerability program you actually want</h3>
+        <p>Show how quickly CVEs are resolved and which teams need extra help. Manage and report on vulnerabilities in operating systems, software packages, browser plugins, anywhere.</p>
         <a purpose="lg-animated-arrow-button-red" href="/vulnerability-management">More about vulnerability<br> management</a>
       </div>
       <div purpose="category-image">
@@ -216,21 +216,6 @@
       </div>
     </div>
 
-    <%/* ClickOps or DevOps block */%>
-    <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
-      <div purpose="platform-small-text-block" class="d-flex flex-column">
-        <h3>ClickOps or DevOps</h3>
-        <p>Manage your IT infrastructure <a href="/docs/using-fleet/fleet-ui">in any browser</a> or use <a href="/guides/using-github-actions-to-apply-configuration-profiles-with-fleet">git</a> to make infrastructure changes as code. You can use the <a href="/docs/using-fleet/fleetctl-cli">CLI</a> or <a href="/docs/using-fleet/rest-api">API</a> to automate the deployment, configuration, and monitoring of your devices.</p>
-        <a purpose="animated-arrow-button-red" href="/docs">Explore the docs</a>
-      </div>
-      <div purpose="platform-animated-image">
-        <div purpose="animated-image-layer-1"></div>
-        <div purpose="animated-image-layer-2"></div>
-        <div purpose="animated-image-layer-3"></div>
-        <img alt="A blank image" src="/images/homepage-image-container-617x440@2x.png">
-      </div>
-    </div>
-
     <div purpose="homepage-text-block" class="text-center mx-auto">
       <h2>Open by design</h2>
       <p>Fleet is dedicated to flexibility, accessibility, and clarity. We think everyone can contribute and that tools should be as easy as possible for everyone to understand.</p>
@@ -311,8 +296,8 @@
         <h4>Open-source endpoint ops</h4>
         <h1>Lighter than air</h1>
         <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
-          <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
+          <a purpose="cta-button" href="/try-fleet">Try it out</a>
+          <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Show me</a>
         </div>
       </div>
     </div>

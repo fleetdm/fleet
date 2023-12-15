@@ -106,8 +106,12 @@ func (ds *Datastore) writer(ctx context.Context) *sqlx.DB {
 
 // loadOrPrepareStmt will load a statement from the statements cache.
 // If not available, it will attempt to prepare (create) it.
-//
 // Returns nil if it failed to prepare a statement.
+//
+// IMPORTANT: Adding prepare statements consumes MySQL server resources, and is limited by MySQL max_prepared_stmt_count
+// system variable. This method may create 1 prepare statement for EACH database connection. Customers must be notified
+// to update their MySQL configurations when additional prepare statements are added.
+// For more detail, see: https://github.com/fleetdm/fleet/issues/15476
 func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.Stmt {
 	// the cache is only available on the replica
 	if ctxdb.IsPrimaryRequired(ctx) {
@@ -787,12 +791,18 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	if perPage == 0 {
 		perPage = defaultSelectLimit
 	}
-	ds = ds.Limit(perPage)
 
 	offset := perPage * opts.Page
 	if offset > 0 {
 		ds = ds.Offset(offset)
 	}
+
+	if opts.IncludeMetadata {
+		perPage++
+	}
+
+	ds = ds.Limit(perPage)
+
 	return ds
 }
 

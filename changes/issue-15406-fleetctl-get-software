@@ -1,0 +1,1 @@
+* Updated `fleetctl get software` to list software titles, and add optional `--versions` flag to list software versions.

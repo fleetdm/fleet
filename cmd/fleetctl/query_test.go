@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -92,6 +93,27 @@ func TestLiveQuery(t *testing.T) {
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
 		return &fleet.Query{}, nil
 	}
+	ds.IsSavedQueryFunc = func(ctx context.Context, queryID uint) (bool, error) {
+		return true, nil
+	}
+	var GetLiveQueryStatsFuncWg sync.WaitGroup
+	GetLiveQueryStatsFuncWg.Add(1)
+	ds.GetLiveQueryStatsFunc = func(ctx context.Context, queryID uint, hostIDs []uint) ([]*fleet.LiveQueryStats, error) {
+		GetLiveQueryStatsFuncWg.Done()
+		return nil, nil
+	}
+	var UpdateLiveQueryStatsFuncWg sync.WaitGroup
+	UpdateLiveQueryStatsFuncWg.Add(1)
+	ds.UpdateLiveQueryStatsFunc = func(ctx context.Context, queryID uint, stats []*fleet.LiveQueryStats) error {
+		UpdateLiveQueryStatsFuncWg.Done()
+		return nil
+	}
+	var CalculateAggregatedPerfStatsPercentilesFuncWg sync.WaitGroup
+	CalculateAggregatedPerfStatsPercentilesFuncWg.Add(1)
+	ds.CalculateAggregatedPerfStatsPercentilesFunc = func(ctx context.Context, aggregate fleet.AggregatedStatsType, queryID uint) error {
+		CalculateAggregatedPerfStatsPercentilesFuncWg.Done()
+		return nil
+	}
 
 	go func() {
 		time.Sleep(2 * time.Second)
@@ -104,6 +126,12 @@ func TestLiveQuery(t *testing.T) {
 					Hostname:    "somehostname",
 					DisplayName: "somehostname",
 				},
+				Stats: &fleet.Stats{
+					WallTimeMs: 10,
+					UserTime:   20,
+					SystemTime: 30,
+					Memory:     40,
+				},
 			},
 		))
 	}()
@@ -111,4 +139,21 @@ func TestLiveQuery(t *testing.T) {
 	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"query", "--hosts", "1234", "--query", "select 42, * from time"}))
+
+	// We need to use waitGroups to detect whether Database functions were called because this is an asynchronous test which will flag data races otherwise.
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		GetLiveQueryStatsFuncWg.Wait()
+		UpdateLiveQueryStatsFuncWg.Wait()
+		CalculateAggregatedPerfStatsPercentilesFuncWg.Wait()
+	}()
+	select {
+	case <-time.After(time.Second):
+		require.Fail(
+			t,
+			"Expected invocation of one of these Database functions did not happen: GetLiveQueryStats, UpdateLiveQueryStats, or CalculateAggregatedPerfStatsPercentiles",
+		)
+	case <-c: // All good
+	}
 }
