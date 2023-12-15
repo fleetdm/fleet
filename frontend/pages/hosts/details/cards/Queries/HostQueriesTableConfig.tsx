@@ -136,9 +136,11 @@ const enhanceScheduleData = (
       discard_data,
       automations_enabled,
     } = query;
+    // getPerformanceImpactDescription takes aggregate p50 values
+    // since these are per-host, divide by executions
     const scheduledQueryPerformance = {
-      user_time_p50: user_time,
-      system_time_p50: system_time,
+      user_time_p50: executions > 0 ? user_time / executions : 0,
+      system_time_p50: executions > 0 ? system_time / executions : 0,
       total_executions: executions,
     };
     return {
