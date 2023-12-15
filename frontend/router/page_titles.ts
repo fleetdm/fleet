@@ -50,19 +50,23 @@ export default [
     title: `Manage user settings | ${DOCUMENT_TITLE_SUFFIX}`,
   },
   {
-    path: PATHS.TEAM_DETAILS_MEMBERS(),
+    path: "/settings/teams/members",
+    // TODO
+    // path: PATHS.TEAM_DETAILS_MEMBERS(), needs params
     title: `Manage team members | ${DOCUMENT_TITLE_SUFFIX}`,
   },
   {
-    path: PATHS.TEAM_DETAILS_OPTIONS(),
+    path: "/settings/teams/options",
+    // TODO
+    // path: PATHS.TEAM_DETAILS_OPTIONS(), needs params
     title: `Manage team options | ${DOCUMENT_TITLE_SUFFIX}`,
   },
   {
-    path: "/settings/teams",
+    path: PATHS.ADMIN_TEAMS,
     title: `Manage team settings | ${DOCUMENT_TITLE_SUFFIX}`,
   },
   {
-    path: "/profile",
+    path: PATHS.USER_SETTINGS,
     title: `Manage my account | ${DOCUMENT_TITLE_SUFFIX}`,
   },
 ];
