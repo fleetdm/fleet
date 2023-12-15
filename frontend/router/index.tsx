@@ -181,13 +181,12 @@ const routes = (
               component={ManageHostsPage}
             />
             <Route path=":host_id" component={HostDetailsPage}>
+              <Redirect from="schedule" to="queries" />
               <Route path="scripts" component={HostDetailsPage} />
               <Route path="software" component={HostDetailsPage} />
               <Route path="queries" component={HostDetailsPage} />
               <Route path=":query_id" component={HostQueryReport} />
               <Route path="policies" component={HostDetailsPage} />
-              {/* legacy route */}
-              <Redirect from="schedule" to="queries" />
             </Route>
 
             <Route

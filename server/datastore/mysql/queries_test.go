@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"math/rand"
 	"sort"
 	"testing"
 
@@ -29,7 +30,6 @@ func TestQueries(t *testing.T) {
 		{"List", testQueriesList},
 		{"LoadPacksForQueries", testQueriesLoadPacksForQueries},
 		{"DuplicateNew", testQueriesDuplicateNew},
-		{"ListFiltersObservers", testQueriesListFiltersObservers},
 		{"ObserverCanRunQuery", testObserverCanRunQuery},
 		{"ListQueriesFiltersByTeamID", testListQueriesFiltersByTeamID},
 		{"ListQueriesFiltersByIsScheduled", testListQueriesFiltersByIsScheduled},
@@ -177,7 +177,7 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	assert.NotEqual(t, query.ID, 0)
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), query.ID, []*fleet.LiveQueryStats{
-			&fleet.LiveQueryStats{
+			{
 				HostID: hostID,
 			},
 		},
@@ -353,12 +353,13 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewQuery(context.Background(), &fleet.Query{
-			Name:        fmt.Sprintf("name%02d", i),
-			Query:       fmt.Sprintf("query%02d", i),
-			Saved:       true,
-			AuthorID:    &user.ID,
-			DiscardData: true,
-			Logging:     fleet.LoggingSnapshot,
+			Name:           fmt.Sprintf("name%02d", i),
+			Query:          fmt.Sprintf("query%02d", i),
+			Saved:          true,
+			AuthorID:       &user.ID,
+			DiscardData:    true,
+			ObserverCanRun: rand.Intn(2) == 0, //nolint:gosec
+			Logging:        fleet.LoggingSnapshot,
 		})
 		require.Nil(t, err)
 	}
@@ -572,43 +573,6 @@ func testQueriesDuplicateNew(t *testing.T, ds *Datastore) {
 		Logging: fleet.LoggingSnapshot,
 	})
 	require.Contains(t, err.Error(), "already exists")
-}
-
-func testQueriesListFiltersObservers(t *testing.T, ds *Datastore) {
-	_, err := ds.NewQuery(context.Background(), &fleet.Query{
-		Name:    "query1",
-		Query:   "select 1;",
-		Saved:   true,
-		Logging: fleet.LoggingSnapshot,
-	})
-	require.NoError(t, err)
-	_, err = ds.NewQuery(context.Background(), &fleet.Query{
-		Name:    "query2",
-		Query:   "select 1;",
-		Saved:   true,
-		Logging: fleet.LoggingSnapshot,
-	})
-	require.NoError(t, err)
-	query3, err := ds.NewQuery(context.Background(), &fleet.Query{
-		Name:           "query3",
-		Query:          "select 1;",
-		Saved:          true,
-		ObserverCanRun: true,
-		Logging:        fleet.LoggingSnapshot,
-	})
-	require.NoError(t, err)
-
-	queries, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
-	require.NoError(t, err)
-	require.Len(t, queries, 3)
-
-	queries, err = ds.ListQueries(
-		context.Background(),
-		fleet.ListQueryOptions{OnlyObserverCanRun: true, ListOptions: fleet.ListOptions{PerPage: 1}},
-	)
-	require.NoError(t, err)
-	require.Len(t, queries, 1)
-	require.Equal(t, query3.ID, queries[0].ID)
 }
 
 func testObserverCanRunQuery(t *testing.T, ds *Datastore) {
@@ -1057,5 +1021,4 @@ func testIsSavedQuery(t *testing.T, ds *Datastore) {
 	// error case
 	_, err = ds.IsSavedQuery(context.Background(), math.MaxUint)
 	require.Error(t, err)
-
 }

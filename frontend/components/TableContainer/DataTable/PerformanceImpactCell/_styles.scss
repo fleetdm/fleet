@@ -1,3 +1,9 @@
+.performance-impact-cell {
+  .__react_component_tooltip {
+    @include tooltip-text;
+  }
+}
+
 .data-table__pill {
   color: $core-fleet-black;
   font-weight: $bold;
