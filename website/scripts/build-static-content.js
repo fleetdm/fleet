@@ -882,7 +882,7 @@ module.exports = {
             try {
               videoLinkToCheck = new URL(testimonial.youtubeVideoUrl);
             } catch(err) {
-              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial has a "youtubeVideoUrl" value with an invalid URL. Please make sure all "youtubeVideoUrl" values are valid URLs and standard Youtube links (e.g, https://www.youtube.com/watch?v=siXy9aanOu4), and try running this script again. Invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}`);
+              throw new Error(`Could not build testimonial config from testimonials.yml. When trying to parse a "youtubeVideoUrl" value, an erro occured. Please make sure all "youtubeVideoUrl" values are valid URLs and standard Youtube links (e.g, https://www.youtube.com/watch?v=siXy9aanOu4), and try running this script again. Invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}. error: ${err}`);
             }
             // If this is a youtu.be link, the video ID will be the pathname of the URL.
             if(!videoLinkToCheck.host.match(/w*\.*youtube\.com$/)) {
