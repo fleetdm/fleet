@@ -183,11 +183,12 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		level.Error(logger).Log("msg", "error checking saved query", "query.id", campaign.QueryID, "err", err)
 		perfStatsTracker.saveStats = false
 	}
-	// We aggregate stats and add activity at the end.
+	// We aggregate stats and add activity at the end. Using context without cancel for precaution.
 	queryID := campaign.QueryID
+	ctxWithoutCancel := context.WithoutCancel(ctx)
 	defer func() {
-		svc.updateStats(ctx, queryID, logger, &perfStatsTracker, true)
-		svc.addLiveQueryActivity(ctx, lastTotals.Total, queryID, logger)
+		svc.updateStats(ctxWithoutCancel, queryID, logger, &perfStatsTracker, true)
+		svc.addLiveQueryActivity(ctxWithoutCancel, lastTotals.Total, queryID, logger)
 	}()
 
 	// Loop, pushing updates to results and expected totals
