@@ -178,6 +178,9 @@ var SupportedEnrollmentVersions = []string{"4.0", "5.0", "6.0"}
 
 // MS-MDE2 Message constants
 const (
+	// Default MS-MDE2 enrollment protocol version
+	EnrollmentVersionV4 = "4.0"
+
 	// xsi:nil indicates value is not present
 	DefaultStateXSI = "true"
 
