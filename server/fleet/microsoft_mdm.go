@@ -149,7 +149,8 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 
 	// Ensure that only valid versions are supported
 	if req.Body.Discover.Request.RequestVersion != syncml.EnrollmentVersionV4 &&
-		req.Body.Discover.Request.RequestVersion != syncml.EnrollmentVersionV5 {
+		req.Body.Discover.Request.RequestVersion != syncml.EnrollmentVersionV5 &&
+		req.Body.Discover.Request.RequestVersion != syncml.EnrollmentVersionV6 {
 		return errors.New("invalid discover message: Request.RequestVersion")
 	}
 

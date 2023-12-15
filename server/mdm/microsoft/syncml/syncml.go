@@ -178,8 +178,10 @@ const (
 	// Minimum supported version
 	EnrollmentVersionV4 = "4.0"
 
-	// Maximum supported version
 	EnrollmentVersionV5 = "5.0"
+
+	// Maximum supported version
+	EnrollmentVersionV6 = "6.0"
 
 	// xsi:nil indicates value is not present
 	DefaultStateXSI = "true"
