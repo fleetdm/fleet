@@ -7158,7 +7158,7 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Equal(t, hBoth.ID, h.ID)
-	require.Empty(t, h.HardwareSerial) // this is just to prove that it was loaded based on osquery_node_id, the serial was not set in the lookup
+	require.Empty(t, h.HardwareSerial) // this is just to prove that it was loaded based on osquery_host_id, the serial was not set in the lookup
 
 	// enroll with osquery id from hBoth and serial from hSerialNoOsquery (should
 	// use the osquery match)
@@ -7205,6 +7205,150 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Equal(t, hOsqueryNoSerial.ID, h.ID)
+
+	// Scenario A:
+	//	- Fleet with MDM disabled.
+	// 	- two linux|darwin|windows hosts with the same hardware identifiers (e.g. two cloned VMs).
+	//	- fleetd running with host identifier set to instance.
+	//	- orbit enrolls first, then osquery
+	// Expected output: The two fleetd instances should be enrolled as two hosts.
+	scenarioA := func(platform string) {
+		dupUUID := uuid.New().String()
+		dupHWSerial := uuid.New().String()
+		randomIdentifierH1 := uuid.New().String()
+
+		h1Orbit, err := ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:      dupUUID,
+			HardwareSerial:    dupHWSerial,
+			OsqueryIdentifier: randomIdentifierH1,
+			Platform:          platform,
+		}, uuid.New().String(), nil)
+		require.NoError(t, err)
+		h1Osquery, err := ds.EnrollHost(ctx, false, randomIdentifierH1, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
+		require.NoError(t, err)
+		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
+		randomIdentifierH2 := uuid.New().String()
+		h2Orbit, err := ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:      dupUUID,
+			HardwareSerial:    dupHWSerial,
+			OsqueryIdentifier: randomIdentifierH2,
+			Platform:          platform,
+		}, uuid.New().String(), nil)
+		require.NoError(t, err)
+		h2Osquery, err := ds.EnrollHost(ctx, false, randomIdentifierH2, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
+		require.NoError(t, err)
+		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
+
+		require.NotEqual(t, h1Orbit.ID, h2Orbit.ID) // the hosts are enrolled as two separate hosts
+	}
+	for _, platform := range []string{"ubuntu", "windows", "darwin"} {
+		platform := platform
+		t.Run("scenarioA_"+platform, func(t *testing.T) {
+			scenarioA(platform)
+		})
+	}
+
+	// Scenario B:
+	//	- Fleet with MDM disabled.
+	// 	- Two linux|darwin|windows hosts with the same hardware identifiers (e.g. two cloned VMs).
+	//	- fleetd running with host identifier set to instance.
+	//	- orbit and osquery of the two hosts enroll in mixed order.
+	// Expected output: The two fleetd instances should be each its own host.
+	scenarioB := func(platform string) {
+		dupUUID := uuid.New().String()
+		dupHWSerial := uuid.New().String()
+		randomIdentifierH1 := uuid.New().String()
+
+		// First osquery of the first host enrolls.
+		h1Osquery, err := ds.EnrollHost(ctx, false, randomIdentifierH1, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
+		require.NoError(t, err)
+		randomIdentifierH2 := uuid.New().String()
+		// Then orbit of the second host enrolls.
+		h2Orbit, err := ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:      dupUUID,
+			HardwareSerial:    dupHWSerial,
+			OsqueryIdentifier: randomIdentifierH2,
+			Platform:          platform,
+		}, uuid.New().String(), nil)
+		require.NoError(t, err)
+		// Then orbit of the first host enrolls.
+		h1Orbit, err := ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:      dupUUID,
+			HardwareSerial:    dupHWSerial,
+			OsqueryIdentifier: randomIdentifierH1,
+			Platform:          platform,
+		}, uuid.New().String(), nil)
+		require.NoError(t, err)
+		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
+		// Lastly osquery of the second host enrolls.
+		h2Osquery, err := ds.EnrollHost(ctx, false, randomIdentifierH2, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
+		require.NoError(t, err)
+		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
+
+		require.NotEqual(t, h1Orbit.ID, h2Orbit.ID) // the hosts are enrolled as two separate hosts
+	}
+	for _, platform := range []string{"ubuntu", "windows", "darwin"} {
+		platform := platform
+		t.Run("scenarioB_"+platform, func(t *testing.T) {
+			scenarioB(platform)
+		})
+	}
+
+	// Scenario C:
+	//	- Fleet with MDM enabled.
+	// 	- Two linux|darwin|windows hosts with the same hardware identifiers (e.g. two cloned VMs).
+	//	- fleetd running with host identifier set to instance.
+	//	- orbit and osquery of the two hosts enroll in mixed order.
+	//
+	// For Linux and Windows this scenario behaves as expected. The two hosts are enrolled separately.
+	//
+	// For macOS:
+	// Somewhat unexpected output of this scenario is that two hosts are enrolled as one
+	// because MDM makes the effort to match by hardware serial.
+	// Using fleetd's `--host-identifier=instance` with Fleet's MDM enabled is not compatible on macOS.
+	scenarioC := func(platform string) {
+		dupUUID := uuid.New().String()
+		dupHWSerial := uuid.New().String()
+		randomIdentifierH1 := uuid.New().String()
+		randomIdentifierH2 := uuid.New().String()
+
+		h1Orbit, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+			HardwareUUID:      dupUUID,
+			HardwareSerial:    dupHWSerial,
+			OsqueryIdentifier: randomIdentifierH1,
+			Platform:          platform,
+		}, uuid.New().String(), nil)
+		require.NoError(t, err)
+		h1Osquery, err := ds.EnrollHost(ctx, true, randomIdentifierH1, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
+		require.NoError(t, err)
+		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
+
+		// Second host enrolls osquery first, then orbit.
+		h2Osquery, err := ds.EnrollHost(ctx, true, randomIdentifierH2, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
+		require.NoError(t, err)
+		h2Orbit, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+			HardwareUUID:      dupUUID,
+			HardwareSerial:    dupHWSerial,
+			OsqueryIdentifier: randomIdentifierH2,
+			Platform:          platform,
+		}, uuid.New().String(), nil)
+		require.NoError(t, err)
+		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
+
+		if platform == "darwin" {
+			// This is a expected output of this scenario because MDM makes
+			// the effort to match by hardware serial.
+			require.Equal(t, h1Orbit.ID, h2Orbit.ID)
+		} else {
+			require.NotEqual(t, h1Orbit.ID, h2Orbit.ID)
+		}
+	}
+	for _, platform := range []string{"ubuntu", "windows", "darwin"} {
+		platform := platform
+		t.Run("scenarioC_"+platform, func(t *testing.T) {
+			scenarioC(platform)
+		})
+	}
 }
 
 func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
