@@ -359,14 +359,24 @@
     <% /* Sticky header */ %>
     <script>
         var lastScrollTop = 0;
-        var header = document.querySelector('.header')
+        var header = document.querySelector('[purpose="header-container"]');
+        let mobileNavMenu = document.querySelector('[purpose="mobile-nav"]');
         window.addEventListener('scroll', windowScrolled);
         function windowScrolled() {
+          if(!header || !mobileNavMenu){
+            return;
+          }
+          let isMobileNavOpen = [...mobileNavMenu.classList].includes('show');
+          if(isMobileNavOpen) {
+            return;
+          }
           let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
           if(scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
+            // If the user scrolls 1.5x the height of their browser window, hide the page header.
             header.classList.add('translate-y-0');
             lastScrollTop = scrollTop;
           } else if(scrollTop < lastScrollTop - 60) {
+            // If the user scrolls 60 pixels upwards on the screen, we'll show the page header
             header.classList.remove('translate-y-0');
             lastScrollTop = scrollTop;
           }
