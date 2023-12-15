@@ -163,11 +163,12 @@ func (svc *Service) RunLiveQueryDeadline(
 						return
 					}
 				case <-timeout:
-					// This is the normal path for returning results. We only update aggregated stats here, and without blocking.
+					// This is the normal path for returning results. We update aggregated stats and activity here, without blocking.
 					if perfStatsTracker.saveStats {
 						ctxWithoutCancel := context.WithoutCancel(ctx) // to make sure stats DB operations don't get killed after we return results.
 						go func() {
 							svc.updateStats(ctxWithoutCancel, campaign.QueryID, svc.logger, &perfStatsTracker, true)
+							svc.addLiveQueryActivity(ctxWithoutCancel, campaign.Metrics.TotalHosts, campaign, svc.logger)
 						}()
 					}
 					break loop

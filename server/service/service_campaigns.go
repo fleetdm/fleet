@@ -208,6 +208,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 				}
 				if ctxerr.Cause(err) == sockjs.ErrSessionNotOpen {
 					svc.updateStats(ctx, campaign.QueryID, logger, &perfStatsTracker, true)
+					svc.addLiveQueryActivity(ctx, lastTotals.Total, campaign, logger)
 					// return and stop sending the query if the session was closed
 					// by the client
 					return
@@ -226,6 +227,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		case <-ticker.C:
 			if conn.GetSessionState() == sockjs.SessionClosed {
 				svc.updateStats(ctx, campaign.QueryID, logger, &perfStatsTracker, true)
+				svc.addLiveQueryActivity(ctx, lastTotals.Total, campaign, logger)
 				// return and stop sending the query if the session was closed
 				// by the client
 				return
@@ -234,12 +236,40 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			if err := updateStatus(); err != nil {
 				level.Error(logger).Log("msg", "error updating status", "err", err)
 				svc.updateStats(ctx, campaign.QueryID, logger, &perfStatsTracker, true)
+				svc.addLiveQueryActivity(ctx, lastTotals.Total, campaign, logger)
 				return
 			}
 			if status.ActualResults == status.ExpectedResults {
 				svc.updateStats(ctx, campaign.QueryID, logger, &perfStatsTracker, true)
 			}
 		}
+	}
+}
+
+// addLiveQueryActivity adds live query activity to the activity feed, including the updated aggregated stats
+func (svc Service) addLiveQueryActivity(
+	ctx context.Context, targetsCount uint, campaign *fleet.DistributedQueryCampaign, logger log.Logger,
+) {
+	activityData := fleet.ActivityTypeLiveQuery{
+		TargetsCount: targetsCount,
+	}
+	// Query returns SQL, name, and aggregated stats
+	q, err := svc.ds.Query(ctx, campaign.QueryID)
+	if err != nil {
+		level.Error(logger).Log("msg", "error getting query", "id", campaign.QueryID, "err", err)
+	} else {
+		activityData.QuerySQL = q.Query
+		if q.Saved {
+			activityData.QueryName = &q.Name
+			activityData.Stats = &q.AggregatedStats
+		}
+	}
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		activityData,
+	); err != nil {
+		level.Error(logger).Log("msg", "error creating activity for live query", "err", err)
 	}
 }
 
