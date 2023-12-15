@@ -112,11 +112,11 @@ If the infrastructure is working correctly but the query is hanging or crashing 
 
 To rule this out, you should also try out the dummy query `SELECT 1 WHERE 1 = 0;`.
 If you see "(100% responded)" with the dummy query but not with your query, then this might be an issue with:
-  - the query crashing osquery on some devices (watchdog killing the osquery process).
-  - the query hanging or taking too long to run on some devices.
-  - the query returning too many results (that may reach network limits). Try reducing the number of results by using `LIMIT N;` on the query.
+  - the query is crashing osquery on some devices (e.g., watchdog is killing the osquery process.)
+  - the query is hanging or taking too long to run on some or all devices.
+  - the query is returning too many results which can overwhelm network throughtput limits. Try reducing the number of results by using `LIMIT N;` on the query.
 
-To troubleshoot hangs or crashes you should take a look at the Fleetd/osquery logs on the devices.
+To troubleshoot hangs or crashes, take a look at Fleetd/osquery logs on the devices.
 
 ## 5. Settings
 
