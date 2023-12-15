@@ -504,6 +504,11 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		}
 	}
 
+	if opt.MatchQuery != "" {
+		whereClauses += " AND q.name = ?"
+		args = append(args, opt.MatchQuery)
+	}
+
 	sql += whereClauses
 	sql, args = appendListOptionsWithCursorToSQL(sql, args, &opt.ListOptions)
 
