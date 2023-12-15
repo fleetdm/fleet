@@ -3020,6 +3020,53 @@ Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery mana
 }
 ```
 
+### Get host's device health report
+
+Retrieves information about a single host's device health.
+
+This report includes a subset of host vitals, and simplified policy and vulnerable software information. Data is cached to preserve performance. To get all up-to-date information about a host, use the "Get host" endpoint [here](#get-host).
+
+
+`GET /api/v1/fleet/hosts/:id/health`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id         | integer           | path | **Required**. The host's `id`.                                                |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/1/health`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1,
+  "health": {
+    "updated_at": "2023-09-16T18:52:19Z",
+    "os_version": "CentOS Linux 8.3.2011",
+    "disk_encryption_enabled": true,
+    "failing_policies": [
+      {
+        "id": 123,
+        "name": "Google Chrome is up to date",
+      }
+    ],
+    "vulnerable_software": [
+      {
+        "id": 321,
+        "name": "Firefox.app",
+        "version": "116.0.3",
+      }
+    ]
+  }
+}
+```
+
 ---
 
 ### Get host's mobile device management (MDM) information
