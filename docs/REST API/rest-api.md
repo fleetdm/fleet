@@ -6023,68 +6023,48 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 > This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.x.x, for improved compatibility with many HTTP clients. The [deprecated endpoint](https://github.com/fleetdm/fleet/blob/fleet-v4.41.1/docs/REST%20API/rest-api.md#run-live-query) is maintained for backwards compatibility.
 
-Runs a live query against the specified hosts and responds with the results after a fixed time period (default 25 seconds). 
-
-This API does not return any results until the fixed time period elapses, at which point all of the collected results are returned.
+Runs a live query against the specified host and responds with the results. If the host is offline, the request will time out after a fixed time period (default 25 seconds).
 
 The fixed time period is configurable via environment variable on the Fleet server (e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value than the default, be sure not to exceed your load balancer timeout.
 
 
-`POST /api/v1/fleet/queries/:id/run`
+`POST /api/v1/fleet/queries/:id/run/:host_id`
 
 #### Parameters
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | query_id | integer | path | **Required**. The ID of the saved query to run. |
-| host_ids  | array | body | **Required**. The IDs of the hosts to target. User must be authorized to target all of these hosts.                                                                |
+| host_id  | integer | path | **Required**. The ID of the host to target. |
 
 #### Example
 
-`POST /api/v1/fleet/queries/123/run`
+`POST /api/v1/fleet/queries/123/run/4`
 
-##### Request body
-
-```json
-{
-  "host_ids": [ 1, 4, 34, 27 ]
-}
-```
 
 ##### Default response
 
 ```json
 {
   "query_id": 123,
-  "targeted_host_count": 4,
-  "responded_host_count": 2
-  "results": [
+  "host_id": 1,
+  "rows": [
     {
-      "host_id": 1,
-      "rows": [
-        {
-          "build_distro": "10.12",
-          "build_platform": "darwin",
-          "config_hash": "7bb99fa2c8a998c9459ec71da3a84d66c592d6d3",
-          "config_valid": "1",
-          "extensions": "active",
-          "instance_id": "9a2ec7bf-4946-46ea-93bf-455e0bcbd068",
-          "pid": "23413",
-          "platform_mask": "21",
-          "start_time": "1635194306",
-          "uuid": "4C182AC7-75F7-5AF4-A74B-1E165ED35742",
-          "version": "4.9.0",
-          "watcher": "23412"
-        }
-      ],
-      "error": null
-    },
-    {
-      "host_id": 2,
-      "rows": [],
-      "error": "no such table: os_version"
+      "build_distro": "10.12",
+      "build_platform": "darwin",
+      "config_hash": "7bb99fa2c8a998c9459ec71da3a84d66c592d6d3",
+      "config_valid": "1",
+      "extensions": "active",
+      "instance_id": "9a2ec7bf-4946-46ea-93bf-455e0bcbd068",
+      "pid": "23413",
+      "platform_mask": "21",
+      "start_time": "1635194306",
+      "uuid": "4C182AC7-75F7-5AF4-A74B-1E165ED35742",
+      "version": "4.9.0",
+      "watcher": "23412"
     }
-  ]
+  ],
+  "error": null
 }
 ```
 
