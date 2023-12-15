@@ -1,0 +1,1 @@
+- fixes issue where policy counts showed 0 for up to an hour after fleet upgrade v4.41
