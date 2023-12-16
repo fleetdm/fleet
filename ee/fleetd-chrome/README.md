@@ -48,7 +48,7 @@ Tunnelmole:
 tmole 8080
 ```
 
-Alternatively, [ngrok](https://ngrok.com/) is a popular closed source tunnelling tool. To test with ngrok:
+ngrok:
 
 ```sh
 ngrok http https://localhost:8080
