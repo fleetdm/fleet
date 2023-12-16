@@ -34,13 +34,6 @@ echo 'FLEET_ENROLL_SECRET="<your enroll secret>"' >> .env
 
 To test with your local Fleet server, you can use [Tunnelmole](https://github.com/robbie-cahill/tunnelmole-client) or [ngrok](https://ngrok.com/).
 
-[Tunnelmole](https://github.com/robbie-cahill/tunnelmole-client) is an open source tunnelling tool that readily provides a Public URL that forwards traffic to your local machine through a secure tunnel. To install Tunnelmole, use the following for Linux, Mac, and Windows Subsystem for Linux:
-
-```sh
-curl -O https://tunnelmole.com/sh/install.sh && sudo bash install.sh
-```
-
-For Windows without WSL, [Download tmole.exe](https://tunnelmole.com/downloads/tmole.exe) and put it somewhere in your [PATH](https://www.wikihow.com/Change-the-PATH-Environment-Variable-on-Windows).
 
 Tunnelmole:
 
