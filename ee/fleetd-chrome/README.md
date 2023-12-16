@@ -32,7 +32,7 @@ echo 'FLEET_URL="https://your-fleet-server.example.com"' >> .env
 echo 'FLEET_ENROLL_SECRET="<your enroll secret>"' >> .env
 ```
 
-To test with your local Fleet server, you can use either Tunnelmole or ngrok.
+To test with your local Fleet server, you can use [Tunnelmole](https://github.com/robbie-cahill/tunnelmole-client) or [ngrok](https://ngrok.com/).
 
 [Tunnelmole](https://github.com/robbie-cahill/tunnelmole-client) is an open source tunnelling tool that readily provides a Public URL that forwards traffic to your local machine through a secure tunnel. To install Tunnelmole, use the following for Linux, Mac, and Windows Subsystem for Linux:
 
