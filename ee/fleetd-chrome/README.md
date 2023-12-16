@@ -42,7 +42,7 @@ curl -O https://tunnelmole.com/sh/install.sh && sudo bash install.sh
 
 For Windows without WSL, [Download tmole.exe](https://tunnelmole.com/downloads/tmole.exe) and put it somewhere in your [PATH](https://www.wikihow.com/Change-the-PATH-Environment-Variable-on-Windows).
 
-Then, you can run Tunnelmole by typing `tmole 8080` into your terminal:
+Tunnelmole:
 
 ```sh
 tmole 8080
