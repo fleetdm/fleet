@@ -44,9 +44,13 @@ Agenda:
 
 > Keep calendar event titles short so they are readable at a glance.  Please include any other info via link, so that information is not duplicated or lost in the calendar.
 
+### Prepare for CEO office minutes meeting 
+Before the start of the meeting, the Apprentice to the CEO will prepare the "CEO office minutes" meeting [agenda](https://docs.google.com/document/d/12cd0N8KvHkfJxYlo7ggdisrvqw4MCErDoIzLjmBIdj4/edit) such that the following is true;
+1. All agenda items are prefixed with a date of when the item will be covered and name of the person requesting to discuss the issue.
+2. All team members with an agenda item have added themselves **and their manager** to the correct calendar event. If the team member or manager hasn't been added to the calendar event before the meeting begins, the agenda item is de-prioritized in favor of others with representatives in attendance. 
+4. If there are more that 2 team members attending, the Apprentice will work with the team members to schedule additional time to cover the agenda.  
 
-
-
+> If the manager is unable to attend the scheduled time of the meeting, the Apprentice will work with the team member to schedule an adhoc meeting 
 
 ### Process the CEO's calendar
 Time management for the CEO is essential.  The Apprentice processes the CEO's calendar multiple times per day.
