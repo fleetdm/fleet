@@ -3,7 +3,7 @@
 #   quoteAuthorName: - required
 #   quoteAuthorJobTitle: required
 #   quoteAuthorSocialHandle:
-#   quoteImagePathInAssetsFolder: 
+#   quoteImageFilename: 
 #   quoteLinkUrl:  - required if there is an image
 #   youtubeVideoUrl: 
 -
