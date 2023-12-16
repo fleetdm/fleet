@@ -413,8 +413,7 @@ module.exports = {
         } else if (!isHandbookPR && existingLabels.includes('#handbook')) {
           // [?] https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#remove-a-label-from-an-issue
           await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('#handbook')}`, {}, baseHeaders)
-          .tolerate('non200Response', (err)=>{
-            // If a label could not be removed, log a warning.
+          .tolerate({ exit: 'non200Response', statusCode: 404 }, (err)=>{// if the PR has gone missing, swallow the error and warn instead.
             sails.log.warn(`When trying to send a request to remove the #handbook label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. Raw error: ${require('util').inspect(err)}`);
           });
         }//ﬁ
@@ -430,8 +429,7 @@ module.exports = {
         } else if (!isPRStillDependentOnAndReadyForCeoReview && existingLabels.includes('#g-ceo')) {
           // [?] https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#remove-a-label-from-an-issue
           await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('#g-ceo')}`, {}, baseHeaders)
-          .tolerate('non200Response', (err)=>{
-            // If a label could not be removed, log a warning.
+          .tolerate({ exit: 'non200Response', statusCode: 404 }, (err)=>{// if the PR has gone missing, swallow the error and warn instead.
             sails.log.warn(`When trying to send a request to remove the #g-ceo label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. Raw error: ${require('util').inspect(err)}`);
           });
         }//ﬁ
