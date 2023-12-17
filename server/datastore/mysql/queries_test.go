@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math"
 	"math/rand"
@@ -179,10 +180,13 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), query.ID, []*fleet.LiveQueryStats{
 			{
-				HostID: hostID,
+				HostID:     hostID,
+				Executions: 1,
 			},
 		},
 	)
+	require.NoError(t, err)
+	err = ds.CalculateAggregatedPerfStatsPercentiles(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, query.ID)
 	require.NoError(t, err)
 
 	err = ds.DeleteQuery(context.Background(), query.TeamID, query.Name)
@@ -200,6 +204,8 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
 	require.NoError(t, err)
 	require.Equal(t, 0, len(stats))
+	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, query.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func testQueriesGetByName(t *testing.T, ds *Datastore) {
@@ -255,10 +261,12 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), q1.ID, []*fleet.LiveQueryStats{
 			{
-				HostID: hostIDs[0],
+				HostID:     hostIDs[0],
+				Executions: 1,
 			},
 			{
-				HostID: hostIDs[1],
+				HostID:     hostIDs[1],
+				Executions: 1,
 			},
 		},
 	)
@@ -266,10 +274,15 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), q3.ID, []*fleet.LiveQueryStats{
 			{
-				HostID: hostIDs[0],
+				HostID:     hostIDs[0],
+				Executions: 1,
 			},
 		},
 	)
+	require.NoError(t, err)
+	err = ds.CalculateAggregatedPerfStatsPercentiles(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, q1.ID)
+	require.NoError(t, err)
+	err = ds.CalculateAggregatedPerfStatsPercentiles(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, q3.ID)
 	require.NoError(t, err)
 
 	deleted, err := ds.DeleteQueries(context.Background(), []uint{q1.ID, q3.ID})
@@ -289,6 +302,10 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	stats, err = ds.GetLiveQueryStats(context.Background(), q3.ID, hostIDs)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(stats))
+	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, q1.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, q3.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	deleted, err = ds.DeleteQueries(context.Background(), []uint{q2.ID})
 	require.Nil(t, err)
@@ -337,7 +354,7 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	query.Logging = fleet.LoggingDifferential
 	query.DiscardData = true
 
-	err = ds.SaveQuery(context.Background(), query, true)
+	err = ds.SaveQuery(context.Background(), query, true, false)
 	require.NoError(t, err)
 
 	actual, err := ds.Query(context.Background(), query.ID)
@@ -349,6 +366,47 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, "baz", actual.Query)
 	require.Equal(t, "Zach", actual.AuthorName)
 	require.Equal(t, "zwass@fleet.co", actual.AuthorEmail)
+
+	// Now save again and delete stats.
+	// First we create stats which will be deleted.
+	const hostID = 1
+	err = ds.UpdateLiveQueryStats(
+		context.Background(), query.ID, []*fleet.LiveQueryStats{
+			{
+				HostID:     hostID,
+				Executions: 1,
+			},
+		},
+	)
+	require.NoError(t, err)
+	err = ds.CalculateAggregatedPerfStatsPercentiles(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, query.ID)
+	require.NoError(t, err)
+	// Update/save query.
+	query.Query = "baz2"
+	err = ds.SaveQuery(context.Background(), query, true, true)
+	require.NoError(t, err)
+	actual, err = ds.Query(context.Background(), query.ID)
+	require.NoError(t, err)
+	require.NotNil(t, actual)
+	// The query now comes with stats, so we need to fill them in for comparison
+	query.AggregatedStats = fleet.AggregatedStats{
+		SystemTimeP50:   ptr.Float64(0),
+		SystemTimeP95:   ptr.Float64(0),
+		UserTimeP50:     ptr.Float64(0),
+		UserTimeP95:     ptr.Float64(0),
+		TotalExecutions: ptr.Float64(1),
+	}
+	test.QueriesMatch(t, query, actual)
+
+	// Ensure stats were deleted.
+	// The actual delete occurs asynchronously, so enough time should have passed
+	// to ensure the original query completed.
+	time.Sleep(10 * time.Millisecond)
+	stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
+	require.NoError(t, err)
+	require.Equal(t, 0, len(stats))
+	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, query.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func testQueriesList(t *testing.T, ds *Datastore) {
