@@ -2573,6 +2573,56 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 ---
 
+### Update custom human-device mapping
+
+`PUT /api/v1/fleet/device/{token}/device_mapping`
+
+Updates the email for the `custom` data source in the human-device mapping. This source can only have one email.
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id         | integer           | path | **Required**. The host's `id`.                                                |
+| email      | string            | body | **Required**. The custom email.                                               |
+
+#### Example
+
+`PUT /api/v1/fleet/device/abcdef012456789/device_mapping`
+
+##### Request body
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1,
+  "device_mapping": [
+    {
+      "email": "user@example.com",
+      "source": "identity_provider"
+    },
+    {
+      "email": "user@example.com",
+      "source": "google_chrome_profiles"
+    },
+    {
+      "email": "user@example.com",
+      "source": "custom"
+    }
+  ]
+}
+```
+
+---
 
 ## Downloadable installers
 
