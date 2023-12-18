@@ -123,7 +123,7 @@ Sometimes there is a change in the champion within the customer's organization.
     3. Offer training to get them up to speed.
     4. Provide a white glove experience.
 
-### Schedule a customer or prospect call and add a Solutions Consultant (SC)
+### To schedule an ad hoc meeting with a Fleet customer or prospect where you need a Solution Consultant (SC) to attend
 To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) with a Fleet customer or prospect, the Account Executive (AE) will [open an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales%2C%23solutions-consultant%2C%3Adiscovery%2C%3Ademo%2C%3Ascoping%2C%3Atech-eval&projects=&template=custom-request.md&title=prospect+name+-+prep+%28date%29+-+discovery%2Cdemo%2Cscoping+%28date%29). 
  - The AE will populate this issue with the appropriate dates for an internal prep meeting as well as the dates for the external customer meeting.
 
