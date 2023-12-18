@@ -385,6 +385,9 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	query.Query = "baz2"
 	err = ds.SaveQuery(context.Background(), query, true, true)
 	require.NoError(t, err)
+	// Ensure stats were deleted.
+	// The actual delete occurs asynchronously, so we need to wait.
+	time.Sleep(100 * time.Millisecond)
 	actual, err = ds.Query(context.Background(), query.ID)
 	require.NoError(t, err)
 	require.NotNil(t, actual)
@@ -392,11 +395,6 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	query.AggregatedStats = fleet.AggregatedStats{}
 	query.DiscardData = true
 	test.QueriesMatch(t, query, actual)
-
-	// Ensure stats were deleted.
-	// The actual delete occurs asynchronously, so enough time should have passed
-	// to ensure the original query completed.
-	time.Sleep(10 * time.Millisecond)
 	stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
 	require.NoError(t, err)
 	require.Equal(t, 0, len(stats))
