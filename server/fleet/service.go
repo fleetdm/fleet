@@ -359,6 +359,11 @@ type Service interface {
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+	// SetCustomHostDeviceMapping sets the custom email address associated with
+	// the host, which is either set by the fleetd installer at startup (via a
+	// device-authenticated API), or manually by the user (via the
+	// user-authenticated API).
+	SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*HostDeviceMapping, error)
 
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)

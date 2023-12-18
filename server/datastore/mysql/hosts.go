@@ -425,7 +425,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 			AND (q.team_id IS NULL OR q.team_id = ?)
 			OR EXISTS (
 				SELECT 1 FROM query_results
-				WHERE query_results.query_id = q.id 
+				WHERE query_results.query_id = q.id
 				AND query_results.host_id = ?
 			)
 		GROUP BY q.id
@@ -2963,6 +2963,10 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 	})
 }
 
+func (ds *Datastore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
+	panic("unimplemented")
+}
+
 func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mappings []*fleet.HostBattery) error {
 	for _, m := range mappings {
 		if hid != m.HostID {
@@ -3347,8 +3351,6 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	)
 }
 
-const hostEmailsSourceMdmIdpAccounts = "mdm_idp_accounts"
-
 func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	ctx context.Context,
 	hostID uint,
@@ -3367,7 +3369,7 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 		ctx,
 		`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
 		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
-		email, hostID, hostEmailsSourceMdmIdpAccounts,
+		email, hostID, fleet.DeviceMappingMDMIdpAccounts,
 	)
 }
 

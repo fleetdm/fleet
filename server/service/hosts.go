@@ -1279,6 +1279,57 @@ func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Put Custom Host Device Mapping
+////////////////////////////////////////////////////////////////////////////////
+
+type putHostDeviceMappingRequest struct {
+	ID    uint   `url:"id"`
+	Email string `json:"email"`
+}
+
+type putHostDeviceMappingResponse struct {
+	HostID        uint                       `json:"host_id"`
+	DeviceMapping []*fleet.HostDeviceMapping `json:"device_mapping"`
+	Err           error                      `json:"error,omitempty"`
+}
+
+func (r putHostDeviceMappingResponse) error() error { return r.Err }
+
+func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*putHostDeviceMappingRequest)
+	dms, err := svc.SetCustomHostDeviceMapping(ctx, req.ID, req.Email)
+	if err != nil {
+		return putHostDeviceMappingResponse{Err: err}, nil
+	}
+	return putHostDeviceMappingResponse{HostID: req.ID, DeviceMapping: dms}, nil
+}
+
+func (svc *Service) SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error) {
+	isDeviceAuthn := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
+	if !isDeviceAuthn {
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return nil, err
+		}
+
+		host, err := svc.ds.HostLite(ctx, hostID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host")
+		}
+
+		// Authorize again with team loaded now that we have team_id
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+			return nil, err
+		}
+	}
+
+	source := fleet.DeviceMappingCustomOverride
+	if isDeviceAuthn {
+		source = fleet.DeviceMappingCustomInstaller
+	}
+	return svc.ds.SetOrUpdateCustomHostDeviceMapping(ctx, hostID, email, source)
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // MDM
 ////////////////////////////////////////////////////////////////////////////////
 

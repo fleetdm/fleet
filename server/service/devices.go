@@ -263,6 +263,35 @@ func listDeviceHostDeviceMappingEndpoint(ctx context.Context, request interface{
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Put Current Device's Host Device Mappings
+////////////////////////////////////////////////////////////////////////////////
+
+type putDeviceHostDeviceMappingRequest struct {
+	Token string `url:"token"`
+	Email string `json:"email"`
+}
+
+func (r *putDeviceHostDeviceMappingRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func putDeviceHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*putDeviceHostDeviceMappingRequest)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return putHostDeviceMappingResponse{Err: err}, nil
+	}
+
+	dms, err := svc.SetCustomHostDeviceMapping(ctx, host.ID, req.Email)
+	if err != nil {
+		return putHostDeviceMappingResponse{Err: err}, nil
+	}
+	return putHostDeviceMappingResponse{HostID: host.ID, DeviceMapping: dms}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Get Current Device's Macadmins
 ////////////////////////////////////////////////////////////////////////////////
 

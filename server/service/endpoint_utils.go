@@ -495,6 +495,10 @@ func (e *authEndpointer) GET(path string, f handlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "GET")
 }
 
+func (e *authEndpointer) PUT(path string, f handlerFunc, v interface{}) {
+	e.handleEndpoint(path, f, v, "PUT")
+}
+
 func (e *authEndpointer) PATCH(path string, f handlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "PATCH")
 }
