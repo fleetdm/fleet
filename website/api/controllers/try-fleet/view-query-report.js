@@ -56,7 +56,7 @@ module.exports = {
 
     // If the requesting user is not logged in, redirect them to the /try-fleet/login page with the specified hostPlatform added as a query parameter.
     if(!this.req.me){
-      throw {redirect: `/try-fleet/login?targetPlatform=${encodeURIComponent(hostPlatform)}` };
+      throw {redirect: `/try-fleet/register?targetPlatform=${encodeURIComponent(hostPlatform)}` };
     }
 
     if(!sails.config.custom.queryIdsByTableName){
