@@ -19,6 +19,7 @@ func TestSoftwareTitles(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"SyncHostsSoftwareTitles", testSoftwareSyncHostsSoftwareTitles},
+		{"OrderSoftwareTitles", testOrderSoftwareTitles},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -239,6 +240,139 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 
 	listSoftwareTitlesCheckCount(t, ds, 0, 0, team2Opts, false)
 	checkTableTotalCount(2)
+}
+
+func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
+
+	software1 := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", Browser: "chrome"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", Browser: "chrome"},
+		{Name: "foo", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+	}
+	software2 := []fleet.Software{
+		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions", Browser: "chrome"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", Browser: "chrome"},
+		{Name: "foo", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+	}
+	software3 := []fleet.Software{
+		{Name: "foo", Version: "v0.0.2", Source: "rpm_packages"},
+		{Name: "bar", Version: "0.0.3", Source: "apps"},
+		{Name: "baz", Version: "0.0.3", Source: "chrome_extensions", Browser: "edge"},
+		{Name: "baz", Version: "0.0.3", Source: "chrome_extensions", Browser: "chrome"},
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host3.ID, software3)
+	require.NoError(t, err)
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// primary sort is "hosts_count DESC", followed by "name ASC, source ASC, browser ASC"
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
+		OrderKey:       "hosts_count",
+		OrderDirection: fleet.OrderDescending,
+	}})
+	require.NoError(t, err)
+	require.Len(t, titles, 7)
+	require.Equal(t, "bar", titles[0].Name)
+	require.Equal(t, "deb_packages", titles[0].Source)
+	require.Equal(t, "foo", titles[1].Name)
+	require.Equal(t, "chrome_extensions", titles[1].Source)
+	require.Equal(t, "foo", titles[2].Name)
+	require.Equal(t, "deb_packages", titles[2].Source)
+	require.Equal(t, "bar", titles[3].Name)
+	require.Equal(t, "apps", titles[3].Source)
+	require.Equal(t, "baz", titles[4].Name)
+	require.Equal(t, "chrome_extensions", titles[4].Source)
+	require.Equal(t, "chrome", titles[4].Browser)
+	require.Equal(t, "baz", titles[5].Name)
+	require.Equal(t, "chrome_extensions", titles[5].Source)
+	require.Equal(t, "edge", titles[5].Browser)
+	require.Equal(t, "foo", titles[6].Name)
+	require.Equal(t, "rpm_packages", titles[6].Source)
+
+	// primary sort is "hosts_count ASC", followed by "name ASC, source ASC, browser ASC"
+	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
+		OrderKey:       "hosts_count",
+		OrderDirection: fleet.OrderAscending,
+	}})
+	require.NoError(t, err)
+	require.Len(t, titles, 7)
+	require.Equal(t, "bar", titles[0].Name)
+	require.Equal(t, "apps", titles[0].Source)
+	require.Equal(t, "baz", titles[1].Name)
+	require.Equal(t, "chrome_extensions", titles[1].Source)
+	require.Equal(t, "chrome", titles[1].Browser)
+	require.Equal(t, "baz", titles[2].Name)
+	require.Equal(t, "chrome_extensions", titles[2].Source)
+	require.Equal(t, "edge", titles[2].Browser)
+	require.Equal(t, "foo", titles[3].Name)
+	require.Equal(t, "rpm_packages", titles[3].Source)
+	require.Equal(t, "bar", titles[4].Name)
+	require.Equal(t, "deb_packages", titles[4].Source)
+	require.Equal(t, "foo", titles[5].Name)
+	require.Equal(t, "chrome_extensions", titles[5].Source)
+	require.Equal(t, "foo", titles[6].Name)
+	require.Equal(t, "deb_packages", titles[6].Source)
+
+	// primary sort is "name ASC", followed by "host_count DESC, source ASC, browser ASC"
+	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderAscending,
+	}})
+	require.NoError(t, err)
+	require.Len(t, titles, 7)
+	require.Equal(t, "bar", titles[0].Name)
+	require.Equal(t, "deb_packages", titles[0].Source)
+	require.Equal(t, "bar", titles[1].Name)
+	require.Equal(t, "apps", titles[1].Source)
+	require.Equal(t, "baz", titles[2].Name)
+	require.Equal(t, "chrome_extensions", titles[2].Source)
+	require.Equal(t, "chrome", titles[2].Browser)
+	require.Equal(t, "baz", titles[3].Name)
+	require.Equal(t, "chrome_extensions", titles[3].Source)
+	require.Equal(t, "edge", titles[3].Browser)
+	require.Equal(t, "foo", titles[4].Name)
+	require.Equal(t, "chrome_extensions", titles[4].Source)
+	require.Equal(t, "foo", titles[5].Name)
+	require.Equal(t, "deb_packages", titles[5].Source)
+	require.Equal(t, "foo", titles[6].Name)
+	require.Equal(t, "rpm_packages", titles[6].Source)
+
+	// primary sort is "name DESC", followed by "host_count DESC, source ASC, browser ASC"
+	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderDescending,
+	}})
+	require.NoError(t, err)
+	require.Len(t, titles, 7)
+	require.Equal(t, "foo", titles[0].Name)
+	require.Equal(t, "chrome_extensions", titles[0].Source)
+	require.Equal(t, "foo", titles[1].Name)
+	require.Equal(t, "deb_packages", titles[1].Source)
+	require.Equal(t, "foo", titles[2].Name)
+	require.Equal(t, "rpm_packages", titles[2].Source)
+	require.Equal(t, "baz", titles[3].Name)
+	require.Equal(t, "chrome_extensions", titles[3].Source)
+	require.Equal(t, "chrome", titles[3].Browser)
+	require.Equal(t, "baz", titles[4].Name)
+	require.Equal(t, "chrome_extensions", titles[4].Source)
+	require.Equal(t, "edge", titles[4].Browser)
+	require.Equal(t, "bar", titles[5].Name)
+	require.Equal(t, "deb_packages", titles[5].Source)
+	require.Equal(t, "bar", titles[6].Name)
+	require.Equal(t, "apps", titles[6].Source)
 }
 
 func listSoftwareTitlesCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareTitleListOptions, returnSorted bool) []fleet.SoftwareTitle {
