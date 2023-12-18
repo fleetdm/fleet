@@ -112,10 +112,10 @@ const QueryDetailsPage = ({
   // Title that shows up on browser tabs (e.g., Query details | Discover TLS certificates | Fleet for osquery)
 
   useEffect(() => {
-    const queryNameTitle = lastEditedQueryName
-      ? `${lastEditedQueryName} |`
-      : null;
-    document.title = `Query details | ${queryNameTitle} ${DOCUMENT_TITLE_SUFFIX}`;
+    const queryNameCopy = lastEditedQueryName
+      ? `${lastEditedQueryName} | `
+      : "";
+    document.title = `Query details | ${queryNameCopy}${DOCUMENT_TITLE_SUFFIX}`;
   }, [lastEditedQueryName]);
 
   const [disabledCachingGlobally, setDisabledCachingGlobally] = useState(true);
