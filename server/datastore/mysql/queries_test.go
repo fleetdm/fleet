@@ -388,14 +388,9 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	actual, err = ds.Query(context.Background(), query.ID)
 	require.NoError(t, err)
 	require.NotNil(t, actual)
-	// The query now comes with stats, so we need to fill them in for comparison
-	query.AggregatedStats = fleet.AggregatedStats{
-		SystemTimeP50:   ptr.Float64(0),
-		SystemTimeP95:   ptr.Float64(0),
-		UserTimeP50:     ptr.Float64(0),
-		UserTimeP95:     ptr.Float64(0),
-		TotalExecutions: ptr.Float64(1),
-	}
+	// The query now comes with stats, which are all nil
+	query.AggregatedStats = fleet.AggregatedStats{}
+	query.DiscardData = true
 	test.QueriesMatch(t, query, actual)
 
 	// Ensure stats were deleted.
