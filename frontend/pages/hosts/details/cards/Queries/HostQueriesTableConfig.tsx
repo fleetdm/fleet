@@ -137,7 +137,7 @@ const enhanceScheduleData = (
       automations_enabled,
     } = query;
     // getPerformanceImpactDescription takes aggregate p50 values
-    // since these are per-host, divide by executions
+    // getPerformanceImpactDescription takes aggregate p50 values so we need to divide by total executions in order to show average performance per query execution
     const scheduledQueryPerformance = {
       user_time_p50: executions > 0 ? user_time / executions : 0,
       system_time_p50: executions > 0 ? system_time / executions : 0,
