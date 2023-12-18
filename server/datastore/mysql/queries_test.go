@@ -385,23 +385,26 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	query.Query = "baz2"
 	err = ds.SaveQuery(context.Background(), query, true, true)
 	require.NoError(t, err)
-	actual, err = ds.Query(context.Background(), query.ID)
-	require.NoError(t, err)
-	require.NotNil(t, actual)
-	// The query now comes with stats, so we need to fill them in for comparison
-	query.AggregatedStats = fleet.AggregatedStats{
-		SystemTimeP50:   ptr.Float64(0),
-		SystemTimeP95:   ptr.Float64(0),
-		UserTimeP50:     ptr.Float64(0),
-		UserTimeP95:     ptr.Float64(0),
-		TotalExecutions: ptr.Float64(1),
+	// Ensure stats were deleted.
+	// The actual delete occurs asynchronously, so we for-loop.
+	aggStatsGone := make(chan bool)
+	go func() {
+		for {
+			actual, err = ds.Query(context.Background(), query.ID)
+			require.NoError(t, err)
+			require.NotNil(t, actual)
+			if actual.AggregatedStats.TotalExecutions == nil {
+				aggStatsGone <- true
+				break
+			}
+		}
+	}()
+	select {
+	case <-aggStatsGone:
+	case <-time.After(2 * time.Second):
+		t.Error("Timeout: aggregated stats not deleted for query")
 	}
 	test.QueriesMatch(t, query, actual)
-
-	// Ensure stats were deleted.
-	// The actual delete occurs asynchronously, so enough time should have passed
-	// to ensure the original query completed.
-	time.Sleep(10 * time.Millisecond)
 	stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
 	require.NoError(t, err)
 	require.Equal(t, 0, len(stats))
