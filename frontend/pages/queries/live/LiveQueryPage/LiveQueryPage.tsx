@@ -6,7 +6,7 @@ import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { LIVE_QUERY_STEPS, DEFAULT_QUERY } from "utilities/constants";
+import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
@@ -96,7 +96,7 @@ const RunQueryPage = ({
   // Reroute users out of live flow when live queries are globally disabled
   if (disabledLiveQuery) {
     queryId
-      ? router.push(PATHS.QUERY(queryId))
+      ? router.push(PATHS.QUERY_DETAILS(queryId))
       : router.push(PATHS.NEW_QUERY());
   }
 
@@ -167,8 +167,9 @@ const RunQueryPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
+    const queryNameCopy = storedQuery?.name ? `${storedQuery?.name} | ` : "";
     // e.g., Run live query | Discover TLS certificates | Fleet for osquery
-    document.title = `Run live query | ${storedQuery?.name} | Fleet for osquery`;
+    document.title = `Run live query | ${queryNameCopy}${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, storedQuery?.name]);
 
   const goToQueryEditor = useCallback(

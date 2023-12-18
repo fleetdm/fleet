@@ -96,14 +96,10 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 		return nil, err
 	}
 
-	user := authz.UserFromContext(ctx)
-	onlyShowObserverCanRun := onlyShowObserverCanRunQueries(user, teamID)
-
 	queries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
-		ListOptions:        opt,
-		OnlyObserverCanRun: onlyShowObserverCanRun,
-		TeamID:             teamID,
-		IsScheduled:        scheduled,
+		ListOptions: opt,
+		TeamID:      teamID,
+		IsScheduled: scheduled,
 	})
 	if err != nil {
 		return nil, err
@@ -112,18 +108,8 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 	return queries, nil
 }
 
-func onlyShowObserverCanRunQueries(user *fleet.User, teamID *uint) bool {
-	if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleObserver {
-		return true
-	}
-
-	return teamID != nil && user.TeamMembership(func(ut fleet.UserTeam) bool {
-		return ut.Role == fleet.RoleObserver
-	})[*teamID]
-}
-
 ////////////////////////////////////////////////////////////////////////////////
-// Get query report
+// Query Reports
 ////////////////////////////////////////////////////////////////////////////////
 
 type getQueryReportRequest struct {
@@ -181,6 +167,23 @@ func (svc *Service) GetQueryReportResults(ctx context.Context, id uint) ([]fleet
 		return nil, ctxerr.Wrap(ctx, err, "map db rows to results")
 	}
 	return queryReportResults, nil
+}
+
+func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error) {
+	query, err := svc.ds.Query(ctx, queryID)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return false, ctxerr.Wrap(ctx, err, "get query from datastore")
+	}
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
+		return false, err
+	}
+
+	count, err := svc.ds.ResultCountForQuery(ctx, queryID)
+	if err != nil {
+		return false, err
+	}
+	return count >= fleet.MaxQueryReportRows, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -318,7 +321,7 @@ func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error) {
 	// Load query first to determine if the user can modify it.
 	query, err := svc.ds.Query(ctx, id)
-	shouldDiscardQueryResults := false
+	shouldDiscardQueryResults, shouldDeleteStats := false, false
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, err
@@ -346,6 +349,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	if p.Query != nil {
 		if query.Query != *p.Query {
 			shouldDiscardQueryResults = true
+			shouldDeleteStats = true
 		}
 		query.Query = *p.Query
 	}
@@ -379,7 +383,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
 
-	if err := svc.ds.SaveQuery(ctx, query, shouldDiscardQueryResults); err != nil {
+	if err := svc.ds.SaveQuery(ctx, query, shouldDiscardQueryResults, shouldDeleteStats); err != nil {
 		return nil, err
 	}
 

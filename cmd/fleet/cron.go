@@ -77,6 +77,12 @@ func newVulnerabilitiesSchedule(
 				return ds.ReconcileSoftwareTitles(ctx)
 			},
 		),
+		schedule.WithJob(
+			"cron_sync_host_software_titles",
+			func(ctx context.Context) error {
+				return ds.SyncHostsSoftwareTitles(ctx, time.Now())
+			},
+		),
 	)
 
 	return s, nil

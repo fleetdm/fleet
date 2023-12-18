@@ -121,7 +121,7 @@ func main() {
 		},
 		&cli.DurationFlag{
 			Name:    "update-interval",
-			Usage:   "How often to check for updates",
+			Usage:   "How often to check for updates. Note: fleetd checks for updates at startup. The next update check adds some randomization and may take up to 10 minutes longer",
 			Value:   15 * time.Minute,
 			EnvVars: []string{"ORBIT_UPDATE_INTERVAL"},
 		},
@@ -176,6 +176,12 @@ func main() {
 			Name:    "enable-scripts",
 			Usage:   "Enable script execution",
 			EnvVars: []string{"ORBIT_ENABLE_SCRIPTS"},
+		},
+		&cli.StringFlag{
+			Name:    "host-identifier",
+			Usage:   "Sets the host identifier that orbit and osquery will use when enrolling to Fleet. Options: 'uuid' and 'instance' (requires Fleet >= v4.42.0)",
+			EnvVars: []string{"ORBIT_HOST_IDENTIFIER"},
+			Value:   "uuid",
 		},
 	}
 	app.Before = func(c *cli.Context) error {
@@ -256,6 +262,10 @@ func main() {
 			if err := c.Set("enroll-secret", strings.TrimSpace(string(b))); err != nil {
 				return fmt.Errorf("set enroll secret from file: %w", err)
 			}
+		}
+
+		if hostIdentifier := c.String("host-identifier"); hostIdentifier != "uuid" && hostIdentifier != "instance" {
+			return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
 		}
 
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
@@ -484,13 +494,35 @@ func main() {
 			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
-		orbitHostInfo, err := getHostInfo(osquerydPath, filepath.Join(c.String("root-dir"), "osquery.db"))
+		osqueryHostInfo, err := getHostInfo(osquerydPath, filepath.Join(c.String("root-dir"), "osquery.db"))
 		if err != nil {
 			return fmt.Errorf("get UUID: %w", err)
 		}
-		log.Debug().Str("info", fmt.Sprint(orbitHostInfo)).Msg("retrieved host info")
+		log.Debug().Str("info", fmt.Sprint(osqueryHostInfo)).Msg("retrieved host info from osquery")
+		orbitHostInfo := fleet.OrbitHostInfo{
+			HardwareSerial: osqueryHostInfo.HardwareSerial,
+			HardwareUUID:   osqueryHostInfo.HardwareUUID,
+			Hostname:       osqueryHostInfo.Hostname,
+			Platform:       osqueryHostInfo.Platform,
+		}
 
-		var options []osquery.Option
+		// Only send osquery's `instance_id` if the user is running orbit with `--host-identifier=instance`.
+		// When not set, orbit and osquery will be matched using the hardware UUID (orbitHostInfo.HardwareUUID).
+		if c.String("host-identifier") == "instance" {
+			orbitHostInfo.OsqueryIdentifier = osqueryHostInfo.InstanceID
+		}
+
+		// The hardware serial was not sent when Windows MDM was implemented,
+		// thus we clear its value here to not break any existing enroll functionality
+		// on the server.
+		if runtime.GOOS == "windows" {
+			orbitHostInfo.HardwareSerial = ""
+		}
+
+		var (
+			options              []osquery.Option
+			optionsAfterFlagfile []osquery.Option
+		)
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 		options = append(options, osquery.WithLogPath(filepath.Join(c.String("root-dir"), "osquery_log")))
 
@@ -709,7 +741,8 @@ func main() {
 			case err == nil:
 				if stat.Size() > 0 {
 					log.Debug().Msg("adding --extensions_autoload flag for file " + extensionAutoLoadFile)
-					options = append(options, osquery.WithFlags([]string{"--extensions_autoload", extensionAutoLoadFile}))
+					// We set this option after the --flagfile to prevent users from changing it on their flagfiles.
+					optionsAfterFlagfile = append(optionsAfterFlagfile, osquery.WithFlags([]string{"--extensions_autoload", extensionAutoLoadFile}))
 				} else {
 					// OK, expected as well when extensions are unloaded, just debug log
 					log.Debug().Msg("found empty extensions.load file at " + extensionAutoLoadFile)
@@ -722,112 +755,111 @@ func main() {
 			g.Add(extRunner.Execute, extRunner.Interrupt)
 		}
 
-		trw := token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
-
-		if err := trw.LoadOrGenerate(); err != nil {
-			return fmt.Errorf("initializing token read writer: %w", err)
-		}
-
-		// note: the initial flags fetch above already populated the capabilities
-		// of the server based on the response header
-		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) &&
-			orbitClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation) {
-			log.Info().Msg("token rotation is enabled")
-
-			// we enable remote updates only if the server supports them by setting
-			// this function.
-			trw.SetRemoteUpdateFunc(func(token string) error {
-				return orbitClient.SetOrUpdateDeviceToken(token)
-			})
-
-			// ensure the token value is written to the remote server, we might have
-			// a token on disk that wasn't written to the server yet
-			if err := trw.Write(trw.GetCached()); err != nil {
-				return fmt.Errorf("writing token: %w", err)
+		var trw *token.ReadWriter
+		if c.Bool("fleet-desktop") {
+			trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
+			if err := trw.LoadOrGenerate(); err != nil {
+				return fmt.Errorf("initializing token read writer: %w", err)
 			}
 
-			// Note that the deviceClient used by orbit must not define a retry on
-			// invalid token, because its goal is to detect invalid tokens when
-			// making requests with this client.
-			deviceClient, err := service.NewDeviceClient(
-				fleetURL,
-				c.Bool("insecure"),
-				c.String("fleet-certificate"),
-				fleetClientCertificate,
-				c.String("fleet-desktop-alternative-browser-host"),
-			)
-			if err != nil {
-				return fmt.Errorf("initializing client: %w", err)
-			}
+			// note: the initial flags fetch above already populated the capabilities
+			// of the server based on the response header
+			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) &&
+				orbitClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation) {
+				log.Info().Msg("token rotation is enabled")
 
-			// perform an initial check to see if the token
-			// has not been revoked by the server
-			if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
-				if err := trw.Rotate(); err != nil {
-					return fmt.Errorf("rotating token: %w", err)
+				// we enable remote updates only if the server supports them by setting
+				// this function.
+				trw.SetRemoteUpdateFunc(
+					func(token string) error {
+						return orbitClient.SetOrUpdateDeviceToken(token)
+					},
+				)
+
+				// Note that the deviceClient used by orbit must not define a retry on
+				// invalid token, because its goal is to detect invalid tokens when
+				// making requests with this client.
+				deviceClient, err := service.NewDeviceClient(
+					fleetURL,
+					c.Bool("insecure"),
+					c.String("fleet-certificate"),
+					fleetClientCertificate,
+					c.String("fleet-desktop-alternative-browser-host"),
+				)
+				if err != nil {
+					return fmt.Errorf("initializing client: %w", err)
 				}
-			}
 
-			go func() {
-				// This timer is used to check if the token should be rotated if  at
-				// least one hour has passed since the last modification of the token
-				// file.
-				//
-				// This is better than using a ticker that ticks every hour because the
-				// we can't ensure the tick actually runs every hour (eg: the computer is
-				// asleep).
-				rotationDuration := 30 * time.Second
-				rotationTicker := time.NewTicker(rotationDuration)
-				defer rotationTicker.Stop()
+				// Check if token is not expired and still good.
+				// If not, rotate the token.
+				expired, _ := trw.HasExpired()
+				if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
+					if err := trw.Rotate(); err != nil {
+						return fmt.Errorf("rotating token: %w", err)
+					}
+				}
 
-				// This timer is used to periodically check if the token is valid. The
-				// server might deem a toked as invalid for reasons out of our control,
-				// for example if the database is restored to a back-up or if somebody
-				// manually invalidates the token in the db.
-				remoteCheckDuration := 5 * time.Minute
-				remoteCheckTicker := time.NewTicker(remoteCheckDuration)
-				defer remoteCheckTicker.Stop()
+				go func() {
+					// This timer is used to check if the token should be rotated if  at
+					// least one hour has passed since the last modification of the token
+					// file.
+					//
+					// This is better than using a ticker that ticks every hour because the
+					// we can't ensure the tick actually runs every hour (eg: the computer is
+					// asleep).
+					rotationDuration := 30 * time.Second
+					rotationTicker := time.NewTicker(rotationDuration)
+					defer rotationTicker.Stop()
 
-				for {
-					select {
-					case <-rotationTicker.C:
-						rotationTicker.Reset(rotationDuration)
+					// This timer is used to periodically check if the token is valid. The
+					// server might deem a toked as invalid for reasons out of our control,
+					// for example if the database is restored to a back-up or if somebody
+					// manually invalidates the token in the db.
+					remoteCheckDuration := 5 * time.Minute
+					remoteCheckTicker := time.NewTicker(remoteCheckDuration)
+					defer remoteCheckTicker.Stop()
 
-						log.Debug().Msgf("checking if token has changed or expired, cached mtime: %s", trw.GetMtime())
-						hasChanged, err := trw.HasChanged()
-						if err != nil {
-							log.Error().Err(err).Msg("error checking if token has changed")
-						}
+					for {
+						select {
+						case <-rotationTicker.C:
+							rotationTicker.Reset(rotationDuration)
 
-						exp, remain := trw.HasExpired()
-
-						// rotate if the token file has been modified, if the token is
-						// expired or if it is very close to expire.
-						if hasChanged || exp || remain <= time.Second {
-							log.Info().Msg("token TTL expired, rotating token")
-
-							if err := trw.Rotate(); err != nil {
-								log.Error().Err(err).Msg("error rotating token")
+							log.Debug().Msgf("checking if token has changed or expired, cached mtime: %s", trw.GetMtime())
+							hasChanged, err := trw.HasChanged()
+							if err != nil {
+								log.Error().Err(err).Msg("error checking if token has changed")
 							}
-						} else if remain > 0 && remain < rotationDuration {
-							// check again when the token will expire, which will happen
-							// before the next rotation check
-							rotationTicker.Reset(remain)
-							log.Debug().Msgf("token will expire soon, checking again in: %s", remain)
-						}
 
-					case <-remoteCheckTicker.C:
-						log.Debug().Msgf("initiating remote token check after %s", remoteCheckDuration)
-						if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
-							log.Info().Err(err).Msg("periodic check of token failed, initiating rotation")
+							exp, remain := trw.HasExpired()
 
-							if err := trw.Rotate(); err != nil {
-								log.Error().Err(err).Msg("error rotating token")
+							// rotate if the token file has been modified, if the token is
+							// expired or if it is very close to expire.
+							if hasChanged || exp || remain <= time.Second {
+								log.Info().Msg("token TTL expired, rotating token")
+
+								if err := trw.Rotate(); err != nil {
+									log.Error().Err(err).Msg("error rotating token")
+								}
+							} else if remain > 0 && remain < rotationDuration {
+								// check again when the token will expire, which will happen
+								// before the next rotation check
+								rotationTicker.Reset(remain)
+								log.Debug().Msgf("token will expire soon, checking again in: %s", remain)
+							}
+
+						case <-remoteCheckTicker.C:
+							log.Debug().Msgf("initiating remote token check after %s", remoteCheckDuration)
+							if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
+								log.Info().Err(err).Msg("periodic check of token failed, initiating rotation")
+
+								if err := trw.Rotate(); err != nil {
+									log.Error().Err(err).Msg("error rotating token")
+								}
 							}
 						}
 					}
-				}
-			}()
+				}()
+			}
 		}
 
 		// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
@@ -858,6 +890,14 @@ func main() {
 			options = append(options, osquery.WithFlags([]string{"--flagfile", flagfilePath}))
 		}
 
+		// These options must go after '--flagfile' to not allow users to change their values
+		// on their flagfiles.
+		hostIdentifier := c.String("host-identifier")
+		options = append(options, osquery.WithFlags([]string{"--host-identifier", hostIdentifier}))
+		for _, option := range optionsAfterFlagfile {
+			options = append(options, option)
+		}
+
 		// Handle additional args after '--' in the command line. These are added last and should
 		// override all other flags and flagfile entries.
 		options = append(options, osquery.WithFlags(c.Args().Slice()))
@@ -883,6 +923,8 @@ func main() {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
 		}
 		capabilitiesChecker := newCapabilitiesChecker(checkerClient)
+		// We populate the known capabilities so that the capability checker does not need to do the initial check on startup.
+		checkerClient.GetServerCapabilities().Copy(orbitClient.GetServerCapabilities())
 		g.Add(capabilitiesChecker.actor())
 
 		registerExtensionRunner(
@@ -1121,8 +1163,8 @@ func (d *desktopRunner) interrupt(err error) {
 	}
 }
 
-// hostInfo is used to parse osquery JSON output from `system_info` and `os_version` tables.
-type hostInfo struct {
+// osqueryHostInfo is used to parse osquery JSON output from system tables.
+type osqueryHostInfo struct {
 	// HardwareUUID is the unique identifier for this device (extracted from `system_info` osquery table).
 	HardwareUUID string `json:"uuid"`
 	// HardwareSerial is the unique serial number for this device (extracted from `system_info` osquery table).
@@ -1131,47 +1173,14 @@ type hostInfo struct {
 	Hostname string `json:"hostname"`
 	// Platform is the device's platform as defined by osquery (extracted from `os_version` osquery table).
 	Platform string `json:"platform"`
+	// InstanceID is the osquery's randomly generated instance ID
+	// (extracted from `osquery_info` osquery table).
+	InstanceID string `json:"instance_id"`
 }
 
-// getHostInfo retrieves system information about the host.
-//
-// On macOS and Linux it shells out to osqueryd to retrieve the information.
-//
-// On Windows:
-//
-//   - HardwareUUID is retrieved by shelling out to wmic, if that fails
-//     then the windows API are used.
-//   - HardwareSerial is currently not retrieved for Windows devices.
-//   - Hostname is retrieved using stdlib method.
-//   - Platform is always "windows" for windows hosts.
-//
-// NOTE: Windows uses a different approach to retrieve the device information
-// as there were issues at the time with shelling out to osquery - from what the
-// team remembers it would sometimes fail due to the osquery process not being ready yet.
-// A recent CI run without the Windows special-case did succeed, but since we don't
-// need the serial number for Windows at the moment, we opted to keep the
-// code as it is.
-func getHostInfo(osqueryPath string, osqueryDBPath string) (fleet.OrbitHostInfo, error) {
-	if runtime.GOOS == "windows" {
-		uuidData, uuidSource, err := platform.GetSMBiosUUID()
-		if err != nil {
-			return fleet.OrbitHostInfo{}, err
-		}
-		log.Debug().Str("source", string(uuidSource)).Msg("UUID")
-		// Hostname might differ from the one provided by osquery but we are sending it
-		// for troubleshooting purposes and to avoid empty host entries in the UI.
-		hostname, err := os.Hostname()
-		if err != nil {
-			return fleet.OrbitHostInfo{}, err
-		}
-		return fleet.OrbitHostInfo{
-			HardwareUUID:   uuidData,
-			HardwareSerial: "", // currently not needed for Windows.
-			Hostname:       hostname,
-			Platform:       "windows",
-		}, nil
-	}
-	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform FROM system_info si, os_version os"
+// getHostInfo retrieves system information about the host by shelling out to `osqueryd -S` and performing a `SELECT` query.
+func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, error) {
+	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform, oi.instance_id FROM system_info si, os_version os, osquery_info oi"
 	args := []string{
 		"-S",
 		"--database_path", osqueryDBPath,
@@ -1180,22 +1189,17 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (fleet.OrbitHostInfo,
 	log.Debug().Str("query", systemQuery).Msg("running single query")
 	out, err := exec.Command(osqueryPath, args...).Output()
 	if err != nil {
-		return fleet.OrbitHostInfo{}, err
+		return nil, err
 	}
-	var info []hostInfo
+	var info []osqueryHostInfo
 	err = json.Unmarshal(out, &info)
 	if err != nil {
-		return fleet.OrbitHostInfo{}, err
+		return nil, err
 	}
 	if len(info) != 1 {
-		return fleet.OrbitHostInfo{}, fmt.Errorf("invalid number of rows from system info query: %d", len(info))
+		return nil, fmt.Errorf("invalid number of rows from system info query: %d", len(info))
 	}
-	return fleet.OrbitHostInfo{
-		HardwareSerial: info[0].HardwareSerial,
-		HardwareUUID:   info[0].HardwareUUID,
-		Hostname:       info[0].Hostname,
-		Platform:       info[0].Platform,
-	}, nil
+	return &info[0], nil
 }
 
 var versionCommand = &cli.Command{
@@ -1273,9 +1277,11 @@ func (f *capabilitiesChecker) execute() error {
 	defer close(f.executeDoneCh)
 	capabilitiesCheckTicker := time.NewTicker(5 * time.Minute)
 
-	// do an initial ping to store the initial capabilities
-	if err := f.client.Ping(); err != nil {
-		logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
+	// Do an initial ping to store the initial capabilities if needed
+	if len(f.client.GetServerCapabilities()) == 0 {
+		if err := f.client.Ping(); err != nil {
+			logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
+		}
 	}
 
 	for {

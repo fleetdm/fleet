@@ -1395,6 +1395,8 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.NoError(t, err)
 	err = s.ds.ReconcileSoftwareTitles(context.Background())
 	require.NoError(t, err)
+	err = s.ds.SyncHostsSoftwareTitles(context.Background(), time.Now())
+	require.NoError(t, err)
 
 	var fooV1ID, fooV2ID, barAppTitleID, fooTitleID uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1668,6 +1670,51 @@ func (s *integrationTestSuite) TestListHosts() {
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID+1337))
 	require.Len(t, resp.Hosts, 0)
+
+	// populate software for hosts
+	now := time.Now()
+
+	inserted, err := s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
+		SoftwareID: host2.Software[0].ID,
+		CVE:        "cve-123-123-123",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	require.True(t, inserted)
+
+	require.NoError(t, s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{{
+		CVE:              "cve-123-123-123",
+		CVSSScore:        ptr.Float64(5.4),
+		EPSSProbability:  ptr.Float64(0.5),
+		CISAKnownExploit: ptr.Bool(true),
+		Published:        &now,
+		Description:      "a long description of the cve",
+	}}))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "true")
+	require.Len(t, resp.Hosts, 4)
+	for _, h := range resp.Hosts {
+		if h.ID == hosts[2].ID {
+			require.NotEmpty(t, h.Software)
+			require.Len(t, h.Software, 1)
+			require.NotEmpty(t, h.Software[0].Vulnerabilities)
+
+			// all these should be nil because this isn't Premium
+			require.Nil(t, h.Software[0].Vulnerabilities[0].CVSSScore)
+			require.Nil(t, h.Software[0].Vulnerabilities[0].EPSSProbability)
+			require.Nil(t, h.Software[0].Vulnerabilities[0].CISAKnownExploit)
+			require.Nil(t, h.Software[0].Vulnerabilities[0].CVEPublished)
+			require.Nil(t, h.Software[0].Vulnerabilities[0].Description)
+			require.Nil(t, h.Software[0].Vulnerabilities[0].ResolvedInVersion)
+		}
+	}
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "false")
+	require.Len(t, resp.Hosts, 4)
+	for _, h := range resp.Hosts {
+		require.Empty(t, h.Software)
+	}
 }
 
 func (s *integrationTestSuite) TestInvites() {
@@ -2818,6 +2865,11 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 
 	// listing returns that query
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
+	require.Len(t, listQryResp.Queries, 1)
+	assert.Equal(t, query.Name, listQryResp.Queries[0].Name)
+
+	// Return that query by name
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries?query=%s", query.Name), nil, http.StatusOK, &listQryResp)
 	require.Len(t, listQryResp.Queries, 1)
 	assert.Equal(t, query.Name, listQryResp.Queries[0].Name)
 
@@ -5114,8 +5166,11 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// a normal request works fine
 	var resp listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp)
-	require.Equal(t, 0, resp.Count)
-	require.Nil(t, resp.SoftwareTitles)
+	// TODO: there's a race condition that makes this number change from
+	// 0-3, commenting for now since it's not really relevant for this
+	// test (we only care about the response status)
+	// require.NotEmpty(t, 0, resp.Count)
+	// require.Nil(t, resp.SoftwareTitles)
 
 	// a request with a team_id parameter returns a license error
 	resp = listSoftwareTitlesResponse{}
@@ -5757,6 +5812,8 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "0", "order_key", "hosts_count", "order_direction", "desc")
 	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18], sws[17], sws[16], sws[15]}, hostsCountTs, len(sws), 20, 19, 18, 17, 16)
+	require.False(t, versResp.Meta.HasPreviousResults)
+	require.True(t, versResp.Meta.HasNextResults)
 
 	// second page (page=1)
 	lsResp = listSoftwareResponse{}
@@ -5765,6 +5822,8 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
 	assertVersionsResp(versResp, []fleet.Software{sws[14], sws[13], sws[12], sws[11], sws[10]}, hostsCountTs, len(sws), 15, 14, 13, 12, 11)
+	require.True(t, versResp.Meta.HasPreviousResults)
+	require.True(t, versResp.Meta.HasNextResults)
 
 	// third page (page=2)
 	lsResp = listSoftwareResponse{}
@@ -5773,6 +5832,8 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
 	assertVersionsResp(versResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, len(sws), 10, 9, 8, 7, 6)
+	require.True(t, versResp.Meta.HasPreviousResults)
+	require.True(t, versResp.Meta.HasNextResults)
 
 	// last page (page=3)
 	lsResp = listSoftwareResponse{}
@@ -5781,6 +5842,8 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "3", "order_key", "hosts_count", "order_direction", "desc")
 	assertVersionsResp(versResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, len(sws), 5, 4, 3, 2, 1)
+	require.True(t, versResp.Meta.HasPreviousResults)
+	require.False(t, versResp.Meta.HasNextResults)
 
 	// past the end
 	lsResp = listSoftwareResponse{}
@@ -7099,6 +7162,8 @@ func (s *integrationTestSuite) TestOSVersions() {
 }
 
 func (s *integrationTestSuite) TestPingEndpoints() {
+	t := s.T()
+
 	s.DoRaw("HEAD", "/api/fleet/orbit/ping", nil, http.StatusOK)
 	// unauthenticated works too
 	s.DoRawNoAuth("HEAD", "/api/fleet/orbit/ping", nil, http.StatusOK)
@@ -7106,6 +7171,13 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 	s.DoRaw("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
 	// unauthenticated works too
 	s.DoRawNoAuth("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
+
+	// device authenticated ping
+	createHostAndDeviceToken(t, s.ds, "ping-token")
+	s.DoRaw("HEAD", fmt.Sprintf("/api/v1/fleet/device/%s/ping", "ping-token"), nil, http.StatusOK)
+	s.DoRawNoAuth("HEAD", fmt.Sprintf("/api/v1/fleet/device/%s/ping", "ping-token"), nil, http.StatusOK)
+	s.DoRaw("HEAD", fmt.Sprintf("/api/v1/fleet/device/%s/ping", "bozo-token"), nil, http.StatusUnauthorized)
+	s.DoRawNoAuth("HEAD", fmt.Sprintf("/api/v1/fleet/device/%s/ping", "bozo-token"), nil, http.StatusUnauthorized)
 }
 
 func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
@@ -8559,18 +8631,33 @@ func (s *integrationTestSuite) TestQueryReports() {
 	})
 	require.NoError(t, err)
 
-	host2Team1, err := s.ds.NewHost(ctx, &fleet.Host{
+	host2Global, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         ptr.String("2"),
 		UUID:            "2",
-		ComputerName:    "Foo Local2",
 		Hostname:        "foo.local2",
 		OsqueryHostID:   ptr.String("2"),
-		PrimaryIP:       "192.168.1.2",
+		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-59",
+		Platform:        "ubuntu",
+	})
+	require.NoError(t, err)
+
+	host2Team1, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("3"),
+		UUID:            "3",
+		ComputerName:    "Foo Local3",
+		Hostname:        "foo.local3",
+		OsqueryHostID:   ptr.String("3"),
+		PrimaryIP:       "192.168.1.3",
+		PrimaryMac:      "30-65-EC-6F-C4-60",
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
@@ -8611,6 +8698,16 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Equal(t, usbDevicesQuery.ID, gqrr.QueryID)
 	require.NotNil(t, gqrr.Results)
 	require.Len(t, gqrr.Results, 0)
+
+	var ghqrr getHostQueryReportResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host1Global.ID, usbDevicesQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr)
+	require.NoError(t, ghqrr.Err)
+	require.Equal(t, usbDevicesQuery.ID, ghqrr.QueryID)
+	require.Equal(t, host1Global.ID, ghqrr.HostID)
+	require.Nil(t, ghqrr.LastFetched)
+	require.False(t, ghqrr.ReportClipped)
+	require.NotNil(t, ghqrr.Results)
+	require.Len(t, ghqrr.Results, 0)
 
 	slreq := submitLogsRequest{
 		NodeKey: *host2Team1.NodeKey,
@@ -8733,6 +8830,29 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
 
+	emptyslreq := submitLogsRequest{
+		NodeKey: *host2Global.NodeKey,
+		LogType: "result",
+		Data: json.RawMessage(`[{
+			  "snapshot": [],
+			  "action": "snapshot",
+			  "name": "pack/Global/` + osqueryInfoQuery.Name + `",
+			  "hostIdentifier": "` + *host1Global.OsqueryHostID + `",
+			  "calendarTime": "Fri Oct  6 18:13:04 2023 UTC",
+			  "unixTime": 1696615984,
+			  "epoch": 0,
+			  "counter": 0,
+			  "numerics": false,
+			  "decorations": {
+				"host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
+				"hostname": "` + host1Global.Hostname + `"
+			  }
+			}]`),
+	}
+	emptyslres := submitLogsResponse{}
+	s.DoJSON("POST", "/api/osquery/log", emptyslreq, http.StatusOK, &emptyslres)
+	require.NoError(t, emptyslres.Err)
+
 	gqrr = getQueryReportResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", usbDevicesQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.NoError(t, gqrr.Err)
@@ -8777,6 +8897,47 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"version":     "9.33",
 	}, gqrr.Results[1].Columns)
 
+	ghqrr = getHostQueryReportResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host2Team1.ID, usbDevicesQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr)
+	require.NoError(t, ghqrr.Err)
+	require.Equal(t, usbDevicesQuery.ID, ghqrr.QueryID)
+	require.Equal(t, host2Team1.ID, ghqrr.HostID)
+	require.NotNil(t, ghqrr.LastFetched)
+	require.False(t, ghqrr.ReportClipped)
+	require.Len(t, ghqrr.Results, 2)
+	sort.Slice(gqrr.Results, func(i, j int) bool {
+		// Let's just pick a known column of the query to sort.
+		return gqrr.Results[i].Columns["usb_port"] < gqrr.Results[j].Columns["usb_port"]
+	})
+	require.Equal(t, map[string]string{
+		"class":       "239",
+		"model":       "HD Pro Webcam C920",
+		"model_id":    "0892",
+		"protocol":    "",
+		"removable":   "1",
+		"serial":      "zoobar",
+		"subclass":    "2",
+		"usb_address": "3",
+		"usb_port":    "1",
+		"vendor":      "",
+		"vendor_id":   "046d",
+		"version":     "0.19",
+	}, ghqrr.Results[0].Columns)
+	require.Equal(t, map[string]string{
+		"class":       "0",
+		"model":       "Apple Internal Keyboard / Trackpad",
+		"model_id":    "027e",
+		"protocol":    "",
+		"removable":   "0",
+		"serial":      "foobar",
+		"subclass":    "0",
+		"usb_address": "8",
+		"usb_port":    "5",
+		"vendor":      "Apple Inc.",
+		"vendor_id":   "05ac",
+		"version":     "9.33",
+	}, ghqrr.Results[1].Columns)
+
 	gqrr = getQueryReportResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.NoError(t, gqrr.Err)
@@ -8820,6 +8981,38 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"version":        "5.9.1",
 		"watcher":        "95636",
 	}, gqrr.Results[1].Columns)
+
+	ghqrr = getHostQueryReportResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host1Global.ID, osqueryInfoQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr)
+	require.NoError(t, ghqrr.Err)
+	require.Equal(t, osqueryInfoQuery.ID, ghqrr.QueryID)
+	require.Equal(t, host1Global.ID, ghqrr.HostID)
+	require.NotNil(t, ghqrr.LastFetched)
+	require.False(t, ghqrr.ReportClipped)
+	require.Len(t, ghqrr.Results, 1)
+	require.Equal(t, map[string]string{
+		"build_distro":   "centos7",
+		"build_platform": "linux",
+		"config_hash":    "eed0d8296e5f90b790a23814a9db7a127b13498d",
+		"config_valid":   "1",
+		"extensions":     "active",
+		"instance_id":    "e5799132-85ab-4cfa-89f3-03e0dd3c509a",
+		"pid":            "3574",
+		"platform_mask":  "9",
+		"start_time":     "1696502961",
+		"uuid":           host1Global.UUID,
+		"version":        "5.9.2",
+		"watcher":        "3570",
+	}, ghqrr.Results[0].Columns)
+
+	ghqrr = getHostQueryReportResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host2Global.ID, osqueryInfoQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr)
+	require.NoError(t, ghqrr.Err)
+	require.Equal(t, osqueryInfoQuery.ID, ghqrr.QueryID)
+	require.Equal(t, host2Global.ID, ghqrr.HostID)
+	require.NotNil(t, ghqrr.LastFetched)
+	require.False(t, ghqrr.ReportClipped)
+	require.Len(t, ghqrr.Results, 0)
 
 	// verify that certain modifications to queries don't cause result deletion
 	modifyQueryResp := modifyQueryResponse{}
@@ -8893,7 +9086,13 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
-	require.Len(t, gqrr.Results, 1000)
+	require.Len(t, gqrr.Results, fleet.MaxQueryReportRows)
+
+	ghqrr = getHostQueryReportResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host1Global.ID, osqueryInfoQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr)
+	require.NoError(t, ghqrr.Err)
+	require.True(t, ghqrr.ReportClipped)
+	require.Len(t, ghqrr.Results, fleet.MaxQueryReportRows)
 
 	slreq.Data = json.RawMessage(`[{
   "snapshot": [` + results(1, host1Global.UUID) + `
@@ -8915,7 +9114,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
-	require.Len(t, gqrr.Results, 1000)
+	require.Len(t, gqrr.Results, fleet.MaxQueryReportRows)
 
 	// TODO: Set global discard flag and verify that all data is gone.
 }

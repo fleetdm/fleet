@@ -29,7 +29,7 @@ func (r listSoftwareResponse) error() error { return r.Err }
 // DEPRECATED: use listSoftwareVersionsEndpoint instead
 func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listSoftwareRequest)
-	resp, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
+	resp, _, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
 		return listSoftwareResponse{Err: err}, nil
 	}
@@ -50,17 +50,23 @@ func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 }
 
 type listSoftwareVersionsResponse struct {
-	Count           int              `json:"count"`
-	CountsUpdatedAt *time.Time       `json:"counts_updated_at"`
-	Software        []fleet.Software `json:"software,omitempty"`
-	Err             error            `json:"error,omitempty"`
+	Count           int                       `json:"count"`
+	CountsUpdatedAt *time.Time                `json:"counts_updated_at"`
+	Software        []fleet.Software          `json:"software,omitempty"`
+	Meta            *fleet.PaginationMetadata `json:"meta"`
+	Err             error                     `json:"error,omitempty"`
 }
 
 func (r listSoftwareVersionsResponse) error() error { return r.Err }
 
 func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listSoftwareRequest)
-	resp, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
+
+	// always include pagination for new software versions endpoint (not included by default in
+	// legacy endpoint for backwards compatibility)
+	req.SoftwareListOptions.ListOptions.IncludeMetadata = true
+
+	resp, meta, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
 		return listSoftwareVersionsResponse{Err: err}, nil
 	}
@@ -72,7 +78,7 @@ func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc 
 			latest = sw.CountsUpdatedAt
 		}
 	}
-	listResp := listSoftwareVersionsResponse{Software: resp}
+	listResp := listSoftwareVersionsResponse{Software: resp, Meta: meta}
 	if !latest.IsZero() {
 		listResp.CountsUpdatedAt = &latest
 	}
@@ -86,11 +92,11 @@ func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc 
 	return listResp, nil
 }
 
-func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
 		TeamID: opt.TeamID,
 	}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// default sort order to hosts_count descending
@@ -100,12 +106,12 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	}
 	opt.WithHostCounts = true
 
-	softwares, err := svc.ds.ListSoftware(ctx, opt)
+	softwares, meta, err := svc.ds.ListSoftware(ctx, opt)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return softwares, nil
+	return softwares, meta, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

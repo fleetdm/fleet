@@ -1087,7 +1087,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 			return nil, ctxerr.Wrap(ctx, err, "parsing configured server URL")
 		}
 		q := u.Query()
-		q.Add("enroll_reference", ref)
+		q.Add(mobileconfig.FleetEnrollReferenceKey, ref)
 		u.RawQuery = q.Encode()
 		enrollURL = u.String()
 	}
@@ -2249,7 +2249,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 				worker.AppleMDMPostDEPEnrollmentTask,
 				r.ID,
 				tmID,
-				r.Params["enroll_reference"],
+				r.Params[mobileconfig.FleetEnrollReferenceKey],
 			); err != nil {
 				return ctxerr.Wrap(r.Context, err, "queue DEP post-enroll task")
 			}
