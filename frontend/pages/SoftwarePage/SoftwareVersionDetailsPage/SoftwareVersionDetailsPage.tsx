@@ -18,11 +18,10 @@ import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 import TableDataError from "components/DataError";
+import Spinner from "components/Spinner";
 
 import generateSoftwareVersionDetailsTableConfig from "./SoftwareVersionDetailsTableConfig";
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
-import { render } from "@testing-library/react";
-import Spinner from "components/Spinner";
 
 const baseClass = "software-version-details-page";
 

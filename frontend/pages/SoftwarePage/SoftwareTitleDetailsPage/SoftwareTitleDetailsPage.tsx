@@ -9,10 +9,10 @@ import softwareAPI, {
 
 import MainContent from "components/MainContent";
 import TableDataError from "components/DataError";
+import Spinner from "components/Spinner";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
-import Spinner from "components/Spinner";
 
 const baseClass = "software-title-details-page";
 
