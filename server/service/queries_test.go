@@ -137,7 +137,7 @@ func TestQueryPayloadValidationModify(t *testing.T) {
 			ObserverCanRun: false,
 		}, nil
 	}
-	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool) error {
+	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error {
 		assert.NotEmpty(t, query)
 		return nil
 	}
@@ -374,7 +374,7 @@ func TestQueryAuth(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool) error {
+	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error {
 		return nil
 	}
 	ds.DeleteQueryFunc = func(ctx context.Context, teamID *uint, name string) error {
