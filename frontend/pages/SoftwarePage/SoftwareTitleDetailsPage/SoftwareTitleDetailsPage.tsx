@@ -12,6 +12,7 @@ import TableDataError from "components/DataError";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
+import Spinner from "components/Spinner";
 
 const baseClass = "software-title-details-page";
 
@@ -43,37 +44,47 @@ const SoftwareTitleDetailsPage = ({
     }
   );
 
-  if (!softwareTitle) {
-    return null;
-  }
+  const renderContent = () => {
+    if (isSoftwareTitleLoading) {
+      return <Spinner />;
+    }
+
+    if (isSoftwareTitleError) {
+      return <TableDataError className={`${baseClass}__table-error`} />;
+    }
+
+    if (!softwareTitle) {
+      return null;
+    }
+
+    return (
+      <>
+        <SoftwareDetailsSummary
+          id={softwareId}
+          title={softwareTitle.name}
+          type={formatSoftwareType(softwareTitle)}
+          versions={softwareTitle.versions.length}
+          hosts={softwareTitle.hosts_count}
+          queryParam="software_title_id"
+          name={softwareTitle.name}
+          source={softwareTitle.source}
+        />
+        {/* TODO: can we use Card here for card styles */}
+        <div className={`${baseClass}__versions-section`}>
+          <h2>Versions</h2>
+          <SoftwareTitleDetailsTable
+            router={router}
+            data={softwareTitle.versions}
+            isLoading={isSoftwareTitleLoading}
+          />
+        </div>
+      </>
+    );
+  };
 
   return (
     <MainContent className={baseClass}>
-      {isSoftwareTitleError ? (
-        <TableDataError className={`${baseClass}__table-error`} />
-      ) : (
-        <>
-          <SoftwareDetailsSummary
-            id={softwareId}
-            title={softwareTitle.name}
-            type={formatSoftwareType(softwareTitle)}
-            versions={softwareTitle.versions.length}
-            hosts={softwareTitle.hosts_count}
-            queryParam="software_title_id"
-            name={softwareTitle.name}
-            source={softwareTitle.source}
-          />
-          {/* TODO: can we use Card here for card styles */}
-          <div className={`${baseClass}__versions-section`}>
-            <h2>Versions</h2>
-            <SoftwareTitleDetailsTable
-              router={router}
-              data={softwareTitle.versions}
-              isLoading={isSoftwareTitleLoading}
-            />
-          </div>
-        </>
-      )}
+      <>{renderContent()}</>
     </MainContent>
   );
 };
