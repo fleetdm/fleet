@@ -114,6 +114,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // Also applies title to subpaths such as settings/organization/webaddress
+    // TODO - handle different kinds of paths from PATHS - string, function w/params
     const curTitle = page_titles.find((item) =>
       location?.pathname.includes(item.path)
     );
