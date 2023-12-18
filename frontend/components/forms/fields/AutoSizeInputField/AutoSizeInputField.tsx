@@ -16,9 +16,6 @@ interface IAutoSizeInputFieldProps {
   hasError?: boolean;
   isDisabled?: boolean;
   isFocused?: boolean;
-  /** The minimum number of columns the input is. This is ignored if the input
-   * has a value. Useful if you'd like to show placeholder text without the
-   * input cutting off the text. defaults to `12` */
   onFocus: () => void;
   onBlur: () => void;
   onChange: (newSelectedValue: string) => void;
