@@ -54,7 +54,7 @@ module.exports = {
       throw {badConfig: 'builtStaticContent.osqueryTables'};
     }
 
-    // If the requesting user is not logged in, redirect them to the /try-fleet/login page with the specified hostPlatform added as a query parameter.
+    // If the requesting user is not logged in, redirect them to the /try-fleet/register page with the specified hostPlatform added as a query parameter.
     if(!this.req.me){
       throw {redirect: `/try-fleet/register?targetPlatform=${encodeURIComponent(hostPlatform)}` };
     }
