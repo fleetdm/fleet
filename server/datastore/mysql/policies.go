@@ -1123,6 +1123,10 @@ func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (i
 }
 
 func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
+	// NOTE these queries are duplicated in the below migration.  Updates
+	// to these queries should be reflected there as well.
+	// https://github.com/fleetdm/fleet/blob/main/server/datastore/mysql/migrations/tables/20231215122713_InsertPolicyStatsData.go#L12
+
 	// Update Counts for Inherited Global Policies for each Team
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
