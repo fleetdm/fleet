@@ -429,7 +429,7 @@ module.exports = {
         } else if (!isPRStillDependentOnAndReadyForCeoReview && existingLabels.includes('#g-ceo')) {
           // [?] https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#remove-a-label-from-an-issue
           await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('#g-ceo')}`, {}, baseHeaders)
-          .tolerate({ exit: 'non200Response', raw {statusCode: 404} }, (err)=>{// if the PR has gone missing, swallow the error and warn instead.
+          .tolerate({ exit: 'non200Response', raw: {statusCode: 404} }, (err)=>{// if the PR has gone missing, swallow the error and warn instead.
             sails.log.warn(`When trying to send a request to remove the #g-ceo label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. Raw error: ${require('util').inspect(err)}`);
           });
         }//ﬁ
