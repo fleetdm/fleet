@@ -218,6 +218,8 @@ const routes = (
             <Route component={SoftwarePage}>
               <Route path="titles" component={SoftwareTitles} />
               <Route path="versions" component={SoftwareVersions} />
+              {/* This redirect keeps the old software/:id working */}
+              <Redirect from=":id" to="versions/:id" />
             </Route>
             <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
             <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
