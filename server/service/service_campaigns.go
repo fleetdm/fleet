@@ -183,6 +183,13 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		level.Error(logger).Log("msg", "error checking saved query", "query.id", campaign.QueryID, "err", err)
 		perfStatsTracker.saveStats = false
 	}
+	// We aggregate stats and add activity at the end. Using context without cancel for precaution.
+	queryID := campaign.QueryID
+	ctxWithoutCancel := context.WithoutCancel(ctx)
+	defer func() {
+		svc.updateStats(ctxWithoutCancel, queryID, logger, &perfStatsTracker, true)
+		svc.addLiveQueryActivity(ctxWithoutCancel, lastTotals.Total, queryID, logger)
+	}()
 
 	// Loop, pushing updates to results and expected totals
 	for {
@@ -207,7 +214,6 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 					}
 				}
 				if ctxerr.Cause(err) == sockjs.ErrSessionNotOpen {
-					svc.updateStats(ctx, campaign.QueryID, logger, &perfStatsTracker, true)
 					// return and stop sending the query if the session was closed
 					// by the client
 					return
@@ -225,7 +231,6 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 
 		case <-ticker.C:
 			if conn.GetSessionState() == sockjs.SessionClosed {
-				svc.updateStats(ctx, campaign.QueryID, logger, &perfStatsTracker, true)
 				// return and stop sending the query if the session was closed
 				// by the client
 				return
@@ -233,13 +238,41 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			// Update status
 			if err := updateStatus(); err != nil {
 				level.Error(logger).Log("msg", "error updating status", "err", err)
-				svc.updateStats(ctx, campaign.QueryID, logger, &perfStatsTracker, true)
 				return
 			}
 			if status.ActualResults == status.ExpectedResults {
+				// We update stats when all expected results come in.
+				// The WebSockets connection can remain open indefinitely, so we make sure we update the stats at this critical point.
 				svc.updateStats(ctx, campaign.QueryID, logger, &perfStatsTracker, true)
 			}
 		}
+	}
+}
+
+// addLiveQueryActivity adds live query activity to the activity feed, including the updated aggregated stats
+func (svc Service) addLiveQueryActivity(
+	ctx context.Context, targetsCount uint, queryID uint, logger log.Logger,
+) {
+	activityData := fleet.ActivityTypeLiveQuery{
+		TargetsCount: targetsCount,
+	}
+	// Query returns SQL, name, and aggregated stats
+	q, err := svc.ds.Query(ctx, queryID)
+	if err != nil {
+		level.Error(logger).Log("msg", "error getting query", "id", queryID, "err", err)
+	} else {
+		activityData.QuerySQL = q.Query
+		if q.Saved {
+			activityData.QueryName = &q.Name
+			activityData.Stats = &q.AggregatedStats
+		}
+	}
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		activityData,
+	); err != nil {
+		level.Error(logger).Log("msg", "error creating activity for live query", "err", err)
 	}
 }
 
