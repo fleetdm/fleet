@@ -3026,7 +3026,7 @@ Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery mana
 
 ### Update custom human-device mapping
 
-`POST /api/v1/fleet/hosts/:id/device_mapping`
+`PUT /api/v1/fleet/hosts/:id/device_mapping`
 
 Updates the email for the `custom` data source in the human-device mapping. This source can only have one email.
 
@@ -3039,7 +3039,7 @@ Updates the email for the `custom` data source in the human-device mapping. This
 
 #### Example
 
-`POST /api/v1/fleet/hosts/1/device_mapping`
+`PUT /api/v1/fleet/hosts/1/device_mapping`
 
 ##### Request body
 
