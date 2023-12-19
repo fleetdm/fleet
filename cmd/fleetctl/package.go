@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -227,6 +228,13 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_HOST_IDENTIFIER"},
 				Destination: &opt.HostIdentifier,
 			},
+			&cli.StringFlag{
+				Name:        "end-user-email",
+				Hidden:      true, // experimental feature, we don't want to show it for now
+				Usage:       "Sets the email address of the user associated with the host when enrolling to Fleet. (requires Fleet >= v4.43.0)",
+				EnvVars:     []string{"FLEETCTL_END_USER_EMAIL"},
+				Destination: &opt.EndUserEmail,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {
@@ -278,6 +286,17 @@ func packageCommand() *cli.Command {
 			if opt.LocalWixDir != "" && runtime.GOOS != "windows" {
 				return errors.New(`Could not use local WiX to generate an osquery installer. This option is only available on Windows.
 				Visit https://wixtoolset.org/ for more information about how to use WiX.`)
+			}
+
+			if opt.EndUserEmail != "" && c.String("type") != "msi" {
+				return errors.New("Can only set --end-user-email when building an MSI package.")
+			}
+			if opt.EndUserEmail != "" {
+				// same validation as in datastore (mysql/mysql.go)
+				rxLooseEmail := regexp.MustCompile(`^[^\s@]+@[^\s@\.]+\..+$`)
+				if !rxLooseEmail.MatchString(opt.EndUserEmail) {
+					return errors.New("Invalid email address specified for --end-user-email.")
+				}
 			}
 
 			if opt.FleetCertificate != "" {
