@@ -107,7 +107,7 @@ module.exports = {
           // [?] https://docs.github.com/en/rest/issues/issues#create-an-issue
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${ritual.autoIssue.repo}/issues`, {
             title: ritual.task,
-            body: ritual.description,
+            body: ritual.description + (ritual.moreInfoUrl ? ('\n\n> Read more at '+ritual.moreInfoUrl) : ''),
             labels: ritual.autoIssue.labels,
             assignees: [ ritual.dri ]
           }, baseHeaders);
