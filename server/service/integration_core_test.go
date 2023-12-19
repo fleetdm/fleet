@@ -3033,21 +3033,32 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.DeviceMapping, 0)
 
-	// create some mappings
+	// create a custom mapping of a non-existing host
+	var putResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[2].ID+1), nil, http.StatusNotFound, &putResp)
+
+	// create some google mappings
 	require.NoError(t, s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, []*fleet.HostDeviceMapping{
-		{HostID: hosts[0].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
-		{HostID: hosts[0].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
-	}, "google_chrome_profiles"))
+		{HostID: hosts[0].ID, Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{HostID: hosts[0].ID, Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+	}, fleet.DeviceMappingGoogleChromeProfiles))
+
+	// create a custom mapping
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), putHostDeviceMappingRequest{Email: "c@b.c"}, http.StatusOK, &putResp)
+	require.Equal(t, hosts[0].ID, putResp.HostID)
+	require.ElementsMatch(t, putResp.DeviceMapping, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "c@b.c", Source: fleet.DeviceMappingCustomReplacement},
+	})
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
-	require.Len(t, listResp.DeviceMapping, 2)
-	require.Equal(t, "a@b.c", listResp.DeviceMapping[0].Email)
-	require.Equal(t, "google_chrome_profiles", listResp.DeviceMapping[0].Source)
-	require.Zero(t, listResp.DeviceMapping[0].HostID)
-	require.Equal(t, "b@b.c", listResp.DeviceMapping[1].Email)
-	require.Equal(t, "google_chrome_profiles", listResp.DeviceMapping[1].Source)
-	require.Zero(t, listResp.DeviceMapping[1].HostID)
 	require.Equal(t, hosts[0].ID, listResp.HostID)
+	require.ElementsMatch(t, listResp.DeviceMapping, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "c@b.c", Source: fleet.DeviceMappingCustomReplacement},
+	})
 
 	// other host still has none
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[1].ID), nil, http.StatusOK, &listResp)
@@ -3069,20 +3080,28 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 
 	err := json.Unmarshal(*hostsByID[host1.ID].DeviceMapping, &dm)
 	require.NoError(t, err)
-	assert.Len(t, dm, 2)
-
-	var emails []string
-	for _, e := range dm {
-		emails = append(emails, e.Email)
-	}
-	assert.Contains(t, emails, "a@b.c")
-	assert.Contains(t, emails, "b@b.c")
-	assert.Equal(t, "google_chrome_profiles", dm[0].Source)
-	assert.Equal(t, "google_chrome_profiles", dm[1].Source)
+	require.ElementsMatch(t, dm, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "c@b.c", Source: fleet.DeviceMappingCustomReplacement},
+	})
 
 	// no device mapping for other hosts
 	assert.Nil(t, hostsByID[hosts[1].ID].DeviceMapping)
 	assert.Nil(t, hostsByID[hosts[2].ID].DeviceMapping)
+
+	// update custom email for hosts[0]
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), putHostDeviceMappingRequest{Email: "d@b.c"}, http.StatusOK, &putResp)
+	require.Equal(t, hosts[0].ID, putResp.HostID)
+	require.ElementsMatch(t, putResp.DeviceMapping, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "d@b.c", Source: fleet.DeviceMappingCustomReplacement},
+	})
+
+	// create a custom_installer email for hosts[1]
+	_, err = s.ds.SetOrUpdateCustomHostDeviceMapping(ctx, hosts[1].ID, "e@b.c", fleet.DeviceMappingCustomInstaller)
+	require.NoError(t, err)
 
 	// search host by email address finds the corresponding host
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "a@b.c")
@@ -3092,17 +3111,35 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 
 	err = json.Unmarshal(*listHosts.Hosts[0].DeviceMapping, &dm)
 	require.NoError(t, err)
-	assert.Len(t, dm, 2)
+	require.ElementsMatch(t, putResp.DeviceMapping, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "d@b.c", Source: fleet.DeviceMappingCustomReplacement},
+	})
 
-	for _, e := range dm {
-		emails = append(emails, e.Email)
-	}
-	assert.Contains(t, emails, "a@b.c")
-	assert.Contains(t, emails, "b@b.c")
-	assert.Equal(t, "google_chrome_profiles", dm[0].Source)
-	assert.Equal(t, "google_chrome_profiles", dm[1].Source)
+	// search host by the custom email address finds the corresponding host
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "d@b.c")
+	require.Len(t, listHosts.Hosts, 1)
+	require.Equal(t, hosts[0].ID, listHosts.Hosts[0].ID)
 
-	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "c@b.c")
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "e@b.c")
+	require.Len(t, listHosts.Hosts, 1)
+	require.Equal(t, hosts[1].ID, listHosts.Hosts[0].ID)
+
+	// override the custom email for hosts[1]
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[1].ID), putHostDeviceMappingRequest{Email: "f@b.c"}, http.StatusOK, &putResp)
+
+	// searching by the old custom installer email doesn't work anymore
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "e@b.c")
+	require.Len(t, listHosts.Hosts, 0)
+
+	// searching by the new custom email address finds it
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "f@b.c")
+	require.Len(t, listHosts.Hosts, 1)
+	require.Equal(t, hosts[1].ID, listHosts.Hosts[0].ID)
+
+	// searching by a never-used email returns nothing
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "Z@b.c")
 	require.Len(t, listHosts.Hosts, 0)
 }
 
