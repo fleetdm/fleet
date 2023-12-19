@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Chat with other developers
-    url: https://fleetdm.com/slack
+    url: https://fleetdm.com/support
     about: Please ask and answer questions here.
   - name: Documentation
     url: https://fleetdm.com/documentation
