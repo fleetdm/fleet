@@ -22,6 +22,7 @@ import (
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	nvdsync "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/sync"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
@@ -322,7 +323,7 @@ func checkCVEs(
 						vuln := fleet.SoftwareVulnerability{
 							SoftwareID:        softwareCPE.SoftwareID,
 							CVE:               matches.CVE.ID(),
-							ResolvedInVersion: resolvedVersion,
+							ResolvedInVersion: ptr.String(resolvedVersion),
 						}
 
 						mu.Lock()

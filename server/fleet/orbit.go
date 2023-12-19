@@ -53,6 +53,12 @@ type OrbitHostInfo struct {
 	Hostname string
 	// Platform is the device's platform as defined by osquery.
 	Platform string
+	// OsqueryIdentifier holds the identifier that osqueryd will use in its enrollment.
+	// This is mainly used for scenarios where hosts have duplicate hardware UUID (e.g. VMs)
+	// and a different identifier is used for each host (e.g. osquery's "instance" flag).
+	//
+	// If not set, then the HardwareUUID is used/set as the osquery identifier.
+	OsqueryIdentifier string
 }
 
 // ExtensionInfo holds the data of a osquery extension to apply to an Orbit client.

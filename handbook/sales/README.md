@@ -123,22 +123,25 @@ Sometimes there is a change in the champion within the customer's organization.
     3. Offer training to get them up to speed.
     4. Provide a white glove experience.
 
-### Schedule a customer call
-To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) with a Fleet customer, use the ["Customer meeting" Calendly link](https://calendly.com/fleetdm/customer).
-- **Documenting a customer call:** When we do prospect calls, add the customer's name in both the google doc title and the heading, ex. "Charlie (Fleet)."  This makes it easier when searching for the document later. 
-- **Before a customer call(48hrs):** Check the calendar invite 48hrs before the meeting to determine if the customer has accepted the invitation.
-  - If the customer has not accepted the invitation, reach out to confirm attendance (e.g., EAs, email, Slack).
+### To schedule Solutions Consultant (SC) for a prospect meeting
+To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) with a Fleet prospect, the Account Executive (AE) will [open an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales%2C%23solutions-consultant%2C%3Adiscovery%2C%3Ademo%2C%3Ascoping%2C%3Atech-eval&projects=&template=custom-request.md&title=prospect+name+-+prep+%28date%29+-+discovery%2Cdemo%2Cscoping+%28date%29). 
+ - Use [this calendly link](https://calendly.com/fleetdm/talk-to-a-solutions-consultant) to obtain SC availability.
+ - The AE will populate this issue with the appropriate dates for an internal prep meeting as well as the dates for the external prospect meeting.
+
+- **Documenting a prospect call:** When we do prospect calls, add the prospect's name in both the google doc title and the heading, ex. "Alex + Natalie (Fleet + Acme Co)."  This makes it easier when searching for the document later. 
+- **Before a prospect call(48hrs):** Check the calendar invite 48hrs before the meeting to determine if the prospect has accepted the invitation.
+  - If the prospect has not accepted the invitation, reach out to confirm attendance (e.g., EAs, email, Slack).
   - Test the Zoom Meeting link to make sure that it is working.
   - Make sure that agenda documents are attached and accessible to meeting attendees (as appropriate to the situation).
-- **Day of the customer call:** Join the meeting two to three minutes before the start time.
+- **Day of the prospect call:** Join the meeting two to three minutes before the start time.
 
-- **Missed customer call:** If the customer does not join the call after three minutes, contact the customer with
+- **Missed prospect call:** If the prospect does not join the call after three minutes, contact the prospect with
   - Slack, if we have a shared channel.
   - email, using the email address from the calendar invite.
   - LinkedIn, send a direct message.
   - phone, try finding their number to text and/or call (as appropriate to the device type: landline vs. cell phone).
-  - an alternative date and time. Suggest two to three options from which the customer can choose.
-    - Confirm that contact information is accurate and that the customer can receive and access meeting invites.
+  - an alternative date and time. Suggest two to three options from which the prospect can choose.
+    - Confirm that contact information is accurate and that the prospect can receive and access meeting invites.
 
 ### Create a customer agreement
 - **Contract terms:** Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 

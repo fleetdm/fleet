@@ -385,6 +385,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping", listHostDeviceMappingEndpoint, listHostDeviceMappingRequest{})
 	ue.GET("/api/_version_/fleet/hosts/report", hostsReportEndpoint, hostsReportRequest{})
 	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/queries/{query_id:[0-9]+}", getHostQueryReportEndpoint, getHostQueryReportRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/health", getHostHealthEndpoint, getHostHealthRequest{})
 
 	ue.GET("/api/_version_/fleet/hosts/summary/mdm", getHostMDMSummary, getHostMDMSummaryRequest{})
@@ -586,6 +587,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(
 		errorLimiter.Limit("get_fleet_desktop", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/desktop", getFleetDesktopEndpoint, getFleetDesktopRequest{})
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("ping_device_auth", desktopQuota),
+	).HEAD("/api/_version_/fleet/device/{token}/ping", devicePingEndpoint, deviceAuthPingRequest{})
 	de.WithCustomMiddleware(
 		errorLimiter.Limit("refetch_device_host", desktopQuota),
 	).POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})

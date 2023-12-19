@@ -4746,7 +4746,12 @@ func TestRestorePendingDEPHost(t *testing.T) {
 			require.WithinDuration(t, time.Now(), depAssignment.AddedAt, 5*time.Second)
 
 			// simulate initial osquery enrollment via Orbit
-			h, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{HardwareSerial: depSerial, Platform: "darwin", HardwareUUID: depUUID, Hostname: "dep-host"}, depOrbitNodeKey, nil)
+			h, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+				HardwareSerial: depSerial,
+				Platform:       "darwin",
+				HardwareUUID:   depUUID,
+				Hostname:       "dep-host",
+			}, depOrbitNodeKey, nil)
 			require.NoError(t, err)
 			require.NotNil(t, h)
 			require.Equal(t, depHostID, h.ID)

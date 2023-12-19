@@ -44,7 +44,7 @@ const Packs = ({ packsState, isLoading }: IPacksProps): JSX.Element => {
                 {!!pack.query_stats.length && (
                   <div className={`${wrapperClassName}`}>
                     <TableContainer
-                      columns={tableHeaders}
+                      columnConfigs={tableHeaders}
                       data={generatePackDataSet(pack.query_stats)}
                       isLoading={isLoading}
                       onQueryChange={() => null}

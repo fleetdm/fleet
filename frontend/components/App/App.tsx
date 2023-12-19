@@ -24,6 +24,7 @@ import Fleet404 from "pages/errors/Fleet404";
 import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
 import { QueryParams } from "utilities/url";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 interface IAppProps {
   children: JSX.Element;
@@ -113,6 +114,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // Also applies title to subpaths such as settings/organization/webaddress
+    // TODO - handle different kinds of paths from PATHS - string, function w/params
     const curTitle = page_titles.find((item) =>
       location?.pathname.includes(item.path)
     );
@@ -122,7 +124,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       !config?.mdm.enabled_and_configured &&
       curTitle?.path === "/controls/os-updates"
     ) {
-      curTitle.title = "Manage OS hosts | Fleet for osquery";
+      curTitle.title = `Manage OS hosts | ${DOCUMENT_TITLE_SUFFIX}`;
     }
 
     if (curTitle && curTitle.title) {

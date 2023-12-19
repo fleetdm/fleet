@@ -1,0 +1,1 @@
+Fixed fleetctl issue where it was creating a new query when running a query by name, as opposed to using the existing saved query.

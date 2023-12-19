@@ -216,7 +216,9 @@ Fleet prefixes all GitHub labels with special characters or words to organize an
 | `customer-`       | [Customer request](TODO link to handbook section) | `customer-leo`, `customer-sagittarius`
 | `#g-`             | Group isssue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
 
-Opionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. For example, instead of a label called `platform-dev-backend`, we use `#platform :dev ~backend`.
+Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. For example, instead of a label called `platform-dev-backend`, we use `#platform :dev ~backend`.
+
+Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
 > _**Note:** There are only a few "special" labels that are exceptions to this rule:
 > - `bug`
@@ -642,6 +644,8 @@ At the end of their first two weeks of onboarding at Fleet, every new team membe
 
 Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#ownership).  If possible, apply onboarding feedback to the handbook and issue templates in realtime, during this call.  This avoids backlogging tasks that may just get out of date before we get around to them anyway.
 
+## Receiving performance feedback
+At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#performance-feedback), if not sooner.
 
 ## Equipment
 Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.

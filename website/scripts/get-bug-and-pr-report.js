@@ -33,6 +33,8 @@ module.exports = {
     let daysSinceReleasedBugsWereOpened = [];
     let allBugsWithUnreleasedLabel = [];
     let allBugsWithReleasedLabel = [];
+    let allBugsCreatedInPastWeek = [];
+    let allBugsClosedInPastWeek = [];
     let daysSincePullRequestsWereOpened = [];
     let daysSinceContributorPullRequestsWereOpened = [];
     let commitToMergeTimesInDays = [];
@@ -41,6 +43,21 @@ module.exports = {
     let publicPrsMergedInThePastThreeWeeks = [];
     let allNonPublicOpenPrs = [];
     let nonPublicPrsClosedInThePastThreeWeeks = [];
+
+    // Product group KPIS
+
+    // Endpoint operations
+    let allBugsCreatedInPastWeekEndpointOps = [];
+    let allBugsCreatedInPastWeekEndpointOpsUnreleased = [];
+    let allBugsCreatedInPastWeekEndpointOpsReleased = [];
+    let allBugsCreatedInPastWeekEndpointOpsCustomerImpacting = [];
+
+    // Mobile Device Management
+    let allBugsCreatedInPastWeekMobileDeviceManagement = [];
+
+    let allBugsCreatedInPastWeekMobileDeviceManagementUnreleased = [];
+    let allBugsCreatedInPastWeekMobileDeviceManagementReleased = [];
+    let allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting = [];
 
 
     await sails.helpers.flow.simultaneously([
@@ -86,6 +103,35 @@ module.exports = {
           let timeOpenInMS = Math.abs(todaysDate - issueOpenedOn);
           // Convert the miliseconds to days and add the value to the daysSinceBugsWereOpened array
           let timeOpenInDays = timeOpenInMS / ONE_DAY_IN_MILLISECONDS;
+          if (timeOpenInDays <= 7) {
+            allBugsCreatedInPastWeek.push(issue);
+            // Get Endpoint Ops KPIs
+            if (issue.labels.some(label => label.name === '#g-endpoint-ops')) {
+              allBugsCreatedInPastWeekEndpointOps.push(issue);
+              if (issue.labels.some(label => label.name === '~unreleased bug')) {
+                allBugsCreatedInPastWeekEndpointOpsUnreleased.push(issue);
+              }
+              else if (issue.labels.some(label => label.name === '~released bug')) {
+                allBugsCreatedInPastWeekEndpointOpsReleased.push(issue);
+              }
+              if (issue.labels.some(label => label.name.indexOf('customer-') >= 0)) {
+                allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.push(issue);
+              }
+            }
+            // Get MDM KPIs
+            if (issue.labels.some(label => label.name === '#g-mdm')) {
+              allBugsCreatedInPastWeekMobileDeviceManagement.push(issue);
+              if (issue.labels.some(label => label.name === '~unreleased bug')) {
+                allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.push(issue);
+              }
+              else if (issue.labels.some(label => label.name === '~released bug')) {
+                allBugsCreatedInPastWeekMobileDeviceManagementReleased.push(issue);
+              }
+              if (issue.labels.some(label => label.name.indexOf('customer-') >= 0)) {
+                allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.push(issue);
+              }
+            }
+          }
           daysSinceBugsWereOpened.push(timeOpenInDays);
           // Send to released or unreleased bugs array
           if (issue.labels.some(label => label.name === '~unreleased bug')) {
@@ -102,6 +148,55 @@ module.exports = {
         }
 
       },
+
+      //   ██████╗██╗      ██████╗ ███████╗███████╗██████╗     ██████╗ ██╗   ██╗ ██████╗ ███████╗
+      //  ██╔════╝██║     ██╔═══██╗██╔════╝██╔════╝██╔══██╗    ██╔══██╗██║   ██║██╔════╝ ██╔════╝
+      //  ██║     ██║     ██║   ██║███████╗█████╗  ██║  ██║    ██████╔╝██║   ██║██║  ███╗███████╗
+      //  ██║     ██║     ██║   ██║╚════██║██╔══╝  ██║  ██║    ██╔══██╗██║   ██║██║   ██║╚════██║
+      //  ╚██████╗███████╗╚██████╔╝███████║███████╗██████╔╝    ██████╔╝╚██████╔╝╚██████╔╝███████║
+      //   ╚═════╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝╚═════╝     ╚═════╝  ╚═════╝  ╚═════╝ ╚══════╝
+      //
+
+      async()=>{
+
+        let pageNumberForPaginatedResults = 0;
+        let allIssuesWithBugLabel = [];
+
+        // Fetch all closed issues in the fleetdm/fleet repo with the bug label.
+        // Note: This will send requests to GitHub until the number of results is less than the number we requested.
+        await sails.helpers.flow.until(async ()=>{
+          // Increment the page of results we're requesting.
+          pageNumberForPaginatedResults += 1;
+          let issuesWithBugLabel = await sails.helpers.http.get(
+            `https://api.github.com/repos/fleetdm/fleet/issues`,
+            {
+              'state': 'closed',
+              'labels': 'bug',
+              'per_page': NUMBER_OF_RESULTS_REQUESTED,
+              'page': pageNumberForPaginatedResults,
+            },
+            baseHeaders
+          ).retry();
+          // Add the results to the allIssuesWithBugLabel array.
+          allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
+          // Stop when we've received results from the third page.
+          return pageNumberForPaginatedResults === 3;
+        }, 10000);
+
+        // iterate through the allIssuesWithBugLabel array, adding the number
+        for (let issue of allIssuesWithBugLabel) {
+          // Create a date object from the issue's closed_at timestamp.
+          let issueClosedOn = new Date(issue.closed_at);
+          // Get the amount of time this issue has been closed in milliseconds.
+          let timeClosedInMS = Math.abs(todaysDate - issueClosedOn);
+          // Convert the miliseconds to days and add the value to the allBugsClosedInPastWeek array
+          let timeClosedInDays = timeClosedInMS / ONE_DAY_IN_MILLISECONDS;
+          if (timeClosedInDays <= 7) {
+            allBugsClosedInPastWeek.push(issue);
+          }
+        }
+      },
+
       //   ██████╗██╗      ██████╗ ███████╗███████╗██████╗     ██████╗ ██████╗ ███████╗
       //  ██╔════╝██║     ██╔═══██╗██╔════╝██╔════╝██╔══██╗    ██╔══██╗██╔══██╗██╔════╝
       //  ██║     ██║     ██║   ██║███████╗█████╗  ██║  ██║    ██████╔╝██████╔╝███████╗
@@ -281,7 +376,6 @@ module.exports = {
     }, 0);
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-
     // Log the results
     sails.log(`
     Bugs:
@@ -294,6 +388,30 @@ module.exports = {
 
     Number of open issues with the "~released bug" label in fleetdm/fleet: ${allBugsWithReleasedLabel.length}
     Average open time: ${averageNumberOfDaysReleasedBugsAreOpenFor} days.
+
+    Number of issues with the "bug" label opened in the past week: ${allBugsCreatedInPastWeek.length}
+
+    Number of issues with the "bug" label closed in the past week: ${allBugsClosedInPastWeek.length}
+
+    Endpoint Operations:
+    ---------------------------
+    Number of issues with the "#g-endpoint-ops" and "bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOps.length}
+
+    Number of issues with the "#g-endpoint-ops", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsUnreleased.length}
+
+    Number of issues with the "#g-endpoint-ops", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsReleased.length}
+
+    Number of issues with the "#g-endpoint-ops", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.length}
+
+    MDM:
+    ---------------------------
+    Number of issues with the "#g-mdm" and "bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagement.length}
+
+    Number of issues with the "#g-mdm", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.length}
+
+    Number of issues with the "#g-emdm", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementReleased.length}
+
+    Number of issues with the "#g-mdm", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.length}
 
     Closed pull requests:
     ---------------------------
