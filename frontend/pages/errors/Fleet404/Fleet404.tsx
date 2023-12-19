@@ -39,7 +39,7 @@ const Fleet404 = () => (
       </p>
       <div className={`${baseClass}__button-wrapper`}>
         <a
-          href="https://fleetdm.com/slack"
+          href="https://fleetdm.com/support"
           target="_blank"
           rel="noopener noreferrer"
         >
