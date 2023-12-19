@@ -1029,7 +1029,7 @@ module.exports = {
               pageOfResultsReturned++;
               // This will stop running once all pages of labels in the specified GitHub repo have been returned.
               return pageOfLabels.length < 100;
-            });//∞
+            }, 10000);//∞   (maximum of 10s before giving up)
             // Get an array containing only the names of labels.
             let allLabelNamesInSpecifiedRepo = _.pluck(allExistingLabelsInSpecifiedRepo, 'name');
             // Validate each label, if a label does not exist in the specified repo, throw an error.
