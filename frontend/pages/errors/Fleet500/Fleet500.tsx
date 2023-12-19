@@ -36,7 +36,7 @@ const Fleet500 = () => (
       <p>Please file an issue if you believe this is a bug.</p>
       <div className={`${baseClass}__button-wrapper`}>
         <a
-          href="https://fleetdm.com/slack"
+          href="https://fleetdm.com/support"
           target="_blank"
           rel="noopener noreferrer"
         >
