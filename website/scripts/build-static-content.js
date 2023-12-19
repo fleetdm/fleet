@@ -891,10 +891,10 @@ module.exports = {
                 throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. "${ritual.task}" contains an invalid autoIssue value. To resolve, add a "labels" value (An array of strings) to the autoIssue value.`);
               }
               if(!ritual.autoIssue.repo || typeof ritual.autoIssue.repo !== 'string') {
-                throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. "${ritual.task}" is has an 'autoIssue' value that is missing a 'repo'. Please add the name of the repo that issues will be created in to the autoIssue.repo value and try running this script again.`)
+                throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. "${ritual.task}" is has an 'autoIssue' value that is missing a 'repo'. Please add the name of the repo that issues will be created in to the autoIssue.repo value and try running this script again.`);
               }
               if(!_.contains(['fleet', 'confidential'], ritual.autoIssue.repo)) {
-                throw new Error(`Could not built rituals from ${ritualsYamlFilePath}. The autoIssue.repo value of "${ritual.task}" contains an invalid GitHub repo (${ritual.autoIssue.repo}). Please change this value to be either "fleet" or "confidential" and try running this script again.`)
+                throw new Error(`Could not built rituals from ${ritualsYamlFilePath}. The autoIssue.repo value of "${ritual.task}" contains an invalid GitHub repo (${ritual.autoIssue.repo}). Please change this value to be either "fleet" or "confidential" and try running this script again.`);
               }
               // Check each label in the labels array
               for(let label of ritual.autoIssue.labels) {
