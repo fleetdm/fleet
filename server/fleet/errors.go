@@ -541,5 +541,6 @@ const (
 	RunScriptHostNotFoundErrMsg   = "Host doesn’t exist. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
 	RunScriptForbiddenErrMsg      = "You don’t have the right permissions in Fleet to run the script."
 	RunScriptAlreadyRunningErrMsg = "A script is already running on this host. Please wait about 1 minute to let it finish."
-	RunScriptHostTimeoutErrMsg    = "Fleet hasn’t heard from the host in over 1 minute. Fleet doesn’t know if the script ran because the host went offline."
+	RunScriptHostTimeoutErrMsg    = "Fleet hasn’t heard from the host in over 5 minutes. Fleet doesn’t know if the script ran because the host went offline."
+	RunScriptScriptTimeoutErrMsg  = "Timeout. Fleet stopped the script after 5 minutes to protect host performance."
 )

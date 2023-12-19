@@ -203,7 +203,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	}
 
 	if hsr.ExitCode == nil {
-		if hsr.HostTimeout(1 * time.Minute) {
+		if hsr.HostTimeout(5 * time.Minute) {
 			return RunScriptHostTimeoutErrMsg
 		}
 		return RunScriptAlreadyRunningErrMsg
@@ -211,7 +211,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 
 	switch *hsr.ExitCode {
 	case -1:
-		return "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
+		return RunScriptScriptTimeoutErrMsg
 	case -2:
 		return "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
 	default:

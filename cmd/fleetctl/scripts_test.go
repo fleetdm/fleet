@@ -150,10 +150,10 @@ Output:
 			scriptResult: &fleet.HostScriptResult{
 				ExitCode: ptr.Int64(-1),
 				Output:   "Oh no!",
-				Message:  "Timeout. Fleet stopped the script after 30 seconds to protect host performance.",
+				Message:  fleet.RunScriptScriptTimeoutErrMsg,
 			},
 			expectOutput: `
-Error: Timeout. Fleet stopped the script after 30 seconds to protect host performance.
+Error: Timeout. Fleet stopped the script after 5 minutes to protect host performance.
 
 Output before timeout:
 
