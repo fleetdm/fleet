@@ -22,7 +22,10 @@ import targetsAPI, {
   ITargetsSearchResponse,
 } from "services/entities/targets";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
-import { formatSelectedTargetsForApi } from "utilities/helpers";
+import {
+  addCommasToCount,
+  formatSelectedTargetsForApi,
+} from "utilities/helpers";
 
 import PageError from "components/DataError";
 import TargetsInput from "components/LiveQuery/TargetsInput";
@@ -395,8 +398,8 @@ const SelectTargets = ({
 
     return (
       <>
-        <b>{total}</b>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
-        {onlinePercentage()}
+        <b>{addCommasToCount(total)}</b>&nbsp;host{total > 1 ? `s` : ``}{" "}
+        targeted&nbsp; ({onlinePercentage()}
         %&nbsp;
         <TooltipWrapper
           tipContent={

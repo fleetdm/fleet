@@ -1,3 +1,5 @@
+import { addCommasToCount } from "utilities/helpers";
+
 const DEFAULT_RESULTS_NAME = "results";
 
 const generateResultsCountText = (
@@ -24,7 +26,7 @@ const generateResultsCountText = (
     return `${resultsCount} ${name.slice(0, -1)}`;
   }
 
-  return `${resultsCount} ${name}`;
+  return `${addCommasToCount(resultsCount)} ${name}`;
 };
 
 export default { generateResultsCountText };
