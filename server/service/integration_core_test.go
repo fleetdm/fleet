@@ -3023,6 +3023,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	t := s.T()
 	ctx := context.Background()
 
+	orbitHost := createOrbitEnrolledHost(t, "windows", "device_mapping", s.ds)
 	hosts := s.createHosts(t)
 
 	// get host device mappings of invalid host
@@ -3067,7 +3068,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	var listHosts listHostsResponse
 	// list hosts response includes device mappings
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts)
-	require.Len(t, listHosts.Hosts, 3)
+	require.Len(t, listHosts.Hosts, len(hosts)+1)
 	hostsByID := make(map[uint]fleet.HostResponse)
 	for _, h := range listHosts.Hosts {
 		hostsByID[h.ID] = h
@@ -3089,6 +3090,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	// no device mapping for other hosts
 	assert.Nil(t, hostsByID[hosts[1].ID].DeviceMapping)
 	assert.Nil(t, hostsByID[hosts[2].ID].DeviceMapping)
+	assert.Nil(t, hostsByID[orbitHost.ID].DeviceMapping)
 
 	// update custom email for hosts[0]
 	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), putHostDeviceMappingRequest{Email: "d@b.c"}, http.StatusOK, &putResp)
@@ -3099,9 +3101,11 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 		{Email: "d@b.c", Source: fleet.DeviceMappingCustomReplacement},
 	})
 
-	// create a custom_installer email for hosts[1]
-	_, err = s.ds.SetOrUpdateCustomHostDeviceMapping(ctx, hosts[1].ID, "e@b.c", fleet.DeviceMappingCustomInstaller)
-	require.NoError(t, err)
+	// create a custom_installer email for orbit host
+	s.Do("POST", "/api/fleet/orbit/device_mapping", orbitPostDeviceMappingRequest{
+		OrbitNodeKey: *orbitHost.OrbitNodeKey,
+		Email:        "e@b.c",
+	}, http.StatusOK)
 
 	// search host by email address finds the corresponding host
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "a@b.c")
@@ -3124,10 +3128,16 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "e@b.c")
 	require.Len(t, listHosts.Hosts, 1)
-	require.Equal(t, hosts[1].ID, listHosts.Hosts[0].ID)
+	require.Equal(t, orbitHost.ID, listHosts.Hosts[0].ID)
 
-	// override the custom email for hosts[1]
-	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[1].ID), putHostDeviceMappingRequest{Email: "f@b.c"}, http.StatusOK, &putResp)
+	// override the custom email for the orbit host
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", orbitHost.ID), putHostDeviceMappingRequest{Email: "f@b.c"}, http.StatusOK, &putResp)
+
+	// update the custom_installer email for orbit host, will get ignored (because a custom_override exists)
+	s.Do("POST", "/api/fleet/orbit/device_mapping", orbitPostDeviceMappingRequest{
+		OrbitNodeKey: *orbitHost.OrbitNodeKey,
+		Email:        "g@b.c",
+	}, http.StatusOK)
 
 	// searching by the old custom installer email doesn't work anymore
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "e@b.c")
@@ -3136,7 +3146,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	// searching by the new custom email address finds it
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "f@b.c")
 	require.Len(t, listHosts.Hosts, 1)
-	require.Equal(t, hosts[1].ID, listHosts.Hosts[0].ID)
+	require.Equal(t, orbitHost.ID, listHosts.Hosts[0].ID)
 
 	// searching by a never-used email returns nothing
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "Z@b.c")
