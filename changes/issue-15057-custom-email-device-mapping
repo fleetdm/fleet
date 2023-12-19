@@ -1,1 +1,1 @@
-* Added the `PUT /api/v1/fleet/device/{token}/device_mapping` and `PUT /api/v1/fleet/hosts/{id}/device_mapping` endpoints (device-authenticated and user-authenticated) to set or replace the custom email address associated with a host.
+* Added the `POST /api/fleet/orbit/device_mapping` and `PUT /api/v1/fleet/hosts/{id}/device_mapping` endpoints (orbit-authenticated and user-authenticated) to set or replace the custom email address associated with a host.
