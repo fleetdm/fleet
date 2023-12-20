@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
-	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -155,20 +153,7 @@ func MakeHandler(
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions, eopts)
 	addMetrics(r)
 
-	// TODO(mna): must wrap the Handler here, so that we have access to the raw http.ResponseWriter.
-	// Otherwise, the handler is wrapped by the promhttp response delegator, which does not support
-	// the Unwrap call needed to work well with ResponseController.
-	// See https://pkg.go.dev/net/http#NewResponseController (explains the Unwrap, which the prometheus
-	// wrapper of http.ResponseWriter does not implement).
-	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/scripts/run/sync") {
-			rc := http.NewResponseController(rw)
-			if err := rc.SetWriteDeadline(time.Now().Add(waitForResultTime + (time.Second))); err != nil {
-				level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
-			}
-		}
-		r.ServeHTTP(rw, req)
-	})
+	return r
 }
 
 func publicIP(handler http.Handler) http.Handler {
