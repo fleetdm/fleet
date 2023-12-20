@@ -470,7 +470,8 @@ func TestGetProfilePayloadContent(t *testing.T) {
 	ws, err := getProfilePayloadContent[wrongStruct]("com.fleetdm.fleet.mdm.apple.mdm")
 	require.NoError(t, err)
 	require.NotNil(t, ws)
-	require.Empty(t, *ws)
+	require.Empty(t, ws.bar)
+	require.Empty(t, ws.foo)
 
 	// struct type is acceptable and returns the expected value type corresponds to the payload identifier
 	c, err := getProfilePayloadContent[fleet.MDMAppleFleetdConfig]("com.fleetdm.fleetd.config")
@@ -482,7 +483,7 @@ func TestGetProfilePayloadContent(t *testing.T) {
 	e, err := getProfilePayloadContent[fleet.MDMCustomEnrollmentProfileItem]("com.fleetdm.fleet.mdm.apple.mdm")
 	require.NoError(t, err)
 	require.NotNil(t, e)
-	require.Equal(t, e.EndUserEmail, "user@example.com")
+	require.Equal(t, *e, fleet.MDMCustomEnrollmentProfileItem{EndUserEmail: "user@example.com"})
 
 	// map type is acceptable
 	m, err := getProfilePayloadContent[map[string]any]("com.fleetdm.fleet.mdm.apple.mdm")
@@ -492,4 +493,22 @@ func TestGetProfilePayloadContent(t *testing.T) {
 	v, ok := gotMap["EndUserEmail"]
 	require.True(t, ok)
 	require.Equal(t, "user@example.com", v)
+	_, ok = gotMap["EnrollSecret"]
+	require.False(t, ok)
+	_, ok = gotMap["FleetURL"]
+	require.False(t, ok)
+
+	// map type is acceptable
+	m2, err := getProfilePayloadContent[map[string]any]("com.fleetdm.fleetd.config")
+	require.NoError(t, err)
+	require.NotNil(t, m)
+	gotMap = *m2
+	v, ok = gotMap["EnrollSecret"]
+	require.True(t, ok)
+	require.Equal(t, "ENROLL_SECRET", v)
+	v, ok = gotMap["FleetURL"]
+	require.True(t, ok)
+	require.Equal(t, "https://test.example.com", v)
+	_, ok = gotMap["EndUserEmail"]
+	require.False(t, ok)
 }
