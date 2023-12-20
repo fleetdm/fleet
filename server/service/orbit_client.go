@@ -153,7 +153,7 @@ func (oc *OrbitClient) SetOrUpdateDeviceMappingEmail(email string) error {
 	params := orbitPostDeviceMappingRequest{
 		Email: email,
 	}
-	var resp setOrUpdateDeviceTokenResponse
+	var resp orbitPostDeviceMappingResponse
 	if err := oc.authenticatedRequest(verb, path, &params, &resp); err != nil {
 		return err
 	}

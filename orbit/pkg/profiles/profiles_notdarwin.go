@@ -16,6 +16,6 @@ func CheckAssignedEnrollmentProfile(expectedURL string) error {
 	return ErrNotImplemented
 }
 
-func CheckCustomEndUserEmail() (string, error) {
+func GetCustomEnrollmentProfileEndUserEmail() (string, error) {
 	return "", ErrNotImplemented
 }

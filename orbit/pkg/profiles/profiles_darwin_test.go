@@ -235,20 +235,22 @@ func TestCustomInstallerWorkflow(t *testing.T) {
 		{"wrong payload identifier", strings.Replace(withFleetdConfigAndEnrollment, mobileconfig.FleetEnrollmentPayloadIdentifier, "wrong-identifier", 1), "", ErrNotFound},
 		{"no end user email key", strings.Replace(withFleetdConfigAndEnrollment, "EndUserEmail", "WrongKey", 1), "", ErrNotFound},
 	} {
-		execProfileCmd = func() (*bytes.Buffer, error) {
-			var buf bytes.Buffer
-			buf.WriteString(c.mockOut)
-			return &buf, nil
-		}
+		t.Run(c.name, func(t *testing.T) {
+			execProfileCmd = func() (*bytes.Buffer, error) {
+				var buf bytes.Buffer
+				buf.WriteString(c.mockOut)
+				return &buf, nil
+			}
 
-		gotContent, err := CheckCustomEnrollmentEndUserEmail()
-		if c.wantErr != nil {
-			require.ErrorIs(t, err, c.wantErr)
-			require.Empty(t, gotContent)
-		} else {
-			require.NoError(t, err)
-			require.Equal(t, "user@example.com", gotContent)
-		}
+			gotContent, err := GetCustomEnrollmentProfileEndUserEmail()
+			if c.wantErr != nil {
+				require.ErrorIs(t, err, c.wantErr)
+				require.Empty(t, gotContent)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, "user@example.com", gotContent)
+			}
+		})
 	}
 }
 
@@ -428,4 +430,66 @@ func TestCheckAssignedEnrollmentProfile(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetProfilePayloadContent(t *testing.T) {
+	origExecProfileCmd := execProfileCmd
+	t.Cleanup(func() { execProfileCmd = origExecProfileCmd })
+
+	execProfileCmd = func() (*bytes.Buffer, error) {
+		var buf bytes.Buffer
+		buf.WriteString(withFleetdConfigAndEnrollment)
+		return &buf, nil
+	}
+
+	// mismatched int type is not acceptable
+	_, err := getProfilePayloadContent[int]("com.fleetdm.fleet.mdm.apple.mdm")
+	require.ErrorContains(t, err, "plist: cannot unmarshal dict into Go value of type int")
+
+	// mismatched string type is not acceptable
+	_, err = getProfilePayloadContent[string]("com.fleetdm.fleet.mdm.apple.mdm")
+	require.ErrorContains(t, err, "plist: cannot unmarshal dict into Go value of type string")
+
+	// mismatched bool type is not acceptable
+	_, err = getProfilePayloadContent[bool]("com.fleetdm.fleet.mdm.apple.mdm")
+	require.ErrorContains(t, err, "plist: cannot unmarshal dict into Go value of type bool")
+
+	// mismatched slice type is not acceptable
+	_, err = getProfilePayloadContent[[]string]("com.fleetdm.fleet.mdm.apple.mdm")
+	require.ErrorContains(t, err, "plist: cannot unmarshal dict into Go value of type []string")
+
+	// mismatched []byte type is not acceptable
+	_, err = getProfilePayloadContent[[]byte]("com.fleetdm.fleet.mdm.apple.mdm")
+	require.ErrorContains(t, err, "plist: cannot unmarshal dict into Go value of type []uint8")
+
+	// mismatched struct type is acceptable, but result is empty
+	type wrongStruct struct {
+		foo string
+		bar int
+	}
+	ws, err := getProfilePayloadContent[wrongStruct]("com.fleetdm.fleet.mdm.apple.mdm")
+	require.NoError(t, err)
+	require.NotNil(t, ws)
+	require.Empty(t, *ws)
+
+	// struct type is acceptable and returns the expected value type corresponds to the payload identifier
+	c, err := getProfilePayloadContent[fleet.MDMAppleFleetdConfig]("com.fleetdm.fleetd.config")
+	require.NoError(t, err)
+	require.NotNil(t, c)
+	require.Equal(t, *c, fleet.MDMAppleFleetdConfig{EnrollSecret: "ENROLL_SECRET", FleetURL: "https://test.example.com"})
+
+	// struct type is acceptable and returns the expected value type corresponds to the payload identifier
+	e, err := getProfilePayloadContent[fleet.MDMCustomEnrollmentProfileItem]("com.fleetdm.fleet.mdm.apple.mdm")
+	require.NoError(t, err)
+	require.NotNil(t, e)
+	require.Equal(t, e.EndUserEmail, "user@example.com")
+
+	// map type is acceptable
+	m, err := getProfilePayloadContent[map[string]any]("com.fleetdm.fleet.mdm.apple.mdm")
+	require.NoError(t, err)
+	require.NotNil(t, m)
+	gotMap := *m
+	v, ok := gotMap["EndUserEmail"]
+	require.True(t, ok)
+	require.Equal(t, "user@example.com", v)
 }

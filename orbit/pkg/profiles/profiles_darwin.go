@@ -4,7 +4,6 @@ package profiles
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -16,24 +15,24 @@ import (
 	"github.com/groob/plist"
 )
 
-type profileItem struct {
-	PayloadContent    map[string]any
+type profileItem[T any] struct {
+	PayloadContent    T
 	PayloadType       string
 	PayloadIdentifier string
 }
 
-type profilePayload struct {
-	ProfileItems []profileItem
+type profilePayload[T any] struct {
+	ProfileItems []profileItem[T]
 }
 
-type profilesOutput struct {
-	ComputerLevel []profilePayload `plist:"_computerlevel"`
+type profilesOutput[T any] struct {
+	ComputerLevel []profilePayload[T] `plist:"_computerlevel"`
 }
 
 // GetFleetdConfig searches and parses a device level configuration profile
 // with Fleet's payload identifier.
 func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
-	p, err := getProfile(mobileconfig.FleetdConfigPayloadIdentifier)
+	pc, err := getProfilePayloadContent[fleet.MDMAppleFleetdConfig](mobileconfig.FleetdConfigPayloadIdentifier)
 	if err != nil {
 		if err == ErrNotFound {
 			return &fleet.MDMAppleFleetdConfig{}, nil
@@ -42,56 +41,27 @@ func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
 		return nil, err
 	}
 
-	var config fleet.MDMAppleFleetdConfig
-	b, err := json.Marshal(p.ProfileItems[0].PayloadContent)
-	if err != nil {
-		return nil, fmt.Errorf("marshal fleetd config: %w", err)
-	}
-
-	if err := json.Unmarshal(b, &config); err != nil {
-		return nil, fmt.Errorf("unmarshal fleetd config: %w", err)
-	}
-
-	return &config, nil
+	return pc, nil
 }
 
-func CheckCustomEnrollmentEndUserEmail() (string, error) {
-	pc, err := getCustomProfilePayloadContent(mobileconfig.FleetEnrollmentPayloadIdentifier, "EndUserEmail")
+func GetCustomEnrollmentProfileEndUserEmail() (string, error) {
+	pc, err := getProfilePayloadContent[fleet.MDMCustomEnrollmentProfileItem](mobileconfig.FleetEnrollmentPayloadIdentifier)
 	if err != nil {
 		return "", err
 	}
-	// TODO: improve this
-	if s, ok := pc.(string); !ok {
-		return "", fmt.Errorf("unexpected type: %T", pc)
-	} else {
-		return s, nil
+	if pc == nil || pc.EndUserEmail == "" {
+		return "", ErrNotFound
 	}
+	return pc.EndUserEmail, nil
 }
 
-func getCustomProfilePayloadContent(identifier string, contentKey string) (interface{}, error) {
-	p, err := getProfile(identifier)
-	if err != nil {
-		return nil, err
-	}
-	if p != nil {
-		for _, item := range p.ProfileItems {
-			if item.PayloadIdentifier == identifier {
-				if v, ok := item.PayloadContent[contentKey]; ok {
-					return v, nil
-				}
-			}
-		}
-	}
-	return nil, ErrNotFound
-}
-
-func getProfile(identifier string) (*profilePayload, error) {
+func getProfilePayloadContent[T any](identifier string) (*T, error) {
 	outBuf, err := execProfileCmd()
 	if err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}
 
-	var profiles profilesOutput
+	var profiles profilesOutput[T]
 	if err := plist.Unmarshal(outBuf.Bytes(), &profiles); err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}
@@ -99,7 +69,7 @@ func getProfile(identifier string) (*profilePayload, error) {
 	for _, profile := range profiles.ComputerLevel {
 		for _, item := range profile.ProfileItems {
 			if item.PayloadIdentifier == identifier {
-				return &profile, nil
+				return &item.PayloadContent, nil
 			}
 		}
 	}
