@@ -1,6 +1,6 @@
 import Icon from "components/Icon";
 import React from "react";
-import TooltipWrapper from "../../../../../components/TooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IPassingColumnHeaderProps {
   isPassing: boolean;

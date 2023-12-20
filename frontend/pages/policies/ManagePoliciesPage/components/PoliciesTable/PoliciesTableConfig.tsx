@@ -218,8 +218,8 @@ const generateTableHeaders = (
       title: "No",
       Header: (cellProps) => (
         <HeaderCell
-            value={<PassingColumnHeader isPassing={false} timeSinceHostCountUpdate={timeSinceHostCountUpdate} />}
-            isSortedDesc={cellProps.column.isSortedDesc}
+          value={<PassingColumnHeader isPassing={false} timeSinceHostCountUpdate={timeSinceHostCountUpdate} />}
+          isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
       accessor: "failing_host_count",
