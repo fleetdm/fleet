@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"
 
 	eefleetctl "github.com/fleetdm/fleet/v4/ee/fleetctl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
 	"github.com/skratchdot/open-golang/open"
@@ -292,9 +292,7 @@ func packageCommand() *cli.Command {
 				return errors.New("Can only set --end-user-email when building an MSI package.")
 			}
 			if opt.EndUserEmail != "" {
-				// same validation as in datastore (mysql/mysql.go)
-				rxLooseEmail := regexp.MustCompile(`^[^\s@]+@[^\s@\.]+\..+$`)
-				if !rxLooseEmail.MatchString(opt.EndUserEmail) {
+				if !fleet.IsLooseEmail(opt.EndUserEmail) {
 					return errors.New("Invalid email address specified for --end-user-email.")
 				}
 			}
