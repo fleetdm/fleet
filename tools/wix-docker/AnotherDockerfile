@@ -1,0 +1,12 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0
+
+ENV PATH="${PATH}:/root/.dotnet/tools"
+RUN mkdir /app
+COPY test.wxs /app
+
+RUN dotnet --version \
+    && dotnet tool install --verbosity detailed --global wix \
+    && wix --version \
+    && wix extension add WixToolset.Bal.wixext \
+    && wix extension list \
+    && wix build -ext WixToolset.Bal.wixext /app/test.wxs

@@ -1,0 +1,29 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Bundle>
+    <Chain>
+      <PackageGroupRef Id="BundlePackages" />
+
+      <ExePackage
+        DetectCondition="DetectedSomethingVariable"
+        UninstallArguments="-uninstall"
+        SourceFile="EndOfChain.exe"
+      />
+    </Chain>
+  </Bundle>
+
+  <Fragment>
+    <PackageGroup Id="BundlePackages">
+      <PackageGroupRef Id="PrereqPackages" />
+      <MsiPackage Id="PackageA" SourceFile="PackageA.msi" />
+      <MsiPackage Id="PackageB" SourceFile="PackageB.msi" />
+    </PackageGroup>
+  </Fragment>
+
+  <Fragment>
+    <PackageGroup Id="PrereqPackages">
+      <MsiPackage SourceFile="Prereqs.msi">
+        <MsiProperty Name="PREREQSONLY" Value="1" />
+      </MsiPackage>
+    </PackageGroup>
+  </Fragment>
+</Wix>
