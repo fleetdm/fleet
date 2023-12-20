@@ -163,8 +163,8 @@ func MakeHandler(
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/scripts/run/sync") {
 			rc := http.NewResponseController(rw)
-			if err := rc.SetWriteDeadline(time.Now().Add(waitForResultTime + (10 * time.Second))); err != nil {
-				fmt.Println(">>>>> HTTP middleware failed to set deadline: ", err)
+			if err := rc.SetWriteDeadline(time.Now().Add(waitForResultTime + (time.Second))); err != nil {
+				level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
 			}
 		}
 		r.ServeHTTP(rw, req)
