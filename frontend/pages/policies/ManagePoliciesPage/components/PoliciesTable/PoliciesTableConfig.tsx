@@ -106,17 +106,22 @@ const generateTableHeaders = (
   const { selectedTeamId, tableType, canAddOrDeletePolicy } = options;
   // Figure the time since the host counts were updated.
   let timeSinceHostCountUpdate: string;
-  for (let policyItem of policiesList) {
+  policiesList.some(function (policyItem) {
     if (policyItem.host_count_updated_at) {
       const updatedAt = new Date(policyItem.host_count_updated_at);
       const now = new Date();
-      const minutesAgo = Math.round((now.getTime() - updatedAt.getTime()) / (60 * 1000));
+      const minutesAgo = Math.round(
+        (now.getTime() - updatedAt.getTime()) / (60 * 1000)
+      );
       if (minutesAgo >= 0) {
-        timeSinceHostCountUpdate = `${minutesAgo} minute` + (minutesAgo != 1 ? "s" : "");
+        timeSinceHostCountUpdate = `${minutesAgo} minute${
+          minutesAgo !== 1 ? "s" : ""
+        }`;
       }
-      break;
+      return true;
     }
-  }
+    return false;
+  });
   const tableHeaders: IDataColumn[] = [
     {
       title: "Name",
@@ -174,7 +179,12 @@ const generateTableHeaders = (
     },
     {
       title: "Yes",
-      Header: () => (<PassingColumnHeader isPassing timeSinceHostCountUpdate={timeSinceHostCountUpdate} />),
+      Header: () => (
+        <PassingColumnHeader
+          isPassing
+          timeSinceHostCountUpdate={timeSinceHostCountUpdate}
+        />
+      ),
       disableSortBy: true,
       accessor: "passing_host_count",
       Cell: (cellProps: ICellProps): JSX.Element => {
@@ -218,7 +228,12 @@ const generateTableHeaders = (
       title: "No",
       Header: (cellProps) => (
         <HeaderCell
-          value={<PassingColumnHeader isPassing={false} timeSinceHostCountUpdate={timeSinceHostCountUpdate} />}
+          value={
+            <PassingColumnHeader
+              isPassing={false}
+              timeSinceHostCountUpdate={timeSinceHostCountUpdate}
+            />
+          }
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),

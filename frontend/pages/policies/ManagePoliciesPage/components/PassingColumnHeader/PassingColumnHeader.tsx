@@ -9,24 +9,23 @@ interface IPassingColumnHeaderProps {
 
 const baseClass = "passing-column-header";
 
-const PassingColumnHeader = ({ isPassing, timeSinceHostCountUpdate }: IPassingColumnHeaderProps) => {
+const PassingColumnHeader = ({
+  isPassing,
+  timeSinceHostCountUpdate,
+}: IPassingColumnHeaderProps) => {
   const iconName = isPassing ? "success" : "error";
   const columnText = isPassing ? "Yes" : "No";
-  const updateText = timeSinceHostCountUpdate ? `Host count updated ${timeSinceHostCountUpdate} ago.` : ""
+  const updateText = timeSinceHostCountUpdate
+    ? `Host count updated ${timeSinceHostCountUpdate} ago.`
+    : "";
 
   return (
-      <div className={baseClass}>
-          <Icon name={iconName}/>
-          <TooltipWrapper
-              tipContent={
-                  <>
-                      {updateText} Counts are updated hourly.
-                  </>
-              }
-          >
-              <span className="status-header-text">{columnText}</span>
-          </TooltipWrapper>
-      </div>
+    <div className={baseClass}>
+      <Icon name={iconName} />
+      <TooltipWrapper tipContent={<>{updateText} Counts are updated hourly.</>}>
+        <span className="status-header-text">{columnText}</span>
+      </TooltipWrapper>
+    </div>
   );
 };
 
