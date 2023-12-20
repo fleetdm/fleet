@@ -247,6 +247,9 @@ func main() {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
 
+		// Override flags with values retrieved from Fleet.
+		setServerOverrides(c)
+
 		if c.Bool("insecure") && c.String("fleet-certificate") != "" {
 			return errors.New("insecure and fleet-certificate may not be specified together")
 		}
@@ -724,6 +727,21 @@ func main() {
 		}
 		g.Add(flagRunner.Execute, flagRunner.Interrupt)
 
+		const serverOverridesInterval = 30 * time.Second
+		serverOverridesRunner := newServerOverridesRunner(configFetcher, c.String("root-dir"), serverOverridesInterval)
+		// Perform initial run to update overrides as soon as possible.
+		didUpdate, err := serverOverridesRunner.run()
+		if err != nil {
+			// Just log, OK to continue, since serverOverridesRunner will retry
+			// in serverOverridesRunner.Execute.
+			log.Debug().Err(err).Msg("initial flags update failed")
+		}
+		if didUpdate {
+			log.Info().Msg("exiting due to early update of server overrides")
+			return nil
+		}
+		g.Add(serverOverridesRunner.Execute, serverOverridesRunner.Interrupt)
+
 		// only setup extensions autoupdate if we have enabled updates
 		// for extensions autoupdate, we can only proceed after orbit is enrolled in fleet
 		// and all relevant things for it (like certs, enroll secrets, tls proxy, etc) is configured
@@ -1003,6 +1021,30 @@ func main() {
 
 	if err := app.Run(os.Args); err != nil {
 		log.Error().Err(err).Msg("run orbit failed")
+	}
+}
+
+// setServerOverrides overrides specific variables in c with values fetched from Fleet.
+func setServerOverrides(c *cli.Context) {
+	overrideCfg, err := loadServerOverrides(c.String("root-dir"))
+	if err != nil {
+		log.Error().Err(err).Msg("failed to load server overrides")
+		return
+	}
+	if overrideCfg.OrbitChannel != "" {
+		if err := c.Set("orbit-channel", overrideCfg.OrbitChannel); err != nil {
+			log.Error().Err(err).Str("component", "orbit").Msg("failed to set server overrides")
+		}
+	}
+	if overrideCfg.OsquerydChannel != "" {
+		if err := c.Set("osqueryd-channel", overrideCfg.OsquerydChannel); err != nil {
+			log.Error().Err(err).Str("component", "osqueryd").Msg("failed to set server overrides")
+		}
+	}
+	if overrideCfg.DesktopChannel != "" {
+		if err := c.Set("desktop-channel", overrideCfg.DesktopChannel); err != nil {
+			log.Error().Err(err).Str("component", "desktop").Msg("failed to set server overrides")
+		}
 	}
 }
 
@@ -1361,4 +1403,149 @@ func writeSecret(enrollSecret string, orbitRoot string) error {
 	}
 
 	return nil
+}
+
+// serverOverridesRunner is a oklog.Group runner that polls for configuration overrides from Fleet.
+type serverOverridesRunner struct {
+	configFetcher update.OrbitConfigFetcher
+	interval      time.Duration
+	rootDir       string
+	cancel        chan struct{}
+}
+
+// newServerOverridesRunner creates a runner for updating server overrides configuration with values fetched from Fleet.
+func newServerOverridesRunner(configFetcher update.OrbitConfigFetcher, rootDir string, interval time.Duration) *serverOverridesRunner {
+	return &serverOverridesRunner{
+		configFetcher: configFetcher,
+		interval:      interval,
+		rootDir:       rootDir,
+		cancel:        make(chan struct{}),
+	}
+}
+
+// Execute starts the loop that polls for server overrides configuration from Fleet.
+func (r *serverOverridesRunner) Execute() error {
+	log.Debug().Msg("starting server overrides runner")
+
+	ticker := time.NewTicker(r.interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-r.cancel:
+			return nil
+		case <-ticker.C:
+			log.Debug().Msg("calling server overrides run")
+			didUpdate, err := r.run()
+			if err != nil {
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "server overrides run failed")
+			}
+			if didUpdate {
+				log.Info().Msg("server overrides updated, exiting")
+				return nil
+			}
+			ticker.Reset(r.interval)
+		}
+	}
+}
+
+// Interrupt is the oklog/run interrupt method that stops orbit when interrupt is received
+func (r *serverOverridesRunner) Interrupt(err error) {
+	close(r.cancel)
+	log.Error().Err(err).Msg("interrupt for server overrides runner")
+}
+
+func (r *serverOverridesRunner) run() (bool, error) {
+	overrideCfg, err := loadServerOverrides(r.rootDir)
+	if err != nil {
+		return false, err
+	}
+
+	orbitCfg, err := r.configFetcher.GetConfig()
+	if err != nil {
+		return false, err
+	}
+	if orbitCfg.UpdateChannels == nil {
+		// Server is not setting or doesn't know of
+		// this feature (old server version), so nothing to do.
+		return false, nil
+	}
+
+	if cfgsDiffer(overrideCfg, orbitCfg) {
+		if err := updateServerOverrides(r.rootDir, orbitCfg); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// cfgsDiffer returns whether the local server overrides differ from the fetched remotely.
+func cfgsDiffer(overrideCfg *serverOverridesConfig, orbitCfg *fleet.OrbitConfig) bool {
+	localUpdateChannelsCfg := &fleet.OrbitUpdateChannels{
+		Orbit:    overrideCfg.OrbitChannel,
+		Osqueryd: overrideCfg.OsquerydChannel,
+		Desktop:  overrideCfg.DesktopChannel,
+	}
+	remoteUpdateChannelsCfg := orbitCfg.UpdateChannels
+
+	setStableAsDefault := func(cfg *fleet.OrbitUpdateChannels) {
+		if cfg.Orbit == "" {
+			cfg.Orbit = "stable"
+		}
+		if cfg.Osqueryd == "" {
+			cfg.Osqueryd = "stable"
+		}
+		if cfg.Desktop == "" {
+			cfg.Desktop = "stable"
+		}
+	}
+	setStableAsDefault(localUpdateChannelsCfg)
+	setStableAsDefault(remoteUpdateChannelsCfg)
+
+	return *localUpdateChannelsCfg != *remoteUpdateChannelsCfg
+}
+
+// serverOverridesConfig holds the currently supported fields that can be
+// overriden by server configuration.
+type serverOverridesConfig struct {
+	OrbitChannel    string `json:"orbit-channel"`
+	OsquerydChannel string `json:"osqueryd-channel"`
+	DesktopChannel  string `json:"desktop-channel"`
+}
+
+// updateServerOverrides updates the server override local file with the configuration fetched from Fleet.
+func updateServerOverrides(rootDir string, remoteCfg *fleet.OrbitConfig) error {
+	overrideCfg := serverOverridesConfig{
+		OrbitChannel:    remoteCfg.UpdateChannels.Orbit,
+		OsquerydChannel: remoteCfg.UpdateChannels.Osqueryd,
+		DesktopChannel:  remoteCfg.UpdateChannels.Desktop,
+	}
+	data, err := json.MarshalIndent(overrideCfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal override config: %w", err)
+	}
+	path := filepath.Join(rootDir, constant.ServerOverridesFileName)
+	if err := os.WriteFile(path, data, constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write override config: %w", err)
+	}
+	return nil
+}
+
+// loadServerOverrides loads the server overrides from the local file.
+func loadServerOverrides(rootDir string) (*serverOverridesConfig, error) {
+	path := filepath.Join(rootDir, constant.ServerOverridesFileName)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return &serverOverridesConfig{}, nil
+		}
+		return nil, err
+	}
+	var cfg serverOverridesConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
 }

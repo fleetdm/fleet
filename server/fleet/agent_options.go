@@ -18,6 +18,8 @@ type AgentOptions struct {
 	CommandLineStartUpFlags json.RawMessage `json:"command_line_flags,omitempty"`
 	// Extensions are the orbit managed extensions
 	Extensions json.RawMessage `json:"extensions,omitempty"`
+	// UpdateChannels holds the configured channels for fleetd components.
+	UpdateChannels json.RawMessage `json:"update_channels,omitempty"`
 }
 
 type AgentOptionsOverrides struct {
@@ -48,7 +50,7 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 	if len(opts.CommandLineStartUpFlags) > 0 {
 		var flags osqueryCommandLineFlags
 		if err := JSONStrictDecode(bytes.NewReader(opts.CommandLineStartUpFlags), &flags); err != nil {
-			return fmt.Errorf("command-line flags: %w", err)
+			return fmt.Errorf("command_line_flags: %w", err)
 		}
 
 		// We prevent setting the following flags because they can break fleetd.
@@ -58,6 +60,23 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		}
 		if flags.ExtensionsAutoload != "" {
 			return fmt.Errorf(flagNotSupportedErr, "--extensions_autoload")
+		}
+	}
+
+	if len(opts.UpdateChannels) > 0 {
+		if !isPremium {
+			// The update_channels feature is premium only.
+			return ErrMissingLicense
+		}
+		if string(opts.UpdateChannels) == "null" {
+			return errors.New("update_channels cannot be null")
+		}
+		if err := checkEmptyFields(opts.UpdateChannels); err != nil {
+			return err
+		}
+		var updateChannels OrbitUpdateChannels
+		if err := JSONStrictDecode(bytes.NewReader(opts.UpdateChannels), &updateChannels); err != nil {
+			return fmt.Errorf("update_channels: %w", err)
 		}
 	}
 
@@ -85,6 +104,19 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		}
 	}
 
+	return nil
+}
+
+func checkEmptyFields(data json.RawMessage) error {
+	var m map[string]interface{}
+	if err := json.Unmarshal(data, &m); err != nil {
+		return fmt.Errorf("unmarshal data: %w", err)
+	}
+	for k, v := range m {
+		if v == nil {
+			return fmt.Errorf("field %q is empty", k)
+		}
+	}
 	return nil
 }
 

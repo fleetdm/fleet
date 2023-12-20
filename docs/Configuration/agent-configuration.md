@@ -272,6 +272,38 @@ In the above example:
 - the `hello_world_macos` extension is deployed to macOS hosts that are members of the 'Zoom installed' label.
 - the `hello_world_linux` extension is deployed to Linux hosts that are members of the 'Ubuntu Linux' **and** 'Zoom installed' labels.
 
+### Configure fleetd update channels
+
+_Available in Fleet Premium v4.43.0 and fleetd v1.20.0_
+
+Users can configure fleetd auto-update channels for its components from Fleet's agent options. The components that can be configured are `orbit`, `osqueryd` and `desktop` (Fleet Desktop). When one of these components is omitted in `update_channels` then `stable` is assumed as  the value for such component.
+
+Example:
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    update_channels: # requires Fleet's osquery installer
+      orbit: stable
+      osqueryd: 5.10.2
+      desktop: edge
+```
+
+Example:
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    update_channels: # requires Fleet's osquery installer
+      orbit: edge
+      osqueryd: 5.10.2
+      # in this configuration `desktop` is assumed to be "stable"
+```
+
+If a configured channel doesn't exist, then fleetd will log errors on the hosts and will not auto-update the component/s until the channel is changed to a valid value in Fleet's `update_channels` configuration or until the user pushes the component to the channel (which "creates" the channel).
+
 ## Config
 
 The config key sets the osqueryd configuration options for your agents. In a plain osquery deployment, these would typically be set in `osquery.conf`. Each key below represents a corresponding key in the osquery documentation.
