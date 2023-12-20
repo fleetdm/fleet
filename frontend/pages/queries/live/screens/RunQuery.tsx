@@ -18,7 +18,7 @@ import { ITarget } from "interfaces/target";
 
 import QueryResults from "../../edit/components/QueryResults";
 
-const RESPONSE_COUNT_ZERO = { results: 0, errors: 0 };
+const RESPONSE_COUNT_ZERO = { results: 0, errors: 0 } as const;
 const CAMPAIGN_LIMIT = 250000;
 
 interface IRunQueryProps {
@@ -51,7 +51,7 @@ const RunQuery = ({
   const runQueryInterval = useRef<any>(null);
   const globalSocket = useRef<any>(null);
   const previousSocketData = useRef<any>(null);
-  const responseCount = useRef(RESPONSE_COUNT_ZERO);
+  const responseCount = useRef({ ...RESPONSE_COUNT_ZERO });
 
   const removeSocket = () => {
     if (globalSocket.current) {
