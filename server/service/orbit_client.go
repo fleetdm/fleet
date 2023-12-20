@@ -146,6 +146,20 @@ func (oc *OrbitClient) SetOrUpdateDeviceToken(deviceAuthToken string) error {
 	return nil
 }
 
+// SetOrUpdateDeviceMappingEmail sends a request to the server to set or update the
+// device mapping email with the given value.
+func (oc *OrbitClient) SetOrUpdateDeviceMappingEmail(email string) error {
+	verb, path := "POST", "/api/fleet/orbit/device_mapping"
+	params := orbitPostDeviceMappingRequest{
+		Email: email,
+	}
+	var resp orbitPostDeviceMappingResponse
+	if err := oc.authenticatedRequest(verb, path, &params, &resp); err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetHostScript returns the script fetched from Fleet server to run on this
 // host.
 func (oc *OrbitClient) GetHostScript(execID string) (*fleet.HostScriptResult, error) {
@@ -180,19 +194,6 @@ func (oc *OrbitClient) Ping() error {
 		return nil
 	}
 	return err
-}
-
-// SetEndUserEmail saves the end-user email address associated with this host
-// in Fleet.
-func (oc *OrbitClient) SetEndUserEmail(email string) error {
-	verb, path := "POST", "/api/fleet/orbit/device_mapping"
-	var resp orbitPostDeviceMappingResponse
-	if err := oc.authenticatedRequest(verb, path, &orbitPostDeviceMappingRequest{
-		Email: email,
-	}, &resp); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (oc *OrbitClient) enroll() (string, error) {

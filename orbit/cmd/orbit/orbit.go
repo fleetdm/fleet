@@ -977,7 +977,7 @@ func main() {
 		if c.String("end-user-email") != "" {
 			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEndUserEmail) {
 				log.Debug().Msg("sending end-user email to Fleet")
-				if err := orbitClient.SetEndUserEmail(c.String("end-user-email")); err != nil {
+				if err := orbitClient.SetOrUpdateDeviceMappingEmail(c.String("end-user-email")); err != nil {
 					log.Error().Err(err).Msg("error sending end-user email to Fleet")
 				}
 			} else {
