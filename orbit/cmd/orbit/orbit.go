@@ -862,6 +862,22 @@ func main() {
 			}
 		}
 
+		// TODO: consider if/how to make this conditional on server config
+		if runtime.GOOS == "darwin" {
+			// For macOS hosts, check if MDM enrollment profile is present and if it contains the
+			// custom end user email field. If so, report it to the server.
+			email, err := profiles.CheckCustomEnrollmentEndUserEmail()
+			if err != nil {
+				log.Error().Err(err).Msg("checking custom end user email")
+			}
+			log.Info().Msg(fmt.Sprintf("found custom end user email: %s", email))
+			if email != "" {
+				if err := orbitClient.SetOrUpdateDeviceMappingEmail(email); err != nil {
+					log.Error().Err(err).Msg(fmt.Sprintf("device mapping: %s", email))
+				}
+			}
+		}
+
 		// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
 		// `"", nil`. Therefore there's no platform-specific stuff required here
 		augeasPath, err := augeas.CopyLenses(c.String("root-dir"))

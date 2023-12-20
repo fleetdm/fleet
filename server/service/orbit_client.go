@@ -146,6 +146,20 @@ func (oc *OrbitClient) SetOrUpdateDeviceToken(deviceAuthToken string) error {
 	return nil
 }
 
+// SetOrUpdateDeviceMappingEmail sends a request to the server to set or update the
+// device mapping email with the given value.
+func (oc *OrbitClient) SetOrUpdateDeviceMappingEmail(email string) error {
+	verb, path := "POST", "/api/fleet/orbit/device_mapping"
+	params := orbitPostDeviceMappingRequest{
+		Email: email,
+	}
+	var resp setOrUpdateDeviceTokenResponse
+	if err := oc.authenticatedRequest(verb, path, &params, &resp); err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetHostScript returns the script fetched from Fleet server to run on this
 // host.
 func (oc *OrbitClient) GetHostScript(execID string) (*fleet.HostScriptResult, error) {

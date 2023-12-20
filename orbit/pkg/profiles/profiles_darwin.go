@@ -4,6 +4,7 @@ package profiles
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -16,7 +17,7 @@ import (
 )
 
 type profileItem struct {
-	PayloadContent    fleet.MDMAppleFleetdConfig
+	PayloadContent    map[string]any
 	PayloadType       string
 	PayloadIdentifier string
 }
@@ -41,7 +42,47 @@ func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
 		return nil, err
 	}
 
-	return &p.ProfileItems[0].PayloadContent, nil
+	var config fleet.MDMAppleFleetdConfig
+	b, err := json.Marshal(p.ProfileItems[0].PayloadContent)
+	if err != nil {
+		return nil, fmt.Errorf("marshal fleetd config: %w", err)
+	}
+
+	if err := json.Unmarshal(b, &config); err != nil {
+		return nil, fmt.Errorf("unmarshal fleetd config: %w", err)
+	}
+
+	return &config, nil
+}
+
+func CheckCustomEnrollmentEndUserEmail() (string, error) {
+	pc, err := getCustomProfilePayloadContent(mobileconfig.FleetEnrollmentPayloadIdentifier, "EndUserEmail")
+	if err != nil {
+		return "", err
+	}
+	// TODO: improve this
+	if s, ok := pc.(string); !ok {
+		return "", fmt.Errorf("unexpected type: %T", pc)
+	} else {
+		return s, nil
+	}
+}
+
+func getCustomProfilePayloadContent(identifier string, contentKey string) (interface{}, error) {
+	p, err := getProfile(identifier)
+	if err != nil {
+		return nil, err
+	}
+	if p != nil {
+		for _, item := range p.ProfileItems {
+			if item.PayloadIdentifier == identifier {
+				if v, ok := item.PayloadContent[contentKey]; ok {
+					return v, nil
+				}
+			}
+		}
+	}
+	return nil, ErrNotFound
 }
 
 func getProfile(identifier string) (*profilePayload, error) {
@@ -69,7 +110,8 @@ func getProfile(identifier string) (*profilePayload, error) {
 // execProfileCmd is declared as a variable so it can be overwritten by tests.
 var execProfileCmd = func() (*bytes.Buffer, error) {
 	var outBuf bytes.Buffer
-	cmd := exec.Command("/usr/bin/profiles", "list", "-o", "stdout-xml")
+	// TODO: check if there is a reason to prefer -L over -C in some cases
+	cmd := exec.Command("/usr/bin/profiles", "-C", "-o", "stdout-xml")
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &outBuf
 	if err := cmd.Run(); err != nil {
