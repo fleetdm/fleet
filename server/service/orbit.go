@@ -228,16 +228,20 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// load the pending script executions for that host
-	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, pendingScriptMaxAge)
-	if err != nil {
-		return fleet.OrbitConfig{}, err
-	}
-	if len(pending) > 0 {
-		execIDs := make([]string, 0, len(pending))
-		for _, p := range pending {
-			execIDs = append(execIDs, p.ExecutionID)
+	if !appConfig.ServerSettings.ScriptsDisabled {
+		pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, pendingScriptMaxAge)
+		if err != nil {
+			return fleet.OrbitConfig{}, err
 		}
-		notifs.PendingScriptExecutionIDs = execIDs
+		if len(pending) > 0 {
+			execIDs := make([]string, 0, len(pending))
+			for _, p := range pending {
+				execIDs = append(execIDs, p.ExecutionID)
+			}
+			notifs.PendingScriptExecutionIDs = execIDs
+		}
+	} else {
+		fmt.Println("JVE_LOG: scripts disabled! ")
 	}
 
 	// team ID is not nil, get team specific flags and options
