@@ -26,6 +26,8 @@ var (
 	wildCardableHostSearchColumns = []string{"hostname", "computer_name"}
 )
 
+// TODO: should host search columns include display_name (requires join to host_display_names)?
+
 // Fixme: We should not make implementation details of the database schema part of the API.
 var defaultHostColumnTableAliases = map[string]string{
 	"created_at": "h.created_at",
@@ -1010,8 +1012,11 @@ func (ds *Datastore) applyHostFilters(
 	}
 
 	displayNameJoin := ""
-	if opt.ListOptions.OrderKey == "display_name" {
+	if opt.ListOptions.OrderKey == "display_name" || opt.MatchQuery != "" {
 		displayNameJoin = ` JOIN host_display_names hdn ON h.id = hdn.host_id `
+	}
+	if opt.MatchQuery != "" {
+		displayNameJoin = ` LEFT ` + displayNameJoin
 	}
 
 	lowDiskSpaceFilter := "TRUE"
@@ -1077,7 +1082,7 @@ func (ds *Datastore) applyHostFilters(
 
 	sqlStmt, params = filterHostsByMDMBootstrapPackageStatus(sqlStmt, opt, params)
 	sqlStmt, params = filterHostsByOS(sqlStmt, opt, params)
-	sqlStmt, params, _ = hostSearchLike(sqlStmt, params, opt.MatchQuery, hostSearchColumns...)
+	sqlStmt, params, _ = hostSearchLike(sqlStmt, params, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
 	sqlStmt, params = appendListOptionsWithCursorToSQL(sqlStmt, params, &opt.ListOptions)
 
 	return sqlStmt, params, nil
@@ -2357,6 +2362,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 		// to get all the additional data for hosts that match the search criteria by host_id
 		matchingHosts := "SELECT id FROM hosts WHERE TRUE"
 		var args []interface{}
+		// TODO: should search columns include display_name (requires join to host_display_names)?
 		searchHostsQuery, args, matchesEmail := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)
 		// if matchQuery is "email like" then don't bother with the additional wildcard searching
 		if !matchesEmail && len(matchQuery) > 2 && hasNonASCIIRegex(matchQuery) {
