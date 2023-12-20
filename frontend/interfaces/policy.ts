@@ -46,6 +46,7 @@ export interface IPolicy {
 export interface IPolicyStats extends IPolicy {
   passing_host_count: number;
   failing_host_count: number;
+  host_count_updated_at: string;
   webhook: string;
   has_run: boolean;
   osquery_policy_ms: number;

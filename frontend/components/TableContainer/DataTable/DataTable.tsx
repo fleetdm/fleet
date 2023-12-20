@@ -500,7 +500,7 @@ const DataTable = ({
                   return (
                     <th
                       className={column.id ? `${column.id}__header` : ""}
-                      {...column.getHeaderProps(column.getSortByToggleProps())}
+                      {...column.getHeaderProps(column.getSortByToggleProps({title:null}))}
                     >
                       {renderColumnHeader(column)}
                     </th>
