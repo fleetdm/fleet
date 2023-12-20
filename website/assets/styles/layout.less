@@ -413,7 +413,7 @@ body.detected-mobile {
   #hubspot-messages-iframe-container iframe[aria-label='Chat Widget'] {
     display: none !important;//lesshint-disable-line importantRule
   }
-  html.hs-messages-widget-open {// Shows the hubspot chat widget when the widget is opened from a "Talk to an expert" button.
+  html.hs-messages-widget-open & html.hs-messages-mobile{// Shows the hubspot chat widget when the widget is opened from a "Talk to an expert" button.
     #hubspot-messages-iframe-container iframe[aria-label='Chat Widget'] {
       display: initial !important;//lesshint-disable-line importantRule
     }
