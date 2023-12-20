@@ -149,11 +149,11 @@ func (oc *OrbitClient) SetOrUpdateDeviceToken(deviceAuthToken string) error {
 // SetOrUpdateDeviceMappingEmail sends a request to the server to set or update the
 // device mapping email with the given value.
 func (oc *OrbitClient) SetOrUpdateDeviceMappingEmail(email string) error {
-	verb, path := "POST", "/api/fleet/orbit/device_mapping"
-	params := orbitPostDeviceMappingRequest{
+	verb, path := "PUT", "/api/fleet/orbit/device_mapping"
+	params := orbitPutDeviceMappingRequest{
 		Email: email,
 	}
-	var resp orbitPostDeviceMappingResponse
+	var resp orbitPutDeviceMappingResponse
 	if err := oc.authenticatedRequest(verb, path, &params, &resp); err != nil {
 		return err
 	}
