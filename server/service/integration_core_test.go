@@ -3102,7 +3102,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	})
 
 	// create a custom_installer email for orbit host
-	s.Do("POST", "/api/fleet/orbit/device_mapping", orbitPostDeviceMappingRequest{
+	s.Do("PUT", "/api/fleet/orbit/device_mapping", orbitPutDeviceMappingRequest{
 		OrbitNodeKey: *orbitHost.OrbitNodeKey,
 		Email:        "e@b.c",
 	}, http.StatusOK)
@@ -3134,7 +3134,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", orbitHost.ID), putHostDeviceMappingRequest{Email: "f@b.c"}, http.StatusOK, &putResp)
 
 	// update the custom_installer email for orbit host, will get ignored (because a custom_override exists)
-	s.Do("POST", "/api/fleet/orbit/device_mapping", orbitPostDeviceMappingRequest{
+	s.Do("PUT", "/api/fleet/orbit/device_mapping", orbitPutDeviceMappingRequest{
 		OrbitNodeKey: *orbitHost.OrbitNodeKey,
 		Email:        "g@b.c",
 	}, http.StatusOK)

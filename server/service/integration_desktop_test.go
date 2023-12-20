@@ -115,18 +115,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
 		{Email: "c@b.c", Source: fleet.DeviceMappingCustomReplacement},
 	})
-
-	var putDMResp putHostDeviceMappingResponse
-	// this updates the custom installer email address
-	res = s.DoRawNoAuth("PUT", "/api/latest/fleet/device/"+token+"/device_mapping", []byte(`{"email": "z@b.c"}`), http.StatusOK)
-	require.NoError(t, json.NewDecoder(res.Body).Decode(&putDMResp))
-	require.NoError(t, res.Body.Close())
-	require.ElementsMatch(t, putDMResp.DeviceMapping, []*fleet.HostDeviceMapping{
-		{Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
-		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
-		{Email: "z@b.c", Source: fleet.DeviceMappingCustomReplacement},
-	})
-	devDMs := putDMResp.DeviceMapping
+	devDMs := listDMResp.DeviceMapping
 
 	// compare response with standard list device mapping API for that same host
 	listDMResp = listHostDeviceMappingResponse{}

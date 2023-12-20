@@ -1307,9 +1307,6 @@ func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc 
 func (svc *Service) SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error) {
 	isInstallerSource := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnOrbitToken)
 	if !isInstallerSource {
-		isInstallerSource = svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
-	}
-	if !isInstallerSource {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}

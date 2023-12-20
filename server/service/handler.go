@@ -598,9 +598,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		errorLimiter.Limit("get_device_mapping", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/device_mapping", listDeviceHostDeviceMappingEndpoint, listDeviceHostDeviceMappingRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("send_device_mapping", desktopQuota),
-	).PUT("/api/_version_/fleet/device/{token}/device_mapping", putDeviceHostDeviceMappingEndpoint, putDeviceHostDeviceMappingRequest{})
-	de.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_macadmins", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/macadmins", getDeviceMacadminsDataEndpoint, getDeviceMacadminsDataRequest{})
 	de.WithCustomMiddleware(
@@ -656,7 +653,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// endpoints are POST due to passing the device token in the JSON body.
 	oe.POST("/api/fleet/orbit/scripts/request", getOrbitScriptEndpoint, orbitGetScriptRequest{})
 	oe.POST("/api/fleet/orbit/scripts/result", postOrbitScriptResultEndpoint, orbitPostScriptResultRequest{})
-	oe.POST("/api/fleet/orbit/device_mapping", postOrbitDeviceMappingEndpoint, orbitPostDeviceMappingRequest{})
+	oe.PUT("/api/fleet/orbit/device_mapping", putOrbitDeviceMappingEndpoint, orbitPutDeviceMappingRequest{})
 
 	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
 	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, orbitPostDiskEncryptionKeyRequest{})
