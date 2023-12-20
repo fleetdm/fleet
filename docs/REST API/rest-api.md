@@ -3293,7 +3293,7 @@ Retrieves the aggregated host OS versions information.
       "name_only": "Microsoft Windows Server 2022 Datacenter",
       "version": "10.0.20348.1234",
       "platform": "windows",
-      "generated_cpe": "cpe:2.3:o:microsoft:windows_server_2022:-:*:*:*:*:*:*:*",
+      "generated_cpe": "cpe:2.3:o:microsoft:windows_server_2022:10.0.20348.1234:*:*:*:*:*:*:*",
       "vulnerabilities": [
         {
           "cve": "CVE-2022-30190",
