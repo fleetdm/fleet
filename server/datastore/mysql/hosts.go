@@ -1010,11 +1010,8 @@ func (ds *Datastore) applyHostFilters(
 	}
 
 	displayNameJoin := ""
-	if opt.ListOptions.OrderKey == "display_name" || opt.MatchQuery != "" {
+	if opt.ListOptions.OrderKey == "display_name" {
 		displayNameJoin = ` JOIN host_display_names hdn ON h.id = hdn.host_id `
-	}
-	if opt.MatchQuery != "" {
-		displayNameJoin = ` LEFT ` + displayNameJoin
 	}
 
 	lowDiskSpaceFilter := "TRUE"
@@ -1080,7 +1077,7 @@ func (ds *Datastore) applyHostFilters(
 
 	sqlStmt, params = filterHostsByMDMBootstrapPackageStatus(sqlStmt, opt, params)
 	sqlStmt, params = filterHostsByOS(sqlStmt, opt, params)
-	sqlStmt, params, _ = hostSearchLike(sqlStmt, params, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
+	sqlStmt, params, _ = hostSearchLike(sqlStmt, params, opt.MatchQuery, hostSearchColumns...)
 	sqlStmt, params = appendListOptionsWithCursorToSQL(sqlStmt, params, &opt.ListOptions)
 
 	return sqlStmt, params, nil
