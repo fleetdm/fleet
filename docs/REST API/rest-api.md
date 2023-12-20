@@ -4956,7 +4956,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "created_at": "2021-12-15T15:23:57Z",
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
-      "failing_host_count": 300
+      "failing_host_count": 300,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     },
     {
       "id": 2,
@@ -4973,7 +4974,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "created_at": "2021-12-31T14:52:27Z",
       "updated_at": "2022-02-10T20:59:35Z",
       "passing_host_count": 2300,
-      "failing_host_count": 0
+      "failing_host_count": 0,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ]
 }
@@ -5042,7 +5044,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "created_at": "2021-12-15T15:23:57Z",
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
-      "failing_host_count": 300
+      "failing_host_count": 300,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
 }
 ```
@@ -5110,7 +5113,8 @@ Either `query` or `query_id` must be provided.
     "created_at": "2022-03-17T20:15:55Z",
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": "2023-12-20T15:23:57Z"
   }
 }
 ```
@@ -5150,7 +5154,8 @@ Where `query_id` references an existing `query`.
     "created_at": "2022-03-17T20:15:55Z",
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": "2023-12-20T15:23:57Z"
   }
 }
 ```
@@ -5241,7 +5246,8 @@ Where `query_id` references an existing `query`.
     "created_at": "2022-03-17T20:15:55Z",
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": "2023-12-20T15:23:57Z"
   }
 }
 ```
@@ -5333,7 +5339,8 @@ Team policies work the same as policies, but at the team level.
       "created_at": "2021-12-16T14:37:37Z",
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2000,
-      "failing_host_count": 300
+      "failing_host_count": 300,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     },
     {
       "id": 2,
@@ -5350,7 +5357,8 @@ Team policies work the same as policies, but at the team level.
       "created_at": "2021-12-16T14:37:37Z",
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
-      "failing_host_count": 0
+      "failing_host_count": 0,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ],
   "inherited_policies": [
@@ -5369,7 +5377,8 @@ Team policies work the same as policies, but at the team level.
       "created_at": "2022-08-04T19:30:18Z",
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
-      "failing_host_count": 9
+      "failing_host_count": 9,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ]
 }
@@ -5437,7 +5446,8 @@ Team policies work the same as policies, but at the team level.
     "created_at": "2021-12-16T14:37:37Z",
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": "2023-12-20T15:23:57Z"
   }
 }
 ```
@@ -5501,7 +5511,8 @@ Either `query` or `query_id` must be provided.
     "created_at": "2021-12-16T14:37:37Z",
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": "2023-12-20T15:23:57Z"
   }
 }
 ```
@@ -5594,7 +5605,8 @@ Either `query` or `query_id` must be provided.
     "created_at": "2021-12-16T14:37:37Z",
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": "2023-12-20T15:23:57Z"
   }
 }
 ```
