@@ -182,6 +182,19 @@ func (oc *OrbitClient) Ping() error {
 	return err
 }
 
+// SetEndUserEmail saves the end-user email address associated with this host
+// in Fleet.
+func (oc *OrbitClient) SetEndUserEmail(email string) error {
+	verb, path := "POST", "/api/fleet/orbit/device_mapping"
+	var resp orbitPostDeviceMappingResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitPostDeviceMappingRequest{
+		Email: email,
+	}, &resp); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (oc *OrbitClient) enroll() (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/enroll"
 	params := EnrollOrbitRequest{
