@@ -13,10 +13,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
-
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
 
 type setOrbitNodeKeyer interface {
@@ -35,6 +34,9 @@ type EnrollOrbitRequest struct {
 	Hostname string `json:"hostname"`
 	// Platform is the device's platform as defined by osquery.
 	Platform string `json:"platform"`
+	// OsqueryIdentifier holds the identifier used by osquery.
+	// If not set, then the hardware UUID is used to match orbit and osquery.
+	OsqueryIdentifier string `json:"osquery_identifier"`
 }
 
 type EnrollOrbitResponse struct {
@@ -79,10 +81,11 @@ func (r EnrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWr
 func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*EnrollOrbitRequest)
 	nodeKey, err := svc.EnrollOrbit(ctx, fleet.OrbitHostInfo{
-		HardwareUUID:   req.HardwareUUID,
-		HardwareSerial: req.HardwareSerial,
-		Hostname:       req.Hostname,
-		Platform:       req.Platform,
+		HardwareUUID:      req.HardwareUUID,
+		HardwareSerial:    req.HardwareSerial,
+		Hostname:          req.Hostname,
+		Platform:          req.Platform,
+		OsqueryIdentifier: req.OsqueryIdentifier,
 	}, req.EnrollSecret)
 	if err != nil {
 		return EnrollOrbitResponse{Err: err}, nil
@@ -121,6 +124,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			"hardware_serial", hostInfo.HardwareSerial,
 			"hostname", hostInfo.Hostname,
 			"platform", hostInfo.Platform,
+			"osquery_identifier", hostInfo.OsqueryIdentifier,
 		),
 		level.Info,
 	)

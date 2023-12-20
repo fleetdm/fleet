@@ -2,11 +2,13 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math"
 	"math/rand"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -178,10 +180,13 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), query.ID, []*fleet.LiveQueryStats{
 			{
-				HostID: hostID,
+				HostID:     hostID,
+				Executions: 1,
 			},
 		},
 	)
+	require.NoError(t, err)
+	err = ds.CalculateAggregatedPerfStatsPercentiles(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, query.ID)
 	require.NoError(t, err)
 
 	err = ds.DeleteQuery(context.Background(), query.TeamID, query.Name)
@@ -193,11 +198,25 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err))
 
 	// Ensure stats were deleted.
-	// The actual delete occurs asynchronously, but enough time should have passed
-	// given the above DB access to ensure the original query completed.
-	stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
-	require.NoError(t, err)
-	require.Equal(t, 0, len(stats))
+	// The actual delete occurs asynchronously, so we for-loop.
+	statsGone := make(chan bool)
+	go func() {
+		for {
+			stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
+			require.NoError(t, err)
+			if len(stats) == 0 {
+				statsGone <- true
+				break
+			}
+		}
+	}()
+	select {
+	case <-statsGone:
+	case <-time.After(2 * time.Second):
+		t.Error("Timeout: stats not deleted for testQueriesDelete")
+	}
+	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, query.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func testQueriesGetByName(t *testing.T, ds *Datastore) {
@@ -253,10 +272,12 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), q1.ID, []*fleet.LiveQueryStats{
 			{
-				HostID: hostIDs[0],
+				HostID:     hostIDs[0],
+				Executions: 1,
 			},
 			{
-				HostID: hostIDs[1],
+				HostID:     hostIDs[1],
+				Executions: 1,
 			},
 		},
 	)
@@ -264,10 +285,15 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), q3.ID, []*fleet.LiveQueryStats{
 			{
-				HostID: hostIDs[0],
+				HostID:     hostIDs[0],
+				Executions: 1,
 			},
 		},
 	)
+	require.NoError(t, err)
+	err = ds.CalculateAggregatedPerfStatsPercentiles(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, q1.ID)
+	require.NoError(t, err)
+	err = ds.CalculateAggregatedPerfStatsPercentiles(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, q3.ID)
 	require.NoError(t, err)
 
 	deleted, err := ds.DeleteQueries(context.Background(), []uint{q1.ID, q3.ID})
@@ -278,14 +304,30 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	assert.Len(t, queries, 2)
 	// Ensure stats were deleted.
-	// The actual delete occurs asynchronously, but enough time should have passed
-	// given the above DB access to ensure the original query completed.
-	stats, err := ds.GetLiveQueryStats(context.Background(), q1.ID, hostIDs)
+	// The actual delete occurs asynchronously, so we for-loop.
+	statsGone := make(chan bool)
+	go func() {
+		for {
+			stats, err := ds.GetLiveQueryStats(context.Background(), q1.ID, hostIDs)
+			require.NoError(t, err)
+			if len(stats) == 0 {
+				statsGone <- true
+				break
+			}
+		}
+	}()
+	select {
+	case <-statsGone:
+	case <-time.After(2 * time.Second):
+		t.Error("Timeout: stats not deleted for testQueriesDeleteMany")
+	}
+	stats, err := ds.GetLiveQueryStats(context.Background(), q3.ID, hostIDs)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(stats))
-	stats, err = ds.GetLiveQueryStats(context.Background(), q3.ID, hostIDs)
-	require.NoError(t, err)
-	require.Equal(t, 0, len(stats))
+	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, q1.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, q3.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	deleted, err = ds.DeleteQueries(context.Background(), []uint{q2.ID})
 	require.Nil(t, err)
@@ -334,7 +376,7 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	query.Logging = fleet.LoggingDifferential
 	query.DiscardData = true
 
-	err = ds.SaveQuery(context.Background(), query, true)
+	err = ds.SaveQuery(context.Background(), query, true, false)
 	require.NoError(t, err)
 
 	actual, err := ds.Query(context.Background(), query.ID)
@@ -346,6 +388,50 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, "baz", actual.Query)
 	require.Equal(t, "Zach", actual.AuthorName)
 	require.Equal(t, "zwass@fleet.co", actual.AuthorEmail)
+
+	// Now save again and delete stats.
+	// First we create stats which will be deleted.
+	const hostID = 1
+	err = ds.UpdateLiveQueryStats(
+		context.Background(), query.ID, []*fleet.LiveQueryStats{
+			{
+				HostID:     hostID,
+				Executions: 1,
+			},
+		},
+	)
+	require.NoError(t, err)
+	err = ds.CalculateAggregatedPerfStatsPercentiles(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, query.ID)
+	require.NoError(t, err)
+	// Update/save query.
+	query.Query = "baz2"
+	err = ds.SaveQuery(context.Background(), query, true, true)
+	require.NoError(t, err)
+	// Ensure stats were deleted.
+	// The actual delete occurs asynchronously, so we for-loop.
+	aggStatsGone := make(chan bool)
+	go func() {
+		for {
+			actual, err = ds.Query(context.Background(), query.ID)
+			require.NoError(t, err)
+			require.NotNil(t, actual)
+			if actual.AggregatedStats.TotalExecutions == nil {
+				aggStatsGone <- true
+				break
+			}
+		}
+	}()
+	select {
+	case <-aggStatsGone:
+	case <-time.After(2 * time.Second):
+		t.Error("Timeout: aggregated stats not deleted for query")
+	}
+	test.QueriesMatch(t, query, actual)
+	stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
+	require.NoError(t, err)
+	require.Equal(t, 0, len(stats))
+	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, query.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func testQueriesList(t *testing.T, ds *Datastore) {

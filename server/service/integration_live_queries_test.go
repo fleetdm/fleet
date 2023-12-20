@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"math/rand"
 	"net/http"
 	"sort"
@@ -159,7 +160,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 		assert.Equal(t, "a", liveQueryResp.Results[0].Results[0].Rows[0]["col1"])
 		assert.Equal(t, "b", liveQueryResp.Results[0].Results[0].Rows[0]["col2"])
 
-		// Allow time for aggregated stats to update
+		// Allow time for aggregated stats and activity feed to update
 		time.Sleep(500 * time.Millisecond)
 		aggStats, err := mysql.GetAggregatedStats(context.Background(), s.ds, fleet.AggregatedStatsTypeScheduledQuery, q1.ID)
 		if savedQuery && hasStats {
@@ -172,7 +173,31 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 		} else {
 			require.ErrorAs(t, err, &sql.ErrNoRows)
 		}
-
+		// Check activity
+		details := json.RawMessage{}
+		mysql.ExecAdhocSQL(
+			t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(
+					context.Background(), q, &details,
+					`SELECT details FROM activities WHERE activity_type = 'live_query' ORDER BY id DESC LIMIT 1`,
+				)
+			},
+		)
+		activity := fleet.ActivityTypeLiveQuery{}
+		err = json.Unmarshal(details, &activity)
+		require.NoError(t, err)
+		assert.Equal(t, activity.TargetsCount, uint(1))
+		assert.Equal(t, activity.QuerySQL, q1.Query)
+		if savedQuery {
+			assert.Equal(t, q1.Name, *activity.QueryName)
+			if hasStats {
+				assert.Equal(t, 1, int(*activity.Stats.TotalExecutions))
+				assert.Equal(t, float64(2), *activity.Stats.SystemTimeP50)
+				assert.Equal(t, float64(2), *activity.Stats.SystemTimeP95)
+				assert.Equal(t, float64(1), *activity.Stats.UserTimeP50)
+				assert.Equal(t, float64(1), *activity.Stats.UserTimeP95)
+			}
+		}
 	}
 	s.Run("not saved query", func() { test(false, true) })
 	s.Run("saved query without stats", func() { test(true, false) })

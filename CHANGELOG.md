@@ -2281,7 +2281,7 @@ Fleet server in non-debug mode.
 
 * Fleet Premium: Added `fleetctl updates rotate` command for rotation of keys in the updates system. The `fleetctl updates` command provides the ability to [self-manage an agent update server](https://fleetdm.com/docs/deploying/fleetctl-agent-updates).
 
-* Enabled the software inventory by default for new Fleet instances. The software inventory feature can be turned on or off using the [`enable_software_inventory` configuration option](https://fleetdm.com/docs/using-fleet/vulnerability-processing#setup).
+* Enabled the software inventory by default for new Fleet instances. The software inventory feature can be turned on or off using the [`enable_software_inventory` configuration option](https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration).
 
 * Updated the JSON payload for the host status webhook by renaming the `"message"` property to `"text"` so that the payload can be received and displayed in Slack.
 
@@ -2619,7 +2619,7 @@ Fleet server in non-debug mode.
 
 * Added the ability to create a Team schedule in Fleet. The Schedule feature was released in Fleet 4.1.0. For more information on the new Schedule feature, check out the [Fleet 4.1.0 release blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1). *Available for Fleet Basic customers*.
 
-* Added Beta Vulnerable software feature which surfaces vulnerable software on the **Host details** page and the `GET /api/v1/fleet/hosts/{id}` API route. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing).
+* Added Beta Vulnerable software feature which surfaces vulnerable software on the **Host details** page and the `GET /api/v1/fleet/hosts/{id}` API route. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://fleetdm.com/docs/using-fleet/vulnerability-processing).
 
 * Added the ability to see which logging destination is configured for Fleet in the Fleet UI. To see this information, head to the **Schedule** page and then select "Schedule a query." Configured logging destination information is also available in the `GET api/v1/fleet/config` API route.
 

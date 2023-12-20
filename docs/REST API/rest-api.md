@@ -1883,6 +1883,7 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
+| populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. |
 
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
@@ -1899,7 +1900,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true`
 
 ##### Request query parameters
 
@@ -1979,7 +1980,29 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         "enrollment_status": null,
         "name": "",
         "server_url": null
-      }
+      },
+      "software": [
+        {
+          "id": 1,
+          "name": "glibc",
+          "version": "2.12",
+          "source": "rpm_packages",
+          "generated_cpe": "cpe:2.3:a:gnu:glibc:2.12:*:*:*:*:*:*:*",
+          "vulnerabilities": [
+            {
+              "cve": "CVE-2009-5155",
+              "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2009-5155",
+              "cvss_score": 7.5, // Fleet Premium only
+              "epss_probability": 0.01537, // Fleet Premium only
+              "cisa_known_exploit": false, // Fleet Premium only
+              "cve_published": "2022-01-01 12:32:00", // Fleet Premium only
+              "cve_description": "In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match.", // Fleet Premium only
+              "resolved_in_version": "2.28" // Fleet Premium only
+            }
+          ],
+          "installed_paths": ["/usr/lib/some-path-1"]
+        }
+      ]
     }
   ]
 }
@@ -3017,6 +3040,53 @@ Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery mana
       "source": "google_chrome_profiles"
     }
   ]
+}
+```
+
+### Get host's device health report
+
+Retrieves information about a single host's device health.
+
+This report includes a subset of host vitals, and simplified policy and vulnerable software information. Data is cached to preserve performance. To get all up-to-date information about a host, use the "Get host" endpoint [here](#get-host).
+
+
+`GET /api/v1/fleet/hosts/:id/health`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id         | integer           | path | **Required**. The host's `id`.                                                |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/1/health`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1,
+  "health": {
+    "updated_at": "2023-09-16T18:52:19Z",
+    "os_version": "CentOS Linux 8.3.2011",
+    "disk_encryption_enabled": true,
+    "failing_policies": [
+      {
+        "id": 123,
+        "name": "Google Chrome is up to date",
+      }
+    ],
+    "vulnerable_software": [
+      {
+        "id": 321,
+        "name": "Firefox.app",
+        "version": "116.0.3",
+      }
+    ]
+  }
 }
 ```
 
@@ -5536,6 +5606,7 @@ Either `query` or `query_id` must be provided.
 - [List queries](#list-queries)
 - [Get query](#get-query)
 - [Get query report](#get-query-report)
+- [Get query report for one host](#get-query-report-for-one-host)
 - [Create query](#create-query)
 - [Modify query](#modify-query)
 - [Delete query by name](#delete-query-by-name)
@@ -5558,6 +5629,7 @@ Returns a list of global queries or team queries.
 | order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 | team_id         | integer | query | The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
+| query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
 
 
 #### Example
@@ -5721,9 +5793,9 @@ Returns the query report specified by ID.
 
 #### Parameters
 
-| Name | Type    | In   | Description                                |
-| ---- | ------- | ---- | ------------------------------------------ |
-| id   | integer | path | **Required**. The ID of the desired query. |
+| Name      | Type    | In    | Description                                |
+| --------- | ------- | ----- | ------------------------------------------ |
+| id        | integer | path  | **Required**. The ID of the desired query. |
 
 #### Example
 
@@ -5791,6 +5863,72 @@ If a query has no results stored, then `results` will be an empty array:
 ```json
 {
   "query_id": 32,
+  "results": []
+}
+```
+
+> Note: osquery scheduled queries do not return errors, so only non-error results are included in the report. If you suspect a query may be running into errors, you can use the [live query](#run-live-query) endpoint to get diagnostics.
+
+### Get query report for one host
+
+Returns a query report for a single host.
+
+`GET /api/v1/fleet/hosts/:id/queries/:query_id`
+
+#### Parameters
+
+| Name      | Type    | In    | Description                                |
+| --------- | ------- | ----- | ------------------------------------------ |
+| id        | integer | path  | **Required**. The ID of the desired host.          |
+| query_id  | integer | path  | **Required**. The ID of the desired query.         |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/queries/31`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "query_id": 31,
+  "host_id": 1,
+  "host_name": "foo",
+  "last_fetched": "2021-01-19T17:08:31Z",
+  "report_clipped": false,
+  "results": [
+    {
+      "columns": {
+        "model": "USB 2.0 Hub",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "columns": {
+        "model": "USB Keyboard",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "columns": {
+        "model": "USB Reciever",
+        "vendor": "Logitech"
+      }
+    }
+  ]
+}
+```
+
+If a query has no results stored for the specified host, then `results` will be an empty array:
+
+```json
+{
+  "query_id": 31,
+  "host_id": 1,
+  "host_name": "foo",
+  "last_fetched": "2021-01-19T17:08:31Z",
+  "report_clipped": false,
   "results": []
 }
 ```

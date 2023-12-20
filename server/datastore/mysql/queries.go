@@ -245,7 +245,7 @@ func (ds *Datastore) NewQuery(
 	return query, nil
 }
 
-func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscardResults bool) (err error) {
+func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) (err error) {
 	if err := q.Verify(); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -295,6 +295,11 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 	}
 	if rows == 0 {
 		return ctxerr.Wrap(ctx, notFound("Query").WithID(q.ID))
+	}
+
+	if shouldDeleteStats {
+		// Delete any associated stats asynchronously.
+		go ds.deleteQueryStats(context.WithoutCancel(ctx), []uint{q.ID})
 	}
 
 	// Opportunistically delete associated query_results.
@@ -349,14 +354,7 @@ func (ds *Datastore) DeleteQuery(ctx context.Context, teamID *uint, name string)
 	}
 
 	// Delete any associated stats asynchronously.
-	ctxWithoutCancel := context.WithoutCancel(ctx)
-	go func() {
-		stmt := "DELETE FROM scheduled_query_stats WHERE scheduled_query_id = ?"
-		_, err := ds.writer(ctxWithoutCancel).ExecContext(ctxWithoutCancel, stmt, queryID)
-		if err != nil {
-			level.Error(ds.logger).Log("msg", "error deleting query stats", "err", err)
-		}
-	}()
+	go ds.deleteQueryStats(context.WithoutCancel(ctx), []uint{queryID})
 
 	// Opportunistically delete associated query_results.
 	//
@@ -378,19 +376,7 @@ func (ds *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error
 	}
 
 	// Delete any associated stats asynchronously.
-	ctxWithoutCancel := context.WithoutCancel(ctx)
-	go func() {
-		stmt := "DELETE FROM scheduled_query_stats WHERE scheduled_query_id IN (?)"
-		stmt, args, err := sqlx.In(stmt, ids)
-		if err != nil {
-			level.Error(ds.logger).Log("msg", "error creating delete query statement", "err", err)
-			return
-		}
-		_, err = ds.writer(ctxWithoutCancel).ExecContext(ctxWithoutCancel, stmt, args...)
-		if err != nil {
-			level.Error(ds.logger).Log("msg", "error deleting multiple query stats", "err", err)
-		}
-	}()
+	go ds.deleteQueryStats(context.WithoutCancel(ctx), ids)
 
 	// Opportunistically delete associated query_results.
 	//
@@ -400,6 +386,35 @@ func (ds *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error
 		return deleted, ctxerr.Wrap(ctx, err, "delete multiple query_results")
 	}
 	return deleted, nil
+}
+
+// deleteQueryStats deletes query stats and aggregated stats for saved queries.
+// Errors are logged and not returned.
+func (ds *Datastore) deleteQueryStats(ctx context.Context, queryIDs []uint) {
+	// Delete stats for each host.
+	stmt := "DELETE FROM scheduled_query_stats WHERE scheduled_query_id IN (?)"
+	stmt, args, err := sqlx.In(stmt, queryIDs)
+	if err != nil {
+		level.Error(ds.logger).Log("msg", "error creating delete query stats statement", "err", err)
+	} else {
+		_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		if err != nil {
+			level.Error(ds.logger).Log("msg", "error deleting query stats", "err", err)
+		}
+	}
+
+	// Delete aggregated stats
+	stmt = fmt.Sprintf("DELETE FROM aggregated_stats WHERE type = '%s' AND id IN (?)", fleet.AggregatedStatsTypeScheduledQuery)
+	stmt, args, err = sqlx.In(stmt, queryIDs)
+	if err != nil {
+		level.Error(ds.logger).Log("msg", "error creating delete aggregated stats statement", "err", err)
+	} else {
+		_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		if err != nil {
+			level.Error(ds.logger).Log("msg", "error deleting aggregated stats", "err", err)
+		}
+	}
+
 }
 
 // Query returns a single Query identified by id, if such exists.
@@ -502,6 +517,11 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		} else {
 			whereClauses += " AND (q.schedule_interval=0 OR q.automations_enabled=0)"
 		}
+	}
+
+	if opt.MatchQuery != "" {
+		whereClauses += " AND q.name = ?"
+		args = append(args, opt.MatchQuery)
 	}
 
 	sql += whereClauses

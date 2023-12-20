@@ -137,6 +137,16 @@ func (svc *Service) RunLiveQueryDeadline(
 				level.Error(svc.logger).Log("msg", "error checking saved query", "query.id", campaign.QueryID, "err", err)
 				perfStatsTracker.saveStats = false
 			}
+			// to make sure stats and activity DB operations don't get killed after we return results.
+			ctxWithoutCancel := context.WithoutCancel(ctx)
+			totalHosts := campaign.Metrics.TotalHosts
+			// We update aggregated stats and activity at the end asynchronously.
+			defer func() {
+				go func() {
+					svc.updateStats(ctxWithoutCancel, queryID, svc.logger, &perfStatsTracker, true)
+					svc.addLiveQueryActivity(ctxWithoutCancel, totalHosts, queryID, svc.logger)
+				}()
+			}()
 		loop:
 			for {
 				select {
@@ -163,13 +173,7 @@ func (svc *Service) RunLiveQueryDeadline(
 						return
 					}
 				case <-timeout:
-					// This is the normal path for returning results. We only update aggregated stats here, and without blocking.
-					if perfStatsTracker.saveStats {
-						ctxWithoutCancel := context.WithoutCancel(ctx) // to make sure stats DB operations don't get killed after we return results.
-						go func() {
-							svc.updateStats(ctxWithoutCancel, campaign.QueryID, svc.logger, &perfStatsTracker, true)
-						}()
-					}
+					// This is the normal path for returning results.
 					break loop
 				case <-ctx.Done():
 					break loop
