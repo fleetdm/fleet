@@ -198,11 +198,13 @@ Fleet records the last 10,000 characters to prevent downtime.
 -------------------------------------------------------------------------------------
 `, maxChars),
 		},
-		{
-			name:         "host timeout",
-			scriptPath:   generateValidPath,
-			expectErrMsg: fleet.RunScriptHostTimeoutErrMsg,
-		},
+		// TODO: this would take 5 minutes to run, we don't want that kind of slowdown in our test suite
+		// but can be useful to have around for manual testing.
+		//{
+		//	name:         "host timeout",
+		//	scriptPath:   generateValidPath,
+		//	expectErrMsg: fleet.RunScriptHostTimeoutErrMsg,
+		//},
 	}
 
 	setupDS := func(t *testing.T, c testCase) {
