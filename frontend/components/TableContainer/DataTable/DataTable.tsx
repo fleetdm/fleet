@@ -458,7 +458,7 @@ const DataTable = ({
                 <th
                   className={"active-selection__checkbox"}
                   {...headerGroups[0].headers[0].getHeaderProps(
-                    headerGroups[0].headers[0].getSortByToggleProps()
+                    headerGroups[0].headers[0].getSortByToggleProps({title:null})
                   )}
                 >
                   {headerGroups[0].headers[0].render("Header")}
