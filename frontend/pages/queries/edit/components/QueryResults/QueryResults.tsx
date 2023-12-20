@@ -10,7 +10,6 @@ import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
-import { addCommasToCount } from "utilities/helpers";
 import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
@@ -280,7 +279,7 @@ const QueryResults = ({
               <span>
                 {errors?.length > 0 && (
                   <span className="count">
-                    {addCommasToCount(errors.length)}
+                    {errors.length.toLocaleString()}
                   </span>
                 )}
                 {NAV_TITLES.ERRORS}

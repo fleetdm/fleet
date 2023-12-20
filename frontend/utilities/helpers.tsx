@@ -843,13 +843,8 @@ export const getUniqueColumnNamesFromRows = (rows: any[]) =>
     )
   );
 
-export const addCommasToCount = (count: number) => {
-  return count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-};
-
 export default {
   addGravatarUrlToResource,
-  addCommasToCount,
   formatConfigDataForServer,
   formatLabelResponse,
   formatFloatAsPercentage,
