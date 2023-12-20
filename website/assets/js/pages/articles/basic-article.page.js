@@ -33,7 +33,7 @@ parasails.registerPage('basic-article', {
     },
     clickCopyRssLink: function(articleCategory) {
       let rssButton = $('a[purpose="rss-button"]');
-      if(typeof navigator.clipboard !== 'undefined' || !rssButton) {
+      if(typeof navigator.clipboard !== 'undefined' && rssButton) {
         // If this heading has already been clicked and still has the copied class we'll just ignore this click
         if(!$(rssButton).hasClass('copied')) {
           navigator.clipboard.writeText('https://fleetdm.com/rss/'+articleCategory);
