@@ -312,13 +312,11 @@ const generateDataSet = (
   policiesList = policiesList.sort((a, b) =>
     sortUtils.caseInsensitiveAsc(a.name, b.name)
   );
-  let policiesLastRun: Date;
   let osqueryPolicyMs: number;
 
   if (osquery_policy) {
-    osqueryPolicyMs = osquery_policy / 1000000;
     // Convert from nanosecond to milliseconds
-    policiesLastRun = new Date(Date.now() - osqueryPolicyMs);
+    osqueryPolicyMs = osquery_policy / 1000000;
   }
 
   policiesList.forEach((policyItem) => {
@@ -328,10 +326,9 @@ const generateDataSet = (
         ? "On"
         : "Off";
 
-    // Define policy has_run based on updated_at compared againist last time policies ran as
-    // defined by osquery_policy.
+    // Define policy has_run based on updated_at compared against last time policies ran.
     policyItem.has_run = isAfter(
-      policiesLastRun,
+      new Date(policyItem.host_count_updated_at),
       new Date(policyItem.updated_at)
     );
     // Include osquery policy in item for reference in tooltip
