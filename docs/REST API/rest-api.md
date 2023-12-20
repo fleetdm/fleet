@@ -5114,7 +5114,7 @@ Either `query` or `query_id` must be provided.
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
-    "host_count_updated_at": "2023-12-20T15:23:57Z"
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5155,7 +5155,7 @@ Where `query_id` references an existing `query`.
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
-    "host_count_updated_at": "2023-12-20T15:23:57Z"
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5247,7 +5247,7 @@ Where `query_id` references an existing `query`.
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
-    "host_count_updated_at": "2023-12-20T15:23:57Z"
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5447,7 +5447,7 @@ Team policies work the same as policies, but at the team level.
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
-    "host_count_updated_at": "2023-12-20T15:23:57Z"
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5512,7 +5512,7 @@ Either `query` or `query_id` must be provided.
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
-    "host_count_updated_at": "2023-12-20T15:23:57Z"
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5606,7 +5606,7 @@ Either `query` or `query_id` must be provided.
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
-    "host_count_updated_at": "2023-12-20T15:23:57Z"
+    "host_count_updated_at": null
   }
 }
 ```
