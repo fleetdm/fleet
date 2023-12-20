@@ -216,15 +216,12 @@ const generateTableHeaders = (
     },
     {
       title: "No",
-      Header: (cellProps) => {
-        cellProps.column.getSortByToggleProps({title:""});
-        return (
-            <HeaderCell
-                value={<PassingColumnHeader isPassing={false} timeSinceHostCountUpdate={timeSinceHostCountUpdate} />}
-                isSortedDesc={cellProps.column.isSortedDesc}
-            />
-        );
-      },
+      Header: (cellProps) => (
+        <HeaderCell
+            value={<PassingColumnHeader isPassing={false} timeSinceHostCountUpdate={timeSinceHostCountUpdate} />}
+            isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
       accessor: "failing_host_count",
       Cell: (cellProps: ICellProps): JSX.Element => {
         if (cellProps.row.original.has_run) {
