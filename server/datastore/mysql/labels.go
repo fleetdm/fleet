@@ -595,6 +595,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		query, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(query, opt, params, enableDiskEncryption)
 	}
+	// TODO: should search columns include display_name (requires join to host_display_names)?
 	query, params = searchLike(query, params, opt.MatchQuery, hostSearchColumns...)
 
 	query, params = appendListOptionsWithCursorToSQL(query, params, &opt.ListOptions)
