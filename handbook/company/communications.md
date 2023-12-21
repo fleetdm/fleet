@@ -620,7 +620,6 @@ During their first week at Fleet, every new team member schedules a contributor 
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google Drive folder.
 
-![image](https://github.com/fleetdm/fleet/assets/618009/e7b356ad-c99b-4bf3-95b8-d466643e4bd4)
 
 
 <!-- 

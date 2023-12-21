@@ -183,6 +183,12 @@ func main() {
 			EnvVars: []string{"ORBIT_HOST_IDENTIFIER"},
 			Value:   "uuid",
 		},
+		&cli.StringFlag{
+			Name:    "end-user-email",
+			Hidden:  true, // experimental feature, we don't want to show it for now
+			Usage:   "Sets the email address of the user associated with the host when enrolling to Fleet. (requires Fleet >= v4.43.0)",
+			EnvVars: []string{"ORBIT_END_USER_EMAIL"},
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -266,6 +272,10 @@ func main() {
 
 		if hostIdentifier := c.String("host-identifier"); hostIdentifier != "uuid" && hostIdentifier != "instance" {
 			return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
+		}
+
+		if email := c.String("end-user-email"); email != "" && !fleet.IsLooseEmail(email) {
+			return fmt.Errorf("the provided end-user email address %q is not a valid email address", email)
 		}
 
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
@@ -705,6 +715,8 @@ func main() {
 			RootDir:       c.String("root-dir"),
 		})
 		// Try performing a flags update to use latest configured osquery flags from get-go.
+		// This also takes care of populating the server's capabilities as it calls the orbit
+		// config endpoint.
 		if _, err := flagRunner.DoFlagsUpdate(); err != nil {
 			// Just log, OK to continue, since flagRunner will retry
 			// in flagRunner.Execute.
@@ -955,6 +967,19 @@ func main() {
 				opt.RootDirectory,
 			)
 			g.Add(desktopRunner.actor())
+		}
+
+		// --end-user-email is only supported on Windows (for macOS it gets the
+		// email from the enrollment profile)
+		if runtime.GOOS == "windows" && c.String("end-user-email") != "" {
+			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEndUserEmail) {
+				log.Debug().Msg("sending end-user email to Fleet")
+				if err := orbitClient.SetOrUpdateDeviceMappingEmail(c.String("end-user-email")); err != nil {
+					log.Error().Err(err).Msg("error sending end-user email to Fleet")
+				}
+			} else {
+				log.Info().Msg("an end-user email is provided, but the Fleet server doesn't have the capability to set it.")
+			}
 		}
 
 		// Install a signal handler
@@ -1298,6 +1323,11 @@ func (f *capabilitiesChecker) execute() error {
 			if oldCapabilities.Has(fleet.CapabilityTokenRotation) !=
 				newCapabilities.Has(fleet.CapabilityTokenRotation) {
 				log.Info().Msgf("%s capability changed, restarting", fleet.CapabilityTokenRotation)
+				return nil
+			}
+			if oldCapabilities.Has(fleet.CapabilityEndUserEmail) !=
+				newCapabilities.Has(fleet.CapabilityEndUserEmail) {
+				log.Info().Msgf("%s capability changed, restarting", fleet.CapabilityEndUserEmail)
 				return nil
 			}
 		case <-f.interruptCh:
