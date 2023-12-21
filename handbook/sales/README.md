@@ -161,7 +161,7 @@ To close a deal with a new customer (non-self-service), create and complete a Gi
 You can help a Premium license dispenser customers change their credit card by directing them to their [account dashboard](https://fleetdm.com/customers/dashboard). On that page, the customer can update their billing card by clicking the pencil icon next to their billing information.
 
 ### Create an issue from a Slack thread
-If you need to track content from a Slack thread that requires action from a teammate, ensure it is logged as an issue. In order to do this, use the `create-github-issue` emoji on the thread. This will automatically create an issue tagged with the #g-business-operations label. If you need the issue logged against the sales board, ensure to replace the default label with #g-sales.
+If you need to track content from a Slack thread within the #g-sales channel that requires action from a teammate, ensure it is logged as an issue. In order to do this, use the `create-github-issue` emoji on the thread. This will automatically create an issue tagged with the #g-business-operations label. If you need the issue logged against the sales board, ensure to replace the default label with #g-sales.
 
 ## Rituals
 
