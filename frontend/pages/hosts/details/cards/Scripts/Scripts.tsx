@@ -19,12 +19,12 @@ import Spinner from "components/Spinner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { IHost } from "interfaces/host";
 import { IUser } from "interfaces/user";
+import { AppContext } from "context/app";
 
 import {
   generateDataSet,
   generateTableColumnConfigs,
 } from "./ScriptsTableConfig";
-import { AppContext } from "context/app";
 
 const baseClass = "host-scripts-section";
 
@@ -45,9 +45,6 @@ const Scripts = ({
 }: IScriptsProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const { config } = useContext(AppContext);
-  if (!config) return null;
-
   const hostId = host?.id;
 
   const {
@@ -64,6 +61,9 @@ const Scripts = ({
       enabled: Boolean(hostId),
     }
   );
+
+  const { config } = useContext(AppContext);
+  if (!config) return null;
 
   if (!host) return null;
 

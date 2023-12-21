@@ -15,14 +15,13 @@ import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import InfoBanner from "components/InfoBanner";
 import ScriptListHeading from "./components/ScriptListHeading";
 import ScriptListItem from "./components/ScriptListItem";
 import ScriptListPagination from "./components/ScriptListPagination";
 import DeleteScriptModal from "./components/DeleteScriptModal";
 import UploadList from "../components/UploadList";
 import ScriptUploader from "./components/ScriptUploader";
-import InfoBanner from "components/InfoBanner";
-import { IConfig } from "interfaces/config";
 
 const baseClass = "scripts";
 
@@ -37,9 +36,6 @@ interface IScriptsProps {
 const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   const { isPremiumTier } = useContext(AppContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
-
-  const { config } = useContext(AppContext);
-  if (!config) return null;
 
   const selectedScript = useRef<IScript | null>(null);
 
@@ -79,6 +75,9 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   const onNextPage = useCallback(() => {
     router.push(path.concat(`&page=${currentPage + 1}`));
   }, [router, path, currentPage]);
+
+  const { config } = useContext(AppContext);
+  if (!config) return null;
 
   // The user is not a premium tier, so show the premium feature message.
   if (!isPremiumTier) {

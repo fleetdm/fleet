@@ -17,9 +17,9 @@ import {
   isGlobalObserver,
   isTeamObserver,
 } from "utilities/permissions/permissions";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import ScriptStatusCell from "./components/ScriptStatusCell";
-import TooltipWrapper from "components/TooltipWrapper";
 
 interface IStatusCellProps {
   cell: {
@@ -69,7 +69,7 @@ const ScriptRunActionDropdownLabel = ({
 // eslint-disable-next-line import/prefer-default-export
 export const generateTableColumnConfigs = (
   actionSelectHandler: (value: string, script: IHostScript) => void,
-  disableActions: boolean = false
+  disableActions = false
 ) => {
   return [
     {
