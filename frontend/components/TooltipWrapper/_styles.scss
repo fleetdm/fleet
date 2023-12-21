@@ -9,7 +9,6 @@
   &__underline {
     width: fit-content;
     border-bottom: 1px dashed $ui-fleet-black-50;
-    padding-bottom: 1px;
   }
 
   &__tip-text {
@@ -28,6 +27,7 @@
     &__underline {
       position: relative;
       top: 2px;
+      padding-bottom: 1px;
     }
   }
 }
