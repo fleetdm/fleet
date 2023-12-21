@@ -81,7 +81,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.NumPolicies = amountPolicies
 		stats.NumLabels = amountLabels
 		stats.SoftwareInventoryEnabled = appConfig.Features.EnableSoftwareInventory
-		stats.VulnDetectionEnabled = appConfig.VulnerabilitySettings.DatabasesPath != ""
+		stats.VulnDetectionEnabled = config.Vulnerabilities.DatabasesPath != "" || appConfig.VulnerabilitySettings.DatabasesPath != ""
 		stats.SystemUsersEnabled = appConfig.Features.EnableHostUsers
 		stats.HostsStatusWebHookEnabled = appConfig.WebhookSettings.HostStatusWebhook.Enable
 		stats.MDMMacOsEnabled = appConfig.MDM.EnabledAndConfigured

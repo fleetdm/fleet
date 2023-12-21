@@ -145,8 +145,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Create new app config for test
-	config, err := ds.NewAppConfig(ctx, &fleet.AppConfig{
+	// Create new app cfg for test
+	cfg, err := ds.NewAppConfig(ctx, &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
 			OrgName:    "Test",
 			OrgLogoURL: "localhost:8080/logo.png",
@@ -168,15 +168,15 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, err)
-	config.Features.EnableSoftwareInventory = false
-	config.Features.EnableHostUsers = false
-	config.VulnerabilitySettings.DatabasesPath = ""
-	config.WebhookSettings.HostStatusWebhook.Enable = true
-	config.MDM.EnabledAndConfigured = true
-	config.HostExpirySettings.HostExpiryEnabled = true
-	config.MDM.WindowsEnabledAndConfigured = true
-	config.ServerSettings.LiveQueryDisabled = true
-	err = ds.SaveAppConfig(ctx, config)
+	cfg.Features.EnableSoftwareInventory = false
+	cfg.Features.EnableHostUsers = false
+	cfg.VulnerabilitySettings.DatabasesPath = ""
+	cfg.WebhookSettings.HostStatusWebhook.Enable = true
+	cfg.MDM.EnabledAndConfigured = true
+	cfg.HostExpirySettings.HostExpiryEnabled = true
+	cfg.MDM.WindowsEnabledAndConfigured = true
+	cfg.ServerSettings.LiveQueryDisabled = true
+	err = ds.SaveAppConfig(ctx, cfg)
 	require.NoError(t, err)
 
 	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
@@ -364,4 +364,10 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
 	assert.Equal(t, "free", stats.LicenseTier)
 	assert.Equal(t, "unknown", stats.Organization)
+
+	fleetConfig.Vulnerabilities = config.VulnerabilitiesConfig{DatabasesPath: "some/path/vulns"}
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, freeLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.True(t, stats.VulnDetectionEnabled)
 }

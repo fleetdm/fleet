@@ -183,6 +183,12 @@ func main() {
 			EnvVars: []string{"ORBIT_HOST_IDENTIFIER"},
 			Value:   "uuid",
 		},
+		&cli.StringFlag{
+			Name:    "end-user-email",
+			Hidden:  true, // experimental feature, we don't want to show it for now
+			Usage:   "Sets the email address of the user associated with the host when enrolling to Fleet. (requires Fleet >= v4.43.0)",
+			EnvVars: []string{"ORBIT_END_USER_EMAIL"},
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -266,6 +272,10 @@ func main() {
 
 		if hostIdentifier := c.String("host-identifier"); hostIdentifier != "uuid" && hostIdentifier != "instance" {
 			return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
+		}
+
+		if email := c.String("end-user-email"); email != "" && !fleet.IsLooseEmail(email) {
+			return fmt.Errorf("the provided end-user email address %q is not a valid email address", email)
 		}
 
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
@@ -705,6 +715,8 @@ func main() {
 			RootDir:       c.String("root-dir"),
 		})
 		// Try performing a flags update to use latest configured osquery flags from get-go.
+		// This also takes care of populating the server's capabilities as it calls the orbit
+		// config endpoint.
 		if _, err := flagRunner.DoFlagsUpdate(); err != nil {
 			// Just log, OK to continue, since flagRunner will retry
 			// in flagRunner.Execute.
@@ -762,104 +774,99 @@ func main() {
 				return fmt.Errorf("initializing token read writer: %w", err)
 			}
 
-			// note: the initial flags fetch above already populated the capabilities
-			// of the server based on the response header
-			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) &&
-				orbitClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation) {
-				log.Info().Msg("token rotation is enabled")
+			log.Info().Msg("token rotation is enabled")
 
-				// we enable remote updates only if the server supports them by setting
-				// this function.
-				trw.SetRemoteUpdateFunc(
-					func(token string) error {
-						return orbitClient.SetOrUpdateDeviceToken(token)
-					},
-				)
+			// we enable remote updates only if the server supports them by setting
+			// this function.
+			trw.SetRemoteUpdateFunc(
+				func(token string) error {
+					return orbitClient.SetOrUpdateDeviceToken(token)
+				},
+			)
 
-				// Note that the deviceClient used by orbit must not define a retry on
-				// invalid token, because its goal is to detect invalid tokens when
-				// making requests with this client.
-				deviceClient, err := service.NewDeviceClient(
-					fleetURL,
-					c.Bool("insecure"),
-					c.String("fleet-certificate"),
-					fleetClientCertificate,
-					c.String("fleet-desktop-alternative-browser-host"),
-				)
-				if err != nil {
-					return fmt.Errorf("initializing client: %w", err)
+			// Note that the deviceClient used by orbit must not define a retry on
+			// invalid token, because its goal is to detect invalid tokens when
+			// making requests with this client.
+			deviceClient, err := service.NewDeviceClient(
+				fleetURL,
+				c.Bool("insecure"),
+				c.String("fleet-certificate"),
+				fleetClientCertificate,
+				c.String("fleet-desktop-alternative-browser-host"),
+			)
+			if err != nil {
+				return fmt.Errorf("initializing client: %w", err)
+			}
+
+			// Check if token is not expired and still good.
+			// If not, rotate the token.
+			expired, _ := trw.HasExpired()
+			if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
+				if err := trw.Rotate(); err != nil {
+					return fmt.Errorf("rotating token: %w", err)
 				}
+			}
 
-				// Check if token is not expired and still good.
-				// If not, rotate the token.
-				expired, _ := trw.HasExpired()
-				if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
-					if err := trw.Rotate(); err != nil {
-						return fmt.Errorf("rotating token: %w", err)
-					}
-				}
+			go func() {
+				// This timer is used to check if the token should be rotated if at
+				// least one hour has passed since the last modification of the token
+				// file.
+				//
+				// This is better than using a ticker that ticks every hour because the
+				// we can't ensure the tick actually runs every hour (eg: the computer is
+				// asleep).
+				rotationDuration := 30 * time.Second
+				rotationTicker := time.NewTicker(rotationDuration)
+				defer rotationTicker.Stop()
 
-				go func() {
-					// This timer is used to check if the token should be rotated if  at
-					// least one hour has passed since the last modification of the token
-					// file.
-					//
-					// This is better than using a ticker that ticks every hour because the
-					// we can't ensure the tick actually runs every hour (eg: the computer is
-					// asleep).
-					rotationDuration := 30 * time.Second
-					rotationTicker := time.NewTicker(rotationDuration)
-					defer rotationTicker.Stop()
+				// This timer is used to periodically check if the token is valid. The
+				// server might deem a toked as invalid for reasons out of our control,
+				// for example if the database is restored to a back-up or if somebody
+				// manually invalidates the token in the db.
+				remoteCheckDuration := 5 * time.Minute
+				remoteCheckTicker := time.NewTicker(remoteCheckDuration)
+				defer remoteCheckTicker.Stop()
 
-					// This timer is used to periodically check if the token is valid. The
-					// server might deem a toked as invalid for reasons out of our control,
-					// for example if the database is restored to a back-up or if somebody
-					// manually invalidates the token in the db.
-					remoteCheckDuration := 5 * time.Minute
-					remoteCheckTicker := time.NewTicker(remoteCheckDuration)
-					defer remoteCheckTicker.Stop()
+				for {
+					select {
+					case <-rotationTicker.C:
+						rotationTicker.Reset(rotationDuration)
 
-					for {
-						select {
-						case <-rotationTicker.C:
-							rotationTicker.Reset(rotationDuration)
+						log.Debug().Msgf("checking if token has changed or expired, cached mtime: %s", trw.GetMtime())
+						hasChanged, err := trw.HasChanged()
+						if err != nil {
+							log.Error().Err(err).Msg("error checking if token has changed")
+						}
 
-							log.Debug().Msgf("checking if token has changed or expired, cached mtime: %s", trw.GetMtime())
-							hasChanged, err := trw.HasChanged()
-							if err != nil {
-								log.Error().Err(err).Msg("error checking if token has changed")
+						exp, remain := trw.HasExpired()
+
+						// rotate if the token file has been modified, if the token is
+						// expired or if it is very close to expire.
+						if hasChanged || exp || remain <= time.Second {
+							log.Info().Msg("token TTL expired, rotating token")
+
+							if err := trw.Rotate(); err != nil {
+								log.Error().Err(err).Msg("error rotating token")
 							}
+						} else if remain > 0 && remain < rotationDuration {
+							// check again when the token will expire, which will happen
+							// before the next rotation check
+							rotationTicker.Reset(remain)
+							log.Debug().Msgf("token will expire soon, checking again in: %s", remain)
+						}
 
-							exp, remain := trw.HasExpired()
+					case <-remoteCheckTicker.C:
+						log.Debug().Msgf("initiating remote token check after %s", remoteCheckDuration)
+						if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
+							log.Info().Err(err).Msg("periodic check of token failed, initiating rotation")
 
-							// rotate if the token file has been modified, if the token is
-							// expired or if it is very close to expire.
-							if hasChanged || exp || remain <= time.Second {
-								log.Info().Msg("token TTL expired, rotating token")
-
-								if err := trw.Rotate(); err != nil {
-									log.Error().Err(err).Msg("error rotating token")
-								}
-							} else if remain > 0 && remain < rotationDuration {
-								// check again when the token will expire, which will happen
-								// before the next rotation check
-								rotationTicker.Reset(remain)
-								log.Debug().Msgf("token will expire soon, checking again in: %s", remain)
-							}
-
-						case <-remoteCheckTicker.C:
-							log.Debug().Msgf("initiating remote token check after %s", remoteCheckDuration)
-							if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
-								log.Info().Err(err).Msg("periodic check of token failed, initiating rotation")
-
-								if err := trw.Rotate(); err != nil {
-									log.Error().Err(err).Msg("error rotating token")
-								}
+							if err := trw.Rotate(); err != nil {
+								log.Error().Err(err).Msg("error rotating token")
 							}
 						}
 					}
-				}()
-			}
+				}
+			}()
 		}
 
 		// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
@@ -962,7 +969,20 @@ func main() {
 			g.Add(desktopRunner.actor())
 		}
 
-		if runtime.GOOS == "darwin" {
+		// --end-user-email is only supported on Windows (for macOS it gets the
+		// email from the enrollment profile)
+		if runtime.GOOS == "windows" && c.String("end-user-email") != "" {
+			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEndUserEmail) {
+				log.Debug().Msg("sending end-user email to Fleet")
+				if err := orbitClient.SetOrUpdateDeviceMappingEmail(c.String("end-user-email")); err != nil {
+					log.Error().Err(err).Msg("error sending end-user email to Fleet")
+				}
+			} else {
+				log.Info().Msg("an end-user email is provided, but the Fleet server doesn't have the capability to set it.")
+			}
+		}
+    
+    if runtime.GOOS == "darwin" {
 			log.Info().Msg("checking for custom mdm enrollment profile with end user email")
 			// For macOS hosts, check if MDM enrollment profile is present and if it contains the
 			// custom end user email field. If so, report it to the server.
@@ -975,8 +995,8 @@ func main() {
 				if err := orbitClient.SetOrUpdateDeviceMappingEmail(email); err != nil {
 					log.Error().Err(err).Msg(fmt.Sprintf("set or update device mapping: %s", email))
 				}
-			}
-		}
+      }
+    }
 
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
@@ -1319,6 +1339,11 @@ func (f *capabilitiesChecker) execute() error {
 			if oldCapabilities.Has(fleet.CapabilityTokenRotation) !=
 				newCapabilities.Has(fleet.CapabilityTokenRotation) {
 				log.Info().Msgf("%s capability changed, restarting", fleet.CapabilityTokenRotation)
+				return nil
+			}
+			if oldCapabilities.Has(fleet.CapabilityEndUserEmail) !=
+				newCapabilities.Has(fleet.CapabilityEndUserEmail) {
+				log.Info().Msgf("%s capability changed, restarting", fleet.CapabilityEndUserEmail)
 				return nil
 			}
 		case <-f.interruptCh:
