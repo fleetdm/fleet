@@ -981,11 +981,11 @@ func main() {
 				log.Info().Msg("an end-user email is provided, but the Fleet server doesn't have the capability to set it.")
 			}
 		}
-    
-    if runtime.GOOS == "darwin" {
+
+		// For macOS hosts, check if MDM enrollment profile is present and if it contains the
+		// custom end user email field. If so, report it to the server.
+		if runtime.GOOS == "darwin" {
 			log.Info().Msg("checking for custom mdm enrollment profile with end user email")
-			// For macOS hosts, check if MDM enrollment profile is present and if it contains the
-			// custom end user email field. If so, report it to the server.
 			email, err := profiles.GetCustomEnrollmentProfileEndUserEmail()
 			if err != nil {
 				log.Error().Err(err).Msg("get custom enrollment profile end user email")
@@ -995,8 +995,8 @@ func main() {
 				if err := orbitClient.SetOrUpdateDeviceMappingEmail(email); err != nil {
 					log.Error().Err(err).Msg(fmt.Sprintf("set or update device mapping: %s", email))
 				}
-      }
-    }
+			}
+		}
 
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
