@@ -1,1 +1,0 @@
-* Update firehose delivery addon to use latest module version, this includes breaking changes to previous configurations as the default prefixes have been changed to natively support time-partitioned Athena table creation

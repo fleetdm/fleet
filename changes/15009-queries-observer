@@ -1,1 +1,0 @@
-- Fixes bug where Global Observers were not able to list all queries through the API.
