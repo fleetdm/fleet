@@ -40,8 +40,8 @@ variable "elastic_token" {}
 data "aws_caller_identity" "current" {}
 
 locals {
-  customer    = "fleet-dogfood"
-  fleet_image = var.fleet_image # Set this to the version of fleet to be deployed
+  customer       = "fleet-dogfood"
+  fleet_image    = var.fleet_image # Set this to the version of fleet to be deployed
   geolite2_image = "${aws_ecr_repository.fleet.repository_url}:${split(":", var.fleet_image)[1]}-geolite2"
   extra_environment_variables = {
     FLEET_LICENSE_KEY                          = var.fleet_license
@@ -240,6 +240,9 @@ data "aws_iam_policy_document" "sentry" {
 }
 
 module "migrations" {
+  depends_on = [
+    module.geolite2
+  ]
   source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v1.0.0"
   ecs_cluster              = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   task_definition          = module.main.byo-vpc.byo-db.byo-ecs.task_definition.family
@@ -428,8 +431,8 @@ resource "aws_s3_object" "idp_metadata" {
 }
 
 module "geolite2" {
-  source = "github.com/fleetdm/fleet//terraform/addons/geolite2?ref=tf-mod-addon-geolite2-v1.0.0"
-  fleet_image = var.fleet_image
+  source            = "github.com/fleetdm/fleet//terraform/addons/geolite2?ref=tf-mod-addon-geolite2-v1.0.0"
+  fleet_image       = var.fleet_image
   destination_image = local.geolite2_image
-  license_key = var.geolite2_license
+  license_key       = var.geolite2_license
 }
