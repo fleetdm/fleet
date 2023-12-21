@@ -42,7 +42,7 @@ data "aws_caller_identity" "current" {}
 locals {
   customer       = "fleet-dogfood"
   fleet_image    = var.fleet_image # Set this to the version of fleet to be deployed
-  geolite2_image = "${aws_ecr_repository.fleet.repository_url}:${split(":", var.fleet_image)[1]}-geolite2"
+  geolite2_image = "${aws_ecr_repository.fleet.repository_url}:${split(":", var.fleet_image)[1]}-geolite2-${formatdate("YYYYMMDDhhmm", timestamp())}"
   extra_environment_variables = {
     FLEET_LICENSE_KEY                          = var.fleet_license
     FLEET_LOGGING_DEBUG                        = "true"
