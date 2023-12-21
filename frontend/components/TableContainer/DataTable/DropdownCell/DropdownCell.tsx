@@ -12,7 +12,7 @@ interface IDropdownCellProps {
   options: IDropdownOption[];
   placeholder: string;
   onChange: (value: string) => void;
-  disabled: boolean;
+  disabled?: boolean;
 }
 
 const DropdownCell = ({
@@ -28,7 +28,7 @@ const DropdownCell = ({
         placeholder={placeholder}
         searchable={false}
         options={options}
-        disabled={disabled}
+        disabled={disabled ?? false}
       />
     </div>
   );
