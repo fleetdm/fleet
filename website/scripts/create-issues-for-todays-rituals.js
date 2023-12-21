@@ -21,8 +21,6 @@ module.exports = {
       'Authorization': `token ${sails.config.custom.githubAccessToken}`
     };
 
-    let owner = 'fleetdm';
-
     // Find all the files in the top level /handbook folder and it's sub-folders
     let FILES_IN_HANDBOOK_FOLDER = await sails.helpers.fs.ls.with({
       dir: path.join(topLvlRepoPath, '/handbook'),
@@ -104,6 +102,7 @@ module.exports = {
 
         // Create an issue with right labels and assignee, in the right repo.
         if (!dry) {
+          let owner = 'fleetdm';
           // [?] https://docs.github.com/en/rest/issues/issues#create-an-issue
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${ritual.autoIssue.repo}/issues`, {
             title: ritual.task,
