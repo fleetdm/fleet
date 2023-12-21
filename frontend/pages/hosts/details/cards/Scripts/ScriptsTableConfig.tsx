@@ -19,6 +19,7 @@ import {
 } from "utilities/permissions/permissions";
 
 import ScriptStatusCell from "./components/ScriptStatusCell";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IStatusCellProps {
   cell: {
@@ -91,16 +92,35 @@ export const generateTableColumnConfigs = (
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps: IDropdownCellProps) => (
-        <DropdownCell
-          options={cellProps.cell.value}
-          onChange={(value: string) =>
-            actionSelectHandler(value, cellProps.row.original)
-          }
-          placeholder={"Actions"}
-          disabled={disableActions}
-        />
-      ),
+      Cell: (cellProps: IDropdownCellProps) =>
+        disableActions ? (
+          <span>
+            <TooltipWrapper
+              position="top"
+              tipContent={
+                <div>Running scripts is disabled in organization settings</div>
+              }
+            >
+              <DropdownCell
+                options={cellProps.cell.value}
+                onChange={(value: string) =>
+                  actionSelectHandler(value, cellProps.row.original)
+                }
+                placeholder={"Actions"}
+                disabled={disableActions}
+              />
+            </TooltipWrapper>
+          </span>
+        ) : (
+          <DropdownCell
+            options={cellProps.cell.value}
+            onChange={(value: string) =>
+              actionSelectHandler(value, cellProps.row.original)
+            }
+            placeholder={"Actions"}
+            disabled={disableActions}
+          />
+        ),
     },
   ];
 };
