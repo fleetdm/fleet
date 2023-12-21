@@ -7157,6 +7157,12 @@ Returns information about the specified software title. By default, `versions` a
 
 `GET /api/v1/fleet/software/titles/:id`
 
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The software title's ID. |
+
 #### Example
 
 `GET /api/v1/fleet/software/titles/12`
