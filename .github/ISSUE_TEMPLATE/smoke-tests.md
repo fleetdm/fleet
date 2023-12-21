@@ -68,6 +68,22 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 4. Warning and informational modals show when expected and make sense
 </td><td>pass/fail</td></tr>
 
+<tr><td>Packs flow</td><td>Verify pack management, operation, and logging.</td><td>
+
+1. Packs successfully run on host machines after migrations 
+2. New Packs can be created
+3. Packs can be edited and deleted
+4. Packs results information is logged
+ 
+</td><td>pass/fail</td></tr>
+
+<tr><td>Log destination flow</td><td>Verify log destination for software, query, policy, and packs.</td><td>
+
+1. Software, query, policy, and packs logs are successfully sent to external log destinations
+2. Software, query, policy, and packs logs are successfully sent to Filesystem log destinations
+ 
+</td><td>pass/fail</td></tr>
+
 <tr><td>MDM Smoke Tests</td><td>Verify MDM enrollments, run commands, and script execution</td><td>
   
 1. Erase an ADE-eligible macOS host and verify able to complete auomated enrollment flow.
