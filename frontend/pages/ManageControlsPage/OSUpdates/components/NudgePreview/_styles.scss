@@ -7,6 +7,11 @@
   max-width: 640px;
   flex-grow: 1;
 
+  h2 {
+    font-size: $x-small;
+    margin: 0;
+  }
+
   &__preview-img {
     margin-top: $pad-xxlarge;
     width: 100%;
