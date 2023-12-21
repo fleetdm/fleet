@@ -90,7 +90,7 @@ const QuertResultsHeading = ({
       <div className={`${baseClass}__query-information`}>
         <div className={`${baseClass}__targeted-wrapper`}>
           <span className={`${baseClass}__targeted-count`}>
-            {targetsTotalCount}
+            {targetsTotalCount.toLocaleString()}
           </span>
           <span>&nbsp;{pluralizeHost(targetsTotalCount)} targeted</span>
         </div>

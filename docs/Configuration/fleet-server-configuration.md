@@ -256,6 +256,8 @@ may need to be adjusted for large deployments. This setting should be greater th
 FLEET_MYSQL_MAX_OPEN_CONNS * (max number of fleet servers) * 4
 ```
 
+> Fleet uses 3 prepared statements for authentication (used by Fleet API) + each database connection can be using 1 additional prepared statement.
+
 ##### mysql_max_idle_conns
 
 The maximum idle connections to the database. This value should be equal to or less than `mysql_max_open_conns`.

@@ -395,8 +395,8 @@ const SelectTargets = ({
 
     return (
       <>
-        <b>{total}</b>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
-        {onlinePercentage()}
+        <b>{total.toLocaleString()}</b>&nbsp;host{total > 1 ? `s` : ``}{" "}
+        targeted&nbsp; ({onlinePercentage()}
         %&nbsp;
         <TooltipWrapper
           tipContent={
