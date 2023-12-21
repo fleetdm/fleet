@@ -111,7 +111,7 @@ This API will wait for ~100 seconds by default and collect results for the hosts
 If the infrastructure is working correctly but the query is hanging or crashing osquery in devices, then results may never reach Fleet.
 
 To rule this out, you should also try out the dummy query `SELECT 1 WHERE 1 = 0;`.
-If you see "(100% responded)" with the dummy query but not with your query, then this might be an issue with:
+If you see "(100% responded)" with the dummy query but not with your query, then the issue might be:
   - the query is crashing osquery on some devices (e.g., watchdog is killing the osquery process.)
   - the query is hanging or taking too long to run on some or all devices.
   - the query is returning too many results which can overwhelm network throughtput limits. Try reducing the number of results by using `LIMIT N;` on the query.
