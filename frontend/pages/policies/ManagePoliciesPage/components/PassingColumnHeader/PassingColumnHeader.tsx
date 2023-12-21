@@ -16,7 +16,7 @@ const PassingColumnHeader = ({
   const iconName = isPassing ? "success" : "error";
   const columnText = isPassing ? "Yes" : "No";
   const updateText = timeSinceHostCountUpdate
-    ? `Host count updated ${timeSinceHostCountUpdate} ago.`
+    ? `Host count updated ${timeSinceHostCountUpdate}.`
     : "";
 
   return (

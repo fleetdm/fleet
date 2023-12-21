@@ -13,8 +13,8 @@
       }
       &.passing_host_count__header,
       &.failing_host_count__header {
-        .component__tooltip-wrapper {
-          margin-left: 10px;
+        .passing-column-header {
+          gap: 10px;
         }
       }
     }

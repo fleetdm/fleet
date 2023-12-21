@@ -21,7 +21,7 @@ const DEFAULT_POLICY_MOCK: IPolicyStats = {
   host_count_updated_at: "2023-11-30T19:05:13Z",
   webhook: "Off",
   has_run: true,
-  osquery_policy_ms: 3600000,
+  next_update_ms: 3600000,
 };
 
 const createMockPolicy = (overrides?: Partial<IPolicyStats>): IPolicyStats => {
