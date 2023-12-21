@@ -142,7 +142,7 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
     );
   };
 
-  const renderClippedBanner = () => (
+  const renderScriptsDisabledBanner = () => (
     <InfoBanner color="yellow">
       <div>
         <b>Running scripts is disabled in organization settings.</b> You can
@@ -163,7 +163,7 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
         />
       </p>
 
-      {config.server_settings.scripts_disabled && renderClippedBanner()}
+      {config.server_settings.scripts_disabled && renderScriptsDisabledBanner()}
       {renderScriptsList()}
       <ScriptUploader currentTeamId={teamIdForApi} onUpload={onUploadScript} />
       {showDeleteScriptModal && selectedScript.current && (
