@@ -154,6 +154,7 @@ const QueryReport = ({
               />
             );
           }}
+          defaultSortHeader="host_display_name"
           isLoading={false}
           isClientSidePagination
           isClientSideFilter
