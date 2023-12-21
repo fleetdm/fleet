@@ -67,7 +67,8 @@ const ScriptRunActionDropdownLabel = ({
 
 // eslint-disable-next-line import/prefer-default-export
 export const generateTableColumnConfigs = (
-  actionSelectHandler: (value: string, script: IHostScript) => void
+  actionSelectHandler: (value: string, script: IHostScript) => void,
+  disableActions: boolean = false
 ) => {
   return [
     {
@@ -97,6 +98,7 @@ export const generateTableColumnConfigs = (
             actionSelectHandler(value, cellProps.row.original)
           }
           placeholder={"Actions"}
+          disabled={disableActions}
         />
       ),
     },

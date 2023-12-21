@@ -24,6 +24,7 @@ import {
   generateDataSet,
   generateTableColumnConfigs,
 } from "./ScriptsTableConfig";
+import { AppContext } from "context/app";
 
 const baseClass = "host-scripts-section";
 
@@ -43,6 +44,9 @@ const Scripts = ({
   onShowDetails,
 }: IScriptsProps) => {
   const { renderFlash } = useContext(NotificationContext);
+
+  const { config } = useContext(AppContext);
+  if (!config) return null;
 
   const hostId = host?.id;
 
@@ -93,7 +97,10 @@ const Scripts = ({
   if (isErrorScriptData) {
     return <DataError card />;
   }
-  const scriptColumnConfigs = generateTableColumnConfigs(onActionSelection);
+  const scriptColumnConfigs = generateTableColumnConfigs(
+    onActionSelection,
+    config.server_settings.scripts_disabled
+  );
   const data = generateDataSet(
     currentUser,
     host,

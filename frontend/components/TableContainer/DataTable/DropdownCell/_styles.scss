@@ -21,6 +21,14 @@
       }
     }
 
+    &.is-disabled {
+      .Select-control {
+        .Select-placeholder {
+          color: $ui-fleet-black-50;
+        }
+      }
+    }
+
     .Select-control {
       display: flex;
       background-color: initial;

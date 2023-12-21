@@ -21,6 +21,8 @@ import ScriptListPagination from "./components/ScriptListPagination";
 import DeleteScriptModal from "./components/DeleteScriptModal";
 import UploadList from "../components/UploadList";
 import ScriptUploader from "./components/ScriptUploader";
+import InfoBanner from "components/InfoBanner";
+import { IConfig } from "interfaces/config";
 
 const baseClass = "scripts";
 
@@ -35,6 +37,9 @@ interface IScriptsProps {
 const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   const { isPremiumTier } = useContext(AppContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
+
+  const { config } = useContext(AppContext);
+  if (!config) return null;
 
   const selectedScript = useRef<IScript | null>(null);
 
@@ -137,6 +142,15 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
     );
   };
 
+  const renderClippedBanner = () => (
+    <InfoBanner color="yellow">
+      <div>
+        <b>Running scripts is disabled in organization settings.</b> You can
+        still manage your library of macOS and Windows scripts below.
+      </div>
+    </InfoBanner>
+  );
+
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
@@ -148,6 +162,8 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
           newTab
         />
       </p>
+
+      {config.server_settings.scripts_disabled && renderClippedBanner()}
       {renderScriptsList()}
       <ScriptUploader currentTeamId={teamIdForApi} onUpload={onUploadScript} />
       {showDeleteScriptModal && selectedScript.current && (
