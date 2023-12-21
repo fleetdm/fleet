@@ -1079,10 +1079,10 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 		mapping = append(mapping, &fleet.HostDeviceMapping{
 			HostID: host.ID,
 			Email:  row["email"],
-			Source: "google_chrome_profiles",
+			Source: fleet.DeviceMappingGoogleChromeProfiles,
 		})
 	}
-	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, "google_chrome_profiles")
+	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, fleet.DeviceMappingGoogleChromeProfiles)
 }
 
 func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {

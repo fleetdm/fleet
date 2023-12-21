@@ -836,6 +836,18 @@ func ExpandPlatform(platform string) []string {
 	}
 }
 
+// List of valid sources for HostDeviceMapping (host_emails table in the
+// database).
+const (
+	DeviceMappingGoogleChromeProfiles = "google_chrome_profiles"
+	DeviceMappingMDMIdpAccounts       = "mdm_idp_accounts"
+	DeviceMappingCustomInstaller      = "custom_installer" // set by fleetd via device-authenticated API
+	DeviceMappingCustomOverride       = "custom_override"  // set by user via user-authenticated API
+
+	DeviceMappingCustomPrefix      = "custom_" // if host_emails.source starts with this, replace with DeviceMappingCustomReplacement
+	DeviceMappingCustomReplacement = "custom"  // replaces a source that starts with CustomPrefix - in the UI, we want to display those as only "custom"
+)
+
 // HostDeviceMapping represents a mapping of a user email address to a host,
 // as reported by the specified source (e.g. Google Chrome Profiles).
 type HostDeviceMapping struct {

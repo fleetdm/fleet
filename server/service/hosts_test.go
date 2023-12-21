@@ -582,6 +582,9 @@ func TestHostAuth(t *testing.T) {
 	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
 		return nil, nil
 	}
+	ds.SetOrUpdateCustomHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
 
 	testCases := []struct {
 		name                  string
@@ -616,6 +619,14 @@ func TestHostAuth(t *testing.T) {
 			false,
 		},
 		{
+			"team admin, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+			false,
+			false,
+		},
+		{
 			"team maintainer, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
 			true,
@@ -630,6 +641,14 @@ func TestHostAuth(t *testing.T) {
 			true,
 			true,
 			false,
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+			true,
+			true,
 		},
 		{
 			"team maintainer, DOES NOT belong to team",
@@ -694,6 +713,12 @@ func TestHostAuth(t *testing.T) {
 
 			err = svc.RefetchHost(ctx, 1)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
+
+			_, err = svc.SetCustomHostDeviceMapping(ctx, 1, "a@b.c")
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			_, err = svc.SetCustomHostDeviceMapping(ctx, 2, "a@b.c")
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 		})
 	}
 

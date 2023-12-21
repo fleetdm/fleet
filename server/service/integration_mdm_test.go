@@ -6730,7 +6730,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	source, ok := sourceByEmail["sso_user@example.com"]
 	require.True(t, ok)
-	require.Equal(t, "mdm_idp_accounts", source)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, source)
 	source, ok = sourceByEmail["g1@example.com"]
 	require.True(t, ok)
 	require.Equal(t, "google_chrome_profiles", source)
@@ -6762,7 +6762,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hostResp.Host.ID), nil, http.StatusOK, &dmResp)
 	require.Len(t, dmResp.DeviceMapping, 1)
 	require.Equal(t, "sso_user@example.com", dmResp.DeviceMapping[0].Email)
-	require.Equal(t, "mdm_idp_accounts", dmResp.DeviceMapping[0].Source)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dmResp.DeviceMapping[0].Source)
 	hostsResp = listHostsResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?query=%s&device_mapping=true", url.QueryEscape("sso_user@example.com")), nil, http.StatusOK, &hostsResp)
 	require.Len(t, hostsResp.Hosts, 1)
@@ -6773,7 +6773,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.NoError(t, json.Unmarshal(*gotHost.DeviceMapping, &dm))
 	require.Len(t, dm, 1)
 	require.Equal(t, "sso_user@example.com", dm[0].Email)
-	require.Equal(t, "mdm_idp_accounts", dm[0].Source)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dm[0].Source)
 
 	// enrolling a different user works without problems
 	res = s.LoginMDMSSOUser("sso_user2", "user123#")
