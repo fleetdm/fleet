@@ -7203,6 +7203,12 @@ Returns information about the specified software version.
 
 `GET /api/v1/fleet/software/versions/:id`
 
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The software version's ID. |
+
 #### Example
 
 `GET /api/v1/fleet/software/versions/12`
