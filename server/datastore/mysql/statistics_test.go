@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
@@ -52,7 +51,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 
 	// First time running with no hosts
 	stats, shouldSend, err := ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
-	fmt.Println("hello, ", fleetConfig)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, "premium", stats.LicenseTier)
