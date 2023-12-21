@@ -240,8 +240,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 			notifs.PendingScriptExecutionIDs = execIDs
 		}
-	} else {
-		fmt.Println("JVE_LOG: scripts disabled! ")
 	}
 
 	// team ID is not nil, get team specific flags and options
