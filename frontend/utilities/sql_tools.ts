@@ -99,7 +99,7 @@ export const parseSqlTables = (
       ) {
         const targetName = ((node as unknown) as ISqlCteNode).target.name;
         cteTables.push(targetName);
-      } else if (node.variant === "table") {
+      } else if (node.variant === "table" && !(node.type === "function")) {
         const tableName = ((node as unknown) as ISqlTableNode).name;
         results.push(tableName);
       }
@@ -151,6 +151,7 @@ export const checkPlatformCompatibility = (
 ): { platforms: SupportedPlatform[] | null; error: Error | null } => {
   let sqlTables: string[] | undefined;
   try {
+    // get tables from str
     sqlTables = parseSqlTables(sqlString, includeCteTables);
   } catch (err) {
     return { platforms: null, error: new Error(`${err}`) };
@@ -166,6 +167,7 @@ export const checkPlatformCompatibility = (
   }
 
   try {
+    // use tables to get platforms
     const platforms = filterCompatiblePlatforms(sqlTables);
     return { platforms, error: null };
   } catch (err) {
