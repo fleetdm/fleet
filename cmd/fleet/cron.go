@@ -139,22 +139,22 @@ func scanVulnerabilities(
 		return fmt.Errorf("create vulnerabilities databases directory: %w", err)
 	}
 
-	var vulnAutomationEnabled string
+	var vulnAutomationType string
 
 	// only one vuln automation (i.e. webhook or integration) can be enabled at a
 	// time, enforced when updating the appconfig.
 	if appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable {
-		vulnAutomationEnabled = "webhook"
+		vulnAutomationType = "webhook"
 	}
 
 	// check for jira integrations
 	for _, j := range appConfig.Integrations.Jira {
 		if j.EnableSoftwareVulnerabilities {
-			if vulnAutomationEnabled != "" {
+			if vulnAutomationType != "" {
 				err := ctxerr.New(ctx, "jira check")
 				errHandler(ctx, logger, "more than one automation enabled", err)
 			}
-			vulnAutomationEnabled = "jira"
+			vulnAutomationType = "jira"
 			break
 		}
 	}
@@ -162,25 +162,25 @@ func scanVulnerabilities(
 	// check for Zendesk integrations
 	for _, z := range appConfig.Integrations.Zendesk {
 		if z.EnableSoftwareVulnerabilities {
-			if vulnAutomationEnabled != "" {
+			if vulnAutomationType != "" {
 				err := ctxerr.New(ctx, "zendesk check")
 				errHandler(ctx, logger, "more than one automation enabled", err)
 			}
-			vulnAutomationEnabled = "zendesk"
+			vulnAutomationType = "zendesk"
 			break
 		}
 	}
 
-	level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
+	level.Debug(logger).Log("vulnAutomationType", vulnAutomationType)
 
-	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationType != "")
+	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationType != "")
+	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationType != "")
 
-	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationType != "")
 
 	// If no automations enabled, then there is nothing else to do...
-	if vulnAutomationEnabled == "" {
+	if vulnAutomationType == "" {
 		return nil
 	}
 
@@ -198,7 +198,7 @@ func scanVulnerabilities(
 	recentV, matchingMeta := utils.RecentVulns(vulns, meta)
 
 	if len(recentV) > 0 {
-		switch vulnAutomationEnabled {
+		switch vulnAutomationType {
 		case "webhook":
 			args := webhooks.VulnArgs{
 				Vulnerablities: recentV,
