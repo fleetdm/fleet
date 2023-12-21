@@ -26,6 +26,8 @@ var (
 	wildCardableHostSearchColumns = []string{"hostname", "computer_name"}
 )
 
+// TODO: should host search columns include display_name (requires join to host_display_names)?
+
 // Fixme: We should not make implementation details of the database schema part of the API.
 var defaultHostColumnTableAliases = map[string]string{
 	"created_at": "h.created_at",
@@ -425,7 +427,7 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 			AND (q.team_id IS NULL OR q.team_id = ?)
 			OR EXISTS (
 				SELECT 1 FROM query_results
-				WHERE query_results.query_id = q.id 
+				WHERE query_results.query_id = q.id
 				AND query_results.host_id = ?
 			)
 		GROUP BY q.id
@@ -954,14 +956,14 @@ func (ds *Datastore) applyHostFilters(
 ) (string, []interface{}, error) {
 	opt.OrderKey = defaultHostColumnTableAlias(opt.OrderKey)
 
-	deviceMappingJoin := `LEFT JOIN (
+	deviceMappingJoin := fmt.Sprintf(`LEFT JOIN (
 		SELECT
 			host_id,
-			CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', source)), ']') AS device_mapping
+			CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', %s)), ']') AS device_mapping
 		FROM
 			host_emails
 		GROUP BY
-			host_id) dm ON dm.host_id = h.id`
+			host_id) dm ON dm.host_id = h.id`, deviceMappingTranslateSourceColumn(""))
 	if !opt.DeviceMapping {
 		deviceMappingJoin = ""
 	}
@@ -1012,8 +1014,11 @@ func (ds *Datastore) applyHostFilters(
 	}
 
 	displayNameJoin := ""
-	if opt.ListOptions.OrderKey == "display_name" {
+	if opt.ListOptions.OrderKey == "display_name" || opt.MatchQuery != "" {
 		displayNameJoin = ` JOIN host_display_names hdn ON h.id = hdn.host_id `
+	}
+	if opt.MatchQuery != "" {
+		displayNameJoin = ` LEFT ` + displayNameJoin
 	}
 
 	lowDiskSpaceFilter := "TRUE"
@@ -1079,7 +1084,7 @@ func (ds *Datastore) applyHostFilters(
 
 	sqlStmt, params = filterHostsByMDMBootstrapPackageStatus(sqlStmt, opt, params)
 	sqlStmt, params = filterHostsByOS(sqlStmt, opt, params)
-	sqlStmt, params, _ = hostSearchLike(sqlStmt, params, opt.MatchQuery, hostSearchColumns...)
+	sqlStmt, params, _ = hostSearchLike(sqlStmt, params, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
 	sqlStmt, params = appendListOptionsWithCursorToSQL(sqlStmt, params, &opt.ListOptions)
 
 	return sqlStmt, params, nil
@@ -2363,6 +2368,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 		// to get all the additional data for hosts that match the search criteria by host_id
 		matchingHosts := "SELECT id FROM hosts WHERE TRUE"
 		var args []interface{}
+		// TODO: should search columns include display_name (requires join to host_display_names)?
 		searchHostsQuery, args, matchesEmail := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)
 		// if matchQuery is "email like" then don't bother with the additional wildcard searching
 		if !matchesEmail && len(matchQuery) > 2 && hasNonASCIIRegex(matchQuery) {
@@ -2863,21 +2869,35 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 }
 
 func (ds *Datastore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
-	stmt := `
+	return ds.listHostDeviceMappingDB(ctx, ds.reader(ctx), id)
+}
+
+func deviceMappingTranslateSourceColumn(hostEmailsTableAlias string) string {
+	if hostEmailsTableAlias != "" && !strings.HasSuffix(hostEmailsTableAlias, ".") {
+		hostEmailsTableAlias += "."
+	}
+	// this means:
+	// 	if source starts with "custom_" then return "custom" else return source as-is
+	return fmt.Sprintf(` CASE WHEN %ssource LIKE '%s%%' THEN '%s' ELSE %[1]ssource END `,
+		hostEmailsTableAlias, fleet.DeviceMappingCustomPrefix, fleet.DeviceMappingCustomReplacement)
+}
+
+func (ds *Datastore) listHostDeviceMappingDB(ctx context.Context, q sqlx.QueryerContext, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+	stmt := fmt.Sprintf(`
     SELECT
       id,
       host_id,
       email,
-      source
+      %s as source
     FROM
       host_emails
     WHERE
       host_id = ?
     ORDER BY
-      email, source`
+      email, source`, deviceMappingTranslateSourceColumn(""))
 
 	var mappings []*fleet.HostDeviceMapping
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &mappings, stmt, id)
+	err := sqlx.SelectContext(ctx, q, &mappings, stmt, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select host emails by host id")
 	}
@@ -2968,6 +2988,65 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 		}
 		return nil
 	})
+}
+
+func (ds *Datastore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
+	const (
+		delStmt = `DELETE FROM host_emails WHERE host_id = ? AND source = ?`
+		updStmt = `UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`
+		insStmt = `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`
+		// for the custom_installer source, we insert it only if there is no
+		// existing custom_override source for that host.
+		insInstallerStmt = `INSERT INTO host_emails (email, host_id, source)
+			(
+				SELECT ?, ?, ?
+				FROM DUAL
+				WHERE
+					NOT EXISTS (
+						SELECT 1 FROM host_emails WHERE host_id = ? AND source = ?
+					)
+			)`
+	)
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if source == fleet.DeviceMappingCustomOverride {
+			// must delete any existing custom installer
+			if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingCustomInstaller); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete custom installer device mapping")
+			}
+		}
+
+		// first attempt an update, and if it updates nothing proceed with an
+		// insert (this is the same logic as our insertOrUpdate helper function,
+		// but it is not used directly because we may need a more complex insert
+		// statement). We cannot use ON DUPLICATE KEY UPDATE because there is no
+		// unique constraint on that table.
+		res, err := tx.ExecContext(ctx, updStmt, email, hostID, source)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update custom device mapping")
+		}
+
+		rowsAffected, _ := res.RowsAffected() // cannot fail for mysql driver
+		if rowsAffected == 0 {
+			// use an insert, no existing email for that source
+			stmt := insStmt
+			params := []any{email, hostID, source}
+			if source == fleet.DeviceMappingCustomInstaller {
+				// custom installer can only insert if there's no custom override
+				stmt = insInstallerStmt
+				params = append(params, hostID, fleet.DeviceMappingCustomOverride)
+			}
+			if _, err := tx.ExecContext(ctx, stmt, params...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert custom device mapping")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return ds.listHostDeviceMappingDB(ctx, ds.writer(ctx), hostID)
 }
 
 func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mappings []*fleet.HostBattery) error {
@@ -3354,8 +3433,6 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	)
 }
 
-const hostEmailsSourceMdmIdpAccounts = "mdm_idp_accounts"
-
 func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	ctx context.Context,
 	hostID uint,
@@ -3374,7 +3451,7 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 		ctx,
 		`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
 		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
-		email, hostID, hostEmailsSourceMdmIdpAccounts,
+		email, hostID, fleet.DeviceMappingMDMIdpAccounts,
 	)
 }
 

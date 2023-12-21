@@ -343,7 +343,9 @@ const TAGGED_TEMPLATES = {
         {" "}
         added{" "}
         {profileName ? (
-          <>configuration profile {profileName}</>
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
         ) : (
           <>a configuration profile</>
         )}{" "}
@@ -364,7 +366,9 @@ const TAGGED_TEMPLATES = {
         {" "}
         deleted{" "}
         {profileName ? (
-          <>configuration profile {profileName}</>
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
         ) : (
           <>a configuration profile</>
         )}{" "}
@@ -399,7 +403,9 @@ const TAGGED_TEMPLATES = {
         {" "}
         added{" "}
         {profileName ? (
-          <>configuration profile {profileName}</>
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
         ) : (
           <>a configuration profile</>
         )}{" "}
@@ -420,7 +426,9 @@ const TAGGED_TEMPLATES = {
         {" "}
         deleted{" "}
         {profileName ? (
-          <>configuration profile {profileName}</>
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
         ) : (
           <>a configuration profile</>
         )}{" "}

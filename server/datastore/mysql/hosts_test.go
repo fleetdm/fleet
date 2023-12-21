@@ -124,6 +124,7 @@ func TestHosts(t *testing.T) {
 		{"HostsNoSeenTime", testHostsNoSeenTime},
 		{"HostDeviceMapping", testHostDeviceMapping},
 		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
+		{"CustomHostDeviceMapping", testHostsCustomHostDeviceMapping},
 		{"HostMDMAndMunki", testHostMDMAndMunki},
 		{"AggregatedHostMDMAndMunki", testAggregatedHostMDMAndMunki},
 		{"MunkiIssuesBatchSize", testMunkiIssuesBatchSize},
@@ -4886,6 +4887,102 @@ func testHostsReplaceHostDeviceMapping(t *testing.T, ds *Datastore) {
 	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{
 		{Email: "d@b.c", Source: "src2"},
 	})
+}
+
+func testHostsCustomHostDeviceMapping(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
+		Platform:        "linux",
+		Hostname:        "host1",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("2"),
+		NodeKey:         ptr.String("2"),
+		Platform:        "linux",
+		Hostname:        "host2",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	// create a custom installer email for h1
+	dms, err := ds.SetOrUpdateCustomHostDeviceMapping(ctx, h1.ID, "a@b.c", fleet.DeviceMappingCustomInstaller)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{{Email: "a@b.c", Source: fleet.DeviceMappingCustomReplacement}})
+
+	// custom installer can be updated
+	dms, err = ds.SetOrUpdateCustomHostDeviceMapping(ctx, h1.ID, "b@b.c", fleet.DeviceMappingCustomInstaller)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{{Email: "b@b.c", Source: fleet.DeviceMappingCustomReplacement}})
+
+	// set a custom override, custom installer is removed
+	dms, err = ds.SetOrUpdateCustomHostDeviceMapping(ctx, h1.ID, "c@b.c", fleet.DeviceMappingCustomOverride)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{{Email: "c@b.c", Source: fleet.DeviceMappingCustomReplacement}})
+
+	// updating the custom installer is now ignored
+	dms, err = ds.SetOrUpdateCustomHostDeviceMapping(ctx, h1.ID, "d@b.c", fleet.DeviceMappingCustomInstaller)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{{Email: "c@b.c", Source: fleet.DeviceMappingCustomReplacement}})
+
+	// updating the custom override works
+	dms, err = ds.SetOrUpdateCustomHostDeviceMapping(ctx, h1.ID, "e@b.c", fleet.DeviceMappingCustomOverride)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{{Email: "e@b.c", Source: fleet.DeviceMappingCustomReplacement}})
+
+	// set some unrelated emails for h2
+	err = ds.ReplaceHostDeviceMapping(ctx, h2.ID, []*fleet.HostDeviceMapping{
+		{HostID: h2.ID, Email: "a@c.d", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{HostID: h2.ID, Email: "b@c.d", Source: fleet.DeviceMappingGoogleChromeProfiles},
+	}, fleet.DeviceMappingGoogleChromeProfiles)
+	require.NoError(t, err)
+
+	// create a custom override immediately, without a custom installer
+	_, err = ds.SetOrUpdateCustomHostDeviceMapping(ctx, h2.ID, "c@c.d", fleet.DeviceMappingCustomOverride)
+	require.NoError(t, err)
+
+	// adding a custom installer is ignored
+	dms, err = ds.SetOrUpdateCustomHostDeviceMapping(ctx, h2.ID, "d@c.d", fleet.DeviceMappingCustomInstaller)
+	require.NoError(t, err)
+
+	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{
+		{Email: "a@c.d", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "b@c.d", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "c@c.d", Source: fleet.DeviceMappingCustomReplacement},
+	})
+
+	// updating the custom override works
+	dms, err = ds.SetOrUpdateCustomHostDeviceMapping(ctx, h2.ID, "e@c.d", fleet.DeviceMappingCustomOverride)
+	require.NoError(t, err)
+
+	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{
+		{Email: "a@c.d", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "b@c.d", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "e@c.d", Source: fleet.DeviceMappingCustomReplacement},
+	})
+
+	// deleting the host deletes the mappings
+	err = ds.DeleteHost(ctx, h2.ID)
+	require.NoError(t, err)
+	dms, err = ds.ListHostDeviceMapping(ctx, h2.ID)
+	require.NoError(t, err)
+	require.Empty(t, dms)
+
+	// other host was left untouched
+	dms, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, dms, []*fleet.HostDeviceMapping{{Email: "e@b.c", Source: fleet.DeviceMappingCustomReplacement}})
 }
 
 func assertHostDeviceMapping(t *testing.T, got, want []*fleet.HostDeviceMapping) {

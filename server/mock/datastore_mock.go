@@ -204,6 +204,8 @@ type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, li
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
+type SetOrUpdateCustomHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string, source string) ([]*fleet.HostDeviceMapping, error)
+
 type ListHostBatteriesFunc func(ctx context.Context, id uint) ([]*fleet.HostBattery, error)
 
 type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error)
@@ -1063,6 +1065,9 @@ type DataStore struct {
 
 	ListHostDeviceMappingFunc        ListHostDeviceMappingFunc
 	ListHostDeviceMappingFuncInvoked bool
+
+	SetOrUpdateCustomHostDeviceMappingFunc        SetOrUpdateCustomHostDeviceMappingFunc
+	SetOrUpdateCustomHostDeviceMappingFuncInvoked bool
 
 	ListHostBatteriesFunc        ListHostBatteriesFunc
 	ListHostBatteriesFuncInvoked bool
@@ -2586,6 +2591,13 @@ func (s *DataStore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 	s.ListHostDeviceMappingFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostDeviceMappingFunc(ctx, id)
+}
+
+func (s *DataStore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email string, source string) ([]*fleet.HostDeviceMapping, error) {
+	s.mu.Lock()
+	s.SetOrUpdateCustomHostDeviceMappingFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateCustomHostDeviceMappingFunc(ctx, hostID, email, source)
 }
 
 func (s *DataStore) ListHostBatteries(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
