@@ -28,13 +28,11 @@ module.exports = {
     let pricingTableFeatures = sails.config.builtStaticContent.pricingTable;
 
     let pricingTable = [];
-
-    // Note: These product categories are hardcoded in to reduce complexity, an alternative way of building this from the pricingFeaturesTable is: let productCategories =  _.union(_.flatten(_.pluck(pricingTableFeatures, 'productCategories')));
-    let productCategories = ['Endpoint operations', 'Device management', 'Vulnerability management'];
-    for(let category of productCategories) {
-      // Get all the features in that have a productCategories array that contains this category.
+    let pricingTableCategories = ['Support', 'Deployment', 'Integrations', 'Endpoint operations', 'Device management', 'Vulnerability management'];
+    for(let category of pricingTableCategories) {
+      // Get all the features in that have a pricingTableFeatures array that contains this category.
       let featuresInThisCategory = _.filter(pricingTableFeatures, (feature)=>{
-        return _.contains(feature.productCategories, category);
+        return _.contains(feature.pricingTableCategories, category);
       });
       // Build a dictionary containing the category name, and all features in the category, sorting premium features to the bottom of the list.
       let allFeaturesInThisCategory = {
@@ -46,7 +44,6 @@ module.exports = {
       // Add the dictionaries to the arrays that we'll use to build the features table.
       pricingTable.push(allFeaturesInThisCategory);
     }
-
     // Respond with view.
     return {
       pricingTable
