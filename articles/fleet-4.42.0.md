@@ -7,10 +7,17 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ## Highlights
 
+* Query results per-host
 * Query performance reporting
 * Human-endpoint mapping
 * Consolidated software view
 * Target hosts by serial number
+
+### Query results per-host
+
+Query results are now cached on a per-host basis. Cached query results are designed to significantly aid Fleet users, particularly when investigating the state of a currently offline host. By caching query results, administrators can access and review the latest recorded state of any individual host, even when that host is not actively connected to a network.
+
+This addition benefits IT and security teams, facilitating a more efficient troubleshooting process. Custom data relevant to each host can be added to the Host details page, streamlining diagnostic and issue resolution tasks. This enhancement aligns with Fleet's commitment to providing user-friendly and efficient tools, enhancing the overall device management and security capabilities within the Fleet environment.
 
 ### Query performance reporting
 
