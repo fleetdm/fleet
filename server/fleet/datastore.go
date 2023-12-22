@@ -818,6 +818,10 @@ type Datastore interface {
 	ListOSVulnerabilities(ctx context.Context, hostID []uint) ([]OSVulnerability, error)
 	InsertOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability, source VulnerabilitySource) (int64, error)
 	DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability) error
+	// InsertOSVulnerability will either insert a new vulnerability in the datastore (in which
+	// case it will return true) or if a matching record already exists it will update its
+	// updated_at timestamp (in which case it will return false).
+	InsertOSVulnerability(ctx context.Context, vuln OSVulnerability, source VulnerabilitySource) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple MDM

@@ -129,6 +129,11 @@ type softwareCPEWithNVDMeta struct {
 	meta *wfn.Attributes
 }
 
+type osCPEWithNVDMeta struct {
+	fleet.OperatingSystem
+	meta *wfn.Attributes
+}
+
 // TranslateCPEToCVE maps the CVEs found in NVD archive files in the
 // vulnerabilities database folder to software CPEs in the fleet database.
 // If collectVulns is true, returns a list of any new software vulnerabilities found.
@@ -182,7 +187,7 @@ func TranslateCPEToCVE(
 	vulns := make(map[string]fleet.SoftwareVulnerability)
 	for _, file := range files {
 
-		foundVulns, err := checkCVEs(
+		foundVulns, err := checkSoftwareCVEs(
 			ctx,
 			ds,
 			logger,
@@ -228,8 +233,8 @@ func TranslateCPEToCVE(
 	return newVulns, nil
 }
 
-func GetMacOSCPEs(ctx context.Context, ds fleet.Datastore) ([]wfn.Attributes, error) {
-	var cpes []wfn.Attributes
+func GetMacOSCPEs(ctx context.Context, ds fleet.Datastore) ([]osCPEWithNVDMeta, error) {
+	var cpes []osCPEWithNVDMeta
 	filter := fleet.OperatingSystemListOptions{
 		Platform: "darwin",
 	}
@@ -242,18 +247,21 @@ func GetMacOSCPEs(ctx context.Context, ds fleet.Datastore) ([]wfn.Attributes, er
 
 	for _, os := range oses {
 		for _, variant := range macosVariants {
-			cpe := wfn.Attributes{
-				Part:      "o",
-				Vendor:    "apple",
-				Product:   variant,
-				Version:   os.Version,
-				Update:    wfn.Any,
-				Edition:   wfn.Any,
-				SWEdition: wfn.Any,
-				TargetSW:  wfn.Any,
-				TargetHW:  wfn.Any,
-				Other:     wfn.Any,
-				Language:  wfn.Any,
+			cpe := osCPEWithNVDMeta{
+				OperatingSystem: os,
+				meta: &wfn.Attributes{
+					Part:      "o",
+					Vendor:    "apple",
+					Product:   variant,
+					Version:   os.Version,
+					Update:    wfn.Any,
+					Edition:   wfn.Any,
+					SWEdition: wfn.Any,
+					TargetSW:  wfn.Any,
+					TargetHW:  wfn.Any,
+					Other:     wfn.Any,
+					Language:  wfn.Any,
+				},
 			}
 			cpes = append(cpes, cpe)
 		}
@@ -275,7 +283,7 @@ func matchesExactTargetSW(softwareCPETargetSW string, targetSWs []string, config
 	return false
 }
 
-func checkCVEs(
+func checkSoftwareCVEs(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
@@ -379,6 +387,183 @@ func checkCVEs(
 		softwareCPECh <- cpe
 	}
 	close(softwareCPECh)
+	level.Debug(logger).Log("msg", "cpes pushed")
+	wg.Wait()
+
+	return foundVulns, nil
+}
+
+func TranslateMacOSCPEToCVE(
+	ctx context.Context,
+	ds fleet.Datastore,
+	vulnPath string,
+	logger kitlog.Logger,
+	collectVulns bool,
+	periodicity time.Duration,
+) ([]fleet.OSVulnerability, error) {
+	files, err := getNVDCVEFeedFiles(vulnPath)
+	if err != nil {
+		return nil, err
+	}
+	if len(files) == 0 {
+		return nil, nil
+	}
+
+	// get all the software CPEs from the database
+	cpes, err := GetMacOSCPEs(ctx, ds)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(cpes) == 0 {
+		return nil, nil
+	}
+
+	knownNVDBugRules, err := GetKnownNVDBugRules()
+	if err != nil {
+		return nil, err
+	}
+
+	// we are using a map here to remove any duplicates - a vulnerability can be present in more
+	// than one
+	// NVD feed file.
+	vulns := make(map[string]fleet.OSVulnerability)
+	for _, file := range files {
+
+		foundVulns, err := checkOsCVEs(
+			ctx,
+			ds,
+			logger,
+			cpes,
+			file,
+			collectVulns,
+			knownNVDBugRules,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, e := range foundVulns {
+			vulns[e.Key()] = e
+		}
+	}
+
+	var newVulns []fleet.OSVulnerability
+	for _, vuln := range vulns {
+		count, err := ds.InsertOSVulnerabilities(ctx, []fleet.OSVulnerability{vuln}, fleet.NVDSource)
+		if err != nil {
+			level.Error(logger).Log("cpe processing", "error", "err", err)
+			continue
+		}
+
+		// collect vuln only if inserted, otherwise we would send
+		// webhook requests for the same vulnerability over and over again until
+		// it is older than 2 days.
+		if collectVulns && count > 0 {
+			newVulns = append(newVulns, vuln)
+		}
+	}
+
+	// Delete any stale vulnerabilities. A vulnerability is stale iff the last time it was
+	// updated was more than `2 * periodicity` ago. This assumes that the whole vulnerability
+	// process completes in less than `periodicity` units of time.
+	//
+	// This is used to get rid of false positives once they are fixed and no longer detected as
+	// vulnerabilities.
+	// if err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, 2*periodicity); err != nil {
+	// 	level.Error(logger).Log("msg", "error deleting out of date vulnerabilities", "err", err)
+	// }
+
+	return newVulns, nil
+}
+
+func checkOsCVEs(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	osCPEs []osCPEWithNVDMeta,
+	jsonFile string,
+	collectVulns bool,
+	knownNVDBugRules CPEMatchingRules,
+) ([]fleet.OSVulnerability, error) {
+	dict, err := cvefeed.LoadJSONDictionary(jsonFile)
+	if err != nil {
+		return nil, err
+	}
+
+	cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(-1)
+	// This index consumes too much RAM
+	// cache.Idx = cvefeed.NewIndex(dict)
+
+	osCPEChan := make(chan osCPEWithNVDMeta)
+	var foundVulns []fleet.OSVulnerability
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	logger = log.With(logger, "json_file", jsonFile)
+
+	for i := 0; i < runtime.NumCPU(); i++ {
+		wg.Add(1)
+		goRoutineKey := i
+		go func() {
+			defer wg.Done()
+
+			logger := log.With(logger, "routine", goRoutineKey)
+			level.Debug(logger).Log("msg", "start")
+
+			for {
+				select {
+				case osCPE, more := <-osCPEChan:
+					if !more {
+						level.Debug(logger).Log("msg", "done")
+						return
+					}
+
+					cacheHits := cache.Get([]*wfn.Attributes{osCPE.meta})
+					for _, matches := range cacheHits {
+						if len(matches.CPEs) == 0 {
+							continue
+						}
+
+						if rule, ok := knownNVDBugRules.FindMatch(
+							matches.CVE.ID(),
+						); ok {
+							if !rule.CPEMatches(osCPE.meta) {
+								continue
+							}
+						}
+
+						resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), osCPE.meta, dict, logger)
+						if err != nil {
+							level.Debug(logger).Log("err", err)
+						}
+
+						vuln := fleet.OSVulnerability{
+							OSID:              osCPE.ID,
+							CVE:               matches.CVE.ID(),
+							ResolvedInVersion: ptr.String(resolvedVersion),
+						}
+
+						mu.Lock()
+						foundVulns = append(foundVulns, vuln)
+						mu.Unlock()
+
+					}
+				case <-ctx.Done():
+					level.Debug(logger).Log("msg", "quitting")
+					return
+				}
+			}
+		}()
+	}
+
+	level.Debug(logger).Log("msg", "pushing cpes")
+
+	for _, cpe := range osCPEs {
+		osCPEChan <- cpe
+	}
+	close(osCPEChan)
 	level.Debug(logger).Log("msg", "cpes pushed")
 	wg.Wait()
 

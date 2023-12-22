@@ -179,6 +179,7 @@ func scanVulnerabilities(
 
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationType != "")
 
+
 	// If no automations enabled, then there is nothing else to do...
 	if vulnAutomationType == "" {
 		return nil
@@ -265,7 +266,7 @@ func checkWinVulnerabilities(
 	var results []fleet.OSVulnerability
 
 	// Get OS
-	os, err := ds.ListOperatingSystems(ctx)
+	os, err := ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	if err != nil {
 		errHandler(ctx, logger, "fetching list of operating systems", err)
 		return nil
@@ -390,6 +391,8 @@ func checkNVDVulnerabilities(
 		errHandler(ctx, logger, "analyzing vulnerable software: CPE->CVE", err)
 		return nil
 	}
+
+	nvd.TranslateMacOSCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, config.Periodicity)
 
 	return vulns
 }
