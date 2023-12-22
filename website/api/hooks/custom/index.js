@@ -133,7 +133,8 @@ will be disabled and/or hidden in the UI.
               if (res.locals._environment !== undefined) {
                 throw new Error('Cannot attach Sails environment as the view local `_environment`, because this view local already exists!  (Is it being attached somewhere else?)');
               }
-              res.locals._environment = sails.config.environment;
+              res.locals._environment = 'production';
+              // sails.config.environment;
 
               // The `me` local is set explicitly to `undefined` here just to avoid having to
               // do `typeof me !== 'undefined'` checks in our views/layouts/partials.
