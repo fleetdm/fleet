@@ -62,7 +62,7 @@
                   <td><h4><%- category.categoryName %></h4></td>
                   <%if(pricingTable.indexOf(category) === 0) {%>
                   <td class="text-center">
-                    <strong>Free</strong>
+                    <strong>Community</strong>
                   </td>
                   <%}else {%>
                   <td ></td>
@@ -103,7 +103,7 @@
                   <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %></strong>
                 </div>
                 <div class="d-flex flex-row justify-content-between align-items-center">
-                  Free
+                  Community
                 <%if(feature.tier === 'Free') {%>
                   <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
                 <% } %>
@@ -129,7 +129,7 @@
               <tr>
                 <td><h4>{{category.categoryName}}</h4></td>
                 <td class="text-center" v-if="index === 0">
-                  <strong>Free</strong>
+                  <strong>Community</strong>
                 </td>
                 <td v-else></td>
                 <td class="text-center" v-if="index === 0">
@@ -139,7 +139,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="feature in category.features" v-if="feature.usualDepartment === pricingMode">
+              <tr v-for="feature in category.features" v-if="feature.usualDepartment === undefined || feature.usualDepartment === pricingMode">
                 <td purpose="feature-name">{{feature.name}}{{feature.comingSoon ? '*' : ''}}</td>
                   <td purpose="table-checkmark" v-if="feature.tier === 'Free'"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
                   <td purpose="table-checkmark" v-else></td>
