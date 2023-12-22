@@ -173,7 +173,7 @@ func scanVulnerabilities(
 
 	level.Debug(logger).Log("vulnAutomationType", vulnAutomationType)
 
-	nvdVulns := checkNVDSoftwareVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationType != "")
+	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationType != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationType != "")
 	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationType != "")
 
@@ -352,7 +352,7 @@ func checkOvalVulnerabilities(
 	return results
 }
 
-func checkNVDSoftwareVulnerabilities(
+func checkNVDVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
