@@ -16,6 +16,7 @@ func Up_20231221130911(tx *sql.Tx) error {
 			created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			operating_system_id int(10) unsigned NOT NULL,
+			resolved_in_version varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 			PRIMARY KEY (id),
 			UNIQUE KEY unq_cve_operating_system (cve,operating_system_id),
 			KEY fk_operating_system_cve_operating_system_id (operating_system_id)
