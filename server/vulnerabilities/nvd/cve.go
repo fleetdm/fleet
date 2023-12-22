@@ -228,6 +228,40 @@ func TranslateCPEToCVE(
 	return newVulns, nil
 }
 
+func GetMacOSCPEs(ctx context.Context, ds fleet.Datastore) ([]wfn.Attributes, error) {
+	var cpes []wfn.Attributes
+	filter := fleet.OperatingSystemListOptions{
+		Platform: "darwin",
+	}
+	oses, err := ds.ListOperatingSystems(ctx, filter)
+	if err != nil {
+		return cpes, ctxerr.Wrap(ctx, err, "list operating systems")
+	}
+
+	macosVariants := []string{"macos", "mac_os_x"}
+
+	for _, os := range oses {
+		for _, variant := range macosVariants {
+			cpe := wfn.Attributes{
+				Part:      "o",
+				Vendor:    "apple",
+				Product:   variant,
+				Version:   os.Version,
+				Update:    wfn.Any,
+				Edition:   wfn.Any,
+				SWEdition: wfn.Any,
+				TargetSW:  wfn.Any,
+				TargetHW:  wfn.Any,
+				Other:     wfn.Any,
+				Language:  wfn.Any,
+			}
+			cpes = append(cpes, cpe)
+		}
+	}
+
+	return cpes, nil
+}
+
 func matchesExactTargetSW(softwareCPETargetSW string, targetSWs []string, configs []*wfn.Attributes) bool {
 	for _, targetSW := range targetSWs {
 		if softwareCPETargetSW == targetSW {

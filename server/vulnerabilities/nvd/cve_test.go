@@ -445,6 +445,60 @@ func TestPreprocessVersion(t *testing.T) {
 	}
 }
 
+func TestGetMacOSCPEs(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	ds.ListOperatingSystemsFunc = func(ctx context.Context, opt fleet.OperatingSystemListOptions) ([]fleet.OperatingSystem, error) {
+		return []fleet.OperatingSystem{
+			{
+				ID:            1,
+				Name:          "macOS",
+				Version:       "11.6.2",
+				Arch:          "x86_64",
+				KernelVersion: "20.6.0",
+				Platform:      "darwin",
+			},
+		}, nil
+	}
+
+	CVEs, err := GetMacOSCPEs(ctx, ds)
+	require.NoError(t, err)
+	require.Len(t, CVEs, 2)
+
+	expected := map[wfn.Attributes]struct{}{
+		{
+			Part:      "o",
+			Vendor:    "apple",
+			Product:   "mac_os_x",
+			Version:   CVEs[0].Version,
+			Update:    wfn.Any,
+			Edition:   wfn.Any,
+			SWEdition: wfn.Any,
+			TargetSW:  wfn.Any,
+			TargetHW:  wfn.Any,
+			Other:     wfn.Any,
+			Language:  wfn.Any,
+		}: {},
+		{
+			Part:      "o",
+			Vendor:    "apple",
+			Product:   "macos",
+			Version:   CVEs[0].Version,
+			Update:    wfn.Any,
+			Edition:   wfn.Any,
+			SWEdition: wfn.Any,
+			TargetSW:  wfn.Any,
+			TargetHW:  wfn.Any,
+			Other:     wfn.Any,
+			Language:  wfn.Any,
+		}: {},
+	}
+
+	for _, cve := range CVEs {
+		require.Contains(t, expected, cve)
+	}
+}
+
 // loadDict loads a cvefeed.Dictionary from a JSON NVD feed file.
 func loadDict(t *testing.T, path string) cvefeed.Dictionary {
 	dict, err := cvefeed.LoadJSONDictionary(path)
