@@ -198,12 +198,23 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err))
 
 	// Ensure stats were deleted.
-	// The actual delete occurs asynchronously, so enough time should have passed
-	// to ensure the original query completed.
-	time.Sleep(10 * time.Millisecond)
-	stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
-	require.NoError(t, err)
-	require.Equal(t, 0, len(stats))
+	// The actual delete occurs asynchronously, so we for-loop.
+	statsGone := make(chan bool)
+	go func() {
+		for {
+			stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
+			require.NoError(t, err)
+			if len(stats) == 0 {
+				statsGone <- true
+				break
+			}
+		}
+	}()
+	select {
+	case <-statsGone:
+	case <-time.After(2 * time.Second):
+		t.Error("Timeout: stats not deleted for testQueriesDelete")
+	}
 	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, query.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
@@ -293,13 +304,24 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	assert.Len(t, queries, 2)
 	// Ensure stats were deleted.
-	// The actual delete occurs asynchronously, so enough time should have passed
-	// to ensure the original query completed.
-	time.Sleep(10 * time.Millisecond)
-	stats, err := ds.GetLiveQueryStats(context.Background(), q1.ID, hostIDs)
-	require.NoError(t, err)
-	require.Equal(t, 0, len(stats))
-	stats, err = ds.GetLiveQueryStats(context.Background(), q3.ID, hostIDs)
+	// The actual delete occurs asynchronously, so we for-loop.
+	statsGone := make(chan bool)
+	go func() {
+		for {
+			stats, err := ds.GetLiveQueryStats(context.Background(), q1.ID, hostIDs)
+			require.NoError(t, err)
+			if len(stats) == 0 {
+				statsGone <- true
+				break
+			}
+		}
+	}()
+	select {
+	case <-statsGone:
+	case <-time.After(2 * time.Second):
+		t.Error("Timeout: stats not deleted for testQueriesDeleteMany")
+	}
+	stats, err := ds.GetLiveQueryStats(context.Background(), q3.ID, hostIDs)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(stats))
 	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, q1.ID)

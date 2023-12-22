@@ -535,14 +535,14 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 		failingPoliciesJoin = ""
 	}
 
-	deviceMappingJoin := `LEFT JOIN (
+	deviceMappingJoin := fmt.Sprintf(`LEFT JOIN (
 	SELECT
 		host_id,
-		CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', source)), ']') AS device_mapping
+		CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', %s)), ']') AS device_mapping
 	FROM
 		host_emails
 	GROUP BY
-		host_id) dm ON dm.host_id = h.id`
+		host_id) dm ON dm.host_id = h.id`, deviceMappingTranslateSourceColumn(""))
 	if !opt.DeviceMapping {
 		deviceMappingJoin = ""
 	}
@@ -595,7 +595,8 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		query, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(query, opt, params, enableDiskEncryption)
 	}
-	query, params = searchLike(query, params, opt.MatchQuery, hostSearchColumns...)
+	// TODO: should search columns include display_name (requires join to host_display_names)?
+	query, params, _ = hostSearchLike(query, params, opt.MatchQuery, hostSearchColumns...)
 
 	query, params = appendListOptionsWithCursorToSQL(query, params, &opt.ListOptions)
 	return query, params, nil
@@ -605,7 +606,7 @@ func (ds *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFil
 	query := `SELECT count(*) FROM label_membership lm
     JOIN hosts h ON (lm.host_id = h.id)
 	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
-	LEFT JOIN host_disks hd ON (h.id=hd.host_id) 
+	LEFT JOIN host_disks hd ON (h.id=hd.host_id)
  	`
 
 	query += hostMDMJoin
