@@ -835,7 +835,7 @@ module.exports = {
             }
           }
           if(!feature.pricingTableCategories){
-            throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature is missing a 'pricingTableCategory' value. Please add this value to this feature to be the category in the pricing table`)
+            throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature is missing a 'pricingTableCategory' value. Please add this value to this feature to be the category in the pricing table`);
           } else {
             if(!_.isArray(feature.pricingTableCategories)){
               throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature has an invalid 'pricingTableCategory' value. Please change the productCategories for this feature to be an array of pricing table categories. Type of invalid pricingTableCategory value: ${typeof feature.pricingTableCategory}`);
