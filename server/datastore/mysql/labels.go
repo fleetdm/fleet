@@ -506,6 +506,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       h.public_ip,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hst.seen_time, h.created_at) as seen_time,
       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
       (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
@@ -672,6 +673,7 @@ func (ds *Datastore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.T
         h.public_ip,
         COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
         COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+        COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
         (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
       FROM label_membership lm
       JOIN hosts h ON lm.host_id = h.id
