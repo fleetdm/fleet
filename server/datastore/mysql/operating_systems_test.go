@@ -19,15 +19,43 @@ func TestListOperatingSystems(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	// no os records
-	list, err := ds.ListOperatingSystems(ctx)
+	list, err := ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Len(t, list, 0)
 
 	// with os records
 	seedByID := seedOperatingSystems(t, ds)
-	list, err = ds.ListOperatingSystems(ctx)
+	list, err = ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Len(t, list, len(seedByID))
+
+	osByID := make(map[uint]fleet.OperatingSystem)
+	for _, os := range list {
+		osByID[os.ID] = os
+	}
+	for _, os := range osByID {
+		require.Equal(t, os, seedByID[os.ID])
+	}
+}
+
+func TestListOperatingSystemsFilter(t *testing.T) {
+	ctx := context.Background()
+	ds := CreateMySQLDS(t)
+
+	filter := fleet.OperatingSystemListOptions{
+		Platform: "darwin",
+	}
+
+	// no os records
+	list, err := ds.ListOperatingSystems(ctx, filter)
+	require.NoError(t, err)
+	require.Len(t, list, 0)
+
+	// with os records
+	seedByID := seedOperatingSystems(t, ds)
+	list, err = ds.ListOperatingSystems(ctx, filter)
+	require.NoError(t, err)
+	require.Len(t, list, 1)
 
 	osByID := make(map[uint]fleet.OperatingSystem)
 	for _, os := range list {
@@ -52,7 +80,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	}
 
 	// no records
-	list, err := ds.ListOperatingSystems(ctx)
+	list, err := ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Len(t, list, 0)
 	_, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
@@ -61,7 +89,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	// insert new os record and host operating system record
 	err = ds.UpdateHostOperatingSystem(ctx, testHostID, testOS)
 	require.NoError(t, err)
-	list, err = ds.ListOperatingSystems(ctx)
+	list, err = ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	require.Equal(t, true, isSameOS(t, testOS, list[0]))
@@ -74,7 +102,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	testNewVersion.Version = "22.04 LTS"
 	err = ds.UpdateHostOperatingSystem(ctx, testHostID, testNewVersion)
 	require.NoError(t, err)
-	list, err = ds.ListOperatingSystems(ctx)
+	list, err = ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Len(t, list, 2)
 	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
@@ -85,7 +113,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	testNewHostID := uint(43)
 	err = ds.UpdateHostOperatingSystem(ctx, testNewHostID, testOS)
 	require.NoError(t, err)
-	list, err = ds.ListOperatingSystems(ctx)
+	list, err = ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Len(t, list, 2)
 	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testNewHostID)
@@ -95,7 +123,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	// no change
 	err = ds.UpdateHostOperatingSystem(ctx, testNewHostID, testOS)
 	require.NoError(t, err)
-	list, err = ds.ListOperatingSystems(ctx)
+	list, err = ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Len(t, list, 2)
 	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testNewHostID)
@@ -127,7 +155,7 @@ func TestUniqueOS(t *testing.T) {
 
 	}
 	wg.Wait()
-	list, err := ds.ListOperatingSystems(ctx)
+	list, err := ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 }
@@ -137,7 +165,7 @@ func TestMaybeNewOperatingSystem(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	seedOperatingSystems(t, ds)
-	list, err := ds.ListOperatingSystems(ctx)
+	list, err := ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	osByID := make(map[uint]fleet.OperatingSystem)
 	for _, os := range list {
@@ -158,7 +186,7 @@ func TestMaybeNewOperatingSystem(t *testing.T) {
 	require.True(t, isSameOS(t, testOS, *result1))
 	require.NotContains(t, osByID, result1.ID)
 
-	list, err = ds.ListOperatingSystems(ctx)
+	list, err = ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Equal(t, len(osByID)+1, len(list))
 
@@ -174,7 +202,7 @@ func TestMaybeNewOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, isSameOS(t, *result1, *result2))
 
-	list, err = ds.ListOperatingSystems(ctx)
+	list, err = ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Equal(t, len(osByID), len(list))
 
@@ -192,7 +220,7 @@ func TestMaybeNewOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, isSameOS(t, testNewVersion, *result3))
 
-	list, err = ds.ListOperatingSystems(ctx)
+	list, err = ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Equal(t, len(osByID)+1, len(list))
 
@@ -211,7 +239,7 @@ func TestMaybeUpdateHostOperatingSystem(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	seedOperatingSystems(t, ds)
-	osList, err := ds.ListOperatingSystems(ctx)
+	osList, err := ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 
 	testHostID := uint(42)
@@ -247,7 +275,7 @@ func TestGetHostOperatingSystem(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	seedOperatingSystems(t, ds)
-	osList, err := ds.ListOperatingSystems(ctx)
+	osList, err := ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 
 	testHostID := uint(42)
@@ -283,7 +311,7 @@ func TestCleanupHostOperatingSystems(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	seedOperatingSystems(t, ds)
-	testOSs, err := ds.ListOperatingSystems(ctx)
+	testOSs, err := ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 
 	testHosts := make([]*fleet.Host, 10)
@@ -323,7 +351,7 @@ func TestCleanupHostOperatingSystems(t *testing.T) {
 		}
 	}
 	assertDeletedOS := func(expectDeletedIDs []uint) {
-		list, err := ds.ListOperatingSystems(ctx)
+		list, err := ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 		require.NoError(t, err)
 
 		byID := make(map[uint]fleet.OperatingSystem)

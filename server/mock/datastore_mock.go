@@ -374,7 +374,7 @@ type InsertCVEMetaFunc func(ctx context.Context, cveMeta []fleet.CVEMeta) error
 
 type ListCVEsFunc func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error)
 
-type ListOperatingSystemsFunc func(ctx context.Context) ([]fleet.OperatingSystem, error)
+type ListOperatingSystemsFunc func(ctx context.Context, opts fleet.OperatingSystemListOptions) ([]fleet.OperatingSystem, error)
 
 type UpdateHostOperatingSystemFunc func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error
 
@@ -3183,11 +3183,11 @@ func (s *DataStore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet
 	return s.ListCVEsFunc(ctx, maxAge)
 }
 
-func (s *DataStore) ListOperatingSystems(ctx context.Context) ([]fleet.OperatingSystem, error) {
+func (s *DataStore) ListOperatingSystems(ctx context.Context, opts fleet.OperatingSystemListOptions) ([]fleet.OperatingSystem, error) {
 	s.mu.Lock()
 	s.ListOperatingSystemsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListOperatingSystemsFunc(ctx)
+	return s.ListOperatingSystemsFunc(ctx, opts)
 }
 
 func (s *DataStore) UpdateHostOperatingSystem(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {

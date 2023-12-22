@@ -503,7 +503,7 @@ type Datastore interface {
 	// OperatingSystemsStore
 
 	// ListOperationsSystems returns all operating systems (id, name, version)
-	ListOperatingSystems(ctx context.Context) ([]OperatingSystem, error)
+	ListOperatingSystems(ctx context.Context, opts OperatingSystemListOptions) ([]OperatingSystem, error)
 	// UpdateHostOperatingSystem updates the `host_operating_system` table
 	// for the given host ID with the ID of the operating system associated
 	// with the given name, version, arch, and kernel version in the

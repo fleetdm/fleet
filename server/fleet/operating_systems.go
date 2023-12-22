@@ -17,6 +17,10 @@ type OperatingSystem struct {
 	Platform string `json:"platform" db:"platform"`
 }
 
+type OperatingSystemListOptions struct {
+	Platform string `json:"platform"`
+}
+
 // IsWindows returns whether the OperatingSystem record references a Windows OS
 func (os OperatingSystem) IsWindows() bool {
 	return strings.ToLower(os.Platform) == "windows"

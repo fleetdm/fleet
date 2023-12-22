@@ -2951,7 +2951,7 @@ func testHostsListByOperatingSystemID(t *testing.T, ds *Datastore) {
 		}
 	}
 
-	storedOSs, err := ds.ListOperatingSystems(context.Background())
+	storedOSs, err := ds.ListOperatingSystems(context.Background(), fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Len(t, storedOSs, 3)
 	storedOSByNameVers := make(map[string]fleet.OperatingSystem)
@@ -3019,7 +3019,7 @@ func testHostsListByOSNameAndVersion(t *testing.T, ds *Datastore) {
 		}
 	}
 
-	storedOSs, err := ds.ListOperatingSystems(context.Background())
+	storedOSs, err := ds.ListOperatingSystems(context.Background(), fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Len(t, storedOSs, 3)
 	storedOSByNameVersArch := make(map[string]fleet.OperatingSystem)
@@ -5818,7 +5818,7 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 		err := ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{Name: nv[0], Version: nv[1], Platform: h.Platform, Arch: "x86_64"})
 		require.NoError(t, err)
 	}
-	osList, err := ds.ListOperatingSystems(ctx)
+	osList, err := ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Len(t, osList, 5)
 	osByNameVers := make(map[string]fleet.OperatingSystem)
@@ -5917,7 +5917,7 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// different architecture is considered a unique operating system
-	newOSList, err := ds.ListOperatingSystems(ctx)
+	newOSList, err := ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 	require.NoError(t, err)
 	require.Len(t, newOSList, len(osList)+1)
 
@@ -6751,7 +6751,7 @@ func testHostIDsByOSID(t *testing.T, ds *Datastore) {
 			require.NoError(t, ds.UpdateHostOperatingSystem(ctx, uint(i+100), os))
 		}
 
-		storedOS, err := ds.ListOperatingSystems(ctx)
+		storedOS, err := ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 		require.NoError(t, err)
 		for _, sOS := range storedOS {
 			if sOS.Name == "Microsoft Windows 11 Enterprise Evaluation II" {
@@ -6793,7 +6793,7 @@ func testHostIDsByOSID(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, 1, os[0]))
 		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, 2, os[1]))
 
-		storedOS, err := ds.ListOperatingSystems(ctx)
+		storedOS, err := ds.ListOperatingSystems(ctx, fleet.OperatingSystemListOptions{})
 		require.NoError(t, err)
 
 		for _, sOS := range storedOS {

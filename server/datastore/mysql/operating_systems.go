@@ -10,13 +10,20 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) ListOperatingSystems(ctx context.Context) ([]fleet.OperatingSystem, error) {
-	return listOperatingSystemsDB(ctx, ds.reader(ctx))
+func (ds *Datastore) ListOperatingSystems(ctx context.Context, opts fleet.OperatingSystemListOptions) ([]fleet.OperatingSystem, error) {
+	return listOperatingSystemsDB(ctx, ds.reader(ctx), opts)
 }
 
-func listOperatingSystemsDB(ctx context.Context, tx sqlx.QueryerContext) ([]fleet.OperatingSystem, error) {
+func listOperatingSystemsDB(ctx context.Context, tx sqlx.QueryerContext, opts fleet.OperatingSystemListOptions) ([]fleet.OperatingSystem, error) {
 	var os []fleet.OperatingSystem
-	if err := sqlx.SelectContext(ctx, tx, &os, `SELECT id, name, version, arch, kernel_version FROM operating_systems`); err != nil {
+	args := []interface{}{}
+	stmt := "SELECT id, name, version, arch, kernel_version FROM operating_systems"
+	if opts.Platform != "" {
+		stmt += " WHERE platform = ?"
+		args = append(args, opts.Platform)
+	}
+
+	if err := sqlx.SelectContext(ctx, tx, &os, stmt, args...); err != nil {
 		return nil, err
 	}
 	return os, nil
