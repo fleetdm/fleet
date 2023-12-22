@@ -23,7 +23,7 @@ import validUrl from "components/forms/validators/valid_url";
 import PreviewPayloadModal from "../PreviewPayloadModal";
 import PreviewTicketModal from "../PreviewTicketModal";
 
-interface IManageAutomationsModalProps {
+interface IManagePolicyAutomationsModalProps {
   automationsConfig: IAutomationsConfig | ITeamAutomationsConfig;
   availableIntegrations: IIntegrations;
   availablePolicies: IPolicy[];
@@ -83,9 +83,9 @@ const useCheckboxListStateManagement = (
   return { policyItems, updatePolicyItems };
 };
 
-const baseClass = "manage-automations-modal";
+const baseClass = "manage-policy-automations-modal";
 
-const ManageAutomationsModal = ({
+const ManagePolicyAutomationsModal = ({
   automationsConfig,
   availableIntegrations,
   availablePolicies,
@@ -94,7 +94,7 @@ const ManageAutomationsModal = ({
   onExit,
   handleSubmit,
   togglePreviewPayloadModal: togglePreviewModal,
-}: IManageAutomationsModalProps): JSX.Element => {
+}: IManagePolicyAutomationsModalProps): JSX.Element => {
   const {
     webhook_settings: { failing_policies_webhook: webhook },
   } = automationsConfig;
@@ -356,41 +356,37 @@ const ManageAutomationsModal = ({
           <div className={`${baseClass}__policy-automation-enabled`}>
             <div className={`${baseClass}__select`}>
               {availablePolicies?.length ? (
-                <div className={`${baseClass}__policy-select-items`}>
+                <>
                   <p>
-                    {/* {errors.policyItems ? (
-                          <span className="form-field__label--error">
-                            {errors.policyItems}
-                          </span>
-                        ) : (
-                          <strong>
-                            Choose which policies you would like to listen to:
-                          </strong>
-                        )} */}
                     <strong>
                       Choose which policies you would like to listen to:
                     </strong>
                   </p>
-                  {policyItems &&
-                    policyItems.map((policyItem) => {
-                      const { isChecked, name, id } = policyItem;
-                      return (
-                        <div key={id} className={`${baseClass}__team-item`}>
-                          <Checkbox
-                            value={isChecked}
-                            name={name}
-                            onChange={() => {
-                              updatePolicyItems(policyItem.id);
-                              !isChecked &&
-                                setErrors((errs) => omit(errs, "policyItems"));
-                            }}
-                          >
-                            {name}
-                          </Checkbox>
-                        </div>
-                      );
-                    })}
-                </div>
+                  <div className={`${baseClass}__policy-select-items`}>
+                    {policyItems &&
+                      policyItems.map((policyItem) => {
+                        const { isChecked, name, id } = policyItem;
+                        return (
+                          <div key={id}>
+                            <Checkbox
+                              wrapperClassName={`${baseClass}__policy-select-item`}
+                              value={isChecked}
+                              name={name}
+                              onChange={() => {
+                                updatePolicyItems(policyItem.id);
+                                !isChecked &&
+                                  setErrors((errs) =>
+                                    omit(errs, "policyItems")
+                                  );
+                              }}
+                            >
+                              {name}
+                            </Checkbox>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </>
               ) : (
                 <div className={`${baseClass}__no-policies`}>
                   <b>You have no policies.</b>
@@ -399,7 +395,7 @@ const ManageAutomationsModal = ({
               )}
             </div>
             <div className={`${baseClass}__workflow`}>
-              Workflow
+              <b>Workflow</b>
               <Radio
                 className={`${baseClass}__radio-input`}
                 label={"Ticket"}
@@ -444,4 +440,4 @@ const ManageAutomationsModal = ({
   );
 };
 
-export default ManageAutomationsModal;
+export default ManagePolicyAutomationsModal;
