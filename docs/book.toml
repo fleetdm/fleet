@@ -1,0 +1,6 @@
+[book]
+authors = ["Fleet contributors"]
+language = "en"
+multilingual = false
+src = "./Contributing"
+title = "Fleet Contributing Docs"
