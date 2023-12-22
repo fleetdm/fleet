@@ -1155,6 +1155,10 @@ Requires `mdm.macos_updates.minimum_version` to be set.
       deadline: "2022-01-01"
   ```
 
+##### mdm.windows_updates
+
+TODO
+
 ##### mdm.macos_settings
 
 The following settings are macOS-specific settings for Fleet's MDM solution.

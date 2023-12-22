@@ -497,7 +497,8 @@ module.exports.routes = {
   'GET /fleetctl-preview':   '/try-fleet/fleetctl-preview',
   'GET /try-fleet/sandbox-expired':   '/try-fleet/fleetctl-preview',
   'GET /try-fleet/sandbox':   '/try-fleet/fleetctl-preview',
-  'GET /try-fleet/waitlist':   '/try-fleet/fleetctl-preview',
+  'GET /try-fleet/waitlist': '/try-fleet/fleetctl-preview',
+  'GET /docs/using-fleet/mdm-macos-updates': '/learn-more-about/os-updates',
 
   // Fleet UI
   // =============================================================================================================
@@ -506,6 +507,7 @@ module.exports.routes = {
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
   'GET /learn-more-about/just-in-time-provisioning': 'https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning',
   'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
+  'GET /learn-more-about/os-updates': 'https://fleetdm.com/docs/using-fleet/mdm-os-updates'
 
   // Sitemap
   // =============================================================================================================

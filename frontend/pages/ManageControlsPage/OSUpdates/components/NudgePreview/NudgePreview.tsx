@@ -23,7 +23,7 @@ const NudgeDescription = ({ platform }: INudgeDescriptionProps) => {
       <p>As the deadline gets closer, Fleet provides stronger encouragement.</p>
       <CustomLink
         text="Learn more about macOS updates in Fleet"
-        url="https://fleetdm.com/docs/using-fleet/mdm-macos-updates"
+        url="https://fleetdm.com/learn-more-about/os-updates"
         newTab
       />
     </>
