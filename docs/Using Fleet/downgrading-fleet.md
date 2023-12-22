@@ -1,14 +1,14 @@
 # Downgrading from Fleet Premium
 
-Follow these steps to downgrade your Fleet instance from Fleet Premium to Fleet Free.
+Follow these steps to downgrade your Fleet instance from Fleet Premium.
 
 > If you'd like to renew your Fleet Premium license key, please contact us [here](https://fleetdm.com/company/contact).
 
 ## Back up your users and update all team-level users to global users
 
-1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so that, if you choose to upgrade later, you can restore user roles.
+1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so that you can restore user roles if you decide to upgrade later.
 2. Head to the **Settings > Users** page in the Fleet UI.
-3. For each user that has any team listed under the **Teams** column, select **Actions > Edit**, then select **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
+3. For each user that has any team listed under the **Teams** column, select **Actions > Edit**, then select **Global user**, and then **Save**. Delete any users that shouldn't have global access.
 
 ## Move all team-level scheduled queries to the global level
 
@@ -24,7 +24,7 @@ Follow these steps to downgrade your Fleet instance from Fleet Premium to Fleet 
 
 ## Back up your teams
 
-1. Run the `fleetctl get teams > teams.yml` command. Save the `teams.yml` file so that, if you choose to upgrade later, you can restore teams.
+1. Run the `fleetctl get teams > teams.yml` command. Save the `teams.yml` file so you can restore your teams if you upgrade again later.
 2. Head to the **Settings > Teams** page in the Fleet UI.
 3. Delete all teams. This will move all hosts to the global level.
 
