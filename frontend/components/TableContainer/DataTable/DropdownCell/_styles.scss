@@ -24,7 +24,7 @@
     &.is-disabled {
       .Select-control {
         .Select-placeholder {
-          color: $ui-fleet-black-50;
+          @include disabled;
         }
       }
     }

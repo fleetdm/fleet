@@ -220,8 +220,9 @@ const Advanced = ({
                 parseTarget
                 tooltipContent={
                   <p>
-                    Disabling scripts will block access to run scripts. <br />
-                    Scripts may still be added and removed in the UI and API.{" "}
+                    Disabling scripts will block access to run scripts. Scripts{" "}
+                    <br /> may still be added and removed in the UI and API.{" "}
+                    <br />
                     <em className="hint hint--brand">
                       (Default: <strong>Off</strong>)
                     </em>
