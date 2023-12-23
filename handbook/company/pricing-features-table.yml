@@ -763,6 +763,7 @@
 - industryName: Vulnerability dashboard
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
+  usualDepartment: Security
   tier: Premium
   comingSoonOn: 2024-03-31
   waysToUse:
