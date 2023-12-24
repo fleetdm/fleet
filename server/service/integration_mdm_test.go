@@ -2033,6 +2033,15 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts?mdm_enrollment_status=pending", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, len(devices))
 
+	// searching by display name works
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts?query=%s", url.QueryEscape("MacBook Mini")), nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 3)
+	for _, host := range listHostsRes.Hosts {
+		require.Equal(t, "MacBook Mini", host.HardwareModel)
+		require.Equal(t, host.DisplayName, fmt.Sprintf("MacBook Mini (%s)", host.HardwareSerial))
+	}
+
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
 		return map[string]*push.Response{}, nil
 	}
@@ -6730,7 +6739,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	source, ok := sourceByEmail["sso_user@example.com"]
 	require.True(t, ok)
-	require.Equal(t, "mdm_idp_accounts", source)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, source)
 	source, ok = sourceByEmail["g1@example.com"]
 	require.True(t, ok)
 	require.Equal(t, "google_chrome_profiles", source)
@@ -6762,7 +6771,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hostResp.Host.ID), nil, http.StatusOK, &dmResp)
 	require.Len(t, dmResp.DeviceMapping, 1)
 	require.Equal(t, "sso_user@example.com", dmResp.DeviceMapping[0].Email)
-	require.Equal(t, "mdm_idp_accounts", dmResp.DeviceMapping[0].Source)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dmResp.DeviceMapping[0].Source)
 	hostsResp = listHostsResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?query=%s&device_mapping=true", url.QueryEscape("sso_user@example.com")), nil, http.StatusOK, &hostsResp)
 	require.Len(t, hostsResp.Hosts, 1)
@@ -6773,7 +6782,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.NoError(t, json.Unmarshal(*gotHost.DeviceMapping, &dm))
 	require.Len(t, dm, 1)
 	require.Equal(t, "sso_user@example.com", dm[0].Email)
-	require.Equal(t, "mdm_idp_accounts", dm[0].Source)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dm[0].Source)
 
 	// enrolling a different user works without problems
 	res = s.LoginMDMSSOUser("sso_user2", "user123#")

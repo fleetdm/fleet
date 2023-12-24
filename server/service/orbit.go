@@ -520,6 +520,44 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Post Orbit device mapping (custom email)
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitPutDeviceMappingRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	Email        string `json:"email"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitPutDeviceMappingRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitPutDeviceMappingRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitPutDeviceMappingResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitPutDeviceMappingResponse) error() error { return r.Err }
+
+func putOrbitDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitPutDeviceMappingRequest)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := newOsqueryError("internal error: missing host from request context")
+		return orbitPutDeviceMappingResponse{Err: err}, nil
+	}
+
+	_, err := svc.SetCustomHostDeviceMapping(ctx, host.ID, req.Email)
+	return orbitPutDeviceMappingResponse{Err: err}, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 // Post Orbit disk encryption key
 /////////////////////////////////////////////////////////////////////////////////
 

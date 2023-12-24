@@ -1578,7 +1578,11 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	}
 
 	if err := svc.osqueryLogWriter.Result.Write(ctx, filteredLogs); err != nil {
-		return newOsqueryError("error writing result logs: " + err.Error())
+		return newOsqueryError(
+			"error writing result logs " +
+				"(if the logging destination is down, you can reduce frequency/size of osquery logs by " +
+				"increasing logger_tls_period and decreasing logger_tls_max_lines): " + err.Error(),
+		)
 	}
 	return nil
 }
