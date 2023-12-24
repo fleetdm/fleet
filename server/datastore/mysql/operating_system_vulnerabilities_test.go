@@ -18,6 +18,7 @@ func TestOperatingSystemVulnerabilities(t *testing.T) {
 		{"ListOSVulnerabilitiesEmpty", testListOSVulnerabilitiesEmpty},
 		{"ListOSVulnerabilities", testListOSVulnerabilities},
 		{"InsertOSVulnerabilities", testInsertOSVulnerabilities},
+		{"InsertSingleOSVulnerability", testInsertOSVulnerability},
 		{"DeleteOSVulnerabilitiesEmpty", testDeleteOSVulnerabilitiesEmpty},
 		{"DeleteOSVulnerabilities", testDeleteOSVulnerabilities},
 	}
@@ -93,6 +94,38 @@ func testInsertOSVulnerabilities(t *testing.T, ds *Datastore) {
 	actual, err := ds.ListOSVulnerabilities(ctx, []uint{1})
 	require.NoError(t, err)
 	require.ElementsMatch(t, expected, actual)
+}
+
+func testInsertOSVulnerability(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	vulns := fleet.OSVulnerability{
+		HostID: 1, CVE: "cve-1", OSID: 1,
+	}
+
+	vulnNoCVE := fleet.OSVulnerability{
+		HostID: 1, OSID: 1,
+	}
+
+	// Inserting a vulnerability with no CVE should not insert anything
+	didInsert, err := ds.InsertOSVulnerability(ctx, vulnNoCVE, fleet.MSRCSource)
+	require.NoError(t, err)
+	require.False(t, didInsert)
+
+	// Inserting a vulnerability with a CVE should insert
+	didInsert, err = ds.InsertOSVulnerability(ctx, vulns, fleet.MSRCSource)
+	require.NoError(t, err)
+	require.True(t, didInsert)
+
+	// Inserting the same vulnerability should not insert
+	didInsert, err = ds.InsertOSVulnerability(ctx, vulns, fleet.MSRCSource)
+	require.NoError(t, err)
+	require.Equal(t, false, didInsert)
+
+	list1, err := ds.ListOSVulnerabilities(ctx, []uint{1})
+	require.NoError(t, err)
+	require.Len(t, list1, 1)
+	require.Equal(t, vulns, list1[0])
 }
 
 func testDeleteOSVulnerabilitiesEmpty(t *testing.T, ds *Datastore) {
