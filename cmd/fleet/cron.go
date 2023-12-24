@@ -179,7 +179,6 @@ func scanVulnerabilities(
 
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationType != "")
 
-
 	// If no automations enabled, then there is nothing else to do...
 	if vulnAutomationType == "" {
 		return nil
@@ -392,7 +391,11 @@ func checkNVDVulnerabilities(
 		return nil
 	}
 
-	nvd.TranslateMacOSCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, config.Periodicity)
+	_, err = nvd.TranslateMacOSCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, config.Periodicity)
+	if err != nil {
+		errHandler(ctx, logger, "analyzing vulnerable software: Mac OS CPE->CVE", err)
+		return nil
+	}
 
 	return vulns
 }

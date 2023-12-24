@@ -483,7 +483,7 @@ func TestScanVulnerabilities(t *testing.T) {
 		require.Equal(t, fleet.UbuntuOVALSource, source)
 		return map[uint][]fleet.SoftwareVulnerability{}, nil
 	}
-	ds.ListOperatingSystemsFunc = func(ctx context.Context) ([]fleet.OperatingSystem, error) {
+	ds.ListOperatingSystemsFunc = func(ctx context.Context, opts fleet.OperatingSystemListOptions) ([]fleet.OperatingSystem, error) {
 		return []fleet.OperatingSystem{
 			{
 				ID:            1,
