@@ -217,6 +217,8 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	}
 	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, query.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
+	t.Log("Log message.")
+
 }
 
 func testQueriesGetByName(t *testing.T, ds *Datastore) {
@@ -299,6 +301,10 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	deleted, err := ds.DeleteQueries(context.Background(), []uint{q1.ID, q3.ID})
 	require.Nil(t, err)
 	assert.Equal(t, uint(2), deleted)
+
+	t.Log("Log message.")
+	assert.Equal(t, 1, 0, "Assert failure message.")
+	require.Equal(t, 1, 0, "Require failure message.")
 
 	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
