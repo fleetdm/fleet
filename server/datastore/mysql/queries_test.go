@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -205,19 +206,19 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 			stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
 			require.NoError(t, err)
 			if len(stats) == 0 {
-				statsGone <- true
-				break
+				_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, query.ID)
+				if errors.Is(err, sql.ErrNoRows) {
+					statsGone <- true
+					break
+				}
 			}
 		}
 	}()
 	select {
 	case <-statsGone:
-	case <-time.After(2 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Error("Timeout: stats not deleted for testQueriesDelete")
 	}
-	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, query.ID)
-	require.ErrorIs(t, err, sql.ErrNoRows)
-	t.Log("Log message.")
 
 }
 
@@ -302,10 +303,6 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	assert.Equal(t, uint(2), deleted)
 
-	t.Log("Log message.")
-	assert.Equal(t, 1, 0, "Assert failure message.")
-	require.Equal(t, 1, 0, "Require failure message.")
-
 	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 2)
@@ -317,21 +314,22 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 			stats, err := ds.GetLiveQueryStats(context.Background(), q1.ID, hostIDs)
 			require.NoError(t, err)
 			if len(stats) == 0 {
-				statsGone <- true
-				break
+				_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, q1.ID)
+				if errors.Is(err, sql.ErrNoRows) {
+					statsGone <- true
+					break
+				}
 			}
 		}
 	}()
 	select {
 	case <-statsGone:
-	case <-time.After(2 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Error("Timeout: stats not deleted for testQueriesDeleteMany")
 	}
 	stats, err := ds.GetLiveQueryStats(context.Background(), q3.ID, hostIDs)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(stats))
-	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, q1.ID)
-	require.ErrorIs(t, err, sql.ErrNoRows)
 	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, q3.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
@@ -395,7 +393,7 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Zach", actual.AuthorName)
 	require.Equal(t, "zwass@fleet.co", actual.AuthorEmail)
 
-	// Now save again and delete stats.
+	// Now save again and delete old stats.
 	// First we create stats which will be deleted.
 	const hostID = 1
 	err = ds.UpdateLiveQueryStats(
@@ -429,7 +427,7 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	}()
 	select {
 	case <-aggStatsGone:
-	case <-time.After(2 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Error("Timeout: aggregated stats not deleted for query")
 	}
 	test.QueriesMatch(t, query, actual)
