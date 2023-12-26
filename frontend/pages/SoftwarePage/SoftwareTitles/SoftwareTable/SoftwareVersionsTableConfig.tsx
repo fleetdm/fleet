@@ -13,8 +13,8 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-import VulnerabilitiesCell from "../components/VulnerabilitiesCell";
-import SoftwareIcon from "../components/icons/SoftwareIcon";
+import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
+import SoftwareIcon from "../../components/icons/SoftwareIcon";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -58,8 +58,6 @@ interface IHeaderProps {
 
 const generateTableHeaders = (
   router: InjectedRouter,
-  isPremiumTier?: boolean,
-  isSandboxMode?: boolean,
   teamId?: number
 ): Column[] => {
   const softwareTableHeaders = [
