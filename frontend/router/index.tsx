@@ -60,7 +60,6 @@ import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/A
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
 import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
-import SoftwareVersions from "pages/SoftwarePage/SoftwareVersions";
 import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
 import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";

@@ -13,9 +13,9 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-import VersionCell from "../components/VersionCell";
-import VulnerabilitiesCell from "../components/VulnerabilitiesCell";
-import SoftwareIcon from "../components/icons/SoftwareIcon";
+import VersionCell from "../../components/VersionCell";
+import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
+import SoftwareIcon from "../../components/icons/SoftwareIcon";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
