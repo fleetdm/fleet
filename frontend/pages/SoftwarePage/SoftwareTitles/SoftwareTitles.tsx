@@ -7,6 +7,7 @@ import PATHS from "router/paths";
 import softwareAPI, {
   ISoftwareApiParams,
   ISoftwareTitlesResponse,
+  ISoftwareVersionsResponse,
 } from "services/entities/software";
 import { AppContext } from "context/app";
 import {
@@ -23,12 +24,19 @@ import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import Slider from "components/forms/fields/Slider";
 
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
 import generateSoftwareTitlesTableHeaders from "./SoftwareTitlesTableConfig";
 
 const baseClass = "software-titles";
+
+const DATA_STALE_TIME = 30000;
+const QUERY_OPTIONS = {
+  keepPreviousData: true,
+  staleTime: DATA_STALE_TIME,
+};
 
 interface IRowProps extends Row {
   original: {
@@ -38,6 +46,10 @@ interface IRowProps extends Row {
 
 interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
   scope: "software-titles";
+}
+
+interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
+  scope: "software-versions";
 }
 
 interface ISoftwareTitlesProps {
@@ -64,6 +76,9 @@ const SoftwareTitles = ({
   teamId,
 }: ISoftwareTitlesProps) => {
   const { isSandboxMode, noSandboxHosts } = useContext(AppContext);
+  const [showVersions, setShowVersions] = React.useState(
+    location.pathname === PATHS.SOFTWARE_VERSIONS
+  );
 
   // request to get software data
   const {
@@ -90,9 +105,38 @@ const SoftwareTitles = ({
     ],
     ({ queryKey }) => softwareAPI.getSoftwareTitles(queryKey[0]),
     {
-      // stale time can be adjusted if fresher data is desired based on
-      // software inventory interval
-      staleTime: 30000,
+      ...QUERY_OPTIONS,
+      enabled: location.pathname === PATHS.SOFTWARE_TITLES,
+    }
+  );
+
+  // request to get software versions data
+  const {
+    data: softwareVersionsData,
+    isLoading: isSoftwareVersionsLoading,
+    isError: isSoftwareVersionsError,
+  } = useQuery<
+    ISoftwareVersionsResponse,
+    Error,
+    ISoftwareVersionsResponse,
+    ISoftwareVersionsQueryKey[]
+  >(
+    [
+      {
+        scope: "software-versions",
+        page: currentPage,
+        perPage,
+        query,
+        orderDirection,
+        orderKey,
+        teamId,
+        vulnerable: showVulnerableSoftware,
+      },
+    ],
+    ({ queryKey }) => softwareAPI.getSoftwareVersions(queryKey[0]),
+    {
+      ...QUERY_OPTIONS,
+      enabled: location.pathname === PATHS.SOFTWARE_VERSIONS,
     }
   );
 
@@ -212,6 +256,26 @@ const SoftwareTitles = ({
     );
   };
 
+  const handleShowVersionsToggle = () => {
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: showVersions
+          ? PATHS.SOFTWARE_TITLES
+          : PATHS.SOFTWARE_VERSIONS,
+        routeTemplate: "",
+        queryParams: {
+          query,
+          teamId,
+          orderDirection,
+          orderKey,
+          vulnerable: showVulnerableSoftware.toString(),
+          page: 0, // resets page index
+        },
+      })
+    );
+    setShowVersions((prevState) => !prevState);
+  };
+
   const renderSoftwareCount = () => {
     const itemText = getItemsCountText();
     const lastUpdatedText = getLastUpdatedText();
@@ -226,16 +290,24 @@ const SoftwareTitles = ({
     );
   };
 
-  const renderVulnFilterDropdown = () => {
+  const renderCustomFilters = () => {
     return (
-      <Dropdown
-        value={showVulnerableSoftware}
-        className={`${baseClass}__vuln_dropdown`}
-        options={VULNERABLE_DROPDOWN_OPTIONS}
-        searchable={false}
-        onChange={handleVulnFilterDropdownChange}
-        tableFilterDropdown
-      />
+      <div className={`${baseClass}__filter-controls`}>
+        <Slider
+          value={showVersions}
+          onChange={handleShowVersionsToggle}
+          inactiveText="Show versions"
+          activeText="Show versions"
+        />
+        <Dropdown
+          value={showVulnerableSoftware}
+          className={`${baseClass}__vuln_dropdown`}
+          options={VULNERABLE_DROPDOWN_OPTIONS}
+          searchable={false}
+          onChange={handleVulnFilterDropdownChange}
+          tableFilterDropdown
+        />
+      </div>
     );
   };
 
@@ -289,7 +361,7 @@ const SoftwareTitles = ({
         // to fire onQueryChange for events happeing outside of
         // the TableContainer.
         additionalQueries={showVulnerableSoftware ? "vulnerable" : ""}
-        customControl={searchable ? renderVulnFilterDropdown : undefined}
+        customControl={searchable ? renderCustomFilters : undefined}
         stackControls
         renderCount={renderSoftwareCount}
         renderFooter={renderTableFooter}

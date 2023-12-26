@@ -26,6 +26,12 @@
     }
   }
 
+  &__filter-controls {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+  }
+
   .table-container {
     &__header {
       flex-direction: column-reverse; // Search bar on top

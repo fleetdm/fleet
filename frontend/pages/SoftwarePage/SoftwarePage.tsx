@@ -39,8 +39,8 @@ const softwareSubNav: ISoftwareSubNavItem[] = [
     pathname: PATHS.SOFTWARE_TITLES,
   },
   {
-    name: "Versions",
-    pathname: PATHS.SOFTWARE_VERSIONS,
+    name: "OS",
+    pathname: PATHS.SOFTWARE_OS,
   },
 ];
 
