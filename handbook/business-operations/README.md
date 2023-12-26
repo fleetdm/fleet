@@ -72,13 +72,13 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 
 ### Add a seat to Salesforce
 Here are the steps we take to grant appropriate Salesforce licenses to a new hire:
-1. Go to ["My Account"](https://fleetdm.lightning.force.com/lightning/n/standard-OnlineSalesHome).
-2. View contracts -> pick current contract.
-3. Add the desired number of licenses.
-4. Sign DocuSign sent to the email.
-5. The order will be processed in ~30m.
-6. Once the basic license has been added, you can create a new user using the new team member's `@fleetdm.com` email and assign a license to it.
-7. To also assign a user an "Inbox license", go to the ["Setup" page](https://fleetdm.lightning.force.com/lightning/setup/SetupOneHome/home) and select "User > Permission sets". Find the [inbox permission set](https://fleetdm.lightning.force.com/lightning/setup/PermSets/page?address=%2F005%3Fid%3D0PS4x000002uUn2%26isUserEntityOverride%3D1%26SetupNode%3DPermSets%26sfdcIFrameOrigin%3Dhttps%253A%252F%252Ffleetdm.lightning.force.com%26clc%3D1) and assign it to the new team member.
+- Go to ["My Account"](https://fleetdm.lightning.force.com/lightning/n/standard-OnlineSalesHome).
+- View contracts -> pick current contract.
+- Add the desired number of licenses.
+- Sign DocuSign sent to the email.
+- The order will be processed in ~30m.
+- Once the basic license has been added, you can create a new user using the new team member's `@fleetdm.com` email and assign a license to it.
+- To also assign a user an "Inbox license", go to the ["Setup" page](https://fleetdm.lightning.force.com/lightning/setup/SetupOneHome/home) and select "User > Permission sets". Find the [inbox permission set](https://fleetdm.lightning.force.com/lightning/setup/PermSets/page?address=%2F005%3Fid%3D0PS4x000002uUn2%26isUserEntityOverride%3D1%26SetupNode%3DPermSets%26sfdcIFrameOrigin%3Dhttps%253A%252F%252Ffleetdm.lightning.force.com%26clc%3D1) and assign it to the new team member.
 
 ### Process an email from a state agency
 From time to time, you may get notices via email (or in the mail) from state agencies regarding Fleet's withholding and/or unemployment tax accounts. You can resolve some of these notices on your own by verifying and/or updating the settings in your Gusto account.
@@ -133,16 +133,30 @@ Then, send **the CEO** and **each manager** a direct message in Slack by copying
 
 ### Run US contractor payroll
 For Fleet's US contractors, running payroll is a manual process:
-1. Add the amount to be paid to the "Gross" line.
-2. Review hours _("Time tools > Time tracking")_
-3. Adjust time frame to match current payroll period (the 27th through 26th of the month)
-4. Sync hours and run contractor payroll.
+- Add the amount to be paid to the "Gross" line.
+- Review hours _("Time tools > Time tracking")_
+- Adjust time frame to match current payroll period (the 27th through 26th of the month)
+- Sync hours and run contractor payroll.
 
 ### Run US commission payroll
 - Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
   - Find detailed notes on this process in [Notes - Run commission payroll in Gusto](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
 - Let the Head of Business Operations know they can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
 - Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
+
+### Convert a Fleetie to a consultant
+If a Fleetie decides they want to move to being a [consultant](https://fleetdm.com/handbook/company/leadership#consultants), either the Fleetie or their manager need to create a [custom issue for the BizOps team](https://fleetdm.com/handbook/business-operations#intake) to notify them of the change.
+Once notified, BizOps takes the following steps:
+- Confirm the following details with the Fleetie:
+  - Date of change
+  - Term of consultancy (time period)
+  - Hours/capacity expected (hours per week or month)
+  - Confirm hourly rate
+- Once details confirmed, use the information given to create the consulting agreement for the Fleetie (either in docusign (US-based) or via Plane (international)), and send to their personal email for signature. Once signed, save in Fleetie's [employee file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
+- Schedule the Fleetie's final day in HRIS (Gusto or Plane).
+- Update final day in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
+- Create Offboarding issue for Fleetie converting to Consultant, and confirm with manager if there is a need to retain any tools or access while they are a consultant (default is to removing all access from Fleet email, and migrating to personal email for Slack and other tools unless there is a business case to retain the Fleet email and associated tool access).
+- Follow the Offboarding issue for next steps, including communicating to teammates and updating equity plan.
 
 ### Process monthly accounting
 Create a [new montly accounting issue](https://github.com/fleetdm/confidential/issues/new/choose) for the current month and year named "Closing out YYYY-MM" in GitHub and complete all of the tasks in the issue. (This uses the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md).
@@ -186,10 +200,10 @@ Follow these steps to perform quarterly reporting for Fleet's investors:
 Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/business-operations#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose).
 
 Doing an equity grant involves:
-1. executing a board consent
-2. the recipient and CEO signing paperwork about the stock options
-3. updating the number of shares for the recipient in the equity plan
-4. updating Carta to reflect the grant
+- Executing a board consent
+- The recipient and CEO signing paperwork about the stock options
+- Updating the number of shares for the recipient in the equity plan
+- Updating Carta to reflect the grant
 
 For the status of stock option grants, exercises, and all other _common stock_ including advisor, founder, and team member equity ownership, see [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).  For information about investor ownership, see [Carta](https://app.carta.com/corporations/1234715/summary/).
 
