@@ -1626,6 +1626,12 @@ type DataStore struct {
 	DeleteOSVulnerabilitiesFunc        DeleteOSVulnerabilitiesFunc
 	DeleteOSVulnerabilitiesFuncInvoked bool
 
+	InsertOSVulnerabilityFunc        InsertOSVulnerabilityFunc
+	InsertOSVulnerabilityFuncInvoked bool
+
+	DeleteOutOfDateOSVulnerabilitiesFunc        DeleteOutOfDateOSVulnerabilitiesFunc
+	DeleteOutOfDateOSVulnerabilitiesFuncInvoked bool
+
 	NewMDMAppleConfigProfileFunc        NewMDMAppleConfigProfileFunc
 	NewMDMAppleConfigProfileFuncInvoked bool
 
@@ -3893,6 +3899,13 @@ func (s *DataStore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilities
 	s.DeleteOSVulnerabilitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteOSVulnerabilitiesFunc(ctx, vulnerabilities)
+}
+
+func (s *DataStore) InsertOSVulnerability(ctx context.Context, vuln fleet.OSVulnerability, source fleet.VulnerabilitySource) (bool, error) {
+	s.mu.Lock()
+	s.InsertOSVulnerabilityFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertOSVulnerabilityFunc(ctx, vuln, source)
 }
 
 func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
