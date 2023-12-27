@@ -56,7 +56,7 @@ const SoftwareTitles = ({
   // request to get software data
   const {
     data: titlesData,
-    isLoading: isTitlesLoading,
+    isFetching: isTitlesFetching,
     isError: isTitlesError,
   } = useQuery<
     ISoftwareTitlesResponse,
@@ -86,7 +86,7 @@ const SoftwareTitles = ({
   // request to get software versions data
   const {
     data: versionsData,
-    isLoading: isVersionsLoading,
+    isFetching: isVersionsFetching,
     isError: isVersionsError,
   } = useQuery<
     ISoftwareVersionsResponse,
@@ -137,7 +137,7 @@ const SoftwareTitles = ({
         showVulnerableSoftware={showVulnerableSoftware}
         currentPage={currentPage}
         teamId={teamId}
-        isLoading={isTitlesLoading || isVersionsLoading}
+        isLoading={isTitlesFetching || isVersionsFetching}
       />
     </div>
   );
