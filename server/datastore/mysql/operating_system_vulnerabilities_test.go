@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
@@ -21,6 +22,7 @@ func TestOperatingSystemVulnerabilities(t *testing.T) {
 		{"InsertSingleOSVulnerability", testInsertOSVulnerability},
 		{"DeleteOSVulnerabilitiesEmpty", testDeleteOSVulnerabilitiesEmpty},
 		{"DeleteOSVulnerabilities", testDeleteOSVulnerabilities},
+		{"DeleteOutOfDateOSVulnerabilities", testDeleteOutOfDateOSVulnerabilities},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -173,4 +175,35 @@ func testDeleteOSVulnerabilities(t *testing.T, ds *Datastore) {
 	actual, err = ds.ListOSVulnerabilities(ctx, []uint{2})
 	require.NoError(t, err)
 	require.Empty(t, actual)
+}
+
+func testDeleteOutOfDateOSVulnerabilities(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	yesterday := time.Now().Add(-3 * time.Hour).Format("2006-01-02 15:04:05")
+
+	oldVuln := fleet.OSVulnerability{
+		HostID: 1, CVE: "cve-1", OSID: 1,
+	}
+
+	newVuln := fleet.OSVulnerability{
+		HostID: 1, CVE: "cve-2", OSID: 1,
+	}
+
+	_, err := ds.InsertOSVulnerability(ctx, oldVuln, fleet.NVDSource)
+	require.NoError(t, err)
+
+	_, err = ds.writer(ctx).ExecContext(ctx, "UPDATE operating_system_vulnerabilities SET updated_at = ?", yesterday)
+	require.NoError(t, err)
+
+	_, err = ds.InsertOSVulnerability(ctx, newVuln, fleet.NVDSource)
+	require.NoError(t, err)
+
+	// Delete out of date vulns
+	err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, 2*time.Hour)
+	require.NoError(t, err)
+
+	actual, err := ds.ListOSVulnerabilities(ctx, []uint{1})
+	require.NoError(t, err)
+	require.Len(t, actual, 1)
+	require.ElementsMatch(t, []fleet.OSVulnerability{newVuln}, actual)
 }

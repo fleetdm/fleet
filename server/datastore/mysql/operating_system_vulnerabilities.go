@@ -108,3 +108,14 @@ func (ds *Datastore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilitie
 	}
 	return nil
 }
+
+func (ds *Datastore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, src fleet.VulnerabilitySource, d time.Duration) error {
+	deleteStmt := `
+		DELETE FROM operating_system_vulnerabilities
+		WHERE source = ? AND updated_at < ?
+	`
+	if _, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, src, time.Now().Add(-d)); err != nil {
+		return ctxerr.Wrapf(ctx, err, "deleting out of date operating system vulnerabilities")
+	}
+	return nil
+}
