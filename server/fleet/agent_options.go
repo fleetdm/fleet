@@ -71,7 +71,7 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		if string(opts.UpdateChannels) == "null" {
 			return errors.New("update_channels cannot be null")
 		}
-		if err := checkEmptyFields(opts.UpdateChannels); err != nil {
+		if err := checkEmptyFields("update_channels", opts.UpdateChannels); err != nil {
 			return err
 		}
 		var updateChannels OrbitUpdateChannels
@@ -107,14 +107,17 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 	return nil
 }
 
-func checkEmptyFields(data json.RawMessage) error {
+func checkEmptyFields(prefix string, data json.RawMessage) error {
 	var m map[string]interface{}
 	if err := json.Unmarshal(data, &m); err != nil {
 		return fmt.Errorf("unmarshal data: %w", err)
 	}
 	for k, v := range m {
 		if v == nil {
-			return fmt.Errorf("field %q is empty", k)
+			return fmt.Errorf("%s.%s is defined but not set", prefix, k)
+		}
+		if s, ok := v.(string); ok && s == "" {
+			return fmt.Errorf("%s.%s is set to an empty string", prefix, k)
 		}
 	}
 	return nil

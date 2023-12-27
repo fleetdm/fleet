@@ -213,6 +213,7 @@ func main() {
 			fmt.Println("orbit " + build.Version)
 			return nil
 		}
+		startTime := time.Now()
 
 		var logFile io.Writer
 		if logf := c.String("log-file"); logf != "" {
@@ -248,7 +249,10 @@ func main() {
 		}
 
 		// Override flags with values retrieved from Fleet.
-		setServerOverrides(c)
+		fallbackServerOverridesCfg := setServerOverrides(c)
+		if !fallbackServerOverridesCfg.empty() {
+			log.Debug().Msgf("fallback settings: %+v", fallbackServerOverridesCfg)
+		}
 
 		if c.Bool("insecure") && c.String("fleet-certificate") != "" {
 			return errors.New("insecure and fleet-certificate may not be specified together")
@@ -436,25 +440,11 @@ func main() {
 			// restart. This was changed to have control over
 			// how/when we want to retry to download the packages.
 			err = retrypkg.Do(func() error {
-				osquerydLocalTarget, err := updater.Get("osqueryd")
+				var err error
+				osquerydPath, desktopPath, err = getFleetdComponentPaths(c, updater, fallbackServerOverridesCfg)
 				if err != nil {
-					log.Info().Err(err).Msg("get osqueryd target failed")
-					return fmt.Errorf("get osqueryd target: %w", err)
+					return err
 				}
-				osquerydPath = osquerydLocalTarget.ExecPath
-				if c.Bool("fleet-desktop") {
-					fleetDesktopLocalTarget, err := updater.Get("desktop")
-					if err != nil {
-						log.Info().Err(err).Msg("get desktop target failed")
-						return fmt.Errorf("get desktop target: %w", err)
-					}
-					if runtime.GOOS == "darwin" {
-						desktopPath = fleetDesktopLocalTarget.DirPath
-					} else {
-						desktopPath = fleetDesktopLocalTarget.ExecPath
-					}
-				}
-
 				return nil
 			},
 				// retry every 5 minutes to not flood the logs,
@@ -727,20 +717,31 @@ func main() {
 		}
 		g.Add(flagRunner.Execute, flagRunner.Interrupt)
 
-		const serverOverridesInterval = 30 * time.Second
-		serverOverridesRunner := newServerOverridesRunner(configFetcher, c.String("root-dir"), serverOverridesInterval)
-		// Perform initial run to update overrides as soon as possible.
-		didUpdate, err := serverOverridesRunner.run()
-		if err != nil {
-			// Just log, OK to continue, since serverOverridesRunner will retry
-			// in serverOverridesRunner.Execute.
-			log.Debug().Err(err).Msg("initial flags update failed")
+		if !c.Bool("disable-updates") {
+			const serverOverridesInterval = 30 * time.Second
+			serverOverridesRunner := newServerOverridesRunner(
+				configFetcher,
+				c.String("root-dir"),
+				serverOverridesInterval,
+				fallbackServerOverridesConfig{
+					OsquerydPath: osquerydPath,
+					DesktopPath:  desktopPath,
+				},
+				c.Bool("fleet-desktop"),
+			)
+			// Perform initial run to update overrides as soon as possible.
+			didUpdate, err := serverOverridesRunner.run()
+			if err != nil {
+				// Just log, OK to continue, since serverOverridesRunner will retry
+				// in serverOverridesRunner.Execute.
+				log.Debug().Err(err).Msg("initial flags update failed")
+			}
+			if didUpdate {
+				log.Info().Msg("exiting due to early update of server overrides")
+				return nil
+			}
+			g.Add(serverOverridesRunner.Execute, serverOverridesRunner.Interrupt)
 		}
-		if didUpdate {
-			log.Info().Msg("exiting due to early update of server overrides")
-			return nil
-		}
-		g.Add(serverOverridesRunner.Execute, serverOverridesRunner.Interrupt)
 
 		// only setup extensions autoupdate if we have enabled updates
 		// for extensions autoupdate, we can only proceed after orbit is enrolled in fleet
@@ -961,6 +962,7 @@ func main() {
 				c.String("osqueryd-channel"),
 				c.String("desktop-channel"),
 				trw,
+				startTime,
 			)),
 		)
 
@@ -1025,11 +1027,11 @@ func main() {
 }
 
 // setServerOverrides overrides specific variables in c with values fetched from Fleet.
-func setServerOverrides(c *cli.Context) {
+func setServerOverrides(c *cli.Context) fallbackServerOverridesConfig {
 	overrideCfg, err := loadServerOverrides(c.String("root-dir"))
 	if err != nil {
 		log.Error().Err(err).Msg("failed to load server overrides")
-		return
+		return fallbackServerOverridesConfig{}
 	}
 	if overrideCfg.OrbitChannel != "" {
 		if err := c.Set("orbit-channel", overrideCfg.OrbitChannel); err != nil {
@@ -1046,6 +1048,55 @@ func setServerOverrides(c *cli.Context) {
 			log.Error().Err(err).Str("component", "desktop").Msg("failed to set server overrides")
 		}
 	}
+
+	return overrideCfg.fallbackServerOverridesConfig
+}
+
+// getFleetdComponentPaths returns the paths of the fleetd components.
+// If the path to the component cannot be fetched using the updater (e.g. channel doesn't exist yet)
+// then it will use the fallbackCfg's paths (if set).
+func getFleetdComponentPaths(
+	c *cli.Context,
+	updater *update.Updater,
+	fallbackCfg fallbackServerOverridesConfig,
+) (osquerydPath string, desktopPath string, err error) {
+	if err := updater.UpdateMetadata(); err != nil {
+		log.Error().Err(err).Msg("update metadata before getting components")
+	}
+
+	// osqueryd
+	osquerydLocalTarget, err := updater.Get("osqueryd")
+	if err != nil {
+		if fallbackCfg.OsquerydPath == "" {
+			log.Info().Err(err).Msg("get osqueryd target failed")
+			return "", "", fmt.Errorf("get osqueryd target: %w", err)
+		}
+		log.Info().Err(err).Msgf("get osqueryd target failed, fallback to using %s", fallbackCfg.OsquerydPath)
+		osquerydPath = fallbackCfg.OsquerydPath
+	} else {
+		osquerydPath = osquerydLocalTarget.ExecPath
+	}
+
+	// Fleet Desktop
+	if c.Bool("fleet-desktop") {
+		fleetDesktopLocalTarget, err := updater.Get("desktop")
+		if err != nil {
+			if fallbackCfg.DesktopPath == "" {
+				log.Info().Err(err).Msg("get desktop target failed")
+				return "", "", fmt.Errorf("get desktop target: %w", err)
+			}
+			log.Info().Err(err).Msgf("get desktop target failed, fallback to using %s", fallbackCfg.DesktopPath)
+			desktopPath = fallbackCfg.DesktopPath
+		} else {
+			if runtime.GOOS == "darwin" {
+				desktopPath = fleetDesktopLocalTarget.DirPath
+			} else {
+				desktopPath = fleetDesktopLocalTarget.ExecPath
+			}
+		}
+	}
+
+	return osquerydPath, desktopPath, nil
 }
 
 func registerExtensionRunner(g *run.Group, extSockPath string, opts ...table.Opt) {
@@ -1407,19 +1458,29 @@ func writeSecret(enrollSecret string, orbitRoot string) error {
 
 // serverOverridesRunner is a oklog.Group runner that polls for configuration overrides from Fleet.
 type serverOverridesRunner struct {
-	configFetcher update.OrbitConfigFetcher
-	interval      time.Duration
-	rootDir       string
-	cancel        chan struct{}
+	configFetcher  update.OrbitConfigFetcher
+	interval       time.Duration
+	rootDir        string
+	fallbackCfg    fallbackServerOverridesConfig
+	desktopEnabled bool
+	cancel         chan struct{}
 }
 
 // newServerOverridesRunner creates a runner for updating server overrides configuration with values fetched from Fleet.
-func newServerOverridesRunner(configFetcher update.OrbitConfigFetcher, rootDir string, interval time.Duration) *serverOverridesRunner {
+func newServerOverridesRunner(
+	configFetcher update.OrbitConfigFetcher,
+	rootDir string,
+	interval time.Duration,
+	fallbackCfg fallbackServerOverridesConfig,
+	desktopEnabled bool,
+) *serverOverridesRunner {
 	return &serverOverridesRunner{
-		configFetcher: configFetcher,
-		interval:      interval,
-		rootDir:       rootDir,
-		cancel:        make(chan struct{}),
+		configFetcher:  configFetcher,
+		interval:       interval,
+		rootDir:        rootDir,
+		fallbackCfg:    fallbackCfg,
+		desktopEnabled: desktopEnabled,
+		cancel:         make(chan struct{}),
 	}
 }
 
@@ -1471,8 +1532,8 @@ func (r *serverOverridesRunner) run() (bool, error) {
 		return false, nil
 	}
 
-	if cfgsDiffer(overrideCfg, orbitCfg) {
-		if err := updateServerOverrides(r.rootDir, orbitCfg); err != nil {
+	if cfgsDiffer(overrideCfg, orbitCfg, r.desktopEnabled) {
+		if err := r.updateServerOverrides(orbitCfg); err != nil {
 			return false, err
 		}
 		return true, nil
@@ -1482,7 +1543,7 @@ func (r *serverOverridesRunner) run() (bool, error) {
 }
 
 // cfgsDiffer returns whether the local server overrides differ from the fetched remotely.
-func cfgsDiffer(overrideCfg *serverOverridesConfig, orbitCfg *fleet.OrbitConfig) bool {
+func cfgsDiffer(overrideCfg *serverOverridesConfig, orbitCfg *fleet.OrbitConfig, desktopEnabled bool) bool {
 	localUpdateChannelsCfg := &fleet.OrbitUpdateChannels{
 		Orbit:    overrideCfg.OrbitChannel,
 		Osqueryd: overrideCfg.OsquerydChannel,
@@ -1504,29 +1565,62 @@ func cfgsDiffer(overrideCfg *serverOverridesConfig, orbitCfg *fleet.OrbitConfig)
 	setStableAsDefault(localUpdateChannelsCfg)
 	setStableAsDefault(remoteUpdateChannelsCfg)
 
-	return *localUpdateChannelsCfg != *remoteUpdateChannelsCfg
+	local := *localUpdateChannelsCfg
+	remote := *remoteUpdateChannelsCfg
+
+	if !desktopEnabled {
+		local.Desktop = ""
+		remote.Desktop = ""
+	}
+
+	return local != remote
 }
 
 // serverOverridesConfig holds the currently supported fields that can be
 // overriden by server configuration.
 type serverOverridesConfig struct {
-	OrbitChannel    string `json:"orbit-channel"`
+	// OrbitChannel defines the override for the orbit's channel.
+	OrbitChannel string `json:"orbit-channel"`
+	// OsquerydChannel defines the override for the osqueryd's channel.
 	OsquerydChannel string `json:"osqueryd-channel"`
-	DesktopChannel  string `json:"desktop-channel"`
+	// DesktopChannel defines the override for the Fleet Desktop's channel.
+	DesktopChannel string `json:"desktop-channel"`
+
+	fallbackServerOverridesConfig
+}
+
+// fallbackServerOverridesConfig contains fallback configuration in case the server
+// settings are invalid (e.g. invalid update channels that don't exist).
+// Whenever the user sets an invalid channel, then the fallback paths are used to get
+// fleetd up and running with the last known good configuration.
+//
+// NOTE: We don't need orbit's path because the `orbit` component is a special case that uses
+// a symlink to define the last known valid version.
+type fallbackServerOverridesConfig struct {
+	// OsquerydPath contains the path of the osqueryd executable last known to be valid.
+	OsquerydPath string `json:"fallback-osqueryd-path"`
+	// DesktopPath contains the path of the Fleet Desktop executable last known to be valid.
+	DesktopPath string `json:"fallback-desktop-path"`
+}
+
+func (f fallbackServerOverridesConfig) empty() bool {
+	return f.OsquerydPath == "" && f.DesktopPath == ""
 }
 
 // updateServerOverrides updates the server override local file with the configuration fetched from Fleet.
-func updateServerOverrides(rootDir string, remoteCfg *fleet.OrbitConfig) error {
+func (r *serverOverridesRunner) updateServerOverrides(remoteCfg *fleet.OrbitConfig) error {
 	overrideCfg := serverOverridesConfig{
-		OrbitChannel:    remoteCfg.UpdateChannels.Orbit,
-		OsquerydChannel: remoteCfg.UpdateChannels.Osqueryd,
-		DesktopChannel:  remoteCfg.UpdateChannels.Desktop,
+		OrbitChannel:                  remoteCfg.UpdateChannels.Orbit,
+		OsquerydChannel:               remoteCfg.UpdateChannels.Osqueryd,
+		DesktopChannel:                remoteCfg.UpdateChannels.Desktop,
+		fallbackServerOverridesConfig: r.fallbackCfg,
 	}
+
 	data, err := json.MarshalIndent(overrideCfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal override config: %w", err)
 	}
-	path := filepath.Join(rootDir, constant.ServerOverridesFileName)
+	path := filepath.Join(r.rootDir, constant.ServerOverridesFileName)
 	if err := os.WriteFile(path, data, constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write override config: %w", err)
 	}
