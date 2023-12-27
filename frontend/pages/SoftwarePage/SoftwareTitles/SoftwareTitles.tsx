@@ -117,12 +117,6 @@ const SoftwareTitles = ({
     return <TableDataError className={`${baseClass}__table-error`} />;
   }
 
-  console.log("titlesData", titlesData);
-  console.log("isLoadingTitles", isTitlesLoading);
-  console.log("versions", versionsData);
-  console.log("isLoadingVersions", isVersionsLoading);
-  console.log("\n");
-
   return (
     <div className={baseClass}>
       <SoftwareTable

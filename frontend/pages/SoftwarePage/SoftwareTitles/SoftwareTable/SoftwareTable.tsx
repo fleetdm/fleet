@@ -77,6 +77,10 @@ const SoftwareTable = ({
 }: ISoftwareTableProps) => {
   const { isSandboxMode, noSandboxHosts } = useContext(AppContext);
 
+  const currentPath = showVersions
+    ? PATHS.SOFTWARE_VERSIONS
+    : PATHS.SOFTWARE_TITLES;
+
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -126,14 +130,14 @@ const SoftwareTable = ({
       if (changedParam === "") return;
 
       const newRoute = getNextLocationPath({
-        pathPrefix: PATHS.SOFTWARE_TITLES,
+        pathPrefix: currentPath,
         routeTemplate: "",
         queryParams: generateNewQueryParams(newTableQuery, changedParam),
       });
 
       router.replace(newRoute);
     },
-    [determineQueryParamChange, generateNewQueryParams, router]
+    [determineQueryParamChange, generateNewQueryParams, router, currentPath]
   );
 
   // TODO: comment. determine the data accessor based on the type of data we're
@@ -141,12 +145,12 @@ const SoftwareTable = ({
   let tableData: ISoftwareTitle[] | ISoftwareVersion[] | undefined;
   let generateTableConfig: ITableConfigGenerator;
 
-  if (isSoftwareTitles(data)) {
-    tableData = data.software_titles;
-    generateTableConfig = generateTitlesTableConfig;
-  } else if (data === undefined) {
+  if (data === undefined) {
     tableData;
     generateTableConfig = () => [];
+  } else if (isSoftwareTitles(data)) {
+    tableData = data.software_titles;
+    generateTableConfig = generateTitlesTableConfig;
   } else {
     tableData = data.software;
     generateTableConfig = generateVersionsTableConfig;
@@ -203,7 +207,7 @@ const SoftwareTable = ({
   const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
     router.replace(
       getNextLocationPath({
-        pathPrefix: PATHS.SOFTWARE_TITLES,
+        pathPrefix: currentPath,
         routeTemplate: "",
         queryParams: {
           query,
