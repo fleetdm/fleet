@@ -152,7 +152,7 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
   - Note: if making the change requires follow up steps, resolve those steps to action the change.
 - Once change is effected in HRIS, BizOps makes changes to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
 - If required, BizOps makes any relevant changes to [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).
-- If required, BizOps also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc)
+- If required, BizOps also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
 - The change is now actioned, notify the team member and close the issue.
 
 ### Process monthly accounting
