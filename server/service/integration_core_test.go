@@ -3772,7 +3772,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	// Add policy
 	qr, err := s.ds.NewQuery(
 		context.Background(), &fleet.Query{
-			Name:           "TestQuery3",
+			Name:           t.Name(),
 			Description:    "Some description",
 			Query:          "select * from osquery;",
 			ObserverCanRun: true,
