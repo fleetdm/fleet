@@ -22,7 +22,7 @@ const DataSet = ({ title, value }: IDescriptionSetProps) => {
 interface ISoftwareDetailsSummaryProps {
   id: number;
   title: string;
-  type: string;
+  type?: string;
   hosts: number;
   /** The query param name that will be added when user clicks on "View all hosts" link */
   queryParam: string;
@@ -47,11 +47,8 @@ const SoftwareDetailsSummary = ({
       <dl className={`${baseClass}__info`}>
         <h1>{title}</h1>
         <dl className={`${baseClass}__description-list`}>
-          <DataSet
-            title="Type"
-            // value={formatSoftwareType(software.source)} TODO: format value
-            value={type}
-          />
+          {type && <DataSet title="Type" value={type} />}
+
           {versions && <DataSet title="Versions" value={versions} />}
           <DataSet title="Hosts" value={hosts === 0 ? "---" : hosts} />
         </dl>
