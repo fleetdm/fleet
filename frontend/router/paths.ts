@@ -55,6 +55,9 @@ export default {
   SOFTWARE_VERSION_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/versions/${id}`;
   },
+  SOFTWARE_OS_DETAILS: (id: string): string => {
+    return `${URL_PREFIX}/software/os/${id}`;
+  },
 
   EDIT_PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}/edit`;

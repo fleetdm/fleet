@@ -106,11 +106,12 @@ const SoftwareOSTable = ({
 
   const softwareTableHeaders = useMemo(() => {
     if (!data) return [];
-    return generateTableConfig(teamId, {
+    return generateTableConfig(teamId, router, {
       includeName: true,
       includeVulnerabilities: true,
+      includeIcon: true,
     });
-  }, [data, teamId]);
+  }, [data, router, teamId]);
 
   const handleRowSelect = (row: IRowProps) => {
     const hostsBySoftwareParams = {

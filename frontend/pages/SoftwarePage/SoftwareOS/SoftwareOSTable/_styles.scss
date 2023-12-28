@@ -20,4 +20,21 @@
       opacity: 1;
     }
   }
+
+  .table-container {
+    &__data-table-block {
+      .data-table-block {
+        .data-table__table {
+          tbody {
+            .link-cell {
+              display: flex;
+              align-items: center;
+              gap: $pad-small;
+            }
+          }
+        }
+      }
+    }
+  }
+
 }
