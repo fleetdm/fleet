@@ -1620,8 +1620,8 @@ func (r *serverOverridesRunner) updateServerOverrides(remoteCfg *fleet.OrbitConf
 	if err != nil {
 		return fmt.Errorf("marshal override config: %w", err)
 	}
-	path := filepath.Join(r.rootDir, constant.ServerOverridesFileName)
-	if err := os.WriteFile(path, data, constant.DefaultFileMode); err != nil {
+	serverOverridesPath := filepath.Join(r.rootDir, constant.ServerOverridesFileName)
+	if err := os.WriteFile(serverOverridesPath, data, constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write override config: %w", err)
 	}
 	return nil
@@ -1629,8 +1629,8 @@ func (r *serverOverridesRunner) updateServerOverrides(remoteCfg *fleet.OrbitConf
 
 // loadServerOverrides loads the server overrides from the local file.
 func loadServerOverrides(rootDir string) (*serverOverridesConfig, error) {
-	path := filepath.Join(rootDir, constant.ServerOverridesFileName)
-	data, err := os.ReadFile(path)
+	serverOverridesPath := filepath.Join(rootDir, constant.ServerOverridesFileName)
+	data, err := os.ReadFile(serverOverridesPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return &serverOverridesConfig{}, nil
