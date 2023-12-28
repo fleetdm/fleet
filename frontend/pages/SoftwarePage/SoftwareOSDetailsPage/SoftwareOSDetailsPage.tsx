@@ -2,12 +2,17 @@ import React from "react";
 import { useQuery } from "react-query";
 import { RouteComponentProps } from "react-router";
 
+import osVersionsAPI, {
+  IOSVersionResponse,
+} from "services/entities/operating_systems";
+import { IOperatingSystemVersion } from "interfaces/operating_system";
+
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
-import SoftwareOSDetailsTable from "./SoftwareOSDetailsTable";
+import SoftwareVulnerabilitiesTable from "../components/SoftwareVulnerabilitiesTable";
 
 const baseClass = "software-os-details-page";
 
@@ -21,21 +26,20 @@ type ISoftwareOSDetailsPageProps = RouteComponentProps<
 >;
 
 const SoftwareOSDetailsPage = ({
-  router,
   routeParams,
 }: ISoftwareOSDetailsPageProps) => {
   // TODO: handle non integer values
-  const softwareId = parseInt(routeParams.id, 10);
+  const osVersionId = parseInt(routeParams.id, 10);
 
   const { data, isLoading, isError } = useQuery<
-    ISoftwareTitleResponse,
+    IOSVersionResponse,
     Error,
-    ISoftwareTitle
+    IOperatingSystemVersion
   >(
-    ["softwareById", softwareId],
-    () => softwareAPI.getSoftwareTitle(softwareId),
+    ["osVersionById", osVersionId],
+    () => osVersionsAPI.getOSVersion(osVersionId),
     {
-      select: (data) => data.software_title,
+      select: (res) => res.os_version,
     }
   );
 
@@ -55,23 +59,19 @@ const SoftwareOSDetailsPage = ({
     return (
       <>
         <SoftwareDetailsSummary
-          id={softwareId}
-          title={softwareTitle.name}
-          type={formatSoftwareType(softwareTitle)}
-          versions={softwareTitle.versions.length}
-          hosts={softwareTitle.hosts_count}
+          id={data.id}
+          title={data.name}
+          hosts={data.hosts_count}
           queryParam="software_title_id"
-          name={softwareTitle.name}
-          source={softwareTitle.source}
+          name={data.name}
         />
         {/* TODO: can we use Card here for card styles */}
         <div className={`${baseClass}__versions-section`}>
           <h2>Vulnerabilities</h2>
-          {/* <SoftwareOSDetailsTable
-            router={router}
-            data={softwareTitle.versions}
-            isLoading={isSoftwareTitleLoading}
-          /> */}
+          <SoftwareVulnerabilitiesTable
+            data={data.vulnerabilities}
+            isLoading={isLoading}
+          />
         </div>
       </>
     );

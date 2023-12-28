@@ -4,7 +4,10 @@ import endpoints from "utilities/endpoints";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { OsqueryPlatform } from "interfaces/platform";
 import { buildQueryStringFromParams } from "utilities/url";
-import { createMockOSVersionsResponse } from "__mocks__/operatingSystemsMock";
+import {
+  createMockOSVersionResponse,
+  createMockOSVersionsResponse,
+} from "__mocks__/operatingSystemsMock";
 
 // TODO: add platforms to this constant as new ones are supported
 export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = [
@@ -36,6 +39,10 @@ export interface IOSVersionsResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+}
+
+export interface IOSVersionResponse {
+  os_version: IOperatingSystemVersion;
 }
 
 export const getOSVersions = ({
@@ -70,6 +77,15 @@ export const getOSVersions = ({
   });
 };
 
+const getOSVersion = (id: number): Promise<IOSVersionResponse> => {
+  const { OS_VERSION } = endpoints;
+  // return sendRequest("GET", OS_VERSION(id)); // TODO: API INTEGRATION: uncomment when API is ready
+  return new Promise((resolve, reject) => {
+    resolve(createMockOSVersionResponse());
+  });
+};
+
 export default {
   getOSVersions,
+  getOSVersion,
 };

@@ -1,5 +1,8 @@
 import { IOperatingSystemVersion } from "interfaces/operating_system";
-import { IOSVersionsResponse } from "services/entities/operating_systems";
+import {
+  IOSVersionResponse,
+  IOSVersionsResponse,
+} from "services/entities/operating_systems";
 import { createMockSoftwareVulnerability } from "./softwareMock";
 
 const DEFAULT_OS_VERSION: IOperatingSystemVersion = {
@@ -35,4 +38,14 @@ export const createMockOSVersionsResponse = (
   overrides?: Partial<IOSVersionsResponse>
 ): IOSVersionsResponse => {
   return { ...DEFAULT_OS_VERSIONS_RESPONSE, ...overrides };
+};
+
+const DEFAULT_OS_VERSION_RESPONSE: IOSVersionResponse = {
+  os_version: createMockOSVersion(),
+};
+
+export const createMockOSVersionResponse = (
+  overrides?: Partial<IOSVersionResponse>
+) => {
+  return { ...DEFAULT_OS_VERSION_RESPONSE, ...overrides };
 };
