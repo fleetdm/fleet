@@ -61,7 +61,7 @@ const generateDefaultTableHeaders = (
   teamId?: number,
   router?: InjectedRouter,
   configOptions?: IOSTableConfigOptions
-): any[] => [
+): Column[] => [
   {
     Header: "Name",
     disableSortBy: true,
@@ -120,10 +120,9 @@ const generateDefaultTableHeaders = (
     },
   },
   {
-    title: "Hosts",
     Header: (cellProps: IHeaderProps): JSX.Element => (
       <HeaderCell
-        value={cellProps.column.title}
+        value="Hosts"
         disableSortBy={false}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
