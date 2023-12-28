@@ -236,6 +236,31 @@ Within 60 days of the end of the year, follow these steps:
 - Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for BizOps](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
 - Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice to the CEO](https://fleetdm.com/handbook/ceo#team) know so they can put it on the agenda for their next one-on-one with the CEO.
 
+### Enroll a macOS host in dogfood
+When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.
+You can confirm that the device has been ordered correctly by following these steps:
+- Log into ABM
+- Use the device serial number to find the device.
+  - Note: if the device cannot be found, you will need to manually enroll the device.
+- View device settings and ensure the "MDM Server" selected is "Fleet Dogfood".
+<img width="143" alt="Screenshot 2023-11-21 at 11 08 50 AM" src="https://github.com/fleetdm/confidential/assets/47070608/512dc629-76dd-4090-bf86-9c4582286d1d">
+
+On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
+- If you have physical access to the macOS host, use Apple Configurator (docs are [here](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web)).
+- If you do not have physical access to the device, the user will need to undertake the following steps:
+  - Install the fleetd package for your device from shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+  - Once fleetd is installed, click on Fleet desktop icon in top right menu bar, and select "My device".
+  - In Fleet desktop, follow the instructions to turn on MDM.
+  - Once complete, follow instructions to reset disk encryption key.
+- Disk encryption key will now be stored in Fleet dogfood, which signifies that the device is now enrolled in dogfood.
+
+### Enroll a Windows or Ubuntu Linux device in dogfood
+To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from internal shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+Once the user has installed fleetd, verify the device is correctly enrolled by confirming the device encryption key is in dogfood.
+
+### Enroll a ChromeOS device in dogfood
+ChromeOS devices are automatically enrolled in dogfood after the IT admin sets up automatic enrollment. This is done in dogfood by following the steps found in the dialog popup when selecting "Add hosts > ChromeOS" from the dogfood Hosts page.
+
 ### Lock a macOS host in dogfood using fleetctl CLI tool
 - Download the lock command XML file from Google Drive [here](https://drive.google.com/file/d/1o6vJ1fHilRtBmyKAj0I5URiKn77qe4gS/view?usp=drive_link).
 - Customize any messaging that will appear on the locked device, and modify the pin for unlocking the device by editing the file in text editor.
