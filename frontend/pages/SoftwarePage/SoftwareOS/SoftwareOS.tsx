@@ -40,7 +40,6 @@ const SoftwareOS = ({
     order_key: orderKey,
     teamId,
   };
-  console.log("parentQueryParams", queryParams);
 
   const { data, isFetching, isError } = useQuery<
     IOSVersionsResponse,
