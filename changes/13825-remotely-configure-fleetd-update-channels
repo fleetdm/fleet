@@ -1,1 +1,1 @@
-* Remotely configure fleetd update channels in agent options (Fleet Premium only).
+* Remotely configure fleetd update channels in agent options (Fleet Premium only, and requires fleetd >= 1.20.0).
