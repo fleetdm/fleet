@@ -76,10 +76,7 @@ const generateDefaultTableHeaders = (teamId?: number): Column[] => [
   },
   {
     Header: (cellProps: IHeaderProps) => (
-      <HeaderCell
-        value={cellProps.column.title}
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
+      <HeaderCell value="Hosts" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
     disableSortBy: false,
     accessor: "hosts_count",

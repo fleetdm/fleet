@@ -141,8 +141,7 @@ const SoftwareOSTable = ({
         pageSize={perPage}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        // disableNextPage={!data?.meta.has_next_results} TODO: API INTEGRATION: update with new API
-        disableNextPage={false}
+        disableNextPage={!data?.meta.has_next_results}
         searchable={false}
         onQueryChange={onQueryChange}
         stackControls
