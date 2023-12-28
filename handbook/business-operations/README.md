@@ -236,6 +236,21 @@ Within 60 days of the end of the year, follow these steps:
 - Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for BizOps](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
 - Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice to the CEO](https://fleetdm.com/handbook/ceo#team) know so they can put it on the agenda for their next one-on-one with the CEO.
 
+### Lock a macOS host in dogfood using fleetctl CLI tool
+- Download the lock command XML file from Google Drive [here](https://drive.google.com/file/d/1o6vJ1fHilRtBmyKAj0I5URiKn77qe4gS/view?usp=drive_link).
+- Customize any messaging that will appear on the locked device, and modify the pin for unlocking the device by editing the file in text editor.
+  - Note you will need to safely store the recovery pin for the device, suggest using 1Password or other secure storage method
+- Run this command with fleetctl CLI tool: `fleetctl mdm run-command --hosts=hostname --payload=Downloads/command-lock-macos-host.xml`
+  - Note that `hostname` must be replaced with **Hostname** in Fleet (not the display name)
+  - Note that the payload path may change based on where the file is stored once downloaded
+  - Note that if you haven't logged into fleetctl recently, will need to follow authentication steps (see [Logging in with SAML (SSO) authentication](https://fleetdm.com/docs/using-fleet/fleetctl-cli#logging-in-with-saml-sso-authentication) ).
+- Device will be locked
+- When device needs to be unlocked, enter the security pin (from XML file) in the input field of the device
+- The device will then open to the regular login screen, asking for password
+  -  If you do not have the password available, you can choose the option to enter recovery key/disk encryption key (this option might be behind `?` icon).
+  - Get disk encryption key from Fleet dogfood (using the action menu from the individual host page).
+  - Enter disk encryption key on laptop. This should prompt you to create a new password.
+- You will then be logged into the default device profile, and can complete any needed actions (wipe, recover data).
 
 ## Rituals
 The following table lists this department's rituals, frequency, and Directly Responsible Individual (DRI).
