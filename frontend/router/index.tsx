@@ -63,6 +63,7 @@ import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
 import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
 import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
+import SoftwareOSDetailsPage from "pages/SoftwarePage/SoftwareOSDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -224,6 +225,7 @@ const routes = (
             </Route>
             <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
             <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
+            <Route path="os/:id" component={SoftwareOSDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">

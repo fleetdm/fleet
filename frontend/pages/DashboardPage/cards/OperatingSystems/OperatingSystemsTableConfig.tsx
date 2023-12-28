@@ -87,7 +87,7 @@ const generateDefaultTableHeaders = (
 
       return (
         <LinkCell
-          path={PATHS.SOFTWARE_TITLE_DETAILS(id.toString())}
+          path={PATHS.SOFTWARE_OS_DETAILS(id.toString())}
           customOnClick={onClickSoftware}
           value={
             <>
