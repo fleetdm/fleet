@@ -1,16 +1,21 @@
 import React from "react";
 import { Column } from "react-table";
+import { InjectedRouter } from "react-router";
 
+import PATHS from "router/paths";
 import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
+import { ISoftwareVulnerability } from "interfaces/software";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+
 import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
-import { ISoftwareVulnerability } from "interfaces/software";
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
 interface ICellProps {
   cell: {
@@ -46,17 +51,53 @@ interface IHeaderProps {
   };
 }
 
-const generateDefaultTableHeaders = (teamId?: number): any[] => [
+interface IOSTableConfigOptions {
+  includeName?: boolean;
+  includeVulnerabilities?: boolean;
+  includeIcon?: boolean;
+}
+
+const generateDefaultTableHeaders = (
+  teamId?: number,
+  router?: InjectedRouter,
+  configOptions?: IOSTableConfigOptions
+): any[] => [
   {
     Header: "Name",
     disableSortBy: true,
     accessor: "name_only",
-    Cell: ({ cell: { value } }: IStringCellProps) => (
-      <TextCell
-        value={value}
-        formatter={(name) => formatOperatingSystemDisplayName(name)}
-      />
-    ),
+    Cell: (cellProps: IStringCellProps) => {
+      if (!configOptions?.includeIcon) {
+        return (
+          <TextCell
+            value={cellProps.cell.value}
+            formatter={(name) => formatOperatingSystemDisplayName(name)}
+          />
+        );
+      }
+
+      const { id, name } = cellProps.row.original;
+
+      const onClickSoftware = (e: React.MouseEvent) => {
+        // Allows for button to be clickable in a clickable row
+        e.stopPropagation();
+
+        router?.push(PATHS.SOFTWARE_OS_DETAILS(id.toString()));
+      };
+
+      return (
+        <LinkCell
+          path={PATHS.SOFTWARE_TITLE_DETAILS(id.toString())}
+          customOnClick={onClickSoftware}
+          value={
+            <>
+              <SoftwareIcon name={name} />
+              <span className="software-name">{name}</span>
+            </>
+          }
+        />
+      );
+    },
   },
   {
     Header: "Version",
@@ -71,6 +112,10 @@ const generateDefaultTableHeaders = (teamId?: number): any[] => [
     disableSortBy: true,
     accessor: "vulnerabilities",
     Cell: (cellProps: IVulnCellProps): JSX.Element => {
+      const platform = cellProps.row.original.platform;
+      if (platform !== "darwin" && platform !== "windows") {
+        return <TextCell value="Not supported" greyed />;
+      }
       return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
     },
   },
@@ -108,17 +153,12 @@ const generateDefaultTableHeaders = (teamId?: number): any[] => [
   },
 ];
 
-interface IOSTableConfigOptions {
-  includeName?: boolean;
-  includeVulnerabilities?: boolean;
-  includeIcon?: boolean;
-}
-
 const generateTableHeaders = (
   teamId?: number,
+  router?: InjectedRouter,
   configOptions?: IOSTableConfigOptions
 ): Column[] => {
-  let tableConfig = generateDefaultTableHeaders(teamId);
+  let tableConfig = generateDefaultTableHeaders(teamId, router, configOptions);
 
   if (!configOptions?.includeName) {
     tableConfig = tableConfig.filter(

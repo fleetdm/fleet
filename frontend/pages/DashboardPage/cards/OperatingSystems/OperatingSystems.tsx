@@ -149,7 +149,7 @@ const OperatingSystems = ({
   }, [isFetching, osInfo, setTitleDescription, setTitleDetail]);
 
   const tableHeaders = useMemo(
-    () => generateTableHeaders(currentTeamId, { includeName: true }),
+    () => generateTableHeaders(currentTeamId, undefined, { includeName: true }),
     [includeNameColumn, currentTeamId]
   );
 
