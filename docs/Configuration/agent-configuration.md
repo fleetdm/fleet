@@ -301,7 +301,7 @@ spec:
 ```
 
 - If a configured channel doesn't exist in the TUF repository, then fleetd will log errors on the hosts and will not auto-update the component/s until the channel is changed to a valid value in Fleet's `update_channels` configuration or until the user pushes the component to the channel (which effectively creates the channel).
-- If the `update_channels` setting is removed from the agent settings, the devices will continue to use the latest configured channels.
+- If the `update_channels` setting is removed from the agent settings, the devices will continue to use the last configured channels.
 - If Fleet Desktop is disabled in fleetd, then the `desktop` channel setting is ignored by the host.
 
 #### Auto update startup loop
