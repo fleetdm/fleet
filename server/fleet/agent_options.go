@@ -50,7 +50,7 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 	if len(opts.CommandLineStartUpFlags) > 0 {
 		var flags osqueryCommandLineFlags
 		if err := JSONStrictDecode(bytes.NewReader(opts.CommandLineStartUpFlags), &flags); err != nil {
-			return fmt.Errorf("command_line_flags: %w", err)
+			return fmt.Errorf("command-line flags: %w", err)
 		}
 
 		// We prevent setting the following flags because they can break fleetd.
