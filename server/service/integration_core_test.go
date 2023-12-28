@@ -9335,3 +9335,49 @@ func (s *integrationTestSuite) TestHostHealth() {
 	assert.Empty(t, resp.HostHealth.FailingPolicies)
 	assert.Nil(t, resp.HostHealth.TeamID)
 }
+
+func (s *integrationTestSuite) TestHostDeviceToken() {
+	t := s.T()
+	type response struct {
+		Err string `json:"error"`
+	}
+
+	orbitHost := createOrbitEnrolledHost(t, "windows", "device_token", s.ds)
+
+	// Write empty token
+	body := setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
+		DeviceAuthToken: "",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
+
+	// Write bad node key
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    "",
+		DeviceAuthToken: "token",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusUnauthorized, &response{})
+
+	// Write a good token.
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
+		DeviceAuthToken: "token",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusOK, &response{})
+
+	// Try to write the token again for a different host.
+	// First write a valid token.
+	orbitHost2 := createOrbitEnrolledHost(t, "darwin", "device_token2", s.ds)
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost2.OrbitNodeKey,
+		DeviceAuthToken: "token2",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusOK, &response{})
+
+	// Now write a duplicate token, which will result in a conflict with the first host.
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost2.OrbitNodeKey,
+		DeviceAuthToken: "token",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusConflict, &response{})
+}

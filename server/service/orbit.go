@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -423,13 +424,20 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
+	if len(deviceAuthToken) == 0 {
+		return badRequest("device auth token cannot be empty")
+	}
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return newOsqueryError("internal error: missing host from request context")
 	}
 
 	if err := svc.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceAuthToken); err != nil {
-		return newOsqueryError(fmt.Sprintf("internal error: failed to set or update device auth token: %e", err))
+		if errors.As(err, &fleet.ConflictError{}) {
+			return err
+		}
+		return newOsqueryError(fmt.Sprintf("internal error: failed to set or update device auth token: %s", err))
 	}
 
 	return nil
