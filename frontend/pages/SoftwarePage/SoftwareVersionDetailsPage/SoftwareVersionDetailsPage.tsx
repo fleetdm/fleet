@@ -89,6 +89,7 @@ const SoftwareVersionDetailsPage = ({
           <h2 className="section__header">Vulnerabilities</h2>
           <SoftwareVulnerabilitiesTable
             data={softwareVersion.vulnerabilities ?? []}
+            itemName="software item"
             isLoading={isSoftwareVersionLoading}
           />
         </div>
