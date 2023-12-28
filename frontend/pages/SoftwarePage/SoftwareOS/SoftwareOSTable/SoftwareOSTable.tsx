@@ -57,7 +57,10 @@ const SoftwareOSTable = ({
 
   const softwareTableHeaders = useMemo(() => {
     if (!data) return [];
-    return generateTableConfig(true, teamId);
+    return generateTableConfig(teamId, {
+      includeName: true,
+      includeVulnerabilities: true,
+    });
   }, [data, teamId]);
 
   const handleRowSelect = (row: IRowProps) => {
@@ -128,7 +131,6 @@ const SoftwareOSTable = ({
           <EmptySoftwareTable
             isSoftwareDisabled={!isSoftwareEnabled}
             isSandboxMode={isSandboxMode}
-            isCollectingSoftware={false} // TODO: update with new API
             noSandboxHosts={noSandboxHosts}
           />
         )}
@@ -139,7 +141,8 @@ const SoftwareOSTable = ({
         pageSize={perPage}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        disableNextPage={!data?.meta.has_next_results}
+        // disableNextPage={!data?.meta.has_next_results} TODO: API INTEGRATION: update with new API
+        disableNextPage={false}
         searchable={false}
         onQueryChange={onQueryChange}
         stackControls
