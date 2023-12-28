@@ -13,10 +13,14 @@ import generateTableConfig from "./SoftwareVulnerabilitiesTableConfig";
 
 const baseClass = "software-vulnerabilities-table";
 
-const NoVulnsDetected = (): JSX.Element => {
+interface INoVulnsDetectedProps {
+  itemName: string;
+}
+
+const NoVulnsDetected = ({ itemName }: INoVulnsDetectedProps): JSX.Element => {
   return (
     <EmptyTable
-      header="No vulnerabilities detected for this software item."
+      header={`No vulnerabilities detected for this ${itemName}`}
       info={
         <>
           Expecting to see vulnerabilities?{" "}
@@ -33,12 +37,15 @@ const NoVulnsDetected = (): JSX.Element => {
 
 interface ISoftwareVulnerabilitiesTableProps {
   data: ISoftwareVulnerability[];
+  /** Name displayed on the empty state */
+  itemName: string;
   isLoading: boolean;
   className?: string;
 }
 
 const SoftwareVulnerabilitiesTable = ({
   data,
+  itemName,
   isLoading,
   className,
 }: ISoftwareVulnerabilitiesTableProps) => {
@@ -57,7 +64,7 @@ const SoftwareVulnerabilitiesTable = ({
         data={data}
         defaultSortHeader={isPremiumTier ? "epss_probability" : "cve"}
         defaultSortDirection={"desc"}
-        emptyComponent={NoVulnsDetected}
+        emptyComponent={() => <NoVulnsDetected itemName={itemName} />}
         isAllPagesSelected={false}
         isLoading={isLoading}
         isClientSidePagination

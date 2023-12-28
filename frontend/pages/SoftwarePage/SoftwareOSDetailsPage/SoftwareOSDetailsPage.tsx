@@ -70,6 +70,7 @@ const SoftwareOSDetailsPage = ({
           <h2>Vulnerabilities</h2>
           <SoftwareVulnerabilitiesTable
             data={data.vulnerabilities}
+            itemName="version"
             isLoading={isLoading}
           />
         </div>
