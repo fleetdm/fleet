@@ -71,20 +71,6 @@ const Policies = ({
           {failingResponses?.length > 0 && (
             <PolicyFailingCount policyList={policies} deviceUser={deviceUser} />
           )}
-          {noResponses?.length > 0 && !deviceUser && (
-            <InfoBanner>
-              <p>
-                This host is not updating the response for some policies. Check
-                out the Fleet documentation on&nbsp;
-                <CustomLink
-                  url="https://fleetdm.com/docs/using-fleet/faq#why-is-my-host-not-updating-a-policys-response"
-                  text="why the response might not be updating"
-                  newTab
-                  multiline
-                />
-              </p>
-            </InfoBanner>
-          )}
           <TableContainer
             columnConfigs={tableHeaders}
             data={generatePolicyDataSet(policies)}
