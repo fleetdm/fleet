@@ -17,6 +17,7 @@ import { IOSVersionsResponse } from "services/entities/operating_systems";
 
 import generateTableConfig from "pages/DashboardPage/cards/OperatingSystems/OperatingSystemsTableConfig";
 import { buildQueryStringFromParams } from "utilities/url";
+import { getNextLocationPath } from "utilities/helpers";
 
 const baseClass = "software-os-table";
 
@@ -51,9 +52,57 @@ const SoftwareOSTable = ({
 }: ISoftwareOSTableProps) => {
   const { isSandboxMode, noSandboxHosts } = useContext(AppContext);
 
-  const onQueryChange = useCallback((newTableQuery: ITableQueryData) => {
-    console.log("onQueryChange");
-  }, []);
+  const determineQueryParamChange = useCallback(
+    (newTableQuery: ITableQueryData) => {
+      const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
+        switch (key) {
+          case "sortDirection":
+            return val !== orderDirection;
+          case "sortHeader":
+            return val !== orderKey;
+          case "pageIndex":
+            return val !== currentPage;
+          default:
+            return false;
+        }
+      });
+      return changedEntry?.[0] ?? "";
+    },
+    [currentPage, orderDirection, orderKey]
+  );
+
+  const generateNewQueryParams = useCallback(
+    (newTableQuery: ITableQueryData, changedParam: string) => {
+      return {
+        team_id: teamId,
+        order_direction: newTableQuery.sortDirection,
+        order_key: newTableQuery.sortHeader,
+        page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+      };
+    },
+    [teamId]
+  );
+
+  const onQueryChange = useCallback(
+    (newTableQuery: ITableQueryData) => {
+      // we want to determine which query param has changed in order to
+      // reset the page index to 0 if any other param has changed.
+      const changedParam = determineQueryParamChange(newTableQuery);
+
+      // if nothing has changed, don't update the route. this can happen when
+      // this handler is called on the inital render.
+      if (changedParam === "") return;
+
+      const newRoute = getNextLocationPath({
+        pathPrefix: PATHS.SOFTWARE_OS,
+        routeTemplate: "",
+        queryParams: generateNewQueryParams(newTableQuery, changedParam),
+      });
+
+      router.replace(newRoute);
+    },
+    [determineQueryParamChange, generateNewQueryParams, router]
+  );
 
   const softwareTableHeaders = useMemo(() => {
     if (!data) return [];
