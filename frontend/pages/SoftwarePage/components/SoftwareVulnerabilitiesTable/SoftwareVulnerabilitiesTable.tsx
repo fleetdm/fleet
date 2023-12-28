@@ -1,4 +1,5 @@
 import React, { useContext, useMemo } from "react";
+import classnames from "classnames";
 
 import { AppContext } from "context/app";
 import { ISoftwareVulnerability } from "interfaces/software";
@@ -8,7 +9,7 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 
-import generateTableConfig from "pages/SoftwarePage/SoftwareVersionDetailsPage/SoftwareVersionDetailsTableConfig";
+import generateTableConfig from "./SoftwareVulnerabilitiesTableConfig";
 
 const baseClass = "software-vulnerabilities-table";
 
@@ -33,20 +34,24 @@ const NoVulnsDetected = (): JSX.Element => {
 interface ISoftwareVulnerabilitiesTableProps {
   data: ISoftwareVulnerability[];
   isLoading: boolean;
+  className?: string;
 }
 
 const SoftwareVulnerabilitiesTable = ({
   data,
   isLoading,
+  className,
 }: ISoftwareVulnerabilitiesTableProps) => {
   const { isPremiumTier, isSandboxMode } = useContext(AppContext);
+
+  const classNames = classnames(baseClass, className);
 
   const tableHeaders = useMemo(
     () => generateTableConfig(Boolean(isPremiumTier), Boolean(isSandboxMode)),
     [isPremiumTier, isSandboxMode]
   );
   return (
-    <div className={baseClass}>
+    <div className={classNames}>
       <TableContainer
         columnConfigs={tableHeaders}
         data={data}

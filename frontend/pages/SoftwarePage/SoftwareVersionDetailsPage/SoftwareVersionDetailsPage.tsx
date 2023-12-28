@@ -1,4 +1,4 @@
-import React, { useContext, useMemo } from "react";
+import React from "react";
 import { useQuery } from "react-query";
 import { RouteComponentProps } from "react-router";
 
@@ -10,18 +10,13 @@ import hostsCountAPI, {
   IHostsCountResponse,
 } from "services/entities/host_count";
 import { ISoftwareVersion, formatSoftwareType } from "interfaces/software";
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-import { AppContext } from "context/app";
 
 import MainContent from "components/MainContent";
-import TableContainer from "components/TableContainer";
-import CustomLink from "components/CustomLink";
-import EmptyTable from "components/EmptyTable";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 
-import generateSoftwareVersionDetailsTableConfig from "./SoftwareVersionDetailsTableConfig";
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
+import SoftwareVulnerabilitiesTable from "../components/SoftwareVulnerabilitiesTable";
 
 const baseClass = "software-version-details-page";
 
@@ -34,29 +29,10 @@ type ISoftwareTitleDetailsPageProps = RouteComponentProps<
   ISoftwareVersionDetailsRouteParams
 >;
 
-const NoVulnsDetected = (): JSX.Element => {
-  return (
-    <EmptyTable
-      header="No vulnerabilities detected for this software item."
-      info={
-        <>
-          Expecting to see vulnerabilities?{" "}
-          <CustomLink
-            url={GITHUB_NEW_ISSUE_LINK}
-            text="File an issue on GitHub"
-            newTab
-          />
-        </>
-      }
-    />
-  );
-};
-
 const SoftwareVersionDetailsPage = ({
   routeParams,
 }: ISoftwareTitleDetailsPageProps) => {
   const versionId = parseInt(routeParams.id, 10);
-  const { isPremiumTier, isSandboxMode } = useContext(AppContext);
 
   const {
     data: softwareVersion,
@@ -85,15 +61,6 @@ const SoftwareVersionDetailsPage = ({
     }
   );
 
-  const tableHeaders = useMemo(
-    () =>
-      generateSoftwareVersionDetailsTableConfig(
-        Boolean(isPremiumTier),
-        Boolean(isSandboxMode)
-      ),
-    [isPremiumTier, isSandboxMode]
-  );
-
   const renderContent = () => {
     if (isSoftwareVersionLoading) {
       return <Spinner />;
@@ -120,25 +87,10 @@ const SoftwareVersionDetailsPage = ({
         />
         <div className={`${baseClass}__vulnerabilities-section`}>
           <h2 className="section__header">Vulnerabilities</h2>
-          {softwareVersion?.vulnerabilities?.length ? (
-            <div className="vuln-table">
-              <TableContainer
-                columnConfigs={tableHeaders}
-                data={softwareVersion.vulnerabilities}
-                defaultSortHeader={isPremiumTier ? "epss_probability" : "cve"}
-                defaultSortDirection={"desc"}
-                emptyComponent={NoVulnsDetected}
-                isAllPagesSelected={false}
-                isLoading={isSoftwareVersionLoading}
-                isClientSidePagination
-                pageSize={20}
-                resultsTitle={"vulnerabilities"}
-                showMarkAllPages={false}
-              />
-            </div>
-          ) : (
-            <NoVulnsDetected />
-          )}
+          <SoftwareVulnerabilitiesTable
+            data={softwareVersion.vulnerabilities ?? []}
+            isLoading={isSoftwareVersionLoading}
+          />
         </div>
       </>
     );
