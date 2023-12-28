@@ -81,7 +81,11 @@ export default {
     `/${API_VERSION}/fleet/mdm/hosts/${id}/encryption_key`,
 
   ME: `/${API_VERSION}/fleet/me`,
+
+  // OS Version endpoints
   OS_VERSIONS: `/${API_VERSION}/fleet/os_versions`,
+  OS_VERSION: (id: number) => `/${API_VERSION}/fleet/os_versions/${id}`,
+
   OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,
   PACKS: `/${API_VERSION}/fleet/packs`,
   PERFORM_REQUIRED_PASSWORD_RESET: `/${API_VERSION}/fleet/perform_required_password_reset`,

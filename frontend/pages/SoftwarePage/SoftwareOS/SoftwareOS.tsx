@@ -1,11 +1,74 @@
 import React from "react";
+import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
+
+import {
+  IGetOSVersionsQueryKey,
+  IOSVersionsResponse,
+  getOSVersions,
+} from "services/entities/operating_systems";
+import SoftwareOSTable from "./SoftwareOSTable";
 
 const baseClass = "software-os";
 
-interface ISoftwareOSProps {}
+interface ISoftwareOSProps {
+  router: InjectedRouter;
+  isSoftwareEnabled: boolean;
+  perPage: number;
+  orderDirection: "asc" | "desc";
+  orderKey: string;
+  currentPage: number;
+  teamId?: number;
+}
 
-const SoftwareOS = ({}: ISoftwareOSProps) => {
-  return <div className={baseClass}>OS PAGE</div>;
+const SoftwareOS = ({
+  router,
+  isSoftwareEnabled,
+  perPage,
+  orderDirection,
+  orderKey,
+  currentPage,
+  teamId,
+}: ISoftwareOSProps) => {
+  const queryParams = {
+    page: currentPage,
+    per_page: perPage,
+    order_direction: orderDirection,
+    order_key: orderKey,
+    teamId,
+  };
+
+  const { data, isFetching, isError } = useQuery<
+    IOSVersionsResponse,
+    Error,
+    IOSVersionsResponse,
+    IGetOSVersionsQueryKey[]
+  >(
+    [
+      {
+        scope: "software-os",
+        ...queryParams,
+      },
+    ],
+    () => getOSVersions(queryParams),
+    {}
+  );
+
+  return (
+    <div className={baseClass}>
+      <SoftwareOSTable
+        router={router}
+        data={data}
+        isSoftwareEnabled={isSoftwareEnabled}
+        perPage={perPage}
+        orderDirection={orderDirection}
+        orderKey={orderKey}
+        currentPage={currentPage}
+        teamId={teamId}
+        isLoading={isFetching}
+      />
+    </div>
+  );
 };
 
 export default SoftwareOS;
