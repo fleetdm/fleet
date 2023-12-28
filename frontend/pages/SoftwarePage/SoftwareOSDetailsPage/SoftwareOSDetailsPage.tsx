@@ -66,7 +66,7 @@ const SoftwareOSDetailsPage = ({
           name={data.name}
         />
         {/* TODO: can we use Card here for card styles */}
-        <div className={`${baseClass}__versions-section`}>
+        <div className={`${baseClass}__vulnerabilities-section`}>
           <h2>Vulnerabilities</h2>
           <SoftwareVulnerabilitiesTable
             data={data.vulnerabilities}

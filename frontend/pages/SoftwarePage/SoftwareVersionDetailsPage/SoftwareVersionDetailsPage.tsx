@@ -46,9 +46,9 @@ const SoftwareVersionDetailsPage = ({
     }
   );
 
-  // TODO: Confirm desired UX for error and loading states
   const {
     data: hostsCount,
+    // TODO: Confirm desired UX for error and loading states
     // isError: isHostsCountError,
     // isLoading: isHostsCountLoading,
   } = useQuery<IHostsCountResponse, Error, number, IHostsCountQueryKey[]>(
