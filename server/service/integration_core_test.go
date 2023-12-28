@@ -3692,6 +3692,137 @@ func (s *integrationTestSuite) TestLabels() {
 	}
 }
 
+// Sanity test to make sure fleet/labels/<all>/hosts and fleet/hosts return the same thing.
+func (s *integrationTestSuite) TestListHostsByLabel() {
+	t := s.T()
+
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, lblIDs, 1)
+	labelID := lblIDs[0]
+
+	hosts := s.createHosts(t, "darwin")
+	host := hosts[0]
+
+	// Update label
+	mysql.ExecAdhocSQL(
+		t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(
+				context.Background(),
+				"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, (SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1))",
+				host.ID,
+			)
+			return err
+		},
+	)
+
+	// set disk space information
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 10.0, 2.0, 500.0)) // low disk
+
+	// Update host fields
+	host.Uptime = 30 * time.Second
+	host.RefetchRequested = true
+	host.OSVersion = "macOS 14.2"
+	host.Build = "abc"
+	host.PlatformLike = "darwin"
+	host.CodeName = "sky"
+	host.Memory = 1000
+	host.CPUType = "arm64"
+	host.CPUSubtype = "ARM64e"
+	host.CPUBrand = "Apple M2 Pro"
+	host.CPUPhysicalCores = 12
+	host.CPULogicalCores = 14
+	host.HardwareVendor = "Apple Inc."
+	host.HardwareModel = "Mac14,10"
+	host.HardwareVersion = "23"
+	host.HardwareSerial = "ABC123"
+	host.ComputerName = "MBP"
+	host.PublicIP = "1.1.1.1"
+	host.PrimaryIP = "10.10.10.10"
+	host.PrimaryMac = "11:22:33"
+	host.DistributedInterval = 10
+	host.ConfigTLSRefresh = 9
+	host.OsqueryVersion = "5.10"
+	err = s.ds.UpdateHost(context.Background(), host)
+	require.NoError(t, err)
+
+	// Add team
+	team, err := s.ds.NewTeam(
+		context.Background(), &fleet.Team{
+			Name: uuid.New().String(),
+		},
+	)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID}))
+
+	// Add pack
+	_, err = s.ds.NewPack(
+		context.Background(), &fleet.Pack{
+			Name: t.Name(),
+			Hosts: []fleet.Target{
+				{
+					Type:     fleet.TargetHost,
+					TargetID: hosts[0].ID,
+				},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	// Add policy
+	qr, err := s.ds.NewQuery(
+		context.Background(), &fleet.Query{
+			Name:           "TestQuery3",
+			Description:    "Some description",
+			Query:          "select * from osquery;",
+			ObserverCanRun: true,
+			Logging:        fleet.LoggingSnapshot,
+		},
+	)
+	require.NoError(t, err)
+
+	gpParams := globalPolicyRequest{
+		QueryID:    &qr.ID,
+		Resolution: "some global resolution",
+	}
+	gpResp := globalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
+	require.NoError(
+		t,
+		s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{gpResp.Policy.ID: ptr.Bool(false)}, time.Now(), false),
+	)
+
+	// Add MDM info
+	require.NoError(
+		t,
+		s.ds.SetOrUpdateMDMData(
+			context.Background(), host.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "",
+		),
+	)
+
+	// Add device mapping
+	require.NoError(
+		t, s.ds.ReplaceHostDeviceMapping(
+			context.Background(), host.ID, []*fleet.HostDeviceMapping{
+				{HostID: hosts[0].ID, Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{HostID: hosts[0].ID, Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+			}, fleet.DeviceMappingGoogleChromeProfiles,
+		),
+	)
+
+	// Now do the actual API calls that we will compare.
+	var hostsResp, labelsResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelID), nil, http.StatusOK, &labelsResp, "device_mapping", "true")
+
+	// Converting to formatted JSON for easier diffs
+	hostsJson, _ := json.MarshalIndent(hostsResp, "", "  ")
+	labelsJson, _ := json.MarshalIndent(labelsResp, "", "  ")
+	assert.Equal(t, string(hostsJson), string(labelsJson))
+
+}
+
 func (s *integrationTestSuite) TestLabelSpecs() {
 	t := s.T()
 
