@@ -100,7 +100,7 @@ const SoftwareOSDetailsPage = ({
       <>
         <SoftwareDetailsSummary
           id={data.id}
-          title={data.name}
+          title={`${data.name} ${data.version}`}
           hosts={data.hosts_count}
           queryParam="software_title_id"
           name={data.name}
