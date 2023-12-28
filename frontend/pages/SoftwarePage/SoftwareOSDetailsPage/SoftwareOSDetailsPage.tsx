@@ -6,15 +6,37 @@ import osVersionsAPI, {
   IOSVersionResponse,
 } from "services/entities/operating_systems";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
+import { SUPPORT_LINK } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
+import EmptyTable from "components/EmptyTable";
+import CustomLink from "components/CustomLink";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/SoftwareVulnerabilitiesTable";
 
 const baseClass = "software-os-details-page";
+
+interface INotSupportedVulnProps {
+  platform: string;
+}
+
+const NotSupportedVuln = ({ platform }: INotSupportedVulnProps) => {
+  return (
+    <EmptyTable
+      header="Vulnerabilities are not supported for this type of host"
+      info={
+        <>
+          Interested in vulnerability management for{" "}
+          {platform === "chrome" ? "Chromebooks" : "Linux hosts"}?{" "}
+          <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+        </>
+      }
+    />
+  );
+};
 
 interface ISoftwareOSDetailsRouteParams {
   id: string;
@@ -43,6 +65,24 @@ const SoftwareOSDetailsPage = ({
     }
   );
 
+  const renderTabel = () => {
+    if (!data) {
+      return null;
+    }
+
+    if (data.platform !== "darwin" && data.platform !== "windows") {
+      return <NotSupportedVuln platform={data.platform} />;
+    }
+
+    return (
+      <SoftwareVulnerabilitiesTable
+        data={data.vulnerabilities}
+        itemName="version"
+        isLoading={isLoading}
+      />
+    );
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return <Spinner />;
@@ -68,11 +108,7 @@ const SoftwareOSDetailsPage = ({
         {/* TODO: can we use Card here for card styles */}
         <div className={`${baseClass}__vulnerabilities-section`}>
           <h2>Vulnerabilities</h2>
-          <SoftwareVulnerabilitiesTable
-            data={data.vulnerabilities}
-            itemName="version"
-            isLoading={isLoading}
-          />
+          {renderTabel()}
         </div>
       </>
     );
