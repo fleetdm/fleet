@@ -145,7 +145,7 @@ For Fleet's US contractors, running payroll is a manual process:
 - Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
 
 ### Convert a Fleetie to a consultant
-If a Fleetie decides they want to move to being a [consultant](https://fleetdm.com/handbook/company/leadership#consultants), either the Fleetie or their manager need to create a [custom issue for the BizOps team](https://fleetdm.com/handbook/business-operations#intake) to notify them of the change.
+If a Fleetie decides they want to move to being a [consultant](https://fleetdm.com/handbook/company/leadership#consultants), either the Fleetie or their manager need to create a [custom issue for the BizOps team](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) to notify them of the change.
 Once notified, BizOps takes the following steps:
 - Confirm the following details with the Fleetie:
   - Date of change
