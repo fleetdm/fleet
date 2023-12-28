@@ -46,7 +46,7 @@ interface IHeaderProps {
   };
 }
 
-const generateDefaultTableHeaders = (teamId?: number): Column[] => [
+const generateDefaultTableHeaders = (teamId?: number): any[] => [
   {
     Header: "Name",
     disableSortBy: true,
@@ -75,8 +75,13 @@ const generateDefaultTableHeaders = (teamId?: number): Column[] => [
     },
   },
   {
-    Header: (cellProps: IHeaderProps) => (
-      <HeaderCell value="Hosts" isSortedDesc={cellProps.column.isSortedDesc} />
+    title: "Hosts",
+    Header: (cellProps: IHeaderProps): JSX.Element => (
+      <HeaderCell
+        value={cellProps.column.title}
+        disableSortBy={false}
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
     ),
     disableSortBy: false,
     accessor: "hosts_count",

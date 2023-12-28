@@ -7,6 +7,9 @@ import {
   IOSVersionsResponse,
   getOSVersions,
 } from "services/entities/operating_systems";
+
+import TableDataError from "components/DataError";
+
 import SoftwareOSTable from "./SoftwareOSTable";
 
 const baseClass = "software-os";
@@ -37,6 +40,7 @@ const SoftwareOS = ({
     order_key: orderKey,
     teamId,
   };
+  console.log("parentQueryParams", queryParams);
 
   const { data, isFetching, isError } = useQuery<
     IOSVersionsResponse,
@@ -51,8 +55,15 @@ const SoftwareOS = ({
       },
     ],
     () => getOSVersions(queryParams),
-    {}
+    {
+      keepPreviousData: true,
+      staleTime: 30000,
+    }
   );
+
+  if (isError) {
+    return <TableDataError className={`${baseClass}__table-error`} />;
+  }
 
   return (
     <div className={baseClass}>
