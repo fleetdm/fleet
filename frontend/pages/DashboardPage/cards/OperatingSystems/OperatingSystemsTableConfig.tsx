@@ -1,4 +1,5 @@
 import React from "react";
+import { Column } from "react-table";
 
 import {
   formatOperatingSystemDisplayName,
@@ -8,13 +9,33 @@ import {
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
+import { ISoftwareVulnerability } from "interfaces/software";
 
 interface ICellProps {
   cell: {
-    value: string;
+    value: number | string | ISoftwareVulnerability[];
   };
   row: {
     original: IOperatingSystemVersion;
+  };
+}
+
+interface IStringCellProps extends ICellProps {
+  cell: {
+    value: string;
+  };
+}
+
+interface INumberCellProps extends ICellProps {
+  cell: {
+    value: number;
+  };
+}
+
+interface IVulnCellProps extends ICellProps {
+  cell: {
+    value: ISoftwareVulnerability[];
   };
 }
 
@@ -25,22 +46,12 @@ interface IHeaderProps {
   };
 }
 
-interface IDataColumn {
-  title: string;
-  Header: ((props: IHeaderProps) => JSX.Element) | string;
-  accessor: string;
-  Cell: (props: ICellProps) => JSX.Element;
-  disableHidden?: boolean;
-  disableSortBy?: boolean;
-}
-
-const generateDefaultTableHeaders = (teamId?: number): IDataColumn[] => [
+const generateDefaultTableHeaders = (teamId?: number): Column[] => [
   {
-    title: "Name",
     Header: "Name",
     disableSortBy: true,
     accessor: "name_only",
-    Cell: ({ cell: { value } }: ICellProps) => (
+    Cell: ({ cell: { value } }: IStringCellProps) => (
       <TextCell
         value={value}
         formatter={(name) => formatOperatingSystemDisplayName(name)}
@@ -48,14 +59,22 @@ const generateDefaultTableHeaders = (teamId?: number): IDataColumn[] => [
     ),
   },
   {
-    title: "Version",
     Header: "Version",
     disableSortBy: true,
     accessor: "version",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: IStringCellProps) => (
+      <TextCell value={cellProps.cell.value} />
+    ),
   },
   {
-    title: "Hosts",
+    Header: "Vulnerabilities",
+    disableSortBy: true,
+    accessor: "vulnerabilities",
+    Cell: (cellProps: IVulnCellProps): JSX.Element => {
+      return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
+    },
+  },
+  {
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
@@ -64,7 +83,7 @@ const generateDefaultTableHeaders = (teamId?: number): IDataColumn[] => [
     ),
     disableSortBy: false,
     accessor: "hosts_count",
-    Cell: (cellProps: ICellProps): JSX.Element => {
+    Cell: (cellProps: INumberCellProps): JSX.Element => {
       const { hosts_count, name_only, version } = cellProps.row.original;
       return (
         <span className="hosts-cell__wrapper">
@@ -87,16 +106,31 @@ const generateDefaultTableHeaders = (teamId?: number): IDataColumn[] => [
   },
 ];
 
+interface IOSTableConfigOptions {
+  includeName?: boolean;
+  includeVulnerabilities?: boolean;
+  includeIcon?: boolean;
+}
+
 const generateTableHeaders = (
-  includeName: boolean,
-  teamId?: number
-): IDataColumn[] => {
-  if (!includeName) {
-    return generateDefaultTableHeaders(teamId).filter(
-      (column) => column.title !== "Name"
+  teamId?: number,
+  configOptions?: IOSTableConfigOptions
+): Column[] => {
+  let tableConfig = generateDefaultTableHeaders(teamId);
+
+  if (!configOptions?.includeName) {
+    tableConfig = tableConfig.filter(
+      (column) => column.accessor !== "name_only"
     );
   }
-  return generateDefaultTableHeaders(teamId);
+
+  if (!configOptions?.includeVulnerabilities) {
+    tableConfig = tableConfig.filter(
+      (column) => column.accessor !== "vulnerabilities"
+    );
+  }
+
+  return tableConfig;
 };
 
 export default generateTableHeaders;

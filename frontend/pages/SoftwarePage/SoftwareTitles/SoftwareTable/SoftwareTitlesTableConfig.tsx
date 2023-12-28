@@ -37,9 +37,6 @@ interface IVersionCellProps extends ICellProps {
   cell: {
     value: ISoftwareTitleVersion[];
   };
-  row: {
-    original: ISoftwareTitle;
-  };
 }
 
 interface INumberCellProps extends ICellProps {
