@@ -1505,7 +1505,6 @@ func (r *serverOverridesRunner) Execute() error {
 				log.Info().Msg("server overrides updated, exiting")
 				return nil
 			}
-			ticker.Reset(r.interval)
 		}
 	}
 }
