@@ -10,9 +10,8 @@ type errBool bool
 func (b errBool) String() string {
 	if b {
 		return "an error"
-	} else {
-		return "no error"
 	}
+	return "no error"
 }
 
 func TestFindInterface(t *testing.T) {

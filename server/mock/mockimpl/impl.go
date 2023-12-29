@@ -139,10 +139,11 @@ func (p Pkg) gofmt(e ast.Expr) string {
 
 // fullType returns the fully qualified type of e.
 // Examples, assuming package net/http:
-// 	fullType(int) => "int"
-// 	fullType(Handler) => "http.Handler"
-// 	fullType(io.Reader) => "io.Reader"
-// 	fullType(*Request) => "*http.Request"
+//
+//	fullType(int) => "int"
+//	fullType(Handler) => "http.Handler"
+//	fullType(io.Reader) => "io.Reader"
+//	fullType(*Request) => "*http.Request"
 func (p Pkg) fullType(e ast.Expr) string {
 	ast.Inspect(e, func(n ast.Node) bool {
 		switch n := n.(type) {
@@ -170,7 +171,7 @@ func (p Pkg) params(field *ast.Field, defaultName string) []Param {
 	}
 	// Handle anonymous params
 	if len(params) == 0 {
-		params = []Param{Param{Type: typ, Name: defaultName}}
+		params = []Param{{Type: typ, Name: defaultName}}
 	}
 	return params
 }
@@ -288,7 +289,7 @@ func genStubs(recv string, fns []Func) []byte {
 	var buf bytes.Buffer
 	for _, fn := range fns {
 		meth := Method{Recv: recv, RecvShort: shortRecv(recv), Func: fn}
-		tmpl.Execute(&buf, meth)
+		tmpl.Execute(&buf, meth) //nolint:errcheck
 	}
 
 	pretty, err := format.Source(buf.Bytes())
@@ -315,21 +316,23 @@ const funcTypeStr = "type {{.Name}}Func  func" +
 	"({{range .Res}}{{.Name}} {{.Type}}, {{end}})" +
 	"\n\n"
 
-var tmplStr = template.Must(template.New("testtwo").Parse(str))
-var funcTypetmplStr = template.Must(template.New("funcTypetmpl").Parse(funcTypeStr))
+var (
+	tmplStr         = template.Must(template.New("testtwo").Parse(str))
+	funcTypetmplStr = template.Must(template.New("funcTypetmpl").Parse(funcTypeStr))
+)
 
 func genStr(name string, fns []Func) []byte {
 	var buf bytes.Buffer
 	for _, fn := range fns {
 		meth := Struc{IName: name, Func: fn}
-		funcTypetmplStr.Execute(&buf, meth)
+		funcTypetmplStr.Execute(&buf, meth) //nolint:errcheck
 	}
 	buf.WriteString("type ")
 	buf.WriteString(name)
 	buf.WriteString(" struct {\n")
 	for _, fn := range fns {
 		meth := Struc{IName: name, Func: fn}
-		tmplStr.Execute(&buf, meth)
+		tmplStr.Execute(&buf, meth) //nolint:errcheck
 	}
 	buf.WriteString("\n")
 	buf.WriteString("mu sync.Mutex")
@@ -357,7 +360,7 @@ func validReceiver(recv string) bool {
 }
 
 func main() {
-	var flOut = flag.String("o", "", "output file")
+	flOut := flag.String("o", "", "output file")
 	flag.Parse()
 	args := flag.Args()
 	if len(args) != 2 {
