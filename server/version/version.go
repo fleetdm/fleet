@@ -6,7 +6,7 @@ To use this package, a program would set the package variables at build time, us
 
 Example:
 
-	go build -ldflags "-X github.com/kolide/kit/version.version=1.0.0"
+	go build -ldflags "-X github.com/fleetdm/fleet/v4/server/version.version=1.0.0"
 
 Available values and defaults to use with ldflags:
 
@@ -17,6 +17,8 @@ Available values and defaults to use with ldflags:
 	buildDate = "unknown"
 	buildUser = "unknown"
 	appName   = "unknown"
+
+This file was copied (on December 2023) from https://github.com/fleetdm/kolide-kit, which is a fork of https://github.com/kolide/kit.
 */
 package version
 
