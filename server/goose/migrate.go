@@ -149,7 +149,6 @@ func sortAndConnectMigrations(migrations Migrations) Migrations {
 }
 
 func versionFilter(v, current, target int64) bool {
-
 	if target > current {
 		return v > current && v <= target
 	}
@@ -164,7 +163,6 @@ func versionFilter(v, current, target int64) bool {
 // retrieve the current version for this DB.
 // Create and initialize the DB version table if it doesn't exist.
 func (c *Client) GetDBVersion(db *sql.DB) (int64, error) {
-
 	rows, err := c.Dialect.dbVersionQuery(db, c.TableName)
 	if err != nil {
 		return 0, c.createVersionTable(db)
@@ -205,6 +203,10 @@ func (c *Client) GetDBVersion(db *sql.DB) (int64, error) {
 		toSkip = append(toSkip, row.VersionId)
 	}
 
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+
 	panic("unreachable")
 }
 
@@ -219,14 +221,14 @@ func (c *Client) createVersionTable(db *sql.DB) error {
 	d := c.Dialect
 
 	if _, err := txn.Exec(d.createVersionTableSql(c.TableName)); err != nil {
-		txn.Rollback()
+		txn.Rollback() //nolint:errcheck
 		return err
 	}
 
 	version := 0
 	applied := true
 	if _, err := txn.Exec(d.insertVersionSql(c.TableName), version, applied); err != nil {
-		txn.Rollback()
+		txn.Rollback() //nolint:errcheck
 		return err
 	}
 

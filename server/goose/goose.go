@@ -2,6 +2,7 @@ package goose
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 )
 
@@ -42,7 +43,7 @@ func Run(command string, db *sql.DB, dir string, args ...string) error {
 		}
 	case "create":
 		if len(args) == 0 {
-			return fmt.Errorf("create must be of form: goose [OPTIONS] DRIVER DBSTRING create NAME [go|sql]")
+			return errors.New("create must be of form: goose [OPTIONS] DRIVER DBSTRING create NAME [go|sql]")
 		}
 
 		migrationType := "go"

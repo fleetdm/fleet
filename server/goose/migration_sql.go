@@ -16,7 +16,6 @@ const sqlCmdPrefix = "-- +goose "
 // Checks the line to see if the line has a statement-ending semicolon
 // or if the line contains a double-dash comment.
 func endsWithSemicolon(line string) bool {
-
 	prev := ""
 	scanner := bufio.NewScanner(strings.NewReader(line))
 	scanner.Split(bufio.ScanWords)
@@ -42,7 +41,6 @@ func endsWithSemicolon(line string) bool {
 // 'StatementBegin' and 'StatementEnd' to allow the script to
 // tell us to ignore semicolons.
 func splitSQLStatements(r io.Reader, direction bool) (stmts []string) {
-
 	var buf bytes.Buffer
 	scanner := bufio.NewScanner(r)
 
@@ -136,7 +134,6 @@ func splitSQLStatements(r io.Reader, direction bool) (stmts []string) {
 // All statements following an Up or Down directive are grouped together
 // until another direction directive is found.
 func (c *Client) runSQLMigration(db *sql.DB, scriptFile string, v int64, direction bool) error {
-
 	tx, err := db.Begin()
 	if err != nil {
 		log.Fatal("db.Begin:", err)
@@ -154,7 +151,7 @@ func (c *Client) runSQLMigration(db *sql.DB, scriptFile string, v int64, directi
 	// rolls back the transaction.
 	for _, query := range splitSQLStatements(f, direction) {
 		if _, err = tx.Exec(query); err != nil {
-			tx.Rollback()
+			tx.Rollback() //nolint:errcheck
 			log.Fatalf("FAIL %s (%v), quitting migration.", filepath.Base(scriptFile), err)
 			return err
 		}

@@ -28,8 +28,6 @@ func (c *Client) Up(db *sql.DB, dir string) error {
 			return err
 		}
 	}
-
-	return nil
 }
 
 func (c *Client) UpByOne(db *sql.DB, dir string) error {

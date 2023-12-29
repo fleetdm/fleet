@@ -57,6 +57,7 @@ func (pg PostgresDialect) insertVersionSql(name string) string {
 }
 
 func (pg PostgresDialect) dbVersionQuery(db *sql.DB, name string) (*sql.Rows, error) {
+	/* #nosec G202 -- name is actually well defined */
 	rows, err := db.Query("SELECT version_id, is_applied from " + name + " ORDER BY id DESC")
 	if err != nil {
 		return nil, err
@@ -86,6 +87,7 @@ func (m MySqlDialect) insertVersionSql(name string) string {
 }
 
 func (m MySqlDialect) dbVersionQuery(db *sql.DB, name string) (*sql.Rows, error) {
+	/* #nosec G202 -- name is actually well defined */
 	rows, err := db.Query("SELECT version_id, is_applied from " + name + " ORDER BY id DESC")
 	if err != nil {
 		return nil, err
@@ -114,6 +116,7 @@ func (m Sqlite3Dialect) insertVersionSql(name string) string {
 }
 
 func (m Sqlite3Dialect) dbVersionQuery(db *sql.DB, name string) (*sql.Rows, error) {
+	/* #nosec G202 -- name is actually well defined */
 	rows, err := db.Query("SELECT version_id, is_applied from " + name + " ORDER BY id DESC")
 	if err != nil {
 		return nil, err

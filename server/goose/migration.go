@@ -56,7 +56,7 @@ func (c *Client) runMigration(db *sql.DB, m *Migration, direction bool) error {
 		}
 		if fn != nil {
 			if err := fn(tx); err != nil {
-				tx.Rollback()
+				tx.Rollback() //nolint:errcheck
 				log.Fatalf("FAIL %s (%v), quitting migration.", filepath.Base(m.Source), err)
 				return err
 			}
@@ -100,7 +100,6 @@ func parseNameAndDate(source string) (name string, date string) {
 // where XXX specifies the version number
 // and ext specifies the type of migration
 func NumericComponent(name string) (int64, error) {
-
 	base := filepath.Base(name)
 
 	if ext := filepath.Ext(base); ext != ".go" && ext != ".sql" {
@@ -157,11 +156,10 @@ func CreateMigration(name, migrationType, dir string, t time.Time) ([]string, er
 // Update the version table for the given migration,
 // and finalize the transaction.
 func (c *Client) FinalizeMigration(tx *sql.Tx, direction bool, v int64) error {
-
 	// XXX: drop goose_db_version table on some minimum version number?
 	stmt := c.Dialect.insertVersionSql(c.TableName)
 	if _, err := tx.Exec(stmt, v, direction); err != nil {
-		tx.Rollback()
+		tx.Rollback() //nolint:errcheck
 		return err
 	}
 
@@ -177,6 +175,7 @@ var sqlMigrationTemplate = template.Must(template.New("goose.sql-migration").Par
 -- SQL section 'Down' is executed when this migration is rolled back
 
 `))
+
 var goSqlMigrationTemplate = template.Must(template.New("goose.go-migration").Parse(`
 package tables
 

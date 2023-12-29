@@ -22,7 +22,9 @@ var (
 
 func main() {
 	flags.Usage = usage
-	flags.Parse(os.Args[1:])
+	if err := flags.Parse(os.Args[1:]); err != nil {
+		log.Fatalf("flags parse: %s", err)
+	}
 
 	args := flags.Args()
 
