@@ -55,6 +55,8 @@ The user can force the host to execute all of its policies by clicking the **Ref
 ![Refetch link](../website/assets/images/articles/understanding-the-intricacies-of-fleet-policies-refetch-204x64@2x.png "Refetch link")
 
 
+## Policy results aggregation
+
 However, the main **Policies** page is not updated. This page shows the counts of all passing and failing hosts for each policy. A worker process on one of the Fleet servers updates it once an hour. The worker calculates the counts and stores them in the **policy_stats** table in the database. This is done for better performance of the UI. For customers with 100,000s of hosts that asynchronously report their policy results, calculating the passing and failing counts in real time was noticeably slow.
 
 
