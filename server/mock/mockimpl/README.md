@@ -1,3 +1,7 @@
+# mockimpl
+
+> The contents of this directory were copied (on December 2023) from https://github.com/fleetdm/mockimpl which was forked from https://github.com/groob/mockimpl.
+
 `mockimpl` generates mock method stubs for implementing an interface.
 mockimpl is based on [impl](github.com/josharian/impl)
 
