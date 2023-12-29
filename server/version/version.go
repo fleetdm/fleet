@@ -84,6 +84,6 @@ func Handler() http.Handler {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
-		enc.Encode(v)
+		enc.Encode(v) //nolint:errcheck
 	})
 }
