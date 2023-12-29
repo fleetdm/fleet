@@ -45,6 +45,9 @@ func (c *Client) runMigration(db *sql.DB, m *Migration, direction bool) error {
 		}
 
 	case ".go":
+		name, date := parseNameAndDate(m.Source)
+		log.Printf("[%s] %s\n", date, name)
+
 		tx, err := db.Begin()
 		if err != nil {
 			log.Fatal("db.Begin: ", err)
@@ -65,9 +68,6 @@ func (c *Client) runMigration(db *sql.DB, m *Migration, direction bool) error {
 		if err = c.FinalizeMigration(tx, direction, m.Version); err != nil {
 			log.Fatalf("error finalizing migration %s, quitting. (%v)", filepath.Base(m.Source), err)
 		}
-
-		name, date := parseNameAndDate(m.Source)
-		log.Printf("[%s] %s\n", date, name)
 	}
 
 	return nil
