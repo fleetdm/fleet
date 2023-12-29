@@ -129,6 +129,11 @@ type softwareCPEWithNVDMeta struct {
 	meta *wfn.Attributes
 }
 
+type osCPEWithNVDMeta struct {
+	fleet.OperatingSystem
+	meta *wfn.Attributes
+}
+
 // TranslateCPEToCVE maps the CVEs found in NVD archive files in the
 // vulnerabilities database folder to software CPEs in the fleet database.
 // If collectVulns is true, returns a list of any new software vulnerabilities found.
@@ -226,6 +231,47 @@ func TranslateCPEToCVE(
 	}
 
 	return newVulns, nil
+}
+
+// GetMacOSCPEs translates all found macOS Operating Systems to CPEs.
+func GetMacOSCPEs(ctx context.Context, ds fleet.Datastore) ([]osCPEWithNVDMeta, error) {
+	var cpes []osCPEWithNVDMeta
+
+	oses, err := ds.ListOperatingSystemsForPlatform(ctx, "darwin")
+	if err != nil {
+		return cpes, ctxerr.Wrap(ctx, err, "list operating systems")
+	}
+
+	if len(oses) == 0 {
+		return cpes, nil
+	}
+
+	// variants of macOS found in the NVD feed
+	macosVariants := []string{"macos", "mac_os_x"}
+
+	for _, os := range oses {
+		for _, variant := range macosVariants {
+			cpe := osCPEWithNVDMeta{
+				OperatingSystem: os,
+				meta: &wfn.Attributes{
+					Part:      "o",
+					Vendor:    "apple",
+					Product:   variant,
+					Version:   os.Version,
+					Update:    wfn.Any,
+					Edition:   wfn.Any,
+					SWEdition: wfn.Any,
+					TargetSW:  wfn.Any,
+					TargetHW:  wfn.Any,
+					Other:     wfn.Any,
+					Language:  wfn.Any,
+				},
+			}
+			cpes = append(cpes, cpe)
+		}
+	}
+
+	return cpes, nil
 }
 
 func matchesExactTargetSW(softwareCPETargetSW string, targetSWs []string, configs []*wfn.Attributes) bool {
