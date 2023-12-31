@@ -21,6 +21,7 @@ func (ds *Datastore) ListOSVulnerabilities(ctx context.Context, hostIDs []uint) 
 			goqu.I("host_id"),
 			goqu.I("operating_system_id"),
 			goqu.I("cve"),
+			goqu.I("resolved_in_version"),
 		).
 		Where(goqu.C("host_id").In(hostIDs))
 
@@ -65,6 +66,7 @@ func (ds *Datastore) InsertOSVulnerability(ctx context.Context, v fleet.OSVulner
 
 	var args []interface{}
 
+	// statement assumes a unique index on (host_id, cve)
 	sqlStmt := `
 		INSERT INTO operating_system_vulnerabilities (
 			host_id,
@@ -74,12 +76,12 @@ func (ds *Datastore) InsertOSVulnerability(ctx context.Context, v fleet.OSVulner
 			resolved_in_version
 		) VALUES (?,?,?,?,?)
 		ON DUPLICATE KEY UPDATE
+			operating_system_id = VALUES(operating_system_id),
 			source = VALUES(source),
-			resolved_in_version = VALUES(resolved_in_version),
-			updated_at = ?
+			resolved_in_version = VALUES(resolved_in_version)
 	`
 
-	args = append(args, v.HostID, v.OSID, v.CVE, s, v.ResolvedInVersion, time.Now().UTC())
+	args = append(args, v.HostID, v.OSID, v.CVE, s, v.ResolvedInVersion)
 
 	res, err := ds.writer(ctx).ExecContext(ctx, sqlStmt, args...)
 	if err != nil {

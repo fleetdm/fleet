@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,16 +44,13 @@ func testListOSVulnerabilities(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	vulns := []fleet.OSVulnerability{
-		{HostID: 1, CVE: "cve-1", OSID: 1},
-		{HostID: 1, CVE: "cve-3", OSID: 1},
-		{HostID: 2, CVE: "cve-2", OSID: 1},
+		{HostID: 1, CVE: "cve-1", OSID: 1, ResolvedInVersion: ptr.String("1.2.3")},
+		{HostID: 1, CVE: "cve-3", OSID: 1, ResolvedInVersion: ptr.String("10.14.2")},
+		{HostID: 2, CVE: "cve-2", OSID: 1, ResolvedInVersion: ptr.String("8.123.1")},
 	}
 
 	for _, v := range vulns {
-		_, err := ds.writer(ctx).Exec(
-			`INSERT INTO operating_system_vulnerabilities(host_id,operating_system_id,cve) VALUES (?,?,?)`,
-			v.HostID, v.OSID, v.CVE,
-		)
+		_, err := ds.InsertOSVulnerability(ctx, v, fleet.MSRCSource)
 		require.NoError(t, err)
 	}
 
@@ -64,8 +62,8 @@ func testListOSVulnerabilities(t *testing.T, ds *Datastore) {
 
 	t.Run("returns matching", func(t *testing.T) {
 		expected := []fleet.OSVulnerability{
-			{HostID: 1, CVE: "cve-1", OSID: 1},
-			{HostID: 1, CVE: "cve-3", OSID: 1},
+			{HostID: 1, CVE: "cve-1", OSID: 1, ResolvedInVersion: ptr.String("1.2.3")},
+			{HostID: 1, CVE: "cve-3", OSID: 1, ResolvedInVersion: ptr.String("10.14.2")},
 		}
 
 		actual, err := ds.ListOSVulnerabilities(ctx, []uint{1})
@@ -102,7 +100,11 @@ func testInsertOSVulnerability(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	vulns := fleet.OSVulnerability{
-		HostID: 1, CVE: "cve-1", OSID: 1,
+		HostID: 1, CVE: "cve-1", OSID: 1, ResolvedInVersion: ptr.String("1.2.3"),
+	}
+
+	vulnsUpdate := fleet.OSVulnerability{
+		HostID: 1, CVE: "cve-1", OSID: 1, ResolvedInVersion: ptr.String("1.2.4"),
 	}
 
 	vulnNoCVE := fleet.OSVulnerability{
@@ -120,14 +122,14 @@ func testInsertOSVulnerability(t *testing.T, ds *Datastore) {
 	require.True(t, didInsert)
 
 	// Inserting the same vulnerability should not insert
-	didInsert, err = ds.InsertOSVulnerability(ctx, vulns, fleet.MSRCSource)
+	didInsert, err = ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
 	require.NoError(t, err)
 	require.Equal(t, false, didInsert)
 
 	list1, err := ds.ListOSVulnerabilities(ctx, []uint{1})
 	require.NoError(t, err)
 	require.Len(t, list1, 1)
-	require.Equal(t, vulns, list1[0])
+	require.Equal(t, vulnsUpdate, list1[0])
 }
 
 func testDeleteOSVulnerabilitiesEmpty(t *testing.T, ds *Datastore) {
