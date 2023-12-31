@@ -454,7 +454,7 @@ func TranslateMacOSCPEToCVE(
 
 	var newVulns []fleet.OSVulnerability
 	for _, vuln := range vulns {
-		count, err := ds.InsertOSVulnerabilities(ctx, []fleet.OSVulnerability{vuln}, fleet.NVDSource)
+		didInsert, err := ds.InsertOSVulnerability(ctx, vuln, fleet.NVDSource)
 		if err != nil {
 			level.Error(logger).Log("cpe processing", "error", "err", err)
 			continue
@@ -463,7 +463,7 @@ func TranslateMacOSCPEToCVE(
 		// collect vuln only if inserted, otherwise we would send
 		// webhook requests for the same vulnerability over and over again until
 		// it is older than 2 days.
-		if collectVulns && count > 0 {
+		if collectVulns && didInsert {
 			newVulns = append(newVulns, vuln)
 		}
 	}
