@@ -468,15 +468,15 @@ func TranslateMacOSCPEToCVE(
 		}
 	}
 
-	// Delete any stale vulnerabilities. A vulnerability is stale iff the last time it was
+	// Delete any stale vulnerabilities. A vulnerability is stale if the last time it was
 	// updated was more than `2 * periodicity` ago. This assumes that the whole vulnerability
 	// process completes in less than `periodicity` units of time.
 	//
 	// This is used to get rid of false positives once they are fixed and no longer detected as
 	// vulnerabilities.
-	// if err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, 2*periodicity); err != nil {
-	// 	level.Error(logger).Log("msg", "error deleting out of date vulnerabilities", "err", err)
-	// }
+	if err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, 2*periodicity); err != nil {
+		level.Error(logger).Log("msg", "error deleting out of date OS vulnerabilities", "err", err)
+	}
 
 	return newVulns, nil
 }
