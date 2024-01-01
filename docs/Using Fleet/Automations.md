@@ -58,7 +58,7 @@ POST https://server.com/example
 ```
 
 
-For ticket automations, one ticket is created per CVE regardless of the number of hosts on which such CVE is detected.
+For ticket automations, only one ticket per CVE is created even if a CVE is detected on multiple hosts.
 
 Follow the steps below to configure Jira or Zendesk as a ticket destination:
 
