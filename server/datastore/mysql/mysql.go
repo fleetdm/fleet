@@ -1118,6 +1118,8 @@ var (
 	nonacsiiReplace = regexp.MustCompile(`[^[:ascii:]]`)
 )
 
+// hostSearchLike searches hosts based on the given columns plus searching in hosts_emails. Note:
+// the host from the `hosts` table must be aliased to `h` in `sql`.
 func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}, bool) {
 	var matchesEmail bool
 	base, args := searchLike(sql, params, match, columns...)

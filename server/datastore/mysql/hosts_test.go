@@ -1763,6 +1763,15 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, hits, 3)
 	assert.Equal(t, []uint{h3.ID, h2.ID, h1.ID}, []uint{hits[0].ID, hits[1].ID, hits[2].ID})
+
+	// Add email to mapping table
+	_, err = ds.writer(context.Background()).ExecContext(context.Background(), `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+		hosts[0].ID, "a@b.c", "src1")
+	require.NoError(t, err)
+	// Verify search works
+	hits, err = ds.SearchHosts(context.Background(), filter, "a@b.c")
+	require.NoError(t, err)
+	assert.Len(t, hits, 1)
 }
 
 func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
