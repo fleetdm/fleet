@@ -50,7 +50,7 @@ func (o Extension) Columns() []table.ColumnDefinition {
 		table.TextColumn("orbit_channel"),
 		table.TextColumn("osqueryd_channel"),
 		table.TextColumn("desktop_channel"),
-		table.TextColumn("uptime"),
+		table.BigIntColumn("uptime"),
 	}
 }
 
@@ -81,6 +81,6 @@ func (o Extension) GenerateFunc(_ context.Context, _ table.QueryContext) ([]map[
 		"orbit_channel":       o.orbitChannel,
 		"osqueryd_channel":    o.osquerydChannel,
 		"desktop_channel":     o.desktopChannel,
-		"uptime":              time.Since(o.startTime).Round(1 * time.Second).String(),
+		"uptime":              strconv.FormatInt(int64(time.Since(o.startTime).Seconds()), 10),
 	}}, nil
 }
