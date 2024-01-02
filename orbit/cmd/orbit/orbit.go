@@ -982,6 +982,22 @@ func main() {
 			}
 		}
 
+		// For macOS hosts, check if MDM enrollment profile is present and if it contains the
+		// custom end user email field. If so, report it to the server.
+		if runtime.GOOS == "darwin" {
+			log.Info().Msg("checking for custom mdm enrollment profile with end user email")
+			email, err := profiles.GetCustomEnrollmentProfileEndUserEmail()
+			if err != nil {
+				log.Error().Err(err).Msg("get custom enrollment profile end user email")
+			}
+			if email != "" {
+				log.Info().Msg(fmt.Sprintf("found custom end user email: %s", email))
+				if err := orbitClient.SetOrUpdateDeviceMappingEmail(email); err != nil {
+					log.Error().Err(err).Msg(fmt.Sprintf("set or update device mapping: %s", email))
+				}
+			}
+		}
+
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()

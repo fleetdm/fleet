@@ -6232,6 +6232,22 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "foo.local0"}, http.StatusOK, &searchResp)
 	require.Len(t, searchResp.Hosts, 1)
 	require.Greater(t, searchResp.Hosts[0].SoftwareUpdatedAt, searchResp.Hosts[0].CreatedAt)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(
+			context.Background(),
+			`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+			hosts[0].ID, "a@b.c", "src1")
+
+		return err
+	})
+
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "a@b.c"}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, 1)
+
+	// search for non-existent email, shouldn't get anything back
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "not@found.com"}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, 0)
 }
 
 func (s *integrationTestSuite) TestCountTargets() {

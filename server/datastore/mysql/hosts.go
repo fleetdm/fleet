@@ -2369,7 +2369,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 	if len(matchQuery) > 0 {
 		// first we'll find the hosts that match the search criteria, to keep thing simple, then we'll query again
 		// to get all the additional data for hosts that match the search criteria by host_id
-		matchingHosts := "SELECT id FROM hosts WHERE TRUE"
+		matchingHosts := "SELECT h.id FROM hosts h WHERE TRUE"
 		var args []interface{}
 		// TODO: should search columns include display_name (requires join to host_display_names)?
 		searchHostsQuery, args, matchesEmail := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)

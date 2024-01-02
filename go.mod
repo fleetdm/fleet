@@ -30,7 +30,6 @@ require (
 	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/facebookincubator/nvdtools v0.1.6-0.20231010102659-d14ce526f176
 	github.com/fatih/color v1.15.0
-	github.com/fleetdm/goose v0.0.0-20221011170007-06aacf8ac547
 	github.com/getsentry/sentry-go v0.18.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-ini/ini v1.67.0
@@ -58,6 +57,7 @@ require (
 	github.com/josephspurrier/goversioninfo v1.4.0
 	github.com/kevinburke/go-bindata v3.24.0+incompatible
 	github.com/kolide/launcher v1.0.12
+	github.com/lib/pq v1.10.9
 	github.com/macadmins/osquery-extension v0.0.15
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.13
@@ -98,6 +98,7 @@ require (
 	github.com/ulikunitz/xz v0.5.10
 	github.com/urfave/cli/v2 v2.23.5
 	github.com/valyala/fasthttp v1.40.0
+	github.com/ziutek/mymysql v1.5.4
 	go.elastic.co/apm/module/apmgorilla/v2 v2.3.0
 	go.elastic.co/apm/module/apmsql/v2 v2.4.3
 	go.elastic.co/apm/v2 v2.4.3

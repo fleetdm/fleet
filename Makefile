@@ -199,7 +199,7 @@ update-go-cloner:
 	go run ./tools/cloner-check/main.go --update
 
 migration:
-	go run github.com/fleetdm/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
+	go run ./server/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
 	gofmt -w server/datastore/mysql/migrations/tables/*_$(name)*.go
 
 clean: clean-assets
