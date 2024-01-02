@@ -201,6 +201,18 @@ func (s *integrationTestSuite) TestUserEmailValidation() {
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
 }
 
+func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
+	params := fleet.UserPayload{
+		Name:  ptr.String("user_invalid_email"),
+		Email: ptr.String("test@example.com"),
+		// This is 73 characters long
+		Password:   ptr.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaX@1"),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+
+	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
+}
+
 func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
 	t := s.T()
 
