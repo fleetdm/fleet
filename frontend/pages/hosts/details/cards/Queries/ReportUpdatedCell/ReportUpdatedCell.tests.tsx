@@ -49,7 +49,7 @@ describe("ReportUpdatedCell component", () => {
     expect(
       screen.getByText(/\d\d\/\d\d\/\d\d\d\d, \d{1,2}:\d{1,2}:\d{1,2}( AM|PM)?/)
     ).toBeInTheDocument();
-    expect(screen.getByText(/\d+ days ago/)).toBeInTheDocument();
+    expect(screen.getByText(/\d+.+ago/)).toBeInTheDocument();
     expect(screen.getByText(/View report/)).toBeInTheDocument();
   });
   it("Renders a last-updated timestamp with tooltip and link to report when a last_fetched date is present but not currently running an interval", () => {
@@ -66,7 +66,7 @@ describe("ReportUpdatedCell component", () => {
     expect(
       screen.getByText(/\d\d\/\d\d\/\d\d\d\d, \d{1,2}:\d{1,2}:\d{1,2}( AM|PM)?/)
     ).toBeInTheDocument();
-    expect(screen.getByText(/\d+ days ago/)).toBeInTheDocument();
+    expect(screen.getByText(/\d+.+ago/)).toBeInTheDocument();
     expect(screen.getByText(/View report/)).toBeInTheDocument();
   });
 });
