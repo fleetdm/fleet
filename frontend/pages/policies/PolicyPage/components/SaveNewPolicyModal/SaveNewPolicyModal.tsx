@@ -16,6 +16,7 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import { COLORS } from "styles/var/colors";
 
 export interface ISaveNewPolicyModalProps {
   baseClass: string;
@@ -186,7 +187,7 @@ const SaveNewPolicyModal = ({
                 place="bottom"
                 effect="solid"
                 id={`${baseClass}__button--modal-save-tooltip`}
-                backgroundColor="#3e4771"
+                backgroundColor={COLORS["tooltip-bg"]}
               >
                 Select the platform(s) this
                 <br />

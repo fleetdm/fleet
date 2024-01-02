@@ -39,7 +39,7 @@ interface IProfileListItemProps {
 
 const ProfileListItem = ({ profile, onDelete }: IProfileListItemProps) => {
   const onClickDownload = async () => {
-    const fileContent = await mdmAPI.downloadProfile(profile.profile_id);
+    const fileContent = await mdmAPI.downloadProfile(profile.profile_uuid);
     const formatDate = format(new Date(), "yyyy-MM-dd");
     const extension = profile.platform === "darwin" ? "mobileconfig" : "xml";
     const filename = `${formatDate}_${profile.name}.${extension}`;

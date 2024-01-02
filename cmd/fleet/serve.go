@@ -46,12 +46,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/log"
-	"github.com/kolide/kit/version"
 	"github.com/micromdm/nanomdm/cryptoutil"
 	"github.com/micromdm/nanomdm/push"
 	"github.com/micromdm/nanomdm/push/buford"
@@ -553,8 +553,8 @@ the way that the Fleet server works.
 				wstepCertManager microsoft_mdm.CertManager
 			)
 
-			// Configuring WSTEP certs if Windows MDM feature flag is enabled
-			if configpkg.IsMDMFeatureFlagEnabled() && config.MDM.IsMicrosoftWSTEPSet() {
+			// Configuring WSTEP certs
+			if config.MDM.IsMicrosoftWSTEPSet() {
 				_, crtPEM, keyPEM, err := config.MDM.MicrosoftWSTEP()
 				if err != nil {
 					initFatal(err, "validate Microsoft WSTEP certificate and key")

@@ -126,7 +126,17 @@ type HostListOptions struct {
 	PolicyIDFilter       *uint
 	PolicyResponseFilter *bool
 
+	// Deprecated: SoftwareIDFilter is deprecated as of Fleet 4.42. It is
+	// maintained for backwards compatibility. Use SoftwareVersionIDFilter
+	// instead.
 	SoftwareIDFilter *uint
+	// SoftwareVersionIDFilter filters the hosts by the software version ID that
+	// they use. This identifies a specific version of a "software title".
+	SoftwareVersionIDFilter *uint
+	// SoftwareTitleIDFilter filers the hosts by the software title ID that they
+	// use. This identifies a "software title" independent of the specific
+	// version.
+	SoftwareTitleIDFilter *uint
 
 	OSIDFilter      *uint
 	OSNameFilter    *string
@@ -167,6 +177,9 @@ type HostListOptions struct {
 	// Premium feature, Fleet Free ignores the setting (it forces it to nil to
 	// disable it).
 	LowDiskSpaceFilter *int
+
+	// PopulateSoftware adds the `Software` field to all Hosts returned.
+	PopulateSoftware bool
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -179,6 +192,8 @@ func (h HostListOptions) Empty() bool {
 		h.PolicyIDFilter == nil &&
 		h.PolicyResponseFilter == nil &&
 		h.SoftwareIDFilter == nil &&
+		h.SoftwareVersionIDFilter == nil &&
+		h.SoftwareTitleIDFilter == nil &&
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
@@ -266,6 +281,7 @@ type Host struct {
 
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
+	GigsTotalDiskSpace        float64 `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
 
 	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
 	// exportable as CSV (which is the result of List Hosts endpoint). It is
@@ -319,6 +335,22 @@ type Host struct {
 
 	// LastRestartedAt is a UNIX timestamp that indicates when the Host was last restarted.
 	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at" csv:"last_restarted_at"`
+}
+
+// HostHealth contains a subset of Host data that indicates how healthy a Host is. For fields with
+// the same name, see the comments/docs for the Host field above.
+type HostHealth struct {
+	UpdatedAt             time.Time           `json:"updated_at,omitempty" db:"updated_at"`
+	OsVersion             string              `json:"os_version,omitempty" db:"os_version"`
+	DiskEncryptionEnabled *bool               `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
+	VulnerableSoftware    []HostSoftwareEntry `json:"vulnerable_software,omitempty"`
+	FailingPolicies       []*HostPolicy       `json:"failing_policies,omitempty"`
+	Platform              string              `json:"-" db:"platform"`                // Needed to fetch failing policies. Not returned in HTTP responses.
+	TeamID                *uint               `json:"team_id,omitempty" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
+}
+
+func (hh HostHealth) AuthzType() string {
+	return "host_health"
 }
 
 type MDMHostData struct {
@@ -805,6 +837,18 @@ func ExpandPlatform(platform string) []string {
 	}
 }
 
+// List of valid sources for HostDeviceMapping (host_emails table in the
+// database).
+const (
+	DeviceMappingGoogleChromeProfiles = "google_chrome_profiles"
+	DeviceMappingMDMIdpAccounts       = "mdm_idp_accounts"
+	DeviceMappingCustomInstaller      = "custom_installer" // set by fleetd via device-authenticated API
+	DeviceMappingCustomOverride       = "custom_override"  // set by user via user-authenticated API
+
+	DeviceMappingCustomPrefix      = "custom_" // if host_emails.source starts with this, replace with DeviceMappingCustomReplacement
+	DeviceMappingCustomReplacement = "custom"  // replaces a source that starts with CustomPrefix - in the UI, we want to display those as only "custom"
+)
+
 // HostDeviceMapping represents a mapping of a user email address to a host,
 // as reported by the specified source (e.g. Google Chrome Profiles).
 type HostDeviceMapping struct {
@@ -982,6 +1026,7 @@ func (h *HostMDM) UnmarshalJSON(b []byte) error {
 // HostBattery represents a host's battery, as reported by the osquery battery
 // table.
 type HostBattery struct {
+	ID           uint   `json:"-" db:"id"`
 	HostID       uint   `json:"-" db:"host_id"`
 	SerialNumber string `json:"-" db:"serial_number"`
 	CycleCount   int    `json:"cycle_count" db:"cycle_count"`

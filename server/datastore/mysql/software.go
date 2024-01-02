@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -31,6 +33,39 @@ func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, softwa
 		result = r
 		return err
 	})
+	if err != nil {
+		return result, err
+	}
+
+	// We perform the following cleanup on a separate transaction to avoid deadlocks.
+	//
+	// Cleanup the software table when no more hosts have the deleted host_software
+	// table entries. Otherwise the software will be listed by ds.ListSoftware but
+	// ds.SoftwareByID, ds.CountHosts and ds.ListHosts will return a *notFoundError
+	// error for such software.
+	if len(result.Deleted) > 0 {
+		deletesHostSoftwareIDs := make([]uint, 0, len(result.Deleted))
+		for _, software := range result.Deleted {
+			deletesHostSoftwareIDs = append(deletesHostSoftwareIDs, software.ID)
+		}
+		slices.Sort(deletesHostSoftwareIDs)
+		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			stmt := `DELETE FROM software WHERE id IN (?) AND NOT EXISTS (
+				SELECT 1 FROM host_software hsw WHERE hsw.software_id = software.id
+			)`
+			stmt, args, err := sqlx.In(stmt, deletesHostSoftwareIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build delete software query")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete software")
+			}
+			return nil
+		}); err != nil {
+			return result, err
+		}
+	}
+
 	return result, err
 }
 
@@ -275,10 +310,12 @@ SELECT
     s.name,
     s.version,
     s.source,
+    s.browser,
     s.bundle_identifier,
     s.release,
     s.vendor,
     s.arch,
+    s.extension_id,
     hs.last_opened_at
 FROM
     software s
@@ -373,23 +410,6 @@ func deleteUninstalledHostSoftwareDB(
 		return nil, ctxerr.Wrap(ctx, err, "delete host software")
 	}
 
-	// Cleanup the software table when no more hosts have the deleted host_software
-	// table entries.
-	// Otherwise the software will be listed by ds.ListSoftware but ds.SoftwareByID,
-	// ds.CountHosts and ds.ListHosts will return a *notFoundError error for such
-	// software.
-	stmt = `DELETE FROM software WHERE id IN (?) AND
-	NOT EXISTS (
-		SELECT 1 FROM host_software hsw WHERE hsw.software_id = software.id
-	)`
-	stmt, args, err = sqlx.In(stmt, deletesHostSoftwareIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build delete software query")
-	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "delete software")
-	}
-
 	return deletedSoftware, nil
 }
 
@@ -417,13 +437,18 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	}
 
 	_, err := tx.ExecContext(ctx,
-		"INSERT INTO software "+
-			"(name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser) "+
-			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		fmt.Sprintf("INSERT INTO software "+
+			"(name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, checksum) "+
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, %s)", softwareChecksumComputedColumn("")),
 		s.Name, s.Version, s.Source, s.Release, s.Vendor, s.Arch, s.BundleIdentifier, s.ExtensionID, s.Browser,
 	)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insert software")
+		if !isDuplicate(err) {
+			return 0, ctxerr.Wrap(ctx, err, "insert software")
+		}
+		// if the error is a duplicate software entry, there was a race and another
+		// process inserted that software, so continue and try to get its id as it
+		// now exists.
 	}
 
 	// LastInsertId sometimes returns 0 as it's dependent on connections and how mysql is
@@ -436,6 +461,29 @@ func getOrGenerateSoftwareIdDB(ctx context.Context, tx sqlx.ExtContext, s fleet.
 	default:
 		return 0, ctxerr.Wrap(ctx, err, "get software")
 	}
+}
+
+func softwareChecksumComputedColumn(tableAlias string) string {
+	if tableAlias != "" && !strings.HasSuffix(tableAlias, ".") {
+		tableAlias += "."
+	}
+
+	// concatenate with separator \x00
+	return fmt.Sprintf(` UNHEX(
+		MD5(
+			CONCAT_WS(CHAR(0),
+				%sname,
+				%[1]sversion,
+				%[1]ssource,
+				COALESCE(%[1]sbundle_identifier, ''),
+				`+"%[1]s`release`"+`,
+				%[1]sarch,
+				%[1]svendor,
+				%[1]sbrowser,
+				%[1]sextension_id
+			)
+		)
+	) `, tableAlias)
 }
 
 // insert host_software that is in incoming map, but not in current map.
@@ -913,7 +961,7 @@ func (ds *Datastore) AllSoftwareIterator(
 	var args []interface{}
 
 	stmt := `SELECT
-		s.* ,
+		s.id, s.name, s.version, s.source, s.bundle_identifier, s.release, s.arch, s.vendor, s.browser, s.extension_id, s.title_id ,
 		COALESCE(sc.cpe, '') AS generated_cpe
 	FROM software s
 	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
@@ -1017,8 +1065,26 @@ func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE,
 	return result, nil
 }
 
-func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
-	return listSoftwareDB(ctx, ds.reader(ctx), opt)
+func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
+	software, err := listSoftwareDB(ctx, ds.reader(ctx), opt)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	perPage := opt.ListOptions.PerPage
+	var metaData *fleet.PaginationMetadata
+	if opt.ListOptions.IncludeMetadata {
+		if perPage <= 0 {
+			perPage = defaultSelectLimit
+		}
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
+		if len(software) > int(perPage) {
+			metaData.HasNextResults = true
+			software = software[:len(software)-1]
+		}
+	}
+
+	return software, metaData, nil
 }
 
 func (ds *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
@@ -1065,10 +1131,12 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 			"s.name",
 			"s.version",
 			"s.source",
+			"s.browser",
 			"s.bundle_identifier",
 			"s.release",
 			"s.vendor",
 			"s.arch",
+			"s.extension_id",
 			"scv.cve",
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
 		).
@@ -1276,13 +1344,73 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 
 	// remove any software count row for software that don't exist anymore
 	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupOrphanedStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
+		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing software")
 	}
 
 	// remove any software count row for teams that don't exist anymore
 	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupTeamStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
 	}
+	return nil
+}
+
+func (ds *Datastore) ReconcileSoftwareTitles(ctx context.Context) error {
+	// TODO: consider if we should batch writes to software or software_titles table
+
+	// ensure all software titles are in the software_titles table
+	upsertTitlesStmt := `
+INSERT INTO software_titles (name, source, browser)
+SELECT DISTINCT
+	name,
+	source,
+	browser
+FROM
+	software s
+WHERE
+	NOT EXISTS (SELECT 1 FROM software_titles st WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser))
+ON DUPLICATE KEY UPDATE software_titles.id = software_titles.id`
+	// TODO: consider the impact of on duplicate key update vs. risk of insert ignore
+	// or performing a select first to see if the title exists and only inserting
+	// new titles
+
+	res, err := ds.writer(ctx).ExecContext(ctx, upsertTitlesStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert software titles")
+	}
+	n, _ := res.RowsAffected()
+	level.Debug(ds.logger).Log("msg", "upsert software titles", "rows_affected", n)
+
+	// update title ids for software table entries
+	updateSoftwareStmt := `
+UPDATE
+	software s,
+	software_titles st
+SET
+	s.title_id = st.id
+WHERE
+	(s.name, s.source, s.browser) = (st.name, st.source, st.browser)
+	AND (s.title_id IS NULL OR s.title_id != st.id)`
+
+	res, err = ds.writer(ctx).ExecContext(ctx, updateSoftwareStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update software title_id")
+	}
+	n, _ = res.RowsAffected()
+	level.Debug(ds.logger).Log("msg", "update software title_id", "rows_affected", n)
+
+	// clean up orphaned software titles
+	cleanupStmt := `
+DELETE st FROM software_titles st
+	LEFT JOIN software s ON s.title_id = st.id
+	WHERE s.title_id IS NULL`
+
+	res, err = ds.writer(ctx).ExecContext(ctx, cleanupStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup orphaned software titles")
+	}
+	n, _ = res.RowsAffected()
+	level.Debug(ds.logger).Log("msg", "cleanup orphaned software titles", "rows_affected", n)
+
 	return nil
 }
 
@@ -1438,8 +1566,8 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 	var args []interface{}
 
 	stmt := `
-		INSERT INTO software_cve (cve, source, software_id, resolved_in_version) 
-		VALUES (?,?,?,?) 
+		INSERT INTO software_cve (cve, source, software_id, resolved_in_version)
+		VALUES (?,?,?,?)
 		ON DUPLICATE KEY UPDATE
 			source = VALUES(source),
 			resolved_in_version = VALUES(resolved_in_version),

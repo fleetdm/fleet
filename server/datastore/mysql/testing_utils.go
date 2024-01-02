@@ -16,6 +16,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -427,7 +428,7 @@ func generateDummyWindowsProfile(uuid string) []byte {
 
 // TODO(roberto): update when we have datastore functions and API methods for this
 func InsertWindowsProfileForTest(t *testing.T, ds *Datastore, teamID uint) string {
-	profUUID := uuid.NewString()
+	profUUID := "w" + uuid.NewString()
 	prof := generateDummyWindowsProfile(profUUID)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		stmt := `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml) VALUES (?, ?, ?, ?);`
@@ -435,4 +436,20 @@ func InsertWindowsProfileForTest(t *testing.T, ds *Datastore, teamID uint) strin
 		return err
 	})
 	return profUUID
+}
+
+// GetAggregatedStats retrieves aggregated stats for the given query
+func GetAggregatedStats(ctx context.Context, ds *Datastore, aggregate fleet.AggregatedStatsType, id uint) (fleet.AggregatedStats, error) {
+	result := fleet.AggregatedStats{}
+	stmt := `
+	SELECT
+		   JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
+		   JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
+		   JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50,
+		   JSON_EXTRACT(json_value, '$.system_time_p95') as system_time_p95,
+		   JSON_EXTRACT(json_value, '$.total_executions') as total_executions
+	FROM aggregated_stats WHERE id=? AND type=?
+	`
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, id, aggregate)
+	return result, err
 }

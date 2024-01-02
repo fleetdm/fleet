@@ -21,7 +21,7 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import PillCell from "components/TableContainer/DataTable/PillCell";
+import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { COLORS } from "styles/var/colors";
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
@@ -154,7 +154,7 @@ const generateTableHeaders = ({
                 )}
               </>
             }
-            path={PATHS.QUERY(
+            path={PATHS.QUERY_DETAILS(
               cellProps.row.original.id,
               cellProps.row.original.team_id ?? currentTeamId
             )}
@@ -196,14 +196,7 @@ const generateTableHeaders = ({
       Header: () => {
         return (
           <div>
-            <TooltipWrapper
-              tipContent={
-                <>
-                  This is the average performance impact across <br />
-                  all hosts where this query was scheduled.
-                </>
-              }
-            >
+            <TooltipWrapper tipContent="The average performance impact across all hosts.">
               Performance impact
             </TooltipWrapper>
           </div>
@@ -212,7 +205,7 @@ const generateTableHeaders = ({
       disableSortBy: true,
       accessor: "performance",
       Cell: (cellProps: IStringCellProps) => (
-        <PillCell
+        <PerformanceImpactCell
           value={{
             indicator: cellProps.cell.value,
             id: cellProps.row.original.id,

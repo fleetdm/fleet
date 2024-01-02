@@ -315,75 +315,36 @@ func TestAtLeastOnePlatformEnabledAndConfigured(t *testing.T) {
 		name                        string
 		macOSEnabledAndConfigured   bool
 		windowsEnabledAndConfigured bool
-		isMDMFeatureFlagEnabled     bool
 		expectedResult              bool
 	}{
 		{
-			name:                        "None enabled, feature flag disabled",
+			name:                        "None enabled",
 			macOSEnabledAndConfigured:   false,
 			windowsEnabledAndConfigured: false,
-			isMDMFeatureFlagEnabled:     false,
 			expectedResult:              false,
 		},
 		{
-			name:                        "MacOS enabled, feature flag disabled",
+			name:                        "MacOS enabled",
 			macOSEnabledAndConfigured:   true,
 			windowsEnabledAndConfigured: false,
-			isMDMFeatureFlagEnabled:     false,
 			expectedResult:              true,
 		},
 		{
-			name:                        "Windows enabled, feature flag disabled",
-			macOSEnabledAndConfigured:   false,
-			windowsEnabledAndConfigured: true,
-			isMDMFeatureFlagEnabled:     false,
-			expectedResult:              false,
-		},
-		{
-			name:                        "Both enabled, feature flag disabled",
+			name:                        "Both enabled",
 			macOSEnabledAndConfigured:   true,
 			windowsEnabledAndConfigured: true,
-			isMDMFeatureFlagEnabled:     false,
 			expectedResult:              true,
 		},
 		{
-			name:                        "None enabled, feature flag enabled",
-			macOSEnabledAndConfigured:   false,
-			windowsEnabledAndConfigured: false,
-			isMDMFeatureFlagEnabled:     true,
-			expectedResult:              false,
-		},
-		{
-			name:                        "MacOS enabled, feature flag enabled",
-			macOSEnabledAndConfigured:   true,
-			windowsEnabledAndConfigured: false,
-			isMDMFeatureFlagEnabled:     true,
-			expectedResult:              true,
-		},
-		{
-			name:                        "Windows enabled, feature flag enabled",
+			name:                        "Windows enabled",
 			macOSEnabledAndConfigured:   false,
 			windowsEnabledAndConfigured: true,
-			isMDMFeatureFlagEnabled:     true,
-			expectedResult:              true,
-		},
-		{
-			name:                        "Both enabled, feature flag enabled",
-			macOSEnabledAndConfigured:   true,
-			windowsEnabledAndConfigured: true,
-			isMDMFeatureFlagEnabled:     true,
 			expectedResult:              true,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if test.isMDMFeatureFlagEnabled {
-				t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
-			} else {
-				t.Setenv("FLEET_DEV_MDM_ENABLED", "0")
-			}
-
 			mdm := MDM{
 				EnabledAndConfigured:        test.macOSEnabledAndConfigured,
 				WindowsEnabledAndConfigured: test.windowsEnabledAndConfigured,

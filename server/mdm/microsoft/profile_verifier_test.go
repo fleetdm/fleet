@@ -53,7 +53,6 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 		},
 		got,
 	)
-
 }
 
 func TestHashLocURI(t *testing.T) {
@@ -257,7 +256,7 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 						CmdID:   uuid.NewString(),
 						CmdRef:  &ref,
 						Items: []fleet.CmdItem{
-							{Target: ptr.String(p.LocURI), Data: ptr.String(p.Data)},
+							{Target: ptr.String(p.LocURI), Data: &fleet.RawXmlData{Content: p.Data}},
 						},
 					})
 				}

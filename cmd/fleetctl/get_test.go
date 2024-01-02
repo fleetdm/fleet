@@ -602,7 +602,165 @@ func TestGetConfig(t *testing.T) {
 	})
 }
 
-func TestGetSoftware(t *testing.T) {
+func TestGetSoftwareTitles(t *testing.T) {
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier:       fleet.TierPremium,
+			Expiration: time.Now().Add(24 * time.Hour),
+		},
+	})
+
+	var gotTeamID *uint
+
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+		gotTeamID = opt.TeamID
+		return []fleet.SoftwareTitle{
+			{
+				Name:          "foo",
+				Source:        "chrome_extensions",
+				HostsCount:    2,
+				VersionsCount: 3,
+				Versions: []fleet.SoftwareVersion{
+					{
+						Version:         "0.0.1",
+						Vulnerabilities: &fleet.SliceString{"cve-123-456-001", "cve-123-456-002"},
+					},
+					{
+						Version:         "0.0.2",
+						Vulnerabilities: &fleet.SliceString{"cve-123-456-001"},
+					},
+					{
+						Version:         "0.0.3",
+						Vulnerabilities: &fleet.SliceString{"cve-123-456-003"},
+					},
+				},
+			},
+			{
+				Name:          "bar",
+				Source:        "deb_packages",
+				HostsCount:    0,
+				VersionsCount: 1,
+				Versions: []fleet.SoftwareVersion{
+					{
+						Version:         "0.0.3",
+						Vulnerabilities: nil,
+					},
+				},
+			},
+		}, 0, nil, nil
+	}
+
+	expected := `+------+------------+-------------------+-------------------+-------+
+| NAME |  VERSIONS  |       TYPE        |  VULNERABILITIES  | HOSTS |
++------+------------+-------------------+-------------------+-------+
+| foo  | 3 versions | chrome_extensions | 3 vulnerabilities |     2 |
++------+------------+-------------------+-------------------+-------+
+| bar  | 1 versions | deb_packages      | 0 vulnerabilities |     0 |
++------+------------+-------------------+-------------------+-------+
+`
+
+	expectedYaml := `---
+apiVersion: "1"
+kind: software_title
+spec:
+- hosts_count: 2
+  id: 0
+  name: foo
+  source: chrome_extensions
+  browser: ""
+  versions:
+  - id: 0
+    version: 0.0.1
+    vulnerabilities:
+    - cve-123-456-001
+    - cve-123-456-002
+  - id: 0
+    version: 0.0.2
+    vulnerabilities:
+    - cve-123-456-001
+  - id: 0
+    version: 0.0.3
+    vulnerabilities:
+    - cve-123-456-003
+  versions_count: 3
+- hosts_count: 0
+  id: 0
+  name: bar
+  source: deb_packages
+  browser: ""
+  versions:
+  - id: 0
+    version: 0.0.3
+    vulnerabilities: null
+  versions_count: 1
+`
+
+	expectedJson := `
+{
+  "kind": "software_title",
+  "apiVersion": "1",
+  "spec": [
+    {
+      "id": 0,
+      "name": "foo",
+      "source": "chrome_extensions",
+	  "browser": "",
+      "hosts_count": 2,
+      "versions_count": 3,
+      "versions": [
+        {
+          "id": 0,
+          "version": "0.0.1",
+          "vulnerabilities": [
+            "cve-123-456-001",
+            "cve-123-456-002"
+          ]
+        },
+        {
+          "id": 0,
+          "version": "0.0.2",
+          "vulnerabilities": [
+            "cve-123-456-001"
+          ]
+        },
+        {
+          "id": 0,
+          "version": "0.0.3",
+          "vulnerabilities": [
+            "cve-123-456-003"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 0,
+      "name": "bar",
+      "source": "deb_packages",
+	  "browser": "",
+      "hosts_count": 0,
+      "versions_count": 1,
+      "versions": [
+        {
+          "id": 0,
+          "version": "0.0.3",
+		  "vulnerabilities": null
+        }
+      ]
+    }
+  ]
+}
+`
+
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--yaml"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--json"}))
+
+	runAppForTest(t, []string{"get", "software", "--json", "--team", "999"})
+	require.NotNil(t, gotTeamID)
+	assert.Equal(t, uint(999), *gotTeamID)
+}
+
+func TestGetSoftwareVersions(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	foo001 := fleet.Software{
@@ -618,22 +776,26 @@ func TestGetSoftware(t *testing.T) {
 
 	var gotTeamID *uint
 
-	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
 		gotTeamID = opt.TeamID
-		return []fleet.Software{foo001, foo002, foo003, bar003}, nil
+		return []fleet.Software{foo001, foo002, foo003, bar003}, &fleet.PaginationMetadata{}, nil
 	}
 
-	expected := `+------+---------+-------------------+--------------------------+-----------+
-| NAME | VERSION |      SOURCE       |           CPE            | # OF CVES |
-+------+---------+-------------------+--------------------------+-----------+
-| foo  | 0.0.1   | chrome_extensions | somecpe                  |         2 |
-+------+---------+-------------------+--------------------------+-----------+
-| foo  | 0.0.2   | chrome_extensions |                          |         0 |
-+------+---------+-------------------+--------------------------+-----------+
-| foo  | 0.0.3   | chrome_extensions | someothercpewithoutvulns |         0 |
-+------+---------+-------------------+--------------------------+-----------+
-| bar  | 0.0.3   | deb_packages      |                          |         0 |
-+------+---------+-------------------+--------------------------+-----------+
+	ds.CountSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
+		return 4, nil
+	}
+
+	expected := `+------+---------+-------------------+-------------------+-------+
+| NAME | VERSION |       TYPE        |  VULNERABILITIES  | HOSTS |
++------+---------+-------------------+-------------------+-------+
+| foo  | 0.0.1   | chrome_extensions | 2 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
+| foo  | 0.0.2   | chrome_extensions | 0 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
+| foo  | 0.0.3   | chrome_extensions | 0 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
+| bar  | 0.0.3   | deb_packages      | 0 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
 `
 
 	expectedYaml := `---
@@ -644,6 +806,7 @@ spec:
   id: 0
   name: foo
   source: chrome_extensions
+  browser: ""
   version: 0.0.1
   vulnerabilities:
   - cve: cve-321-432-543
@@ -662,6 +825,7 @@ spec:
   id: 0
   name: foo
   source: chrome_extensions
+  browser: ""
   version: 0.0.3
   vulnerabilities: null
 - bundle_identifier: bundle
@@ -669,6 +833,7 @@ spec:
   id: 0
   name: bar
   source: deb_packages
+  browser: ""
   version: 0.0.3
   vulnerabilities: null
 `
@@ -683,6 +848,7 @@ spec:
       "name": "foo",
       "version": "0.0.1",
       "source": "chrome_extensions",
+	  "browser": "",
       "generated_cpe": "somecpe",
       "vulnerabilities": [
         {
@@ -710,6 +876,7 @@ spec:
       "name": "foo",
       "version": "0.0.3",
       "source": "chrome_extensions",
+	  "browser": "",
       "generated_cpe": "someothercpewithoutvulns",
       "vulnerabilities": null
     },
@@ -719,6 +886,7 @@ spec:
       "version": "0.0.3",
       "bundle_identifier": "bundle",
       "source": "deb_packages",
+      "browser": "",
       "generated_cpe": "",
       "vulnerabilities": null
     }
@@ -726,11 +894,11 @@ spec:
 }
 `
 
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--json"}))
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software", "--versions"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--versions", "--yaml"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--versions", "--json"}))
 
-	runAppForTest(t, []string{"get", "software", "--json", "--team", "999"})
+	runAppForTest(t, []string{"get", "software", "--versions", "--json", "--team", "999"})
 	require.NotNil(t, gotTeamID)
 	assert.Equal(t, uint(999), *gotTeamID)
 }
@@ -2036,7 +2204,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, profileUUIDs, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string) error {
 		return nil
 	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {

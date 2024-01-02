@@ -147,9 +147,16 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 		return errors.New("invalid discover message: XMLNS")
 	}
 
-	// Ensure that only valid versions are supported
-	if req.Body.Discover.Request.RequestVersion != syncml.EnrollmentVersionV4 &&
-		req.Body.Discover.Request.RequestVersion != syncml.EnrollmentVersionV5 {
+	// Check if the request version is one of the defined enrollment versions
+	versionFound := false
+	for _, v := range syncml.SupportedEnrollmentVersions {
+		if req.Body.Discover.Request.RequestVersion == v {
+			versionFound = true
+			break
+		}
+	}
+
+	if !versionFound {
 		return errors.New("invalid discover message: Request.RequestVersion")
 	}
 
@@ -1001,10 +1008,15 @@ func (cmd SyncMLCmd) DataType() SyncMLDataType {
 }
 
 type CmdItem struct {
-	Source *string `xml:"Source>LocURI,omitempty"`
-	Target *string `xml:"Target>LocURI,omitempty"`
-	Meta   *Meta   `xml:"Meta,omitempty"`
-	Data   *string `xml:"Data"`
+	Source *string     `xml:"Source>LocURI,omitempty"`
+	Target *string     `xml:"Target>LocURI,omitempty"`
+	Meta   *Meta       `xml:"Meta,omitempty"`
+	Data   *RawXmlData `xml:"Data"`
+}
+
+type RawXmlData struct {
+	Attrs   []xml.Attr `xml:",any,attr"`
+	Content string     `xml:",innerxml"`
 }
 
 type Meta struct {
@@ -1334,7 +1346,7 @@ func (cmd *SyncMLCmd) GetTargetData() string {
 	}
 
 	if cmd.Items[0].Data != nil {
-		return *cmd.Items[0].Data
+		return cmd.Items[0].Data.Content
 	}
 
 	return ""
@@ -1394,7 +1406,7 @@ type HostMDMWindowsProfile struct {
 func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 	return HostMDMProfile{
 		HostUUID:      p.HostUUID,
-		ProfileID:     p.ProfileUUID,
+		ProfileUUID:   p.ProfileUUID,
 		Name:          p.Name,
 		Identifier:    "",
 		Status:        p.Status,
