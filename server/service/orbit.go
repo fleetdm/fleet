@@ -280,11 +280,21 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			notifs.EnforceBitLockerEncryption = true
 		}
 
+		var updateChannels *fleet.OrbitUpdateChannels
+		if len(opts.UpdateChannels) > 0 {
+			var uc fleet.OrbitUpdateChannels
+			if err := json.Unmarshal(opts.UpdateChannels, &uc); err != nil {
+				return fleet.OrbitConfig{}, err
+			}
+			updateChannels = &uc
+		}
+
 		return fleet.OrbitConfig{
-			Flags:         opts.CommandLineStartUpFlags,
-			Extensions:    extensionsFiltered,
-			Notifications: notifs,
-			NudgeConfig:   nudgeConfig,
+			Flags:          opts.CommandLineStartUpFlags,
+			Extensions:     extensionsFiltered,
+			Notifications:  notifs,
+			NudgeConfig:    nudgeConfig,
+			UpdateChannels: updateChannels,
 		}, nil
 	}
 
@@ -316,11 +326,21 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.EnforceBitLockerEncryption = true
 	}
 
+	var updateChannels *fleet.OrbitUpdateChannels
+	if len(opts.UpdateChannels) > 0 {
+		var uc fleet.OrbitUpdateChannels
+		if err := json.Unmarshal(opts.UpdateChannels, &uc); err != nil {
+			return fleet.OrbitConfig{}, err
+		}
+		updateChannels = &uc
+	}
+
 	return fleet.OrbitConfig{
-		Flags:         opts.CommandLineStartUpFlags,
-		Extensions:    extensionsFiltered,
-		Notifications: notifs,
-		NudgeConfig:   nudgeConfig,
+		Flags:          opts.CommandLineStartUpFlags,
+		Extensions:     extensionsFiltered,
+		Notifications:  notifs,
+		NudgeConfig:    nudgeConfig,
+		UpdateChannels: updateChannels,
 	}, nil
 }
 
