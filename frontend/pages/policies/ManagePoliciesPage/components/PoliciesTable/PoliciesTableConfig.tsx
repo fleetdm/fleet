@@ -3,10 +3,10 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 import {
+  formatDistanceToNowStrict,
+  isAfter,
   millisecondsToHours,
   millisecondsToMinutes,
-  isAfter,
-  formatDistanceToNowStrict,
 } from "date-fns";
 import ReactTooltip from "react-tooltip";
 // @ts-ignore
@@ -356,7 +356,7 @@ const generateDataSet = (
     policiesLastRun = hostCountUpdatedAtDate;
   }
   // Now we figure out when the next host count update will be.
-  // The % is used below in case server was restarted and previously scheduled host count update was skipped.
+  // The % (mod) is used below in case server was restarted and previously scheduled host count update was skipped.
   const nextHostCountUpdateMs =
     hostCountUpdateIntervalMs -
     (hostCountUpdatedAt
@@ -376,18 +376,33 @@ const generateDataSet = (
     policyItem.has_run = isAfter(policiesLastRun, policyItemUpdatedAt);
     if (!policyItem.has_run) {
       // Include time for next update for reference in tooltip, which is only present if policy has not run.
-      // The next update will match the next host count update, unless extra time is needed for hosts to send in their policy results.
-      const timeFromPolicyItemUpdateToNextHostCountUpdateMs =
-        Date.now() - policyItemUpdatedAt.getTime() + nextHostCountUpdateMs;
-      policyItem.next_update_ms =
-        nextHostCountUpdateMs +
-        (timeFromPolicyItemUpdateToNextHostCountUpdateMs > osqueryPolicyMs
-          ? 0
-          : osqueryPolicyMs);
+      policyItem.next_update_ms = nextPolicyUpdateMs(
+        policyItemUpdatedAt,
+        nextHostCountUpdateMs,
+        hostCountUpdateIntervalMs,
+        osqueryPolicyMs
+      );
     }
   });
 
   return policiesList;
 };
 
-export { generateTableHeaders, generateDataSet };
+// The next update will match the next host count update, unless extra time is needed for hosts to send in their policy results.
+const nextPolicyUpdateMs = function (
+  policyItemUpdatedAtMs: Date,
+  nextHostCountUpdateMs: number,
+  hostCountUpdateIntervalMs: number,
+  osqueryPolicyMs: number
+) {
+  let timeFromPolicyItemUpdateToNextHostCountUpdateMs =
+    Date.now() - policyItemUpdatedAtMs.getTime() + nextHostCountUpdateMs;
+  let additionalUpdateTimeMs = 0;
+  while (timeFromPolicyItemUpdateToNextHostCountUpdateMs <= osqueryPolicyMs) {
+    additionalUpdateTimeMs += hostCountUpdateIntervalMs;
+    timeFromPolicyItemUpdateToNextHostCountUpdateMs += hostCountUpdateIntervalMs;
+  }
+  return nextHostCountUpdateMs + additionalUpdateTimeMs;
+};
+
+export { generateTableHeaders, generateDataSet, nextPolicyUpdateMs };
