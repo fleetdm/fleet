@@ -1310,7 +1310,7 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed to `1.6.00.22155`.
 		{
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return h.Platform == "darwin" && s.Name == "Microsoft Teams.app"
+				return h.Platform == "darwin" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
 			},
 			mutateSoftware: func(s *fleet.Software) {
 				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
