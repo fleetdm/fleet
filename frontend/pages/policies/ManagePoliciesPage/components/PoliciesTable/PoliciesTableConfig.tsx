@@ -324,6 +324,23 @@ const generateTableHeaders = (
   return tableHeaders;
 };
 
+// The next update will match the next host count update, unless extra time is needed for hosts to send in their policy results.
+const nextPolicyUpdateMs = function (
+  policyItemUpdatedAtMs: Date,
+  nextHostCountUpdateMs: number,
+  hostCountUpdateIntervalMs: number,
+  osqueryPolicyMs: number
+) {
+  let timeFromPolicyItemUpdateToNextHostCountUpdateMs =
+    Date.now() - policyItemUpdatedAtMs.getTime() + nextHostCountUpdateMs;
+  let additionalUpdateTimeMs = 0;
+  while (timeFromPolicyItemUpdateToNextHostCountUpdateMs <= osqueryPolicyMs) {
+    additionalUpdateTimeMs += hostCountUpdateIntervalMs;
+    timeFromPolicyItemUpdateToNextHostCountUpdateMs += hostCountUpdateIntervalMs;
+  }
+  return nextHostCountUpdateMs + additionalUpdateTimeMs;
+};
+
 const generateDataSet = (
   policiesList: IPolicyStats[] = [],
   currentAutomatedPolicies?: number[],
@@ -386,23 +403,6 @@ const generateDataSet = (
   });
 
   return policiesList;
-};
-
-// The next update will match the next host count update, unless extra time is needed for hosts to send in their policy results.
-const nextPolicyUpdateMs = function (
-  policyItemUpdatedAtMs: Date,
-  nextHostCountUpdateMs: number,
-  hostCountUpdateIntervalMs: number,
-  osqueryPolicyMs: number
-) {
-  let timeFromPolicyItemUpdateToNextHostCountUpdateMs =
-    Date.now() - policyItemUpdatedAtMs.getTime() + nextHostCountUpdateMs;
-  let additionalUpdateTimeMs = 0;
-  while (timeFromPolicyItemUpdateToNextHostCountUpdateMs <= osqueryPolicyMs) {
-    additionalUpdateTimeMs += hostCountUpdateIntervalMs;
-    timeFromPolicyItemUpdateToNextHostCountUpdateMs += hostCountUpdateIntervalMs;
-  }
-  return nextHostCountUpdateMs + additionalUpdateTimeMs;
 };
 
 export { generateTableHeaders, generateDataSet, nextPolicyUpdateMs };
