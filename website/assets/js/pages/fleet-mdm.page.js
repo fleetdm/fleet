@@ -63,7 +63,6 @@ parasails.registerPage('device-management', {
     _resetForms: async function() {
       this.cloudError = '';
       this.formData = {};
-      this.formRules = {};
       this.formErrors = {};
       await this.forceRender();
     },

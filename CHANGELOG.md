@@ -1,3 +1,62 @@
+## Fleet 4.42.0 (Dec 21, 2023)
+
+### Changes
+
+* **Endpoint operations**:
+  - Added `fleet/device/{token}/ping` endpoint for agent token checks.
+  - Added `GET /hosts/{id}/health` endpoint for host health data.
+  - Added `--host-identifier` option to fleetd for enrolling with a random identifier.
+  - Added capability to look up hosts based on IdP email.
+  - Updated manage hosts UI to filter hosts by `software_version_id` and `software_title_id`.
+  - Added ability to filter hosts by `software_version_id` and `software_title_id` in various endpoints.
+  - **NOTE:**: Database migrations may take up to five minutes to complete based on number of software items. 
+  - Live queries now collect and display updated stats.
+  - Live query stats are cleared when query SQL is modified.
+  - Added UI features to incorporate new live query stats.
+  - Improved host query reports and host detail query tab UI.
+  - Added firehose delivery addon update for improved data handling.
+
+* **Vulnerability management**:
+  - Added `GET software/versions` and `GET software/versions/{id}` endpoints for software version management.
+  - Deprecated `GET software` and `GET software/{id}` endpoints.
+  - Added new software pages in Fleet UI, including software titles and versions.
+  - Resolved scan error during OVAL vulnerability processing.
+
+* **Device management (MDM)**:
+  - Removed the `FLEET_DEV_MDM_ENABLED` feature flag for Windows MDM.
+  - Enabled `fleetctl` to configure Windows MDM profiles for teams and "no team".
+  - Added database tables to support the Windows profiles feature.
+  - Added support to configure Windows OS updates requirements.
+  - Introduced new MDM profile endpoints: `POST /mdm/profiles`, `DELETE /mdm/profiles/{id}`, `GET /mdm/profiles/{id}`, `GET /mdm/profiles`, `GET /mdm/profiles/summary`.
+  - Added validation to disallow custom MDM profiles with certain names.
+  - Added deployment of Windows OS updates settings to targeted hosts.
+  - Changed the Apple profiles ID to a prefixed UUID format.
+  - Enabled targeting hosts by serial number in `fleetctl run-script` and `fleetctl mdm run-command`.
+  - Added UI for uploading, deleting, downloading, and viewing Windows custom MDM profiles.
+
+### Bug fixes and improvements
+
+  - Updated Go version to 1.21.5.
+  - Query reports now only show results for hosts with user permissions.
+  - Global observers can now see all queries regardless of the observerCanRun value.
+  - Added whitespace rendering in policy descriptions and resolutions.
+  - Added truncation to dropdown options in query tables documentation.
+  - `POST /api/v1/fleet/scripts/run/sync` timeout now returns error code 408 instead of 504.
+  - Fixed possible deadlocks in `software` data ingestion and `host_batteries` upsert.
+  - Fixed button text wrapping in UI for Settings > Integrations > MDM.
+  - Fixed a bug where opening a modal on the Users page reset the table to the first page.
+  - Fixed a bug preventing label selection while the label search field was active.
+  - Fixed issues with UI loading indicators and placeholder texts.
+  - Fixed a fleetctl issue where running a query by name created a new query instead of using the existing one.
+  - Fixed `installed_from_dep` in `mdm_enrolled` activity for DEP device re-enrollment.
+  - Fixed a bug in line breaks affecting UI functionality.
+  - Fixed Syncml cmd data support for raw data.
+  - Added "copied!" message to the copy button on inputs.
+  - Fixed an edge case where caching could lead to lost organization settings in multiple instance scenarios.
+  - Fixed `GET /hosts/{id}/health` endpoint reporting.
+  - Fixed validation bugs allowing `overrides.platform` field to be set to `null`.
+  - Fixed an issue with policy counts showing 0 post-upgrade.
+
 ## Fleet 4.41.1 (Dec 7, 2023)
 
 ### Bug fix

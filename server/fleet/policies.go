@@ -3,6 +3,7 @@ package fleet
 import (
 	"errors"
 	"strings"
+	"time"
 )
 
 // PolicyPayload holds data for policy creation.
@@ -168,7 +169,8 @@ type Policy struct {
 	// PassingHostCount is the number of hosts this policy passes on.
 	PassingHostCount uint `json:"passing_host_count" db:"passing_host_count"`
 	// FailingHostCount is the number of hosts this policy fails on.
-	FailingHostCount uint `json:"failing_host_count" db:"failing_host_count"`
+	FailingHostCount   uint       `json:"failing_host_count" db:"failing_host_count"`
+	HostCountUpdatedAt *time.Time `json:"host_count_updated_at" db:"host_count_updated_at"`
 }
 
 func (p Policy) AuthzType() string {

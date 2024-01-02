@@ -1,2 +1,0 @@
-- Adds a `populate_software` flag to the `GET /hosts` endpoint, which will include software for each
-  host returned from that endpoint.

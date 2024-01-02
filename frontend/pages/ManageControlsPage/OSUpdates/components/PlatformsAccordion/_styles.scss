@@ -16,6 +16,10 @@
       font-weight: $bold;
       font-size: $x-small;
     }
+
+    &:hover {
+      cursor: pointer;
+    }
   }
 
   &__accordion-panel {
