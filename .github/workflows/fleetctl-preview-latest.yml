@@ -70,7 +70,10 @@ jobs:
 
     - name: Run fleetctl preview
       run: |
-        ./build/fleetctl preview --std-query-lib-file-path $(pwd)/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
+        ref_name=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
+        ./build/fleetctl preview \
+          --preview-config $ref_name \
+          --std-query-lib-file-path $(pwd)/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
         sleep 10
         ./build/fleetctl get hosts | tee hosts.txt
         [ $( cat hosts.txt | grep online | wc -l) -eq 9 ]
