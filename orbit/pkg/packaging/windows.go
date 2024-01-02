@@ -151,7 +151,7 @@ func BuildMSI(opt Options) (string, error) {
 
 	// call our msitools instead
 	if err := wix.MsiTools(tmpDir, opt.NativeTooling, opt.LocalWixDir); err != nil {
-		return "", fmt.Errorf("rip msitools")
+		return "", fmt.Errorf("running msitools: %w", err)
 	}
 
 	// if err := wix.Heat(tmpDir, opt.NativeTooling, opt.LocalWixDir); err != nil {
