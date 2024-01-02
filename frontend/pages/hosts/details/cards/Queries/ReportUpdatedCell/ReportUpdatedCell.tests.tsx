@@ -36,13 +36,15 @@ describe("ReportUpdatedCell component", () => {
   });
 
   it("Renders a last-updated timestamp with tooltip and link to report when a last_fetched date is present", () => {
+    const tenDaysAgo = new Date();
+    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
     render(
       <ReportUpdatedCell
         interval={1000}
         discard_data={false}
         automations_enabled={false}
         should_link_to_hqr
-        last_fetched="2023-11-29T15:20:02Z"
+        last_fetched={tenDaysAgo.toISOString()}
       />
     );
 
@@ -53,13 +55,15 @@ describe("ReportUpdatedCell component", () => {
     expect(screen.getByText(/View report/)).toBeInTheDocument();
   });
   it("Renders a last-updated timestamp with tooltip and link to report when a last_fetched date is present but not currently running an interval", () => {
+    const tenDaysAgo = new Date();
+    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
     render(
       <ReportUpdatedCell
         interval={0}
         discard_data={false}
         automations_enabled={false}
         should_link_to_hqr
-        last_fetched="2023-11-29T15:20:02Z"
+        last_fetched={tenDaysAgo.toISOString()}
       />
     );
 
