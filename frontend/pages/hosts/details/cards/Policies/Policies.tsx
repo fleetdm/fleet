@@ -55,10 +55,6 @@ const Policies = ({
     // Remove view all hosts link
     tableHeaders.pop();
   }
-  const noResponses: IHostPolicy[] =
-    policies.filter(
-      (policy: IHostPolicy) => !isValidPolicyResponse(policy.response)
-    ) || [];
   const failingResponses: IHostPolicy[] =
     policies.filter((policy: IHostPolicy) => policy.response === "fail") || [];
 
