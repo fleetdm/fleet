@@ -11,16 +11,6 @@ import {
 
 type IAstNode = Record<string | number | symbol, unknown>;
 
-interface ISqlTableNode {
-  name: string;
-}
-
-interface ISqlCteNode {
-  target: {
-    name: string;
-  };
-}
-
 // TODO: Research if there are any preexisting types for osquery schema
 // TODO: Is it ever possible that osquery_tables.json would be missing name or platforms?
 interface IOsqueryTable {
@@ -91,19 +81,28 @@ export const parseSqlTables = (
   const cteTables: string[] = [];
 
   const _callback = (node: IAstNode) => {
-    if (node) {
-      if (
-        (node.variant === "common" || node.variant === "recursive") &&
-        node.format === "table" &&
-        node.type === "expression"
-      ) {
-        const targetName = ((node as unknown) as ISqlCteNode).target.name;
-        cteTables.push(targetName);
-      } else if (node.variant === "table" && !(node.type === "function")) {
-        const tableName = ((node as unknown) as ISqlTableNode).name;
-        results.push(tableName);
-      }
+    if (!node) {
+      return;
     }
+
+    if (
+      (node.variant === "common" || node.variant === "recursive") &&
+      node.format === "table" &&
+      node.type === "expression"
+    ) {
+      const targetName = node.target && (node.target as IAstNode).name;
+      targetName &&
+        typeof targetName === "string" &&
+        cteTables.push(targetName);
+      return;
+    }
+
+    node.variant === "table" &&
+      // ignore table-valued functions (see, e.g., https://www.sqlite.org/json1.html#jeach)
+      node.type !== "function" &&
+      node.name &&
+      typeof node.name === "string" &&
+      results.push(node.name);
   };
 
   try {
