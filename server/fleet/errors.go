@@ -543,3 +543,18 @@ const (
 	RunScriptAlreadyRunningErrMsg = "A script is already running on this host. Please wait about 1 minute to let it finish."
 	RunScriptHostTimeoutErrMsg    = "Fleet hasn’t heard from the host in over 1 minute. Fleet doesn’t know if the script ran because the host went offline."
 )
+
+// ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.
+type ConflictError struct {
+	Message string
+}
+
+// Error implements the error interface for the ConflictError.
+func (e ConflictError) Error() string {
+	return e.Message
+}
+
+// StatusCode implements the kithttp.StatusCoder interface.
+func (e ConflictError) StatusCode() int {
+	return http.StatusConflict
+}

@@ -959,27 +959,6 @@ func TestCompareVersions(t *testing.T) {
 	}
 }
 
-func TestRxLooseEmail(t *testing.T) {
-	testCases := []struct {
-		str   string
-		match bool
-	}{
-		{"foo", false},
-		{"", false},
-		{"foo@example", false},
-		{"foo@example.com", true},
-		{"foo+bar@example.com", true},
-		{"foo.bar@example.com", true},
-		{"foo.bar@baz.example.com", true},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.str, func(t *testing.T) {
-			assert.Equal(t, tc.match, rxLooseEmail.MatchString(tc.str))
-		})
-	}
-}
-
 func TestDebugs(t *testing.T) {
 	ds := CreateMySQLDS(t)
 

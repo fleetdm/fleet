@@ -1,1 +1,0 @@
-For /software endpoint, added extension_id and browser fields. These fields are populated for Chromium/Firefox browser extensions.

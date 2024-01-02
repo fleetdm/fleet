@@ -242,7 +242,7 @@ type APNSDeliveryError struct {
 }
 
 func (e *APNSDeliveryError) Error() string {
-	return fmt.Sprintf("APNS delivery failed with: %e, for UUIDs: %v", e.Err, e.FailedUUIDs)
+	return fmt.Sprintf("APNS delivery failed with: %s, for UUIDs: %v", e.Err, e.FailedUUIDs)
 }
 
 func (e *APNSDeliveryError) Unwrap() error { return e.Err }
