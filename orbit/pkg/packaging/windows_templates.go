@@ -42,7 +42,6 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
       InstallerVersion="500"
       Compressed="yes"
       InstallScope="perMachine"
-      InstallPrivileges="elevated"
       Languages="1033" />
 
     <Property Id="REINSTALLMODE" Value="amus" />
@@ -73,20 +72,14 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
       <Directory Id="ProgramFiles64Folder">
         <Directory Id="ORBITROOT" Name="Orbit">
           <Component Id="C_ORBITROOT" Guid="A7DFD09E-2D2B-4535-A04F-5D4DE90F3863">
-            <CreateFolder>
-              <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
-            </CreateFolder>
+         
           </Component>
           <Directory Id="ORBITBIN" Name="bin">
             <Directory Id="ORBITBINORBIT" Name="orbit">
               <Component Id="C_ORBITBIN" Guid="AF347B4E-B84B-4DD4-9C4D-133BE17B613D">
-                <CreateFolder>
-                  <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
-                </CreateFolder>
-                <File Source="root\bin\orbit\windows\{{ .OrbitChannel }}\orbit.exe">
-                  <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
+         
+                <File Source="root/bin/orbit/windows/{{ .OrbitChannel }}/orbit.exe">
                 </File>
-                <Environment Id='OrbitUpdateInterval' Name='ORBIT_UPDATE_INTERVAL' Value='{{ .OrbitUpdateInterval }}' Action='set' System='yes' />
                 <!--
                   ##############################################################################################
                   NOTE: We've seen some system fail to install the MSI when using Account="NT AUTHORITY\SYSTEM"
@@ -101,13 +94,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   Description="This service runs Fleet's osquery runtime and autoupdater (Orbit)."
                   Arguments='--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" --fleet-url "[FLEET_URL]"{{ if .FleetCertificate }} --fleet-certificate "[ORBITROOT]fleet.pem"{{ end }}{{ if .EnrollSecret }} --enroll-secret-path "[ORBITROOT]secret.txt"{{ end }}{{if .Insecure }} --insecure{{ end }}{{ if .Debug }} --debug{{ end }}{{ if .UpdateURL }} --update-url "{{ .UpdateURL }}"{{ end }}{{ if .UpdateTLSServerCertificate }} --update-tls-certificate "[ORBITROOT]update.pem"{{ end }}{{ if .DisableUpdates }} --disable-updates{{ end }}{{ if .Desktop }} --fleet-desktop --desktop-channel {{ .DesktopChannel }}{{ if .FleetDesktopAlternativeBrowserHost }} --fleet-desktop-alternative-browser-host {{ .FleetDesktopAlternativeBrowserHost }}{{ end }}{{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}" {{ if .EnableScripts }} --enable-scripts{{ end }}{{ if and (ne .HostIdentifier "") (ne .HostIdentifier "uuid") }}--host-identifier={{ .HostIdentifier }}{{ end }}'
                 >
-                  <util:ServiceConfig
-                    FirstFailureActionType="restart"
-                    SecondFailureActionType="restart"
-                    ThirdFailureActionType="restart"
-                    ResetPeriodInDays="1"
-                    RestartServiceDelayInSeconds="1"
-                  />
+               
                 </ServiceInstall>
                 <ServiceControl
                   Id="StartOrbitService"
@@ -123,10 +110,6 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
       </Directory>
     </Directory>
 
-    <SetProperty Id="CA_UninstallOsquery"
-                 Before ="CA_UninstallOsquery"
-                 Sequence="execute"
-                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass -File "[ORBITROOT]installer_utils.ps1" -uninstallOsquery' />
 
     <CustomAction Id="CA_UninstallOsquery"
                   BinaryKey="WixCA"
@@ -135,10 +118,6 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   Return="check"
                   Impersonate="no" />
 
-   <SetProperty Id="CA_RemoveOrbit"
-                 Before ="CA_RemoveOrbit"
-                 Sequence="execute"
-                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass -File "[ORBITROOT]installer_utils.ps1" -uninstallOrbit' />
 
     <CustomAction Id="CA_RemoveOrbit"
                   BinaryKey="WixCA"
@@ -147,10 +126,6 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   Return="check"
                   Impersonate="no" />
 
-   <SetProperty Id="CA_UpdateSecret"
-                 Before ="CA_UpdateSecret"
-                 Sequence="execute"
-                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass -File "[ORBITROOT]installer_utils.ps1" -updateSecret "[FLEET_SECRET]"' />
 
     <CustomAction Id="CA_UpdateSecret"
                   BinaryKey="WixCA"
@@ -159,10 +134,6 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   Return="check"
                   Impersonate="no" />                    
 
-   <SetProperty Id="CA_WaitOrbit"
-                 Before ="CA_WaitOrbit"
-                 Sequence="execute"
-                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass Wait-Process -Name orbit -Timeout 30 -ErrorAction SilentlyContinue' />
 
     <CustomAction Id="CA_WaitOrbit"
                   BinaryKey="WixCA"
@@ -171,10 +142,6 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   Return="ignore"
                   Impersonate="no" />
 
-   <SetProperty Id="CA_RemoveRebootPending"
-                 Before ="CA_RemoveRebootPending"
-                 Sequence="execute"
-                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass Remove-Item -Path "$Env:Programfiles\orbit\bin" -Recurse -Force' />
 
     <CustomAction Id="CA_RemoveRebootPending"
                   BinaryKey="WixCA"

@@ -149,21 +149,26 @@ func BuildMSI(opt Options) (string, error) {
 		}
 	}
 
-	if err := wix.Heat(tmpDir, opt.NativeTooling, opt.LocalWixDir); err != nil {
-		return "", fmt.Errorf("package root files: %w", err)
+	// call our msitools instead
+	if err := wix.MsiTools(tmpDir, opt.NativeTooling, opt.LocalWixDir); err != nil {
+		return "", fmt.Errorf("rip msitools")
 	}
 
-	if err := wix.TransformHeat(filepath.Join(tmpDir, "heat.wxs")); err != nil {
-		return "", fmt.Errorf("transform heat: %w", err)
-	}
+	// if err := wix.Heat(tmpDir, opt.NativeTooling, opt.LocalWixDir); err != nil {
+	// 	return "", fmt.Errorf("package root files: %w", err)
+	// }
 
-	if err := wix.Candle(tmpDir, opt.NativeTooling, opt.LocalWixDir); err != nil {
-		return "", fmt.Errorf("build package: %w", err)
-	}
+	// if err := wix.TransformHeat(filepath.Join(tmpDir, "heat.wxs")); err != nil {
+	// 	return "", fmt.Errorf("transform heat: %w", err)
+	// }
 
-	if err := wix.Light(tmpDir, opt.NativeTooling, opt.LocalWixDir); err != nil {
-		return "", fmt.Errorf("build package: %w", err)
-	}
+	// if err := wix.Candle(tmpDir, opt.NativeTooling, opt.LocalWixDir); err != nil {
+	// 	return "", fmt.Errorf("build package: %w", err)
+	// }
+
+	// if err := wix.Light(tmpDir, opt.NativeTooling, opt.LocalWixDir); err != nil {
+	// 	return "", fmt.Errorf("build package: %w", err)
+	// }
 
 	filename := "fleet-osquery.msi"
 	if opt.NativeTooling {

@@ -59,6 +59,49 @@ func Heat(path string, native bool, localWixDir string) error {
 	return nil
 }
 
+func MsiTools(path string, native bool, localWixDir string) error {
+	var args []string
+
+	if !native && localWixDir == "" {
+		args = append(
+			args,
+			"docker", "run", "--rm", "--platform", "linux/amd64",
+			"--volume", path+":/wix", // mount volume
+			"jve/msitools:latest", // image name
+		)
+	}
+
+	// heatPath := `heat`
+	// if localWixDir != "" {
+	// 	heatPath = localWixDir + `\heat.exe`
+	// }
+
+	// args = append(args,
+	// 	heatPath, "dir", "root", // command
+	// 	"-out", "heat.wxs",
+	// 	"-gg", "-g1", // generate UUIDs (required by wix)
+	// 	"-cg", "OrbitFiles", // set ComponentGroup name
+	// 	"-scom", "-sfrag", "-srd", "-sreg", // suppress unneccesary generated items
+	// 	"-dr", directoryReference, // set reference name
+	// 	"-ke", // keep empty directories
+	// )
+
+	args = append(args, "/msitools-0.103/builddir/tools/wixl/wixl", "-I", "root", "-o", "/wix/orbit.msi", "-v", "/wix/main.wxs")
+
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+
+	if native || localWixDir != "" {
+		cmd.Dir = path
+	}
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("msitools failed: %w", err)
+	}
+
+	return nil
+}
+
 // Candle runs the WiX Candle command on the provided directory.
 //
 // See
