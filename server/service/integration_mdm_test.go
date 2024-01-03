@@ -3598,6 +3598,30 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 	assert.Equal(t, []string{"b"}, acResp.MDM.MacOSSettings.CustomSettings)
+
+	// mdm/apple/settings works for windows as well as it's being used by
+	// clients (UI) this way
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.EnabledAndConfigured = false
+	appConf.MDM.WindowsEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+	defer func() {
+		appConf, err := s.ds.AppConfig(context.Background())
+		require.NoError(s.T(), err)
+		appConf.MDM.EnabledAndConfigured = true
+		appConf.MDM.WindowsEnabledAndConfigured = true
+		err = s.ds.SaveAppConfig(context.Background(), appConf)
+		require.NoError(s.T(), err)
+	}()
+
+	// set and verify the value
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+		fleet.MDMAppleSettingsPayload{EnableDiskEncryption: ptr.Bool(false)}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
@@ -4011,6 +4035,36 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	// use the MDM settings endpoint with an unknown team id
 	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
 		fleet.MDMAppleSettingsPayload{TeamID: ptr.Uint(9999)}, http.StatusNotFound)
+
+	// mdm/apple/settings works for windows as well as it's being used by
+	// clients (UI) this way
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.EnabledAndConfigured = false
+	appConf.MDM.WindowsEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+	defer func() {
+		appConf, err := s.ds.AppConfig(context.Background())
+		require.NoError(s.T(), err)
+		appConf.MDM.EnabledAndConfigured = true
+		appConf.MDM.WindowsEnabledAndConfigured = true
+		err = s.ds.SaveAppConfig(context.Background(), appConf)
+		require.NoError(s.T(), err)
+	}()
+
+	// flip and verify the value
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+		fleet.MDMAppleSettingsPayload{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: ptr.Bool(false)}, http.StatusNoContent)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.False(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
+
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+		fleet.MDMAppleSettingsPayload{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: ptr.Bool(true)}, http.StatusNoContent)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
