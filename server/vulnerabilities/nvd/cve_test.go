@@ -404,24 +404,24 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 		},
 		{
 			name: "Multiple product matches with different version ranges",
-			cve: "CVE-2022-26697",
+			cve:  "CVE-2022-26697",
 			meta: &wfn.Attributes{
-				Vendor: "apple",
+				Vendor:  "apple",
 				Product: "macos",
 				Version: "12.0",
 			},
-			want: "12.4",
+			want:    "12.4",
 			wantErr: false,
 		},
 		{
 			name: "No version end excluding",
-			cve: "CVE-2022-26834",
+			cve:  "CVE-2022-26834",
 			meta: &wfn.Attributes{
-				Vendor: "cybozu",
+				Vendor:  "cybozu",
 				Product: "remote_service_manager",
 				Version: "3.1.2",
 			},
-			want: "",
+			want:    "",
 			wantErr: false,
 		},
 	}
