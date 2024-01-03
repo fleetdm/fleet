@@ -3616,9 +3616,15 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 		require.NoError(s.T(), err)
 	}()
 
-	// set and verify the value
+	// flip and verify the value
 	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
 		fleet.MDMAppleSettingsPayload{EnableDiskEncryption: ptr.Bool(false)}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+		fleet.MDMAppleSettingsPayload{EnableDiskEncryption: ptr.Bool(true)}, http.StatusNoContent)
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
