@@ -182,23 +182,19 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("docker-compose file not found in preview directory: %w", err)
 			}
 
-			logsDir := filepath.Join(previewDir, "logs")
-			if err := os.MkdirAll(logsDir, 0o777); err != nil {
-				return fmt.Errorf("create logs directory %q: %w", logsDir, err)
-			}
-			vulnDBDir := filepath.Join(previewDir, "vulndb")
-			if err := os.MkdirAll(vulnDBDir, 0o777); err != nil {
-				return fmt.Errorf("create vulndb directory %q: %w", vulnDBDir, err)
-			}
-
-			// Make sure the logs and vulndb directories are writable, otherwise the Fleet
+			// Make sure directories are writable, otherwise the Fleet
 			// server errors on startup. This can be a problem when running on
 			// Linux with a non-root user inside the container.
-			if err := os.Chmod(logsDir, 0o777); err != nil {
-				return fmt.Errorf("make logs writable: %w", err)
-			}
-			if err := os.Chmod(vulnDBDir, 0o777); err != nil {
-				return fmt.Errorf("make vulndb writable: %w", err)
+			for _, item := range []string{
+				filepath.Join(previewDir, "logs"),
+				filepath.Join(previewDir, "vulndb"),
+			} {
+				if err := os.MkdirAll(item, 0o777); err != nil {
+					return fmt.Errorf("create directory %q: %w", item, err)
+				}
+				if err := os.Chmod(item, 0o777); err != nil {
+					return fmt.Errorf("make %s writable: %w", item, err)
+				}
 			}
 
 			if err := os.Setenv("FLEET_VERSION", c.String(tagFlagName)); err != nil {
@@ -425,6 +421,8 @@ func previewDirectory() string {
 	return filepath.Join(homeDir, ".fleet", "preview")
 }
 
+// downloadFromFleetRepo downloads a specific directory from the fleetdm/fleet repository.
+// It creates files and folders as world writable as this is mainly used for testing.
 func downloadFromFleetRepo(
 	ctx context.Context,
 	client *http.Client,
@@ -433,7 +431,7 @@ func downloadFromFleetRepo(
 	branch string,
 	outputDirectory string,
 ) error {
-	if err := os.MkdirAll(outputDirectory, constant.DefaultDirMode); err != nil {
+	if err := os.MkdirAll(outputDirectory, 0o777); err != nil {
 		return fmt.Errorf("create directory %q: %w", outputDirectory, err)
 	}
 
@@ -466,7 +464,7 @@ func downloadFromFleetRepo(
 				if err != nil {
 					return fmt.Errorf("read file body: %w", err)
 				}
-				if err := os.WriteFile(filepath.Join(outputDirectory, content.GetName()), b, constant.DefaultFileMode); err != nil {
+				if err := os.WriteFile(filepath.Join(outputDirectory, content.GetName()), b, 0o777); err != nil {
 					return fmt.Errorf("write file: %w", err)
 				}
 			}
