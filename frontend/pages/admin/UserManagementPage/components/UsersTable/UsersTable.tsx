@@ -219,6 +219,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
             setCreateUserErrors({
               password: "Password must meet the criteria below",
             });
+          } else if (
+            userErrors.data.errors?.[0].reason.includes("password too long")
+          ) {
+            setCreateUserErrors({
+              password: "Password is over the character limit.",
+            });
           } else {
             renderFlash("error", "Could not create user. Please try again.");
           }
@@ -250,6 +256,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           ) {
             setCreateUserErrors({
               password: "Password must meet the criteria below",
+            });
+          } else if (
+            userErrors.data.errors?.[0].reason.includes("password too long")
+          ) {
+            setCreateUserErrors({
+              password: "Password is over the character limit.",
             });
           } else {
             renderFlash("error", "Could not create user. Please try again.");
