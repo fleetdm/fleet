@@ -2640,8 +2640,11 @@ func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, uint(0), policy.FailingHostCount)
 	require.Equal(t, uint(0), policy.PassingHostCount)
+	assert.Nil(t, policy.HostCountUpdatedAt)
 
 	// update policy host counts
+	now := time.Now().Truncate(time.Second)
+	later := now.Add(10 * time.Second)
 	err = ds.UpdateHostPolicyCounts(context.Background())
 	require.NoError(t, err)
 
@@ -2650,4 +2653,11 @@ func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, uint(0), policy.FailingHostCount)
 	require.Equal(t, uint(8), policy.PassingHostCount)
+	require.NotNil(t, policy.HostCountUpdatedAt)
+	assert.True(
+		t, policy.HostCountUpdatedAt.Compare(now) >= 0, fmt.Sprintf("reference:%v HostCountUpdatedAt:%v", now, *policy.HostCountUpdatedAt),
+	)
+	assert.True(
+		t, policy.HostCountUpdatedAt.Compare(later) < 0, fmt.Sprintf("later:%v HostCountUpdatedAt:%v", later, *policy.HostCountUpdatedAt),
+	)
 }

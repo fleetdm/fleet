@@ -1166,8 +1166,8 @@ func (s *integrationTestSuite) TestHostsCount() {
 	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
 
 	// set disk space information for some hosts
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0)) // low disk
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0)) // not low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0, 500.0))  // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0, 1000.0)) // not low disk
 
 	label := &fleet.Label{
 		Name:  t.Name() + "foo",
@@ -1328,8 +1328,8 @@ func (s *integrationTestSuite) TestListHosts() {
 	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
 
 	// set disk space information for some hosts
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0)) // low disk
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0)) // not low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0, 500.0))  // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0, 1000.0)) // not low disk
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
@@ -2001,8 +2001,8 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.NoError(t, s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{hosts[0].ID}))
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0))
 
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
@@ -3023,6 +3023,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	t := s.T()
 	ctx := context.Background()
 
+	orbitHost := createOrbitEnrolledHost(t, "windows", "device_mapping", s.ds)
 	hosts := s.createHosts(t)
 
 	// get host device mappings of invalid host
@@ -3033,21 +3034,32 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.DeviceMapping, 0)
 
-	// create some mappings
+	// create a custom mapping of a non-existing host
+	var putResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[2].ID+1), nil, http.StatusNotFound, &putResp)
+
+	// create some google mappings
 	require.NoError(t, s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, []*fleet.HostDeviceMapping{
-		{HostID: hosts[0].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
-		{HostID: hosts[0].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
-	}, "google_chrome_profiles"))
+		{HostID: hosts[0].ID, Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{HostID: hosts[0].ID, Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+	}, fleet.DeviceMappingGoogleChromeProfiles))
+
+	// create a custom mapping
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), putHostDeviceMappingRequest{Email: "c@b.c"}, http.StatusOK, &putResp)
+	require.Equal(t, hosts[0].ID, putResp.HostID)
+	require.ElementsMatch(t, putResp.DeviceMapping, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "c@b.c", Source: fleet.DeviceMappingCustomReplacement},
+	})
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
-	require.Len(t, listResp.DeviceMapping, 2)
-	require.Equal(t, "a@b.c", listResp.DeviceMapping[0].Email)
-	require.Equal(t, "google_chrome_profiles", listResp.DeviceMapping[0].Source)
-	require.Zero(t, listResp.DeviceMapping[0].HostID)
-	require.Equal(t, "b@b.c", listResp.DeviceMapping[1].Email)
-	require.Equal(t, "google_chrome_profiles", listResp.DeviceMapping[1].Source)
-	require.Zero(t, listResp.DeviceMapping[1].HostID)
 	require.Equal(t, hosts[0].ID, listResp.HostID)
+	require.ElementsMatch(t, listResp.DeviceMapping, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "c@b.c", Source: fleet.DeviceMappingCustomReplacement},
+	})
 
 	// other host still has none
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[1].ID), nil, http.StatusOK, &listResp)
@@ -3056,7 +3068,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	var listHosts listHostsResponse
 	// list hosts response includes device mappings
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts)
-	require.Len(t, listHosts.Hosts, 3)
+	require.Len(t, listHosts.Hosts, len(hosts)+1)
 	hostsByID := make(map[uint]fleet.HostResponse)
 	for _, h := range listHosts.Hosts {
 		hostsByID[h.ID] = h
@@ -3069,20 +3081,31 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 
 	err := json.Unmarshal(*hostsByID[host1.ID].DeviceMapping, &dm)
 	require.NoError(t, err)
-	assert.Len(t, dm, 2)
-
-	var emails []string
-	for _, e := range dm {
-		emails = append(emails, e.Email)
-	}
-	assert.Contains(t, emails, "a@b.c")
-	assert.Contains(t, emails, "b@b.c")
-	assert.Equal(t, "google_chrome_profiles", dm[0].Source)
-	assert.Equal(t, "google_chrome_profiles", dm[1].Source)
+	require.ElementsMatch(t, dm, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "c@b.c", Source: fleet.DeviceMappingCustomReplacement},
+	})
 
 	// no device mapping for other hosts
 	assert.Nil(t, hostsByID[hosts[1].ID].DeviceMapping)
 	assert.Nil(t, hostsByID[hosts[2].ID].DeviceMapping)
+	assert.Nil(t, hostsByID[orbitHost.ID].DeviceMapping)
+
+	// update custom email for hosts[0]
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), putHostDeviceMappingRequest{Email: "d@b.c"}, http.StatusOK, &putResp)
+	require.Equal(t, hosts[0].ID, putResp.HostID)
+	require.ElementsMatch(t, putResp.DeviceMapping, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "d@b.c", Source: fleet.DeviceMappingCustomReplacement},
+	})
+
+	// create a custom_installer email for orbit host
+	s.Do("PUT", "/api/fleet/orbit/device_mapping", orbitPutDeviceMappingRequest{
+		OrbitNodeKey: *orbitHost.OrbitNodeKey,
+		Email:        "e@b.c",
+	}, http.StatusOK)
 
 	// search host by email address finds the corresponding host
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "a@b.c")
@@ -3092,17 +3115,41 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 
 	err = json.Unmarshal(*listHosts.Hosts[0].DeviceMapping, &dm)
 	require.NoError(t, err)
-	assert.Len(t, dm, 2)
+	require.ElementsMatch(t, putResp.DeviceMapping, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "d@b.c", Source: fleet.DeviceMappingCustomReplacement},
+	})
 
-	for _, e := range dm {
-		emails = append(emails, e.Email)
-	}
-	assert.Contains(t, emails, "a@b.c")
-	assert.Contains(t, emails, "b@b.c")
-	assert.Equal(t, "google_chrome_profiles", dm[0].Source)
-	assert.Equal(t, "google_chrome_profiles", dm[1].Source)
+	// search host by the custom email address finds the corresponding host
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "d@b.c")
+	require.Len(t, listHosts.Hosts, 1)
+	require.Equal(t, hosts[0].ID, listHosts.Hosts[0].ID)
 
-	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "c@b.c")
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "e@b.c")
+	require.Len(t, listHosts.Hosts, 1)
+	require.Equal(t, orbitHost.ID, listHosts.Hosts[0].ID)
+
+	// override the custom email for the orbit host
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", orbitHost.ID), putHostDeviceMappingRequest{Email: "f@b.c"}, http.StatusOK, &putResp)
+
+	// update the custom_installer email for orbit host, will get ignored (because a custom_override exists)
+	s.Do("PUT", "/api/fleet/orbit/device_mapping", orbitPutDeviceMappingRequest{
+		OrbitNodeKey: *orbitHost.OrbitNodeKey,
+		Email:        "g@b.c",
+	}, http.StatusOK)
+
+	// searching by the old custom installer email doesn't work anymore
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "e@b.c")
+	require.Len(t, listHosts.Hosts, 0)
+
+	// searching by the new custom email address finds it
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "f@b.c")
+	require.Len(t, listHosts.Hosts, 1)
+	require.Equal(t, orbitHost.ID, listHosts.Hosts[0].ID)
+
+	// searching by a never-used email returns nothing
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "Z@b.c")
 	require.Len(t, listHosts.Hosts, 0)
 }
 
@@ -3557,6 +3604,20 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Equal(t, hosts[len(hosts)-1].ID, listHostsResp.Hosts[0].ID)
 	assert.Equal(t, hosts[0].ID, listHostsResp.Hosts[len(hosts)-1].ID)
 
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(
+			context.Background(),
+			`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+			hosts[0].ID, "a@b.c", "src1")
+
+		return err
+	})
+
+	// list hosts in label searching by email address
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "query", "a@b.c")
+	assert.Len(t, listHostsResp.Hosts, 1)
+	assert.Equal(t, hosts[0].ID, listHostsResp.Hosts[0].ID)
+
 	// count hosts in label order by display_name
 	var countResp countHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "label_id", fmt.Sprint(lbl2.ID), "order_key", "display_name", "order_direction", "desc")
@@ -3629,6 +3690,137 @@ func (s *integrationTestSuite) TestLabels() {
 	for _, lbl := range hostSummaryResp.BuiltinLabels {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
+}
+
+// Sanity test to make sure fleet/labels/<all>/hosts and fleet/hosts return the same thing.
+func (s *integrationTestSuite) TestListHostsByLabel() {
+	t := s.T()
+
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, lblIDs, 1)
+	labelID := lblIDs[0]
+
+	hosts := s.createHosts(t, "darwin")
+	host := hosts[0]
+
+	// Update label
+	mysql.ExecAdhocSQL(
+		t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(
+				context.Background(),
+				"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, (SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1))",
+				host.ID,
+			)
+			return err
+		},
+	)
+
+	// set disk space information
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 10.0, 2.0, 500.0)) // low disk
+
+	// Update host fields
+	host.Uptime = 30 * time.Second
+	host.RefetchRequested = true
+	host.OSVersion = "macOS 14.2"
+	host.Build = "abc"
+	host.PlatformLike = "darwin"
+	host.CodeName = "sky"
+	host.Memory = 1000
+	host.CPUType = "arm64"
+	host.CPUSubtype = "ARM64e"
+	host.CPUBrand = "Apple M2 Pro"
+	host.CPUPhysicalCores = 12
+	host.CPULogicalCores = 14
+	host.HardwareVendor = "Apple Inc."
+	host.HardwareModel = "Mac14,10"
+	host.HardwareVersion = "23"
+	host.HardwareSerial = "ABC123"
+	host.ComputerName = "MBP"
+	host.PublicIP = "1.1.1.1"
+	host.PrimaryIP = "10.10.10.10"
+	host.PrimaryMac = "11:22:33"
+	host.DistributedInterval = 10
+	host.ConfigTLSRefresh = 9
+	host.OsqueryVersion = "5.10"
+	err = s.ds.UpdateHost(context.Background(), host)
+	require.NoError(t, err)
+
+	// Add team
+	team, err := s.ds.NewTeam(
+		context.Background(), &fleet.Team{
+			Name: uuid.New().String(),
+		},
+	)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID}))
+
+	// Add pack
+	_, err = s.ds.NewPack(
+		context.Background(), &fleet.Pack{
+			Name: t.Name(),
+			Hosts: []fleet.Target{
+				{
+					Type:     fleet.TargetHost,
+					TargetID: hosts[0].ID,
+				},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	// Add policy
+	qr, err := s.ds.NewQuery(
+		context.Background(), &fleet.Query{
+			Name:           t.Name(),
+			Description:    "Some description",
+			Query:          "select * from osquery;",
+			ObserverCanRun: true,
+			Logging:        fleet.LoggingSnapshot,
+		},
+	)
+	require.NoError(t, err)
+
+	gpParams := globalPolicyRequest{
+		QueryID:    &qr.ID,
+		Resolution: "some global resolution",
+	}
+	gpResp := globalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
+	require.NoError(
+		t,
+		s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{gpResp.Policy.ID: ptr.Bool(false)}, time.Now(), false),
+	)
+
+	// Add MDM info
+	require.NoError(
+		t,
+		s.ds.SetOrUpdateMDMData(
+			context.Background(), host.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "",
+		),
+	)
+
+	// Add device mapping
+	require.NoError(
+		t, s.ds.ReplaceHostDeviceMapping(
+			context.Background(), host.ID, []*fleet.HostDeviceMapping{
+				{HostID: hosts[0].ID, Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{HostID: hosts[0].ID, Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+			}, fleet.DeviceMappingGoogleChromeProfiles,
+		),
+	)
+
+	// Now do the actual API calls that we will compare.
+	var hostsResp, labelsResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelID), nil, http.StatusOK, &labelsResp, "device_mapping", "true")
+
+	// Converting to formatted JSON for easier diffs
+	hostsJson, _ := json.MarshalIndent(hostsResp, "", "  ")
+	labelsJson, _ := json.MarshalIndent(labelsResp, "", "  ")
+	assert.Equal(t, string(hostsJson), string(labelsJson))
+
 }
 
 func (s *integrationTestSuite) TestLabelSpecs() {
@@ -5997,8 +6189,8 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	hosts := s.createHosts(t)
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0))
 
 	// no search criteria
 	var searchResp searchHostsResponse
@@ -6040,6 +6232,22 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "foo.local0"}, http.StatusOK, &searchResp)
 	require.Len(t, searchResp.Hosts, 1)
 	require.Greater(t, searchResp.Hosts[0].SoftwareUpdatedAt, searchResp.Hosts[0].CreatedAt)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(
+			context.Background(),
+			`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+			hosts[0].ID, "a@b.c", "src1")
+
+		return err
+	})
+
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "a@b.c"}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, 1)
+
+	// search for non-existent email, shouldn't get anything back
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "not@found.com"}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, 0)
 }
 
 func (s *integrationTestSuite) TestCountTargets() {
@@ -6728,8 +6936,8 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, err)
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0))
 
 	// create software for host [0]
 	software := []fleet.Software{
@@ -6770,28 +6978,33 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows[0], 49)        // total number of cols
+	assert.Len(t, rows[0], 50)         // total number of cols
 
 	const (
-		idCol       = 3
-		issuesCol   = 41
-		gigsDiskCol = 39
-		pctDiskCol  = 40
+		idCol        = 3
+		issuesCol    = 42
+		gigsDiskCol  = 39
+		pctDiskCol   = 40
+		gigsTotalCol = 41
 	)
 
 	// find the row for hosts[1], it should have issues=1 (1 failing policy) and the expected disk space
 	for _, row := range rows[1:] {
 		if row[idCol] == fmt.Sprint(hosts[1].ID) {
-			require.Equal(t, "1", row[issuesCol], row)
-			require.Equal(t, "3", row[gigsDiskCol], row)
-			require.Equal(t, "4", row[pctDiskCol], row)
+			assert.Equal(t, "1", row[issuesCol], row)
+			assert.Equal(t, "3", row[gigsDiskCol], row)
+			assert.Equal(t, "4", row[pctDiskCol], row)
+			assert.Equal(t, "1000", row[gigsTotalCol], row)
 		} else {
-			require.Equal(t, "0", row[issuesCol], row)
+			assert.Equal(t, "0", row[issuesCol], row)
 		}
 	}
 
 	// valid format, some columns
-	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname", "gigs_disk_space_available", "percent_disk_space_available")
+	res = s.DoRaw(
+		"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv",
+		"columns", "hostname,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space",
+	)
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
@@ -7052,7 +7265,7 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 
 	// before any disk encryption is received, all hosts report NULL (even if
 	// some have disk space information, i.e. an entry exists in host_disks).
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hostWin.ID, 44.5, 55.6))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hostWin.ID, 44.5, 55.6, 90.0))
 
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostWin.ID), nil, http.StatusOK, &getHostResp)
@@ -8504,7 +8717,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows1[0], 49)        // total number of cols
+	assert.Len(t, rows1[0], 50)         // total number of cols
 
 	var (
 		idIdx     int
@@ -8531,7 +8744,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows2[0], 49)        // total number of cols
+	assert.Len(t, rows2[0], 50)         // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {
@@ -9268,4 +9481,50 @@ func (s *integrationTestSuite) TestHostHealth() {
 	assert.Empty(t, resp.HostHealth.VulnerableSoftware)
 	assert.Empty(t, resp.HostHealth.FailingPolicies)
 	assert.Nil(t, resp.HostHealth.TeamID)
+}
+
+func (s *integrationTestSuite) TestHostDeviceToken() {
+	t := s.T()
+	type response struct {
+		Err string `json:"error"`
+	}
+
+	orbitHost := createOrbitEnrolledHost(t, "windows", "device_token", s.ds)
+
+	// Write empty token
+	body := setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
+		DeviceAuthToken: "",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
+
+	// Write bad node key
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    "",
+		DeviceAuthToken: "token",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusUnauthorized, &response{})
+
+	// Write a good token.
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
+		DeviceAuthToken: "token",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusOK, &response{})
+
+	// Try to write the token again for a different host.
+	// First write a valid token.
+	orbitHost2 := createOrbitEnrolledHost(t, "darwin", "device_token2", s.ds)
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost2.OrbitNodeKey,
+		DeviceAuthToken: "token2",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusOK, &response{})
+
+	// Now write a duplicate token, which will result in a conflict with the first host.
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost2.OrbitNodeKey,
+		DeviceAuthToken: "token",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusConflict, &response{})
 }

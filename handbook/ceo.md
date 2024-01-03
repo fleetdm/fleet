@@ -188,7 +188,7 @@ Thanks to everyone who contributed to today's "All hands" call.
 
 :tv: If you weren't able to attend, please *[watch the recording](Current-link-to-Gong-recording)* _(1.5x playback supported)_.
 
-You can also grab a copy of the [original slides](https://fleetdm.com/handbook/business-operations#all-hands) for use in your own confidential presentations.
+You can also grab a copy of the [original slides](https://fleetdm.com/handbook/company/communications#all-hands) for use in your own confidential presentations.
 ```
 
 - Copy and paste the template to the "[# general](https://fleetdm.slack.com/archives/C019FNQPA23)" Slack channel.
