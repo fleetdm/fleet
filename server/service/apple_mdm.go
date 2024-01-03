@@ -2233,15 +2233,15 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			return err
 		}
 
+		var tmID *uint
+		if info.TeamID != 0 {
+			tmID = &info.TeamID
+		}
+
 		// TODO: improve this to not enqueue the job if a host that is
 		// assigned in ABM is manually enrolling for some reason.
 		if info.DEPAssignedToFleet || info.InstalledFromDEP {
 			svc.logger.Log("info", "queueing post-enroll task for newly enrolled DEP device", "host_uuid", r.ID)
-
-			var tmID *uint
-			if info.TeamID != 0 {
-				tmID = &info.TeamID
-			}
 			if err := worker.QueueAppleMDMJob(
 				r.Context,
 				svc.ds,
@@ -2252,6 +2252,21 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 				r.Params[mobileconfig.FleetEnrollReferenceKey],
 			); err != nil {
 				return ctxerr.Wrap(r.Context, err, "queue DEP post-enroll task")
+			}
+		}
+
+		// manual MDM enrollments that are not fleet-enrolled yet
+		if !info.InstalledFromDEP && !info.OsqueryEnrolled {
+			if err := worker.QueueAppleMDMJob(
+				r.Context,
+				svc.ds,
+				svc.logger,
+				worker.AppleMDMPostManualEnrollmentTask,
+				r.ID,
+				tmID,
+				r.Params[mobileconfig.FleetEnrollReferenceKey],
+			); err != nil {
+				return ctxerr.Wrap(r.Context, err, "queue manual post-enroll task")
 			}
 		}
 	}
