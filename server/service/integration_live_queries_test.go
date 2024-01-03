@@ -7,9 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jmoiron/sqlx"
+	"math"
 	"math/rand"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -214,7 +216,10 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 						)
 					},
 				)
-				if !errors.Is(err, sql.ErrNoRows) {
+				if err != nil && !errors.Is(err, sql.ErrNoRows) {
+					t.Error("Error selecting from activity feed", err)
+				}
+				if err == nil {
 					act := fleet.ActivityTypeLiveQuery{}
 					err = json.Unmarshal(details, &act)
 					require.NoError(t, err)
@@ -693,6 +698,40 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsToCreateCampaign() {
 	oneLiveQueryResp := runOneLiveQueryResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/queries/%d/run", 999), oneLiveQueryRequest, http.StatusNotFound, &oneLiveQueryResp)
 	assert.Equal(t, 0, oneLiveQueryResp.RespondedHostCount)
+
+}
+
+func (s *liveQueriesTestSuite) TestLiveQueriesRestInvalidHost() {
+	t := s.T()
+
+	q1, err := s.ds.NewQuery(
+		context.Background(), &fleet.Query{
+			Query:       "select 1 from osquery;",
+			Description: "desc1",
+			Name:        t.Name() + "query1",
+			Logging:     fleet.LoggingSnapshot,
+		},
+	)
+	require.NoError(t, err)
+
+	liveQueryRequest := runLiveQueryRequest{
+		QueryIDs: []uint{q1.ID},
+		HostIDs:  []uint{math.MaxUint},
+	}
+	liveQueryResp := runLiveQueryResponse{}
+
+	s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
+
+	require.Len(t, liveQueryResp.Results, 1)
+	assert.Equal(t, 0, liveQueryResp.Summary.RespondedHostCount)
+	assert.Len(t, liveQueryResp.Results[0].Results, 0)
+	assert.True(t, strings.Contains(*liveQueryResp.Results[0].Error, "no hosts targeted"))
+
+	oneLiveQueryRequest := runOneLiveQueryRequest{
+		HostIDs: []uint{math.MaxUint},
+	}
+	oneLiveQueryResp := runOneLiveQueryResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/queries/%d/run", q1.ID), oneLiveQueryRequest, http.StatusBadRequest, &oneLiveQueryResp)
 
 }
 
