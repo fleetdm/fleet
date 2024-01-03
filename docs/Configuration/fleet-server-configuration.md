@@ -752,11 +752,13 @@ The bcrypt cost to use when hashing user passwords.
 
 ##### auth_salt_key_size
 
-The key size of the salt which is generated when hashing user passwords. Note: Fleet uses the
-`bcrypt` hashing algorithm for hashing passwords, which has a [72 character input limit](https://en.wikipedia.org/wiki/Bcrypt#Maximum_password_length). This means
-that the plaintext password (i.e. the password input by the user) length + the value of
-`auth_salt_key_size` cannot exceed 72. In the default case, the max length of a plaintext password
-is 48 (72 - 24).
+The key size of the salt which is generated when hashing user passwords.
+
+> Note: Fleet uses the `bcrypt` hashing algorithm for hashing passwords, which has a [72 character
+> input limit](https://en.wikipedia.org/wiki/Bcrypt#Maximum_password_length). This means that the
+> plaintext password (i.e. the password input by the user) length + the value of
+> `auth_salt_key_size` cannot exceed 72. In the default case, the max length of a plaintext password
+> is 48 (72 - 24).
 
 - Default value: `24`
 - Environment variable: `FLEET_AUTH_SALT_KEY_SIZE`
