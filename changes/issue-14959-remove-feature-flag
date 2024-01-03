@@ -1,2 +1,0 @@
-* Removed the `FLEET_DEV_MDM_ENABLED` feature flag that allowed enabling Windows MDM. The feature flag is not used anymore, and Windows MDM can be enabled without it.
-

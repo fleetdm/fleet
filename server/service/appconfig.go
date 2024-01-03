@@ -23,8 +23,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/go-kit/kit/log/level"
-	"github.com/kolide/kit/version"
 )
 
 ////////////////////////////////////////////////////////////////////////////////

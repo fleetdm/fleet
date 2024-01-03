@@ -20,6 +20,10 @@ const (
 	// by fleetd to read configuration values from the system.
 	FleetdConfigPayloadIdentifier = "com.fleetdm.fleetd.config"
 
+	// FleetEnrollmentPayloadIdentifier is the value for the PayloadIdentifier used
+	// by Fleet to enroll a device with the MDM server.
+	FleetEnrollmentPayloadIdentifier = "com.fleetdm.fleet.mdm.apple.mdm"
+
 	// FleetEnrollReferenceKey is the key used by Fleet of the URL query parameter representing a unique
 	// identifier for an MDM enrollment. The unique value of the query parameter is appended to the
 	// Fleet server URL when an MDM enrollment profile is generated for download by a device.

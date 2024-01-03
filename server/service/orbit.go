@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -279,11 +280,21 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			notifs.EnforceBitLockerEncryption = true
 		}
 
+		var updateChannels *fleet.OrbitUpdateChannels
+		if len(opts.UpdateChannels) > 0 {
+			var uc fleet.OrbitUpdateChannels
+			if err := json.Unmarshal(opts.UpdateChannels, &uc); err != nil {
+				return fleet.OrbitConfig{}, err
+			}
+			updateChannels = &uc
+		}
+
 		return fleet.OrbitConfig{
-			Flags:         opts.CommandLineStartUpFlags,
-			Extensions:    extensionsFiltered,
-			Notifications: notifs,
-			NudgeConfig:   nudgeConfig,
+			Flags:          opts.CommandLineStartUpFlags,
+			Extensions:     extensionsFiltered,
+			Notifications:  notifs,
+			NudgeConfig:    nudgeConfig,
+			UpdateChannels: updateChannels,
 		}, nil
 	}
 
@@ -315,11 +326,21 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.EnforceBitLockerEncryption = true
 	}
 
+	var updateChannels *fleet.OrbitUpdateChannels
+	if len(opts.UpdateChannels) > 0 {
+		var uc fleet.OrbitUpdateChannels
+		if err := json.Unmarshal(opts.UpdateChannels, &uc); err != nil {
+			return fleet.OrbitConfig{}, err
+		}
+		updateChannels = &uc
+	}
+
 	return fleet.OrbitConfig{
-		Flags:         opts.CommandLineStartUpFlags,
-		Extensions:    extensionsFiltered,
-		Notifications: notifs,
-		NudgeConfig:   nudgeConfig,
+		Flags:          opts.CommandLineStartUpFlags,
+		Extensions:     extensionsFiltered,
+		Notifications:  notifs,
+		NudgeConfig:    nudgeConfig,
+		UpdateChannels: updateChannels,
 	}, nil
 }
 
@@ -423,13 +444,20 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
+	if len(deviceAuthToken) == 0 {
+		return badRequest("device auth token cannot be empty")
+	}
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return newOsqueryError("internal error: missing host from request context")
 	}
 
 	if err := svc.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceAuthToken); err != nil {
-		return newOsqueryError(fmt.Sprintf("internal error: failed to set or update device auth token: %e", err))
+		if errors.As(err, &fleet.ConflictError{}) {
+			return err
+		}
+		return newOsqueryError(fmt.Sprintf("internal error: failed to set or update device auth token: %s", err))
 	}
 
 	return nil
@@ -517,6 +545,44 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit device mapping (custom email)
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitPutDeviceMappingRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	Email        string `json:"email"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitPutDeviceMappingRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitPutDeviceMappingRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitPutDeviceMappingResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitPutDeviceMappingResponse) error() error { return r.Err }
+
+func putOrbitDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitPutDeviceMappingRequest)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := newOsqueryError("internal error: missing host from request context")
+		return orbitPutDeviceMappingResponse{Err: err}, nil
+	}
+
+	_, err := svc.SetCustomHostDeviceMapping(ctx, host.ID, req.Email)
+	return orbitPutDeviceMappingResponse{Err: err}, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
