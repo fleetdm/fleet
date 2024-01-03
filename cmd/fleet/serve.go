@@ -883,7 +883,10 @@ the way that the Fleet server works.
 			rootMux.HandleFunc("/api/", func(rw http.ResponseWriter, req *http.Request) {
 				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/scripts/run/sync") {
 					rc := http.NewResponseController(rw)
-					if err := rc.SetWriteDeadline(time.Now().Add((5 * time.Minute) + (1 * time.Second))); err != nil {
+					// this endpoint waits up to 6 minutes for a host response, we add an
+					// additional 30 seconds as I have seen race conditions where the
+					// request is terminated early.
+					if err := rc.SetWriteDeadline(time.Now().Add((6 * time.Minute) + (30 * time.Second))); err != nil {
 						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
 					}
 				}
