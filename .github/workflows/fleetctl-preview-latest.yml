@@ -71,6 +71,7 @@ jobs:
     - name: Run fleetctl preview
       run: |
         ref_name=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
+        echo $ref_name
         ./build/fleetctl preview \
           --preview-config $ref_name \
           --std-query-lib-file-path $(pwd)/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
@@ -79,6 +80,7 @@ jobs:
         [ $( cat hosts.txt | grep online | wc -l) -eq 9 ]
 
     - name: Get fleet logs
+      if: always()
       run: |
         FLEET_LICENSE_KEY=foo docker compose -f ~/.fleet/preview/docker-compose.yml logs fleet01 fleet02 > fleet-logs.txt
         # Copying logs, otherwise the upload-artifact action uploads the logs in a hidden folder (.fleet)
