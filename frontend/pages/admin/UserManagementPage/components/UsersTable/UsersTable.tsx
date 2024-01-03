@@ -224,7 +224,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           ) {
             renderFlash(
               "error",
-              "Could not create user. Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config."
+              <p>
+                Could not create user. Password is over the 48 characters limit.
+                If the password is under 48 characters,
+                <br /> please check the auth_salt_key_size in your Fleet server
+                config.
+              </p>
             );
           } else {
             renderFlash("error", "Could not create user. Please try again.");
@@ -263,7 +268,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           ) {
             renderFlash(
               "error",
-              "Could not create user. Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config."
+              <p>
+                Could not create user. Password is over the 48 characters limit.
+                If the password is under 48 characters,
+                <br /> please check the auth_salt_key_size in your Fleet server
+                config.
+              </p>
             );
           } else {
             renderFlash("error", "Could not create user. Please try again.");
