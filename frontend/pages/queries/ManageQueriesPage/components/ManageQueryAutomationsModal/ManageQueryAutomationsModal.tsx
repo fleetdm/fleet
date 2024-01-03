@@ -11,7 +11,7 @@ import LogDestinationIndicator from "components/LogDestinationIndicator/LogDesti
 
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 
-interface IManageAutomationsModalProps {
+interface IManageQueryAutomationsModalProps {
   isUpdatingAutomations: boolean;
   handleSubmit: (formData: any) => void; // TODO
   onCancel: () => void;
@@ -52,9 +52,9 @@ const useCheckboxListStateManagement = (
   return { queryItems, updateQueryItems };
 };
 
-const baseClass = "manage-automations-modal";
+const baseClass = "manage-query-automations-modal";
 
-const ManageAutomationsModal = ({
+const ManageQueryAutomationsModal = ({
   isUpdatingAutomations,
   automatedQueryIds,
   handleSubmit,
@@ -62,7 +62,7 @@ const ManageAutomationsModal = ({
   togglePreviewDataModal,
   availableQueries,
   logDestination,
-}: IManageAutomationsModalProps): JSX.Element => {
+}: IManageQueryAutomationsModalProps): JSX.Element => {
   // TODO: Error handling, if any
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -205,4 +205,4 @@ const ManageAutomationsModal = ({
   );
 };
 
-export default ManageAutomationsModal;
+export default ManageQueryAutomationsModal;
