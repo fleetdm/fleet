@@ -7015,7 +7015,7 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 
 	// host with an empty node key
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE hosts SET orbit_node_key = NULL WHERE host_uuid = ?`, host.UUID)
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET node_key = NULL WHERE uuid = ?`, host.UUID)
 		return err
 	})
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
