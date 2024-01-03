@@ -1152,6 +1152,7 @@ type HostMDMCheckinInfo struct {
 	DisplayName        string `json:"display_name" db:"display_name"`
 	TeamID             uint   `json:"team_id" db:"team_id"`
 	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
+	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
 }
 
 type HostDiskEncryptionKey struct {
