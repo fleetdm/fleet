@@ -871,7 +871,24 @@ the way that the Fleet server works.
 				}
 			}
 
-			rootMux.Handle("/api/", apiHandler)
+			// We must wrap the Handler here to set special per-endpoint Write
+			// timeouts, so that we have access to the raw http.ResponseWriter.
+			// Otherwise, the handler is wrapped by the promhttp response delegator,
+			// which does not support the Unwrap call needed to work with
+			// ResponseController.
+			//
+			// See https://pkg.go.dev/net/http#NewResponseController which explains
+			// the Unwrap method that the prometheus wrapper of http.ResponseWriter
+			// does not implement.
+			rootMux.HandleFunc("/api/", func(rw http.ResponseWriter, req *http.Request) {
+				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/scripts/run/sync") {
+					rc := http.NewResponseController(rw)
+					if err := rc.SetWriteDeadline(time.Now().Add((5 * time.Minute) + (1 * time.Second))); err != nil {
+						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
+					}
+				}
+				apiHandler.ServeHTTP(rw, req)
+			})
 			rootMux.Handle("/", frontendHandler)
 
 			debugHandler := &debugMux{

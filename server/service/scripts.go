@@ -77,7 +77,9 @@ func (r runScriptSyncResponse) Status() int {
 var testRunScriptWaitForResult time.Duration
 
 // waitForResultTime is the default timeout for the synchronous script execution.
-const waitForResultTime = time.Minute
+// The extra seconds is to give a little extra time on top of the script
+// execution time.
+const waitForResultTime = (5 * time.Minute) + (30 * time.Second)
 
 func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	waitForResult := waitForResultTime
