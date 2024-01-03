@@ -373,12 +373,6 @@ func checkNVDVulnerabilities(
 		return nil
 	}
 
-	_, err = nvd.TranslateMacOSCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, config.Periodicity)
-	if err != nil {
-		errHandler(ctx, logger, "analyzing vulnerable OS software: macOS CPE->CVE", err)
-		return nil
-	}
-
 	return vulns
 }
 

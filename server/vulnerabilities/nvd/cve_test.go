@@ -406,9 +406,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), false, 1*time.Hour)
 		require.NoError(t, err)
 
-		_, err = TranslateMacOSCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), false, 1*time.Hour)
-		require.NoError(t, err)
-
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 		require.True(t, ds.DeleteOutOfDateOSVulnerabilitiesFuncInvoked)
 
@@ -454,10 +451,16 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 			return softwareCPEs, nil
 		}
-
 		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
 			return true, nil
 		}
+		ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, p string) ([]fleet.OperatingSystem, error) {
+			return nil, nil
+		}
+		ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+			return nil
+		}
+
 		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, 1*time.Hour)
 		require.NoError(t, err)
 
