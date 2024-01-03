@@ -402,6 +402,28 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 			want:    "105.0",
 			wantErr: false,
 		},
+		{
+			name: "Multiple product matches with different version ranges",
+			cve: "CVE-2022-26697",
+			meta: &wfn.Attributes{
+				Vendor: "apple",
+				Product: "macos",
+				Version: "12.0",
+			},
+			want: "12.4",
+			wantErr: false,
+		},
+		{
+			name: "No version end excluding",
+			cve: "CVE-2022-26834",
+			meta: &wfn.Attributes{
+				Vendor: "cybozu",
+				Product: "remote_service_manager",
+				Version: "3.1.2",
+			},
+			want: "",
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
