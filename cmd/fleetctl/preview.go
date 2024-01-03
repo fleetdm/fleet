@@ -169,6 +169,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			if previewConfigDir := c.String(previewConfigPathFlagName); previewConfigDir != "" {
 				fmt.Printf("Copying dependencies from %s...\n", previewConfigDir)
+				if err := os.MkdirAll(previewDir, 0o777); err != nil {
+					return fmt.Errorf("create directory %q: %w", previewDir, err)
+				}
 				if err := copyDirectory(previewDir, previewConfigDir); err != nil {
 					return fmt.Errorf("copying directories: %w", err)
 				}
