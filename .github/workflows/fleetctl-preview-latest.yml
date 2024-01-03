@@ -70,10 +70,8 @@ jobs:
 
     - name: Run fleetctl preview
       run: |
-        ref_name=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
-        echo $ref_name
         ./build/fleetctl preview \
-          --preview-config $ref_name \
+          --preview-config-path ./tools/osquery/in-a-box \
           --std-query-lib-file-path $(pwd)/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
         sleep 10
         ./build/fleetctl get hosts | tee hosts.txt

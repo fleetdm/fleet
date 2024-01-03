@@ -33,17 +33,18 @@ import (
 type dockerComposeVersion int
 
 const (
-	standardQueryLibraryUrl = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
-	licenseKeyFlagName      = "license-key"
-	tagFlagName             = "tag"
-	previewConfigFlagName   = "preview-config"
-	noHostsFlagName         = "no-hosts"
-	orbitChannel            = "orbit-channel"
-	osquerydChannel         = "osqueryd-channel"
-	updateURL               = "update-url"
-	updateRootKeys          = "update-roots"
-	stdQueryLibFilePath     = "std-query-lib-file-path"
-	disableOpenBrowser      = "disable-open-browser"
+	standardQueryLibraryUrl   = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
+	licenseKeyFlagName        = "license-key"
+	tagFlagName               = "tag"
+	previewConfigFlagName     = "preview-config"
+	noHostsFlagName           = "no-hosts"
+	orbitChannel              = "orbit-channel"
+	osquerydChannel           = "osqueryd-channel"
+	updateURL                 = "update-url"
+	updateRootKeys            = "update-roots"
+	stdQueryLibFilePath       = "std-query-lib-file-path"
+	previewConfigPathFlagName = "preview-config-path"
+	disableOpenBrowser        = "disable-open-browser"
 
 	dockerComposeV1 dockerComposeVersion = 1
 	dockerComposeV2 dockerComposeVersion = 2
@@ -140,8 +141,14 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			},
 			&cli.StringFlag{
 				Name:  stdQueryLibFilePath,
-				Usage: "Use custom standard query library yml file",
+				Usage: "Use custom standard query library yml file (used for development/testing)",
 				Value: "",
+			},
+			&cli.StringFlag{
+				Name:   previewConfigPathFlagName,
+				Usage:  "Use custom local directory for the pulling configuration from fleetdm/fleet (used for development/testing)",
+				Value:  "",
+				Hidden: true,
 			},
 			&cli.BoolFlag{
 				Name:  disableOpenBrowser,
@@ -158,21 +165,29 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return err
 			}
 
-			// Download files every time to ensure the user gets the most up to date versions
 			previewDir := previewDirectory()
-			fleetBranch := c.String(previewConfigFlagName)
-			fmt.Printf("Downloading dependencies from fleetdm/fleet:%s into %s...\n", fleetBranch, previewDir)
-			githubHTTPClient := fleethttp.NewGithubClient()
-			githubClient := github.NewClient(githubHTTPClient)
-			if err := downloadFromFleetRepo(
-				context.Background(),
-				githubHTTPClient,
-				githubClient,
-				"tools/osquery/in-a-box",
-				fleetBranch,
-				previewDirectory(),
-			); err != nil {
-				return fmt.Errorf("downloading dependencies: %w", err)
+
+			if previewConfigDir := c.String(previewConfigPathFlagName); previewConfigDir != "" {
+				fmt.Printf("Copying dependencies from %s...\n", previewConfigDir)
+				if err := copyDirectory(previewDir, previewConfigDir); err != nil {
+					return fmt.Errorf("copying directories: %w", err)
+				}
+			} else {
+				// Download files every time to ensure the user gets the most up to date versions
+				fleetBranch := c.String(previewConfigFlagName)
+				fmt.Printf("Downloading dependencies from fleetdm/fleet:%s into %s...\n", fleetBranch, previewDir)
+				githubHTTPClient := fleethttp.NewGithubClient()
+				githubClient := github.NewClient(githubHTTPClient)
+				if err := downloadFromFleetRepo(
+					context.Background(),
+					githubHTTPClient,
+					githubClient,
+					"tools/osquery/in-a-box",
+					fleetBranch,
+					previewDirectory(),
+				); err != nil {
+					return fmt.Errorf("downloading dependencies: %w", err)
+				}
 			}
 
 			if err := os.Chdir(previewDir); err != nil {
@@ -405,6 +420,28 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			return nil
 		},
 	}
+}
+
+func copyDirectory(destDir, sourceDir string) error {
+	sourceDir, err := filepath.Abs(sourceDir)
+	if err != nil {
+		return fmt.Errorf("absolute path could not be determined for %q: %w", sourceDir, err)
+	}
+	return filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+		var relPath string = strings.Replace(path, sourceDir, "", 1)
+		if relPath == "" {
+			return nil
+		}
+		if info.IsDir() {
+			return os.MkdirAll(filepath.Join(destDir, relPath), 0o777)
+		} else {
+			data, err1 := os.ReadFile(filepath.Join(sourceDir, relPath))
+			if err1 != nil {
+				return err1
+			}
+			return os.WriteFile(filepath.Join(destDir, relPath), data, 0o777)
+		}
+	})
 }
 
 var testOverridePreviewDirectory string
