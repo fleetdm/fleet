@@ -428,19 +428,18 @@ func copyDirectory(destDir, sourceDir string) error {
 		return fmt.Errorf("absolute path could not be determined for %q: %w", sourceDir, err)
 	}
 	return filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
-		var relPath string = strings.Replace(path, sourceDir, "", 1)
+		relPath := strings.Replace(path, sourceDir, "", 1)
 		if relPath == "" {
 			return nil
 		}
 		if info.IsDir() {
 			return os.MkdirAll(filepath.Join(destDir, relPath), 0o777)
-		} else {
-			data, err1 := os.ReadFile(filepath.Join(sourceDir, relPath))
-			if err1 != nil {
-				return err1
-			}
-			return os.WriteFile(filepath.Join(destDir, relPath), data, 0o777)
 		}
+		data, err1 := os.ReadFile(filepath.Join(sourceDir, relPath))
+		if err1 != nil {
+			return err1
+		}
+		return os.WriteFile(filepath.Join(destDir, relPath), data, 0o777)
 	})
 }
 
