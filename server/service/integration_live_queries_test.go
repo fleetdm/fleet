@@ -143,6 +143,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 
 				if len(campaigns) == 1 && campaigns[0].Status == fleet.QueryRunning {
 					cidChannel <- fmt.Sprint(campaigns[0].ID)
+					return
 				}
 			}
 		}()
@@ -218,6 +219,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 				)
 				if err != nil && !errors.Is(err, sql.ErrNoRows) {
 					t.Error("Error selecting from activity feed", err)
+					return
 				}
 				if err == nil {
 					act := fleet.ActivityTypeLiveQuery{}
@@ -226,6 +228,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 					if act.QuerySQL == q1.Query {
 						assert.Equal(t, act.TargetsCount, uint(1))
 						activityUpdated <- &act
+						return
 					}
 				}
 			}
@@ -791,6 +794,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 
 				if len(campaigns) == 1 && campaigns[0].Status == fleet.QueryRunning {
 					cidChannel <- fmt.Sprint(campaigns[0].ID)
+					return
 				}
 			}
 		}()
