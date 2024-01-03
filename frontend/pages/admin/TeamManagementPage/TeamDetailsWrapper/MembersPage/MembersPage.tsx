@@ -289,15 +289,9 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
           } else if (
             userErrors.data.errors?.[0].reason.includes("password too long")
           ) {
-            renderFlash(
-              "error",
-              <p>
-                Could not create user. Password is over the 48 characters limit.
-                If the password is under 48 characters,
-                <br /> please check the auth_salt_key_size in your Fleet server
-                config.
-              </p>
-            );
+            setCreateUserErrors({
+              password: "Password is over the character limit.",
+            });
           } else {
             renderFlash("error", "Could not create user. Please try again.");
           }
