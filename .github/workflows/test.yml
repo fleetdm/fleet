@@ -1,4 +1,4 @@
-name: Run Tests
+name: Run fleetd-chrome tests
 
 on:
   push:
@@ -8,12 +8,7 @@ on:
       - prepare-*
   pull_request:
     paths:
-      - assets/**
-      - frontend/**
-      - package.json
-      - yarn.lock
-      - webpack.config.js
-      - tsconfig.json
+      - ee/fleetd-chrome/**
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -29,7 +24,7 @@ permissions:
   contents: read
 
 jobs:
-  test-js:
+  test-fleetd-chrome-js:
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -45,51 +40,22 @@ jobs:
       with:
         path: |
           **/node_modules
-        key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+        key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-modules-
 
     - name: Install JS Dependencies
       if: steps.js-cache.outputs.cache-hit != 'true'
-      run: make deps-js
+      working-directory: ./ee/fleetd-chrome
+      run: npm install
 
     - name: Run JS Tests
+      working-directory: ./ee/fleetd-chrome
       run: |
-        yarn test:ci
+        npm test
 
     - name: Upload to Codecov
-      uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
+      uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70 # v3.1.1
       with:
+        directory: ./ee/fleetd-chrome/coverage
         flags: frontend
-
-  lint-js:
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
-
-    steps:
-    - name: Checkout Code
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-
-    - name: JS Dependency Cache
-      id: js-cache
-      uses: actions/cache@69d9d449aced6a2ede0bc19182fadc3a0a42d2b0 # v2
-      with:
-        path: |
-          **/node_modules
-        key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-modules-
-
-    - name: Install JS Dependencies
-      if: steps.js-cache.outputs.cache-hit != 'true'
-      run: make deps-js
-
-    - name: Run JS Linting
-      run: |
-        make lint-js
-
-    - name: Run prettier formatting check
-      run: |
-        yarn prettier:check
