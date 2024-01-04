@@ -159,6 +159,32 @@ Once notified, BizOps takes the following steps:
 - Create an [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md) for the Fleetie converting to a consultant, and confirm with their manager if there is a need to retain any tools or access while they are a consultant (default to removing all access from Fleet email, and migrating to personal email for Slack and other tools unless there is a business case to retain the Fleet email and associated tool access).
 - Follow the offboarding issue for next steps, including communicating to teammates and updating equity plan.
 
+### Change a Fleetie's manager 
+
+Once the decision has been made to change a Fleetie's manager, the department head should submit a [custom issue to the BizOps team](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=&projects=&template=custom-request.md&title=Request%3A+_______________________) with the following details: 
+- Name of Fleetie 
+- Current manager 
+- New manager 
+- Effective date 
+
+Once notified, the BizOps team will: 
+- Update [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to reflect the changes. 
+- Ensure there is a 1:1 set-up between the Fleetie and their new manager 
+- Ensure the change has been communicated to relevant team members. 
+
+### Change a Fleetie's job title 
+
+Once the decision has been made to change a Fleetie's title, their department head should submit a [custom issue to the BizOps team](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=&projects=&template=custom-request.md&title=Request%3A+_______________________) with the following details: 
+- Name of Fleetie 
+- Current title
+- New title
+- Any changes to their current job description 
+- Effective date 
+
+Once notified, the BizOps team will update [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to reflect the changes and prompt the team member to update their Fleet tools to reflect their new title (Slack, Zoom, Google Workspace, etc.).
+
+> Note: if the Fleetie's title is changing due to an expansion of role or duties, there may be a need to also [change their compensation](https://fleetdm.com/handbook/business-operations#updating-compensation).
+
 
 ### Updating personnel details
 When a Fleetie, consultant or advisor requests an update to their personnel details (name, location, phone, etc), follow these steps to ensure accurate representation across systems.
