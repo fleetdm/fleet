@@ -24,7 +24,7 @@ permissions:
   contents: read
 
 jobs:
-  test-fleetd-chrome-js:
+  test-fleetd-chrome:
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -49,6 +49,10 @@ jobs:
       working-directory: ./ee/fleetd-chrome
       run: npm install
 
+    - name: Build JS
+      working-directory: ./ee/fleetd-chrome
+      run: npm run build
+
     - name: Run JS Tests
       working-directory: ./ee/fleetd-chrome
       run: |
@@ -58,4 +62,4 @@ jobs:
       uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70 # v3.1.1
       with:
         directory: ./ee/fleetd-chrome/coverage
-        flags: frontend
+        flags: fleetd-chrome
