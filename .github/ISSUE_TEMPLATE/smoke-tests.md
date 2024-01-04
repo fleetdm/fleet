@@ -68,7 +68,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 4. Warning and informational modals show when expected and make sense
 </td><td>pass/fail</td></tr>
 
-<tr><td>Packs flow</td><td>Verify pack management, operation, and logging.</td><td>
+<tr><td>Packs flow</td><td>Verify management, operation, and logging of ["2017 packs"](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs).</td><td>
 
 1. Packs successfully run on host machines after migrations 
 2. New Packs can be created
