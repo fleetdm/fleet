@@ -173,12 +173,13 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 
 ### Updating compensation
 When Fleet [changes compensation for team members](https://fleetdm.com/handbook/company/communications#compensation-changes), the Business Operations team adheres to the following process:
-- The Head of BizOps creates a copy of the Values assessment template and stores it in the team member's personnel file, then shares with the manager to perform a values assessment.
-- Once the values assessment is complete, the Head of BizOps prepares benchmarking information and confers with manager or head of department about level of job skill in relation to compensation benchmarking data.
+- On the first Friday of the month, the Head of BizOps posts in the `#help-classified` channel with the list of team members due for compensation review.
+- The Head of BizOps creates a copy of the [Values assessment template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and stores it in the team member's [personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link), then shares with the manager to perform a values assessment.
+- Once the values assessment is complete, the Head of BizOps prepares benchmarking information in the [¶¶ 💌 Compensation decisions](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing)file, and confers with manager or head of department about level of job skill in relation to compensation benchmarking levels.
 - Head of Biz Ops then schedules time with the CEO and CTO over an existing 1:1 to discuss if an adjustment needs to be made to team member's compensation.
 - During the 1:1 call, founders review values assessment, benchmarking for role and geography, and decide if there will be an adjustment.
 - Head of BizOps posts to slack in `#help-classified` with the decision on compensation changes and effective date, if any.
-- If a change is to be made, the Head of BizOps communicates decision to the teammate's people manager, who then communicates to their teammate.
+- The Head of BizOps communicates the decision to the teammate's people manager, who then communicates to their teammate.
 - Head of BizOps updates the respective payroll platform (Gusto or Plane) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
 - If an additional equity grant is part of this compensation change, the previous equity and new situation is noted in detail in the "Notes" column of the equity plan, and the "Grant started?" column is set back to "todo" to add it to the queue for the next time grants are processed (quarterly).
 
