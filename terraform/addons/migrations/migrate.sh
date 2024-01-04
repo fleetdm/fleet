@@ -3,7 +3,7 @@ set -e
 set -x
 
 function scale_services(){
-	UP_DOWN="${3:?}"
+	UP_DOWN="${1:?}"
 	# Set the minimum capacity and desired count in the cluster to 0 to scale down or to the original size to scale back to normal.
 
 	# This is a bit hacky, but the update-service has to happen first when scaling up and second when scaling down.
