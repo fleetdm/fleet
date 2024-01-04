@@ -1,6 +1,5 @@
 #!/bin/bash
 set -e
-set -x
 
 function scale_services(){
 	UP_DOWN="${1:?}"
