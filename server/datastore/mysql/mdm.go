@@ -436,9 +436,8 @@ WHERE
 		fleet.MDMDeliveryFailed,
 		host.UUID,
 		[]interface{}{
-			fleet.MDMDeliveryPending,
 			fleet.MDMDeliveryVerifying,
-			fleet.MDMDeliveryFailed,
+			fleet.MDMDeliveryVerified,
 		},
 		fleet.MDMOperationTypeInstall,
 		identifiersOrNames,
