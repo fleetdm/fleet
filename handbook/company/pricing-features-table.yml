@@ -278,7 +278,7 @@
 - industryName: Agent auto-update
   friendlyName: Keep agents and extensions up to date
   descrption: Keep agents and extensions up to date by loading code from Fleet's free update registry.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetd
+  documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
   tier: Free
   productCategories: [Endpoint operations]
   usualDepartment: IT
@@ -289,7 +289,7 @@
   tier: Free
   productCategories: [Endpoint operations]
   usualDepartment: IT
-  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetd
+  documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
   waysToUse:
     - description: Build scripts for Ansible deployments
       moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
@@ -302,7 +302,7 @@
 #  ╚═╝╩ ╩ ╩ ╚═╝╩ ╩  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝
 - industryName: Batch installation (Chef, Ansible, Puppet, MDM)
   friendlyName: Install agents over the air
-  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetd
+  documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
   tier: Free
   productCategories: [Endpoint operations]
   usualDepartment: IT

@@ -3013,8 +3013,6 @@ Request (`filters` is specified and empty, to delete all hosts):
 
 Retrieves a host's Google Chrome profile information which can be used to link a host to a specific user by email.
 
-Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
-
 `GET /api/v1/fleet/hosts/:id/device_mapping`
 
 #### Parameters

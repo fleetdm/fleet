@@ -427,7 +427,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/process-file-events': '/guides/querying-process-file-events-table-on-centos-7',
   'GET /docs/using-fleet/audit-activities': '/docs/using-fleet/audit-logs',
   'GET /docs/using-fleet/detail-queries-summary': '/docs/using-fleet/understanding-host-vitals',
-  'GET /docs/using-fleet/orbit': '/docs/using-fleet/fleetd',
+  'GET /docs/using-fleet/orbit': '/docs/using-fleet/enroll-hosts',
   'GET /docs/deploying': '/docs/deploy',
   'GET /docs/deploying/faq': '/docs/get-started/faq',
   'GET /docs/deploying/introduction': '/docs/deploy/introduction',
