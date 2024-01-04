@@ -6,7 +6,7 @@ function scale_services(){
 	DESIRED_COUNT="${2:?}"
 	UP_DOWN="${3:?}"
 	# Set the minimum capacity and desired count in the cluster to 0 to scale down or to the original size to scale back to normal.
-	
+
 	# This is a bit hacky, but the update-service has to happen first when scaling up and second when scaling down.
 	if [ "${UP_DOWN:?}" = "up"]; then
 		aws ecs update-service --region "${REGION:?}" --cluster "${ECS_CLUSTER:?}" --service "${ECS_SERVICE:?}" --desired-count "${DESIRED_COUNT:?}"
