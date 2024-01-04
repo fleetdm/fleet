@@ -2,10 +2,6 @@ output "service" {
   value = aws_ecs_service.fleet
 }
 
-output "appautoscaling_target" {
-  value = aws_appautoscaling_target.ecs_target
-}
-
 output "task_definition" {
   value = aws_ecs_task_definition.backend
 }
