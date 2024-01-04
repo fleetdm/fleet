@@ -1,4 +1,4 @@
-name: Run fleetd-chrome tests
+name: Run Tests
 
 on:
   push:
@@ -8,7 +8,12 @@ on:
       - prepare-*
   pull_request:
     paths:
-      - ee/fleetd-chrome/**
+      - assets/**
+      - frontend/**
+      - package.json
+      - yarn.lock
+      - webpack.config.js
+      - tsconfig.json
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -24,7 +29,7 @@ permissions:
   contents: read
 
 jobs:
-  test-fleetd-chrome:
+  test-js:
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -40,28 +45,51 @@ jobs:
       with:
         path: |
           **/node_modules
-        key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
+        key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-modules-
 
     - name: Install JS Dependencies
       if: steps.js-cache.outputs.cache-hit != 'true'
-      working-directory: ./ee/fleetd-chrome
-      run: npm ci
-
-    - name: Build JS
-      working-directory: ./ee/fleetd-chrome
-      run: |
-        echo -e 'FLEET_URL="url"\nFLEET_ENROLL_SECRET="secret"' > .env
-        npm run build
+      run: make deps-js
 
     - name: Run JS Tests
-      working-directory: ./ee/fleetd-chrome
       run: |
-        npm test
+        yarn test:ci
 
     - name: Upload to Codecov
-      uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70 # v3.1.1
+      uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
       with:
-        directory: ./ee/fleetd-chrome/coverage
-        flags: fleetd-chrome
+        flags: frontend
+
+  lint-js:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+    - name: JS Dependency Cache
+      id: js-cache
+      uses: actions/cache@69d9d449aced6a2ede0bc19182fadc3a0a42d2b0 # v2
+      with:
+        path: |
+          **/node_modules
+        key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-modules-
+
+    - name: Install JS Dependencies
+      if: steps.js-cache.outputs.cache-hit != 'true'
+      run: make deps-js
+
+    - name: Run JS Linting
+      run: |
+        make lint-js
+
+    - name: Run prettier formatting check
+      run: |
+        yarn prettier:check
