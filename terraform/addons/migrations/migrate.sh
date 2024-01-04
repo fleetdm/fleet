@@ -4,11 +4,17 @@ set -e
 function scale_services(){
 	MIN_CAPACITY="${1:?}"
 	DESIRED_COUNT="${2:?}"
-
+	UP_DOWN="${3:?}"
 	# Set the minimum capacity and desired count in the cluster to 0 to scale down or to the original size to scale back to normal.
+	
+	# This is a bit hacky, but the update-service has to happen first when scaling up and second when scaling down.
+	if [ "${UP_DOWN:?}" = "up"]; then
+		aws ecs update-service --region "${REGION:?}" --cluster "${ECS_CLUSTER:?}" --service "${ECS_SERVICE:?}" --desired-count "${DESIRED_COUNT:?}"
+	fi
 	aws application-autoscaling register-scalable-target --region "${REGION:?}" --service-namespace ecs --resource-id "service/${ECS_CLUSTER:?}/${ECS_SERVICE:?}" --scalable-dimension "ecs:service:DesiredCount" --min-capacity "${MIN_CAPACITY:?}"
-	aws ecs update-service --region "${REGION:?}" --cluster "${ECS_CLUSTER:?}" --service "${ECS_SERVICE:?}" --desired-count "${DESIRED_COUNT:?}"
-
+	if [ "${UP_DOWN:?}" != "up" ]; then
+		aws ecs update-service --region "${REGION:?}" --cluster "${ECS_CLUSTER:?}" --service "${ECS_SERVICE:?}" --desired-count "${DESIRED_COUNT:?}"
+	fi
 	# The first task defintion might never get stable because it never had initial migrations so don't wait before continuing
 	if [ "${TASK_DEFINITION_REVISION}" != "1" ]; then
 		# Wait for scale-down to succeed
@@ -26,7 +32,7 @@ do
    export "$KEY"="$VALUE"
 done
 
-scale_services 0 0
+scale_services 0 0 down
 
 # Call aws ecs run-task
 TASK_ARN="$(aws ecs run-task --region "${REGION:?}" --cluster "${ECS_CLUSTER:?}" --task-definition "${TASK_DEFINITION:?}":"${TASK_DEFINITION_REVISION:?}" --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets="${SUBNETS:?}",securityGroups="${SECURITY_GROUPS:?}"}" --query 'tasks[].taskArn' --overrides '{"containerOverrides": [{"name": "fleet", "command": ["fleet", "prepare", "db"]}]}' --output text | rev | cut -d'/' -f1 | rev)"
@@ -34,7 +40,7 @@ TASK_ARN="$(aws ecs run-task --region "${REGION:?}" --cluster "${ECS_CLUSTER:?}"
 # Wait for completion
 aws ecs wait tasks-stopped --region "${REGION:?}" --cluster="${ECS_CLUSTER:?}" --tasks="${TASK_ARN:?}"
 
-scale_services "${MIN_CAPACITY:?}" "${DESIRED_COUNT:?}"
+scale_services "${MIN_CAPACITY:?}" "${DESIRED_COUNT:?}" up
 
 # Exit with task's exit code
 TASK_EXIT_CODE=$(aws ecs describe-tasks --region "${REGION:?}" --cluster ${ECS_CLUSTER:?} --tasks ${TASK_ARN:?} --query "tasks[0].containers[?name=='fleet'].exitCode" --output text)
