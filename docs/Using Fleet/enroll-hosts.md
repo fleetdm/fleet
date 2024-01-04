@@ -123,10 +123,31 @@ How to unenroll a host from Fleet:
 
 ## Advanced
 
-- [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
 - [Signing fleetd installer](#signing-fleetd-installer)
+- [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
+- [Using mTLS](#using-mtls)
+- [Specifying update channels](#specifying-update-channels)
+- [Testing osquery queries locally](#testing-osquery-queries-locally)
+- [Finding fleetd logs](#finding-fleetd-logs)
 - [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
-- [fleetd configuration options](#fleetd-configuration-options)
+- [Experimental features](#experimental-features)
+
+### Signing fleetd installers
+
+  >**Note:** Currently, the `fleetctl package` command does not support signing Windows fleetd installers. Windows installers can be signed after building.
+
+The `fleetctl package` command supports signing and notarizing macOS osquery installers via the
+`--sign-identity` and `--notarize` flags.
+
+Check out the example below:
+
+```sh
+  AC_USERNAME=appleid@example.com AC_PASSWORD=app-specific-password fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
+```
+
+The above command must be run on a macOS device, as the notarizing and signing of macOS fleetd installers can only be done on macOS devices.
+
+Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password, respectively. Some organizations (notably those with Apple Enterprise Developer Accounts) may also need to specify `AC_TEAM_ID`. This value can be found on the [Apple Developer "Membership" page](https://developer.apple.com/account/#!/membership) under "Team ID."
 
 ### Grant full disk access to osquery on macOS
 
@@ -196,41 +217,6 @@ See the last hour of logs related to TCC permissions with this command:
 
 You can then look for `orbit` or `osquery` to narrow down results.
 
-### Signing fleetd installers
-
-  >**Note:** Currently, the `fleetctl package` command does not support signing Windows fleetd installers. Windows installers can be signed after building.
-
-The `fleetctl package` command supports signing and notarizing macOS osquery installers via the
-`--sign-identity` and `--notarize` flags.
-
-Check out the example below:
-
-```sh
-  AC_USERNAME=appleid@example.com AC_PASSWORD=app-specific-password fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
-```
-
-The above command must be run on a macOS device, as the notarizing and signing of macOS fleetd installers can only be done on macOS devices.
-
-Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password, respectively. Some organizations (notably those with Apple Enterprise Developer Accounts) may also need to specify `AC_TEAM_ID`. This value can be found on the [Apple Developer "Membership" page](https://developer.apple.com/account/#!/membership) under "Team ID."
-
-### Generating Windows installers using local WiX toolset
-
-`Applies only to Fleet Premium`
-
-When creating a fleetd installer for Windows hosts (**.msi**) on a Windows machine, you can tell `fleetctl package` to
-use local installations of the 3 WiX v3 binaries used by this command (`heat.exe`, `candle.exe`, and
-`light.exe`) instead of those in a pre-configured container, which is the default behavior. To do
-so:
-  1. Install the WiX v3 binaries. To install, you can download them
-     [here](https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip), then unzip the downloaded file.
-  2. Find the absolute filepath of the directory containing your local WiX v3 binaries. This will be wherever you saved the unzipped package contents.
-  3. Run `fleetctl package`, and pass the absolute path above as the string argument to the
-     `--local-wix-dir` flag. For example:
-     ```
-      fleetctl package --type msi --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET] --local-wix-dir "\Users\me\AppData\Local\Temp\wix311-binaries"
-     ```
-     If the provided path doesn't contain all 3 binaries, the command will fail.
-
 ### Using mTLS
 
 `Applies only to Fleet Premium`
@@ -288,6 +274,12 @@ Additionally, `stable` and `edge` are special channel names. The `stable` channe
 
 When a new version of osquery is released, it's added to the `edge` channel for beta testing. Fleet then provides input to the osquery TSC based on testing. After the version is declared stable by the osquery TSC, Fleet will promote the version to `stable` ASAP.
 
+### Testing osquery queries locally
+
+Fleet comes packaged with `osqueryi` which is a tool for testing osquery queries locally.
+
+With fleetd installed on your host, run `orbit osqueryi` or `orbit shell` to open the `osqueryi`.
+
 ### Finding fleetd logs
 
 Fleetd will send stdout/stderr logs to the following directories:
@@ -301,13 +293,25 @@ If the `logger_path` agent configuration is set to `filesystem`, fleetd will sen
   - macOS: /opt/orbit/osquery_log
   - Linux: /opt/orbit/osquery_log
 
-### Testing osquery queries locally
+### Generating Windows installers using local WiX toolset
 
-Fleet comes packaged with `osqueryi` which is a tool for testing osquery queries locally.
+`Applies only to Fleet Premium`
 
-With fleetd installed on your host, run `orbit osqueryi` or `orbit shell` to open the `osqueryi`.
+When creating a fleetd installer for Windows hosts (**.msi**) on a Windows machine, you can tell `fleetctl package` to
+use local installations of the 3 WiX v3 binaries used by this command (`heat.exe`, `candle.exe`, and
+`light.exe`) instead of those in a pre-configured container, which is the default behavior. To do
+so:
+  1. Install the WiX v3 binaries. To install, you can download them
+     [here](https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip), then unzip the downloaded file.
+  2. Find the absolute filepath of the directory containing your local WiX v3 binaries. This will be wherever you saved the unzipped package contents.
+  3. Run `fleetctl package`, and pass the absolute path above as the string argument to the
+     `--local-wix-dir` flag. For example:
+     ```
+      fleetctl package --type msi --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET] --local-wix-dir "\Users\me\AppData\Local\Temp\wix311-binaries"
+     ```
+     If the provided path doesn't contain all 3 binaries, the command will fail.
 
-### Experimental Features
+### Experimental features
 
 > Any features listed here are not recommended for use in production environments
 
