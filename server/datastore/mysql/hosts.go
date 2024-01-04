@@ -1077,7 +1077,10 @@ func (ds *Datastore) applyHostFilters(
 		}
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		sqlStmt, params = ds.filterHostsByOSSettingsStatus(sqlStmt, opt, params, enableDiskEncryption)
+		sqlStmt, params, err = ds.filterHostsByOSSettingsStatus(sqlStmt, opt, params, enableDiskEncryption)
+		if err != nil {
+			return "", nil, err
+		}
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		sqlStmt, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(sqlStmt, opt, params, enableDiskEncryption)
 	}
@@ -1086,6 +1089,14 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, params = filterHostsByOS(sqlStmt, opt, params)
 	sqlStmt, params, _ = hostSearchLike(sqlStmt, params, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
 	sqlStmt, params = appendListOptionsWithCursorToSQL(sqlStmt, params, &opt.ListOptions)
+
+	// fmt.Println(sqlStmt)
+	// ps := "["
+	// for _, param := range params {
+	// 	ps += fmt.Sprintf("%q, ", param)
+	// }
+	// ps = strings.Trim(ps, ", ")
+	// fmt.Println(ps)
 
 	return sqlStmt, params, nil
 }
@@ -1234,9 +1245,9 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 	return sql + fmt.Sprintf(` AND EXISTS (%s)`, subquery), append(params, subqueryParams...)
 }
 
-func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}, isDiskEncryptionEnabled bool) (string, []interface{}) {
+func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}, isDiskEncryptionEnabled bool) (string, []interface{}, error) {
 	if !opt.OSSettingsFilter.IsValid() {
-		return sql, params
+		return sql, params, nil
 	}
 
 	// TODO: Look into ways we can convert some of the LEFT JOINs in the main list hosts query
@@ -1278,13 +1289,25 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	// construct the WHERE for windows
 	whereWindows = `hmdm.name = ? AND hmdm.enrolled = 1 AND hmdm.is_server = 0`
 	paramsWindows := []interface{}{fleet.WellKnownMDMFleet}
-	subqueryFailed, paramsFailed := subqueryHostsMDMWindowsOSSettingsStatusFailed()
+	subqueryFailed, paramsFailed, err := subqueryHostsMDMWindowsOSSettingsStatusFailed()
+	if err != nil {
+		return "", nil, err
+	}
 	paramsWindows = append(paramsWindows, paramsFailed...)
-	subqueryPending, paramsPending := subqueryHostsMDMWindowsOSSettingsStatusPending()
+	subqueryPending, paramsPending, err := subqueryHostsMDMWindowsOSSettingsStatusPending()
+	if err != nil {
+		return "", nil, err
+	}
 	paramsWindows = append(paramsWindows, paramsPending...)
-	subqueryVerifying, paramsVerifying := subqueryHostsMDMWindowsOSSettingsStatusVerifying()
+	subqueryVerifying, paramsVerifying, err := subqueryHostsMDMWindowsOSSettingsStatusVerifying()
+	if err != nil {
+		return "", nil, err
+	}
 	paramsWindows = append(paramsWindows, paramsVerifying...)
-	subqueryVerified, paramsVerified := subqueryHostsMDMWindowsOSSettingsStatusVerified()
+	subqueryVerified, paramsVerified, err := subqueryHostsMDMWindowsOSSettingsStatusVerified()
+	if err != nil {
+		return "", nil, err
+	}
 	paramsWindows = append(paramsWindows, paramsVerified...)
 
 	profilesStatus := fmt.Sprintf(`
@@ -1365,7 +1388,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	params = append(params, paramsWindows...)
 	params = append(params, paramsMacOS...)
 
-	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS), params
+	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS), params, nil
 }
 
 func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}, enableDiskEncryption bool) (string, []interface{}) {

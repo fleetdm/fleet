@@ -10049,8 +10049,53 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			require.NotNil(t, p.Status)
 			require.Equal(t, wantStatus, *p.Status, "profile", p.Name)
 			require.Equal(t, "windows", p.Platform)
+			// Fleet reserved profiles (e.g., OS updates) should be screened from the host details response
+			require.NotContains(t, servermdm.ListFleetReservedWindowsProfileNames(), p.Name)
 		}
 		require.ElementsMatch(t, wantProfs, gotProfs)
+	}
+
+	checkHostsFilteredByOSSettingsStatus := func(t *testing.T, wantHosts []string, wantStatus fleet.MDMDeliveryStatus, teamID *uint, labels ...*fleet.Label) {
+		var teamFilter string
+		if teamID != nil {
+			teamFilter = fmt.Sprintf("&team_id=%d", *teamID)
+		}
+		var gotHostsResp listHostsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?os_settings=%s%s", wantStatus, teamFilter), nil, http.StatusOK, &gotHostsResp)
+		require.NotNil(t, gotHostsResp.Hosts)
+		var gotHosts []string
+		for _, h := range gotHostsResp.Hosts {
+			gotHosts = append(gotHosts, h.Hostname)
+		}
+		require.ElementsMatch(t, wantHosts, gotHosts)
+
+		var countHostsResp countHostsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/count?os_settings=%s%s", wantStatus, teamFilter), nil, http.StatusOK, &countHostsResp)
+		require.Equal(t, len(wantHosts), countHostsResp.Count)
+
+		for _, l := range labels {
+			gotHostsResp = listHostsResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/labels/%d/hosts?os_settings=%s%s", l.ID, wantStatus, teamFilter), nil, http.StatusOK, &gotHostsResp)
+			require.NotNil(t, gotHostsResp.Hosts)
+			gotHosts = []string{}
+			for _, h := range gotHostsResp.Hosts {
+				gotHosts = append(gotHosts, h.Hostname)
+			}
+			require.ElementsMatch(t, wantHosts, gotHosts, "label", l.Name)
+
+			countHostsResp = countHostsResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/count?label_id=%d&os_settings=%s%s", l.ID, wantStatus, teamFilter), nil, http.StatusOK, &countHostsResp)
+		}
+	}
+
+	checkHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, wantStatus fleet.MDMDeliveryStatus) {
+		var gotStatus fleet.MDMDeliveryStatus
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			stmt := `SELECT status FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`
+			err := sqlx.GetContext(context.Background(), q, &gotStatus, stmt, hostUUID, profUUID)
+			return err
+		})
+		require.Equal(t, wantStatus, gotStatus)
 	}
 
 	// Create a host and then enroll to MDM.
@@ -10060,8 +10105,67 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsProfilesMatch(host, globalProfiles)
 	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerifying)
 
+	// create new label that includes host
+	label := &fleet.Label{
+		Name:  t.Name() + "foo",
+		Query: "select * from foo;",
+	}
+	label, err = s.ds.NewLabel(context.Background(), label)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, host, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+
+	// simulate osquery reporting host mdm details (host_mdm.enrolled = 1 is condition for
+	// hosts filtering by os settings status and generating mdm profiles summaries)
+	s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, nil, label)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
+		Verifying: 1,
+	}, nil)
+
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0, false)
+
+	// make fleet add a Windows OS Updates profile
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": 1, "grace_period_days": 1} }}`), http.StatusOK, &acResp)
+	osUpdatesProf := checkWindowsOSUpdatesProfile(t, s.ds, nil, &fleet.WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(1)})
+
+	// os updates is sent via a profiles commands
+	verifyProfiles(mdmDevice, 1, false)
+	checkHostsProfilesMatch(host, append(globalProfiles, osUpdatesProf))
+	// but is hidden from host details response
+	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerifying)
+
+	// os updates profile status doesn't matter for filtered hosts results or summaries
+	checkHostProfileStatus(t, host.UUID, osUpdatesProf, fleet.MDMDeliveryVerifying)
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, nil, label)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
+		Verifying: 1,
+	}, nil)
+	// force os updates profile to failed, doesn't impact filtered hosts results or summaries
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, osUpdatesProf)
+		return err
+	})
+	checkHostProfileStatus(t, host.UUID, osUpdatesProf, fleet.MDMDeliveryFailed)
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, nil, label)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
+		Verifying: 1,
+	}, nil)
+	// force another profile to failed, does impact filtered hosts results and summaries
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, globalProfiles[0])
+		return err
+	})
+	checkHostProfileStatus(t, host.UUID, globalProfiles[0], fleet.MDMDeliveryFailed)
+	checkHostsFilteredByOSSettingsStatus(t, []string{}, fleet.MDMDeliveryVerifying, nil, label)           // expect no hosts
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryFailed, nil, label) // expect host
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
+		Failed:    1,
+		Verifying: 0,
+	}, nil)
 
 	// add the host to a team
 	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
@@ -10115,6 +10219,48 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0, false)
+
+	// make fleet add a Windows OS Updates profile
+	tmResp := teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": 1, "grace_period_days": 1} }}`), http.StatusOK, &tmResp)
+	osUpdatesProf = checkWindowsOSUpdatesProfile(t, s.ds, &tm.ID, &fleet.WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(1)})
+
+	// os updates is sent via a profiles commands
+	verifyProfiles(mdmDevice, 1, false)
+	checkHostsProfilesMatch(host, append(teamProfiles, osUpdatesProf))
+	// but is hidden from host details response
+	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerifying)
+
+	// os updates profile status doesn't matter for filtered hosts results or summaries
+	checkHostProfileStatus(t, host.UUID, osUpdatesProf, fleet.MDMDeliveryVerifying)
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, &tm.ID, label)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
+		Verifying: 1,
+	}, nil)
+	// force os updates profile to failed, doesn't impact filtered hosts results or summaries
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, osUpdatesProf)
+		return err
+	})
+	checkHostProfileStatus(t, host.UUID, osUpdatesProf, fleet.MDMDeliveryFailed)
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, &tm.ID, label)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
+		Verifying: 1,
+	}, nil)
+	// force another profile to failed, does impact filtered hosts results and summaries
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, teamProfiles[0])
+		return err
+	})
+	checkHostProfileStatus(t, host.UUID, teamProfiles[0], fleet.MDMDeliveryFailed)
+	checkHostsFilteredByOSSettingsStatus(t, []string{}, fleet.MDMDeliveryVerifying, &tm.ID, label)           // expect no hosts
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryFailed, &tm.ID, label) // expect host
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
+		Failed:    1,
+		Verifying: 0,
+	}, nil)
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMWindowsProfiles() {
