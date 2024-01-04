@@ -74,7 +74,7 @@ const generateTooltip = (
     >
       <ul className={`${baseClass}__vulnerability-list`}>
         {condensedVulnerabilties.map((vulnerability) => {
-          return <li>&bull; {vulnerability}</li>;
+          return <li>{vulnerability}</li>;
         })}
       </ul>
     </ReactTooltip>

@@ -15,7 +15,7 @@ import (
 )
 
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
-	const maxPendingScriptAge = time.Minute // any script older than this is not considered pending anymore on that host
+	const maxPendingScriptAge = 5 * time.Minute // any script older than this is not considered pending anymore on that host
 
 	// must load the host to get the team (cannot use lite, the last seen time is
 	// required to check if it is online) to authorize with the proper team id.

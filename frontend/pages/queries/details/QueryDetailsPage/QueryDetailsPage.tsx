@@ -342,7 +342,7 @@ const QueryDetailsPage = ({
     }
 
     // Empty state with varying messages explaining why there's no results
-    if (emptyCache) {
+    if (emptyCache || lastEditedQueryDiscardData) {
       return (
         <NoResults
           queryInterval={storedQuery?.interval}

@@ -17,7 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-const scriptExecTimeout = 30 * time.Second
+const scriptExecTimeout = 5 * time.Minute
 
 // Client defines the methods required for the API requests to the server. The
 // fleet.OrbitClient type satisfies this interface.

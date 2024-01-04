@@ -1262,8 +1262,13 @@ func (a *agent) diskSpace() []map[string]string {
 	gigs := rand.Intn(100)
 	gigs++
 	pct := rand.Intn(100)
+	available := gigs * pct / 100
 	return []map[string]string{
-		{"percent_disk_space_available": strconv.Itoa(gigs), "gigs_disk_space_available": strconv.Itoa(pct)},
+		{
+			"percent_disk_space_available": strconv.Itoa(pct),
+			"gigs_disk_space_available":    strconv.Itoa(available),
+			"gigs_total_disk_space":        strconv.Itoa(gigs),
+		},
 	}
 }
 

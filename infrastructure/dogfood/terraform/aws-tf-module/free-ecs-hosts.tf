@@ -6,11 +6,11 @@ locals {
     "5.8.2-ubuntu20.04@sha256:3496ffd0ad570c88a9f405e6ef517079cfeed6ce405b9d22db4dc5ef6ed3faac" = "Cloud-City-server"
     "5.8.2-ubuntu18.04@sha256:372575e876c218dde3c5c0e24fd240d193800fca9b314e94b4ad4e6e22006c9b" = "Mists-laptop"
     "5.8.2-ubuntu16.04@sha256:112655c42951960d8858c116529fb4c64951e4cf2e34cb7c08cd599a009025bb" = "Ethers-laptop"
-    "5.8.2-debian10@sha256:de29337896aac89b2b03c7642805859d3fb6d52e5dc08230f987bbab4eeba9c5" = "Breezes-laptop"
-    "5.8.2-debian9@sha256:47e46c19cebdf0dc704dd0061328856bda7e1e86b8c0fefdd6f78bd092c6200e" = "Aero-server"
-    "5.8.2-centos8@sha256:88a8adde80bd3b1b257e098bc6e41b6afea840f60033653dcb9fe984f36b0f97" = "Stratuss-laptop"
-    "5.8.2-centos7@sha256:ff251de4935b80a91c5fc1ac352aebdab9a6bbbf5bda1aaada8e26d22b50202d" = "Zephyrs-Laptop"
-    "5.8.2-centos6@sha256:b56736be8436288d3fbd2549ec6165e0588cd7197e91600de4a2f00f1df28617" = "Halo-server"
+    "5.8.2-debian10@sha256:de29337896aac89b2b03c7642805859d3fb6d52e5dc08230f987bbab4eeba9c5"    = "Breezes-laptop"
+    "5.8.2-debian9@sha256:47e46c19cebdf0dc704dd0061328856bda7e1e86b8c0fefdd6f78bd092c6200e"     = "Aero-server"
+    "5.8.2-centos8@sha256:88a8adde80bd3b1b257e098bc6e41b6afea840f60033653dcb9fe984f36b0f97"     = "Stratuss-laptop"
+    "5.8.2-centos7@sha256:ff251de4935b80a91c5fc1ac352aebdab9a6bbbf5bda1aaada8e26d22b50202d"     = "Zephyrs-Laptop"
+    "5.8.2-centos6@sha256:b56736be8436288d3fbd2549ec6165e0588cd7197e91600de4a2f00f1df28617"     = "Halo-server"
   }
 
 }
@@ -42,7 +42,7 @@ resource "aws_iam_role_policy_attachment" "osquery_execution_attachment" {
 resource "aws_iam_role_policy_attachment" "osquery" {
   policy_arn = aws_iam_policy.osquery.arn
   role       = aws_iam_role.osquery.name
-} 
+}
 
 resource "aws_iam_policy" "osquery" {
   name        = "osquery-ecr-policy"
@@ -130,11 +130,11 @@ module "osquery_docker" {
 }
 
 resource "random_uuid" "osquery" {
- for_each = local.osquery_hosts
+  for_each = local.osquery_hosts
 }
 
 resource "aws_ecs_task_definition" "osquery" {
-  for_each                 = local.osquery_hosts
+  for_each = local.osquery_hosts
   // e.g. 5-8-2-ubuntu22-04 to match naming requirements 
   family                   = "osquery-${replace(split("@sha256", each.key)[0], ".", "-")}"
   network_mode             = "awsvpc"
@@ -167,7 +167,7 @@ resource "aws_ecs_task_definition" "osquery" {
         }
         environment = [
           {
-            name = "FAKE_HOSTNAME"
+            name  = "FAKE_HOSTNAME"
             value = each.value
           }
         ]
@@ -214,13 +214,13 @@ resource "aws_ecs_task_definition" "osquery" {
 }
 
 resource "aws_ecs_service" "osquery" {
-  for_each                           = local.osquery_hosts
+  for_each = local.osquery_hosts
   # Name must match ^[A-Za-z-_]+$ e.g. 5-8-2-ubuntu22-04
-  name                               = "osquery_${replace(split("@sha256", each.key)[0], ".", "-")}"
-  launch_type                        = "FARGATE"
-  cluster                            = module.free.byo-db.byo-ecs.service.cluster
-  task_definition                    = aws_ecs_task_definition.osquery[each.key].arn
-  desired_count                      = 1
+  name            = "osquery_${replace(split("@sha256", each.key)[0], ".", "-")}"
+  launch_type     = "FARGATE"
+  cluster         = module.free.byo-db.byo-ecs.service.cluster
+  task_definition = aws_ecs_task_definition.osquery[each.key].arn
+  desired_count   = 1
   # Spin down before spin up since we are specifying the host identifier manually
   deployment_minimum_healthy_percent = 0
   deployment_maximum_percent         = 100

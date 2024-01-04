@@ -40,6 +40,20 @@ type OrbitConfig struct {
 	Extensions    json.RawMessage          `json:"extensions,omitempty"`
 	NudgeConfig   *NudgeConfig             `json:"nudge_config,omitempty"`
 	Notifications OrbitConfigNotifications `json:"notifications,omitempty"`
+	// UpdateChannels contains the TUF channels to use on fleetd components.
+	//
+	// If UpdateChannels is nil it means the server isn't using/setting this feature.
+	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
+}
+
+// OrbitUpdateChannels hold the update channels that can be configured in fleetd agents.
+type OrbitUpdateChannels struct {
+	// Orbit holds the orbit channel.
+	Orbit string `json:"orbit"`
+	// Osqueryd holds the osqueryd channel.
+	Osqueryd string `json:"osqueryd"`
+	// Desktop holds the Fleet Desktop channel.
+	Desktop string `json:"desktop"`
 }
 
 // OrbitHostInfo holds device information used during Orbit enroll.
