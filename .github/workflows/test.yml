@@ -51,7 +51,7 @@ jobs:
 
     - name: Build JS
       working-directory: ./ee/fleetd-chrome
-      run: npm run build
+      run: npm install && npm run build
 
     - name: Run JS Tests
       working-directory: ./ee/fleetd-chrome
