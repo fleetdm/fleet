@@ -1090,14 +1090,6 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, params, _ = hostSearchLike(sqlStmt, params, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
 	sqlStmt, params = appendListOptionsWithCursorToSQL(sqlStmt, params, &opt.ListOptions)
 
-	// fmt.Println(sqlStmt)
-	// ps := "["
-	// for _, param := range params {
-	// 	ps += fmt.Sprintf("%q, ", param)
-	// }
-	// ps = strings.Trim(ps, ", ")
-	// fmt.Println(ps)
-
 	return sqlStmt, params, nil
 }
 
