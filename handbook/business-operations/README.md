@@ -171,6 +171,17 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 - If required, BizOps also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
 - The change is now actioned, notify the team member and close the issue.
 
+### Updating compensation
+When Fleet [changes compensation for team members](https://fleetdm.com/handbook/company/communications#compensation-changes), the Business Operations team adheres to the following process:
+- The Head of BizOps creates a copy of the Values assessment template and stores it in the team member's personnel file, then shares with the manager to perform a values assessment.
+- Once the values assessment is complete, the Head of BizOps prepares benchmarking information and confers with manager or head of department about level of job skill in relation to compensation benchmarking data.
+- Head of Biz Ops then schedules time with the CEO and CTO over an existing 1:1 to discuss if an adjustment needs to be made to team member's compensation.
+- During the 1:1 call, founders review values assessment, benchmarking for role and geography, and decide if there will be an adjustment.
+- Head of BizOps posts to slack in `#help-classified` with the decision on compensation changes and effective date, if any.
+- If a change is to be made, the Head of BizOps communicates decision to the teammate's people manager, who then communicates to their teammate.
+- Head of BizOps updates the respective payroll platform (Gusto or Plane) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
+- If an additional equity grant is part of this compensation change, the previous equity and new situation is noted in detail in the "Notes" column of the equity plan, and the "Grant started?" column is set back to "todo" to add it to the queue for the next time grants are processed (quarterly).
+
 
 ### Process monthly accounting
 Create a [new montly accounting issue](https://github.com/fleetdm/confidential/issues/new/choose) for the current month and year named "Closing out YYYY-MM" in GitHub and complete all of the tasks in the issue. (This uses the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md).
