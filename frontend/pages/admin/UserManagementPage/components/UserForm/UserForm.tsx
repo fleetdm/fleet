@@ -19,10 +19,10 @@ import Dropdown from "components/forms/fields/Dropdown";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink";
+import Icon from "components/Icon";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
 import { roleOptions } from "../../helpers/userManagementHelpers";
-import Icon from "components/Icon";
 
 const baseClass = "create-user-form";
 
