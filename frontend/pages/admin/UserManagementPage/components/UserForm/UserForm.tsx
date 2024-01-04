@@ -22,7 +22,7 @@ import CustomLink from "components/CustomLink";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
 import { roleOptions } from "../../helpers/userManagementHelpers";
-import Icon from "../../../../../components/Icon";
+import Icon from "components/Icon";
 
 const baseClass = "create-user-form";
 
@@ -460,7 +460,7 @@ const UserForm = ({
             <span className={`${baseClass}__sso-input sublabel-nosso`}>
               This user previously signed in via SSO, which has been globally
               disabled.{" "}
-              <button className={"link-button"} onClick={onSsoDisable}>
+              <button className={"button--text-link"} onClick={onSsoDisable}>
                 Add password instead
                 <Icon
                   name="chevron-right"
