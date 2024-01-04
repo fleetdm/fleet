@@ -2,15 +2,15 @@
   margin-bottom: $pad-large;
 
   &__label {
-    font-size: $small;
-    font-weight: $bold;
+    font-size: $x-small;
+    font-weight: $xbold;
     color: $core-fleet-black;
     display: block;
     margin-bottom: $pad-small;
     min-height: $form-field-label-height;
 
     &--error {
-      font-weight: $bold;
+      font-weight: $xbold;
       color: $core-vibrant-red;
     }
 
