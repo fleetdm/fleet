@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+set -x
 
 function scale_services(){
 	MIN_CAPACITY="${1:?}"
