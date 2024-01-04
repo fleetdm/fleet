@@ -150,10 +150,10 @@ Output:
 			scriptResult: &fleet.HostScriptResult{
 				ExitCode: ptr.Int64(-1),
 				Output:   "Oh no!",
-				Message:  "Timeout. Fleet stopped the script after 30 seconds to protect host performance.",
+				Message:  fleet.RunScriptScriptTimeoutErrMsg,
 			},
 			expectOutput: `
-Error: Timeout. Fleet stopped the script after 30 seconds to protect host performance.
+Error: Timeout. Fleet stopped the script after 5 minutes to protect host performance.
 
 Output before timeout:
 
@@ -198,11 +198,13 @@ Fleet records the last 10,000 characters to prevent downtime.
 -------------------------------------------------------------------------------------
 `, maxChars),
 		},
-		{
-			name:         "host timeout",
-			scriptPath:   generateValidPath,
-			expectErrMsg: fleet.RunScriptHostTimeoutErrMsg,
-		},
+		// TODO: this would take 5 minutes to run, we don't want that kind of slowdown in our test suite
+		// but can be useful to have around for manual testing.
+		//{
+		//	name:         "host timeout",
+		//	scriptPath:   generateValidPath,
+		//	expectErrMsg: fleet.RunScriptHostTimeoutErrMsg,
+		//},
 	}
 
 	setupDS := func(t *testing.T, c testCase) {

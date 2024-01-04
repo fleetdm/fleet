@@ -27,7 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/goose"
+	"github.com/fleetdm/fleet/v4/server/goose"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -106,8 +106,12 @@ func (ds *Datastore) writer(ctx context.Context) *sqlx.DB {
 
 // loadOrPrepareStmt will load a statement from the statements cache.
 // If not available, it will attempt to prepare (create) it.
-//
 // Returns nil if it failed to prepare a statement.
+//
+// IMPORTANT: Adding prepare statements consumes MySQL server resources, and is limited by MySQL max_prepared_stmt_count
+// system variable. This method may create 1 prepare statement for EACH database connection. Customers must be notified
+// to update their MySQL configurations when additional prepare statements are added.
+// For more detail, see: https://github.com/fleetdm/fleet/issues/15476
 func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.Stmt {
 	// the cache is only available on the replica
 	if ctxdb.IsPrimaryRequired(ctx) {
@@ -1102,18 +1106,6 @@ func searchLikePattern(sql string, params []interface{}, match string, replacer 
 	return sql, params
 }
 
-// very loosely checks that a string looks like an email:
-// has no spaces, a single @ character, a part before the @,
-// a part after the @, the part after has at least one dot
-// with something after the dot. I don't think this is perfectly
-// correct as the email format allows any chars including spaces
-// when inside double quotes, but this is an edge case that is
-// unlikely to matter much in practice. Another option that would
-// definitely not cut out any valid address is to just check for
-// the presence of @, which is arguably the most important check
-// in this.
-var rxLooseEmail = regexp.MustCompile(`^[^\s@]+@[^\s@\.]+\..+$`)
-
 /*
 This regex matches any occurrence of a character from the ASCII character set followed by one or more characters that are not from the ASCII character set.
 The first part `[[:ascii:]]` matches any character that is within the ASCII range (0 to 127 in the ASCII table),
@@ -1126,13 +1118,15 @@ var (
 	nonacsiiReplace = regexp.MustCompile(`[^[:ascii:]]`)
 )
 
+// hostSearchLike searches hosts based on the given columns plus searching in hosts_emails. Note:
+// the host from the `hosts` table must be aliased to `h` in `sql`.
 func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}, bool) {
 	var matchesEmail bool
 	base, args := searchLike(sql, params, match, columns...)
 
 	// special-case for hosts: if match looks like an email address, add searching
 	// in host_emails table as an option, in addition to the provided columns.
-	if rxLooseEmail.MatchString(match) {
+	if fleet.IsLooseEmail(match) {
 		matchesEmail = true
 		// remove the closing paren and add the email condition to the list
 		base = strings.TrimSuffix(base, ")") + " OR (" + ` EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))`

@@ -1,10 +1,10 @@
 import React from "react";
 
 import { IQueryStats } from "interfaces/query_stats";
-import { performanceIndicator } from "utilities/helpers";
+import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import PillCell from "components/TableContainer/DataTable/PillCell";
+import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ReportUpdatedCell from "pages/hosts/details/cards/Queries/ReportUpdatedCell";
 import Icon from "components/Icon";
@@ -32,7 +32,7 @@ interface ICellProps extends IRowProps {
   };
 }
 
-interface IPillCellProps extends IRowProps {
+interface IPerformanceImpactCell extends IRowProps {
   cell: {
     value: {
       indicator: string;
@@ -47,7 +47,7 @@ interface IDataColumn {
   accessor: string;
   Cell:
     | ((props: ICellProps) => JSX.Element)
-    | ((props: IPillCellProps) => JSX.Element);
+    | ((props: IPerformanceImpactCell) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
@@ -84,14 +84,14 @@ const generateColumnConfigs = (
       },
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps: IPillCellProps) => {
+      Cell: (cellProps: IPerformanceImpactCell) => {
         const baseClass = "performance-cell";
         return (
           <span className={baseClass}>
-            <PillCell
+            <PerformanceImpactCell
               value={cellProps.cell.value}
               customIdPrefix="query-perf-pill"
-              hostDetails
+              isHostSpecific
             />
             {!queryReportsDisabled &&
               cellProps.row.original.should_link_to_hqr && (
@@ -136,16 +136,18 @@ const enhanceScheduleData = (
       discard_data,
       automations_enabled,
     } = query;
+    // getPerformanceImpactDescription takes aggregate p50 values
+    // getPerformanceImpactDescription takes aggregate p50 values so we need to divide by total executions in order to show average performance per query execution
     const scheduledQueryPerformance = {
-      user_time_p50: user_time,
-      system_time_p50: system_time,
+      user_time_p50: executions > 0 ? user_time / executions : 0,
+      system_time_p50: executions > 0 ? system_time / executions : 0,
       total_executions: executions,
     };
     return {
       query_name,
       id: scheduled_query_id,
       performance: {
-        indicator: performanceIndicator(scheduledQueryPerformance),
+        indicator: getPerformanceImpactDescription(scheduledQueryPerformance),
         id: scheduled_query_id,
       },
       last_fetched,

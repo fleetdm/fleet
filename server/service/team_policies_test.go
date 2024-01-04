@@ -174,6 +174,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
+	t.Helper()
 	if shouldFail {
 		require.Error(t, err)
 		var forbiddenError *authz.Forbidden

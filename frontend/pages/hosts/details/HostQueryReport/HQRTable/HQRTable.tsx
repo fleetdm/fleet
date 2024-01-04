@@ -53,7 +53,8 @@ const HQRTable = ({
               ? `'${queryName}' query report results for host '${hostName}'`
               : DEFAULT_CSV_TITLE
           ),
-          columnConfigs
+          columnConfigs,
+          true
         )
       );
     };

@@ -48,8 +48,9 @@
         <h3>Convention over configuration</h3>
         <p>Configure your users' computers with sensible defaults, or customize every traditional MDM feature exactly how you want it with Fleet's API, CLI, and webhooks.</p>
         <div purpose="checklist" class="flex-column d-flex">
-          <p>Set up and verify ongoing compliance with CIS standards (one click, 400+ queries, supported by Fleet)</p>
-          <p>Tasked with zero trust? Use sensible, enterprise-ready device health checks from the community</p>
+          <p>Migrate devices quickly with out-of-the-box features, or control every detail using a modern REST API</p>
+          <p>Tasked with zero trust? Use sensible, enterprise-ready device health checks from the community, or build your own</p>
+          <p>Set up and verify ongoing compliance with CIS standards (one click, 400+ queries, supported by Fleet), or pick and choose baselines for different environments</p>
           <p>Use default workflows for employee offboarding, or run any low-level MDM command</p>
         </div>
       </div>
@@ -60,7 +61,7 @@
         <h3>Absolute certainty</h3>
         <p>Reduce time wasted hunting down whether a change happened. <em>Actually</em> verify that settings are applied using real data pulled from your users' devices.</p>
         <div purpose="checklist" class="flex-column d-flex">
-          <p>Use a git repo as the source of truth to reduce errors (submitting the wrong patch, configuration setting etc).</p>
+          <p>Use a git repo as the source of truth to reduce errors (submitting the wrong patch, configuration setting, etc.)</p>
           <p>Every change to a policy or security control is tracked and auditable in Fleet’s history, or via the repo commit log</p>
         </div>
       </div>
@@ -75,18 +76,18 @@
       </div>
       <div purpose="feature-text" class="d-flex flex-column">
         <h3>ClickOps or DevOps</h3>
-        <p>Manage your IT infrastructure in any browser or use git to make infrastructure changes as code. You can use the CLI or API to automate the deployment, configuration, and monitoring of your devices.</p>
+        <p>Manage your IT infrastructure in any browser, or use git to make changes using your existing <a href="https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility">approval processes</a> and audit trail.</p>
       </div>
     </div>
 
     <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
       <div purpose="feature-text" class="d-flex flex-column">
-        <h3>Transparency for end users</h3>
-        <p>Provide assurance to your end users with Fleet Desktop about what information is being collected from their device.</p>
+        <h3>Scope transparency</h3>
+        <p>Increase <a href="https://fleetdm.com/handbook/company/why-this-way#why-open-source">buy-in</a> from end users by clarifying how their work computers are managed.</p>
         <div purpose="checklist" class="flex-column d-flex">
-          <p>Let end users see the source code for exactly how they are being monitored.</p>
-          <p>Set clear expectations about what is and isn’t acceptable use of work computers.</p>
-          <p>Let users participate in fixing failing compliance policies.</p>
+          <p>Give end users assurance about what actions IT can take on their computer</p>
+          <p>Let end users see exactly what data is collected, all the way down to the source code</p>
+          <p>Set clear expectations about how to configure company devices</p>
         </div>
       </div>
       <div purpose="feature-image" class="left">
@@ -105,13 +106,13 @@
       </div>
     </div>
 
-    <scrollable-tweets></scrollable-tweets>
+    <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
     <div purpose="page-container" class="pb-0 container">
 
-      <div purpose="bottom-cta" class="text-center">
+      <div purpose="section-headline" class="text-center">
         <h4>Open-source device management</h4>
-        <h1>Lighter than air</h1>
-        <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
+        <h2>Manage devices like code</h2>
+        <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" @click="clickOpenMdmModal()">Show me</a>
           <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
         </div>

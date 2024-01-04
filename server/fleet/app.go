@@ -840,6 +840,7 @@ type ServerSettings struct {
 	DebugHostIDs         []uint `json:"debug_host_ids,omitempty"`
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
 	QueryReportsDisabled bool   `json:"query_reports_disabled"`
+	ScriptsDisabled      bool   `json:"scripts_disabled"`
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
@@ -967,8 +968,7 @@ type ListQueryOptions struct {
 	// team.
 	TeamID *uint
 	// IsScheduled filters queries that are meant to run at a set interval.
-	IsScheduled        *bool
-	OnlyObserverCanRun bool
+	IsScheduled *bool
 }
 
 type ListActivitiesOptions struct {

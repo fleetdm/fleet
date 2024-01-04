@@ -409,6 +409,15 @@ body.detected-mobile {
       height: 371px;
     }
   }
+  // For hiding the hubspot chat widget on mobile devices.
+  #hubspot-messages-iframe-container iframe[aria-label='Chat Widget'] {
+    display: none !important;//lesshint-disable-line importantRule
+  }
+  html.hs-messages-widget-open, html.hs-messages-mobile.hs-messages-widget-open {// Shows the hubspot chat widget when the widget is opened from a "Talk to an expert" button.
+    #hubspot-messages-iframe-container iframe[aria-label='Chat Widget'] {
+      display: initial !important;//lesshint-disable-line importantRule
+    }
+  }
 }
 
 @media (max-width: 490px) {
@@ -448,7 +457,8 @@ body.detected-mobile {
   }
 }
 
-// Some utilities for the sticky nav behaviour
+// Some utilities for the sticky nav behaviour.
+// Note: this will not be applied if a navigation menu open.
 .translate-y-0 {
-    transform: translateY(-235px);
+  transform: translateY(-235px);
 }

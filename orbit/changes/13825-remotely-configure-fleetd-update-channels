@@ -1,0 +1,2 @@
+* Allow configuring TUF channels of `orbit`, `osqueryd` and `desktop` from Fleet agent settings.
+* Add `uptime` column to `orbit_info` table.

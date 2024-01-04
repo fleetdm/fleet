@@ -146,6 +146,20 @@ func (oc *OrbitClient) SetOrUpdateDeviceToken(deviceAuthToken string) error {
 	return nil
 }
 
+// SetOrUpdateDeviceMappingEmail sends a request to the server to set or update the
+// device mapping email with the given value.
+func (oc *OrbitClient) SetOrUpdateDeviceMappingEmail(email string) error {
+	verb, path := "PUT", "/api/fleet/orbit/device_mapping"
+	params := orbitPutDeviceMappingRequest{
+		Email: email,
+	}
+	var resp orbitPutDeviceMappingResponse
+	if err := oc.authenticatedRequest(verb, path, &params, &resp); err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetHostScript returns the script fetched from Fleet server to run on this
 // host.
 func (oc *OrbitClient) GetHostScript(execID string) (*fleet.HostScriptResult, error) {
@@ -185,11 +199,12 @@ func (oc *OrbitClient) Ping() error {
 func (oc *OrbitClient) enroll() (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/enroll"
 	params := EnrollOrbitRequest{
-		EnrollSecret:   oc.enrollSecret,
-		HardwareUUID:   oc.hostInfo.HardwareUUID,
-		HardwareSerial: oc.hostInfo.HardwareSerial,
-		Hostname:       oc.hostInfo.Hostname,
-		Platform:       oc.hostInfo.Platform,
+		EnrollSecret:      oc.enrollSecret,
+		HardwareUUID:      oc.hostInfo.HardwareUUID,
+		HardwareSerial:    oc.hostInfo.HardwareSerial,
+		Hostname:          oc.hostInfo.Hostname,
+		Platform:          oc.hostInfo.Platform,
+		OsqueryIdentifier: oc.hostInfo.OsqueryIdentifier,
 	}
 	var resp EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)

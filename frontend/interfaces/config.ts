@@ -118,6 +118,7 @@ export interface IConfig {
     enable_analytics: boolean;
     deferred_save_host: boolean;
     query_reports_disabled: boolean;
+    scripts_disabled: boolean;
   };
   smtp_settings: {
     enable_smtp: boolean;

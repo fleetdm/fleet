@@ -53,7 +53,7 @@ module "free" {
     cluster_name = local.customer_free
   }
   fleet_config = {
-    image               = local.fleet_image
+    image               = local.geolite2_image
     family              = local.customer_free
     security_group_name = local.customer_free
     autoscaling = {
@@ -75,7 +75,7 @@ module "free" {
       }
     }
     extra_iam_policies          = module.ses-free.fleet_extra_iam_policies
-    extra_environment_variables = merge(module.ses-free.fleet_extra_environment_variables, local.extra_environment_variables_free)
+    extra_environment_variables = merge(module.ses-free.fleet_extra_environment_variables, local.extra_environment_variables_free, module.geolite2.extra_environment_variables)
   }
   alb_config = {
     name            = local.customer_free
@@ -128,6 +128,9 @@ module "waf-free" {
 }
 
 module "migrations_free" {
+  depends_on = [
+    module.geolite2
+  ]
   source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v1.0.0"
   ecs_cluster              = module.free.byo-db.byo-ecs.service.cluster
   task_definition          = module.free.byo-db.byo-ecs.task_definition.family

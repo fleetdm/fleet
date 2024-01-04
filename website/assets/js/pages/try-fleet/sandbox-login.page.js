@@ -69,7 +69,7 @@ parasails.registerPage('sandbox-login', {
       if(this.exploreDataRedirectSlug){
         window.location = this.exploreDataRedirectSlug;
       } else {
-        window.location = '/try-fleet/fleetctl-preview';
+        window.location = '/try-fleet/explore-data';
       }
     },
 

@@ -19,6 +19,7 @@ import Spinner from "components/Spinner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { IHost } from "interfaces/host";
 import { IUser } from "interfaces/user";
+import { AppContext } from "context/app";
 
 import {
   generateDataSet,
@@ -61,6 +62,9 @@ const Scripts = ({
     }
   );
 
+  const { config } = useContext(AppContext);
+  if (!config) return null;
+
   if (!host) return null;
 
   const onQueryChange = (data: ITableQueryData) => {
@@ -93,7 +97,10 @@ const Scripts = ({
   if (isErrorScriptData) {
     return <DataError card />;
   }
-  const scriptColumnConfigs = generateTableColumnConfigs(onActionSelection);
+  const scriptColumnConfigs = generateTableColumnConfigs(
+    onActionSelection,
+    config.server_settings.scripts_disabled
+  );
   const data = generateDataSet(
     currentUser,
     host,

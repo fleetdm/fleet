@@ -654,7 +654,19 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	//
 	// Thus, we set the alwaysTrueQuery for all queries, except for those where we set
 	// an explicit discovery query (e.g. orbit_info, google_chrome_profiles).
-	for name := range queries {
+	for name, query := range queries {
+		// there's a bug somewhere (Fleet, osquery or both?)
+		// that causes hosts to check-in in a loop if you send
+		// an empty query string.
+		//
+		// we previously fixed this for detail query overrides (see
+		// #14286, #14296) but I'm also adding this here as a safeguard
+		// for issues like #15524
+		if query == "" {
+			delete(queries, name)
+			delete(discovery, name)
+			continue
+		}
 		discoveryQuery := discovery[name]
 		if discoveryQuery == "" {
 			discoveryQuery = alwaysTrueQuery
@@ -804,6 +816,7 @@ type submitDistributedQueryResultsRequestShim struct {
 	Results  map[string]json.RawMessage `json:"queries"`
 	Statuses map[string]interface{}     `json:"statuses"`
 	Messages map[string]string          `json:"messages"`
+	Stats    map[string]*fleet.Stats    `json:"stats"`
 }
 
 func (shim *submitDistributedQueryResultsRequestShim) hostNodeKey() string {
@@ -845,6 +858,7 @@ func (shim *submitDistributedQueryResultsRequestShim) toRequest(ctx context.Cont
 		Results:  results,
 		Statuses: statuses,
 		Messages: shim.Messages,
+		Stats:    shim.Stats,
 	}, nil
 }
 
@@ -853,6 +867,7 @@ type SubmitDistributedQueryResultsRequest struct {
 	Results  fleet.OsqueryDistributedQueryResults `json:"queries"`
 	Statuses map[string]fleet.OsqueryStatus       `json:"statuses"`
 	Messages map[string]string                    `json:"messages"`
+	Stats    map[string]*fleet.Stats              `json:"stats"`
 }
 
 type submitDistributedQueryResultsResponse struct {
@@ -868,7 +883,7 @@ func submitDistributedQueryResultsEndpoint(ctx context.Context, request interfac
 		return submitDistributedQueryResultsResponse{Err: err}, nil
 	}
 
-	err = svc.SubmitDistributedQueryResults(ctx, req.Results, req.Statuses, req.Messages)
+	err = svc.SubmitDistributedQueryResults(ctx, req.Results, req.Statuses, req.Messages, req.Stats)
 	if err != nil {
 		return submitDistributedQueryResultsResponse{Err: err}, nil
 	}
@@ -913,6 +928,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	results fleet.OsqueryDistributedQueryResults,
 	statuses map[string]fleet.OsqueryStatus,
 	messages map[string]string,
+	stats map[string]*fleet.Stats,
 ) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -929,7 +945,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	policyResults := map[uint]*bool{}
 	refetchCriticalSet := host.RefetchCriticalQueriesUntil != nil
 
-	svc.maybeDebugHost(ctx, host, results, statuses, messages)
+	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -951,9 +967,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 			}
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
 		}
+		queryStats, _ := stats[query]
 
 		ingestedDetailUpdated, ingestedAdditionalUpdated, err := svc.ingestQueryResults(
-			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults,
+			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults, queryStats,
 		)
 		if err != nil {
 			logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
@@ -1076,6 +1093,7 @@ func (svc *Service) ingestQueryResults(
 	policyResults map[uint]*bool,
 	labelResults map[uint]*bool,
 	additionalResults fleet.OsqueryDistributedQueryResults,
+	stats *fleet.Stats,
 ) (bool, bool, error) {
 	var detailUpdated, additionalUpdated bool
 
@@ -1087,7 +1105,7 @@ func (svc *Service) ingestQueryResults(
 	var err error
 	switch {
 	case strings.HasPrefix(query, hostDistributedQueryPrefix):
-		err = svc.ingestDistributedQuery(ctx, *host, query, rows, messages[query])
+		err = svc.ingestDistributedQuery(ctx, *host, query, rows, messages[query], stats)
 	case strings.HasPrefix(query, hostPolicyQueryPrefix):
 		err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
 	case strings.HasPrefix(query, hostLabelQueryPrefix):
@@ -1155,7 +1173,9 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 
 // ingestDistributedQuery takes the results of a distributed query and modifies the
 // provided fleet.Host appropriately.
-func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host, name string, rows []map[string]string, errMsg string) error {
+func (svc *Service) ingestDistributedQuery(
+	ctx context.Context, host fleet.Host, name string, rows []map[string]string, errMsg string, stats *fleet.Stats,
+) error {
 	trimmedQuery := strings.TrimPrefix(name, hostDistributedQueryPrefix)
 
 	campaignID, err := strconv.Atoi(osquery_utils.EmptyToZero(trimmedQuery))
@@ -1171,7 +1191,8 @@ func (svc *Service) ingestDistributedQuery(ctx context.Context, host fleet.Host,
 			Hostname:    host.Hostname,
 			DisplayName: host.DisplayName(),
 		},
-		Rows: rows,
+		Rows:  rows,
+		Stats: stats,
 	}
 	if errMsg != "" {
 		res.Error = &errMsg
@@ -1328,6 +1349,7 @@ func (svc *Service) maybeDebugHost(
 	results fleet.OsqueryDistributedQueryResults,
 	statuses map[string]fleet.OsqueryStatus,
 	messages map[string]string,
+	stats map[string]*fleet.Stats,
 ) {
 	if svc.debugEnabledForHost(ctx, host.ID) {
 		hlogger := log.With(svc.logger, "host-id", host.ID)
@@ -1336,6 +1358,7 @@ func (svc *Service) maybeDebugHost(
 		logJSON(hlogger, results, "results")
 		logJSON(hlogger, statuses, "statuses")
 		logJSON(hlogger, messages, "messages")
+		logJSON(hlogger, stats, "stats")
 	}
 }
 
@@ -1555,7 +1578,11 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	}
 
 	if err := svc.osqueryLogWriter.Result.Write(ctx, filteredLogs); err != nil {
-		return newOsqueryError("error writing result logs: " + err.Error())
+		return newOsqueryError(
+			"error writing result logs " +
+				"(if the logging destination is down, you can reduce frequency/size of osquery logs by " +
+				"increasing logger_tls_period and decreasing logger_tls_max_lines): " + err.Error(),
+		)
 	}
 	return nil
 }

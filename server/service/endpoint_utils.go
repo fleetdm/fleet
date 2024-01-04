@@ -495,6 +495,10 @@ func (e *authEndpointer) GET(path string, f handlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "GET")
 }
 
+func (e *authEndpointer) PUT(path string, f handlerFunc, v interface{}) {
+	e.handleEndpoint(path, f, v, "PUT")
+}
+
 func (e *authEndpointer) PATCH(path string, f handlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "PATCH")
 }
@@ -590,6 +594,7 @@ func (e *authEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler
 		mw := e.customMiddleware[i]
 		endp = mw(endp)
 	}
+
 	return newServer(endp, makeDecoder(v), e.opts)
 }
 
