@@ -4536,7 +4536,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 			{
 				name:           "PendingThenFoundExpectedAndUnexpected",
 				initialStatus:  fleet.MDMDeliveryPending,
-				expectedStatus: fleet.MDMDeliveryPending, // no change
+				expectedStatus: fleet.MDMDeliveryVerified, // profile can go from pending to verified
 				expectedDetail: "",
 			},
 			{
