@@ -31,12 +31,12 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 - [ ] Scalability testing: TODO  <!-- List any required scalability testing to be conducted.  Remove this checkbox if there is no scalability testing required. -->
 
 ### Engineering
-- [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This willl be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
+- [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This will be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
 
 > ℹ️  Please read this issue carefully and understand it.  Pay [special attention](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) to UI wireframes, especially "dev notes".
 
 ## Context
-- Requestor(s): _________________________ <!-- Who are the non-customer requestor(s) for this story, if any? Put their github usernames here. They should be notified if the story gets de-prioritized. For customer requestors, use the `customer-xyz` label instead. -->
+- Requestor(s): _________________________ <!-- Who are the non-customer requestor(s) for this story, if any? Put their GitHub usernames here. They should be notified if the story gets de-prioritized. For customer requestors, use the `customer-xyz` label instead. -->
 <!--
 What else should contributors [keep in mind](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) when working on this change?  (Optional.)
 1. 
@@ -49,7 +49,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 
 - Requires load testing: TODO <!-- User story has performance implications that require load testing. Otherwise, remove this item. -->
 - Risk level: Low / High TODO <!-- Choose one. Consider: Does this change come with performance risks?  Any risk of accidental log spew? Any particular regressions to watch out for?  Any potential compatibility issues, even if it's not technically a breaking change? -->
-- Risk description: TODO <!-- If risk level is high, explain why. If low, remove. -->
+- Risk description: TODO <!-- If the risk level is high, explain why. If low, remove. -->
 
 ### Manual testing steps
 <!-- 
@@ -69,5 +69,5 @@ Add detailed manual testing steps for all affected user roles.
 ### Confirmation
 <!-- The engineer responsible for implementing this user story completes the test plan before moving to the "Ready for QA" column. -->
 
-1. [ ] Engineer (@____): Added comment to user story confirming succesful completion of QA.
-2. [ ] QA (@____): Added comment to user story confirming succesful completion of QA.
+1. [ ] Engineer (@____): Added comment to user story confirming successful completion of QA.
+2. [ ] QA (@____): Added comment to user story confirming successful completion of QA.
