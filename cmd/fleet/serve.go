@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -883,7 +884,9 @@ the way that the Fleet server works.
 			rootMux.HandleFunc("/api/", func(rw http.ResponseWriter, req *http.Request) {
 				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/scripts/run/sync") {
 					rc := http.NewResponseController(rw)
-					if err := rc.SetWriteDeadline(time.Now().Add((5 * time.Minute) + (1 * time.Second))); err != nil {
+					// add an additional 30 seconds to prevent race conditions where the
+					// request is terminated early.
+					if err := rc.SetWriteDeadline(time.Now().Add(scripts.MaxServerWaitTime + (30 * time.Second))); err != nil {
 						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
 					}
 				}

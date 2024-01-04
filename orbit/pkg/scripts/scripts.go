@@ -14,10 +14,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
-
-const scriptExecTimeout = 5 * time.Minute
 
 // Client defines the methods required for the API requests to the server. The
 // fleet.OrbitClient type satisfies this interface.
@@ -124,7 +123,7 @@ func (r *Runner) runOne(execID string) (finalErr error) {
 		return fmt.Errorf("write script file: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), scriptExecTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), scripts.MaxHostExecutionTime)
 	defer cancel()
 
 	execCmdFn := r.execCmdFn
