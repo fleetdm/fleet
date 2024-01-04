@@ -3505,7 +3505,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 				s, ok := expectedHostMDMStatus[h.ID][p.Identifier]
 				require.True(t, ok)
 				require.NotNil(t, p.Status)
-				require.Equal(t, s, *p.Status)
+				require.Equalf(t, s, *p.Status, "profile identifier %s", p.Identifier)
 			}
 		}
 	}
@@ -3622,8 +3622,9 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			InstallDate: time.Now(),
 		},
 	})))
-	expectedHostMDMStatus[hosts[2].ID][cp3.Identifier] = fleet.MDMDeliveryPending // first retry for cp3
-	expectedHostMDMStatus[hosts[2].ID][cp4.Identifier] = fleet.MDMDeliveryPending // first retry for cp4
+	expectedHostMDMStatus[hosts[2].ID][cp1.Identifier] = fleet.MDMDeliveryVerified //cp1 can go from pending to verified
+	expectedHostMDMStatus[hosts[2].ID][cp3.Identifier] = fleet.MDMDeliveryPending  // first retry for cp3
+	expectedHostMDMStatus[hosts[2].ID][cp4.Identifier] = fleet.MDMDeliveryPending  // first retry for cp4
 	checkHostMDMProfileStatuses()
 	// simulate retry command acknowledged by setting status to "verifying"
 	adHocSetVerifying(hosts[2].UUID, cp3.Identifier)
