@@ -114,14 +114,9 @@
 
   .sublabel-nosso {
     font-size: 0.75rem;
-    button .button--text-link {
+    button.button--text-link {
       display: inline-flex;
       font-size: 0.75rem;
-      padding: 0;
-      border: 0;
-      cursor: pointer;
-      background: transparent;
-      color: $core-vibrant-blue;
     }
   }
 
