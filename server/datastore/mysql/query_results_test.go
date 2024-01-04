@@ -680,12 +680,12 @@ func testCleanupQueryResultRows(t *testing.T, ds *Datastore) {
 	err = ds.CleanupDiscardedQueryResults(context.Background())
 	require.NoError(t, err)
 
-	// Verify that the rows with discard data set to false are removed
+	// Verify that the rows with discard data set to false are not removed
 	results, err := ds.QueryResultRows(context.Background(), queryNoDiscard.ID, fleet.TeamFilter{User: user})
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 
-	// Verify that the rows with discard data set to true are not removed
+	// Verify that the rows with discard data set to true are removed
 	results, err = ds.QueryResultRows(context.Background(), queryDiscardTrue.ID, fleet.TeamFilter{User: user})
 	require.NoError(t, err)
 	require.Len(t, results, 0)
