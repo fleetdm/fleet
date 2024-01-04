@@ -1,2 +1,0 @@
-- Adds a `GET /hosts/{id}/health` endpoint which reports back some key data about host health such
-  as vulnerable software and failing policies.

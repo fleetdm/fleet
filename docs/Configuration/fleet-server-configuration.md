@@ -256,6 +256,8 @@ may need to be adjusted for large deployments. This setting should be greater th
 FLEET_MYSQL_MAX_OPEN_CONNS * (max number of fleet servers) * 4
 ```
 
+> Fleet uses 3 prepared statements for authentication (used by Fleet API) + each database connection can be using 1 additional prepared statement.
+
 ##### mysql_max_idle_conns
 
 The maximum idle connections to the database. This value should be equal to or less than `mysql_max_open_conns`.
@@ -753,6 +755,12 @@ The bcrypt cost to use when hashing user passwords.
 ##### auth_salt_key_size
 
 The key size of the salt which is generated when hashing user passwords.
+
+> Note: Fleet uses the `bcrypt` hashing algorithm for hashing passwords, which has a [72 character
+> input limit](https://en.wikipedia.org/wiki/Bcrypt#Maximum_password_length). This means that the
+> plaintext password (i.e. the password input by the user) length + the value of
+> `auth_salt_key_size` cannot exceed 72. In the default case, the max length of a plaintext password
+> is 48 (72 - 24).
 
 - Default value: `24`
 - Environment variable: `FLEET_AUTH_SALT_KEY_SIZE`

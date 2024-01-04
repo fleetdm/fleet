@@ -9,7 +9,6 @@ import { QueryContext } from "context/query";
 import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
-import statusAPI from "services/entities/status";
 import { IHost, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
@@ -22,7 +21,6 @@ import MainContent from "components/MainContent";
 import SelectTargets from "components/LiveQuery/SelectTargets";
 
 import RunQuery from "pages/queries/live/screens/RunQuery";
-import useTeamIdParam from "hooks/useTeamIdParam";
 
 interface IRunQueryPageProps {
   router: InjectedRouter;
@@ -42,25 +40,9 @@ const RunQueryPage = ({
   location,
 }: IRunQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
-  const {
-    currentTeamName: teamNameForQuery,
-    teamIdForApi: apiTeamIdForQuery,
-  } = useTeamIdParam({
-    location,
-    router,
-    includeAllTeams: true,
-    includeNoTeam: false,
-  });
 
   const handlePageError = useErrorHandler();
-  const {
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isAnyTeamMaintainerOrTeamAdmin,
-    isObserverPlus,
-    isAnyTeamObserverPlus,
-    config,
-  } = useContext(AppContext);
+  const { config } = useContext(AppContext);
   const {
     selectedQueryTargets,
     setSelectedQueryTargets,
@@ -89,7 +71,6 @@ const RunQueryPage = ({
     selectedQueryTargetsByType.teams
   );
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
-  const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
 
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
 
@@ -147,16 +128,6 @@ const RunQueryPage = ({
     }
   );
 
-  const detectIsFleetQueryRunnable = () => {
-    statusAPI.live_query().catch(() => {
-      setIsLiveQueryRunnable(false);
-    });
-  };
-
-  useEffect(() => {
-    detectIsFleetQueryRunnable();
-  }, [queryId]);
-
   useEffect(() => {
     setSelectedQueryTargetsByType({
       hosts: targetedHosts,
@@ -167,8 +138,9 @@ const RunQueryPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
+    const queryNameCopy = storedQuery?.name ? `${storedQuery?.name} | ` : "";
     // e.g., Run live query | Discover TLS certificates | Fleet for osquery
-    document.title = `Run live query | ${storedQuery?.name} | ${DOCUMENT_TITLE_SUFFIX}`;
+    document.title = `Run live query | ${queryNameCopy}${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, storedQuery?.name]);
 
   const goToQueryEditor = useCallback(

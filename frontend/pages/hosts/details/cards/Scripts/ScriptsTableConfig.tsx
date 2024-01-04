@@ -17,6 +17,7 @@ import {
   isGlobalObserver,
   isTeamObserver,
 } from "utilities/permissions/permissions";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import ScriptStatusCell from "./components/ScriptStatusCell";
 
@@ -67,7 +68,8 @@ const ScriptRunActionDropdownLabel = ({
 
 // eslint-disable-next-line import/prefer-default-export
 export const generateTableColumnConfigs = (
-  actionSelectHandler: (value: string, script: IHostScript) => void
+  actionSelectHandler: (value: string, script: IHostScript) => void,
+  disableActions = false
 ) => {
   return [
     {
@@ -90,15 +92,35 @@ export const generateTableColumnConfigs = (
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps: IDropdownCellProps) => (
-        <DropdownCell
-          options={cellProps.cell.value}
-          onChange={(value: string) =>
-            actionSelectHandler(value, cellProps.row.original)
-          }
-          placeholder={"Actions"}
-        />
-      ),
+      Cell: (cellProps: IDropdownCellProps) =>
+        disableActions ? (
+          <span>
+            <TooltipWrapper
+              position="top"
+              tipContent={
+                <div>Running scripts is disabled in organization settings</div>
+              }
+            >
+              <DropdownCell
+                options={cellProps.cell.value}
+                onChange={(value: string) =>
+                  actionSelectHandler(value, cellProps.row.original)
+                }
+                placeholder={"Actions"}
+                disabled={disableActions}
+              />
+            </TooltipWrapper>
+          </span>
+        ) : (
+          <DropdownCell
+            options={cellProps.cell.value}
+            onChange={(value: string) =>
+              actionSelectHandler(value, cellProps.row.original)
+            }
+            placeholder={"Actions"}
+            disabled={disableActions}
+          />
+        ),
     },
   ];
 };

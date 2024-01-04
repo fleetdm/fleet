@@ -128,6 +128,9 @@ module "waf-free" {
 }
 
 module "migrations_free" {
+  depends_on = [
+    module.geolite2
+  ]
   source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v1.0.0"
   ecs_cluster              = module.free.byo-db.byo-ecs.service.cluster
   task_definition          = module.free.byo-db.byo-ecs.task_definition.family

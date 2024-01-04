@@ -21,6 +21,7 @@ spec:
   display_text: test_host
   distributed_interval: 0
   gigs_disk_space_available: 0
+  gigs_total_disk_space: 0
   hardware_model: ""
   hardware_serial: ""
   hardware_vendor: ""

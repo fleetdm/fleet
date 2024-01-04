@@ -2033,6 +2033,15 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts?mdm_enrollment_status=pending", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, len(devices))
 
+	// searching by display name works
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts?query=%s", url.QueryEscape("MacBook Mini")), nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 3)
+	for _, host := range listHostsRes.Hosts {
+		require.Equal(t, "MacBook Mini", host.HardwareModel)
+		require.Equal(t, host.DisplayName, fmt.Sprintf("MacBook Mini (%s)", host.HardwareSerial))
+	}
+
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
 		return map[string]*push.Response{}, nil
 	}
@@ -3589,6 +3598,36 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 	assert.Equal(t, []string{"b"}, acResp.MDM.MacOSSettings.CustomSettings)
+
+	// mdm/apple/settings works for windows as well as it's being used by
+	// clients (UI) this way
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.EnabledAndConfigured = false
+	appConf.MDM.WindowsEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+	defer func() {
+		appConf, err := s.ds.AppConfig(context.Background())
+		require.NoError(s.T(), err)
+		appConf.MDM.EnabledAndConfigured = true
+		appConf.MDM.WindowsEnabledAndConfigured = true
+		err = s.ds.SaveAppConfig(context.Background(), appConf)
+		require.NoError(s.T(), err)
+	}()
+
+	// flip and verify the value
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+		fleet.MDMAppleSettingsPayload{EnableDiskEncryption: ptr.Bool(false)}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+		fleet.MDMAppleSettingsPayload{EnableDiskEncryption: ptr.Bool(true)}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
@@ -4002,6 +4041,36 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	// use the MDM settings endpoint with an unknown team id
 	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
 		fleet.MDMAppleSettingsPayload{TeamID: ptr.Uint(9999)}, http.StatusNotFound)
+
+	// mdm/apple/settings works for windows as well as it's being used by
+	// clients (UI) this way
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.EnabledAndConfigured = false
+	appConf.MDM.WindowsEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+	defer func() {
+		appConf, err := s.ds.AppConfig(context.Background())
+		require.NoError(s.T(), err)
+		appConf.MDM.EnabledAndConfigured = true
+		appConf.MDM.WindowsEnabledAndConfigured = true
+		err = s.ds.SaveAppConfig(context.Background(), appConf)
+		require.NoError(s.T(), err)
+	}()
+
+	// flip and verify the value
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+		fleet.MDMAppleSettingsPayload{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: ptr.Bool(false)}, http.StatusNoContent)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.False(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
+
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+		fleet.MDMAppleSettingsPayload{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: ptr.Bool(true)}, http.StatusNoContent)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
@@ -6730,7 +6799,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	source, ok := sourceByEmail["sso_user@example.com"]
 	require.True(t, ok)
-	require.Equal(t, "mdm_idp_accounts", source)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, source)
 	source, ok = sourceByEmail["g1@example.com"]
 	require.True(t, ok)
 	require.Equal(t, "google_chrome_profiles", source)
@@ -6762,7 +6831,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/device_mapping", hostResp.Host.ID), nil, http.StatusOK, &dmResp)
 	require.Len(t, dmResp.DeviceMapping, 1)
 	require.Equal(t, "sso_user@example.com", dmResp.DeviceMapping[0].Email)
-	require.Equal(t, "mdm_idp_accounts", dmResp.DeviceMapping[0].Source)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dmResp.DeviceMapping[0].Source)
 	hostsResp = listHostsResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?query=%s&device_mapping=true", url.QueryEscape("sso_user@example.com")), nil, http.StatusOK, &hostsResp)
 	require.Len(t, hostsResp.Hosts, 1)
@@ -6773,7 +6842,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.NoError(t, json.Unmarshal(*gotHost.DeviceMapping, &dm))
 	require.Len(t, dm, 1)
 	require.Equal(t, "sso_user@example.com", dm[0].Email)
-	require.Equal(t, "mdm_idp_accounts", dm[0].Source)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dm[0].Source)
 
 	// enrolling a different user works without problems
 	res = s.LoginMDMSSOUser("sso_user2", "user123#")
@@ -10313,4 +10382,49 @@ func (s *integrationMDMTestSuite) TestWindowsFreshEnrollEmptyQuery() {
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_mdm_config_profiles_windows")
 	require.NotEmpty(t, dqResp.Queries, "fleet_detail_query_mdm_config_profiles_windows")
+}
+
+func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
+	t := s.T()
+
+	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
+		foundInstallFleetdCommand := false
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if manifest := cmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
+				foundInstallFleetdCommand = true
+				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
+				require.Contains(t, *cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL)
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		require.Equal(t, wantCommand, foundInstallFleetdCommand)
+	}
+
+	// create a device that's not enrolled into Fleet, it should get a command to
+	// install fleetd
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+	s.runWorker()
+	checkInstallFleetdCommandSent(mdmDevice, true)
+
+	// create a device that's enrolled into Fleet before turning on MDM features,
+	// it shouldn't get the command to install fleetd
+	desktopToken := uuid.New().String()
+	host := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
+	err = s.ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, desktopToken)
+	require.NoError(t, err)
+	mdmDevice = mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, desktopToken)
+	mdmDevice.UUID = host.UUID
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+	s.runWorker()
+	checkInstallFleetdCommandSent(mdmDevice, false)
 }

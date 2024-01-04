@@ -70,7 +70,7 @@ type Datastore interface {
 	// NewQuery creates a new query object in thie datastore. The returned query should have the ID updated.
 	NewQuery(ctx context.Context, query *Query, opts ...OptionalArg) (*Query, error)
 	// SaveQuery saves changes to an existing query object.
-	SaveQuery(ctx context.Context, query *Query, shouldDiscardResults bool) error
+	SaveQuery(ctx context.Context, query *Query, shouldDiscardResults bool, shouldDeleteStats bool) error
 	// DeleteQuery deletes an existing query object on a team. If teamID is nil, then the query is
 	// looked up in the 'global' team.
 	DeleteQuery(ctx context.Context, teamID *uint, name string) error
@@ -269,6 +269,9 @@ type Datastore interface {
 	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
 	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+	// SetOrUpdateCustomHostDeviceMapping replaces the custom email address
+	// associated with the host with the provided one.
+	SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email, source string) ([]*HostDeviceMapping, error)
 	// ListHostBatteries returns the list of batteries for the given host ID.
 	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 
@@ -735,7 +738,7 @@ type Datastore interface {
 	// SetOrUpdateHostEmailsFromMdmIdpAccounts sets or updates the host emails associated with the provided
 	// host based on the MDM IdP account information associated with the provided fleet enrollment reference.
 	SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
-	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable float64) error
+	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host

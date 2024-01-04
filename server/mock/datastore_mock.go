@@ -60,7 +60,7 @@ type ApplyQueriesFunc func(ctx context.Context, authorID uint, queries []*fleet.
 
 type NewQueryFunc func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
-type SaveQueryFunc func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool) error
+type SaveQueryFunc func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error
 
 type DeleteQueryFunc func(ctx context.Context, teamID *uint, name string) error
 
@@ -203,6 +203,8 @@ type CountHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet
 type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error)
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
+
+type SetOrUpdateCustomHostDeviceMappingFunc func(ctx context.Context, hostID uint, email string, source string) ([]*fleet.HostDeviceMapping, error)
 
 type ListHostBatteriesFunc func(ctx context.Context, id uint) ([]*fleet.HostBattery, error)
 
@@ -510,7 +512,7 @@ type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, isServer bool
 
 type SetOrUpdateHostEmailsFromMdmIdpAccountsFunc func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
 
-type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error
+type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error
 
 type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
 
@@ -1063,6 +1065,9 @@ type DataStore struct {
 
 	ListHostDeviceMappingFunc        ListHostDeviceMappingFunc
 	ListHostDeviceMappingFuncInvoked bool
+
+	SetOrUpdateCustomHostDeviceMappingFunc        SetOrUpdateCustomHostDeviceMappingFunc
+	SetOrUpdateCustomHostDeviceMappingFuncInvoked bool
 
 	ListHostBatteriesFunc        ListHostBatteriesFunc
 	ListHostBatteriesFuncInvoked bool
@@ -2084,11 +2089,11 @@ func (s *DataStore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fl
 	return s.NewQueryFunc(ctx, query, opts...)
 }
 
-func (s *DataStore) SaveQuery(ctx context.Context, query *fleet.Query, shouldDiscardResults bool) error {
+func (s *DataStore) SaveQuery(ctx context.Context, query *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error {
 	s.mu.Lock()
 	s.SaveQueryFuncInvoked = true
 	s.mu.Unlock()
-	return s.SaveQueryFunc(ctx, query, shouldDiscardResults)
+	return s.SaveQueryFunc(ctx, query, shouldDiscardResults, shouldDeleteStats)
 }
 
 func (s *DataStore) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
@@ -2586,6 +2591,13 @@ func (s *DataStore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 	s.ListHostDeviceMappingFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostDeviceMappingFunc(ctx, id)
+}
+
+func (s *DataStore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email string, source string) ([]*fleet.HostDeviceMapping, error) {
+	s.mu.Lock()
+	s.SetOrUpdateCustomHostDeviceMappingFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateCustomHostDeviceMappingFunc(ctx, hostID, email, source)
 }
 
 func (s *DataStore) ListHostBatteries(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
@@ -3659,11 +3671,11 @@ func (s *DataStore) SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context,
 	return s.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc(ctx, hostID, fleetEnrollmentRef)
 }
 
-func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error {
+func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostDisksSpaceFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable)
+	return s.SetOrUpdateHostDisksSpaceFunc(ctx, hostID, gigsAvailable, percentAvailable, gigsTotal)
 }
 
 func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {

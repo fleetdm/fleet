@@ -51,6 +51,19 @@ func (ds *Datastore) ListSoftwareTitles(
 	ctx context.Context,
 	opt fleet.SoftwareTitleListOptions,
 ) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+	if opt.ListOptions.After != "" {
+		return nil, 0, nil, fleet.NewInvalidArgumentError("after", "not supported for software titles")
+	}
+
+	if len(strings.Split(opt.ListOptions.OrderKey, ",")) > 1 {
+		return nil, 0, nil, fleet.NewInvalidArgumentError("order_key", "multicolumn order key not supported for software titles")
+	}
+
+	if opt.ListOptions.OrderKey == "" {
+		opt.ListOptions.OrderKey = "hosts_count"
+		opt.ListOptions.OrderDirection = fleet.OrderDescending
+	}
+
 	dbReader := ds.reader(ctx)
 	getTitlesStmt, args := selectSoftwareTitlesSQL(opt)
 	// build the count statement before adding the pagination constraints to `getTitlesStmt`
@@ -59,6 +72,9 @@ func (ds *Datastore) ListSoftwareTitles(
 	// grab titles that match the list options
 	var titles []fleet.SoftwareTitle
 	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
+	// appendListOptionsWithCursorToSQL doesn't support multicolumn sort, so
+	// we need to add it here
+	getTitlesStmt = spliceSecondaryOrderBySoftwareTitlesSQL(getTitlesStmt, opt.ListOptions)
 	if err := sqlx.SelectContext(ctx, dbReader, &titles, getTitlesStmt, args...); err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "select software titles")
 	}
@@ -119,6 +135,38 @@ func (ds *Datastore) ListSoftwareTitles(
 	}
 
 	return titles, counts, metaData, nil
+}
+
+// spliceSecondaryOrderBySoftwareTitlesSQL adds a secondary order by clause, splicing it into the
+// existing order by clause. This is necessary because multicolumn sort is not
+// supported by appendListOptionsWithCursorToSQL.
+func spliceSecondaryOrderBySoftwareTitlesSQL(stmt string, opts fleet.ListOptions) string {
+	if opts.OrderKey == "" {
+		return stmt
+	}
+	k := strings.ToLower(opts.OrderKey)
+
+	targetSubstr := "ASC"
+	if opts.OrderDirection == fleet.OrderDescending {
+		targetSubstr = "DESC"
+	}
+
+	var secondaryOrderBy string
+	switch k {
+	case "name":
+		secondaryOrderBy = ", hosts_count DESC"
+	default:
+		secondaryOrderBy = ", name ASC"
+	}
+
+	if k != "source" {
+		secondaryOrderBy += ", source ASC"
+	}
+	if k != "browser" {
+		secondaryOrderBy += ", browser ASC"
+	}
+
+	return strings.Replace(stmt, targetSubstr, targetSubstr+secondaryOrderBy, 1)
 }
 
 func selectSoftwareTitlesSQL(opt fleet.SoftwareTitleListOptions) (string, []any) {

@@ -1600,9 +1600,10 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "foo", authToken)
 		return nil
 	}
-	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable float64) error {
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
 		require.Equal(t, 277.0, gigsAvailable)
 		require.Equal(t, 56.0, percentAvailable)
+		require.Equal(t, 500.1, gigsTotal)
 		return nil
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
@@ -1746,7 +1747,8 @@ func TestDetailQueries(t *testing.T) {
 "fleet_detail_query_disk_space_unix": [
 	{
 		"percent_disk_space_available": "56",
-		"gigs_disk_space_available": "277.0"
+		"gigs_disk_space_available": "277.0",
+		"gigs_total_disk_space": "500.1"
 	}
 ],
 "fleet_detail_query_mdm": [
@@ -2010,13 +2012,9 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 		},
 	})
 	q := "select year, month, day, hour, minutes, seconds from time"
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-		return nil
-	}
 	campaign, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
 	require.NoError(t, err)
 	assert.Equal(t, gotQuery.ID, gotCampaign.QueryID)
-	assert.True(t, ds.NewActivityFuncInvoked)
 	assert.Equal(t, []*fleet.DistributedQueryCampaignTarget{
 		{
 			Type:                       fleet.TargetHost,

@@ -147,9 +147,16 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 		return errors.New("invalid discover message: XMLNS")
 	}
 
-	// Ensure that only valid versions are supported
-	if req.Body.Discover.Request.RequestVersion != syncml.EnrollmentVersionV4 &&
-		req.Body.Discover.Request.RequestVersion != syncml.EnrollmentVersionV5 {
+	// Check if the request version is one of the defined enrollment versions
+	versionFound := false
+	for _, v := range syncml.SupportedEnrollmentVersions {
+		if req.Body.Discover.Request.RequestVersion == v {
+			versionFound = true
+			break
+		}
+	}
+
+	if !versionFound {
 		return errors.New("invalid discover message: Request.RequestVersion")
 	}
 
