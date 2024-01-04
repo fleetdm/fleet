@@ -760,7 +760,7 @@ const HostDetailsPage = ({
                 pathname={pathname}
                 pathPrefix={PATHS.HOST_SOFTWARE(host?.id || 0)}
               />
-              {host?.platform === "darwin" && macadmins && (
+              {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
                   isLoading={isLoadingHost}
                   munkiIssues={macadmins.munki_issues}
