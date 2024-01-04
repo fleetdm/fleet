@@ -51,7 +51,9 @@ jobs:
 
       - name: Build JS
         working-directory: ./ee/fleetd-chrome
-        run: npm ci && npm run build
+        run: |
+          echo -e 'FLEET_URL="url"\nFLEET_ENROLL_SECRET="secret"' > .env
+          npm run build
 
       - name: Run JS Tests
         working-directory: ./ee/fleetd-chrome

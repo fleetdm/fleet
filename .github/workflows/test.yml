@@ -47,11 +47,13 @@ jobs:
     - name: Install JS Dependencies
       if: steps.js-cache.outputs.cache-hit != 'true'
       working-directory: ./ee/fleetd-chrome
-      run: npm install
+      run: npm ci
 
     - name: Build JS
       working-directory: ./ee/fleetd-chrome
-      run: npm ci && npm run build
+      run: |
+        echo -e 'FLEET_URL="url"\nFLEET_ENROLL_SECRET="secret"' > .env
+        npm run build
 
     - name: Run JS Tests
       working-directory: ./ee/fleetd-chrome
