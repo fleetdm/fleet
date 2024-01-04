@@ -3,16 +3,20 @@ set -e
 set -x
 
 function scale_services(){
-	UP_DOWN="${1:?}"
+	UP_DOWN="${3:?}"
 	# Set the minimum capacity and desired count in the cluster to 0 to scale down or to the original size to scale back to normal.
 
 	# This is a bit hacky, but the update-service has to happen first when scaling up and second when scaling down.
+	# Assume scaling down unless "up".
+	CAPACITY=0
 	if [ "${UP_DOWN:?}" = "up" ]; then
 		aws ecs update-service --region "${REGION:?}" --cluster "${ECS_CLUSTER:?}" --service "${ECS_SERVICE:?}" --desired-count "${DESIRED_COUNT:?}"
+		CAPACITY="${MIN_CAPACITY:?}"
 	fi
-	aws application-autoscaling register-scalable-target --region "${REGION:?}" --service-namespace ecs --resource-id "service/${ECS_CLUSTER:?}/${ECS_SERVICE:?}" --scalable-dimension "ecs:service:DesiredCount" --min-capacity "${MIN_CAPACITY:?}"
+	aws application-autoscaling register-scalable-target --region "${REGION:?}" --service-namespace ecs --resource-id "service/${ECS_CLUSTER:?}/${ECS_SERVICE:?}" --scalable-dimension "ecs:service:DesiredCount" --min-capacity "${CAPACITY:?}"
+	# We are scaling down, make it 0
 	if [ "${UP_DOWN:?}" != "up" ]; then
-		aws ecs update-service --region "${REGION:?}" --cluster "${ECS_CLUSTER:?}" --service "${ECS_SERVICE:?}" --desired-count "${DESIRED_COUNT:?}"
+		aws ecs update-service --region "${REGION:?}" --cluster "${ECS_CLUSTER:?}" --service "${ECS_SERVICE:?}" --desired-count 0
 	fi
 	# The first task defintion might never get stable because it never had initial migrations so don't wait before continuing
 	if [ "${TASK_DEFINITION_REVISION}" != "1" ]; then
