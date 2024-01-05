@@ -416,6 +416,10 @@ type Datastore interface {
 	ResultCountForQuery(ctx context.Context, queryID uint) (int, error)
 	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
 	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow) error
+	// CleanupDiscardedQueryResults deletes all query results for queries with DiscardData enabled.
+	// Used in cleanups_then_aggregation cron to cleanup rows that were inserted immediately
+	// after DiscardData was set to true due to query caching.
+	CleanupDiscardedQueryResults(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore

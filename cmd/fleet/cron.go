@@ -834,6 +834,10 @@ func newCleanupsAndAggregationSchedule(
 				}
 			}
 
+			if err = ds.CleanupDiscardedQueryResults(ctx); err != nil {
+				return err
+			}
+
 			return nil
 		}),
 	)
