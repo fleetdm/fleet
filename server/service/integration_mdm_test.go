@@ -259,6 +259,8 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	appCfg.MDM.WindowsEnabledAndConfigured = true
 	// ensure global disk encryption is disabled on exit
 	appCfg.MDM.EnableDiskEncryption = optjson.SetBool(false)
+	// ensure global Windows OS updates are always disabled for the next test
+	appCfg.MDM.WindowsUpdates = mdm_types.WindowsUpdates{}
 	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
 	require.NoError(t, err)
 
@@ -10088,6 +10090,19 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		}
 	}
 
+	getProfileUUID := func(t *testing.T, profName string, teamID *uint) string {
+		var profUUID string
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			var globalOrTeamID uint
+			if teamID != nil {
+				globalOrTeamID = *teamID
+			}
+			return sqlx.GetContext(ctx, tx, &profUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name = ?`, globalOrTeamID, profName)
+		})
+		require.NotNil(t, profUUID)
+		return profUUID
+	}
+
 	checkHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, wantStatus fleet.MDMDeliveryStatus) {
 		var gotStatus fleet.MDMDeliveryStatus
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -10128,7 +10143,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// make fleet add a Windows OS Updates profile
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": 1, "grace_period_days": 1} }}`), http.StatusOK, &acResp)
-	osUpdatesProf := checkWindowsOSUpdatesProfile(t, s.ds, nil, &fleet.WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(1)})
+	osUpdatesProf := getProfileUUID(t, servermdm.FleetWindowsOSUpdatesProfileName, nil)
 
 	// os updates is sent via a profiles commands
 	verifyProfiles(mdmDevice, 1, false)
@@ -10223,7 +10238,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// make fleet add a Windows OS Updates profile
 	tmResp := teamResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": 1, "grace_period_days": 1} }}`), http.StatusOK, &tmResp)
-	osUpdatesProf = checkWindowsOSUpdatesProfile(t, s.ds, &tm.ID, &fleet.WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(1)})
+	osUpdatesProf = getProfileUUID(t, servermdm.FleetWindowsOSUpdatesProfileName, &tm.ID)
 
 	// os updates is sent via a profiles commands
 	verifyProfiles(mdmDevice, 1, false)
