@@ -1824,8 +1824,8 @@ None.
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 - [Get host's scripts](#get-hosts-scripts)
-- [Get host's upcoming activity](#get-hosts-upcoming-activity)
-- [Get host's past activity](#get-hosts-upcoming-activity) 
+- [Get host's upcoming activities](#get-hosts-upcoming-activities)
+- [Get host's past activities](#get-hosts-upcoming-activities) 
 
 ### On the different timestamps in the host data structure
 
@@ -6894,7 +6894,7 @@ Run a script on a host.
 
 The script will be added to the host's list of upcoming activities. 
 
-The new script will run once the other upcoming activities finish. Failure of an upcoming activity won't cancel other upcoming activities.
+The new script will run after other activities finish. Failure of one activity won't cancel other activities.
 
 `POST /api/v1/fleet/scripts/run`
 
