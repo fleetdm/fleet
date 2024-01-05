@@ -137,7 +137,7 @@ module "migrations_free" {
   task_definition_revision = module.free.byo-db.byo-ecs.task_definition.revision
   subnets                  = module.free.byo-db.byo-ecs.service.network_configuration[0].subnets
   security_groups          = module.free.byo-db.byo-ecs.service.network_configuration[0].security_groups
-  ecs_service              = module.main.byo-vpc.byo-db.byo-ecs.service.name
-  desired_count            = module.main.byo-vpc.byo-db.byo-ecs.appautoscaling_target.min_capacity
-  min_capacity             = module.main.byo-vpc.byo-db.byo-ecs.appautoscaling_target.min_capacity
+  ecs_service              = module.free.byo-db.byo-ecs.service.name
+  desired_count            = module.free.byo-db.byo-ecs.appautoscaling_target.min_capacity
+  min_capacity             = module.free.byo-db.byo-ecs.appautoscaling_target.min_capacity
 }
