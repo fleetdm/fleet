@@ -88,6 +88,7 @@ const generateReportColumnConfigsFromResults = (results: any[]): Column[] => {
       Filter: DefaultColumnFilter, // Component hides filter for last_fetched
       filterType: "text",
       disableSortBy: false,
+      sortType: "caseInsensitive",
     };
   });
   return _unshiftHostname(columnConfigs);

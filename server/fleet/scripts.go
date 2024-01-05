@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 )
 
 // Script represents a saved script that can be executed on a host.
@@ -203,7 +205,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	}
 
 	if hsr.ExitCode == nil {
-		if hsr.HostTimeout(5 * time.Minute) {
+		if hsr.HostTimeout(scripts.MaxServerWaitTime) {
 			return RunScriptHostTimeoutErrMsg
 		}
 		return RunScriptAlreadyRunningErrMsg
