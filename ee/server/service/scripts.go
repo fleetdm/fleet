@@ -27,8 +27,6 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
 	}
 
-	const maxPendingScriptAge = time.Minute // any script older than this is not considered pending anymore on that host
-
 	// must load the host to get the team (cannot use lite, the last seen time is
 	// required to check if it is online) to authorize with the proper team id.
 	// We cannot first authorize if the user can list hosts, in case we
