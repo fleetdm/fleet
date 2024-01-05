@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Send metrics to datadog',
+  friendlyName: 'Send aggregated metrics to datadog',
 
 
   description: 'Sends the aggregated metrics for usage statistics reported by Fleet instances in the past week',
@@ -24,7 +24,7 @@ module.exports = {
 
     // Filter out development premium licenses and loadtests.
     let filteredStatistics = _.filter(usageStatisticsReportedInTheLastWeek, (report)=>{
-      return !_.contains(['Fleet Sandbox', 'fleet-loadtest', 'development only', 'Dev license (expired)', '', undefined], report.organization);
+      return !_.contains(['Fleet Sandbox', 'fleet-loadtest', 'development only', 'Dev license (expired)', ''], report.organization);
     });
 
     let statisticsReportedByFleetInstance = _.groupBy(filteredStatistics, 'anonymousIdentifier');
@@ -306,7 +306,7 @@ module.exports = {
         return new Error(`When the send-metrics-to-datadog script sent a request to send metrics to Datadog, an error occured. Raw error: ${require('util').inspect(err)}`);
       });
     }//∞
-    sails.log(`Aggregated Metrics for ${numberOfInstancesToReport} Fleet instances from the past week sent to Datadog.`);
+    sails.log(`Aggregated metrics for ${numberOfInstancesToReport} Fleet instances from the past week sent to Datadog.`);
   }
 
 
