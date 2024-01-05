@@ -9,6 +9,11 @@ import (
 	"go.mozilla.org/pkcs7"
 )
 
+// MaxProfileRetries is the maximum times an install profile command may be
+// retried, after which marked as failed and no further attempts will be made
+// to install the profile.
+const MaxProfileRetries = 1
+
 // DecryptBase64CMS decrypts a base64 encoded pkcs7-encrypted value using the
 // provided certificate and private key.
 func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.PrivateKey) ([]byte, error) {
@@ -52,4 +57,32 @@ func GetRawProfilePlatform(profile []byte) string {
 	}
 
 	return ""
+}
+
+const (
+
+	// FleetdConfigProfileName is the value for the PayloadDisplayName used by
+	// fleetd to read configuration values from the system.
+	FleetdConfigProfileName = "Fleetd configuration"
+
+	// FleetdFileVaultProfileName is the value for the PayloadDisplayName used
+	// by Fleet to configure FileVault and FileVault Escrow.
+	FleetFileVaultProfileName        = "Disk encryption"
+	FleetWindowsOSUpdatesProfileName = "Windows OS Updates"
+)
+
+// FleetReservedProfileNames returns a map of PayloadDisplayName strings
+// that are reserved by Fleet.
+func FleetReservedProfileNames() map[string]struct{} {
+	return map[string]struct{}{
+		FleetdConfigProfileName:          {},
+		FleetFileVaultProfileName:        {},
+		FleetWindowsOSUpdatesProfileName: {},
+	}
+}
+
+// ListFleetReservedWindowsProfileNames returns a list of PayloadDisplayName strings
+// that are reserved by Fleet for Windows.
+func ListFleetReservedWindowsProfileNames() []string {
+	return []string{FleetWindowsOSUpdatesProfileName}
 }

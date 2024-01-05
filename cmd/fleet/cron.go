@@ -71,6 +71,18 @@ func newVulnerabilitiesSchedule(
 				return ds.SyncHostsSoftware(ctx, time.Now())
 			},
 		),
+		schedule.WithJob(
+			"cron_reconcile_software_titles",
+			func(ctx context.Context) error {
+				return ds.ReconcileSoftwareTitles(ctx)
+			},
+		),
+		schedule.WithJob(
+			"cron_sync_host_software_titles",
+			func(ctx context.Context) error {
+				return ds.SyncHostsSoftwareTitles(ctx, time.Now())
+			},
+		),
 	)
 
 	return s, nil
@@ -822,6 +834,10 @@ func newCleanupsAndAggregationSchedule(
 				}
 			}
 
+			if err = ds.CleanupDiscardedQueryResults(ctx); err != nil {
+				return err
+			}
+
 			return nil
 		}),
 	)
@@ -836,7 +852,7 @@ func verifyDiskEncryptionKeys(
 	config *config.FleetConfig,
 ) error {
 	if !config.MDM.IsAppleSCEPSet() {
-		logger.Log("inf", "skipping verification of encryption keys as MDM is not fully configured")
+		logger.Log("inf", "skipping verification of macOS encryption keys as MDM is not fully configured")
 		return nil
 	}
 

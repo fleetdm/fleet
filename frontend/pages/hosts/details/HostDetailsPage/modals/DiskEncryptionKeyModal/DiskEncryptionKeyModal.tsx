@@ -58,9 +58,6 @@ const DiskEncryptionKeyModal = ({
   const recoveryText = isMacOS
     ? "Use this key to log in to the host if you forgot the password."
     : "Use this key to unlock the encrypted drive.";
-  const recoveryUrl = isMacOS
-    ? "https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#reset-a-macos-hosts-password-using-the-disk-encryption-key"
-    : "https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#unlock-a-windows-hosts-drive-using-the-disk-encryption-key";
 
   return (
     <Modal title="Disk encryption key" onExit={onCancel} className={baseClass}>
@@ -70,14 +67,7 @@ const DiskEncryptionKeyModal = ({
         <>
           <InputFieldHiddenContent value={encrpytionKey ?? ""} />
           <p>{descriptionText}</p>
-          <p>
-            {recoveryText}{" "}
-            <CustomLink
-              text="View recovery instructions"
-              url={recoveryUrl}
-              newTab
-            />
-          </p>
+          <p>{recoveryText} </p>
           <div className="modal-cta-wrap">
             <Button onClick={onCancel}>Done</Button>
           </div>

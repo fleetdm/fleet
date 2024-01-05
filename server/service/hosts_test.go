@@ -567,7 +567,7 @@ func TestHostAuth(t *testing.T) {
 		}
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, puuids, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
 		return nil
 	}
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
@@ -580,6 +580,9 @@ func TestHostAuth(t *testing.T) {
 		return nil
 	}
 	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		return nil, nil
+	}
+	ds.SetOrUpdateCustomHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
 
@@ -616,6 +619,14 @@ func TestHostAuth(t *testing.T) {
 			false,
 		},
 		{
+			"team admin, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+			false,
+			false,
+		},
+		{
 			"team maintainer, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
 			true,
@@ -630,6 +641,14 @@ func TestHostAuth(t *testing.T) {
 			true,
 			true,
 			false,
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+			true,
+			true,
 		},
 		{
 			"team maintainer, DOES NOT belong to team",
@@ -659,10 +678,16 @@ func TestHostAuth(t *testing.T) {
 			_, err := svc.GetHost(ctx, 1, opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
+			_, err = svc.GetHostLite(ctx, 1)
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+
 			_, err = svc.HostByIdentifier(ctx, "1", opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
 			_, err = svc.GetHost(ctx, 2, opts)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			_, err = svc.GetHostLite(ctx, 2)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			_, err = svc.HostByIdentifier(ctx, "2", opts)
@@ -688,6 +713,12 @@ func TestHostAuth(t *testing.T) {
 
 			err = svc.RefetchHost(ctx, 1)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
+
+			_, err = svc.SetCustomHostDeviceMapping(ctx, 1, "a@b.c")
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			_, err = svc.SetCustomHostDeviceMapping(ctx, 2, "a@b.c")
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 		})
 	}
 
@@ -790,7 +821,7 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 		assert.Equal(t, expectedHostIDs, hostIDs)
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, puuids, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
 		return nil
 	}
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
@@ -825,7 +856,7 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		assert.Equal(t, expectedHostIDs, hostIDs)
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, puuids, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
 		return nil
 	}
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
@@ -853,7 +884,7 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, puuids, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
 		return nil
 	}
 

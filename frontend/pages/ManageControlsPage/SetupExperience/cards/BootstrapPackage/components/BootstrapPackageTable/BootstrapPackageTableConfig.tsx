@@ -42,7 +42,7 @@ interface IHeaderProps {
   };
 }
 
-type IDataColumn = {
+type IColumnConfig = {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
@@ -53,7 +53,7 @@ type IDataColumn = {
     | ((props: IStatusCellProps) => JSX.Element);
 };
 
-export const TABLE_HEADERS: IDataColumn[] = [
+export const COLUMN_CONFIGS: IColumnConfig[] = [
   {
     title: "Status",
     Header: "Status",

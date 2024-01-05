@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/kolide/kit/version"
+	"github.com/fleetdm/fleet/v4/server/version"
 )
 
 // ApplyAppConfig sends the application config to be applied to the Fleet instance.

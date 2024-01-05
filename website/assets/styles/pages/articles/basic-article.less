@@ -28,6 +28,7 @@
     padding: 4px 8px;
     display: inline;
     max-width: min-content;
+    cursor: pointer;
     color: @core-fleet-black-75;
     text-decoration: none;
     font-size: 14px;
@@ -46,6 +47,30 @@
       background-color: rgba(25, 33, 71, 0.1);
     }
   }
+  [purpose='rss-button'].copied::after {
+    content: 'Link copied';
+    display: flex;
+    font-weight: 400;
+    position: relative;
+    top: 0px;
+    height: 0px;
+    font-size: 14px;
+    color: @core-vibrant-blue;
+    animation-name: copiedText;
+    animation-duration: 4s;
+    animation-fill-mode: forwards;
+  }
+
+  @keyframes copiedText {
+    0% {opacity: 0;}
+    20% {opacity: 100;}
+    30% {opacity: 80;}
+    50% {opacity: 60;}
+    70% {opacity: 40;}
+    80% {opacity: 20;}
+    100% {opacity: 0;}
+  }
+
   [purpose='edit-button'] {
     margin-left: 24px;
     img {

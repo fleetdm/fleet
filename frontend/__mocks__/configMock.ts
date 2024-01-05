@@ -13,6 +13,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     enable_analytics: true,
     deferred_save_host: false,
     query_reports_disabled: false,
+    scripts_disabled: false,
   },
   smtp_settings: {
     enable_smtp: false,
@@ -149,6 +150,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
       enable: false,
       mode: "",
       webhook_url: "",
+    },
+    windows_updates: {
+      deadline_days: null,
+      grace_period_days: null,
     },
     end_user_authentication: {
       entity_id: "",

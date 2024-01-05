@@ -5,11 +5,32 @@ import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWith
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 
-import { IHostMdmData, IMunkiData, IDeviceUser } from "interfaces/host";
+import {
+  IHostMdmData,
+  IMunkiData,
+  IDeviceUser,
+  mapDeviceUsersForDisplay,
+} from "interfaces/host";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   MDM_STATUS_TOOLTIP,
 } from "utilities/constants";
+import { COLORS } from "styles/var/colors";
+
+const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
+  if (deviceMapping.length === 0) {
+    return [];
+  }
+  const format = (d: IDeviceUser) =>
+    d.source ? `${d.email} (${d.source})` : d.email;
+
+  return deviceMapping.slice(1).map((d) => (
+    <span key={format(d)}>
+      {format(d)}
+      <br />
+    </span>
+  ));
+};
 
 interface IAboutProps {
   aboutData: { [key: string]: any };
@@ -40,7 +61,7 @@ const About = ({
         <ReactTooltip
           place="bottom"
           effect="solid"
-          backgroundColor="#3e4771"
+          backgroundColor={COLORS["tooltip-bg"]}
           id={"public-ip-tooltip"}
           data-html
           clickable
@@ -122,34 +143,38 @@ const About = ({
       return null;
     }
 
-    const numUsers = deviceMapping.length;
-    const tooltipText = deviceMapping.map((d) => (
-      <span key={Math.random().toString().slice(2)}>
-        {d.email}
-        <br />
-      </span>
-    ));
+    let displayPrimaryUser: React.ReactNode = DEFAULT_EMPTY_CELL_VALUE;
+
+    const newDeviceMapping = mapDeviceUsersForDisplay(deviceMapping);
+    if (newDeviceMapping[0]) {
+      const { email, source } = newDeviceMapping[0];
+      if (!source) {
+        displayPrimaryUser = email;
+      } else {
+        displayPrimaryUser = (
+          <>
+            {email}{" "}
+            <span className="device-mapping__source">{`(${source})`}</span>
+          </>
+        );
+      }
+    }
 
     return (
       <div className="info-grid__block">
         <span className="info-grid__header">Used by</span>
         <span className="info-grid__data">
-          {numUsers > 1 ? (
-            <>
-              <span data-tip data-for="device_mapping" className="tooltip">
-                {`${numUsers} users`}
-              </span>
-              <ReactTooltip
-                effect="solid"
-                backgroundColor="#3e4771"
-                id="device_mapping"
-                data-html
-              >
-                <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
-              </ReactTooltip>
-            </>
+          {newDeviceMapping.length > 1 ? (
+            <TooltipWrapper
+              tipContent={getDeviceUserTipContent(newDeviceMapping)}
+            >
+              {displayPrimaryUser}
+              <span className="device-mapping__more">{` +${
+                newDeviceMapping.length - 1
+              } more`}</span>
+            </TooltipWrapper>
           ) : (
-            deviceMapping[0].email || DEFAULT_EMPTY_CELL_VALUE
+            displayPrimaryUser
           )}
         </span>
       </div>

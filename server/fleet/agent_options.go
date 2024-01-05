@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -17,6 +18,8 @@ type AgentOptions struct {
 	CommandLineStartUpFlags json.RawMessage `json:"command_line_flags,omitempty"`
 	// Extensions are the orbit managed extensions
 	Extensions json.RawMessage `json:"extensions,omitempty"`
+	// UpdateChannels holds the configured channels for fleetd components.
+	UpdateChannels json.RawMessage `json:"update_channels,omitempty"`
 }
 
 type AgentOptionsOverrides struct {
@@ -49,6 +52,32 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		if err := JSONStrictDecode(bytes.NewReader(opts.CommandLineStartUpFlags), &flags); err != nil {
 			return fmt.Errorf("command-line flags: %w", err)
 		}
+
+		// We prevent setting the following flags because they can break fleetd.
+		flagNotSupportedErr := "The %s flag isn't supported. Please remove this flag."
+		if flags.HostIdentifier != "" {
+			return fmt.Errorf(flagNotSupportedErr, "--host_identifier")
+		}
+		if flags.ExtensionsAutoload != "" {
+			return fmt.Errorf(flagNotSupportedErr, "--extensions_autoload")
+		}
+	}
+
+	if len(opts.UpdateChannels) > 0 {
+		if !isPremium {
+			// The update_channels feature is premium only.
+			return ErrMissingLicense
+		}
+		if string(opts.UpdateChannels) == "null" {
+			return errors.New("update_channels cannot be null")
+		}
+		if err := checkEmptyFields("update_channels", opts.UpdateChannels); err != nil {
+			return err
+		}
+		var updateChannels OrbitUpdateChannels
+		if err := JSONStrictDecode(bytes.NewReader(opts.UpdateChannels), &updateChannels); err != nil {
+			return fmt.Errorf("update_channels: %w", err)
+		}
 	}
 
 	if len(opts.Config) > 0 {
@@ -59,6 +88,10 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 
 	for platform, platformOpts := range opts.Overrides.Platforms {
 		if len(platformOpts) > 0 {
+			if string(platformOpts) == "null" {
+				return errors.New("platforms cannot be null. To remove platform overrides omit overrides from agent options.")
+			}
+
 			if err := validateJSONAgentOptionsSet(platformOpts); err != nil {
 				return fmt.Errorf("%s platform config: %w", platform, err)
 			}
@@ -71,6 +104,22 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		}
 	}
 
+	return nil
+}
+
+func checkEmptyFields(prefix string, data json.RawMessage) error {
+	var m map[string]interface{}
+	if err := json.Unmarshal(data, &m); err != nil {
+		return fmt.Errorf("unmarshal data: %w", err)
+	}
+	for k, v := range m {
+		if v == nil {
+			return fmt.Errorf("%s.%s is defined but not set", prefix, k)
+		}
+		if s, ok := v.(string); ok && s == "" {
+			return fmt.Errorf("%s.%s is set to an empty string", prefix, k)
+		}
+	}
 	return nil
 }
 

@@ -1,0 +1,33 @@
+.performance-impact-cell {
+  .__react_component_tooltip {
+    @include tooltip-text;
+  }
+}
+
+.data-table__pill {
+  color: $core-fleet-black;
+  font-weight: $bold;
+  padding: 4px 12px;
+  border-radius: 29px;
+
+  span {
+    border-radius: 29px;
+    background-color: $core-fleet-purple;
+  }
+  &--undetermined {
+    color: $ui-fleet-black-50;
+    font-style: italic;
+    font-weight: 400;
+    padding: 0;
+    border-radius: 0;
+  }
+  &--minimal {
+    background-color: $ui-vibrant-blue-10;
+  }
+  &--considerable {
+    background-color: $ui-vibrant-blue-25;
+  }
+  &--excessive {
+    background-color: $ui-vibrant-blue-50;
+  }
+}

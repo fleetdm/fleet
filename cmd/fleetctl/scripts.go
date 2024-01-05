@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"os"
@@ -27,7 +28,7 @@ func runScriptCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:     "host",
-				Usage:    "A host, specified by hostname, UUID, osquery host ID, or node key.",
+				Usage:    "A host, specified by hostname, serial number, UUID, osquery host ID, or node key.",
 				Required: true,
 			},
 			configFlag(),
@@ -73,6 +74,8 @@ func runScriptCommand() *cli.Command {
 			if err := fleet.ValidateHostScriptContents(string(b)); err != nil {
 				return err
 			}
+
+			fmt.Println("\nScript is running. Please wait for it to finish...")
 
 			res, err := client.RunHostScriptSync(h.ID, b)
 			if err != nil {
