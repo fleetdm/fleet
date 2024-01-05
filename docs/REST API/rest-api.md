@@ -1823,7 +1823,9 @@ None.
 - [Get host OS versions](#get-host-os-versions)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
-- [Get host's scripts](#get-hosts-scripts) 
+- [Get host's scripts](#get-hosts-scripts)
+- [Get host's upcoming activity](#get-hosts-upcoming-activity)
+- [Get host's past activity](#get-hosts-upcoming-activity) 
 
 ### On the different timestamps in the host data structure
 
@@ -3410,9 +3412,119 @@ Retrieves the aggregated host OS versions information.
 }
 ```
 
-### Get host's scripts
+### Get host's past activities
 
-_Available in Fleet Premium_
+`GET /api/v1/fleet/hosts/:id/activites/past`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/12/activites/past`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 2,
+      "actor_full_name": "Anna",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "anna@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "set-timezones.sh",
+        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+      },
+    },
+    {
+      "created_at": "2021-07-27T13:25:21Z",
+      "id": 1,
+      "actor_full_name": "Bob",
+      "actor_id": 2,
+      "actor_gravatar": "",
+      "actor_email": "bob@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "",
+        "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
+      },
+    },
+  ]
+}
+```
+
+### Get host's upcoming activities
+
+`GET /api/v1/fleet/hosts/:id/activites/upcoming`
+
+#### Parameters
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/12/activites/upcoming`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 3,
+      "actor_full_name": "Marko",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "marko@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "set-timezones.sh",
+        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+      },
+    },
+    {
+      "created_at": "2021-07-27T13:25:21Z",
+      "id": 4,
+      "actor_full_name": "Rachael",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "rachael@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "",
+        "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
+      },
+    },
+  ]
+}
+```
+
+### Get host's scripts
 
 `GET /api/v1/fleet/hosts/:id/scripts`
 
@@ -6775,8 +6887,6 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Run script
 
-_Available in Fleet Premium_
-
 Execute a script and see script results. Script runs on the host if it has no upcoming scripts.
 
 `POST /api/v1/fleet/scripts/run/sync`
@@ -6814,8 +6924,6 @@ Execute a script and see script results. Script runs on the host if it has no up
 
 ### Get script result
 
-_Available in Fleet Premium_
-
 Gets the result of a script that was executed.
 
 #### Parameters
@@ -6849,8 +6957,6 @@ Gets the result of a script that was executed.
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
 
 ### Upload a script
-
-_Available in Fleet Premium_
 
 Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
 
@@ -6902,8 +7008,6 @@ echo "hello"
 
 ### Delete a script
 
-_Available in Fleet Premium_
-
 Deletes an existing script.
 
 `DELETE /api/v1/fleet/scripts/:id`
@@ -6923,8 +7027,6 @@ Deletes an existing script.
 `Status: 204`
 
 ### List scripts
-
-_Available in Fleet Premium_
 
 `GET /api/v1/fleet/scripts`
 
@@ -6970,8 +7072,6 @@ _Available in Fleet Premium_
 ```
 
 ### Get or download a script
-
-_Available in Fleet Premium_
 
 `GET /api/v1/fleet/scripts/:id`
 
