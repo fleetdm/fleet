@@ -498,6 +498,7 @@ module.exports.routes = {
   'GET /try-fleet/sandbox-expired':   '/try-fleet/fleetctl-preview',
   'GET /try-fleet/sandbox':   '/try-fleet/fleetctl-preview',
   'GET /try-fleet/waitlist':   '/try-fleet/fleetctl-preview',
+  'GET /mdm': '/device-management',// « alias for radio ad
 
   // Fleet UI
   // =============================================================================================================
