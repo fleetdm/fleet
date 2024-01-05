@@ -1823,6 +1823,7 @@ None.
 - [Get host OS versions](#get-host-os-versions)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
+- [Get host's scripts](#get-hosts-scripts) 
 
 ### On the different timestamps in the host data structure
 
@@ -3407,6 +3408,66 @@ Retrieves the aggregated host OS versions information.
     }
   ]
 }
+```
+
+### Get host's scripts
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/hosts/:id/scripts`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                                                                                   |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| page            | integer | query | Page number of the results to fetch.                                                                                          |
+| per_page        | integer | query | Results per page.                                                                                                             |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/scripts`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scripts": [
+    {
+      "script_id": 3,
+      "name": "remove-zoom-artifacts.sh",
+      "last_execution": {
+        "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "error"
+      }
+    },
+    {
+      "script_id": 5,
+      "name": "set-timezone.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "pending"
+      }
+    },
+    {
+      "script_id": 8,
+      "name": "uninstall-zoom.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "ran"
+      }
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+
 ```
 
 ### Get hosts report in CSV
@@ -6959,68 +7020,6 @@ Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
 ```
 echo "hello"
 ```
-
-### Get script details by host
-
-_Available in Fleet Premium_
-
-`GET /api/v1/fleet/hosts/:id/scripts`
-
-#### Parameters
-
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| page            | integer | query | Page number of the results to fetch.                                                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
-
-#### Example
-
-`GET /api/v1/fleet/hosts/123/scripts`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scripts": [
-    {
-      "script_id": 3,
-      "name": "remove-zoom-artifacts.sh",
-      "last_execution": {
-        "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "error"
-      }
-    },
-    {
-      "script_id": 5,
-      "name": "set-timezone.sh",
-      "last_execution": {
-        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "pending"
-      }
-    },
-    {
-      "script_id": 8,
-      "name": "uninstall-zoom.sh",
-      "last_execution": {
-        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "ran"
-      }
-    }
-  ],
-  "meta": {
-    "has_next_results": false,
-    "has_previous_results": false
-  }
-}
-
-```
-
----
 
 ## Sessions
 
