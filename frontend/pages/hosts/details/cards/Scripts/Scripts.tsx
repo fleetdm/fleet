@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosResponse } from "axios";
 import { InjectedRouter } from "react-router";
@@ -43,7 +43,7 @@ const Scripts = ({
   router,
   onShowDetails,
 }: IScriptsProps) => {
-  const [isScriptRunning, setIsScriptRunning] = React.useState(false);
+  const [isScriptRunning, setIsScriptRunning] = useState(false);
   const { renderFlash } = useContext(NotificationContext);
 
   const hostId = host?.id;
