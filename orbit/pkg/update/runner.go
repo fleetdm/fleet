@@ -7,14 +7,18 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
+	"golang.org/x/mod/semver"
 )
 
 // RunnerOptions is options provided for the update runner.
@@ -30,11 +34,12 @@ type RunnerOptions struct {
 //
 // It uses an Updater and makes sure to keep its targets up-to-date.
 type Runner struct {
-	updater     *Updater
-	opt         RunnerOptions
-	cancel      chan struct{}
-	localHashes map[string][]byte
-	mu          sync.Mutex
+	updater        *Updater
+	opt            RunnerOptions
+	cancel         chan struct{}
+	localHashes    map[string][]byte
+	mu             sync.Mutex
+	OsqueryVersion string
 }
 
 // AddRunnerOptTarget adds the given target to the RunnerOptions.Targets.
@@ -290,9 +295,16 @@ func (r *Runner) updateTarget(target string) error {
 	}
 	path := localTarget.ExecPath
 
+	if target == "osqueryd" {
+		// Compare old/new osquery versions
+		compareVersion(path, r.OsqueryVersion, "osquery")
+	}
+
 	if target != "orbit" {
 		return nil
 	}
+	// Compare old/new orbit versions
+	compareVersion(path, build.Version, "fleetd")
 
 	// Symlink Orbit binary
 	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
@@ -310,4 +322,39 @@ func (r *Runner) updateTarget(target string) error {
 func (r *Runner) Interrupt(err error) {
 	r.cancel <- struct{}{}
 	log.Error().Err(err).Msg("interrupt updater")
+}
+
+func compareVersion(path string, oldVersion string, targetDisplayName string) {
+	newVersion := GetVersion(path)
+	vOldVersion := "v" + oldVersion
+	vNewVersion := "v" + newVersion
+	if semver.IsValid(vOldVersion) && semver.IsValid(vNewVersion) && semver.Compare(
+		vOldVersion, vNewVersion,
+	) == 1 {
+		log.Warn().Msgf("VICTOR Downgrading %s from %s to %s", targetDisplayName, oldVersion, newVersion)
+	} else {
+		log.Info().Msgf("VICTOR Upgrading %s from %s to %s", targetDisplayName, oldVersion, newVersion)
+	}
+}
+
+func GetVersion(path string) string {
+	var version string
+	versionCmd := exec.Command(path, "--version")
+	if out, err := versionCmd.CombinedOutput(); err != nil {
+		log.Warn().Msgf("failed to get %s version: %s: %s", path, string(out), err)
+	} else {
+		// Matches strings like:
+		// - osqueryd version 5.10.2-26-gc396d07b4-dirty
+		// - orbit 1.19.0
+		r, err := regexp.Compile(".*( version)? (.*)")
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to compile version regexp")
+			return ""
+		}
+		matches := r.FindStringSubmatch(string(out))
+		if matches != nil {
+			version = matches[2]
+		}
+	}
+	return version
 }
