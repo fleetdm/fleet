@@ -67,10 +67,10 @@ module.exports = {
       };
       metricsToReport.push(hostCountMetricForThisOrg);
     }
+    // Build a metric for each Fleet version reported.
     let statisticsByReportedFleetVersion = _.groupBy(latestStatisticsForEachInstance, 'fleetVersion');
     for(let version in statisticsByReportedFleetVersion){
       let numberOfInstancesReportingThisVersion = statisticsByReportedFleetVersion[version].length;
-      console.log(version, numberOfInstancesReportingThisVersion);
       metricsToReport.push({
         metric: 'usage_statistics.fleet_version',
         type: 3,
@@ -79,6 +79,20 @@ module.exports = {
           value: numberOfInstancesReportingThisVersion
         }],
         tags: [`fleet_version:${version}`],
+      });
+    }
+    // Build a metric for each license tier reported.
+    let statisticsByReportedFleetLicenseTier = _.groupBy(latestStatisticsForEachInstance, 'licenseTier');
+    for(let tier in statisticsByReportedFleetLicenseTier){
+      let numberOfInstancesReportingThisLicenseTier = statisticsByReportedFleetLicenseTier[tier].length;
+      metricsToReport.push({
+        metric: 'usage_statistics.fleet_license',
+        type: 3,
+        points: [{
+          timestamp: timestampForTheseMetrics,
+          value: numberOfInstancesReportingThisLicenseTier
+        }],
+        tags: [`license_tier:${tier}`],
       });
     }
     // Build aggregated metrics for boolean variables:
