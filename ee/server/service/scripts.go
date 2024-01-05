@@ -30,7 +30,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	// must load the host to get the team (cannot use lite, the last seen time is
 	// required to check if it is online) to authorize with the proper team id.
 	// We cannot first authorize if the user can list hosts, in case we
-	// eventually allow a write-only role (e.g. gitops).i
+	// eventually allow a write-only role (e.g. gitops).
 	host, err := svc.ds.Host(ctx, request.HostID)
 	if err != nil {
 		// if error is because the host does not exist, check first if the user
