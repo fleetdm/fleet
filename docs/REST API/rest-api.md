@@ -6881,6 +6881,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
+- [Run live script](#run-script)
 - [Upload a script](#upload-a-script)
 - [Delete a script](#delete-a-script)
 - [List scripts](#list-scripts)
@@ -6889,46 +6890,9 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Run script
 
-Execute a script and see script results. Script runs on the host if it has no upcoming scripts.
+Run a script on a host. 
 
-`POST /api/v1/fleet/scripts/run/sync`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| host_id         | integer | body | **Required**. The host id to run the script on.  |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
-
-> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
-
-#### Example
-
-`POST /api/v1/fleet/scripts/run/sync`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host_id": 1227,
-  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-  "script_contents": "echo 'hello'",
-  "output": "hello",
-  "message": "",
-  "runtime": 1,
-  "host_timeout": false,
-  "exit_code": 0
-}
-```
-
-### Run script asynchronously
-
-_Available in Fleet Premium_
-
-Add a script to a host's list of upcoming activities. 
+The script will be added to the host's list of upcoming activities. 
 
 The new script will run once the other upcoming activities finish. Failure of an upcoming activity won't cancel other upcoming activities.
 
@@ -6992,6 +6956,43 @@ Gets the result of a script that was executed.
 ```
 
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
+
+### Run live script
+
+Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| host_id         | integer | body | **Required**. The host id to run the script on.  |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
+
+> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "script_contents": "echo 'hello'",
+  "output": "hello",
+  "message": "",
+  "runtime": 1,
+  "host_timeout": false,
+  "exit_code": 0
+}
+```
 
 ### Upload a script
 
