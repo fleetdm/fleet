@@ -41,6 +41,15 @@ func runScriptCommand() *cli.Command {
 				return err
 			}
 
+			cfg, err := client.GetAppConfig()
+			if err != nil {
+				return err
+			}
+
+			if cfg.ServerSettings.ScriptsDisabled {
+				return errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg)
+			}
+
 			path := c.String("script-path")
 			if err := validateScriptPath(path); err != nil {
 				return err
