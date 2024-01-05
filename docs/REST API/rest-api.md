@@ -3414,7 +3414,7 @@ Retrieves the aggregated host OS versions information.
 
 ### Get host's past activities
 
-`GET /api/v1/fleet/hosts/:id/activites/past`
+`GET /api/v1/fleet/hosts/:id/activities/past`
 
 #### Parameters
 
@@ -3426,7 +3426,7 @@ Retrieves the aggregated host OS versions information.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/12/activites/past`
+`GET /api/v1/fleet/hosts/12/activities/past`
 
 ##### Default response
 
@@ -3471,7 +3471,7 @@ Retrieves the aggregated host OS versions information.
 
 ### Get host's upcoming activities
 
-`GET /api/v1/fleet/hosts/:id/activites/upcoming`
+`GET /api/v1/fleet/hosts/:id/activities/upcoming`
 
 #### Parameters
 
@@ -3480,10 +3480,12 @@ Retrieves the aggregated host OS versions information.
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's id. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
 
 #### Example
 
-`GET /api/v1/fleet/hosts/12/activites/upcoming`
+`GET /api/v1/fleet/hosts/12/activities/upcoming`
 
 ##### Default response
 
@@ -3491,6 +3493,7 @@ Retrieves the aggregated host OS versions information.
 
 ```json
 {
+  "count": 2,
   "activities": [
     {
       "created_at": "2023-07-27T14:35:08Z",
