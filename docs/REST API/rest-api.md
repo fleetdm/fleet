@@ -3414,7 +3414,7 @@ Retrieves the aggregated host OS versions information.
 
 ### Get host's past activities
 
-`GET /api/v1/fleet/hosts/:id/activities/past`
+`GET /api/v1/fleet/hosts/:id/activities`
 
 #### Parameters
 
@@ -3426,7 +3426,7 @@ Retrieves the aggregated host OS versions information.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/12/activities/past`
+`GET /api/v1/fleet/hosts/12/activities`
 
 ##### Default response
 
