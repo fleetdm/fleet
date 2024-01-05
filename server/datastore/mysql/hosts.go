@@ -2094,7 +2094,8 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       COALESCE(hdek.decryptable, false) as encryption_key_available,
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
-      t.name as team_name
+      t.name as team_name,
+      hdek.client_error IS NOT NULL AND hdek.client_error != '' as has_client_disk_encryption_error
     FROM
       hosts h
     LEFT OUTER JOIN

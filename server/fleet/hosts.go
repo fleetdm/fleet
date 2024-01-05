@@ -294,6 +294,11 @@ type Host struct {
 	// orbit_node_key, and so it's not used in the UI.
 	DiskEncryptionResetRequested *bool `json:"disk_encryption_reset_requested,omitempty" db:"disk_encryption_reset_requested" csv:"-"`
 
+	// HasClientDiskEncryptionError flags if there's an error recorded
+	// for this host. It's only fetched when loading a host by
+	// orbit_node_key.
+	HasClientDiskEncryptionError bool `json:"-" db:"has_client_disk_encryption_error"`
+
 	HostIssues `json:"issues,omitempty" csv:"-"`
 
 	// DeviceMapping is in fact included in the CSV export, but it is not directly
@@ -661,7 +666,8 @@ func (h *Host) IsEligibleForBitLockerEncryption() bool {
 		h.IsOsqueryEnrolled() &&
 		h.MDMInfo.IsFleetEnrolled() &&
 		!isServer &&
-		(needsEncryption || encryptedWithoutKey)
+		(needsEncryption || encryptedWithoutKey) &&
+		!h.HasClientDiskEncryptionError
 }
 
 // HostDisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
