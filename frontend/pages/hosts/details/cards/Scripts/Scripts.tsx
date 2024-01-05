@@ -43,6 +43,7 @@ const Scripts = ({
   router,
   onShowDetails,
 }: IScriptsProps) => {
+  const [isScriptRunning, setIsScriptRunning] = React.useState(false);
   const { renderFlash } = useContext(NotificationContext);
 
   const hostId = host?.id;
@@ -59,6 +60,9 @@ const Scripts = ({
       refetchOnWindowFocus: false,
       retry: false,
       enabled: Boolean(hostId),
+      onSuccess: () => {
+        setIsScriptRunning(false);
+      },
     }
   );
 
@@ -79,6 +83,7 @@ const Scripts = ({
         break;
       case "run":
         try {
+          setIsScriptRunning(true);
           await scriptsAPI.runScript({
             host_id: host.id,
             script_id: script.script_id,
@@ -87,6 +92,7 @@ const Scripts = ({
         } catch (e) {
           const error = e as AxiosResponse<IApiError>;
           renderFlash("error", error.data.errors[0].reason);
+          setIsScriptRunning(false);
         }
         break;
       default:
@@ -125,7 +131,7 @@ const Scripts = ({
           isAllPagesSelected={false}
           columnConfigs={scriptColumnConfigs}
           data={data}
-          isLoading={isLoadingScriptData}
+          isLoading={isScriptRunning}
           onQueryChange={onQueryChange}
           disableNextPage={hostScriptResponse?.meta.has_next_results}
           defaultPageIndex={page}
