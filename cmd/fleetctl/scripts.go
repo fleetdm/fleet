@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"html/template"
 	"net/http"
 	"os"
@@ -41,15 +40,6 @@ func runScriptCommand() *cli.Command {
 				return err
 			}
 
-			cfg, err := client.GetAppConfig()
-			if err != nil {
-				return err
-			}
-
-			if cfg.ServerSettings.ScriptsDisabled {
-				return errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg)
-			}
-
 			path := c.String("script-path")
 			if err := validateScriptPath(path); err != nil {
 				return err
@@ -83,8 +73,6 @@ func runScriptCommand() *cli.Command {
 			if err := fleet.ValidateHostScriptContents(string(b)); err != nil {
 				return err
 			}
-
-			fmt.Println("\nScript is running. Please wait for it to finish...")
 
 			res, err := client.RunHostScriptSync(h.ID, b)
 			if err != nil {

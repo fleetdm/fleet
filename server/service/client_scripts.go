@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -36,6 +37,14 @@ func (c *Client) RunHostScriptSync(hostID uint, scriptContents []byte) (*fleet.H
 			return nil, fmt.Errorf("decoding %s %s response: %w, body: %s", verb, path, err, b)
 		}
 	case http.StatusForbidden:
+		b, err := io.ReadAll(res.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading %s %s response: %w", verb, path, err)
+		}
+		if strings.Contains(string(b), fleet.RunScriptScriptsDisabledGloballyErrMsg) {
+			return nil, errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg)
+		}
+
 		return nil, errors.New(fleet.RunScriptForbiddenErrMsg)
 
 	default:
