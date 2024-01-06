@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
 	"golang.org/x/mod/semver"
@@ -324,19 +325,25 @@ func (r *Runner) Interrupt(err error) {
 	log.Error().Err(err).Msg("interrupt updater")
 }
 
-func compareVersion(path string, oldVersion string, targetDisplayName string) {
+// compareVersion compares the old and new versions of a binary and prints the appropriate message.
+// The return value is only used for unit tests.
+func compareVersion(path string, oldVersion string, targetDisplayName string) *bool {
 	newVersion := GetVersion(path)
 	vOldVersion := "v" + oldVersion
 	vNewVersion := "v" + newVersion
-	if semver.IsValid(vOldVersion) && semver.IsValid(vNewVersion) && semver.Compare(
-		vOldVersion, vNewVersion,
-	) == 1 {
-		log.Warn().Msgf("VICTOR Downgrading %s from %s to %s", targetDisplayName, oldVersion, newVersion)
-	} else {
-		log.Info().Msgf("VICTOR Upgrading %s from %s to %s", targetDisplayName, oldVersion, newVersion)
+	if semver.IsValid(vOldVersion) && semver.IsValid(vNewVersion) {
+		if semver.Compare(vOldVersion, vNewVersion) == 1 {
+			log.Warn().Msgf("Downgrading %s from %s to %s", targetDisplayName, oldVersion, newVersion)
+			return ptr.Bool(false) // not ok
+		} else {
+			log.Info().Msgf("Upgrading %s from %s to %s", targetDisplayName, oldVersion, newVersion)
+			return ptr.Bool(true) // ok
+		}
 	}
+	return nil
 }
 
+// GetVersion gets the version of a binary.
 func GetVersion(path string) string {
 	var version string
 	versionCmd := exec.Command(path, "--version")
@@ -349,11 +356,11 @@ func GetVersion(path string) string {
 		r, err := regexp.Compile(".*( version)? (.*)")
 		if err != nil {
 			log.Error().Err(err).Msgf("failed to compile version regexp")
-			return ""
-		}
-		matches := r.FindStringSubmatch(string(out))
-		if matches != nil {
-			version = matches[2]
+		} else {
+			matches := r.FindStringSubmatch(string(out))
+			if matches != nil {
+				version = matches[2]
+			}
 		}
 	}
 	return version
