@@ -123,6 +123,7 @@ How to unenroll a host from Fleet:
 
 ## Advanced
 
+
 - [Signing fleetd installer](#signing-fleetd-installer)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
 - [Using mTLS](#using-mtls)

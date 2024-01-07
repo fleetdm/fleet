@@ -1862,7 +1862,7 @@ the `software` table.
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. **Note:** Use `page` instead of `after`                                                                                                                                                                                                                                    |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include 'asc' and 'desc'. Default is 'asc'.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's `additional` object. See [Configuration files](https://fleetdm.com/docs/configuration/configuration-files#features-additional-queries) for how to configure Fleet to collect additional information for each host. Use '*' to get all fields.                                                  |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
@@ -1962,7 +1962,34 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "display_text": "2ceca32fe484",
       "team_id": null,
       "team_name": null,
-      "pack_stats": null,
+      "pack_stats": [
+        {
+          "pack_id": 0,
+          "pack_name": "Global",
+          "type": "global",
+          "query_stats": [
+            {
+            "scheduled_query_name": "Get recently added or removed USB drives",
+            "scheduled_query_id": 5535,
+            "query_name": "Get recently added or removed USB drives",
+            "discard_data": false,
+            "last_fetched": null,
+            "automations_enabled": false,
+            "description": "Returns a record every time a USB device is plugged in or removed",
+            "pack_name": "Global",
+            "average_memory": 434176,
+            "denylisted": false,
+            "executions": 2,
+            "interval": 86400,
+            "last_executed": "2023-11-28T00:02:07Z",
+            "output_size": 891,
+            "system_time": 10,
+            "user_time": 6,
+            "wall_time": 0
+            }
+          ]
+        }
+      ],
       "issues": {
         "failing_policies_count": 2,
         "total_issues_count": 2
@@ -2048,7 +2075,7 @@ Response payload with the `munki_issue_id` filter provided:
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include 'asc' and 'desc'. Default is 'asc'.                                                                                                                                                                                                               |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                                                                                                                                    |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
@@ -2441,7 +2468,7 @@ Returns the information of the specified host.
 
 ### Get host by identifier
 
-Returns the information of the host specified using the `uuid`, `osquery_host_id`, `hostname`, or
+Returns the information of the host specified using the `uuid`, `hardware_serial`, `osquery_host_id`, `hostname`, or
 `node_key` as an identifier
 
 `GET /api/v1/fleet/hosts/identifier/:identifier`
@@ -2450,7 +2477,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 
 | Name       | Type              | In   | Description                                                                   |
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| identifier | integer or string | path | **Required**. The host's `uuid`, `osquery_host_id`, `hostname`, or `node_key` |
+| identifier | integer or string | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key` |
 
 #### Example
 
@@ -2929,7 +2956,7 @@ _Available in Fleet Premium_
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to.                                                                                                                                                                                                                                                            |
-| filters | object  | body | **Required** Contains any of the following three properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `label_id` and `status` cannot be used at the same time. |
+| filters | object  | body | **Required** Contains any of the following three properties: `query` for search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `label_id` and `status` cannot be used at the same time. |
 
 #### Example
 
@@ -2959,7 +2986,7 @@ _Available in Fleet Premium_
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ids     | list    | body | A list of the host IDs you'd like to delete. If `ids` is specified, `filters` cannot be specified.                                                                                                                                                                                                                                                           |
-| filters | object  | body | Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. If `filters` is specified, `id` cannot be specified. `label_id` and `status` cannot be used at the same time. |
+| filters | object  | body | Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. If `filters` is specified, `id` cannot be specified. `label_id` and `status` cannot be used at the same time. |
 
 Either ids or filters are required.
 
@@ -3423,7 +3450,7 @@ requested by a web browser.
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include 'asc' and 'desc'. Default is 'asc'.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'. **Note: If `policy_id` is specified _without_ including `policy_response`, this will also return hosts where the policy is not configured to run or failed to run.** |
@@ -3857,7 +3884,7 @@ Returns a list of the hosts that belong to the specified label.
 | order_direction          | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include 'asc' and 'desc'. Default is 'asc'.                                                                                              |
 | after                    | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                   |
 | status                   | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                 |
-| query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                         |
+| query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`.                                                                                                                         |
 | team_id                  | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                |
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
@@ -4954,7 +4981,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "created_at": "2021-12-15T15:23:57Z",
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
-      "failing_host_count": 300
+      "failing_host_count": 300,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     },
     {
       "id": 2,
@@ -4971,7 +4999,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "created_at": "2021-12-31T14:52:27Z",
       "updated_at": "2022-02-10T20:59:35Z",
       "passing_host_count": 2300,
-      "failing_host_count": 0
+      "failing_host_count": 0,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ]
 }
@@ -5040,7 +5069,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "created_at": "2021-12-15T15:23:57Z",
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
-      "failing_host_count": 300
+      "failing_host_count": 300,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
 }
 ```
@@ -5108,7 +5138,8 @@ Either `query` or `query_id` must be provided.
     "created_at": "2022-03-17T20:15:55Z",
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5148,7 +5179,8 @@ Where `query_id` references an existing `query`.
     "created_at": "2022-03-17T20:15:55Z",
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5239,7 +5271,8 @@ Where `query_id` references an existing `query`.
     "created_at": "2022-03-17T20:15:55Z",
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5331,7 +5364,8 @@ Team policies work the same as policies, but at the team level.
       "created_at": "2021-12-16T14:37:37Z",
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2000,
-      "failing_host_count": 300
+      "failing_host_count": 300,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     },
     {
       "id": 2,
@@ -5348,7 +5382,8 @@ Team policies work the same as policies, but at the team level.
       "created_at": "2021-12-16T14:37:37Z",
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
-      "failing_host_count": 0
+      "failing_host_count": 0,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ],
   "inherited_policies": [
@@ -5367,7 +5402,8 @@ Team policies work the same as policies, but at the team level.
       "created_at": "2022-08-04T19:30:18Z",
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
-      "failing_host_count": 9
+      "failing_host_count": 9,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ]
 }
@@ -5435,7 +5471,8 @@ Team policies work the same as policies, but at the team level.
     "created_at": "2021-12-16T14:37:37Z",
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5499,7 +5536,8 @@ Either `query` or `query_id` must be provided.
     "created_at": "2021-12-16T14:37:37Z",
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5592,7 +5630,8 @@ Either `query` or `query_id` must be provided.
     "created_at": "2021-12-16T14:37:37Z",
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": null
   }
 }
 ```

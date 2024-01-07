@@ -603,6 +603,7 @@ SELECT
   h.public_ip,
   COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
   COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+  COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
   hd.encrypted as disk_encryption_enabled,
   COALESCE(hst.seen_time, h.created_at) AS seen_time,
   t.name AS team_name,
@@ -878,6 +879,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     h.orbit_node_key,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+    COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
     t.name AS team_name,
     COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
@@ -1075,7 +1077,10 @@ func (ds *Datastore) applyHostFilters(
 		}
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		sqlStmt, params = ds.filterHostsByOSSettingsStatus(sqlStmt, opt, params, enableDiskEncryption)
+		sqlStmt, params, err = ds.filterHostsByOSSettingsStatus(sqlStmt, opt, params, enableDiskEncryption)
+		if err != nil {
+			return "", nil, err
+		}
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		sqlStmt, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(sqlStmt, opt, params, enableDiskEncryption)
 	}
@@ -1232,9 +1237,9 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 	return sql + fmt.Sprintf(` AND EXISTS (%s)`, subquery), append(params, subqueryParams...)
 }
 
-func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}, isDiskEncryptionEnabled bool) (string, []interface{}) {
+func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}, isDiskEncryptionEnabled bool) (string, []interface{}, error) {
 	if !opt.OSSettingsFilter.IsValid() {
-		return sql, params
+		return sql, params, nil
 	}
 
 	// TODO: Look into ways we can convert some of the LEFT JOINs in the main list hosts query
@@ -1276,13 +1281,25 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	// construct the WHERE for windows
 	whereWindows = `hmdm.name = ? AND hmdm.enrolled = 1 AND hmdm.is_server = 0`
 	paramsWindows := []interface{}{fleet.WellKnownMDMFleet}
-	subqueryFailed, paramsFailed := subqueryHostsMDMWindowsOSSettingsStatusFailed()
+	subqueryFailed, paramsFailed, err := subqueryHostsMDMWindowsOSSettingsStatusFailed()
+	if err != nil {
+		return "", nil, err
+	}
 	paramsWindows = append(paramsWindows, paramsFailed...)
-	subqueryPending, paramsPending := subqueryHostsMDMWindowsOSSettingsStatusPending()
+	subqueryPending, paramsPending, err := subqueryHostsMDMWindowsOSSettingsStatusPending()
+	if err != nil {
+		return "", nil, err
+	}
 	paramsWindows = append(paramsWindows, paramsPending...)
-	subqueryVerifying, paramsVerifying := subqueryHostsMDMWindowsOSSettingsStatusVerifying()
+	subqueryVerifying, paramsVerifying, err := subqueryHostsMDMWindowsOSSettingsStatusVerifying()
+	if err != nil {
+		return "", nil, err
+	}
 	paramsWindows = append(paramsWindows, paramsVerifying...)
-	subqueryVerified, paramsVerified := subqueryHostsMDMWindowsOSSettingsStatusVerified()
+	subqueryVerified, paramsVerified, err := subqueryHostsMDMWindowsOSSettingsStatusVerified()
+	if err != nil {
+		return "", nil, err
+	}
 	paramsWindows = append(paramsWindows, paramsVerified...)
 
 	profilesStatus := fmt.Sprintf(`
@@ -1363,7 +1380,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	params = append(params, paramsWindows...)
 	params = append(params, paramsMacOS...)
 
-	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS), params
+	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS), params, nil
 }
 
 func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}, enableDiskEncryption bool) (string, []interface{}) {
@@ -1918,6 +1935,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
         h.public_ip,
         h.orbit_node_key,
         COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
+        COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
         COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
       FROM
         hosts h
@@ -2004,6 +2022,7 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
       h.public_ip,
       h.orbit_node_key,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
+      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available
     FROM
       hosts h
@@ -2194,6 +2213,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       h.public_ip,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       hm.host_id,
       hm.enrolled,
       hm.server_url,
@@ -2261,6 +2281,9 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 `
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, authToken)
 	if err != nil {
+		if isDuplicate(err) {
+			return fleet.ConflictError{Message: "auth token conflicts with another host"}
+		}
 		return ctxerr.Wrap(ctx, err, "upsert host's device auth token")
 	}
 	return nil
@@ -2346,6 +2369,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     h.orbit_node_key,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+    COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
 	COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
 	` + hostMDMSelect + `
@@ -2360,7 +2384,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 	if len(matchQuery) > 0 {
 		// first we'll find the hosts that match the search criteria, to keep thing simple, then we'll query again
 		// to get all the additional data for hosts that match the search criteria by host_id
-		matchingHosts := "SELECT id FROM hosts WHERE TRUE"
+		matchingHosts := "SELECT h.id FROM hosts h WHERE TRUE"
 		var args []interface{}
 		// TODO: should search columns include display_name (requires join to host_display_names)?
 		searchHostsQuery, args, matchesEmail := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)
@@ -2604,6 +2628,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.orbit_node_key,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hst.seen_time, h.created_at) AS seen_time,
 	  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
 	  ` + hostMDMSelect + `
@@ -3450,12 +3475,12 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 
 // SetOrUpdateHostDisksSpace sets the available gigs and percentage of the
 // disks for the specified host.
-func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable float64) error {
+func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ? WHERE host_id = ?`,
-		`INSERT INTO host_disks (gigs_disk_space_available, percent_disk_space_available, host_id) VALUES (?, ?, ?)`,
-		gigsAvailable, percentAvailable, hostID,
+		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ?, gigs_total_disk_space = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, host_id) VALUES (?, ?, ?, ?)`,
+		gigsAvailable, percentAvailable, gigsTotal, hostID,
 	)
 }
 
@@ -3616,7 +3641,8 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
 			hd.display_name,
 			COALESCE(h.team_id, 0) as team_id,
-			hda.host_id IS NOT NULL AND hda.deleted_at IS NULL as dep_assigned_to_fleet
+			hda.host_id IS NOT NULL AND hda.deleted_at IS NULL as dep_assigned_to_fleet,
+			h.node_key IS NOT NULL as osquery_enrolled
 		FROM
 			hosts h
 		LEFT JOIN

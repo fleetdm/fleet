@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/rs/zerolog/log"
+	"github.com/theupdateframework/go-tuf/client"
 )
 
 // RunnerOptions is options provided for the update runner.
@@ -103,6 +104,12 @@ func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 	// (knowing that they are not expected to change during the execution of the runner).
 	for _, target := range opt.Targets {
 		if err := runner.StoreLocalHash(target); err != nil {
+			var tufFileNotFoundErr client.ErrNotFound
+			if errors.As(err, &tufFileNotFoundErr) {
+				// This can happen if the remote channel doesn't exist for a target.
+				// We don't want to error out, so we skip such target.
+				continue
+			}
 			return nil, err
 		}
 	}
@@ -234,7 +241,6 @@ func (r *Runner) UpdateAction() (bool, error) {
 		// Performing update if either the binary is not updated
 		// or the symlink needs to be updated and binary is not updated.
 		if localBinaryNotUpdated || needsSymlinkUpdate {
-			// Update detected
 			log.Info().Str("target", target).Msg("update detected")
 			if err := r.updateTarget(target); err != nil {
 				return didUpdate, fmt.Errorf("update %s: %w", target, err)

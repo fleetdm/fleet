@@ -15,6 +15,7 @@ import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import InfoBanner from "components/InfoBanner";
 import ScriptListHeading from "./components/ScriptListHeading";
 import ScriptListItem from "./components/ScriptListItem";
 import ScriptListPagination from "./components/ScriptListPagination";
@@ -74,6 +75,9 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   const onNextPage = useCallback(() => {
     router.push(path.concat(`&page=${currentPage + 1}`));
   }, [router, path, currentPage]);
+
+  const { config } = useContext(AppContext);
+  if (!config) return null;
 
   // The user is not a premium tier, so show the premium feature message.
   if (!isPremiumTier) {
@@ -137,6 +141,15 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
     );
   };
 
+  const renderScriptsDisabledBanner = () => (
+    <InfoBanner color="yellow">
+      <div>
+        <b>Running scripts is disabled in organization settings.</b> You can
+        still manage your library of macOS and Windows scripts below.
+      </div>
+    </InfoBanner>
+  );
+
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
@@ -148,6 +161,8 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
           newTab
         />
       </p>
+
+      {config.server_settings.scripts_disabled && renderScriptsDisabledBanner()}
       {renderScriptsList()}
       <ScriptUploader currentTeamId={teamIdForApi} onUpload={onUploadScript} />
       {showDeleteScriptModal && selectedScript.current && (

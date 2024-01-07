@@ -28,6 +28,7 @@ const Advanced = ({
     disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
     disableQueryReports:
       appConfig.server_settings.query_reports_disabled || false,
+    disableScripts: appConfig.server_settings.scripts_disabled || false,
   });
 
   const {
@@ -37,6 +38,7 @@ const Advanced = ({
     enableHostExpiry,
     hostExpiryWindow,
     disableLiveQuery,
+    disableScripts,
     disableQueryReports,
   } = formData;
 
@@ -68,6 +70,7 @@ const Advanced = ({
         live_query_disabled: disableLiveQuery,
         enable_analytics: appConfig.server_settings.enable_analytics,
         query_reports_disabled: disableQueryReports,
+        scripts_disabled: disableScripts,
       },
       smtp_settings: {
         enable_smtp: appConfig.smtp_settings.enable_smtp || false,
@@ -209,6 +212,24 @@ const Advanced = ({
                 }
               >
                 Disable live queries
+              </Checkbox>
+              <Checkbox
+                onChange={handleInputChange}
+                name="disableScripts"
+                value={disableScripts}
+                parseTarget
+                tooltipContent={
+                  <p>
+                    Disabling scripts will block access to run scripts. Scripts{" "}
+                    <br /> may still be added and removed in the UI and API.{" "}
+                    <br />
+                    <em className="hint hint--brand">
+                      (Default: <strong>Off</strong>)
+                    </em>
+                  </p>
+                }
+              >
+                Disable scripts
               </Checkbox>
               <Checkbox
                 onChange={handleInputChange}
