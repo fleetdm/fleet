@@ -1,10 +1,13 @@
 package update
 
 import (
+	"os"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -58,4 +61,102 @@ func TestRandomizeDuration(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, rand >= 0)
 	assert.True(t, rand < 10*time.Minute)
+}
+
+func TestGetVersion(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping test on Windows")
+	}
+	testCases := map[string]struct {
+		cmd     string
+		version string
+	}{
+		"4.5.6": {
+			cmd:     "#!/bin/bash\n/bin/echo orbit 4.5.6",
+			version: "4.5.6",
+		},
+		"5.10.2-26-gc396d07b4-dirty": {
+			cmd:     "#!/bin/bash\n/bin/echo osquery version 5.10.2-26-gc396d07b4-dirty",
+			version: "5.10.2-26-gc396d07b4-dirty",
+		},
+		"bad output": {
+			cmd:     "#!/bin/bash\n/bin/echo osquery version is weird",
+			version: "",
+		},
+		"bad cmd": {
+			cmd:     "bozo+bozo+bozo",
+			version: "",
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(
+			name, func(t *testing.T) {
+				// create a temp executable file
+				dir := t.TempDir()
+				file, err := os.CreateTemp(dir, "binary")
+				require.NoError(t, err)
+				_, err = file.WriteString(tc.cmd)
+				err = file.Chmod(0755)
+				require.NoError(t, err)
+				_ = file.Close()
+
+				version := GetVersion(file.Name())
+				assert.Equal(t, tc.version, version)
+			},
+		)
+	}
+}
+
+func TestCompareVersion(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping test on Windows")
+	}
+	testCases := map[string]struct {
+		cmd        string
+		oldVersion string
+		expected   *int
+	}{
+		"downgrade": {
+			cmd:        "#!/bin/bash\n/bin/echo orbit 4.9",
+			oldVersion: "4.10",
+			expected:   ptr.Int(1),
+		},
+		"same": {
+			cmd:        "#!/bin/bash\n/bin/echo osquery version 5.10.2-26-gc396d07b4-dirty",
+			oldVersion: "5.10.2-26-gc396d07b4-dirty",
+			expected:   ptr.Int(0),
+		},
+		"upgrade": {
+			cmd:        "#!/bin/bash\n/bin/echo osquery version 5.10.10",
+			oldVersion: "5.10.9",
+			expected:   ptr.Int(-1),
+		},
+		"invalid new version": {
+			cmd:        "#!/bin/bash\n/bin/echo osquery version invalid",
+			oldVersion: "5.10.9",
+			expected:   nil,
+		},
+		"invalid old version": {
+			cmd:        "#!/bin/bash\n/bin/echo orbit 1",
+			oldVersion: "",
+			expected:   nil,
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(
+			name, func(t *testing.T) {
+				// create a temp executable file
+				dir := t.TempDir()
+				file, err := os.CreateTemp(dir, "binary")
+				require.NoError(t, err)
+				_, err = file.WriteString(tc.cmd)
+				err = file.Chmod(0755)
+				require.NoError(t, err)
+				_ = file.Close()
+
+				result := compareVersion(file.Name(), tc.oldVersion, "target")
+				assert.Equal(t, tc.expected, result)
+			},
+		)
+	}
 }
