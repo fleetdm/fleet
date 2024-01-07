@@ -337,7 +337,7 @@ func compareVersion(path string, oldVersion string, targetDisplayName string) *i
 		case 1:
 			log.Warn().Msgf("Downgrading %s from %s to %s", targetDisplayName, oldVersion, newVersion)
 		case 0:
-			log.Warn().Msgf("Updating %s to the same version %s", targetDisplayName, newVersion)
+			log.Warn().Msgf("Updating %s to the same version (%s == %s)", targetDisplayName, oldVersion, newVersion)
 		case -1:
 			log.Info().Msgf("Upgrading %s from %s to %s", targetDisplayName, oldVersion, newVersion)
 		}

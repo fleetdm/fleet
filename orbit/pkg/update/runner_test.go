@@ -96,6 +96,7 @@ func TestGetVersion(t *testing.T) {
 				file, err := os.CreateTemp(dir, "binary")
 				require.NoError(t, err)
 				_, err = file.WriteString(tc.cmd)
+				require.NoError(t, err)
 				err = file.Chmod(0755)
 				require.NoError(t, err)
 				_ = file.Close()
@@ -126,6 +127,11 @@ func TestCompareVersion(t *testing.T) {
 			oldVersion: "5.10.2-26-gc396d07b4-dirty",
 			expected:   ptr.Int(0),
 		},
+		"same 2": {
+			cmd:        "#!/bin/bash\n/bin/echo osquery version 5.10",
+			oldVersion: "5.10.0",
+			expected:   ptr.Int(0),
+		},
 		"upgrade": {
 			cmd:        "#!/bin/bash\n/bin/echo osquery version 5.10.10",
 			oldVersion: "5.10.9",
@@ -141,6 +147,11 @@ func TestCompareVersion(t *testing.T) {
 			oldVersion: "",
 			expected:   nil,
 		},
+		"invalid old version 2": {
+			cmd:        "#!/bin/bash\n/bin/echo orbit 1",
+			oldVersion: "1.01", // invalid, needs to be 1.1
+			expected:   nil,
+		},
 	}
 	for name, tc := range testCases {
 		t.Run(
@@ -150,6 +161,7 @@ func TestCompareVersion(t *testing.T) {
 				file, err := os.CreateTemp(dir, "binary")
 				require.NoError(t, err)
 				_, err = file.WriteString(tc.cmd)
+				require.NoError(t, err)
 				err = file.Chmod(0755)
 				require.NoError(t, err)
 				_ = file.Close()
