@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -15,11 +16,16 @@ import (
 )
 
 func TestRunScriptCommand(t *testing.T) {
-	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
-		License: &fleet.LicenseInfo{
-			Tier: fleet.TierPremium,
+	_, ds := runServerWithMockedDS(t,
+		&service.TestServerOpts{
+			License: &fleet.LicenseInfo{
+				Tier: fleet.TierPremium,
+			},
 		},
-	})
+		&service.TestServerOpts{
+			HTTPServerConfig: &http.Server{WriteTimeout: 90 * time.Second}, // nolint:gosec
+		},
+	)
 
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
