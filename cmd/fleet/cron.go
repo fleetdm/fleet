@@ -55,35 +55,17 @@ func newVulnerabilitiesSchedule(
 	const name = string(fleet.CronVulnerabilities)
 	interval := config.Periodicity
 	vulnerabilitiesLogger := kitlog.With(logger, "cron", name)
-	s := schedule.New(
-		ctx, name, instanceID, interval, ds, ds,
-		schedule.WithLogger(vulnerabilitiesLogger),
-		schedule.WithJob(
-			"cron_vulnerabilities",
-			func(ctx context.Context) error {
-				// TODO(lucas): Decouple cronVulnerabilities into multiple jobs.
-				return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config)
-			},
-		),
-		schedule.WithJob(
-			"cron_sync_host_software",
-			func(ctx context.Context) error {
-				return ds.SyncHostsSoftware(ctx, time.Now())
-			},
-		),
-		schedule.WithJob(
-			"cron_reconcile_software_titles",
-			func(ctx context.Context) error {
-				return ds.ReconcileSoftwareTitles(ctx)
-			},
-		),
-		schedule.WithJob(
-			"cron_sync_host_software_titles",
-			func(ctx context.Context) error {
-				return ds.SyncHostsSoftwareTitles(ctx, time.Now())
-			},
-		),
-	)
+
+	var options []schedule.Option
+
+	options = append(options, schedule.WithLogger(vulnerabilitiesLogger))
+
+	vulnFuncs := getVulnFuncs(ctx, ds, vulnerabilitiesLogger, config)
+	for _, fn := range vulnFuncs {
+		options = append(options, schedule.WithJob(fn.Name, fn.VulnFunc))
+	}
+
+	s := schedule.New(ctx, name, instanceID, interval, ds, ds, options...)
 
 	return s, nil
 }
