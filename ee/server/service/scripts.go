@@ -19,6 +19,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	// First check if scripts are disabled globally. If so, no need for further processing.
 	cfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return nil, err
 	}
 

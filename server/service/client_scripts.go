@@ -37,11 +37,12 @@ func (c *Client) RunHostScriptSync(hostID uint, scriptContents []byte) (*fleet.H
 			return nil, fmt.Errorf("decoding %s %s response: %w, body: %s", verb, path, err, b)
 		}
 	case http.StatusForbidden:
-		b, err := io.ReadAll(res.Body)
+		errMsg, err := extractServerErrMsg(verb, path, res)
 		if err != nil {
-			return nil, fmt.Errorf("reading %s %s response: %w", verb, path, err)
+			return nil, err
 		}
-		if strings.Contains(string(b), fleet.RunScriptScriptsDisabledGloballyErrMsg) {
+
+		if strings.Contains(errMsg, fleet.RunScriptScriptsDisabledGloballyErrMsg) {
 			return nil, errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg)
 		}
 
