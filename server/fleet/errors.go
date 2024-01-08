@@ -543,6 +543,7 @@ const (
 	RunScriptAlreadyRunningErrMsg = "A script is already running on this host. Please wait about 5 minutes to let it finish."
 	RunScriptHostTimeoutErrMsg    = "Fleet hasn’t heard from the host in over 5 minutes. Fleet doesn’t know if the script ran because the host went offline."
 	RunScriptScriptTimeoutErrMsg  = "Timeout. Fleet stopped the script after 5 minutes to protect host performance."
+	RunScriptDisabledErrMsg       = "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.
