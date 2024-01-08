@@ -173,7 +173,7 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 
 ### Update a team member's compensation
 When Fleet [changes compensation for team members](https://fleetdm.com/handbook/company/communications#compensation-changes), the Business Operations team adheres to the following process:
-- On the first Friday of the month, the Head of BizOps posts in the `#help-classified` channel with the list of team members due for compensation review.
+- On the first Friday of the month, the Head of BizOps posts in the [#help-classified](https://fleetdm.slack.com/archives/C01CSUCLURL) channel with the list of team members due for compensation review.
 - The Head of BizOps creates a copy of the [Values assessment template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and stores it in the team member's [personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link), then shares with the manager to perform a values assessment.
 - Once the values assessment is complete, the Head of BizOps prepares benchmarking information in the [¶¶ 💌 Compensation decisions](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing)file, and confers with manager or head of department about level of job skill in relation to compensation benchmarking levels.
 - Head of Biz Ops then schedules time with the CEO and CTO over an existing 1:1 to discuss if an adjustment needs to be made to team member's compensation.
