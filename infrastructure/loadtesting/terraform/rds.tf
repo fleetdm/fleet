@@ -54,11 +54,12 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
   # Old Jump box?
   # allowed_security_groups = ["sg-0063a978193fdf7ee"]
   create_db_cluster_parameter_group = true
+  db_cluster_parameter_group_family = "aurora-mysql8.0"
   db_cluster_parameter_group_name   = "${local.name}-mysql-parameters"
   db_cluster_parameter_group_parameters = [
     {
       name         = "innodb_print_all_deadlocks"
-      value        = "ON"
+      value        = "1"
       apply_method = "immediate"
     }
   ]
