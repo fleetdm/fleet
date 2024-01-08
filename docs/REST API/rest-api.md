@@ -3494,6 +3494,10 @@ Retrieves the aggregated host OS versions information.
 ```json
 {
   "count": 2,
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  },
   "activities": [
     {
       "created_at": "2023-07-27T14:35:08Z",
