@@ -37,6 +37,7 @@ func Up_20231215122713(tx *sql.Tx) error {
 		WHERE p.team_id IS NULL
 		GROUP BY p.id, t.id
 		ON DUPLICATE KEY UPDATE 
+			updated_at = NOW(),
 			passing_host_count = VALUES(passing_host_count),
 			failing_host_count = VALUES(failing_host_count);
     `
@@ -53,6 +54,7 @@ func Up_20231215122713(tx *sql.Tx) error {
 		LEFT JOIN policy_membership pm ON p.id = pm.policy_id
 		GROUP BY p.id
 		ON DUPLICATE KEY UPDATE 
+			updated_at = NOW(),
 			passing_host_count = VALUES(passing_host_count),
 			failing_host_count = VALUES(failing_host_count);
     `

@@ -810,6 +810,7 @@ module.exports = {
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find pricing table features YAML file at "${RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let pricingTableFeatures = YAML.parse(yaml, {prettyErrors: true});
         let VALID_PRODUCT_CATEGORIES = ['Endpoint operations', 'Device management', 'Vulnerability management'];
+        let VALID_PRICING_TABLE_CATEGORIES = ['Support', 'Deployment', 'Integrations', 'Endpoint operations', 'Device management', 'Vulnerability management'];
         for(let feature of pricingTableFeatures){
           if(feature.name) {// Compatibility check
             throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature has a "name" (${feature.name}) which is no longer supported. To resolve, add a "industryName" to this feature: ${feature}`);
@@ -830,6 +831,17 @@ module.exports = {
                 if(!_.contains(VALID_PRODUCT_CATEGORIES, category)){
                   throw new Error(`Could not build pricing table config from pricing-features-table.yml. The '${feature.industryName}' feature has a 'productCategories' with an an invalid product category (${category}). Please change the values in this array to be one of: ${VALID_PRODUCT_CATEGORIES.join(', ')}`);
                 }
+              }
+            }
+          }
+          if(!feature.pricingTableCategories){
+            throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature is missing a 'pricingTableCategory' value. Please add this value to this feature to be the category in the pricing table`);
+          } else if(!_.isArray(feature.pricingTableCategories)){
+            throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature has an invalid 'pricingTableCategory' value. Please change the productCategories for this feature to be an array of pricing table categories. Type of invalid pricingTableCategory value: ${typeof feature.pricingTableCategory}`);
+          } else {
+            for(let category of feature.pricingTableCategories){
+              if(!VALID_PRICING_TABLE_CATEGORIES.includes(category)){
+                throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature has an invalid 'pricingTableCategory' value. Please set this value to be one of: "${VALID_PRICING_TABLE_CATEGORIES.join('", "')}" and try running this script again. Invalid pricing table value: ${category}`);
               }
             }
           }

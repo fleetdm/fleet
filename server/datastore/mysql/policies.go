@@ -62,6 +62,7 @@ func (ds *Datastore) PolicyByName(ctx context.Context, name string) (*fleet.Poli
 		fmt.Sprint(`SELECT `+policyCols+`,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
+		ps.updated_at as host_count_updated_at,
 		COALESCE(ps.passing_host_count, 0) as passing_host_count,
 		COALESCE(ps.failing_host_count, 0) as failing_host_count
 		FROM policies p
@@ -93,6 +94,7 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		SELECT %s,
 		    COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
+			ps.updated_at as host_count_updated_at,
 			COALESCE(ps.passing_host_count, 0) as passing_host_count,
 			COALESCE(ps.failing_host_count, 0) as failing_host_count
 		FROM policies p
@@ -312,6 +314,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 		SELECT ` + policyCols + `,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
+			ps.updated_at as host_count_updated_at,
 			COALESCE(ps.passing_host_count, 0) AS passing_host_count,
 			COALESCE(ps.failing_host_count, 0) AS failing_host_count
 		FROM policies p
@@ -348,6 +351,7 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, Tea
             ` + policyCols + `,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
+			ps.updated_at as host_count_updated_at,
             COALESCE(ps.passing_host_count, 0) as passing_host_count,
             COALESCE(ps.failing_host_count, 0) as failing_host_count
         FROM policies p
@@ -400,6 +404,7 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 	sql := `SELECT ` + policyCols + `,
 	  COALESCE(u.name, '<deleted>') AS author_name,
 	  COALESCE(u.email, '') AS author_email,
+	  ps.updated_at as host_count_updated_at,
 	  COALESCE(ps.passing_host_count, 0) as passing_host_count,
 	  COALESCE(ps.failing_host_count, 0) as failing_host_count
 	  FROM policies p
@@ -1150,6 +1155,7 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 		WHERE p.team_id IS NULL
 		GROUP BY p.id, t.id
 		ON DUPLICATE KEY UPDATE 
+			updated_at = NOW(),
 			passing_host_count = VALUES(passing_host_count),
 			failing_host_count = VALUES(failing_host_count);
     `)
@@ -1169,6 +1175,7 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 		LEFT JOIN policy_membership pm ON p.id = pm.policy_id
 		GROUP BY p.id
 		ON DUPLICATE KEY UPDATE 
+			updated_at = NOW(),
 			passing_host_count = VALUES(passing_host_count),
 			failing_host_count = VALUES(failing_host_count);
     `)

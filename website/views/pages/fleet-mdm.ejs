@@ -18,8 +18,8 @@
           <strong>ClickOps or DevOps</strong>
           <p>Manage your IT infrastructure in any browser or use git to make changes as code. Use the CLI or API to automate the deployment, configuration, and monitoring of your devices.</p>
           <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
-            <a purpose="cta-button" @click="clickOpenMdmModal()">Show me</a>
-            <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
+            <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
+            <a purpose="animated-arrow-button-red" href="/try-fleet">See real data</a>
           </div>
         </div>
       </div>
@@ -109,12 +109,12 @@
     <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
     <div purpose="page-container" class="pb-0 container">
 
-      <div purpose="bottom-cta" class="text-center">
-        <h4>Open-source device management</h4>
-        <h1>Lighter than air</h1>
-        <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" @click="clickOpenMdmModal()">Show me</a>
-          <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
+      <div purpose="section-headline" class="text-center">
+        <h4>Device management (MDM)</h4>
+        <h2>Manage devices like code</h2>
+        <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
+          <a purpose="animated-arrow-button-red" href="/try-fleet">See real data</a>
         </div>
       </div>
     </div>
@@ -125,48 +125,5 @@
     <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-md-flex d-lg-none" src="/images/homepage-cloud-city-banner-md-990x375@2x.png">
     <img alt="A glass city floating on top of fluffy white clouds" class="d-flex d-md-none" src="/images/homepage-cloud-city-banner-sm-375x168@2x.png">
   </div>
-  <modal v-if="modal === 'mdm'" @close="closeModal()" data-backdrop="false" v-cloak purpose="modal">
-    <div class="container p-0 d-flex flex-column justify-content-center align-items-center" purpose="mdm-modal">
-      <div purpose="modal-form"  v-if="!showSignupFormSuccess">
-      <div class="modal-header pb-2">
-        <h2 class="text-center mb-2">Is it any good?</h2>
-        <p>Fill out the form below to see Dave bootstrapping a macOS device with MDM.</p>
-      </div>
-        <ajax-form action="deliverMdmDemoEmail" class="mdm-demo-video w-100" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
-            <div class="form-group">
-              <label for="emailAddress">Work email</label>
-              <input class="form-control" id="emailAddress" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
-              <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>Please enter a valid email address</div>
-            </div>
-            <div class="form-group">
-              <p style="padding-bottom: 12px;" class="mb-0 font-weight-bold">How many hosts do you have?</p>
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" id="more-than-1000" value="true" v-model="formData.hasOverOneThousandHosts" :class="[formErrors.hasOverOneThousandHosts ? 'is-invalid' : '']">
-                  <label class="form-check-label font-weight-normal" for="more-than-1000">
-                    More than 1,000
-                  </label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" id="less-than-1000" value="false" v-model="formData.hasOverOneThousandHosts" :class="[formErrors.hasOverOneThousandHosts ? 'is-invalid' : '']">
-                  <label class="form-check-label font-weight-normal" for="less-than-1000">
-                    Less than 1,000
-                  </label>
-                  <div class="invalid-feedback" style="margin-left: -20px;" v-if="formErrors.hasOverOneThousandHosts" focus-first>Please choose one option</div>
-                </div>
-            </div>
-            <cloud-error v-if="cloudError"></cloud-error>
-          <div class="border-0 justify-content-center">
-            <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Submit</ajax-button>
-          </div>
-        </ajax-form>
-        <p class="mb-0 mt-4"><a href="/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else" target="_blank">We will never spam you</a>.</p>
-      </div>
-      <div purpose="modal-form" class="text-center" v-else>
-        <h2 class="mb-2">Thank you!</h2>
-        <p class="mb-4">We just sent you an email in case you need to watch it again.</p>
-        <a purpose="cta-button" class="btn btn-primary btn-block" href="https://play.goconsensus.com/ue326b4dd" target="_blank"><p class="mb-0">Watch Dave's MDM demo</p></a>
-      </div>
-    </div>
-  </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

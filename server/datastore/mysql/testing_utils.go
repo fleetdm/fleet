@@ -285,6 +285,10 @@ func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error
 	require.NoError(tb, err)
 }
 
+func ExecAdhocSQLWithError(ds *Datastore, fn func(q sqlx.ExtContext) error) error {
+	return fn(ds.primary)
+}
+
 // TruncateTables truncates the specified tables, in order, using ds.writer.
 // Note that the order is typically not important because FK checks are
 // disabled while truncating. If no table is provided, all tables (except
