@@ -129,7 +129,7 @@ const defaultTableHeaders: IDataColumn[] = [
 ];
 
 export const generateTableHeaders = (): IDataColumn[] => {
-  return [...defaultTableHeaders];
+  return defaultTableHeaders;
 };
 
 const STATUS_CELL_VALUES: Record<DiskEncryptionStatus, IStatusCellValue> = {
