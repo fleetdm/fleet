@@ -67,6 +67,7 @@ func TestGetVersion(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping test on Windows")
 	}
+	t.Parallel()
 	testCases := map[string]struct {
 		cmd     string
 		version string
@@ -89,8 +90,10 @@ func TestGetVersion(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
+		tc := tc // capture range variable, needed for parallel tests
 		t.Run(
 			name, func(t *testing.T) {
+				t.Parallel()
 				// create a temp executable file
 				dir := t.TempDir()
 				file, err := os.CreateTemp(dir, "binary")
@@ -112,6 +115,7 @@ func TestCompareVersion(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping test on Windows")
 	}
+	t.Parallel()
 	testCases := map[string]struct {
 		cmd        string
 		oldVersion string
@@ -154,8 +158,10 @@ func TestCompareVersion(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
+		tc := tc // capture range variable, needed for parallel tests
 		t.Run(
 			name, func(t *testing.T) {
+				t.Parallel()
 				// create a temp executable file
 				dir := t.TempDir()
 				file, err := os.CreateTemp(dir, "binary")
