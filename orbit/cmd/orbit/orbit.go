@@ -1008,8 +1008,14 @@ func main() {
 			log.Info().Msg("checking for custom mdm enrollment profile with end user email")
 			email, err := profiles.GetCustomEnrollmentProfileEndUserEmail()
 			if err != nil {
-				log.Error().Err(err).Msg("get custom enrollment profile end user email")
+				if errors.Is(err, profiles.ErrNotFound) {
+					// This is fine. Many hosts will not have this profile so just log and continue.
+					log.Info().Msg(fmt.Sprintf("get custom enrollment profile end user email: %s", err))
+				} else {
+					log.Error().Err(err).Msg("get custom enrollment profile end user email")
+				}
 			}
+
 			if email != "" {
 				log.Info().Msg(fmt.Sprintf("found custom end user email: %s", email))
 				if err := orbitClient.SetOrUpdateDeviceMappingEmail(email); err != nil {
