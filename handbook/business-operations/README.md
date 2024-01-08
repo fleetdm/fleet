@@ -171,7 +171,7 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 - If required, BizOps also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
 - The change is now actioned, notify the team member and close the issue.
 
-### Updating compensation
+### Update a team member's compensation
 When Fleet [changes compensation for team members](https://fleetdm.com/handbook/company/communications#compensation-changes), the Business Operations team adheres to the following process:
 - On the first Friday of the month, the Head of BizOps posts in the `#help-classified` channel with the list of team members due for compensation review.
 - The Head of BizOps creates a copy of the [Values assessment template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and stores it in the team member's [personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link), then shares with the manager to perform a values assessment.
