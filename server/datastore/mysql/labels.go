@@ -593,7 +593,10 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		query, params = ds.filterHostsByOSSettingsStatus(query, opt, params, enableDiskEncryption)
+		query, params, err = ds.filterHostsByOSSettingsStatus(query, opt, params, enableDiskEncryption)
+		if err != nil {
+			return "", nil, err
+		}
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		query, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(query, opt, params, enableDiskEncryption)
 	}
