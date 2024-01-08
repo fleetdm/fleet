@@ -1009,6 +1009,7 @@ func main() {
 			email, err := profiles.GetCustomEnrollmentProfileEndUserEmail()
 			if err != nil {
 				if errors.Is(err, profiles.ErrNotFound) {
+					// This is fine. Many hosts will not have this profile so just log and continue.
 					log.Info().Msg(fmt.Sprintf("get custom enrollment profile end user email: %s", err))
 				} else {
 					log.Error().Err(err).Msg("get custom enrollment profile end user email")
