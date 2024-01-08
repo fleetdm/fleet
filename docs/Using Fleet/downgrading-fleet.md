@@ -13,8 +13,8 @@ Follow these steps to downgrade your Fleet instance from Fleet Premium.
 ## Move all team-level queries to the global level
 
 1. Head to the **Queries** page in the Fleet UI and select a team from the teams dropdown at the top of the page. 
-2. For each query that belongs to a team, select the query and select **Edit query** and copy the **Name**, **Description**, **Query**. Then expand the "advanced options" and take note of the values in the **Platforms**, **Minimum osquery version**, and **Logging** dropdowns.d\
-3. On the Queries page select **All teams** in the top dropdown, select **Add query**, paste each item in the appropriate field, delect the correct values from the advanced options dropdowns, and select **Save**.
+2. For each query that belongs to a team, select the query and select **Edit query** and copy the **Name**, **Description**, **Query**. Then expand the "advanced options" and take note of the values in the **Platforms**, **Minimum osquery version**, and **Logging** dropdowns.
+3. On the Queries page select **All teams** in the top dropdown, select **Add query**, paste each item in the appropriate field, select the correct values from the advanced options dropdowns, and select **Save**.
 4. **Optional:** Delete each query that belongs to a team because they will no longer be accessible in the Fleet UI following the downgrade process.
 
 ## Move all team-level policies to the global level
