@@ -17,7 +17,6 @@ import { IQueryReport } from "interfaces/query_report";
 
 import queryAPI from "services/entities/queries";
 import queryReportAPI, { ISortOption } from "services/entities/query_report";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import {
   isGlobalObserver,
   isTeamObserver,
@@ -108,15 +107,6 @@ const QueryDetailsPage = ({
     setLastEditedQueryPlatforms,
     setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
-
-  // Title that shows up on browser tabs (e.g., Query details | Discover TLS certificates | Fleet for osquery)
-
-  useEffect(() => {
-    const queryNameCopy = lastEditedQueryName
-      ? `${lastEditedQueryName} | `
-      : "";
-    document.title = `Query details | ${queryNameCopy}${DOCUMENT_TITLE_SUFFIX}`;
-  }, [lastEditedQueryName]);
 
   const [disabledCachingGlobally, setDisabledCachingGlobally] = useState(true);
 

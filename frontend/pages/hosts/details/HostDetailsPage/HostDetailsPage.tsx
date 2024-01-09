@@ -357,11 +357,6 @@ const HostDetailsPage = ({
       }
       return "";
     };
-
-    // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
-    document.title = `Host ${hostTab()} details ${
-      host?.display_name ? `| ${host?.display_name} |` : "|"
-    } ${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, host]);
 
   // Used for back to software pathname

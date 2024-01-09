@@ -19,7 +19,7 @@ import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
-import { DOCUMENT_TITLE_SUFFIX, LIVE_POLICY_STEPS } from "utilities/constants";
+import { LIVE_POLICY_STEPS } from "utilities/constants";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
@@ -203,12 +203,6 @@ const PolicyPage = ({
   useEffect(() => {
     detectIsFleetQueryRunnable();
   }, []);
-
-  // Updates title that shows up on browser tabs
-  useEffect(() => {
-    // e.g., Policy details | Antivirus healthy (Linux) | Fleet for osquery
-    document.title = `Policy details | ${storedPolicy?.name} | ${DOCUMENT_TITLE_SUFFIX}`;
-  }, [location.pathname, storedPolicy?.name]);
 
   useEffect(() => {
     setShowOpenSchemaActionText(!isSidebarOpen);
