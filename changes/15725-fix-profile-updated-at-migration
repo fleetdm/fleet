@@ -1,0 +1,22 @@
+- Fixed a database migration issue introduced in v4.42.0 that caused Fleet to consider
+  previously installed MDM profiles as outdated, which in turn can cause MDM profiles for macOS
+  hosts to become stuck in the "failed" state in some cases. Users who have not yet upgraded to
+  v4.42.0 should upgrade to v4.42.1 directly. Users who have already upgraded to v4.42.0 and find
+  one or more hosts that are affected by this issue can mitigate the issue by directly updating the
+  Fleet database with the following SQL statement, which will cause the failed profiles to be
+  redelivered to the host:
+
+  ```sql
+  UPDATE
+    host_mdm_apple_profiles
+  SET
+    status = NULL,
+    retries = 0
+  WHERE
+    status = 'failed' AND
+    (detail = 'Failed, was verifying' OR detail = 'Failed, was verified') AND
+    host_uuid = ?;
+  ```
+
+  Replace the `?` in the above statement with the UUID of the affected host, which can be found
+  by enabling the UUID column of the hosts table in the Fleet UI.
