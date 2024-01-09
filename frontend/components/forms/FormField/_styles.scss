@@ -1,18 +1,14 @@
 .form-field {
-  margin-bottom: $pad-large;
-  display: flex;
-  flex-direction: column;
-  gap: $pad-small;
-
   &__label {
-    font-size: $x-small;
-    font-weight: $xbold;
+    font-size: $small;
+    font-weight: $bold;
     color: $core-fleet-black;
     display: block;
+    margin-bottom: $pad-small;
     min-height: $form-field-label-height;
 
     &--error {
-      font-weight: $xbold;
+      font-weight: $bold;
       color: $core-vibrant-red;
     }
 
@@ -23,7 +19,7 @@
     }
   }
 
-  &__hint {
+  &__help-text {
     font-size: $x-small;
     font-weight: $regular;
     line-height: 20px;

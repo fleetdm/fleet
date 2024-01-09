@@ -180,22 +180,17 @@ const SaveQueryModal = ({
           value={selectedFrequency}
           label="Frequency"
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
+          hint="This is how often your query collects data."
         />
-        <div className="help-text">
-          This is how often your query collects data.
-        </div>
         <Checkbox
           name="observerCanRun"
           onChange={setObserverCanRun}
           value={observerCanRun}
           wrapperClassName={"observer-can-run-wrapper"}
+          helpText="Users with the Observer role will be able to run this query as a live query."
         >
           Observers can run
         </Checkbox>
-        <div className="help-text">
-          Users with the Observer role will be able to run this query as a live
-          query.
-        </div>
         <RevealButton
           isShowing={showAdvancedOptions}
           className={"advanced-options-toggle"}
@@ -214,10 +209,8 @@ const SaveQueryModal = ({
               value={selectedPlatformOptions}
               multi
               wrapperClassName={`${baseClass}__form-field form-field--platform`}
+              hint="By default, your query collects data on all compatible platforms."
             />
-            <div className="help-text">
-              By default, your query collects data on all compatible platforms.
-            </div>
             <Dropdown
               options={MIN_OSQUERY_VERSION_OPTIONS}
               onChange={setSelectedMinOsqueryVersionOptions}

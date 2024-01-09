@@ -123,6 +123,9 @@ $max-width: 2560px;
 
 @mixin help-text {
   font-size: $xx-small;
+  // margin-top: $pad-small;
+  // margin-bottom: $pad-large;
+  font-weight: $regular;
   @include grey-text;
 }
 

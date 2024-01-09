@@ -21,7 +21,7 @@ const FormField = ({
   children,
   className,
   error,
-  hint,
+  hint: helpText,
   label,
   name,
   type,
@@ -54,9 +54,9 @@ const FormField = ({
     );
   };
 
-  const renderHint = () => {
-    if (hint) {
-      return <span className={`${baseClass}__hint`}>{hint}</span>;
+  const renderHelpText = () => {
+    if (helpText) {
+      return <span className={`${baseClass}__help-text`}>{helpText}</span>;
     }
 
     return false;
@@ -74,7 +74,7 @@ const FormField = ({
     <div className={formFieldClass}>
       {renderLabel()}
       {children}
-      {renderHint()}
+      {renderHelpText()}
     </div>
   );
 };

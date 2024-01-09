@@ -6,21 +6,6 @@
     margin: 0;
   }
 
-  .form-field-with-help-text {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-small;
-
-    .form-field {
-      margin-bottom: 0;
-      font-weight: bold;
-    }
-
-    .help-text {
-      margin: 0;
-    }
-  }
-
   &__title-bar {
     display: flex;
     justify-content: space-between;

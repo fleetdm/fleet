@@ -21,7 +21,7 @@ export interface ICheckboxProps {
   parseTarget?: boolean;
   tooltipContent?: React.ReactNode;
   isLeftLabel?: boolean;
-  helpText?: string;
+  helpText?: React.ReactNode;
 }
 
 const Checkbox = (props: ICheckboxProps) => {
