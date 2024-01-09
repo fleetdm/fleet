@@ -862,5 +862,8 @@ Subcontractors, and Contracted Developers.
 
 5. Additional vendor agreements are obtained as required by applicable regulatory compliance requirements.
 
+## Anti-corruption policy
+> Fleet is committed to ethical business practices and compliance with the law.  All Fleeties are required to comply with the "Foreign Corrup Practices Act" and anti-bribery laws and regulations in applicable jurisdictions including, but not limited to, the "UK Bribery Act 2010", "European Commission on Anti-Corruption" and others.  The policies set forth in [this document](https://docs.google.com/document/d/16iHhLhAV0GS2mBrDKIBaIRe_pmXJrA1y7-gTWNxSR6c/edit?usp=sharing) go over Fleet's anti-corruption policy in detail.
+
 <meta name="maintainedBy" value="hollidayn">
 <meta name="title" value="📜 Security policies">
