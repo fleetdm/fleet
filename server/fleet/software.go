@@ -120,7 +120,7 @@ type SoftwareVersion struct {
 	// Version is the version string we grab for this specific software.
 	Version string `db:"version" json:"version"`
 	// Vulnerabilities is the list of CVE names for vulnerabilities found for this version.
-	Vulnerabilities *SliceString `db:"vulnerabilities" json:"vulnerabilities,omitempty"`
+	Vulnerabilities *SliceString `db:"vulnerabilities" json:"vulnerabilities"`
 	// HostsCount is the number of hosts that use this software version.
 	HostsCount *uint `db:"hosts_count" json:"hosts_count,omitempty"`
 
@@ -145,8 +145,7 @@ type SoftwareTitle struct {
 	// Versions countains information about the versions that use this title.
 	Versions []SoftwareVersion `json:"versions" db:"-"`
 	// CountsUpdatedAt is the timestamp when the hosts count
-	// was last updated for that software, filled only if hosts
-	// count is requested.
+	// was last updated for that software title
 	CountsUpdatedAt time.Time `json:"-" db:"counts_updated_at"`
 }
 

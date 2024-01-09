@@ -73,6 +73,7 @@ make osqueryd-app-tar-gz version=5.5.1 out-path=.
 # Push the osqueryd target as a new version
 ./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.5.1
 ```
+NOTE: Contributors on macOS with Apple silicon ran into issues running osqueryd downloaded from GitHub. Until this issue is root caused, the workaround is to download osqueryd from [Fleet's TUF](https://tuf.fleetctl.com/).
 
 E.g. to add a new version of `desktop` for macOS:
 ```sh

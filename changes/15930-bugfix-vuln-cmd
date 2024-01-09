@@ -1,0 +1,2 @@
+- fixed issue where software title aggregation was not running when triggering a vulnerability scan
+  via `fleet vuln_processing`

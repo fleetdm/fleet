@@ -1,6 +1,7 @@
 import { uniqueId } from "lodash";
 import React from "react";
 import ReactTooltip from "react-tooltip";
+import { COLORS } from "styles/var/colors";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ITextCellProps {
@@ -38,7 +39,7 @@ const TextCell = ({
           <ReactTooltip
             place="top"
             effect="solid"
-            backgroundColor="#3e4771"
+            backgroundColor={COLORS["tooltip-bg"]}
             id={tooltipId}
           >
             {emptyCellTooltipText}

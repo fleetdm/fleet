@@ -41,7 +41,7 @@ func (ds *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id
 		LEFT JOIN aggregated_stats ag ON (ag.id = sq.id AND ag.global_stats = ? AND ag.type = ?)
 		WHERE sq.pack_id = ?
 	`
-	params := []interface{}{false, aggregatedStatsTypeScheduledQuery, id}
+	params := []interface{}{false, fleet.AggregatedStatsTypeScheduledQuery, id}
 	query, params = appendListOptionsWithCursorToSQL(query, params, &opts)
 	results := []*fleet.ScheduledQuery{}
 

@@ -8,6 +8,7 @@ import {
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   ProfileOperationType,
 } from "interfaces/mdm";
+import { COLORS } from "styles/var/colors";
 
 import {
   isMdmProfileStatus,
@@ -71,7 +72,7 @@ const OSSettingStatusCell = ({
             <ReactTooltip
               place="top"
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={tooltipId}
               data-html
             >

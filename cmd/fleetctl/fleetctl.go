@@ -12,7 +12,7 @@ import (
 	"time"
 
 	eefleetctl "github.com/fleetdm/fleet/v4/ee/fleetctl"
-	"github.com/kolide/kit/version"
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/urfave/cli/v2"
 )
 

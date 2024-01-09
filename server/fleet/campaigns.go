@@ -41,8 +41,9 @@ type DistributedQueryResult struct {
 	// DistributedQueryCampaignID is the unique ID of the live query campaign.
 	DistributedQueryCampaignID uint `json:"distributed_query_execution_id"`
 	// Host holds the host's data from where the query result comes from.
-	Host ResultHostData      `json:"host"`
-	Rows []map[string]string `json:"rows"`
+	Host  ResultHostData      `json:"host"`
+	Rows  []map[string]string `json:"rows"`
+	Stats *Stats              `json:"stats"`
 	// Error contains any error reported by osquery when running the query.
 	// Note we can't use the error interface here because something
 	// implementing that interface may not (un)marshal properly
@@ -69,4 +70,5 @@ type QueryCampaignResult struct {
 	QueryID uint          `json:"query_id"`
 	Error   *string       `json:"error,omitempty"`
 	Results []QueryResult `json:"results"`
+	Err     error         `json:"-"`
 }

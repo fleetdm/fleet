@@ -124,6 +124,7 @@ The following command-line flags allow you to configure an osquery installer fur
 | --update-roots             | Root key JSON metadata for update server (from fleetctl updates roots)                                                                  |
 | --use-system-configuration | Try to read --fleet-url and --enroll-secret using configuration in the host (currently only macOS profiles are supported)               |
 | --enable-scripts           | Enable script execution (default: `false`)                                                                                              |
+| --host-identifier          | Sets the host identifier that orbit and osquery will use when enrolling to Fleet. Options: `uuid` and `instance` (requires Fleet >= v4.42.0) (default: `uuid`)                                                 |
 | --debug                    | Enable debug logging (default: `false`)                                                                                                 |
 | --verbose                  | Log detailed information when building the package (default: false)                                                                     |
 | --help, -h                 | show help (default: `false`)                                                                                                            |

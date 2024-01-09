@@ -28,6 +28,7 @@
     padding: 4px 8px;
     display: inline;
     max-width: min-content;
+    cursor: pointer;
     color: @core-fleet-black-75;
     text-decoration: none;
     font-size: 14px;
@@ -46,6 +47,30 @@
       background-color: rgba(25, 33, 71, 0.1);
     }
   }
+  [purpose='rss-button'].copied::after {
+    content: 'Link copied';
+    display: flex;
+    font-weight: 400;
+    position: relative;
+    top: 0px;
+    height: 0px;
+    font-size: 14px;
+    color: @core-vibrant-blue;
+    animation-name: copiedText;
+    animation-duration: 4s;
+    animation-fill-mode: forwards;
+  }
+
+  @keyframes copiedText {
+    0% {opacity: 0;}
+    20% {opacity: 100;}
+    30% {opacity: 80;}
+    50% {opacity: 60;}
+    70% {opacity: 40;}
+    80% {opacity: 20;}
+    100% {opacity: 0;}
+  }
+
   [purpose='edit-button'] {
     margin-left: 24px;
     img {
@@ -179,6 +204,44 @@
     }
     [purpose='checklist-item']::marker {
       display: none;
+    }
+    ol {
+      counter-reset: custom-counter;
+      list-style-type: none;
+      padding-inline-start: 0px;
+      padding: 0;
+      margin-top: 16px;
+      margin-bottom: 20px;
+      li {
+        counter-increment: custom-counter;
+        margin-left: 36px;
+        text-indent: -36px;
+        padding-left: 0px;
+        margin-bottom: 16px;
+        code:not(.nohighlight):not(.mermaid) {
+          display: inline;
+        }
+        p {
+          display: inline;
+          margin-bottom: 0px;
+        }
+        blockquote {
+          text-indent: 0px;
+        }
+      }
+      li::before {
+        content: counter(custom-counter);
+        background-color: #E2E4EA;
+        width: 24px;
+        font-size: 13px;
+        display: inline-block;
+        border-radius: 50%;
+        margin-right: 10px;
+        padding: 2px 4px;
+        text-align: center;
+        line-height: 20px;
+        text-indent: 0px;
+      }
     }
     a > code:not(.hljs):not(.nohighlight):not(.mermaid) {
       color: inherit;

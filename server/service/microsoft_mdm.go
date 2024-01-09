@@ -1848,6 +1848,7 @@ func newSyncMLItem(cmdSource *string, cmdTarget *string, cmdDataType *string, cm
 	var metaFormat *mdm_types.MetaAttr
 	var metaType *mdm_types.MetaAttr
 	var meta *mdm_types.Meta
+	var data *mdm_types.RawXmlData
 
 	if cmdDataFormat != nil && len(*cmdDataFormat) > 0 {
 		metaFormat = &mdm_types.MetaAttr{
@@ -1870,9 +1871,15 @@ func newSyncMLItem(cmdSource *string, cmdTarget *string, cmdDataType *string, cm
 		}
 	}
 
+	if cmdDataValue != nil {
+		data = &mdm_types.RawXmlData{
+			Content: *cmdDataValue,
+		}
+	}
+
 	return &mdm_types.CmdItem{
 		Meta:   meta,
-		Data:   cmdDataValue,
+		Data:   data,
 		Target: cmdTarget,
 		Source: cmdSource,
 	}

@@ -123,6 +123,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "updated_at": "0001-01-01T00:00:00Z",
         "passing_host_count": 0,
         "failing_host_count": 0,
+        "host_count_updated_at": null,
 		"critical": true
     },
     "hosts": [
@@ -307,6 +308,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "updated_at": "0001-01-01T00:00:00Z",
         "passing_host_count": 0,
         "failing_host_count": 0,
+        "host_count_updated_at": null,
 		"critical": false
     },
     "hosts": [

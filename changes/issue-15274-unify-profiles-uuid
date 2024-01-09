@@ -1,1 +1,0 @@
-* Changed the Apple profiles ID to be a prefixed UUID as is the case for Windows profiles. The Apple profiles are now a UUID prefixed with "a" and the Windows ones are prefixed with "w".
