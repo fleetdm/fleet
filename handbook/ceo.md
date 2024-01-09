@@ -62,8 +62,8 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
 - **Clear any unexpected new events or double-bookings.** Look for any new double-bookings, invites that haven't been accepted, or other events you don't recognize.
   1. Double-book temporarily with a "UNCONFIRMED" calendar block so that the CEO ignores it and doesn't spend time trying to figure out what it is.
   2. Go to the organizer (or nearest fleetie who's not the CEO):
-    - Get full context on what the CEO should know as to the purpose of the meeting and why the organizer thinks it is helpful or necessary for the CEO to attend.
-    - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Sam before booking](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
+     - Get full context on what the CEO should know as to the purpose of the meeting and why the organizer thinks it is helpful or necessary for the CEO to attend.
+     - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Sam before booking](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
   3. Bring prepped discussion item about this proposed event to the next CEO roundup, including the purpose of the event and why it is helpful or necessary for the CEO to attend (according to the person requesting the CEO's attendance).  The CEO will decide whether to attend.
   4. Delete the "UNCONFIRMED" block if the meeting is confirmed, or otherwise work with the organizer to pick a new time or let them know the decision.
 - **Prepare the agenda for any newly-added meetings**: [Meeting agenda prep](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) is especially important to help the CEO focus and transition quickly in and between meetings.
@@ -148,7 +148,7 @@ The Apprentice schedules all travel arrangements for the CEO including flights, 
 ### Process incoming equipment
 Upon receiving any device, the Apprentice will process the incoming equipment by:
 1. Search for the SN of the physical device in the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) to confirm the correct equipment was received.
-  - If the serial numbers do not match [create an issue](https://fleetdm.com/handbook/business-operations#contact-us) to get help from the Business Operations department. 
+   - If the serial numbers do not match [create an issue](https://fleetdm.com/handbook/business-operations#contact-us) to get help from the Business Operations department. 
 3. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
 4. Remove any stickers and clean devices and components.
 5. Using the device's charger plug in the device.
