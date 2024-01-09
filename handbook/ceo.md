@@ -39,11 +39,11 @@ From time to time, you will need to schedule an interview between a candidate an
 
 ```
 Agenda:
-- Apprentice: Is there enough context for you (CEO) to accomplish this?
-- Apprentice: Is this still a priority for you (CEO) to do.. right now?  Or should it be "someday/maybe"?
-- Apprentice: Is there enough time for you (CEO) to do this live? (Right now during this meeting?)
-- Apprentice: What are the next steps after you (CEO) complete this?
-- Apprentice: LINK_TO_DOC_OR_ISSUE
+1. Apprentice: Is there enough context for you (CEO) to accomplish this?
+2. Apprentice: Is this still a priority for you (CEO) to do.. right now?  Or should it be "someday/maybe"?
+3. Apprentice: Is there enough time for you (CEO) to do this live? (Right now during this meeting?)
+4. Apprentice: What are the next steps after you (CEO) complete this?
+5. Apprentice: LINK_TO_DOC_OR_ISSUE
 ```
 
 > Keep calendar event titles short so they are readable at a glance.  Please include any other info via link, so that information is not duplicated or lost in the calendar.
