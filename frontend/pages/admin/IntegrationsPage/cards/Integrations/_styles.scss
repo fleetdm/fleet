@@ -1,13 +1,4 @@
 .integrations-management {
-  &__title {
-    padding-bottom: $pad-small;
-    font-size: $medium;
-    font-weight: $regular;
-    color: $core-fleet-black;
-    border-bottom: solid 1px $ui-fleet-black-10;
-    margin: 0 0 $pad-xxlarge;
-  }
-
   &__page-description {
     font-size: $x-small;
     color: $core-fleet-black;
@@ -18,20 +9,6 @@
     flex-direction: column;
     align-items: center;
     margin-top: $pad-xxxlarge;
-
-    h1 {
-      font-size: $large;
-      font-weight: $regular;
-      line-height: normal;
-      letter-spacing: normal;
-      color: $core-fleet-black;
-    }
-
-    h2 {
-      font-size: $small;
-      font-weight: $bold;
-      margin: 0 0 $pad-large;
-    }
 
     ul {
       margin: 0;

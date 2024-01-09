@@ -25,5 +25,15 @@
       width: 100%;
       max-width: 754px;
     }
+
+    // Globally style all headers
+    h2 {
+      padding-bottom: $pad-small;
+      font-size: $medium;
+      font-weight: $regular;
+      color: $core-fleet-black;
+      border-bottom: solid 1px $ui-fleet-black-10;
+      margin: 0 0 $pad-xxlarge;
+    }
   }
 }
