@@ -8,6 +8,7 @@ import { NotificationContext } from "context/notification";
 import PATHS from "router/paths";
 
 import CustomLink from "components/CustomLink";
+import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 
@@ -80,7 +81,7 @@ const CustomSettings = ({
     setShowDeleteProfileModal(false);
   };
 
-  const onDeleteProfile = async (profileId: number | string) => {
+  const onDeleteProfile = async (profileId: string) => {
     try {
       await mdmAPI.deleteProfile(profileId);
       refetchProfiles();
@@ -133,6 +134,7 @@ const CustomSettings = ({
     return (
       <>
         <UploadList
+          keyAttribute="profile_uuid"
           listItems={profiles}
           HeadingComponent={ProfileListHeading}
           ListItemComponent={({ listItem }) => (
@@ -152,7 +154,7 @@ const CustomSettings = ({
 
   return (
     <div className={baseClass}>
-      <h2>Custom settings</h2>
+      <SectionHeader title="Custom settings" />
       <p className={`${baseClass}__description`}>
         Create and upload configuration profiles to apply custom settings.{" "}
         <CustomLink
@@ -169,7 +171,7 @@ const CustomSettings = ({
       {showDeleteProfileModal && selectedProfile.current && (
         <DeleteProfileModal
           profileName={selectedProfile.current?.name}
-          profileId={selectedProfile.current?.profile_id}
+          profileId={selectedProfile.current?.profile_uuid}
           onCancel={onCancelDelete}
           onDelete={onDeleteProfile}
         />

@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -120,7 +121,7 @@ func main() {
 		},
 		&cli.DurationFlag{
 			Name:    "update-interval",
-			Usage:   "How often to check for updates",
+			Usage:   "How often to check for updates. Note: fleetd checks for updates at startup. The next update check adds some randomization and may take up to 10 minutes longer",
 			Value:   15 * time.Minute,
 			EnvVars: []string{"ORBIT_UPDATE_INTERVAL"},
 		},
@@ -176,6 +177,18 @@ func main() {
 			Usage:   "Enable script execution",
 			EnvVars: []string{"ORBIT_ENABLE_SCRIPTS"},
 		},
+		&cli.StringFlag{
+			Name:    "host-identifier",
+			Usage:   "Sets the host identifier that orbit and osquery will use when enrolling to Fleet. Options: 'uuid' and 'instance' (requires Fleet >= v4.42.0)",
+			EnvVars: []string{"ORBIT_HOST_IDENTIFIER"},
+			Value:   "uuid",
+		},
+		&cli.StringFlag{
+			Name:    "end-user-email",
+			Hidden:  true, // experimental feature, we don't want to show it for now
+			Usage:   "Sets the email address of the user associated with the host when enrolling to Fleet. (requires Fleet >= v4.43.0)",
+			EnvVars: []string{"ORBIT_END_USER_EMAIL"},
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -200,6 +213,7 @@ func main() {
 			fmt.Println("orbit " + build.Version)
 			return nil
 		}
+		startTime := time.Now()
 
 		var logFile io.Writer
 		if logf := c.String("log-file"); logf != "" {
@@ -234,6 +248,12 @@ func main() {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
 
+		// Override flags with values retrieved from Fleet.
+		fallbackServerOverridesCfg := setServerOverrides(c)
+		if !fallbackServerOverridesCfg.empty() {
+			log.Debug().Msgf("fallback settings: %+v", fallbackServerOverridesCfg)
+		}
+
 		if c.Bool("insecure") && c.String("fleet-certificate") != "" {
 			return errors.New("insecure and fleet-certificate may not be specified together")
 		}
@@ -255,6 +275,14 @@ func main() {
 			if err := c.Set("enroll-secret", strings.TrimSpace(string(b))); err != nil {
 				return fmt.Errorf("set enroll secret from file: %w", err)
 			}
+		}
+
+		if hostIdentifier := c.String("host-identifier"); hostIdentifier != "uuid" && hostIdentifier != "instance" {
+			return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
+		}
+
+		if email := c.String("end-user-email"); email != "" && !fleet.IsLooseEmail(email) {
+			return fmt.Errorf("the provided end-user email address %q is not a valid email address", email)
 		}
 
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
@@ -404,21 +432,30 @@ func main() {
 
 			g.Add(updateRunner.Execute, updateRunner.Interrupt)
 
-			osquerydLocalTarget, err := updater.Get("osqueryd")
-			if err != nil {
-				return fmt.Errorf("get osqueryd target: %w", err)
-			}
-			osquerydPath = osquerydLocalTarget.ExecPath
-			if c.Bool("fleet-desktop") {
-				fleetDesktopLocalTarget, err := updater.Get("desktop")
+			// if getting any of the targets fails, keep on
+			// retrying, the `updater.Get` method has built-in backoff functionality.
+			//
+			// NOTE: it used to be the case that we would return an
+			// error on the first attempt here, causing orbit to
+			// restart. This was changed to have control over
+			// how/when we want to retry to download the packages.
+			err = retrypkg.Do(func() error {
+				var err error
+				osquerydPath, desktopPath, err = getFleetdComponentPaths(c, updater, fallbackServerOverridesCfg)
 				if err != nil {
-					return fmt.Errorf("get desktop target: %w", err)
+					return err
 				}
-				if runtime.GOOS == "darwin" {
-					desktopPath = fleetDesktopLocalTarget.DirPath
-				} else {
-					desktopPath = fleetDesktopLocalTarget.ExecPath
-				}
+				return nil
+			},
+				// retry every 5 minutes to not flood the logs,
+				// but actual pings to the remote server are
+				// handled by `updater.Get`
+				retrypkg.WithInterval(5*time.Minute),
+			)
+			if err != nil {
+				// this should never happen because `retry.Do` is
+				// executed without a defined number of max attempts
+				return fmt.Errorf("getting targets after retry: %w", err)
 			}
 		} else {
 			log.Info().Msg("running with auto updates disabled")
@@ -460,13 +497,35 @@ func main() {
 			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
-		orbitHostInfo, err := getHostInfo(osquerydPath, filepath.Join(c.String("root-dir"), "osquery.db"))
+		osqueryHostInfo, err := getHostInfo(osquerydPath, filepath.Join(c.String("root-dir"), "osquery.db"))
 		if err != nil {
 			return fmt.Errorf("get UUID: %w", err)
 		}
-		log.Debug().Str("info", fmt.Sprint(orbitHostInfo)).Msg("retrieved host info")
+		log.Debug().Str("info", fmt.Sprint(osqueryHostInfo)).Msg("retrieved host info from osquery")
+		orbitHostInfo := fleet.OrbitHostInfo{
+			HardwareSerial: osqueryHostInfo.HardwareSerial,
+			HardwareUUID:   osqueryHostInfo.HardwareUUID,
+			Hostname:       osqueryHostInfo.Hostname,
+			Platform:       osqueryHostInfo.Platform,
+		}
 
-		var options []osquery.Option
+		// Only send osquery's `instance_id` if the user is running orbit with `--host-identifier=instance`.
+		// When not set, orbit and osquery will be matched using the hardware UUID (orbitHostInfo.HardwareUUID).
+		if c.String("host-identifier") == "instance" {
+			orbitHostInfo.OsqueryIdentifier = osqueryHostInfo.InstanceID
+		}
+
+		// The hardware serial was not sent when Windows MDM was implemented,
+		// thus we clear its value here to not break any existing enroll functionality
+		// on the server.
+		if runtime.GOOS == "windows" {
+			orbitHostInfo.HardwareSerial = ""
+		}
+
+		var (
+			options              []osquery.Option
+			optionsAfterFlagfile []osquery.Option
+		)
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
 		options = append(options, osquery.WithLogPath(filepath.Join(c.String("root-dir"), "osquery_log")))
 
@@ -649,12 +708,40 @@ func main() {
 			RootDir:       c.String("root-dir"),
 		})
 		// Try performing a flags update to use latest configured osquery flags from get-go.
+		// This also takes care of populating the server's capabilities as it calls the orbit
+		// config endpoint.
 		if _, err := flagRunner.DoFlagsUpdate(); err != nil {
 			// Just log, OK to continue, since flagRunner will retry
 			// in flagRunner.Execute.
 			log.Debug().Err(err).Msg("initial flags update failed")
 		}
 		g.Add(flagRunner.Execute, flagRunner.Interrupt)
+
+		if !c.Bool("disable-updates") {
+			const serverOverridesInterval = 30 * time.Second
+			serverOverridesRunner := newServerOverridesRunner(
+				configFetcher,
+				c.String("root-dir"),
+				serverOverridesInterval,
+				fallbackServerOverridesConfig{
+					OsquerydPath: osquerydPath,
+					DesktopPath:  desktopPath,
+				},
+				c.Bool("fleet-desktop"),
+			)
+			// Perform initial run to update overrides as soon as possible.
+			didUpdate, err := serverOverridesRunner.run()
+			if err != nil {
+				// Just log, OK to continue, since serverOverridesRunner will retry
+				// in serverOverridesRunner.Execute.
+				log.Debug().Err(err).Msg("initial flags update failed")
+			}
+			if didUpdate {
+				log.Info().Msg("exiting due to early update of server overrides")
+				return nil
+			}
+			g.Add(serverOverridesRunner.Execute, serverOverridesRunner.Interrupt)
+		}
 
 		// only setup extensions autoupdate if we have enabled updates
 		// for extensions autoupdate, we can only proceed after orbit is enrolled in fleet
@@ -685,7 +772,8 @@ func main() {
 			case err == nil:
 				if stat.Size() > 0 {
 					log.Debug().Msg("adding --extensions_autoload flag for file " + extensionAutoLoadFile)
-					options = append(options, osquery.WithFlags([]string{"--extensions_autoload", extensionAutoLoadFile}))
+					// We set this option after the --flagfile to prevent users from changing it on their flagfiles.
+					optionsAfterFlagfile = append(optionsAfterFlagfile, osquery.WithFlags([]string{"--extensions_autoload", extensionAutoLoadFile}))
 				} else {
 					// OK, expected as well when extensions are unloaded, just debug log
 					log.Debug().Msg("found empty extensions.load file at " + extensionAutoLoadFile)
@@ -698,29 +786,22 @@ func main() {
 			g.Add(extRunner.Execute, extRunner.Interrupt)
 		}
 
-		trw := token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
+		var trw *token.ReadWriter
+		if c.Bool("fleet-desktop") {
+			trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
+			if err := trw.LoadOrGenerate(); err != nil {
+				return fmt.Errorf("initializing token read writer: %w", err)
+			}
 
-		if err := trw.LoadOrGenerate(); err != nil {
-			return fmt.Errorf("initializing token read writer: %w", err)
-		}
-
-		// note: the initial flags fetch above already populated the capabilities
-		// of the server based on the response header
-		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) &&
-			orbitClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation) {
 			log.Info().Msg("token rotation is enabled")
 
 			// we enable remote updates only if the server supports them by setting
 			// this function.
-			trw.SetRemoteUpdateFunc(func(token string) error {
-				return orbitClient.SetOrUpdateDeviceToken(token)
-			})
-
-			// ensure the token value is written to the remote server, we might have
-			// a token on disk that wasn't written to the server yet
-			if err := trw.Write(trw.GetCached()); err != nil {
-				return fmt.Errorf("writing token: %w", err)
-			}
+			trw.SetRemoteUpdateFunc(
+				func(token string) error {
+					return orbitClient.SetOrUpdateDeviceToken(token)
+				},
+			)
 
 			// Note that the deviceClient used by orbit must not define a retry on
 			// invalid token, because its goal is to detect invalid tokens when
@@ -736,16 +817,17 @@ func main() {
 				return fmt.Errorf("initializing client: %w", err)
 			}
 
-			// perform an initial check to see if the token
-			// has not been revoked by the server
-			if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
+			// Check if token is not expired and still good.
+			// If not, rotate the token.
+			expired, _ := trw.HasExpired()
+			if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
 				if err := trw.Rotate(); err != nil {
 					return fmt.Errorf("rotating token: %w", err)
 				}
 			}
 
 			go func() {
-				// This timer is used to check if the token should be rotated if  at
+				// This timer is used to check if the token should be rotated if at
 				// least one hour has passed since the last modification of the token
 				// file.
 				//
@@ -834,6 +916,14 @@ func main() {
 			options = append(options, osquery.WithFlags([]string{"--flagfile", flagfilePath}))
 		}
 
+		// These options must go after '--flagfile' to not allow users to change their values
+		// on their flagfiles.
+		hostIdentifier := c.String("host-identifier")
+		options = append(options, osquery.WithFlags([]string{"--host-identifier", hostIdentifier}))
+		for _, option := range optionsAfterFlagfile {
+			options = append(options, option)
+		}
+
 		// Handle additional args after '--' in the command line. These are added last and should
 		// override all other flags and flagfile entries.
 		options = append(options, osquery.WithFlags(c.Args().Slice()))
@@ -859,6 +949,8 @@ func main() {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
 		}
 		capabilitiesChecker := newCapabilitiesChecker(checkerClient)
+		// We populate the known capabilities so that the capability checker does not need to do the initial check on startup.
+		checkerClient.GetServerCapabilities().Copy(orbitClient.GetServerCapabilities())
 		g.Add(capabilitiesChecker.actor())
 
 		registerExtensionRunner(
@@ -870,6 +962,7 @@ func main() {
 				c.String("osqueryd-channel"),
 				c.String("desktop-channel"),
 				trw,
+				startTime,
 			)),
 		)
 
@@ -896,6 +989,41 @@ func main() {
 			g.Add(desktopRunner.actor())
 		}
 
+		// --end-user-email is only supported on Windows (for macOS it gets the
+		// email from the enrollment profile)
+		if runtime.GOOS == "windows" && c.String("end-user-email") != "" {
+			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEndUserEmail) {
+				log.Debug().Msg("sending end-user email to Fleet")
+				if err := orbitClient.SetOrUpdateDeviceMappingEmail(c.String("end-user-email")); err != nil {
+					log.Error().Err(err).Msg("error sending end-user email to Fleet")
+				}
+			} else {
+				log.Info().Msg("an end-user email is provided, but the Fleet server doesn't have the capability to set it.")
+			}
+		}
+
+		// For macOS hosts, check if MDM enrollment profile is present and if it contains the
+		// custom end user email field. If so, report it to the server.
+		if runtime.GOOS == "darwin" {
+			log.Info().Msg("checking for custom mdm enrollment profile with end user email")
+			email, err := profiles.GetCustomEnrollmentProfileEndUserEmail()
+			if err != nil {
+				if errors.Is(err, profiles.ErrNotFound) {
+					// This is fine. Many hosts will not have this profile so just log and continue.
+					log.Info().Msg(fmt.Sprintf("get custom enrollment profile end user email: %s", err))
+				} else {
+					log.Error().Err(err).Msg("get custom enrollment profile end user email")
+				}
+			}
+
+			if email != "" {
+				log.Info().Msg(fmt.Sprintf("found custom end user email: %s", email))
+				if err := orbitClient.SetOrUpdateDeviceMappingEmail(email); err != nil {
+					log.Error().Err(err).Msg(fmt.Sprintf("set or update device mapping: %s", email))
+				}
+			}
+		}
+
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -918,6 +1046,79 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Error().Err(err).Msg("run orbit failed")
 	}
+}
+
+// setServerOverrides overrides specific variables in c with values fetched from Fleet.
+func setServerOverrides(c *cli.Context) fallbackServerOverridesConfig {
+	overrideCfg, err := loadServerOverrides(c.String("root-dir"))
+	if err != nil {
+		log.Error().Err(err).Msg("failed to load server overrides")
+		return fallbackServerOverridesConfig{}
+	}
+	if overrideCfg.OrbitChannel != "" {
+		if err := c.Set("orbit-channel", overrideCfg.OrbitChannel); err != nil {
+			log.Error().Err(err).Str("component", "orbit").Msg("failed to set server overrides")
+		}
+	}
+	if overrideCfg.OsquerydChannel != "" {
+		if err := c.Set("osqueryd-channel", overrideCfg.OsquerydChannel); err != nil {
+			log.Error().Err(err).Str("component", "osqueryd").Msg("failed to set server overrides")
+		}
+	}
+	if overrideCfg.DesktopChannel != "" {
+		if err := c.Set("desktop-channel", overrideCfg.DesktopChannel); err != nil {
+			log.Error().Err(err).Str("component", "desktop").Msg("failed to set server overrides")
+		}
+	}
+
+	return overrideCfg.fallbackServerOverridesConfig
+}
+
+// getFleetdComponentPaths returns the paths of the fleetd components.
+// If the path to the component cannot be fetched using the updater (e.g. channel doesn't exist yet)
+// then it will use the fallbackCfg's paths (if set).
+func getFleetdComponentPaths(
+	c *cli.Context,
+	updater *update.Updater,
+	fallbackCfg fallbackServerOverridesConfig,
+) (osquerydPath string, desktopPath string, err error) {
+	if err := updater.UpdateMetadata(); err != nil {
+		log.Error().Err(err).Msg("update metadata before getting components")
+	}
+
+	// osqueryd
+	osquerydLocalTarget, err := updater.Get("osqueryd")
+	if err != nil {
+		if fallbackCfg.OsquerydPath == "" {
+			log.Info().Err(err).Msg("get osqueryd target failed")
+			return "", "", fmt.Errorf("get osqueryd target: %w", err)
+		}
+		log.Info().Err(err).Msgf("get osqueryd target failed, fallback to using %s", fallbackCfg.OsquerydPath)
+		osquerydPath = fallbackCfg.OsquerydPath
+	} else {
+		osquerydPath = osquerydLocalTarget.ExecPath
+	}
+
+	// Fleet Desktop
+	if c.Bool("fleet-desktop") {
+		fleetDesktopLocalTarget, err := updater.Get("desktop")
+		if err != nil {
+			if fallbackCfg.DesktopPath == "" {
+				log.Info().Err(err).Msg("get desktop target failed")
+				return "", "", fmt.Errorf("get desktop target: %w", err)
+			}
+			log.Info().Err(err).Msgf("get desktop target failed, fallback to using %s", fallbackCfg.DesktopPath)
+			desktopPath = fallbackCfg.DesktopPath
+		} else {
+			if runtime.GOOS == "darwin" {
+				desktopPath = fleetDesktopLocalTarget.DirPath
+			} else {
+				desktopPath = fleetDesktopLocalTarget.ExecPath
+			}
+		}
+	}
+
+	return osquerydPath, desktopPath, nil
 }
 
 func registerExtensionRunner(g *run.Group, extSockPath string, opts ...table.Opt) {
@@ -1097,8 +1298,8 @@ func (d *desktopRunner) interrupt(err error) {
 	}
 }
 
-// hostInfo is used to parse osquery JSON output from `system_info` and `os_version` tables.
-type hostInfo struct {
+// osqueryHostInfo is used to parse osquery JSON output from system tables.
+type osqueryHostInfo struct {
 	// HardwareUUID is the unique identifier for this device (extracted from `system_info` osquery table).
 	HardwareUUID string `json:"uuid"`
 	// HardwareSerial is the unique serial number for this device (extracted from `system_info` osquery table).
@@ -1107,47 +1308,14 @@ type hostInfo struct {
 	Hostname string `json:"hostname"`
 	// Platform is the device's platform as defined by osquery (extracted from `os_version` osquery table).
 	Platform string `json:"platform"`
+	// InstanceID is the osquery's randomly generated instance ID
+	// (extracted from `osquery_info` osquery table).
+	InstanceID string `json:"instance_id"`
 }
 
-// getHostInfo retrieves system information about the host.
-//
-// On macOS and Linux it shells out to osqueryd to retrieve the information.
-//
-// On Windows:
-//
-//   - HardwareUUID is retrieved by shelling out to wmic, if that fails
-//     then the windows API are used.
-//   - HardwareSerial is currently not retrieved for Windows devices.
-//   - Hostname is retrieved using stdlib method.
-//   - Platform is always "windows" for windows hosts.
-//
-// NOTE: Windows uses a different approach to retrieve the device information
-// as there were issues at the time with shelling out to osquery - from what the
-// team remembers it would sometimes fail due to the osquery process not being ready yet.
-// A recent CI run without the Windows special-case did succeed, but since we don't
-// need the serial number for Windows at the moment, we opted to keep the
-// code as it is.
-func getHostInfo(osqueryPath string, osqueryDBPath string) (fleet.OrbitHostInfo, error) {
-	if runtime.GOOS == "windows" {
-		uuidData, uuidSource, err := platform.GetSMBiosUUID()
-		if err != nil {
-			return fleet.OrbitHostInfo{}, err
-		}
-		log.Debug().Str("source", string(uuidSource)).Msg("UUID")
-		// Hostname might differ from the one provided by osquery but we are sending it
-		// for troubleshooting purposes and to avoid empty host entries in the UI.
-		hostname, err := os.Hostname()
-		if err != nil {
-			return fleet.OrbitHostInfo{}, err
-		}
-		return fleet.OrbitHostInfo{
-			HardwareUUID:   uuidData,
-			HardwareSerial: "", // currently not needed for Windows.
-			Hostname:       hostname,
-			Platform:       "windows",
-		}, nil
-	}
-	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform FROM system_info si, os_version os"
+// getHostInfo retrieves system information about the host by shelling out to `osqueryd -S` and performing a `SELECT` query.
+func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, error) {
+	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform, oi.instance_id FROM system_info si, os_version os, osquery_info oi"
 	args := []string{
 		"-S",
 		"--database_path", osqueryDBPath,
@@ -1156,22 +1324,17 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (fleet.OrbitHostInfo,
 	log.Debug().Str("query", systemQuery).Msg("running single query")
 	out, err := exec.Command(osqueryPath, args...).Output()
 	if err != nil {
-		return fleet.OrbitHostInfo{}, err
+		return nil, err
 	}
-	var info []hostInfo
+	var info []osqueryHostInfo
 	err = json.Unmarshal(out, &info)
 	if err != nil {
-		return fleet.OrbitHostInfo{}, err
+		return nil, err
 	}
 	if len(info) != 1 {
-		return fleet.OrbitHostInfo{}, fmt.Errorf("invalid number of rows from system info query: %d", len(info))
+		return nil, fmt.Errorf("invalid number of rows from system info query: %d", len(info))
 	}
-	return fleet.OrbitHostInfo{
-		HardwareSerial: info[0].HardwareSerial,
-		HardwareUUID:   info[0].HardwareUUID,
-		Hostname:       info[0].Hostname,
-		Platform:       info[0].Platform,
-	}, nil
+	return &info[0], nil
 }
 
 var versionCommand = &cli.Command{
@@ -1249,9 +1412,11 @@ func (f *capabilitiesChecker) execute() error {
 	defer close(f.executeDoneCh)
 	capabilitiesCheckTicker := time.NewTicker(5 * time.Minute)
 
-	// do an initial ping to store the initial capabilities
-	if err := f.client.Ping(); err != nil {
-		logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
+	// Do an initial ping to store the initial capabilities if needed
+	if len(f.client.GetServerCapabilities()) == 0 {
+		if err := f.client.Ping(); err != nil {
+			logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
+		}
 	}
 
 	for {
@@ -1273,6 +1438,11 @@ func (f *capabilitiesChecker) execute() error {
 			if oldCapabilities.Has(fleet.CapabilityTokenRotation) !=
 				newCapabilities.Has(fleet.CapabilityTokenRotation) {
 				log.Info().Msgf("%s capability changed, restarting", fleet.CapabilityTokenRotation)
+				return nil
+			}
+			if oldCapabilities.Has(fleet.CapabilityEndUserEmail) !=
+				newCapabilities.Has(fleet.CapabilityEndUserEmail) {
+				log.Info().Msgf("%s capability changed, restarting", fleet.CapabilityEndUserEmail)
 				return nil
 			}
 		case <-f.interruptCh:
@@ -1306,4 +1476,191 @@ func writeSecret(enrollSecret string, orbitRoot string) error {
 	}
 
 	return nil
+}
+
+// serverOverridesRunner is a oklog.Group runner that polls for configuration overrides from Fleet.
+type serverOverridesRunner struct {
+	configFetcher  update.OrbitConfigFetcher
+	interval       time.Duration
+	rootDir        string
+	fallbackCfg    fallbackServerOverridesConfig
+	desktopEnabled bool
+	cancel         chan struct{}
+}
+
+// newServerOverridesRunner creates a runner for updating server overrides configuration with values fetched from Fleet.
+func newServerOverridesRunner(
+	configFetcher update.OrbitConfigFetcher,
+	rootDir string,
+	interval time.Duration,
+	fallbackCfg fallbackServerOverridesConfig,
+	desktopEnabled bool,
+) *serverOverridesRunner {
+	return &serverOverridesRunner{
+		configFetcher:  configFetcher,
+		interval:       interval,
+		rootDir:        rootDir,
+		fallbackCfg:    fallbackCfg,
+		desktopEnabled: desktopEnabled,
+		cancel:         make(chan struct{}),
+	}
+}
+
+// Execute starts the loop that polls for server overrides configuration from Fleet.
+func (r *serverOverridesRunner) Execute() error {
+	log.Debug().Msg("starting server overrides runner")
+
+	ticker := time.NewTicker(r.interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-r.cancel:
+			return nil
+		case <-ticker.C:
+			log.Debug().Msg("calling server overrides run")
+			didUpdate, err := r.run()
+			if err != nil {
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "server overrides run failed")
+			}
+			if didUpdate {
+				log.Info().Msg("server overrides updated, exiting")
+				return nil
+			}
+		}
+	}
+}
+
+// Interrupt is the oklog/run interrupt method that stops orbit when interrupt is received
+func (r *serverOverridesRunner) Interrupt(err error) {
+	close(r.cancel)
+	log.Error().Err(err).Msg("interrupt for server overrides runner")
+}
+
+func (r *serverOverridesRunner) run() (bool, error) {
+	overrideCfg, err := loadServerOverrides(r.rootDir)
+	if err != nil {
+		return false, err
+	}
+
+	orbitCfg, err := r.configFetcher.GetConfig()
+	if err != nil {
+		return false, err
+	}
+	if orbitCfg.UpdateChannels == nil {
+		// Server is not setting or doesn't know of
+		// this feature (old server version), so nothing to do.
+		return false, nil
+	}
+
+	if cfgsDiffer(overrideCfg, orbitCfg, r.desktopEnabled) {
+		if err := r.updateServerOverrides(orbitCfg); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// cfgsDiffer returns whether the local server overrides differ from the fetched remotely.
+func cfgsDiffer(overrideCfg *serverOverridesConfig, orbitCfg *fleet.OrbitConfig, desktopEnabled bool) bool {
+	localUpdateChannelsCfg := &fleet.OrbitUpdateChannels{
+		Orbit:    overrideCfg.OrbitChannel,
+		Osqueryd: overrideCfg.OsquerydChannel,
+		Desktop:  overrideCfg.DesktopChannel,
+	}
+	remoteUpdateChannelsCfg := orbitCfg.UpdateChannels
+
+	setStableAsDefault := func(cfg *fleet.OrbitUpdateChannels) {
+		if cfg.Orbit == "" {
+			cfg.Orbit = "stable"
+		}
+		if cfg.Osqueryd == "" {
+			cfg.Osqueryd = "stable"
+		}
+		if cfg.Desktop == "" {
+			cfg.Desktop = "stable"
+		}
+	}
+	setStableAsDefault(localUpdateChannelsCfg)
+	setStableAsDefault(remoteUpdateChannelsCfg)
+
+	local := *localUpdateChannelsCfg
+	remote := *remoteUpdateChannelsCfg
+
+	if !desktopEnabled {
+		local.Desktop = ""
+		remote.Desktop = ""
+	}
+
+	return local != remote
+}
+
+// serverOverridesConfig holds the currently supported fields that can be
+// overriden by server configuration.
+type serverOverridesConfig struct {
+	// OrbitChannel defines the override for the orbit's channel.
+	OrbitChannel string `json:"orbit-channel"`
+	// OsquerydChannel defines the override for the osqueryd's channel.
+	OsquerydChannel string `json:"osqueryd-channel"`
+	// DesktopChannel defines the override for the Fleet Desktop's channel.
+	DesktopChannel string `json:"desktop-channel"`
+
+	fallbackServerOverridesConfig
+}
+
+// fallbackServerOverridesConfig contains fallback configuration in case the server
+// settings are invalid (e.g. invalid update channels that don't exist).
+// Whenever the user sets an invalid channel, then the fallback paths are used to get
+// fleetd up and running with the last known good configuration.
+//
+// NOTE: We don't need orbit's path because the `orbit` component is a special case that uses
+// a symlink to define the last known valid version.
+type fallbackServerOverridesConfig struct {
+	// OsquerydPath contains the path of the osqueryd executable last known to be valid.
+	OsquerydPath string `json:"fallback-osqueryd-path"`
+	// DesktopPath contains the path of the Fleet Desktop executable last known to be valid.
+	DesktopPath string `json:"fallback-desktop-path"`
+}
+
+func (f fallbackServerOverridesConfig) empty() bool {
+	return f.OsquerydPath == "" && f.DesktopPath == ""
+}
+
+// updateServerOverrides updates the server override local file with the configuration fetched from Fleet.
+func (r *serverOverridesRunner) updateServerOverrides(remoteCfg *fleet.OrbitConfig) error {
+	overrideCfg := serverOverridesConfig{
+		OrbitChannel:                  remoteCfg.UpdateChannels.Orbit,
+		OsquerydChannel:               remoteCfg.UpdateChannels.Osqueryd,
+		DesktopChannel:                remoteCfg.UpdateChannels.Desktop,
+		fallbackServerOverridesConfig: r.fallbackCfg,
+	}
+
+	data, err := json.MarshalIndent(overrideCfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal override config: %w", err)
+	}
+	serverOverridesPath := filepath.Join(r.rootDir, constant.ServerOverridesFileName)
+	if err := os.WriteFile(serverOverridesPath, data, constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write override config: %w", err)
+	}
+	return nil
+}
+
+// loadServerOverrides loads the server overrides from the local file.
+func loadServerOverrides(rootDir string) (*serverOverridesConfig, error) {
+	serverOverridesPath := filepath.Join(rootDir, constant.ServerOverridesFileName)
+	data, err := os.ReadFile(serverOverridesPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return &serverOverridesConfig{}, nil
+		}
+		return nil, err
+	}
+	var cfg serverOverridesConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
 }

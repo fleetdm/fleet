@@ -10,6 +10,16 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+
+    p {
+      margin-right: $pad-small;
+    }
+
+    button {
+      .children-wrapper {
+        text-wrap: nowrap;
+      }
+    }
   }
 
   &__turn-on-mac-os {
@@ -25,7 +35,7 @@
   }
 
   &__turn-off-mac-os {
-    >div {
+    > div {
       display: flex;
       align-items: center;
     }

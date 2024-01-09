@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -164,7 +163,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, profileUUIDs, hostUUIDs []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
 		return nil
 	}
 
@@ -213,6 +212,32 @@ spec:
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	ds.ApplyEnrollSecretsFuncInvoked = false
 
+	// add windows updates settings to team1
+	filename = writeTmpYml(t, `
+---
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days: 5
+        grace_period_days: 1
+`)
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	newMDMSettings = fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("12.3.1"),
+			Deadline:       optjson.SetString("2011-03-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(5),
+			GracePeriodDays: optjson.SetInt(1),
+		},
+	}
+	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
+
 	mobileCfgPath := writeTmpMobileconfig(t, "N1")
 	filename = writeTmpYml(t, fmt.Sprintf(`
 apiVersion: v1
@@ -230,6 +255,10 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(5),
+			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{mobileCfgPath},
@@ -267,6 +296,10 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(5),
+			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSettings: fleet.MacOSSettings{ // macos settings not provided, so not cleared
 			CustomSettings: []string{mobileCfgPath},
@@ -325,6 +358,9 @@ spec:
       macos_updates:
         minimum_version:
         deadline:
+      windows_updates:
+        deadline_days:
+        grace_period_days:
       macos_settings:
         custom_settings:
 `)
@@ -333,6 +369,10 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.Int{Set: true},
+			GracePeriodDays: optjson.Int{Set: true},
 		},
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{},
@@ -385,17 +425,23 @@ func TestApplyAppConfig(t *testing.T) {
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return &fleet.Team{ID: 123}, nil
 	}
-
-	defaultAgentOpts := json.RawMessage(`{"config":{"foo":"bar"}}`)
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			OrgInfo:        fleet.OrgInfo{OrgName: "Fleet"},
-			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
-			AgentOptions:   &defaultAgentOpts,
-		}, nil
+	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+		return nil
+	}
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		return nil
 	}
 
-	var savedAppConfig *fleet.AppConfig
+	defaultAgentOpts := json.RawMessage(`{"config":{"foo":"bar"}}`)
+	savedAppConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Fleet"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		AgentOptions:   &defaultAgentOpts,
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return savedAppConfig, nil
+	}
+
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
 		return nil
@@ -413,6 +459,9 @@ spec:
     macos_updates:
       minimum_version: 12.1.1
       deadline: 2011-02-01
+    windows_updates:
+      deadline_days: 5
+      grace_period_days: 1
 `)
 
 	newMDMSettings := fleet.MDM{
@@ -421,6 +470,10 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("12.1.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(5),
+			GracePeriodDays: optjson.SetInt(1),
 		},
 	}
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
@@ -441,6 +494,7 @@ spec:
   agent_options:
   mdm:
     macos_updates:
+    windows_updates:
 `)
 
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
@@ -449,6 +503,33 @@ spec:
 	assert.True(t, savedAppConfig.Features.EnableSoftwareInventory)
 	// agent options were cleared, provided but empty
 	assert.Nil(t, savedAppConfig.AgentOptions)
+	// MDM settings unchanged, not provided
+	assert.Equal(t, newMDMSettings, savedAppConfig.MDM)
+
+	name = writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days:
+      grace_period_days:
+`)
+
+	newMDMSettings = fleet.MDM{
+		AppleBMDefaultTeam:  "team1",
+		AppleBMTermsExpired: false,
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: optjson.SetString("12.1.1"),
+			Deadline:       optjson.SetString("2011-02-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.Int{Set: true},
+			GracePeriodDays: optjson.Int{Set: true},
+		},
+	}
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	require.NotNil(t, savedAppConfig)
 	assert.Equal(t, newMDMSettings, savedAppConfig.MDM)
 }
 
@@ -820,8 +901,6 @@ func mobileconfigForTest(name, identifier string) []byte {
 }
 
 func TestApplyAsGitOps(t *testing.T) {
-	t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
-
 	enqueuer := new(nanomdm_mock.Storage)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
@@ -909,7 +988,7 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, profileUUIDs, hostUUIDs []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
 		return nil
 	}
 	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
@@ -925,6 +1004,12 @@ func TestApplyAsGitOps(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+		return nil
+	}
+	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+		return nil
+	}
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
 		return nil
 	}
 
@@ -977,6 +1062,9 @@ spec:
     macos_updates:
       minimum_version: 10.10.10
       deadline: 2020-02-02
+    windows_updates:
+      deadline_days: 1
+      grace_period_days: 0
     macos_settings:
       custom_settings:
       - %s
@@ -1000,6 +1088,10 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("2020-02-02"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(1),
+			GracePeriodDays: optjson.SetInt(0),
 		},
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{mobileConfigPath},
@@ -1039,6 +1131,10 @@ spec:
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("2020-02-02"),
 		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(1),
+			GracePeriodDays: optjson.SetInt(0),
+		},
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []string{mobileConfigPath},
 		},
@@ -1061,6 +1157,9 @@ spec:
       macos_updates:
         minimum_version: 10.10.10
         deadline: 1992-03-01
+      windows_updates:
+        deadline_days: 0
+        grace_period_days: 1
       macos_settings:
         custom_settings:
           - %s
@@ -1082,6 +1181,10 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(0),
+			GracePeriodDays: optjson.SetInt(1),
 		},
 	}, savedTeam.Config.MDM)
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, teamEnrollSecrets)
@@ -1118,6 +1221,10 @@ spec:
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(0),
+			GracePeriodDays: optjson.SetInt(1),
+		},
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
 		},
@@ -1149,6 +1256,10 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
+		},
+		WindowsUpdates: fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(0),
+			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
@@ -2196,6 +2307,12 @@ func TestApplySpecs(t *testing.T) {
 		ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 			return nil
 		}
+		ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+			return nil
+		}
+		ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+			return nil
+		}
 	}
 
 	cases := []struct {
@@ -2666,6 +2783,124 @@ spec:
 			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
 		},
 		{
+			desc: "windows_updates.deadline_days but grace period empty",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days: 5
+`,
+			wantErr: `422 Validation Failed: grace_period_days is required when deadline_days is provided`,
+		},
+		{
+			desc: "windows_updates.grace_period_days but deadline empty",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        grace_period_days: 5
+`,
+			wantErr: `422 Validation Failed: deadline_days is required when grace_period_days is provided`,
+		},
+		{
+			desc: "windows_updates.deadline_days out of range",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days: 9999
+        grace_period_days: 1
+`,
+			wantErr: `422 Validation Failed: deadline_days must be an integer between 0 and 30`,
+		},
+		{
+			desc: "windows_updates.grace_period_days out of range",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days: 1
+        grace_period_days: 9999
+`,
+			wantErr: `422 Validation Failed: grace_period_days must be an integer between 0 and 7`,
+		},
+		{
+			desc: "windows_updates.deadline_days not a number",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days: abc
+        grace_period_days: 1
+`,
+			wantErr: `400 Bad Request: invalid value type at 'specs.mdm.windows_updates.deadline_days': expected int but got string`,
+		},
+		{
+			desc: "windows_updates.grace_period_days not a number",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days: 1
+        grace_period_days: true
+`,
+			wantErr: `400 Bad Request: invalid value type at 'specs.mdm.windows_updates.grace_period_days': expected int but got bool`,
+		},
+		{
+			desc: "windows_updates valid",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days: 5
+        grace_period_days: 1
+`,
+			wantOutput: `[+] applied 1 teams`,
+		},
+		{
+			desc: "windows_updates unset valid",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      windows_updates:
+        deadline_days:
+        grace_period_days:
+`,
+			wantOutput: `[+] applied 1 teams`,
+		},
+		{
 			desc: "missing required sso entity_id",
 			spec: `
 apiVersion: v1
@@ -2869,6 +3104,108 @@ spec:
 			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
 		},
 		{
+			desc: "app config windows_updates.deadline_days but grace period empty",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days: 5
+`,
+			wantErr: `422 Validation Failed: grace_period_days is required when deadline_days is provided`,
+		},
+		{
+			desc: "app config windows_updates.grace_period_days but deadline empty",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      grace_period_days: 5
+`,
+			wantErr: `422 Validation Failed: deadline_days is required when grace_period_days is provided`,
+		},
+		{
+			desc: "app config windows_updates.deadline_days out of range",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days: 9999
+      grace_period_days: 1
+`,
+			wantErr: `422 Validation Failed: deadline_days must be an integer between 0 and 30`,
+		},
+		{
+			desc: "app config windows_updates.grace_period_days out of range",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days: 1
+      grace_period_days: 9999
+`,
+			wantErr: `422 Validation Failed: grace_period_days must be an integer between 0 and 7`,
+		},
+		{
+			desc: "app config windows_updates.deadline_days not a number",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days: abc
+      grace_period_days: 1
+`,
+			wantErr: `400 Bad request: failed to decode app config`,
+		},
+		{
+			desc: "app config windows_updates.grace_period_days not a number",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days: 1
+      grace_period_days: true
+`,
+			wantErr: `400 Bad request: failed to decode app config`,
+		},
+		{
+			desc: "app config windows_updates valid",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days: 5
+      grace_period_days: 1
+`,
+			wantOutput: `[+] applied fleet config`,
+		},
+		{
+			desc: "app config windows_updates unset valid",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_updates:
+      deadline_days:
+      grace_period_days:
+`,
+			wantOutput: `[+] applied fleet config`,
+		},
+		{
 			desc: "app config macos_settings.enable_disk_encryption without a value",
 			spec: `
 apiVersion: v1
@@ -2999,17 +3336,6 @@ spec:
 			wantErr: `macOS MDM isn't turned on.`,
 		},
 		{
-			desc: "app config enable windows mdm without feature flag",
-			spec: `
-apiVersion: v1
-kind: config
-spec:
-  mdm:
-    windows_enabled_and_configured: true
-`,
-			wantErr: `422 Validation Failed: cannot enable Windows MDM without the feature flag explicitly enabled`,
-		},
-		{
 			desc: "app config enable windows mdm without WSTEP",
 			spec: `
 apiVersion: v1
@@ -3030,12 +3356,6 @@ spec:
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			// bit hacky, but since the env var is temporary while Windows MDM is in beta,
-			// didn't want to add a field to the test cases just for this.
-			if strings.Contains(c.desc, "WSTEP") {
-				t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
-			}
-
 			_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
 			setupDS(ds)
 			filename := writeTmpYml(t, c.spec)

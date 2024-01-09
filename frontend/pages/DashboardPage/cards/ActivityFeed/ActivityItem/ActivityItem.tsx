@@ -5,6 +5,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import {
   addGravatarUrlToResource,
+  getPerformanceImpactDescription,
   internationalTimeFormat,
 } from "utilities/helpers";
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
@@ -13,6 +14,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import { COLORS } from "styles/var/colors";
 
 const baseClass = "activity-item";
 
@@ -88,27 +90,40 @@ const TAGGED_TEMPLATES = {
     activity: IActivity,
     onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
   ) => {
-    const count = activity.details?.targets_count;
-    const queryName = activity.details?.query_name;
-    const querySql = activity.details?.query_sql;
+    const {
+      targets_count: count,
+      query_name: queryName,
+      query_sql: querySql,
+      stats,
+    } = activity.details || {};
 
-    const savedQueryName = queryName ? (
+    const impactDescription = stats
+      ? getPerformanceImpactDescription(stats)
+      : undefined;
+
+    const queryNameCopy = queryName ? (
       <>
-        the <b>{queryName}</b> query as
+        the <b>{queryName}</b> query
       </>
     ) : (
-      <></>
+      <>a live query</>
     );
 
-    const hostCount =
+    const impactCopy =
+      impactDescription && impactDescription !== "Undetermined" ? (
+        <>with {impactDescription.toLowerCase()} performance impact</>
+      ) : (
+        <></>
+      );
+    const hostCountCopy =
       count !== undefined
         ? ` on ${count} ${count === 1 ? "host" : "hosts"}`
         : "";
 
     return (
       <>
-        <span>
-          ran {savedQueryName} a live query {hostCount}.
+        <span className={`${baseClass}__details-content`}>
+          ran {queryNameCopy} {impactCopy} {hostCountCopy}.
         </span>
         {querySql && (
           <>
@@ -118,6 +133,7 @@ const TAGGED_TEMPLATES = {
               onClick={() =>
                 onDetailsClick?.(ActivityType.LiveQuery, {
                   query_sql: querySql,
+                  stats,
                 })
               }
             >
@@ -327,7 +343,9 @@ const TAGGED_TEMPLATES = {
         {" "}
         added{" "}
         {profileName ? (
-          <>configuration profile {profileName}</>
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
         ) : (
           <>a configuration profile</>
         )}{" "}
@@ -348,7 +366,9 @@ const TAGGED_TEMPLATES = {
         {" "}
         deleted{" "}
         {profileName ? (
-          <>configuration profile {profileName}</>
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
         ) : (
           <>a configuration profile</>
         )}{" "}
@@ -383,7 +403,9 @@ const TAGGED_TEMPLATES = {
         {" "}
         added{" "}
         {profileName ? (
-          <>configuration profile {profileName}</>
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
         ) : (
           <>a configuration profile</>
         )}{" "}
@@ -404,7 +426,9 @@ const TAGGED_TEMPLATES = {
         {" "}
         deleted{" "}
         {profileName ? (
-          <>configuration profile {profileName}</>
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
         ) : (
           <>a configuration profile</>
         )}{" "}
@@ -675,6 +699,27 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  editedWindowsUpdates: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        updated the Windows OS update options (
+        <b>
+          Deadline: {activity.details?.deadline_days} days / Grace period:{" "}
+          {activity.details?.grace_period_days} days
+        </b>
+        ) on hosts assigned to{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
   deletedMultipleSavedQuery: (activity: IActivity) => {
     return <> deleted multiple queries.</>;
   },
@@ -812,6 +857,9 @@ const getDetail = (
     case ActivityType.EditedScript: {
       return TAGGED_TEMPLATES.editedScript(activity);
     }
+    case ActivityType.EditedWindowsUpdates: {
+      return TAGGED_TEMPLATES.editedWindowsUpdates(activity);
+    }
     case ActivityType.DeletedMultipleSavedQuery: {
       return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
     }
@@ -895,7 +943,7 @@ const ActivityItem = ({
             type="dark"
             effect="solid"
             id={`activity-${activity.id}`}
-            backgroundColor="#3e4771"
+            backgroundColor={COLORS["tooltip-bg"]}
           >
             {internationalTimeFormat(activityCreatedAt)}
           </ReactTooltip>

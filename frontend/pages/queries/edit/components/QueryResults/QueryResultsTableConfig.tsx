@@ -14,7 +14,10 @@ import {
 
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import { internallyTruncateText } from "utilities/helpers";
+import {
+  getUniqueColumnNamesFromRows,
+  internallyTruncateText,
+} from "utilities/helpers";
 
 type IHeaderProps = HeaderProps<TableInstance> & {
   column: ColumnInstance & IDataColumn;
@@ -52,17 +55,7 @@ const generateColumnConfigsFromRows = (
   // typed as any[] to accomodate loose typing of websocket API
   results: any[] // {col:val, ...} for each row of query results
 ): Column[] => {
-  const uniqueColumnNames = Array.from(
-    results.reduce(
-      (accOuter, row) =>
-        Object.keys(row).reduce(
-          (accInner, colNameInRow) => accInner.add(colNameInRow),
-          accOuter
-        ),
-      new Set() // Set prevents listing duplicate headers
-    )
-  );
-
+  const uniqueColumnNames = getUniqueColumnNamesFromRows(results);
   const columnsConfigs = uniqueColumnNames.map((colName) => {
     return {
       id: colName as string,
@@ -82,6 +75,7 @@ const generateColumnConfigsFromRows = (
       },
       Filter: DefaultColumnFilter,
       disableSortBy: false,
+      sortType: "caseInsensitive",
     };
   });
   return _unshiftHostname(columnsConfigs);

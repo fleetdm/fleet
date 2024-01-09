@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
@@ -28,22 +29,22 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 	}{
 		{
 			testName:     "TestParseConfigProfileOK",
-			mobileconfig: mobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), ""),
+			mobileconfig: MobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), ""),
 			shouldFail:   false,
 		},
 		{
 			testName:     "TestParseConfigProfileNoIdentifier",
-			mobileconfig: mobileconfigForTest("ValidName", "", uuid.NewString(), ""),
+			mobileconfig: MobileconfigForTest("ValidName", "", uuid.NewString(), ""),
 			shouldFail:   true,
 		},
 		{
 			testName:     "TestParseConfigProfileNoName",
-			mobileconfig: mobileconfigForTest("", "ValidIdentifier", uuid.NewString(), ""),
+			mobileconfig: MobileconfigForTest("", "ValidIdentifier", uuid.NewString(), ""),
 			shouldFail:   true,
 		},
 		{
 			testName:     "TestParseConfigProfileNoNameNoIdentifier",
-			mobileconfig: mobileconfigForTest("", "", uuid.NewString(), ""),
+			mobileconfig: MobileconfigForTest("", "", uuid.NewString(), ""),
 			shouldFail:   true,
 		},
 		{
@@ -67,7 +68,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 				require.NoError(t, err)
 
 				// encode mobileconfig as PKCS7 signed data
-				signedData, err := pkcs7.NewSignedData(mobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), ""))
+				signedData, err := pkcs7.NewSignedData(MobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), ""))
 				require.NoError(t, err)
 				err = signedData.AddSigner(crt, key, pkcs7.SignerInfoConfig{})
 				require.NoError(t, err)
@@ -142,7 +143,7 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.testName, func(t *testing.T) {
-			mc := mobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), mcPayloadContentForTest(c.payloadTypes))
+			mc := MobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), mcPayloadContentForTest(c.payloadTypes))
 			parsed, err := NewMDMAppleConfigProfile(mc, nil)
 			require.NoError(t, err)
 			require.Equal(t, "ValidName", parsed.Name)
@@ -197,7 +198,7 @@ func TestMDMAppleConfigProfileScreenPayloadIdentifiers(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.testName, func(t *testing.T) {
-			mc := mobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), mcPayloadContentForTest(c.payloadIdentifiers))
+			mc := MobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), mcPayloadContentForTest(c.payloadIdentifiers))
 			parsed, err := NewMDMAppleConfigProfile(mc, nil)
 			require.NoError(t, err)
 			require.Equal(t, "ValidName", parsed.Name)
@@ -212,7 +213,59 @@ func TestMDMAppleConfigProfileScreenPayloadIdentifiers(t *testing.T) {
 	}
 }
 
-func mobileconfigForTest(name string, identifier string, uuid string, payloadContent string) mobileconfig.Mobileconfig {
+func TestMDMAppleConfigProfileScreenReservedNames(t *testing.T) {
+	type testcase struct {
+		toplevelName string
+		contentName  string
+		shouldFail   bool
+	}
+	cases := []testcase{
+		{"unreserved name", "unreserved name", false},
+	}
+	fleetNames := mdm.FleetReservedProfileNames()
+	for name := range fleetNames {
+		cases = append(cases, testcase{name, "unreserved name", true})
+		cases = append(cases, testcase{"unreserved name", name, true})
+	}
+
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%s-%s", c.toplevelName, c.contentName), func(t *testing.T) {
+			payloadContent := fmt.Sprintf(`
+				<dict>
+					<key>PayloadDisplayName</key>
+					<string>%s</string>
+					<key>PayloadIdentifier</key>
+					<string>ValidIdentitifer</string>
+					<key>PayloadType</key>
+					<string>ValidType</string>
+					<key>PayloadUUID</key>
+					<string>%s</string>
+					<key>PayloadVersion</key>
+					<integer>1</integer>
+				</dict>`, c.contentName, uuid.NewString())
+
+			mc := MobileconfigForTest(c.toplevelName, "ValidIdentifier", uuid.NewString(), payloadContent)
+			parsed, err := NewMDMAppleConfigProfile(mc, nil)
+			require.NoError(t, err)
+			require.Equal(t, c.toplevelName, parsed.Name)
+			require.Equal(t, "ValidIdentifier", parsed.Identifier)
+
+			err = parsed.ValidateUserProvided()
+			if c.shouldFail {
+				require.Error(t, err)
+				if c.toplevelName == "unreserved name" {
+					require.ErrorContains(t, err, c.contentName)
+				} else {
+					require.ErrorContains(t, err, c.toplevelName)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func MobileconfigForTest(name string, identifier string, uuid string, payloadContent string) mobileconfig.Mobileconfig {
 	pc := "<array/>"
 	if payloadContent != "" {
 		pc = fmt.Sprintf(`<array>%s
@@ -335,6 +388,7 @@ func TestMDMProfileIsWithinGracePeriod(t *testing.T) {
 		EnrollSecret: t.Name(),
 		ServerURL:    "https://example.com",
 		PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
+		PayloadName:  mdm.FleetdConfigProfileName,
 	}
 	err := mobileconfig.FleetdProfileTemplate.Execute(&b, params)
 	require.NoError(t, err)

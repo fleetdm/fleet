@@ -1,2 +1,0 @@
-- Fixed: SMTP configuration was failing validation when attempting to send a test email to an SMTP server
-  that only supports TLS

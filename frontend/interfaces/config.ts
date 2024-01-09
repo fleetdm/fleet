@@ -37,8 +37,8 @@ export interface IMdmConfig {
   windows_enabled_and_configured: boolean;
   end_user_authentication: IEndUserAuthentication;
   macos_updates: {
-    minimum_version: string;
-    deadline: string;
+    minimum_version: string | null;
+    deadline: string | null;
   };
   macos_settings: {
     custom_settings: null;
@@ -50,6 +50,10 @@ export interface IMdmConfig {
     macos_setup_assistant: string | null;
   };
   macos_migration: IMacOsMigrationSettings;
+  windows_updates: {
+    deadline_days: number | null;
+    grace_period_days: number | null;
+  };
 }
 
 export interface IDeviceGlobalConfig {
@@ -114,6 +118,7 @@ export interface IConfig {
     enable_analytics: boolean;
     deferred_save_host: boolean;
     query_reports_disabled: boolean;
+    scripts_disabled: boolean;
   };
   smtp_settings: {
     enable_smtp: boolean;
@@ -203,10 +208,6 @@ export interface IConfig {
     };
   };
   mdm: IMdmConfig;
-  /** This is the flag that determines if the windwos mdm feature flag is enabled.
-      TODO: WINDOWS FEATURE FLAG: remove when windows MDM is released. Only used for windows MDM dev currently.
-  */
-  mdm_enabled?: boolean;
 }
 
 export interface IWebhookSettings {

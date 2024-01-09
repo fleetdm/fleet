@@ -10,7 +10,6 @@ app_schemes SELECT * FROM app_schemes
 apps SELECT * FROM apps
 arp_cache SELECT * FROM arp_cache
 asl SELECT * FROM asl
-atom_packages SELECT * FROM atom_packages
 augeas SELECT * from augeas where path = '/etc/hosts'
 authorization_mechanisms SELECT * FROM authorization_mechanisms
 authorizations SELECT * FROM authorizations

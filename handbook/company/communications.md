@@ -41,6 +41,9 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 ### Events
 It's important for Fleet to engage at events. This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
+### Podcast
+Fleet has created the [ExpedITioners podcast](https://expeditioners.podbean.com/) to open discussions and help IT and security professionals get ahead of the curve and prepare themselves and their organizations for what lies ahead. 
+
 ### Video
 Fleet's utilization of YouTube is an essential component of our commitment to nurturing a strong and informed user community. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it.
 
@@ -173,6 +176,9 @@ We use these prefixes to organize the Fleet Slack:
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 
+### Create a GitHub issue from a Slack thread
+If you need to track content from a Slack channel (ie. #g-sales), you can automatically generate a github issue by selecting the `create-github-issue` emoji on the thread. This will automatically create an issue tagged with the #g-business-operations label. If you need the issue logged against a specific board, ensure that you have updated the label during issue creation.
+
 ### Customer support service level agreements (SLAs)
 
 **Fleet Free:**
@@ -200,19 +206,28 @@ We use these prefixes to organize the Fleet Slack:
 
 
 ## Github
-Fleet uses Github as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for our product and documentation; a platfrom to allow community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
+Fleet uses Github as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for our product and documentation; a platform to allow community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
 
 ### GitHub labels
-We use special characters to define different types of GitHub labels. By combining labels, we
-organize and categorize GitHub issues. This reduces the total number of labels required while
-maintaining an expressive labeling system. For example, instead of a label called
-`platform-dev-backend`, we use `#platform :dev ~backend`.
+Fleet prefixes all GitHub labels with special characters or words to organize and categorize GitHub issues.
 
-| Special character | Label type  | Examples                            |
+| Prefix            | Label type  | Examples                            |
 |:------------------|:------------|:------------------------------------|
-| `#`               | Noun        | `#g-marketing`, `#g-ceo`, `#agent`
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
+| `customer-`       | [Customer request](TODO link to handbook section) | `customer-leo`, `customer-sagittarius`
+| `#g-`             | Group isssue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
+
+Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system.
+
+Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
+
+> _**Note:** There are only a few "special" labels that are exceptions to this rule:
+> - `bug` A defect in the product.
+> - `bug-` Defect category. For example, `bug-enrollment`, `bug-profiles-sync`, `bug-policies`. This allows us to track the areas of the product producing the most bugs.
+> - `story` A user story.
+> -  `prospect-` A customer prospect.
+> - `Epic` Do not use. _(TODO: ZenHub automatically recreates this label when we group sub-tasks inside of a user story. Find a way to remove this. It is an artifact from Zenhub and not something we actually want to exist or use, as it is confusing.)_
 
 ### Process new requests
 Team members [process their department's kanban boards](https://fleetdm.com/handbook/company/why-this-way#why-lean-software-development) daily, prioritizing all new requests including issues and PRs within one business day.
@@ -598,7 +613,6 @@ During their first week at Fleet, every new team member schedules a contributor 
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google Drive folder.
 
-![image](https://github.com/fleetdm/fleet/assets/618009/e7b356ad-c99b-4bf3-95b8-d466643e4bd4)
 
 
 <!-- 
@@ -622,6 +636,8 @@ At the end of their first two weeks of onboarding at Fleet, every new team membe
 
 Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#ownership).  If possible, apply onboarding feedback to the handbook and issue templates in realtime, during this call.  This avoids backlogging tasks that may just get out of date before we get around to them anyway.
 
+## Receiving performance feedback
+At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#performance-feedback), if not sooner.
 
 ## Equipment
 Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.

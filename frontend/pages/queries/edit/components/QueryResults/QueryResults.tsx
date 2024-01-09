@@ -20,12 +20,15 @@ import TabsWrapper from "components/TabsWrapper";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
+import InfoBanner from "components/InfoBanner";
+import CustomLink from "components/CustomLink";
 
 import generateColumnConfigsFromRows from "./QueryResultsTableConfig";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
   isQueryFinished: boolean;
+  isQueryClipped: boolean;
   queryName?: string;
   onRunQuery: () => void;
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
@@ -44,6 +47,7 @@ const NAV_TITLES = {
 const QueryResults = ({
   campaign,
   isQueryFinished,
+  isQueryClipped,
   queryName,
   onRunQuery,
   onStopQuery,
@@ -194,7 +198,8 @@ const QueryResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
-          columns={
+          defaultSortHeader="host_display_name"
+          columnConfigs={
             tableType === "results" ? resultsColumnConfigs : errorColumnConfigs
           }
           data={tableData || []}
@@ -249,6 +254,24 @@ const QueryResults = ({
         onClickRunAgain={onRunAgain}
         onClickStop={onStopQuery}
       />
+      {isQueryClipped && (
+        <InfoBanner
+          color="yellow"
+          cta={
+            <CustomLink
+              url="https://www.fleetdm.com/support"
+              text="Get help"
+              newTab
+            />
+          }
+        >
+          <div>
+            <b>Results clipped.</b> A sample of this query&apos;s results and
+            errors is included below. Please target fewer hosts at once to build
+            a full set of results.
+          </div>
+        </InfoBanner>
+      )}
       <TabsWrapper>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
@@ -256,7 +279,9 @@ const QueryResults = ({
             <Tab disabled={!errors?.length}>
               <span>
                 {errors?.length > 0 && (
-                  <span className="count">{errors.length}</span>
+                  <span className="count">
+                    {errors.length.toLocaleString()}
+                  </span>
                 )}
                 {NAV_TITLES.ERRORS}
               </span>

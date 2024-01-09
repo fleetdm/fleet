@@ -2087,3 +2087,24 @@ func TestJSONToInterfaceUser(t *testing.T) {
 		assert.Equal(t, json.Number("42"), subject["teams"].([]interface{})[1].(map[string]interface{})["id"])
 	}
 }
+
+func TestHostHealth(t *testing.T) {
+	t.Parallel()
+
+	hostHealth := &fleet.HostHealth{TeamID: ptr.Uint(1)}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: hostHealth, action: read, allow: false},
+		{user: test.UserGitOps, object: hostHealth, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: hostHealth, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: hostHealth, action: read, allow: false},
+		{user: test.UserAdmin, object: hostHealth, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: hostHealth, action: read, allow: true},
+		{user: test.UserTeamAdminTeam2, object: hostHealth, action: read, allow: false},
+		{user: test.UserObserver, object: hostHealth, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: hostHealth, action: read, allow: true},
+		{user: test.UserTeamObserverTeam2, object: hostHealth, action: read, allow: false},
+		{user: test.UserMaintainer, object: hostHealth, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: hostHealth, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam2, object: hostHealth, action: read, allow: false},
+	})
+}
