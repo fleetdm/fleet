@@ -62,17 +62,18 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
 - **Clear any unexpected new events or double-bookings.** Look for any new double-bookings, invites that haven't been accepted, or other events you don't recognize.
   1. Double-book temporarily with a "UNCONFIRMED" calendar block so that the CEO ignores it and doesn't spend time trying to figure out what it is.
   2. Go to the organizer (or nearest fleetie who's not the CEO):
-    - Get full context on what the CEO should know as to the purpose of the meeting and why the organizer thinks it is helpful or necessary for the CEO to attend.
-    - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Sam before booking](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
+     - Get full context on what the CEO should know as to the purpose of the meeting and why the organizer thinks it is helpful or necessary for the CEO to attend.
+     - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Sam before booking](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
   3. Bring prepped discussion item about this proposed event to the next CEO roundup, including the purpose of the event and why it is helpful or necessary for the CEO to attend (according to the person requesting the CEO's attendance).  The CEO will decide whether to attend.
   4. Delete the "UNCONFIRMED" block if the meeting is confirmed, or otherwise work with the organizer to pick a new time or let them know the decision.
+
 - **Prepare the agenda for any newly-added meetings**: [Meeting agenda prep](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) is especially important to help the CEO focus and transition quickly in and between meetings.
   - In the notes document include:
-    - LinkedIn profile link of all outside participants
-    - Screen-shot of LinkedIn profile pic
-    - Company name (in doc title and file name)
-    - Correct date (20XX-XX-XX in doc title and file name)
-    - Context that helps the CEO to understand the purpose of the meeting at a glance from:
+     - LinkedIn profile link of all outside participants
+     - Screen-shot of LinkedIn profile pic
+     - Company name (in doc title and file name)
+     - Correct date (20XX-XX-XX in doc title and file name)
+     - Context that helps the CEO to understand the purpose of the meeting at a glance from:
        - CEO's email
        - LinkedIn messages (careful not to mark things as read!)
        - Google Drive 
@@ -137,13 +138,13 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
 
 ### Schedule travel for the CEO
 The Apprentice schedules all travel arrangements for the CEO including flights, hotel, and reservations if needed. CEO traveling preferences in descending order of importance are:
-  - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
-  - Select a non-middle seat, whenever possible
-  - Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
-  - The CEO does not like to be called "Michael".  Unfortunately, this is necessary when booking flights.  (He has missed flights before by not doing this.)
-  - Default to carry-on only, no checked bags.  (For trips longer than 5 nights, add 1 checked bag.)
-  - Use the Brex card.
-  - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
+  1. Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
+  2. Select a non-middle seat, whenever possible
+  3. Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
+  4. The CEO does not like to be called "Michael".  Unfortunately, this is necessary when booking flights.  (He has missed flights before by not doing this.)
+  5. Default to carry-on only, no checked bags.  (For trips longer than 5 nights, add 1 checked bag.)
+  6. Use the Brex card.
+  7. Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
 
 ### Process incoming equipment
 Upon receiving any device, the Apprentice will process the incoming equipment by:
