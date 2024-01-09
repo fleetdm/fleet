@@ -7304,21 +7304,13 @@ Get a list of all software versions.
       {
         "id": 32,
         "name": "1Password – Password Manager",
-        "versions_count": 1,
+        "versions": "2.10.0",
         "source": "chrome_extensions",
         "browser": "chrome",
-        "release": "",
-        "vendor": "",
-        "arch": "",
-        "generated_cpe": "",
-        "versions": [
-          {
-            "id": 4242,
-            "version": "2.3.7",
-            "vulnerabilities": []
-          }
-        ],
-        "hosts_count": 345
+        "extension_id": "aeblfdkhhhdcdjpifhhbdiojplfjncoa",
+        "generated_cpe": "cpe:2.3:a:1password:1password:2.19.0:*:*:*:*:chrome:*:*",
+        "hosts_count": 345,
+        "vulnerabilities": null
       }
     ],
     "meta": {
