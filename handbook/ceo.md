@@ -33,17 +33,17 @@ From time to time, you will need to schedule an interview between a candidate an
 
 ### Program the CEO to do something
 
-1. If necessary or if unsure, immediately direct message the CEO on Slack to clarify priority level, timing, and level of effort.  (For example, whether to schedule 30m or 60m to complete in full, or 30m planning as an iterative step.)
-2. If there is not room on the calendar to schedule this soon enough with both Mike and Sam as needed (erring on the side of sooner), then either immediately direct message the CEO with a backup plan, or if it can obviously wait, then discuss at the next roundup.
-3. Create a calendar event with a Zoom meeting for the CEO and Apprentice.  Keep the title short.  For the description, keep it very brief and use this template:
+- If necessary or if unsure, immediately direct message the CEO on Slack to clarify priority level, timing, and level of effort.  (For example, whether to schedule 30m or 60m to complete in full, or 30m planning as an iterative step.)
+- If there is not room on the calendar to schedule this soon enough with both Mike and Sam as needed (erring on the side of sooner), then either immediately direct message the CEO with a backup plan, or if it can obviously wait, then discuss at the next roundup.
+- Create a calendar event with a Zoom meeting for the CEO and Apprentice.  Keep the title short.  For the description, keep it very brief and use this template:
 
 ```
 Agenda:
-1. Apprentice: Is there enough context for you (CEO) to accomplish this?
-2. Apprentice: Is this still a priority for you (CEO) to do.. right now?  Or should it be "someday/maybe"?
-3. Apprentice: Is there enough time for you (CEO) to do this live? (Right now during this meeting?)
-4. Apprentice: What are the next steps after you (CEO) complete this?
-5. Apprentice: LINK_TO_DOC_OR_ISSUE
+- Apprentice: Is there enough context for you (CEO) to accomplish this?
+- Apprentice: Is this still a priority for you (CEO) to do.. right now?  Or should it be "someday/maybe"?
+- Apprentice: Is there enough time for you (CEO) to do this live? (Right now during this meeting?)
+- Apprentice: What are the next steps after you (CEO) complete this?
+- Apprentice: LINK_TO_DOC_OR_ISSUE
 ```
 
 > Keep calendar event titles short so they are readable at a glance.  Please include any other info via link, so that information is not duplicated or lost in the calendar.
@@ -68,11 +68,11 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
   4. Delete the "UNCONFIRMED" block if the meeting is confirmed, or otherwise work with the organizer to pick a new time or let them know the decision.
 - **Prepare the agenda for any newly-added meetings**: [Meeting agenda prep](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) is especially important to help the CEO focus and transition quickly in and between meetings.
   - In the notes document include:
-    1. LinkedIn profile link of all outside participants
-    2. Screen-shot of LinkedIn profile pic
-    3. Company name (in doc title and file name)
-    4. Correct date (20XX-XX-XX in doc title and file name)
-    5. Context that helps the CEO to understand the purpose of the meeting at a glance from:
+    - LinkedIn profile link of all outside participants
+    - Screen-shot of LinkedIn profile pic
+    - Company name (in doc title and file name)
+    - Correct date (20XX-XX-XX in doc title and file name)
+    - Context that helps the CEO to understand the purpose of the meeting at a glance from:
        - CEO's email
        - LinkedIn messages (careful not to mark things as read!)
        - Google Drive 
@@ -87,8 +87,8 @@ The Apprentice will reduce the scope of Mike's inbox to only include necessary a
 
 ### Document performance feedback
 Every Friday at 5PM a [Business Operations team member](https://fleetdm.com/handbook/business-operations#team) will look for missing data in the [KPIs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). 
-1. If KPIs are not reported on time, the BizOps Engineer will notify the Apprentice to the CEO and the DRI.
-2. The Apprentice will update the "performance management" section of the appropriate individual's 1:1 doc so that the CEO can address during the next 1:1 meeting with the DRI.
+- If KPIs are not reported on time, the BizOps Engineer will notify the Apprentice to the CEO and the DRI.
+- The Apprentice will update the "performance management" section of the appropriate individual's 1:1 doc so that the CEO can address during the next 1:1 meeting with the DRI.
 
 ### Send the weekly update
 We like to be open about milestones and announcements.
