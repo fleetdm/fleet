@@ -4358,6 +4358,13 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 		http.StatusOK, &orbitResp)
 	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
 
+	// Verify that endpoints related to scripts are disabled
+	srResp := s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusForbidden)
+	assertBodyContains(t, srResp, fleet.RunScriptScriptsDisabledGloballyErrMsg)
+
+	srResp = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusForbidden)
+	assertBodyContains(t, srResp, fleet.RunScriptScriptsDisabledGloballyErrMsg)
+
 	acr = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"server_settings": {
