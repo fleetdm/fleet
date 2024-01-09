@@ -1,13 +1,11 @@
 .mdm-settings {
   display: flex;
   flex-direction: column;
-  width: 65%;
   gap: 80px;
 
   &__section {
-
     h2 {
-      margin-bottom: 0;
+      margin: 0;
       padding-bottom: $pad-small;
       max-width: 100%;
       font-size: $medium;

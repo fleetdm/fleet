@@ -1,32 +1,16 @@
 .integrations-management {
   &__title {
     padding-bottom: $pad-small;
-    max-width: 100%;
     font-size: $medium;
     font-weight: $regular;
     color: $core-fleet-black;
     border-bottom: solid 1px $ui-fleet-black-10;
     margin: 0 0 $pad-xxlarge;
-
-    @media (min-width: $break-md) {
-      max-width: 65%;
-    }
   }
 
   &__page-description {
     font-size: $x-small;
     color: $core-fleet-black;
-    width: 100%;
-
-    @media (min-width: $break-md) {
-      width: 60%;
-    }
-  }
-
-  .table-container {
-    @media (min-width: $break-md) {
-      max-width: 65%;
-    }
   }
 
   .no-integrations {
