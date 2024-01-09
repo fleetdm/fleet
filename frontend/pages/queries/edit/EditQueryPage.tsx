@@ -202,7 +202,7 @@ const EditQueryPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    // e.g., Query details | Discover TLS certificates | Fleet for osquery
+    // e.g., Query details | Discover TLS certificates | Fleet
     const storedQueryTitleCopy = storedQuery?.name
       ? `${storedQuery.name} | `
       : "";

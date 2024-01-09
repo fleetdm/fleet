@@ -307,7 +307,7 @@ const DeviceUserPage = ({
       return "";
     };
 
-    // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
+    // e.g., Rachel's Macbook Pro schedule details | Fleet
     document.title = `My device ${hostTab()} details | ${
       host?.display_name || "Unknown host"
     } | ${DOCUMENT_TITLE_SUFFIX}`;

@@ -52,7 +52,6 @@ import {
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
