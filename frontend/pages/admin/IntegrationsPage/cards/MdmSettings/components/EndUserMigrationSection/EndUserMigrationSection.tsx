@@ -196,7 +196,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
             value={formData.webhookUrl}
             onChange={onChangeWebhookUrl}
             error={!isValidWebhookUrl && "Must be a valid URL."}
-            hint={
+            helpText={
               <>
                 When the end users clicks <b>Start</b>, a JSON payload is sent
                 to this URL if the end user is enrolled to your old MDM. Receive

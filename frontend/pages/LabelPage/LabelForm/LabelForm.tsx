@@ -185,7 +185,7 @@ const LabelForm = ({
   const headerText = isEdit ? "Edit label" : "New label";
   const saveBtnText = isEdit ? "Update label" : "Save label";
   const saveBtnClass = isEdit ? "update-label-loading" : "save-label-loading";
-  const aceHintText = isEdit
+  const aceHelpText = isEdit
     ? "Label queries are immutable. To change the query, delete this label and create a new one."
     : "";
 
@@ -215,7 +215,7 @@ const LabelForm = ({
           onLoad={onLoad}
           readOnly={isEdit}
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          hint={aceHintText}
+          helpText={aceHelpText}
           handleSubmit={noop}
           wrapEnabled
           focus
@@ -259,7 +259,7 @@ const LabelForm = ({
         <div className={`${baseClass}__label-platform`}>
           <p className="title">Platform</p>
           <p>{platform ? PLATFORM_STRINGS[platform] : "All platforms"}</p>
-          <p className="hint">
+          <p className="help-text">
             Label platforms are immutable. To change the platform, delete this
             label and create a new one.
           </p>

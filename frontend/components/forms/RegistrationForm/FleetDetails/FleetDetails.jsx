@@ -45,9 +45,9 @@ class FleetDetails extends Component {
             {...fields.server_url}
             label="Fleet web address"
             tabIndex={tabIndex}
-            hint={[
+            helpText={[
               "Don’t include ",
-              <code key="hint">/latest</code>,
+              <code key="helpText">/latest</code>,
               " or any other path.",
             ]}
             ref={(input) => {

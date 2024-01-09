@@ -100,9 +100,7 @@ const ResetPasswordForm = ({
         value={formData.new_password || ""}
         className={`${baseClass}__input`}
         type="password"
-        hint={[
-          "12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).",
-        ]}
+        helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
       />
       <InputFieldWithIcon
         error={errors.new_password_confirmation}

@@ -358,9 +358,7 @@ const ManageAutomationsModal = ({
             value={selectedIntegration?.dropdownIndex}
             label={"Integration"}
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
-            hint={
-              "For each new vulnerability detected, Fleet will create a ticket with a list of the affected hosts."
-            }
+            helpText="For each new vulnerability detected, Fleet will create a ticket with a list of the affected hosts."
           />
         ) : (
           <div className={`${baseClass}__no-integrations`}>
@@ -408,7 +406,7 @@ const ManageAutomationsModal = ({
           value={destinationUrl}
           onChange={onURLChange}
           error={errors.url}
-          hint={
+          helpText={
             "For each new vulnerability detected, Fleet will send a JSON payload to this URL with a list of the affected hosts."
           }
           placeholder={"https://server.com/example"}

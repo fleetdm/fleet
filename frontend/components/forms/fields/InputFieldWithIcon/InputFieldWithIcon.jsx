@@ -13,7 +13,7 @@ class InputFieldWithIcon extends InputField {
   static propTypes = {
     autofocus: PropTypes.bool,
     error: PropTypes.string,
-    hint: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
+    helpText: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
     iconName: PropTypes.string,
     iconSvg: PropTypes.string,
     label: PropTypes.string,
@@ -56,11 +56,11 @@ class InputFieldWithIcon extends InputField {
     );
   };
 
-  renderHint = () => {
-    const { hint } = this.props;
+  renderHelpText = () => {
+    const { helpText } = this.props;
 
-    if (hint) {
-      return <span className={`${baseClass}__hint`}>{hint}</span>;
+    if (helpText) {
+      return <span className={`${baseClass}__help-text`}>{helpText}</span>;
     }
 
     return false;
@@ -83,7 +83,7 @@ class InputFieldWithIcon extends InputField {
       ignore1Password,
       onClick,
     } = this.props;
-    const { onInputChange, renderHint } = this;
+    const { onInputChange, renderHelpText } = this;
 
     const wrapperClasses = classnames(baseClass, {
       [`${baseClass}--icon-start`]: iconPosition && iconPosition === "start",
@@ -129,7 +129,7 @@ class InputFieldWithIcon extends InputField {
         />
         {iconSvg && <Icon name={iconSvg} className={iconClasses} />}
         {iconName && <FleetIcon name={iconName} className={iconClasses} />}
-        {renderHint()}
+        {renderHelpText()}
       </div>
     );
   }

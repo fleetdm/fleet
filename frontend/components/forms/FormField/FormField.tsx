@@ -10,7 +10,7 @@ export interface IFormFieldProps {
   children: JSX.Element;
   className: string;
   error: string;
-  hint: Array<any> | JSX.Element | string;
+  helpText: Array<any> | JSX.Element | string;
   label: Array<any> | JSX.Element | string;
   name: string;
   type: string;
@@ -21,7 +21,7 @@ const FormField = ({
   children,
   className,
   error,
-  hint: helpText,
+  helpText,
   label,
   name,
   type,

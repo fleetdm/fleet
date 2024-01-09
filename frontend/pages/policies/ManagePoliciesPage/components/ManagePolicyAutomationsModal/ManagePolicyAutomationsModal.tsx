@@ -270,9 +270,7 @@ const ManagePolicyAutomationsModal = ({
           value={destinationUrl}
           onChange={onChangeUrl}
           error={errors.url}
-          hint={
-            'For each policy, Fleet will send a JSON payload to this URL with a list of the hosts that updated their answer to "No."'
-          }
+          helpText='For each policy, Fleet will send a JSON payload to this URL with a list of the hosts that updated their answer to "No."'
           placeholder={"https://server.com/example"}
           tooltip="Provide a URL to deliver a webhook request to."
         />

@@ -116,7 +116,7 @@ const Advanced = ({
                   <p>
                     If you need to specify a HELO domain, <br />
                     you can do it here{" "}
-                    <em className="hint hint--brand">
+                    <em>
                       (Default: <strong>Blank</strong>)
                     </em>
                   </p>
@@ -131,7 +131,7 @@ const Advanced = ({
                   <p>
                     Turn this off (not recommended) <br />
                     if you use a self-signed certificate{" "}
-                    <em className="hint hint--brand">
+                    <em>
                       <br />
                       (Default: <strong>On</strong>)
                     </em>
@@ -150,7 +150,7 @@ const Advanced = ({
                     Detects if STARTTLS is enabled <br />
                     in your SMTP server and starts <br />
                     to use it.{" "}
-                    <em className="hint hint--brand">
+                    <em>
                       (Default: <strong>On</strong>)
                     </em>
                   </p>
@@ -176,7 +176,7 @@ const Advanced = ({
                       window
                     </strong>{" "}
                     setting.{" "}
-                    <em className="hint hint--brand">
+                    <em>
                       (Default: <strong>Off</strong>)
                     </em>
                   </>
@@ -205,7 +205,7 @@ const Advanced = ({
                     When enabled, disables the ability to run live queries{" "}
                     <br />
                     (ad hoc queries executed via the UI or fleetctl).{" "}
-                    <em className="hint hint--brand">
+                    <em>
                       (Default: <strong>Off</strong>)
                     </em>
                   </p>
@@ -223,7 +223,7 @@ const Advanced = ({
                     Disabling scripts will block access to run scripts. Scripts{" "}
                     <br /> may still be added and removed in the UI and API.{" "}
                     <br />
-                    <em className="hint hint--brand">
+                    <em>
                       (Default: <strong>Off</strong>)
                     </em>
                   </p>

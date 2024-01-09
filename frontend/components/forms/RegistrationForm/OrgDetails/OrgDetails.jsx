@@ -54,7 +54,7 @@ class OrgDetails extends Component {
             {...fields.org_logo_url}
             label="Organization logo URL (optional)"
             tabIndex={tabIndex}
-            hint="Personalize Fleet with your brand.  For best results, use a square image at least 150px wide, like https://fleetdm.com/logo.png."
+            helpText="Personalize Fleet with your brand.  For best results, use a square image at least 150px wide, like https://fleetdm.com/logo.png."
           />
         </div>
         <Button

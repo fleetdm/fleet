@@ -147,12 +147,7 @@ const Sso = ({
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Entity ID"
-            hint={
-              <span>
-                The URI you provide here must exactly match the Entity ID field
-                used in identity provider configuration.
-              </span>
-            }
+            helpText="The URI you provide here must exactly match the Entity ID field used in identity provider configuration."
             onChange={handleInputChange}
             name="entityId"
             value={entityId}
@@ -192,12 +187,7 @@ const Sso = ({
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Metadata URL"
-            hint={
-              <span>
-                If available from the identity provider, this is the preferred
-                means of providing metadata.
-              </span>
-            }
+            helpText="If available from the identity provider, this is the preferred means of providing metadata."
             onChange={handleInputChange}
             name="metadataUrl"
             value={metadataUrl}

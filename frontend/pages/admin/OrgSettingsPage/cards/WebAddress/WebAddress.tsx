@@ -64,11 +64,7 @@ const WebAddress = ({
         <div className={`${baseClass}__inputs`}>
           <InputField
             label="Fleet app URL"
-            hint={
-              <span>
-                Include base path only (eg. no <code>/latest</code>)
-              </span>
-            }
+            helpText="Include base path only (eg. no <code>/latest</code>)"
             onChange={handleInputChange}
             name="serverURL"
             value={serverURL}

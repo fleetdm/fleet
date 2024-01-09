@@ -119,7 +119,7 @@ class InputField extends Component {
     });
 
     const formFieldProps = pick(this.props, [
-      "hint",
+      "helpText",
       "label",
       "error",
       "name",

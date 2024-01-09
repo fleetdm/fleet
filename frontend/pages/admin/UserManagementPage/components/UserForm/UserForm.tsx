@@ -421,9 +421,7 @@ const UserForm = ({
                 placeholder="••••••••"
                 value={formData.password || ""}
                 type="password"
-                hint={[
-                  "12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).",
-                ]}
+                helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
                 blockAutoComplete
               />
             </div>
@@ -513,7 +511,7 @@ const UserForm = ({
                     placeholder="Password"
                     value={formData.password || ""}
                     type="password"
-                    hint={[
+                    helpText={[
                       "12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).",
                     ]}
                     blockAutoComplete

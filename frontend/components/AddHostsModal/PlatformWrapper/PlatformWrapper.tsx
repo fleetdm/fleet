@@ -431,10 +431,8 @@ const PlatformWrapper = ({
                 )}
                 type="textarea"
                 value={renderInstallerString(packageType)}
+                helpText="Distribute your package to add hosts to Fleet."
               />
-              <p className={`${baseClass}__advanced--instructions`}>
-                Distribute your package to add hosts to Fleet.
-              </p>
               <InfoBanner className={`${baseClass}__chrome--instructions`}>
                 This works for macOS, Windows, and Linux hosts. To add
                 Chromebooks,{" "}
