@@ -463,12 +463,13 @@ func checkVersion(ctx context.Context, rule *schema.NVDCVEFeedJSON10DefCPEMatch,
 // buildConstraintString builds a semver constraint string from the startIncluding,
 // startExcluding, and endExcluding strings
 func buildConstraintString(startIncluding, startExcluding, endExcluding string) string {
-	if startIncluding == "" && startExcluding == "" {
-		return ""
-	}
 	startIncluding = preprocessVersion(startIncluding)
 	startExcluding = preprocessVersion(startExcluding)
 	endExcluding = preprocessVersion(endExcluding)
+
+	if startIncluding == "" && startExcluding == "" {
+		return fmt.Sprintf("< %s", endExcluding)
+	}
 
 	if startIncluding != "" {
 		return fmt.Sprintf(">= %s, < %s", startIncluding, endExcluding)
