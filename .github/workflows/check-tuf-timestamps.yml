@@ -33,8 +33,8 @@ jobs:
       run: |
         expires=$(curl -s http://tuf.fleetctl.com/timestamp.json | jq -r '.signed.expires' | cut -c 1-10)
         today=$(date "+%Y-%m-%d")
-        expires_sec=$(date -j -f "%Y-%m-%d" "$expires" "+%s")
-        today_sec=$(date -j -f "%Y-%m-%d" "$today" "+%s")
+        expires_sec=$(date -d "$expires" "+%s")
+        today_sec=$(date -d "$today" "+%s")
         
         if [ "$expires_sec" -le "$today_sec" ]; then
             exit 1
@@ -43,7 +43,7 @@ jobs:
         fi
 
     - name: Slack Notification
-      if: failure()
+      if: false
       uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
       with:
         payload: |
@@ -54,7 +54,7 @@ jobs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "⚠️ TUF timestamp.json expires today or has already expired\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}"
+                  "text": "⚠️ TUF timestamp.json expires today or has already expired\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
                 }
               }
             ]
