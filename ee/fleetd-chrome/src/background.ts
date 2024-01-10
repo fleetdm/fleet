@@ -25,8 +25,8 @@ const request = async ({ path, body = {} }: requestArgs): Promise<any> => {
     body: JSON.stringify(body),
   };
   console.debug("Request:", target, options);
-  let response: Response
-  let response_body: { node_invalid: any; error: string; }
+  let response: Response;
+  let response_body: { node_invalid: any; error: string };
   try {
     response = await fetch(target, options);
     response_body = await response.json();
@@ -195,7 +195,9 @@ const main = async () => {
   const platform = navigator.userAgentData.platform;
   const { installType } = await chrome.management.getSelf();
   if (platform !== "Chrome OS" && installType !== "development") {
-    console.error("Refusing to run on non Chrome OS with managed install!");
+    console.error(
+      "WATERMELON Refusing to run on non Chrome OS with managed install!"
+    );
     return;
   }
 

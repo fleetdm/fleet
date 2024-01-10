@@ -57,5 +57,5 @@ jobs:
           endpoint = $R2_ENDPOINT
           
           " > ~/.config/rclone/rclone.conf
-          mv dist.crx fleetd.crx
-          rclone copy fleetd.crx r2:chrome-beta/
+          rclone copyto dist.crx r2:chrome-beta/fleetd.crx
+          rclone copyto updates-beta.xml r2:chrome-beta/updates.xml
