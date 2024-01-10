@@ -257,7 +257,11 @@
       padding: 0;
       margin-top: 16px;
       margin-bottom: 20px;
-      li {
+      ul > li {
+        text-indent: 0px;
+        margin-left: 0px;
+      }
+      > li {
         counter-increment: custom-counter;
         margin-left: 36px;
         text-indent: -36px;
@@ -274,7 +278,7 @@
           text-indent: 0px;
         }
       }
-      li::before {
+      > li::before {
         content: counter(custom-counter);
         background-color: #E2E4EA;
         width: 24px;

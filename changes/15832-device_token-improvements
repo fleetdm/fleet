@@ -1,4 +1,0 @@
-Fixed badly formatted error message in /api/fleet/orbit/device_token endpoint and others.
-In /api/fleet/orbit/device_token:
-- Added token validation -- empty token not allowed
-- Replaced 500 error with 409 when token conflicts with another host
