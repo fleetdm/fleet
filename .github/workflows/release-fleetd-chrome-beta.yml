@@ -45,7 +45,7 @@ jobs:
           R2_CHROME_BETA_ACCESS_KEY_ID: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_ID }}
           R2_CHROME_BETA_ACCESS_KEY_SECRET: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_SECRET }}
         run: |
-          apt install rclone
+          sudo apt install rclone
           echo "[r2]
           type = s3
           provider = Cloudflare
