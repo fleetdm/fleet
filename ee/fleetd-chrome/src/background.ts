@@ -195,9 +195,7 @@ const main = async () => {
   const platform = navigator.userAgentData.platform;
   const { installType } = await chrome.management.getSelf();
   if (platform !== "Chrome OS" && installType !== "development") {
-    console.error(
-      "WATERMELON Refusing to run on non Chrome OS with managed install!"
-    );
+    console.error("Refusing to run on non Chrome OS with managed install!");
     return;
   }
 
