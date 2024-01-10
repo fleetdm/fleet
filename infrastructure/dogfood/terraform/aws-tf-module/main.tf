@@ -260,9 +260,7 @@ module "mdm" {
   enable_windows_mdm = true
   apn_secret_name    = "${local.customer}-apn"
   scep_secret_name   = "${local.customer}-scep"
-  # dep_secret_name    = "${local.customer}-dep"
-  # Temp disable ABM
-  dep_secret_name    = null
+  dep_secret_name    = "${local.customer}-dep"
 }
 
 module "firehose-logging" {

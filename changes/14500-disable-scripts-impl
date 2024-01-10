@@ -1,1 +1,0 @@
-- Adds ability to disable Scripts feature in Fleet through a new config flag: `scripts_disabled`.
