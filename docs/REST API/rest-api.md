@@ -1824,7 +1824,7 @@ None.
 - [Get host's scripts](#get-hosts-scripts)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
-- [Get host's past activity](#get-hosts-past-activity) 
+- [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
 
 ### On the different timestamps in the host data structure
@@ -3645,7 +3645,11 @@ Retrieves a list of the configuration profiles assigned to a host.
         "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
       },
     },
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -3702,7 +3706,11 @@ Retrieves a list of the configuration profiles assigned to a host.
         "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
       },
     },
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -5552,7 +5560,7 @@ Team policies work the same as policies, but at the team level.
 #### Parameters
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id                 | integer | path  | **Required.** Defines what team ID to operate on   
+| team_id                 | integer | path  | **Required.** Defines what team ID to operate on
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 
 #### Example
@@ -6885,9 +6893,9 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Run script
 
-Run a script on a host. 
+Run a script on a host.
 
-The script will be added to the host's list of upcoming activities. 
+The script will be added to the host's list of upcoming activities.
 
 The new script will run after other activities finish. Failure of one activity won't cancel other activities.
 
