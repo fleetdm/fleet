@@ -114,7 +114,7 @@ func testAppConfigOrgInfo(t *testing.T, ds *Datastore) {
 
 	verify, err = ds.UserByEmail(context.Background(), email)
 	assert.Nil(t, err)
-	assert.False(t, verify.SSOEnabled)
+	assert.True(t, verify.SSOEnabled) // SSO stays enabled for user even when globally disabled
 }
 
 func testAppConfigAdditionalQueries(t *testing.T, ds *Datastore) {
