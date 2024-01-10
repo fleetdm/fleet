@@ -45,7 +45,7 @@ jobs:
           R2_CHROME_BETA_ACCESS_KEY_ID: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_ID }}
           R2_CHROME_BETA_ACCESS_KEY_SECRET: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_SECRET }}
         run: |
-          sudo apt install rclone
+          sudo apt-get install rclone
           mkdir -p ~/.config/rclone
           echo "[r2]
           type = s3
@@ -57,5 +57,7 @@ jobs:
           endpoint = $R2_ENDPOINT
           
           " > ~/.config/rclone/rclone.conf
-          rclone copyto dist.crx r2:chrome-beta/fleetd.crx
-          rclone copyto updates-beta.xml r2:chrome-beta/updates.xml
+          mv dist.crx fleetd.crx
+          rclone copyto fleetd.crx r2:chrome-beta/
+          mv updates-beta.xml updates.xml
+          rclone copyto updates.xml r2:chrome-beta/
