@@ -43,13 +43,32 @@ jobs:
         working-directory: ./ee/fleetd-chrome
         run: npm install
 
-      - name: Build Extension
+      - name: Build & Sign Extension
         working-directory: ./ee/fleetd-chrome
-        run: |
-          echo -e 'FLEET_URL="url"\nFLEET_ENROLL_SECRET="secret"' > .env
-          npm run build
-
-      - name: Debug via SSH
-        uses: mxschmitt/action-tmate@8b4e4ac71822ed7e0ad5fb3d1c33483e9e8fb270 # v3.11
         env:
           CHROME_SIGNING_KEY: ${{ secrets.FLEETD_CHROME_SIGNING_KEY_BETA }}
+        run: |
+          npm run build
+          echo "$CHROME_SIGNING_KEY" > chrome.pem
+          /usr/bin/google-chrome --pack-extension=./dist --pack-extension-key=chrome.pem
+
+      - name: Upload Extension
+        working-directory: ./ee/fleetd-chrome
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_CHROME_BETA_ACCESS_KEY_ID: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_ID }}
+          R2_CHROME_BETA_ACCESS_KEY_SECRET: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_SECRET }}
+        run: |
+          brew install rclone
+          echo "[r2]
+          type = s3
+          provider = Cloudflare
+          region = auto
+          no_check_bucket = true
+          access_key_id = $R2_CHROME_BETA_ACCESS_KEY_ID
+          secret_access_key = $R2_CHROME_BETA_ACCESS_KEY_SECRET
+          endpoint = $R2_ENDPOINT
+          
+          " > ~/.config/rclone/rclone.conf
+          mv dist.crx fleetd.crx
+          rclone copy fleetd.crx r2:chrome-beta/
