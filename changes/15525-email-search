@@ -1,1 +1,0 @@
-- Fixes bug where searching hosts by email when filtering by a label returned no results.

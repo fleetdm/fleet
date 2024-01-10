@@ -418,6 +418,18 @@ func main() {
 				return err
 			}
 
+			// Get current version of osquery
+			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
+			if err != nil {
+				log.Info().Err(err).Msg("Could not find local osqueryd executable")
+			} else {
+				version := update.GetVersion(osquerydPath)
+				if version != "" {
+					log.Info().Msgf("Found osquery version: %s", version)
+					updateRunner.OsqueryVersion = version
+				}
+			}
+
 			// Perform early check for updates before starting any sub-system.
 			// This is to prevent bugs in other sub-systems to mess up with
 			// the download of available updates.
@@ -1008,8 +1020,14 @@ func main() {
 			log.Info().Msg("checking for custom mdm enrollment profile with end user email")
 			email, err := profiles.GetCustomEnrollmentProfileEndUserEmail()
 			if err != nil {
-				log.Error().Err(err).Msg("get custom enrollment profile end user email")
+				if errors.Is(err, profiles.ErrNotFound) {
+					// This is fine. Many hosts will not have this profile so just log and continue.
+					log.Info().Msg(fmt.Sprintf("get custom enrollment profile end user email: %s", err))
+				} else {
+					log.Error().Err(err).Msg("get custom enrollment profile end user email")
+				}
 			}
+
 			if email != "" {
 				log.Info().Msg(fmt.Sprintf("found custom end user email: %s", email))
 				if err := orbitClient.SetOrUpdateDeviceMappingEmail(email); err != nil {
