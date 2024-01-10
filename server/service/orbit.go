@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -169,8 +169,6 @@ func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
-	const pendingScriptMaxAge = time.Minute
-
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -230,7 +228,10 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// load the pending script executions for that host
 	if !appConfig.ServerSettings.ScriptsDisabled {
-		pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, pendingScriptMaxAge)
+		// it is important that the "ignoreOlder" parameter in this call is the
+		// same everywhere (which is here and in RunScript to check if there is
+		// already a pending script).
+		pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, scripts.MaxServerWaitTime)
 		if err != nil {
 			return fleet.OrbitConfig{}, err
 		}

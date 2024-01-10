@@ -1336,6 +1336,7 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 	log.Debug().Str("query", systemQuery).Msg("running single query")
 	out, err := exec.Command(osqueryPath, args...).Output()
 	if err != nil {
+		log.Debug().Str("output", string(out)).Msg("getHostInfo via osquery")
 		return nil, err
 	}
 	var info []osqueryHostInfo
