@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 jobs:
-  build-fleetd-chrome:
+  release-fleetd-chrome-beta:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -34,6 +34,7 @@ jobs:
           CHROME_SIGNING_KEY: ${{ secrets.FLEETD_CHROME_SIGNING_KEY_BETA }}
         run: |
           echo -e 'FLEET_URL=""\nFLEET_ENROLL_SECRET=""' > .env
+          export NODE_ENV=production
           npm install && npm run build
           echo "$CHROME_SIGNING_KEY" > chrome.pem
           /usr/bin/google-chrome --pack-extension=./dist --pack-extension-key=chrome.pem
