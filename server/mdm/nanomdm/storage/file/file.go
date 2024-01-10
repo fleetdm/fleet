@@ -9,8 +9,8 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/micromdm/nanomdm/cryptoutil"
-	"github.com/micromdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
 const (

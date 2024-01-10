@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/micromdm/nanomdm/mdm"
-	"github.com/micromdm/nanomdm/storage/file"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/file"
 )
 
 func loadAuthMsg() (*mdm.Authenticate, error) {

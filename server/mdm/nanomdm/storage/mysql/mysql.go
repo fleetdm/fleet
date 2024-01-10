@@ -8,10 +8,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/micromdm/nanomdm/cryptoutil"
-	"github.com/micromdm/nanomdm/log"
-	"github.com/micromdm/nanomdm/log/ctxlog"
-	"github.com/micromdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
 // Schema holds the schema for the NanoMDM MySQL storage.

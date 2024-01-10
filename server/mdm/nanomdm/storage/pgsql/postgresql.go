@@ -8,10 +8,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/micromdm/nanomdm/cryptoutil"
-	"github.com/micromdm/nanomdm/log"
-	"github.com/micromdm/nanomdm/log/ctxlog"
-	"github.com/micromdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
 // Schema holds the schema for the NanoMDM PostgresSQL storage.
@@ -144,8 +144,8 @@ INSERT INTO users
     (id, device_id, user_short_name, user_long_name, token_update, token_update_at)
 VALUES
     ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
-ON CONFLICT ON CONSTRAINT users_pkey DO UPDATE 
-SET 
+ON CONFLICT ON CONSTRAINT users_pkey DO UPDATE
+SET
     device_id = EXCLUDED.device_id,
     user_short_name = EXCLUDED.user_short_name,
     user_long_name = EXCLUDED.user_long_name,
@@ -184,7 +184,7 @@ INSERT INTO enrollments
 	(id, device_id, user_id, type, topic, push_magic, token_hex, last_seen_at, token_update_tally)
 VALUES
 	($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, 1)
-ON CONFLICT ON CONSTRAINT enrollments_pkey DO UPDATE 
+ON CONFLICT ON CONSTRAINT enrollments_pkey DO UPDATE
 SET
     device_id = EXCLUDED.device_id,
     user_id = EXCLUDED.user_id,
@@ -231,7 +231,7 @@ INSERT INTO users
     (id, device_id, user_short_name, user_long_name, `+colName+`, `+colAtName+`)
 VALUES
     ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
-ON CONFLICT ON CONSTRAINT users_pkey DO UPDATE 
+ON CONFLICT ON CONSTRAINT users_pkey DO UPDATE
 SET
     device_id = EXCLUDED.device_id,
     user_short_name = EXCLUDED.user_short_name,

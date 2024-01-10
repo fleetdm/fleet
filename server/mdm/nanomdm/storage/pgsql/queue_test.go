@@ -10,9 +10,9 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/internal/test"
 	_ "github.com/lib/pq"
-	"github.com/micromdm/nanomdm/mdm"
-	"github.com/micromdm/nanomdm/storage/internal/test"
 )
 
 var flDSN = flag.String("dsn", "", "DSN of test PostgreSQL instance")

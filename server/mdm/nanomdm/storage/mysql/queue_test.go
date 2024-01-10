@@ -6,7 +6,7 @@ package mysql
 import (
 	"testing"
 
-	"github.com/micromdm/nanomdm/storage/internal/test"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/internal/test"
 
 	_ "github.com/go-sql-driver/mysql"
 )

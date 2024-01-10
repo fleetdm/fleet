@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/micromdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
 // Executes SQL statements that return a single COUNT(*) of rows.
@@ -42,7 +42,7 @@ func (s *PgSQLStorage) IsCertHashAssociated(r *mdm.Request, hash string) (bool, 
 func (s *PgSQLStorage) AssociateCertHash(r *mdm.Request, hash string) error {
 	_, err := s.db.ExecContext(
 		r.Context, `
-INSERT INTO cert_auth_associations (id, sha256) 
+INSERT INTO cert_auth_associations (id, sha256)
 VALUES ($1, $2)
 ON CONFLICT ON CONSTRAINT cert_auth_associations_pkey DO UPDATE SET updated_at=now();`,
 		r.ID,

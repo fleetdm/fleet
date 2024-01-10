@@ -8,8 +8,8 @@ import (
 	"errors"
 	"io/ioutil"
 
-	"github.com/micromdm/nanomdm/mdm"
-	"github.com/micromdm/nanomdm/storage"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 )
 
 type DeviceInterfaces interface {

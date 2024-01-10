@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/micromdm/nanomdm/cryptoutil"
-	mdmhttp "github.com/micromdm/nanomdm/http"
-	"github.com/micromdm/nanomdm/log"
-	"github.com/micromdm/nanomdm/log/ctxlog"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
+	mdmhttp "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
 )
 
 type contextKeyCert struct{}

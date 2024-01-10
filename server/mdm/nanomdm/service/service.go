@@ -2,7 +2,7 @@
 package service
 
 import (
-	"github.com/micromdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
 // DeclarativeManagement is the interface for handling the Apple

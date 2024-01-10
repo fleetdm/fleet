@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/micromdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
 func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command) error {
@@ -139,7 +139,7 @@ INSERT INTO command_results
     (id, command_uuid, status, result, not_now_at, not_now_tally)
 VALUES
     ($1, $2, $3, $4, `+notNowConstants+`)
-ON CONFLICT ON CONSTRAINT command_results_pkey DO UPDATE 
+ON CONFLICT ON CONSTRAINT command_results_pkey DO UPDATE
 SET
     status = EXCLUDED.status,
     result = EXCLUDED.result`+notNowBumpTallySQL+`;`,
@@ -189,10 +189,10 @@ FROM enrollment_queue  AS q
 		ON q.command_uuid = c.command_uuid
 	LEFT JOIN command_results r
 		ON r.command_uuid = q.command_uuid AND r.id = q.id
-WHERE 
+WHERE
     e.device_id = $1 AND
     enrollment_queue.active = TRUE AND
-    (r.status IS NULL OR r.status = 'NotNow') AND 
+    (r.status IS NULL OR r.status = 'NotNow') AND
     enrollment_queue.id = q.id;`,
 		r.ID)
 	return err

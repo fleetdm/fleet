@@ -5,10 +5,10 @@ import (
 	"context"
 	"sync"
 
-	"github.com/micromdm/nanomdm/log"
-	"github.com/micromdm/nanomdm/log/ctxlog"
-	"github.com/micromdm/nanomdm/mdm"
-	"github.com/micromdm/nanomdm/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 )
 
 // MultiService executes multiple services for the same service calls.

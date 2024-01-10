@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/micromdm/nanomdm/log"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
 )
 
 // Logger wraps a standard library logger and adapts it to pkg/log.

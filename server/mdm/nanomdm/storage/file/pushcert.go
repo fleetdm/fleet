@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/micromdm/nanomdm/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 )
 
 // RetrievePushCert is passed through to a new PushCertFileStorage

@@ -1,8 +1,8 @@
 package allmulti
 
 import (
-	"github.com/micromdm/nanomdm/mdm"
-	"github.com/micromdm/nanomdm/storage"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 )
 
 func (ms *MultiAllStorage) HasCertHash(r *mdm.Request, hash string) (bool, error) {

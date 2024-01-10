@@ -4,7 +4,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/micromdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
 func (s *FileStorage) StoreBootstrapToken(r *mdm.Request, msg *mdm.SetBootstrapToken) error {

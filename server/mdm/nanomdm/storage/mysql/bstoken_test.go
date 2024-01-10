@@ -9,7 +9,7 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/micromdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
 func TestBSToken(t *testing.T) {

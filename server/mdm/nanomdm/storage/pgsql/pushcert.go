@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"strconv"
 
-	"github.com/micromdm/nanomdm/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 )
 
 func (s *PgSQLStorage) RetrievePushCert(ctx context.Context, topic string) (*tls.Certificate, string, error) {
@@ -50,7 +50,7 @@ func (s *PgSQLStorage) StorePushCert(ctx context.Context, pemCert, pemKey []byte
 INSERT INTO push_certs
     (topic, cert_pem, key_pem, stale_token)
 VALUES
-    ($1, $2, $3, 0) 
+    ($1, $2, $3, 0)
 ON CONFLICT (topic) DO
 UPDATE SET
     cert_pem = EXCLUDED.cert_pem,

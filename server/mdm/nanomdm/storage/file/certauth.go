@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/micromdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
 func (s *FileStorage) EnrollmentHasCertHash(r *mdm.Request, _ string) (bool, error) {

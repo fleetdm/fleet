@@ -12,13 +12,13 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/micromdm/nanomdm/cryptoutil"
-	mdmhttp "github.com/micromdm/nanomdm/http"
-	"github.com/micromdm/nanomdm/log"
-	"github.com/micromdm/nanomdm/log/ctxlog"
-	"github.com/micromdm/nanomdm/mdm"
-	"github.com/micromdm/nanomdm/push"
-	"github.com/micromdm/nanomdm/storage"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
+	mdmhttp "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 )
 
 // enrolledAPIResult is a per-enrollment API result.

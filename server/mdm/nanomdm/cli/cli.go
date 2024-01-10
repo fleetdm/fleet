@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/micromdm/nanomdm/log"
-	"github.com/micromdm/nanomdm/storage"
-	"github.com/micromdm/nanomdm/storage/allmulti"
-	"github.com/micromdm/nanomdm/storage/file"
-	"github.com/micromdm/nanomdm/storage/mysql"
-	"github.com/micromdm/nanomdm/storage/pgsql"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/allmulti"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/file"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/pgsql"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"

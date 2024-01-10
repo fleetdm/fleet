@@ -9,8 +9,8 @@ import (
 	"time"
 
 	bufordpush "github.com/RobotsAndPencils/buford/push"
-	"github.com/micromdm/nanomdm/mdm"
-	"github.com/micromdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 )
 
 // NewClient describes a callback for setting up an HTTP client for Push notifications.

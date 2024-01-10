@@ -4,7 +4,7 @@ import (
 	"crypto/x509"
 	"errors"
 
-	"github.com/micromdm/nanomdm/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 )
 
 // SignatureVerifier is a simple certificate verifier

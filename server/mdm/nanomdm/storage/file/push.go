@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/micromdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
 // RetrievePushInfo retrieves APNs-related data for push notifications
