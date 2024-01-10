@@ -21,12 +21,33 @@ permissions:
 
 jobs:
   build-fleetd-chrome:
-    runs-on: linux-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: JS Dependency Cache
+        id: js-cache
+        uses: actions/cache@69d9d449aced6a2ede0bc19182fadc3a0a42d2b0 # v2
+        with:
+          path: |
+            **/node_modules
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-modules-
+
+      - name: Install JS Dependencies
+        if: steps.js-cache.outputs.cache-hit != 'true'
+        working-directory: ./ee/fleetd-chrome
+        run: npm install
+
+      - name: Build Extension
+        working-directory: ./ee/fleetd-chrome
+        run: |
+          echo -e 'FLEET_URL="url"\nFLEET_ENROLL_SECRET="secret"' > .env
+          npm run build
 
       - name: Debug via SSH
         uses: mxschmitt/action-tmate@8b4e4ac71822ed7e0ad5fb3d1c33483e9e8fb270 # v3.11
