@@ -324,6 +324,7 @@ func TestCalculateOutputSize(t *testing.T) {
 		result.Rows = append(result.Rows, map[string]string{})
 		result.Rows = append(result.Rows, map[string]string{"a": "b", "a1": "b1"})
 		result.Rows = append(result.Rows, map[string]string{"c": "d"})
+		result.Stats = &fleet.Stats{}
 		return &result
 	}
 	t.Run(

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -228,16 +229,18 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// load the pending script executions for that host
-	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, pendingScriptMaxAge)
-	if err != nil {
-		return fleet.OrbitConfig{}, err
-	}
-	if len(pending) > 0 {
-		execIDs := make([]string, 0, len(pending))
-		for _, p := range pending {
-			execIDs = append(execIDs, p.ExecutionID)
+	if !appConfig.ServerSettings.ScriptsDisabled {
+		pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, pendingScriptMaxAge)
+		if err != nil {
+			return fleet.OrbitConfig{}, err
 		}
-		notifs.PendingScriptExecutionIDs = execIDs
+		if len(pending) > 0 {
+			execIDs := make([]string, 0, len(pending))
+			for _, p := range pending {
+				execIDs = append(execIDs, p.ExecutionID)
+			}
+			notifs.PendingScriptExecutionIDs = execIDs
+		}
 	}
 
 	// team ID is not nil, get team specific flags and options
@@ -279,11 +282,21 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			notifs.EnforceBitLockerEncryption = true
 		}
 
+		var updateChannels *fleet.OrbitUpdateChannels
+		if len(opts.UpdateChannels) > 0 {
+			var uc fleet.OrbitUpdateChannels
+			if err := json.Unmarshal(opts.UpdateChannels, &uc); err != nil {
+				return fleet.OrbitConfig{}, err
+			}
+			updateChannels = &uc
+		}
+
 		return fleet.OrbitConfig{
-			Flags:         opts.CommandLineStartUpFlags,
-			Extensions:    extensionsFiltered,
-			Notifications: notifs,
-			NudgeConfig:   nudgeConfig,
+			Flags:          opts.CommandLineStartUpFlags,
+			Extensions:     extensionsFiltered,
+			Notifications:  notifs,
+			NudgeConfig:    nudgeConfig,
+			UpdateChannels: updateChannels,
 		}, nil
 	}
 
@@ -315,11 +328,21 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.EnforceBitLockerEncryption = true
 	}
 
+	var updateChannels *fleet.OrbitUpdateChannels
+	if len(opts.UpdateChannels) > 0 {
+		var uc fleet.OrbitUpdateChannels
+		if err := json.Unmarshal(opts.UpdateChannels, &uc); err != nil {
+			return fleet.OrbitConfig{}, err
+		}
+		updateChannels = &uc
+	}
+
 	return fleet.OrbitConfig{
-		Flags:         opts.CommandLineStartUpFlags,
-		Extensions:    extensionsFiltered,
-		Notifications: notifs,
-		NudgeConfig:   nudgeConfig,
+		Flags:          opts.CommandLineStartUpFlags,
+		Extensions:     extensionsFiltered,
+		Notifications:  notifs,
+		NudgeConfig:    nudgeConfig,
+		UpdateChannels: updateChannels,
 	}, nil
 }
 
@@ -423,13 +446,20 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
+	if len(deviceAuthToken) == 0 {
+		return badRequest("device auth token cannot be empty")
+	}
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return newOsqueryError("internal error: missing host from request context")
 	}
 
 	if err := svc.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceAuthToken); err != nil {
-		return newOsqueryError(fmt.Sprintf("internal error: failed to set or update device auth token: %e", err))
+		if errors.As(err, &fleet.ConflictError{}) {
+			return err
+		}
+		return newOsqueryError(fmt.Sprintf("internal error: failed to set or update device auth token: %s", err))
 	}
 
 	return nil

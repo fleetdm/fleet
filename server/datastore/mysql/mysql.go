@@ -27,7 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/goose"
+	"github.com/fleetdm/fleet/v4/server/goose"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -1118,6 +1118,8 @@ var (
 	nonacsiiReplace = regexp.MustCompile(`[^[:ascii:]]`)
 )
 
+// hostSearchLike searches hosts based on the given columns plus searching in hosts_emails. Note:
+// the host from the `hosts` table must be aliased to `h` in `sql`.
 func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}, bool) {
 	var matchesEmail bool
 	base, args := searchLike(sql, params, match, columns...)

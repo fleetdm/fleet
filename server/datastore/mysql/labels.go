@@ -506,8 +506,10 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       h.public_ip,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hst.seen_time, h.created_at) as seen_time,
       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
+      (CASE WHEN uptime = 0 THEN DATE('0001-01-01') ELSE DATE_SUB(h.detail_updated_at, INTERVAL uptime/1000 MICROSECOND) END) as last_restarted_at,
       (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
       %s
       %s
@@ -591,7 +593,10 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		query, params = ds.filterHostsByOSSettingsStatus(query, opt, params, enableDiskEncryption)
+		query, params, err = ds.filterHostsByOSSettingsStatus(query, opt, params, enableDiskEncryption)
+		if err != nil {
+			return "", nil, err
+		}
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		query, params = ds.filterHostsByOSSettingsDiskEncryptionStatus(query, opt, params, enableDiskEncryption)
 	}
@@ -672,6 +677,7 @@ func (ds *Datastore) ListUniqueHostsInLabels(ctx context.Context, filter fleet.T
         h.public_ip,
         COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
         COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+        COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
         (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
       FROM label_membership lm
       JOIN hosts h ON lm.host_id = h.id

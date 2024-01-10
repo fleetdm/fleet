@@ -152,6 +152,10 @@ func (svc *Service) GetQueryReportResults(ctx context.Context, id uint) ([]fleet
 		return nil, err
 	}
 
+	if query.DiscardData {
+		return nil, nil
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, fleet.ErrNoContext

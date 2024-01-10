@@ -278,7 +278,8 @@ func (svc Service) addLiveQueryActivity(
 
 func calculateOutputSize(perfStatsTracker *statsTracker, res *fleet.DistributedQueryResult) uint64 {
 	outputSize := uint64(0)
-	if perfStatsTracker.saveStats {
+	// We only need the output size if other stats are present.
+	if perfStatsTracker.saveStats && res.Stats != nil {
 		for _, row := range res.Rows {
 			if row == nil {
 				continue

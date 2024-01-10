@@ -154,6 +154,7 @@ const QueryReport = ({
               />
             );
           }}
+          defaultSortHeader="last_fetched"
           isLoading={false}
           isClientSidePagination
           isClientSideFilter

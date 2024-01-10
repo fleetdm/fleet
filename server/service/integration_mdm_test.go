@@ -259,6 +259,8 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	appCfg.MDM.WindowsEnabledAndConfigured = true
 	// ensure global disk encryption is disabled on exit
 	appCfg.MDM.EnableDiskEncryption = optjson.SetBool(false)
+	// ensure global Windows OS updates are always disabled for the next test
+	appCfg.MDM.WindowsUpdates = mdm_types.WindowsUpdates{}
 	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
 	require.NoError(t, err)
 
@@ -3598,6 +3600,36 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 	assert.Equal(t, []string{"b"}, acResp.MDM.MacOSSettings.CustomSettings)
+
+	// mdm/apple/settings works for windows as well as it's being used by
+	// clients (UI) this way
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.EnabledAndConfigured = false
+	appConf.MDM.WindowsEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+	defer func() {
+		appConf, err := s.ds.AppConfig(context.Background())
+		require.NoError(s.T(), err)
+		appConf.MDM.EnabledAndConfigured = true
+		appConf.MDM.WindowsEnabledAndConfigured = true
+		err = s.ds.SaveAppConfig(context.Background(), appConf)
+		require.NoError(s.T(), err)
+	}()
+
+	// flip and verify the value
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+		fleet.MDMAppleSettingsPayload{EnableDiskEncryption: ptr.Bool(false)}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+		fleet.MDMAppleSettingsPayload{EnableDiskEncryption: ptr.Bool(true)}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
@@ -4011,6 +4043,36 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	// use the MDM settings endpoint with an unknown team id
 	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
 		fleet.MDMAppleSettingsPayload{TeamID: ptr.Uint(9999)}, http.StatusNotFound)
+
+	// mdm/apple/settings works for windows as well as it's being used by
+	// clients (UI) this way
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.EnabledAndConfigured = false
+	appConf.MDM.WindowsEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+	defer func() {
+		appConf, err := s.ds.AppConfig(context.Background())
+		require.NoError(s.T(), err)
+		appConf.MDM.EnabledAndConfigured = true
+		appConf.MDM.WindowsEnabledAndConfigured = true
+		err = s.ds.SaveAppConfig(context.Background(), appConf)
+		require.NoError(s.T(), err)
+	}()
+
+	// flip and verify the value
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+		fleet.MDMAppleSettingsPayload{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: ptr.Bool(false)}, http.StatusNoContent)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.False(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
+
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+		fleet.MDMAppleSettingsPayload{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: ptr.Bool(true)}, http.StatusNoContent)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
@@ -9989,8 +10051,66 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			require.NotNil(t, p.Status)
 			require.Equal(t, wantStatus, *p.Status, "profile", p.Name)
 			require.Equal(t, "windows", p.Platform)
+			// Fleet reserved profiles (e.g., OS updates) should be screened from the host details response
+			require.NotContains(t, servermdm.ListFleetReservedWindowsProfileNames(), p.Name)
 		}
 		require.ElementsMatch(t, wantProfs, gotProfs)
+	}
+
+	checkHostsFilteredByOSSettingsStatus := func(t *testing.T, wantHosts []string, wantStatus fleet.MDMDeliveryStatus, teamID *uint, labels ...*fleet.Label) {
+		var teamFilter string
+		if teamID != nil {
+			teamFilter = fmt.Sprintf("&team_id=%d", *teamID)
+		}
+		var gotHostsResp listHostsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?os_settings=%s%s", wantStatus, teamFilter), nil, http.StatusOK, &gotHostsResp)
+		require.NotNil(t, gotHostsResp.Hosts)
+		var gotHosts []string
+		for _, h := range gotHostsResp.Hosts {
+			gotHosts = append(gotHosts, h.Hostname)
+		}
+		require.ElementsMatch(t, wantHosts, gotHosts)
+
+		var countHostsResp countHostsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/count?os_settings=%s%s", wantStatus, teamFilter), nil, http.StatusOK, &countHostsResp)
+		require.Equal(t, len(wantHosts), countHostsResp.Count)
+
+		for _, l := range labels {
+			gotHostsResp = listHostsResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/labels/%d/hosts?os_settings=%s%s", l.ID, wantStatus, teamFilter), nil, http.StatusOK, &gotHostsResp)
+			require.NotNil(t, gotHostsResp.Hosts)
+			gotHosts = []string{}
+			for _, h := range gotHostsResp.Hosts {
+				gotHosts = append(gotHosts, h.Hostname)
+			}
+			require.ElementsMatch(t, wantHosts, gotHosts, "label", l.Name)
+
+			countHostsResp = countHostsResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/count?label_id=%d&os_settings=%s%s", l.ID, wantStatus, teamFilter), nil, http.StatusOK, &countHostsResp)
+		}
+	}
+
+	getProfileUUID := func(t *testing.T, profName string, teamID *uint) string {
+		var profUUID string
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			var globalOrTeamID uint
+			if teamID != nil {
+				globalOrTeamID = *teamID
+			}
+			return sqlx.GetContext(ctx, tx, &profUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name = ?`, globalOrTeamID, profName)
+		})
+		require.NotNil(t, profUUID)
+		return profUUID
+	}
+
+	checkHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, wantStatus fleet.MDMDeliveryStatus) {
+		var gotStatus fleet.MDMDeliveryStatus
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			stmt := `SELECT status FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`
+			err := sqlx.GetContext(context.Background(), q, &gotStatus, stmt, hostUUID, profUUID)
+			return err
+		})
+		require.Equal(t, wantStatus, gotStatus)
 	}
 
 	// Create a host and then enroll to MDM.
@@ -10000,8 +10120,67 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsProfilesMatch(host, globalProfiles)
 	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerifying)
 
+	// create new label that includes host
+	label := &fleet.Label{
+		Name:  t.Name() + "foo",
+		Query: "select * from foo;",
+	}
+	label, err = s.ds.NewLabel(context.Background(), label)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, host, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+
+	// simulate osquery reporting host mdm details (host_mdm.enrolled = 1 is condition for
+	// hosts filtering by os settings status and generating mdm profiles summaries)
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, ""))
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, nil, label)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
+		Verifying: 1,
+	}, nil)
+
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0, false)
+
+	// make fleet add a Windows OS Updates profile
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": 1, "grace_period_days": 1} }}`), http.StatusOK, &acResp)
+	osUpdatesProf := getProfileUUID(t, servermdm.FleetWindowsOSUpdatesProfileName, nil)
+
+	// os updates is sent via a profiles commands
+	verifyProfiles(mdmDevice, 1, false)
+	checkHostsProfilesMatch(host, append(globalProfiles, osUpdatesProf))
+	// but is hidden from host details response
+	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerifying)
+
+	// os updates profile status doesn't matter for filtered hosts results or summaries
+	checkHostProfileStatus(t, host.UUID, osUpdatesProf, fleet.MDMDeliveryVerifying)
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, nil, label)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
+		Verifying: 1,
+	}, nil)
+	// force os updates profile to failed, doesn't impact filtered hosts results or summaries
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, osUpdatesProf)
+		return err
+	})
+	checkHostProfileStatus(t, host.UUID, osUpdatesProf, fleet.MDMDeliveryFailed)
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, nil, label)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
+		Verifying: 1,
+	}, nil)
+	// force another profile to failed, does impact filtered hosts results and summaries
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, globalProfiles[0])
+		return err
+	})
+	checkHostProfileStatus(t, host.UUID, globalProfiles[0], fleet.MDMDeliveryFailed)
+	checkHostsFilteredByOSSettingsStatus(t, []string{}, fleet.MDMDeliveryVerifying, nil, label)           // expect no hosts
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryFailed, nil, label) // expect host
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
+		Failed:    1,
+		Verifying: 0,
+	}, nil)
 
 	// add the host to a team
 	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
@@ -10055,6 +10234,48 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0, false)
+
+	// make fleet add a Windows OS Updates profile
+	tmResp := teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": 1, "grace_period_days": 1} }}`), http.StatusOK, &tmResp)
+	osUpdatesProf = getProfileUUID(t, servermdm.FleetWindowsOSUpdatesProfileName, &tm.ID)
+
+	// os updates is sent via a profiles commands
+	verifyProfiles(mdmDevice, 1, false)
+	checkHostsProfilesMatch(host, append(teamProfiles, osUpdatesProf))
+	// but is hidden from host details response
+	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerifying)
+
+	// os updates profile status doesn't matter for filtered hosts results or summaries
+	checkHostProfileStatus(t, host.UUID, osUpdatesProf, fleet.MDMDeliveryVerifying)
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, &tm.ID, label)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
+		Verifying: 1,
+	}, nil)
+	// force os updates profile to failed, doesn't impact filtered hosts results or summaries
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, osUpdatesProf)
+		return err
+	})
+	checkHostProfileStatus(t, host.UUID, osUpdatesProf, fleet.MDMDeliveryFailed)
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, &tm.ID, label)
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
+		Verifying: 1,
+	}, nil)
+	// force another profile to failed, does impact filtered hosts results and summaries
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
+		_, err := q.ExecContext(context.Background(), stmt, teamProfiles[0])
+		return err
+	})
+	checkHostProfileStatus(t, host.UUID, teamProfiles[0], fleet.MDMDeliveryFailed)
+	checkHostsFilteredByOSSettingsStatus(t, []string{}, fleet.MDMDeliveryVerifying, &tm.ID, label)           // expect no hosts
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryFailed, &tm.ID, label) // expect host
+	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
+		Failed:    1,
+		Verifying: 0,
+	}, nil)
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMWindowsProfiles() {
@@ -10322,4 +10543,49 @@ func (s *integrationMDMTestSuite) TestWindowsFreshEnrollEmptyQuery() {
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_mdm_config_profiles_windows")
 	require.NotEmpty(t, dqResp.Queries, "fleet_detail_query_mdm_config_profiles_windows")
+}
+
+func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
+	t := s.T()
+
+	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
+		foundInstallFleetdCommand := false
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if manifest := cmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
+				foundInstallFleetdCommand = true
+				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
+				require.Contains(t, *cmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL)
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		require.Equal(t, wantCommand, foundInstallFleetdCommand)
+	}
+
+	// create a device that's not enrolled into Fleet, it should get a command to
+	// install fleetd
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+	s.runWorker()
+	checkInstallFleetdCommandSent(mdmDevice, true)
+
+	// create a device that's enrolled into Fleet before turning on MDM features,
+	// it shouldn't get the command to install fleetd
+	desktopToken := uuid.New().String()
+	host := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
+	err = s.ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, desktopToken)
+	require.NoError(t, err)
+	mdmDevice = mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, desktopToken)
+	mdmDevice.UUID = host.UUID
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+	s.runWorker()
+	checkInstallFleetdCommandSent(mdmDevice, false)
 }
