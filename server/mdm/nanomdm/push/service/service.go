@@ -47,7 +47,7 @@ func New(store storage.PushStore, certStore storage.PushCertStore, providerFacto
 func (s *PushService) getProvider(ctx context.Context, topic string) (push.PushProvider, error) {
 	var (
 		err   error
-		stale bool = true
+		stale bool
 	)
 	s.providersMu.RLock()
 	prov, _ := s.providers[topic]
@@ -183,7 +183,7 @@ func (s *PushService) Push(ctx context.Context, ids []string) (map[string]*push.
 	if len(pushInfos) == 1 {
 		// some environments may heavily utilize individual pushes.
 		// this justifies the special case and optimizes for it.
-		tokenToResponse, err = s.pushSingle(ctx, pushInfos[0])
+		tokenToResponse, err = s.pushSingle(ctx, pushInfos[0]) //nolint:gosec
 		if err != nil {
 			return nil, err
 		}

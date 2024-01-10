@@ -166,7 +166,7 @@ func (s *FileStorage) StoreAuthenticate(r *mdm.Request, msg *mdm.Authenticate) e
 			return err
 		}
 	}
-	return e.writeFile(AuthenticateFilename, []byte(msg.Raw))
+	return e.writeFile(AuthenticateFilename, msg.Raw)
 }
 
 // StoreTokenUpdate stores the TokenUpdate message
@@ -185,7 +185,7 @@ func (s *FileStorage) StoreTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) err
 			return err
 		}
 	}
-	if err := e.writeFile(TokenUpdateFilename, []byte(msg.Raw)); err != nil {
+	if err := e.writeFile(TokenUpdateFilename, msg.Raw); err != nil {
 		return err
 	}
 	if err := e.bumpNumericFile(TokenUpdateTallyFilename); err != nil {

@@ -47,7 +47,7 @@ func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *md
 	return nil, tx.Commit()
 }
 
-func (s *MySQLStorage) deleteCommand(ctx context.Context, tx *sql.Tx, id, uuid string) error {
+func (m *MySQLStorage) deleteCommand(ctx context.Context, tx *sql.Tx, id, uuid string) error {
 	// first, place a record lock on the command so that multiple devices
 	// trying to each delete it do not race
 	_, err := tx.ExecContext(
@@ -56,6 +56,9 @@ SELECT command_uuid FROM commands WHERE command_uuid = ? FOR UPDATE;
 `,
 		uuid,
 	)
+	if err != nil {
+		return err
+	}
 	// delete command result (i.e. NotNows) and this queued command
 	_, err = tx.ExecContext(
 		ctx, `
@@ -95,12 +98,12 @@ WHERE
 	return err
 }
 
-func (s *MySQLStorage) deleteCommandTx(r *mdm.Request, result *mdm.CommandResults) error {
-	tx, err := s.db.BeginTx(r.Context, nil)
+func (m *MySQLStorage) deleteCommandTx(r *mdm.Request, result *mdm.CommandResults) error {
+	tx, err := m.db.BeginTx(r.Context, nil)
 	if err != nil {
 		return err
 	}
-	if err = s.deleteCommand(r.Context, tx, r.ID, result.CommandUUID); err != nil {
+	if err = m.deleteCommand(r.Context, tx, r.ID, result.CommandUUID); err != nil {
 		if rbErr := tx.Rollback(); rbErr != nil {
 			return fmt.Errorf("rollback error: %w; while trying to handle error: %v", rbErr, err)
 		}
@@ -109,15 +112,15 @@ func (s *MySQLStorage) deleteCommandTx(r *mdm.Request, result *mdm.CommandResult
 	return tx.Commit()
 }
 
-func (s *MySQLStorage) StoreCommandReport(r *mdm.Request, result *mdm.CommandResults) error {
-	if err := s.updateLastSeen(r); err != nil {
+func (m *MySQLStorage) StoreCommandReport(r *mdm.Request, result *mdm.CommandResults) error {
+	if err := m.updateLastSeen(r); err != nil {
 		return err
 	}
 	if result.Status == "Idle" {
 		return nil
 	}
-	if s.rm && result.Status != "NotNow" {
-		return s.deleteCommandTx(r, result)
+	if m.rm && result.Status != "NotNow" {
+		return m.deleteCommandTx(r, result)
 	}
 	notNowConstants := "NULL, 0"
 	notNowBumpTallySQL := ""
@@ -127,7 +130,8 @@ func (s *MySQLStorage) StoreCommandReport(r *mdm.Request, result *mdm.CommandRes
 		notNowConstants = "CURRENT_TIMESTAMP, 1"
 		notNowBumpTallySQL = `, nano_command_results.not_now_tally = nano_command_results.not_now_tally + 1`
 	}
-	_, err := s.db.ExecContext(
+	_, err := m.db.ExecContext(
+		//nolint:gosec
 		r.Context, `
 INSERT INTO nano_command_results
     (id, command_uuid, status, result, not_now_at, not_now_tally)
@@ -145,9 +149,9 @@ UPDATE
 	return err
 }
 
-func (s *MySQLStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.Command, error) {
+func (m *MySQLStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.Command, error) {
 	command := new(mdm.Command)
-	err := s.db.QueryRowContext(
+	err := m.db.QueryRowContext(
 		r.Context, `
 SELECT c.command_uuid, c.request_type, c.command
 FROM nano_enrollment_queue AS q
@@ -173,7 +177,7 @@ LIMIT 1;`,
 	return command, nil
 }
 
-func (s *MySQLStorage) ClearQueue(r *mdm.Request) error {
+func (m *MySQLStorage) ClearQueue(r *mdm.Request) error {
 	if r.ParentID != "" {
 		return errors.New("can only clear a device channel queue")
 	}
@@ -181,7 +185,7 @@ func (s *MySQLStorage) ClearQueue(r *mdm.Request) error {
 	// this will clear (mark inactive) the queue of not only this
 	// device ID, but all user-channel enrollments with a 'parent' ID of
 	// this device, too.
-	_, err := s.db.ExecContext(
+	_, err := m.db.ExecContext(
 		r.Context,
 		`
 UPDATE

@@ -202,7 +202,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	logger.Info("msg", "starting server", "listen", *flListen)
-	err = http.ListenAndServe(*flListen, mdmhttp.TraceLoggingMiddleware(mux, logger.With("handler", "log"), newTraceID))
+	err = http.ListenAndServe(*flListen, mdmhttp.TraceLoggingMiddleware(mux, logger.With("handler", "log"), newTraceID)) //nolint:gosec
 	logs := []interface{}{"msg", "server shutdown"}
 	if err != nil {
 		logs = append(logs, "err", err)
@@ -216,6 +216,6 @@ func main() {
 // https://opentelemetry.io/ someday.
 func newTraceID(_ *http.Request) string {
 	b := make([]byte, 8)
-	rand.Read(b)
+	rand.Read(b) //nolint:gosec
 	return fmt.Sprintf("%x", b)
 }

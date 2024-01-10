@@ -226,6 +226,7 @@ func (s *PgSQLStorage) StoreUserAuthenticate(r *mdm.Request, msg *mdm.UserAuthen
 		colAtName = "user_authenticate_digest_at"
 	}
 	_, err := s.db.ExecContext(
+		//nolint:gosec
 		r.Context, `
 INSERT INTO users
     (id, device_id, user_short_name, user_long_name, `+colName+`, `+colAtName+`)

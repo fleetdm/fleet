@@ -11,10 +11,9 @@ func (s *FileStorage) StoreBootstrapToken(r *mdm.Request, msg *mdm.SetBootstrapT
 	e := s.newEnrollment(r.ID)
 	if len(msg.BootstrapToken.BootstrapToken) > 0 {
 		return e.writeFile(BootstrapTokenFile, msg.BootstrapToken.BootstrapToken)
-	} else {
-		if err := os.Remove(e.dirPrefix(BootstrapTokenFile)); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
+	}
+	if err := os.Remove(e.dirPrefix(BootstrapTokenFile)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
 	}
 	return nil
 }

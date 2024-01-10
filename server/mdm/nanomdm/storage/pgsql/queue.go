@@ -134,6 +134,7 @@ func (s *PgSQLStorage) StoreCommandReport(r *mdm.Request, result *mdm.CommandRes
 		notNowBumpTallySQL = `, not_now_tally = command_results.not_now_tally + 1`
 	}
 	_, err := s.db.ExecContext(
+		//nolint:gosec
 		r.Context, `
 INSERT INTO command_results
     (id, command_uuid, status, result, not_now_at, not_now_tally)

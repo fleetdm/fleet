@@ -42,7 +42,7 @@ func (q *queue) enqueue(uuid string, raw []byte) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(
+	return os.WriteFile( //nolint:gosec
 		path.Join(q.dir(), uuid+".plist"),
 		raw,
 		0755,
@@ -75,7 +75,7 @@ func (q *queue) removeResults(uuid string) error {
 }
 
 func (q *queue) writeResults(uuid string, raw []byte) error {
-	return os.WriteFile(
+	return os.WriteFile( //nolint:gosec
 		path.Join(q.dir(), uuid+".result.plist"),
 		raw,
 		0755,
@@ -145,7 +145,9 @@ func (s *FileStorage) StoreCommandReport(r *mdm.Request, report *mdm.CommandResu
 		return err
 	}
 	if nnqExists {
-		nnq.removeResults(report.CommandUUID)
+		if err := nnq.removeResults(report.CommandUUID); err != nil {
+			return err
+		}
 	}
 	return dest.writeResults(report.CommandUUID, report.Raw)
 }

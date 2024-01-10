@@ -21,6 +21,7 @@ func (s *MySQLStorage) RetrievePushInfo(ctx context.Context, ids []string) (map[
 	for i, v := range ids {
 		args[i] = v
 	}
+	//nolint:gosec
 	rows, err := s.db.QueryContext(
 		ctx,
 		`SELECT id, topic, push_magic, token_hex FROM nano_enrollments WHERE id IN (`+qs+`);`,
