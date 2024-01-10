@@ -1470,7 +1470,7 @@ spec:
             )
         );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2
+  tags: compliance, CIS, CIS_Level2, decision-needed
   contributors: sharon-fdm
 ---
 apiVersion: v1
