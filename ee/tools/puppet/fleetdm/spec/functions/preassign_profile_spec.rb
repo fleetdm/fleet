@@ -54,4 +54,16 @@ describe 'fleetdm::preassign_profile' do
       .and_return({ 'error' => '' })
     is_expected.to run.with_params(profile_identifier, device_uuid, template)
   end
+
+  # it 'errors when it fails to get host by identifier' do
+  #   expect(fleet_client_mock)
+  #     .to receive(:get_host_by_identifier)
+  #     .with(device_uuid, environment)
+  #     .and_return({ 'error' => 'some error', 'body' => {} })
+  #   expect(fleet_client_mock)
+  #     .not_to receive(:get_host_profiles)
+  #   expect(fleet_client_mock)
+  #     .not_to receive(:preassign_profile)
+  #   is_expected.to run.with_params(profile_identifier, device_uuid, template, group, ensure_profile, environment)
+  # end
 end
