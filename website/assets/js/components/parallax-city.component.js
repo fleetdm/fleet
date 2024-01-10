@@ -52,15 +52,13 @@ parasails.registerComponent('parallaxCity', {
   mounted: async function(){
     let parallaxCityElement = document.querySelector('[purpose="parallax-city"]');
     let rect = parallaxCityElement.getBoundingClientRect();
-    // console.log(rect);
     let isElementCurrentlyVisible = (rect.bottom > (parallaxCityElement.offsetTop + parallaxCityElement.clientHeight));
     if(isElementCurrentlyVisible) {
-      console.log('bottom visible:',isElementCurrentlyVisible);
       this.handleParallaxScroll();
     }
     document.querySelectorAll('div.layer').forEach((layer)=>{
       let initialPosition = layer.getAttribute('scroll-amount');
-      layer.style.bottom = `-${initialPosition}px`;
+      layer.style.bottom = `-${Number(initialPosition) + 1}px`;
     });
     document.addEventListener('scroll', this.handleParallaxScroll);
 
