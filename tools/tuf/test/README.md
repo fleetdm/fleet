@@ -83,3 +83,19 @@ make desktop-app-tar-gz
 # Push the desktop target as a new version
 ./tools/tuf/test/push_target.sh macos desktop desktop.app.tar.gz 43
 ```
+
+### Troubleshooting
+
+#### Fleet Desktop Startup Issue on macOS
+
+When running Fleet Desktop on an older macOS version than it was compiled on, Orbit may not launch it due to an error:
+
+```
+_LSOpenURLsWithCompletionHandler() failed with error -10825
+```
+
+Solution: `Set the MACOSX_DEPLOYMENT_TARGET` environment variable to the lowest macOS version you intend to support:
+
+```
+export MACOSX_DEPLOYMENT_TARGET=13 # replace '13' with your target macOS version
+```
