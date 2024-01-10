@@ -147,7 +147,8 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 		return getScriptResultResponse{Err: err}, nil
 	}
 
-	// check if a minute has passed since the script was created at
+	// TODO: move this logic out of the endpoint function and consolidate in either the service
+	// method or the fleet package
 	hostTimeout := scriptResult.HostTimeout(scripts.MaxServerWaitTime)
 	scriptResult.Message = scriptResult.UserMessage(hostTimeout)
 
