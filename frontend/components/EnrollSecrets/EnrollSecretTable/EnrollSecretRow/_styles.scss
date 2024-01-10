@@ -2,7 +2,6 @@
   &__secret {
     display: flex;
     align-items: center;
-    margin-bottom: $pad-medium;
   }
 
   .form-field {
@@ -45,7 +44,7 @@
     align-items: center;
     position: absolute;
     right: 4px;
-    top: 12px;
+    top: 18px;
     height: 16px;
 
     span {

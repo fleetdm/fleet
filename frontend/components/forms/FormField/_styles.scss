@@ -1,11 +1,15 @@
 .form-field {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: $pad-small;
+
   &__label {
-    font-size: $small;
+    font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
-    display: block;
-    margin-bottom: $pad-small;
-    min-height: $form-field-label-height;
+    // display: block;
+    // min-height: $form-field-label-height;
 
     &--error {
       font-weight: $bold;
@@ -20,11 +24,7 @@
   }
 
   &__help-text {
-    font-size: $x-small;
-    font-weight: $regular;
-    line-height: 20px;
-    display: inline-block;
-    margin-top: $pad-small;
+    @include help-text;
 
     code {
       color: $core-vibrant-blue;
@@ -39,7 +39,6 @@
     display: flex;
     flex-direction: column;
     gap: $pad-small;
-    margin-bottom: $pad-medium;
   }
 
   &--slider {

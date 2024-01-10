@@ -81,6 +81,37 @@ a {
   @include clearfix;
 }
 
+form,
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $large;
+  align-items: flex-start;
+
+  > * {
+    width: 100%;
+  }
+
+  .button {
+    width: auto;
+    &--text-icon {
+      // compensate in layout for extra clickable area button height
+      margin: -8px 0;
+    }
+  }
+}
+
+.form-field {
+  &__label {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+
+  &__help-text {
+    @include help-text;
+  }
+}
+
 input,
 textarea,
 button {
