@@ -18,7 +18,7 @@ spec:
       4. Select Update All
   query: SELECT 1 FROM software_update WHERE software_update_required = '0';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-1.1
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -45,7 +45,7 @@ spec:
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-1.2
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -72,7 +72,7 @@ spec:
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-1.3
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -99,7 +99,7 @@ spec:
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-1.4
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -126,7 +126,7 @@ spec:
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-1.5
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -157,7 +157,7 @@ spec:
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-1.6
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -190,7 +190,7 @@ spec:
             value > 30
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-1.7
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -227,7 +227,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-2.1.1.2-disabled, decision-needed
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -264,7 +264,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-2.1.1.2-enabled, decision-needed
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -302,7 +302,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-2.1.1.1-disable, decision-needed
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -340,7 +340,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-2.1.1.1-enable, decision-needed
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -372,7 +372,7 @@ spec:
             (value != 0 AND value != 'false')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-2.1.1.3
+  tags: compliance, CIS, CIS_Level2
   contributors: zwass
 ---
 apiVersion: v1
@@ -385,7 +385,7 @@ spec:
   resolution: "Go to the Network pane in System Settings and ensure Firewall is active."
   query: SELECT 1 FROM alf WHERE global_state >= 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.2.1
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -406,7 +406,7 @@ spec:
       5. Set Enabled stealth mode to enabled
   query: SELECT 1 FROM alf WHERE global_state >= 1 AND stealth_enabled = 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.2.2
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -440,7 +440,7 @@ spec:
             (value != 0 AND value != 'false')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.1.1
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -480,7 +480,7 @@ spec:
             (value != 0 AND value != 'false')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.1.2
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -512,7 +512,7 @@ spec:
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.2.1
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -527,7 +527,7 @@ spec:
   resolution: Make sure the device can connect to time.apple.com to synchronize time.
   query: SELECT * FROM sntp_request WHERE server = 'time.apple.com' AND clock_offset_ms <= 270000 AND clock_offset_ms >= -270000;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.2.2
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod 
 ---
 apiVersion: v1
@@ -557,7 +557,7 @@ spec:
   # are disabled via disabled.plist, which the preference pane uses whenever
   # a service is disabled after it has been enabled in the past.
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.3.1
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -590,7 +590,7 @@ spec:
   # are disabled via disabled.plist, which the preference pane uses whenever
   # a service is disabled after it has been enabled in the past.
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.3.2
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -620,7 +620,7 @@ spec:
   # are disabled via disabled.plist, which the preference pane uses whenever
   # a service is disabled after it has been enabled in the past.
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.3.3
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -648,7 +648,7 @@ spec:
         line LIKE '%Allow @LOCAL%'
       );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.3.4
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -681,7 +681,7 @@ spec:
   # are disabled via disabled.plist, which the preference pane uses whenever
   # a service is disabled after it has been enabled in the past.
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.3.5
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -709,7 +709,7 @@ spec:
         path = '/System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/MacOS/ARDAgent'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.3.6
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -740,7 +740,7 @@ spec:
   # are disabled via disabled.plist, which the preference pane uses whenever
   # a service is disabled after it has been enabled in the past.
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.3.7
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -768,7 +768,7 @@ spec:
         value = '1'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.3.8
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -807,7 +807,7 @@ spec:
             (value != 0 AND value != 'false')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-2.3.3.9
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -834,7 +834,7 @@ spec:
         value = '1'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.3.11
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -890,7 +890,7 @@ spec:
         value != '0'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.3.10
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -921,7 +921,7 @@ spec:
     FROM plist WHERE path='/Library/Preferences/com.apple.TimeMachine.plist'
     AND key='AutoBackup' AND (value = 1 OR value = 'true');
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-2.3.4.1
+  tags: compliance, CIS, CIS_Level2
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -958,7 +958,7 @@ spec:
     SELECT 'time machines destinations with encryption with automatic backup' as output
     FROM (SELECT COUNT(*) as c FROM time_machine_destinations WHERE encryption <> 'Encrypted') t2 WHERE t2.c = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.3.4.2
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -995,7 +995,7 @@ spec:
             value != 18
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.4.1
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1031,7 +1031,7 @@ spec:
             value != 18
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.4.2
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1069,7 +1069,7 @@ spec:
      /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.5.1-enabled, decision-needed
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1107,7 +1107,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.5.1-disabled, decision-needed
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1136,7 +1136,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.5.1-TypeToSiriEnabled-true, decision-needed
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1165,7 +1165,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.5.1-TypeToSiriEnabled-false, decision-needed
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1194,7 +1194,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.5.1-StatusMenuVisible-true, decision-needed
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1223,7 +1223,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.5.1-StatusMenuVisible-false, decision-needed
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1252,7 +1252,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.5.1-VoiceTriggerUserEnabled-true, decision-needed
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1281,7 +1281,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.5.1-VoiceTriggerUserEnabled-false, decision-needed
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1310,7 +1310,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.5.1-LockscreenEnabled-true, decision-needed
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1339,7 +1339,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.5.1-LockscreenEnabled-false, decision-needed
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1360,7 +1360,7 @@ spec:
         4. Verify Location Services is enabled
   query: SELECT 1 FROM location_services where enabled=1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-2.6.1.1
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1383,7 +1383,7 @@ spec:
         location is set to your organization's parameters
   query:  SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.locationmenu.plist' AND key='ShowSystemServices' AND value=1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-2.6.1.2
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1408,7 +1408,7 @@ spec:
         4. Set Location Services to disabled.
   query:  SELECT 1 FROM location_services WHERE enabled = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-2.6.1.3-Location-Service-disabled
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1470,7 +1470,7 @@ spec:
             )
         );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-2.6.1.3-Location-Service-specifc-app-enabled, decision-needed
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1504,7 +1504,7 @@ spec:
             (value != 0 AND value != 'false')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.6.3
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1523,7 +1523,7 @@ spec:
         4. Set Require an administrator password to access system-wide settings to enabled
   query: SELECT 1 FROM authdb WHERE right_name = 'system.preferences' AND json_extract(json_result, '$.shared') == 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.6.7
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -1559,7 +1559,7 @@ spec:
         key = 'wvous-tl-corner'
     ) AND value = 6);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-2.7.1
+  tags: compliance, CIS, CIS_Level2
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1596,7 +1596,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.8.1-enabled, decision-needed
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1633,7 +1633,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.8.1-disabled, decision-needed
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1665,7 +1665,7 @@ spec:
       ), '') AS powernap_battery
     FROM pmset WHERE getting = 'custom' AND powernap_battery != '1' AND powernap_ac != '1');
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.9.1
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1696,7 +1696,7 @@ spec:
       ), '') AS womp_battery
     FROM pmset WHERE getting = 'custom' AND womp_battery != '1' AND womp_ac != '1');
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.9.2
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1772,7 +1772,7 @@ spec:
         )
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-2.9.3
+  tags: compliance, CIS, CIS_Level2
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1820,7 +1820,7 @@ spec:
             value > 5
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.10.2
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1841,7 +1841,7 @@ spec:
         3. Verify that 'Allow apps downloaded from' is set to' App Store and identified developers'
   query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1 AND dev_id_enabled = 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.6.4
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1904,7 +1904,7 @@ spec:
             value != 2
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-2.6.2
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1938,7 +1938,7 @@ spec:
             value > 1200
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.10.1
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1958,7 +1958,7 @@ spec:
         5. Verify that the message displayed is configured to your organization's required text
   query: SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.loginwindow.plist' AND key='LoginwindowText' AND value != "";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.10.3
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2000,7 +2000,7 @@ spec:
             filevault_status = 'on' 
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.6.5
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2034,7 +2034,7 @@ spec:
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.10.4
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2068,7 +2068,7 @@ spec:
             (value != 0 AND value != 'false')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.10.5
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2090,7 +2090,7 @@ spec:
         4. Change the password and ensure that no text is entered in the Password hint box
   query: SELECT 1 FROM user_login_settings WHERE password_hint_enabled = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.11.1
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2115,7 +2115,7 @@ spec:
     OR
     EXISTS(select 1 FROM plist WHERE path='/Library/Preferences/com.apple.MCX.plist' AND key='DisableGuestAccount' AND value = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.12.1
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2137,7 +2137,7 @@ spec:
         4. Set Allow guests to connect to shared folders to disabled
   query: SELECT 1 from plist where path = '/Library/Preferences/SystemConfiguration/com.apple.smb.server.plist' AND key = 'AllowGuestAccess' AND value = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.12.2
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2177,7 +2177,7 @@ spec:
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-2.12.3
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2236,7 +2236,7 @@ spec:
       (l.program_arguments = p.cmdline)
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-3.1
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2291,7 +2291,7 @@ spec:
       )
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-3.2
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2321,7 +2321,7 @@ spec:
              WHERE path = '/etc/asl/com.apple.install'  
              AND  line  LIKE "%all_max=%" );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-3.3
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2350,7 +2350,7 @@ spec:
       AND size >=5
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-3.4
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2395,7 +2395,7 @@ spec:
       -- For /etc/security/audit_control the MODE should be 0400 ("-r--------")
       NOT EXISTS ( select 1 from file where path = "/etc/security/audit_control" AND mode != "0400" );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-3.5
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2463,7 +2463,7 @@ spec:
     );
 
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-3.6
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2499,7 +2499,7 @@ spec:
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-4.1
+  tags: compliance, CIS, CIS_Level2
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -2518,7 +2518,7 @@ spec:
     /usr/bin/sudo /bin/launchctl unload -w /System/Library/LaunchDaemons/org.apache.httpd.plist
   query: SELECT 1 WHERE NOT EXISTS(SELECT * FROM processes WHERE path = '/usr/sbin/httpd');
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-4.2
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -2542,7 +2542,7 @@ spec:
     AND
     NOT EXISTS(SELECT 1 FROM file WHERE path = '/etc/exports');
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-4.3
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -2571,7 +2571,7 @@ spec:
     AND mode !="0711"
     ));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.1.1
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2592,7 +2592,7 @@ spec:
           /usr/bin/sudo /usr/bin/csrutil enable
   query: SELECT 1 FROM sip_config WHERE config_flag="sip" and enabled=1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.1.2
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2610,7 +2610,7 @@ spec:
       /usr/bin/sudo /usr/sbin/nvram boot-args=""
   query: SELECT 1 FROM nvram_info WHERE amfi_enabled="1";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.1.3
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2628,7 +2628,7 @@ spec:
     If SSV has been disabled, assume that the operating system has been compromised. Back up any files, and do a clean install to a known good Operating System.
   query: SELECT 1 FROM csrutil_info WHERE ssv_enabled="1";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.1.4
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2657,7 +2657,7 @@ spec:
       CAST(SUBSTRING(file.mode, -1) AS INTEGER) & 0x2 != 0
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.1.5
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2687,7 +2687,7 @@ spec:
         AND path NOT LIKE '%Drop Box%'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.1.6
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2716,7 +2716,7 @@ spec:
         AND path NOT LIKE '%/Preferences/Audio/Data%'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-5.1.7
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2737,7 +2737,7 @@ spec:
       3. The key must be set to <integer><value≤5></integer>
   query: SELECT 1 FROM  pwd_policy where max_failed_attempts <= 5;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.2.1
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2768,7 +2768,7 @@ spec:
     WHERE policy_identifier LIKE '%minLength')) 
     WHERE minlength >= 15);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.2.2
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2800,7 +2800,7 @@ spec:
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-5.2.3, CIS-macos-14-5.2.4
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2829,7 +2829,7 @@ spec:
             value < 1
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-5.2.5
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2846,7 +2846,7 @@ spec:
     /usr/bin/sudo /usr/bin/pwpolicy -n /Local/Default -setglobalpolicy "requiresMixedCase=<value>=1>"
   query: SELECT 1 FROM  pwd_policy where min_mixed_case_characters >= 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.2.6
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2871,7 +2871,7 @@ spec:
     OR
     EXISTS(SELECT 1 FROM pwd_policy WHERE days_to_expiration <= 365);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.2.7
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2890,7 +2890,7 @@ spec:
       3. The key must be set to <integer><value≥15></integer>
   query: SELECT 1 FROM  pwd_policy where history_depth >= 15;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.2.8
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2924,7 +2924,7 @@ spec:
         filevault != 1
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.3.1
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -2946,7 +2946,7 @@ spec:
       SELECT 1 FROM corestorage_logical_volume_families WHERE EncryptionType != "AES-XTS"
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.3.2
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -2974,7 +2974,7 @@ spec:
       FROM sudo_info WHERE authentication_timestamp_timeout = '0.0 minutes'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.4
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -3001,7 +3001,7 @@ spec:
       FROM sudo_info WHERE type_of_auth_timestamp_record = 'tty'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.5
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -3023,7 +3023,7 @@ spec:
   query: |
     SELECT 1 from dscl WHERE command = 'read' AND path = '/Users/root' AND key = 'AuthenticationAuthority' AND value = '';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.6
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -3047,7 +3047,7 @@ spec:
       rule LIKE '%use-login-window-ui%'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.7
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -3072,7 +3072,7 @@ spec:
     path = '/Library/Security/PolicyBanner.rtf') AND mode = '0644'
     AND uid = 0 AND gid = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-5.8
+  tags: compliance, CIS, CIS_Level2
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -3090,7 +3090,7 @@ spec:
   query: |
     SELECT 1 WHERE NOT EXISTS (SELECT * FROM file WHERE path = '/Users/Guest');
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-5.10
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -3121,7 +3121,7 @@ spec:
         p.value IS NULL
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-6.1.1
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -3159,7 +3159,7 @@ spec:
             (value != 0 AND value != 'false')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-6.3.1
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -3211,7 +3211,7 @@ spec:
             value != 1
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-14-6.3.2, decision-needed
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -3243,7 +3243,7 @@ spec:
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-6.3.3
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -3307,7 +3307,7 @@ spec:
             value != '1' 
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-6.3.4
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -3338,7 +3338,7 @@ spec:
       p.value IS NULL
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-6.3.5-enabled, decision-needed
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -3371,7 +3371,7 @@ spec:
       p.value IS NULL
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-6.3.5-disabled, decision-needed
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -3405,7 +3405,7 @@ spec:
       p.value IS NULL
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-6.3.6
+  tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -3446,7 +3446,7 @@ spec:
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-6.3.7
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -3481,5 +3481,5 @@ spec:
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-14-6.4.1
+  tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
