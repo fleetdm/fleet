@@ -11,11 +11,19 @@
     .fleet-checkbox {
       margin-top: 5px;
 
+      &__tick--disabled {
+        @include disabled;
+      }
+
       &__label {
         font-size: $x-small;
         font-weight: $bold;
         color: $core-fleet-black;
       }
+    }
+
+    &--disabled {
+      @include disabled;
     }
   }
 
@@ -40,7 +48,7 @@
     color: $core-fleet-black;
     font-size: $x-small;
     font-weight: $bold;
-    margin-bottom: $pad-small;
+    margin-bottom: $pad-medium;
   }
 
   &__user-permissions-info {
@@ -100,8 +108,16 @@
     }
   }
 
-  .sublabel {
+  .sublabel, .sublabel-nosso {
     margin: 0px;
+  }
+
+  .sublabel-nosso {
+    font-size: 0.75rem;
+    button.button--text-link {
+      display: inline-flex;
+      font-size: 0.75rem;
+    }
   }
 
   &__tooltip-text {

@@ -1,2 +1,0 @@
-* Added the `PUT /api/fleet/orbit/device_mapping` and `PUT /api/v1/fleet/hosts/{id}/device_mapping` endpoints (orbit-authenticated and user-authenticated) to set or replace the custom email address associated with a host.
-* Added the experimental `--end-user-email` flag to `fleetctl package` so that the email address associated with the host can be bundled in the `.msi` installer for Windows.
