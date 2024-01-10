@@ -28,27 +28,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-      - name: JS Dependency Cache
-        id: js-cache
-        uses: actions/cache@69d9d449aced6a2ede0bc19182fadc3a0a42d2b0 # v2
-        with:
-          path: |
-            **/node_modules
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-modules-
-
-      - name: Install JS Dependencies
-        if: steps.js-cache.outputs.cache-hit != 'true'
-        working-directory: ./ee/fleetd-chrome
-        run: npm install
-
       - name: Build & Sign Extension
         working-directory: ./ee/fleetd-chrome
         env:
           CHROME_SIGNING_KEY: ${{ secrets.FLEETD_CHROME_SIGNING_KEY_BETA }}
         run: |
-          npm run build
+          npm install && npm run build
           echo "$CHROME_SIGNING_KEY" > chrome.pem
           /usr/bin/google-chrome --pack-extension=./dist --pack-extension-key=chrome.pem
 
