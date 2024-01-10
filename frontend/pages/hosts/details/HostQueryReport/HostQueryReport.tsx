@@ -95,7 +95,9 @@ const HostQueryReport = ({
     router.push(PATHS.HOST_QUERIES(hostId));
   }
 
-  document.title = `Host query report | ${queryName} | ${hostName} | ${DOCUMENT_TITLE_SUFFIX}`;
+  document.title = ` ${
+    queryName && hostName ? `${queryName} (${hostName}) |` : ""
+  } Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
 
   const HQRHeader = useCallback(() => {
     const fullReportPath = PATHS.QUERY_DETAILS(queryId);

@@ -52,6 +52,7 @@ import {
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -356,6 +357,11 @@ const HostDetailsPage = ({
       }
       return "";
     };
+
+    // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
+    document.title = `${
+      host?.display_name ? `${host?.display_name} | ` : ""
+    }Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, host]);
 
   // Used for back to software pathname

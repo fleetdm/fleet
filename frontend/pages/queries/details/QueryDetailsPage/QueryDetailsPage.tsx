@@ -21,6 +21,7 @@ import {
   isGlobalObserver,
   isTeamObserver,
 } from "utilities/permissions/permissions";
+import { DEFAULT_QUERY, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
@@ -172,6 +173,16 @@ const QueryDetailsPage = ({
       setCurrentTeam(querysTeam);
     }
   }, [storedQuery]);
+
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    // e.g., Editing Discover TLS certificates | Queries | Fleet
+    const storedQueryTitleCopy = storedQuery?.name
+      ? `${storedQuery.name} | `
+      : "";
+    document.title = `${storedQueryTitleCopy}Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    // }
+  }, [location.pathname, storedQuery?.name]);
 
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;

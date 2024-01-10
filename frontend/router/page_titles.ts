@@ -8,24 +8,12 @@ export default [
   { path: PATHS.DASHBOARD, title: `Dashboard | ${DOCUMENT_TITLE_SUFFIX}` },
   { path: "/hosts/manage", title: `Hosts | ${DOCUMENT_TITLE_SUFFIX}` },
   {
-    path: PATHS.CONTROLS_OS_UPDATES,
-    title: `Controls (OS updates) | ${DOCUMENT_TITLE_SUFFIX}`,
-  },
-  {
-    path: PATHS.CONTROLS_OS_SETTINGS,
-    title: `Controls (OS settings) | ${DOCUMENT_TITLE_SUFFIX}`,
-  },
-  {
-    path: PATHS.CONTROLS_SETUP_EXPERIENCE,
-    title: `Controls (Setup experience) | ${DOCUMENT_TITLE_SUFFIX}`,
+    path: "/controls",
+    title: `Controls | ${DOCUMENT_TITLE_SUFFIX}`,
   },
   {
     path: "/software/",
     title: `Software | ${DOCUMENT_TITLE_SUFFIX}`,
-  },
-  {
-    path: "/packs/",
-    title: `Packs | ${DOCUMENT_TITLE_SUFFIX}`,
   },
   {
     path: PATHS.MANAGE_QUERIES,
@@ -40,5 +28,9 @@ export default [
   {
     path: "/settings/",
     title: `Settings | ${DOCUMENT_TITLE_SUFFIX}`,
+  },
+  {
+    path: PATHS.USER_SETTINGS,
+    title: `Settings | My account | ${DOCUMENT_TITLE_SUFFIX}`,
   },
 ];
