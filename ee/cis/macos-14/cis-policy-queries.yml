@@ -1252,7 +1252,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1
+  tags: compliance, CIS, CIS_Level1, decision-needed
   contributors: sharon-fdm
 ---
 apiVersion: v1
