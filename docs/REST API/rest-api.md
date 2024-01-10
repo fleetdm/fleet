@@ -1818,14 +1818,14 @@ None.
 - [Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
-- [Get host's macadmin mobile device management (MDM) and Munki information](#get-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
+- [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
 - [Get host OS versions](#get-host-os-versions)
+- [Get host's scripts](#get-hosts-scripts)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
-- [Get host's scripts](#get-hosts-scripts)
+- [Get host's past activity](#get-hosts-past-activity) 
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
-- [Get host's past activity](#get-hosts-upcoming-activity) 
 
 ### On the different timestamps in the host data structure
 
@@ -3187,13 +3187,7 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 
 ---
 
-### Get host's macadmin mobile device management (MDM) and Munki information
-
-Requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
-Currently supported only on macOS.
+### Get host's mobile device management (MDM) and Munki information
 
 Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
@@ -3412,120 +3406,6 @@ Retrieves the aggregated host OS versions information.
 }
 ```
 
-### Get host's past activities
-
-`GET /api/v1/fleet/hosts/:id/activites/past`
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's id. |
-| page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page.|
-
-#### Example
-
-`GET /api/v1/fleet/hosts/12/activites/past`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "activities": [
-    {
-      "created_at": "2023-07-27T14:35:08Z",
-      "id": 2,
-      "actor_full_name": "Anna",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "anna@example.com",
-      "type": "ran_script",
-      "details": {
-        "host_id": 1,
-        "host_display_name": "Steve's MacBook Pro",
-        "script_name": "set-timezones.sh",
-        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-      },
-    },
-    {
-      "created_at": "2021-07-27T13:25:21Z",
-      "id": 1,
-      "actor_full_name": "Bob",
-      "actor_id": 2,
-      "actor_gravatar": "",
-      "actor_email": "bob@example.com",
-      "type": "ran_script",
-      "details": {
-        "host_id": 1,
-        "host_display_name": "Steve's MacBook Pro",
-        "script_name": "",
-        "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
-      },
-    },
-  ]
-}
-```
-
-### Get host's upcoming activities
-
-`GET /api/v1/fleet/hosts/:id/activites/upcoming`
-
-#### Parameters
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's id. |
-
-#### Example
-
-`GET /api/v1/fleet/hosts/12/activites/upcoming`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "activities": [
-    {
-      "created_at": "2023-07-27T14:35:08Z",
-      "id": 3,
-      "actor_full_name": "Marko",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "marko@example.com",
-      "type": "ran_script",
-      "details": {
-        "host_id": 1,
-        "host_display_name": "Steve's MacBook Pro",
-        "script_name": "set-timezones.sh",
-        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-      },
-    },
-    {
-      "created_at": "2021-07-27T13:25:21Z",
-      "id": 4,
-      "actor_full_name": "Rachael",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "rachael@example.com",
-      "type": "ran_script",
-      "details": {
-        "host_id": 1,
-        "host_display_name": "Steve's MacBook Pro",
-        "script_name": "",
-        "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
-      },
-    },
-  ]
-}
-```
-
 ### Get host's scripts
 
 `GET /api/v1/fleet/hosts/:id/scripts`
@@ -3707,6 +3587,118 @@ Retrieves a list of the configuration profiles assigned to a host.
       "updated_at": "2023-03-31T00:00:00Z",
       "checksum": "dGVzdAo="
     }
+  ]
+}
+```
+
+### Get host's past activity
+
+`GET /api/v1/fleet/hosts/:id/activites/past`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+
+#### Example
+
+`GET /api/v1/fleet/hosts/12/activites/past`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 2,
+      "actor_full_name": "Anna",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "anna@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "set-timezones.sh",
+        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+      },
+    },
+    {
+      "created_at": "2021-07-27T13:25:21Z",
+      "id": 1,
+      "actor_full_name": "Bob",
+      "actor_id": 2,
+      "actor_gravatar": "",
+      "actor_email": "bob@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "",
+        "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
+      },
+    },
+  ]
+}
+```
+
+### Get host's upcoming activity
+
+`GET /api/v1/fleet/hosts/:id/activites/upcoming`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/12/activites/upcoming`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 3,
+      "actor_full_name": "Marko",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "marko@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "set-timezones.sh",
+        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+      },
+    },
+    {
+      "created_at": "2021-07-27T13:25:21Z",
+      "id": 4,
+      "actor_full_name": "Rachael",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "rachael@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "",
+        "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
+      },
+    },
   ]
 }
 ```
