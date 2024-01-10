@@ -193,6 +193,9 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			notifs.RenewEnrollmentProfile = true
 		}
 
+		// TODO: consider if notification should be conditioned on the state of refetch critical
+		// queries to mitigate potential race conditions that could cause migrate option to be shown
+		// when migration is already started (see also order of switch cases in TriggerMigrateMDMDevice)
 		if appConfig.MDM.MacOSMigration.Enable &&
 			host.IsEligibleForDEPMigration() {
 			notifs.NeedsMDMMigration = true

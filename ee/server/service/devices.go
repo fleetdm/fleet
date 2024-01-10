@@ -8,6 +8,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+
+	"github.com/go-kit/log/level"
 )
 
 func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -39,13 +41,18 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 		bre.InternalErr = ctxerr.New(ctx, "macOS migration not enabled")
 	case ac.MDM.MacOSMigration.WebhookURL == "":
 		bre.InternalErr = ctxerr.New(ctx, "macOS migration webhook URL not configured")
-	case !host.IsEligibleForDEPMigration():
-		bre.InternalErr = ctxerr.New(ctx, "host not eligible for macOS migration")
 	case host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(svc.clock.Now()):
 		// the webhook has already been triggered successfully recently (within the
 		// refetch critical queries delay), so do as if it did send it successfully
 		// but do not re-send.
 		return nil
+	case !host.IsEligibleForDEPMigration():
+		details := []interface{}{"msg", "not eligibile for dep migration", "host_id", host.ID, "host_serial", host.HardwareSerial, "is_osquery_enrolled", host.IsOsqueryEnrolled(), "is_dep_assigned_to_fleet", host.IsDEPAssignedToFleet()}
+		if host.MDMInfo != nil {
+			details = append(details, "mdm_name", host.MDMInfo.Name, "mdm_enrolled", host.MDMInfo.Enrolled)
+		}
+		level.Debug(svc.logger).Log(details...)
+		bre.InternalErr = ctxerr.New(ctx, "host not eligible for macOS migration")
 	}
 	if bre.InternalErr != nil {
 		return &bre
