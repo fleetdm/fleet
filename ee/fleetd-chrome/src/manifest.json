@@ -3,7 +3,6 @@
   "name": "Fleetd for Chrome",
   "description": "<filled in by webpack>",
   "version": "<filled in by webpack>",
-  "update_url": "https://chrome.fleetdm.com/updates.xml",
   "icons": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" },
   "action": {
     "default_popup": "popup.html"
