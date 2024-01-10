@@ -60,7 +60,9 @@ parasails.registerComponent('parallaxCity', {
       let initialPosition = layer.getAttribute('scroll-amount');
       layer.style.bottom = `-${Number(initialPosition) + 1}px`;
     });
-    document.addEventListener('scroll', this.handleParallaxScroll);
+    document.addEventListener('scroll', ()=>{
+      window.requestAnimationFrame(this.handleParallaxScroll);
+    });
 
   },
   beforeDestroy: function() {
