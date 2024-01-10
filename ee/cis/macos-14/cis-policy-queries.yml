@@ -3371,7 +3371,7 @@ spec:
       p.value IS NULL
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1
+  tags: compliance, CIS, CIS_Level1, decision-needed
   contributors: artemist-work
 ---
 apiVersion: v1
