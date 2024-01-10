@@ -3042,8 +3042,6 @@ Retrieves the end user's email(s) they use to log in to their Identity Provider 
 
 Note that IdP email is only supported on macOS hosts. It's collected once, during automatic enrollment (DEP), only if the end user authenticates with the IdP and the DEP profile has `await_device_configured` set to `true`.
 
-Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
-
 `GET /api/v1/fleet/hosts/:id/device_mapping`
 
 #### Parameters
