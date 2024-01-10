@@ -173,11 +173,12 @@ var hostDetailQueries = map[string]DetailQuery{
 	},
 	"os_version_windows": {
 		Query: `
-	SELECT
-		os.name,
-		os.version
-	FROM
-		os_version os`,
+		SELECT os.name, r.data as display_version
+		FROM 
+			registry r,
+			os_version os
+		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
@@ -186,10 +187,10 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			version := rows[0]["version"]
+			version := rows[0]["display_version"]
 			if version == "" {
 				level.Debug(logger).Log(
-					"msg", "unable to identify windows version",
+					"msg", "unable to identify windows display version",
 					"host", host.Hostname,
 				)
 			}
