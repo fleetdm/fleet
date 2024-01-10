@@ -46,3 +46,15 @@ The above command will generate an unpacked extension in `./dist`.
 3. Send the `./dist` folder to the target Chromebook.
 
 4. In the target Chromebook, go to `chrome://settings`, toggle `Developer mode` and click on `Load unpacked` and select the `dist` folder.
+
+## Testing
+
+### Run tests
+
+```sh
+npm run test
+```
+
+### Test real builds
+
+Real builds are pushed to `https://chrome-beta.fleetdm.com/updates.xml` with the extension ID `bfleegjcoffelppfmadimianphbcdjkb`.
