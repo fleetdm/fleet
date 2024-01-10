@@ -24,7 +24,7 @@ const generateResultsCountText = (
     return `${resultsCount} ${name.slice(0, -1)}`;
   }
 
-  return `${resultsCount} ${name}`;
+  return `${resultsCount.toLocaleString()} ${name}`;
 };
 
 export default { generateResultsCountText };

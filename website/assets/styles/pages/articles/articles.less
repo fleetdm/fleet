@@ -35,6 +35,7 @@
   }
   [purpose='rss-button'] {
     padding: 4px 8px;
+    cursor: pointer;
     display: inline;
     max-width: min-content;
     color: #192147;
@@ -48,6 +49,31 @@
       font-size: 16px;
     }
   }
+
+  [purpose='rss-button'].copied::after {
+    content: 'Link copied';
+    display: flex;
+    font-weight: 400;
+    position: relative;
+    top: 0px;
+    height: 0px;
+    font-size: 14px;
+    color: @core-vibrant-blue;
+    animation-name: copiedText;
+    animation-duration: 4s;
+    animation-fill-mode: forwards;
+  }
+
+  @keyframes copiedText {
+    0% {opacity: 0;}
+    20% {opacity: 100;}
+    30% {opacity: 80;}
+    50% {opacity: 60;}
+    70% {opacity: 40;}
+    80% {opacity: 20;}
+    100% {opacity: 0;}
+  }
+
 
   [purpose='articles'] {
     padding-bottom: 80px;

@@ -8,6 +8,7 @@ import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import stringUtils from "utilities/strings";
 import TooltipWrapper from "components/TooltipWrapper";
+import { COLORS } from "styles/var/colors";
 
 interface IHeaderProps {
   column: {
@@ -57,7 +58,7 @@ export interface IMembersTableData {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (
+const generateColumnConfigs = (
   actionSelectHandler: (value: string, user: IUser) => void
 ): IDataColumn[] => {
   return [
@@ -92,7 +93,7 @@ const generateTableHeaders = (
                     type="dark"
                     effect="solid"
                     id={`api-only-tooltip-${cellProps.row.original.id}`}
-                    backgroundColor="#3e4771"
+                    backgroundColor={COLORS["tooltip-bg"]}
                     clickable
                     delayHide={200} // need delay set to hover using clickable
                   >
@@ -233,4 +234,4 @@ const generateDataSet = (
   return [...enhanceMembersData(teamId, users)];
 };
 
-export { generateTableHeaders, generateDataSet };
+export { generateColumnConfigs, generateDataSet };

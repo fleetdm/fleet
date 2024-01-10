@@ -54,6 +54,8 @@ func TestPolicies(t *testing.T) {
 		{"TestListTeamPoliciesCanPaginate", testListTeamPoliciesCanPaginate},
 		{"TestCountPolicies", testCountPolicies},
 		{"TestUpdatePolicyHostCounts", testUpdatePolicyHostCounts},
+		{"TestCachedPolicyCountDeletesOnPolicyChange", testCachedPolicyCountDeletesOnPolicyChange},
+		{"TestPoliciesListOptions", testPoliciesListOptions},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -201,6 +203,58 @@ func testPoliciesNewGlobalPolicyProprietary(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "query1 other resolution", *p3.Resolution)
 	require.NotNil(t, p3.AuthorID)
 	assert.Equal(t, user1.ID, *p3.AuthorID)
+}
+
+func testPoliciesListOptions(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	ctx := context.Background()
+
+	_, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "apple",
+		Query:       "select 1;",
+		Description: "query1 desc",
+		Resolution:  "query1 resolution",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "banana",
+		Query:       "select 1;",
+		Description: "query2 desc",
+		Resolution:  "query2 resolution",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "cherry",
+		Query:       "select 1;",
+		Description: "query3 desc",
+		Resolution:  "query3 resolution",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "apple pie",
+		Query:       "select 1;",
+		Description: "query4 desc",
+		Resolution:  "query4 resolution",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "rotten apple",
+		Query:       "select 1;",
+		Description: "query5 desc",
+		Resolution:  "query5 resolution",
+	})
+	require.NoError(t, err)
+
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{MatchQuery: "apple", OrderKey: "name", OrderDirection: fleet.OrderAscending})
+	require.NoError(t, err)
+	require.Len(t, policies, 3)
+	assert.Equal(t, "apple", policies[0].Name)
+	assert.Equal(t, "apple pie", policies[1].Name)
+	assert.Equal(t, "rotten apple", policies[2].Name)
 }
 
 func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
@@ -1410,6 +1464,99 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Len(t, rows, 0)
 }
 
+func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	teamHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("test-1"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("test-1"),
+		UUID:            "test-1",
+		Hostname:        "foo.local",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{teamHost.ID}))
+
+	globalHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("test-2"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("test-2"),
+		UUID:            "test-2",
+		Hostname:        "foo.local",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	globalPolicy, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:        "global query",
+		Query:       "select 1;",
+		Description: "global query desc",
+		Resolution:  "global query resolution",
+	})
+	require.NoError(t, err)
+
+	teamPolicy, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:        "team query",
+		Query:       "select 1;",
+		Description: "team query desc",
+		Resolution:  "team query resolution",
+	})
+	require.NoError(t, err)
+
+	// teamHost and globalHost pass all policies
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, teamHost, map[uint]*bool{globalPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, teamHost, map[uint]*bool{teamPolicy.ID: ptr.Bool(true), teamPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, globalHost, map[uint]*bool{globalPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+
+	err = ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+
+	globalPolicy, err = ds.Policy(ctx, globalPolicy.ID)
+	require.NoError(t, err)
+	assert.Equal(t, uint(2), globalPolicy.PassingHostCount)
+	teamPolicies, inheritedPolicies, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, teamPolicies, 1)
+	require.Len(t, inheritedPolicies, 1)
+	assert.Equal(t, uint(1), teamPolicies[0].PassingHostCount)
+	assert.Equal(t, uint(1), inheritedPolicies[0].PassingHostCount)
+
+	// Update the global policy sql to trigger a cache invalidation
+	err = ds.SavePolicy(ctx, globalPolicy, true)
+	require.NoError(t, err)
+
+	globalPolicy, err = ds.Policy(ctx, globalPolicy.ID)
+	require.NoError(t, err)
+	assert.Equal(t, uint(0), globalPolicy.PassingHostCount)
+	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, teamPolicies, 1)
+	require.Len(t, inheritedPolicies, 1)
+	assert.Equal(t, uint(1), teamPolicies[0].PassingHostCount)
+	assert.Equal(t, uint(0), inheritedPolicies[0].PassingHostCount)
+
+	// Update the team policy sql to trigger a cache invalidation
+	err = ds.SavePolicy(ctx, teamPolicy, true)
+	require.NoError(t, err)
+
+	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, teamPolicies, 1)
+	require.Len(t, inheritedPolicies, 1)
+	assert.Equal(t, uint(0), teamPolicies[0].PassingHostCount)
+	assert.Equal(t, uint(0), inheritedPolicies[0].PassingHostCount)
+}
+
 func testPoliciesDelUser(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "User1", "user1@example.com", true)
 	user2 := test.NewUser(t, ds, "User2", "user2@example.com", true)
@@ -2493,8 +2640,11 @@ func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, uint(0), policy.FailingHostCount)
 	require.Equal(t, uint(0), policy.PassingHostCount)
+	assert.Nil(t, policy.HostCountUpdatedAt)
 
 	// update policy host counts
+	now := time.Now().Truncate(time.Second)
+	later := now.Add(10 * time.Second)
 	err = ds.UpdateHostPolicyCounts(context.Background())
 	require.NoError(t, err)
 
@@ -2503,4 +2653,11 @@ func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, uint(0), policy.FailingHostCount)
 	require.Equal(t, uint(8), policy.PassingHostCount)
+	require.NotNil(t, policy.HostCountUpdatedAt)
+	assert.True(
+		t, policy.HostCountUpdatedAt.Compare(now) >= 0, fmt.Sprintf("reference:%v HostCountUpdatedAt:%v", now, *policy.HostCountUpdatedAt),
+	)
+	assert.True(
+		t, policy.HostCountUpdatedAt.Compare(later) < 0, fmt.Sprintf("later:%v HostCountUpdatedAt:%v", later, *policy.HostCountUpdatedAt),
+	)
 }

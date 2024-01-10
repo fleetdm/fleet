@@ -250,6 +250,14 @@ The maximum open connections to the database.
     max_open_conns: 50
   ```
 
+- Note: Fleet server uses SQL prepared statements, and the default setting of MySQL DB server's [max_prepared_stmt_count](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_prepared_stmt_count)
+may need to be adjusted for large deployments. This setting should be greater than or equal to:
+```
+FLEET_MYSQL_MAX_OPEN_CONNS * (max number of fleet servers) * 4
+```
+
+> Fleet uses 3 prepared statements for authentication (used by Fleet API) + each database connection can be using 1 additional prepared statement.
+
 ##### mysql_max_idle_conns
 
 The maximum idle connections to the database. This value should be equal to or less than `mysql_max_open_conns`.
@@ -747,6 +755,12 @@ The bcrypt cost to use when hashing user passwords.
 ##### auth_salt_key_size
 
 The key size of the salt which is generated when hashing user passwords.
+
+> Note: Fleet uses the `bcrypt` hashing algorithm for hashing passwords, which has a [72 character
+> input limit](https://en.wikipedia.org/wiki/Bcrypt#Maximum_password_length). This means that the
+> plaintext password (i.e. the password input by the user) length + the value of
+> `auth_salt_key_size` cannot exceed 72. In the default case, the max length of a plaintext password
+> is 48 (72 - 24).
 
 - Default value: `24`
 - Environment variable: `FLEET_AUTH_SALT_KEY_SIZE`
@@ -1332,7 +1346,7 @@ This flag only has effect if one of the following is true:
 - `activity_audit_log_plugin` is set to `filesystem` and `activity_enable_audit_log` is set to `true`.
 
 This flag will cause the osquery result and status log files to be automatically
-rotated when files reach a size of 500 Mb or an age of 28 days.
+rotated when files reach a size of 500 MB or an age of 28 days.
 
 - Default value: `false`
 - Environment variable: `FLEET_FILESYSTEM_ENABLE_LOG_ROTATION`
