@@ -527,9 +527,13 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.arch,
 		k.version as kernel_version,
 		os.version
+		r.data as display_version
 	FROM
 		os_version os,
-		kernel_info k`,
+		kernel_info k,
+		registry r
+	WHERE
+		r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -1008,16 +1012,17 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 		Arch:          rows[0]["arch"],
 		KernelVersion: rows[0]["kernel_version"],
 		Platform:      rows[0]["platform"],
+		Version:       rows[0]["version"],
 	}
 
-	version := rows[0]["version"]
-	if version == "" {
+	displayVersion := rows[0]["display_version"]
+	if displayVersion == "" {
 		level.Debug(logger).Log(
 			"msg", "unable to identify windows version",
 			"host", host.Hostname,
 		)
 	}
-	hostOS.Version = version
+	hostOS.DisplayVersion = displayVersion
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSWindows update host operating system")
