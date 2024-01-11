@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosResponse } from "axios";
 import { InjectedRouter } from "react-router";
@@ -15,9 +15,11 @@ import Card from "components/Card";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import DataError from "components/DataError";
+import Spinner from "components/Spinner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { IHost } from "interfaces/host";
 import { IUser } from "interfaces/user";
+import { AppContext } from "context/app";
 
 import {
   generateDataSet,
@@ -41,6 +43,7 @@ const Scripts = ({
   router,
   onShowDetails,
 }: IScriptsProps) => {
+  const [isScriptRunning, setIsScriptRunning] = useState(false);
   const { renderFlash } = useContext(NotificationContext);
 
   const hostId = host?.id;
@@ -57,8 +60,14 @@ const Scripts = ({
       refetchOnWindowFocus: false,
       retry: false,
       enabled: Boolean(hostId),
+      onSuccess: () => {
+        setIsScriptRunning(false);
+      },
     }
   );
+
+  const { config } = useContext(AppContext);
+  if (!config) return null;
 
   if (!host) return null;
 
@@ -74,6 +83,7 @@ const Scripts = ({
         break;
       case "run":
         try {
+          setIsScriptRunning(true);
           await scriptsAPI.runScript({
             host_id: host.id,
             script_id: script.script_id,
@@ -82,6 +92,7 @@ const Scripts = ({
         } catch (e) {
           const error = e as AxiosResponse<IApiError>;
           renderFlash("error", error.data.errors[0].reason);
+          setIsScriptRunning(false);
         }
         break;
       default:
@@ -92,7 +103,10 @@ const Scripts = ({
   if (isErrorScriptData) {
     return <DataError card />;
   }
-  const scriptColumnConfigs = generateTableColumnConfigs(onActionSelection);
+  const scriptColumnConfigs = generateTableColumnConfigs(
+    onActionSelection,
+    config.server_settings.scripts_disabled
+  );
   const data = generateDataSet(
     currentUser,
     host,
@@ -102,20 +116,22 @@ const Scripts = ({
   return (
     <Card className={baseClass} borderRadiusSize="large" includeShadow>
       <h2>Scripts</h2>
-      {data && data.length === 0 ? (
+      {isLoadingScriptData && <Spinner />}
+      {!isLoadingScriptData && data && data.length === 0 && (
         <EmptyTable
           header="No scripts are available for this host"
           info="Expecting to see scripts? Try selecting “Refetch” to ask this host to report new vitals."
         />
-      ) : (
+      )}
+      {!isLoadingScriptData && data && data.length > 0 && (
         <TableContainer
           resultsTitle=""
           emptyComponent={() => <></>}
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          columns={scriptColumnConfigs}
+          columnConfigs={scriptColumnConfigs}
           data={data}
-          isLoading={isLoadingScriptData}
+          isLoading={isScriptRunning}
           onQueryChange={onQueryChange}
           disableNextPage={hostScriptResponse?.meta.has_next_results}
           defaultPageIndex={page}

@@ -136,7 +136,6 @@ const LabelFilterSelect = ({
 
   const onBlurLabelSearchInput = () => {
     isLabelSearchInputFocusedRef.current = false;
-    setMenuIsOpen(false);
   };
 
   const getOptionLabel = (option: ILabel | IEmptyOption) => {

@@ -60,6 +60,7 @@
 		},
 		"gigs_disk_space_available": 0,
 		"percent_disk_space_available": 0,
+		"gigs_total_disk_space": 0,
 		"issues": {
 			"total_issues_count": 0,
 			"failing_policies_count": 0
@@ -122,6 +123,7 @@
 		"team_name": null,
 		"gigs_disk_space_available": 0,
 		"percent_disk_space_available": 0,
+		"gigs_total_disk_space": 0,
 		"issues": {
 			"total_issues_count": 0,
 			"failing_policies_count": 0

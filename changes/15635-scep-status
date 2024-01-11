@@ -1,0 +1,2 @@
+- Fixes issue with SCEP endpoints sending back incorrect status codes. Should return 400 now if bad
+  data is sent to SCEP API.

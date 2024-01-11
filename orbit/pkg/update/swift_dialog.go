@@ -54,7 +54,7 @@ func (s *SwiftDialogDownloader) GetConfig() (*fleet.OrbitConfig, error) {
 		// we don't want to keep swiftDialog as a target if we failed to update the
 		// cached hashes in the runner.
 		if err := s.UpdateRunner.StoreLocalHash("swiftDialog"); err != nil {
-			log.Debug().Msgf("removing swiftDialog from target options, error updating local hashes: %e", err)
+			log.Debug().Msgf("removing swiftDialog from target options, error updating local hashes: %s", err)
 			s.UpdateRunner.RemoveRunnerOptTarget("swiftDialog")
 			s.UpdateRunner.updater.RemoveTargetInfo("swiftDialog")
 			return cfg, err

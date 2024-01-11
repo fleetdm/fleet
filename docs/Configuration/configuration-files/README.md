@@ -403,6 +403,7 @@ spec:
     enable_analytics: true
     live_query_disabled: false
     query_reports_disabled: false
+    scripts_disabled: false
     server_url: ""
   smtp_settings:
     authentication_method: authmethod_plain
@@ -767,6 +768,21 @@ Query reports are cached results of scheduled queries stored in Fleet (up to 100
   ```yaml
   server_settings:
     query_reports_disabled: true
+  ```
+
+##### server_settings.scripts_disabled
+
+Whether the scripts feature is disabled.
+
+If this setting is changed from `false` to `true`, then users will not be able to execute scripts on
+hosts. Scripts can still be added or modified in Fleet.
+
+- Optional setting (boolean)
+- Default value: `false`
+- Config file format:
+  ```yaml
+  server_settings:
+    scripts_disabled: true
   ```
 
 

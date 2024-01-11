@@ -1389,7 +1389,9 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": "List installed Atom packages and their version.\n```\nSELECT name, version, description FROM atom_packages;\n```",
+    "examples": [
+      "select * from atom_packages"
+    ],
     "columns": [
       {
         "name": "name",
@@ -1452,10 +1454,10 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": true,
-        "requires_user_context": true
+        "index": true
       }
     ],
+    "hidden": true,
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/atom_packages.yml"
   },
   {
@@ -17752,6 +17754,12 @@
         "type": "text",
         "required": false,
         "description": "The Update Framework update channel used for the Fleet Desktop executable."
+      },
+      {
+        "name": "uptime",
+        "type": "bigint",
+        "required": false,
+        "description": "Uptime of the orbit process in seconds."
       }
     ],
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",

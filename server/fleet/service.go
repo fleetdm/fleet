@@ -7,8 +7,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
-	"github.com/kolide/kit/version"
 )
 
 // EnterpriseOverrides contains the methods that can be overriden by the
@@ -60,6 +60,7 @@ type OsqueryService interface {
 		results OsqueryDistributedQueryResults,
 		statuses map[string]OsqueryStatus,
 		messages map[string]string,
+		stats map[string]*Stats,
 	) (err error)
 	SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) (err error)
 	SubmitResultLogs(ctx context.Context, logs []json.RawMessage) (err error)
@@ -270,8 +271,12 @@ type Service interface {
 	// and only non-scheduled queries will be returned if `*scheduled == false`.
 	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool) ([]*Query, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
-	// GetQueryReportResults returns all the stored results of a query.
+	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to
 	GetQueryReportResults(ctx context.Context, id uint) ([]HostQueryResultRow, error)
+	// GetHostQueryReportResults returns all stored results of a query for a specific host
+	GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []HostQueryReportResult, lastFetched *time.Time, err error)
+	// QueryReportIsClipped returns true if the number of query report rows exceeds the maximum
+	QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
 	DeleteQuery(ctx context.Context, teamID *uint, name string) error
@@ -325,6 +330,8 @@ type Service interface {
 	// The return value can also include policy information and CVE scores based
 	// on the values provided to `opts`
 	GetHost(ctx context.Context, id uint, opts HostDetailOptions) (host *HostDetail, err error)
+	// GetHostLite returns basic host information not requiring table joins
+	GetHostLite(ctx context.Context, id uint) (host *Host, err error)
 	GetHostHealth(ctx context.Context, id uint) (hostHealth *HostHealth, err error)
 	GetHostSummary(ctx context.Context, teamID *uint, platform *string, lowDiskSpace *int) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
@@ -352,6 +359,11 @@ type Service interface {
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+	// SetCustomHostDeviceMapping sets the custom email address associated with
+	// the host, which is either set by the fleetd installer at startup (via a
+	// device-authenticated API), or manually by the user (via the
+	// user-authenticated API).
+	SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*HostDeviceMapping, error)
 
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
@@ -564,7 +576,7 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Software
 
-	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
+	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, *PaginationMetadata, error)
 	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 

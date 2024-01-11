@@ -640,7 +640,7 @@ func testIngestMDMAppleHostAlreadyExistsInFleet(t *testing.T, ds *Datastore) {
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "")
 	require.NoError(t, err)
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
@@ -678,7 +678,7 @@ func testIngestMDMNonDarwinHostAlreadyExistsInFleet(t *testing.T, ds *Datastore)
 		Platform:        "linux",
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, "Fleet MDM")
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, "Fleet MDM", "")
 	require.NoError(t, err)
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
@@ -3464,11 +3464,13 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	cp3, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "name3", "cp3", "uuid3"))
 	require.NoError(t, err)
+	cp4, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "name4", "cp4", "uuid4"))
+	require.NoError(t, err)
 
 	// list config profiles for no team
 	cps, err := ds.ListMDMAppleConfigProfiles(ctx, nil)
 	require.NoError(t, err)
-	require.Len(t, cps, 3)
+	require.Len(t, cps, 4)
 	storedByIdentifier := make(map[string]*fleet.MDMAppleConfigProfile)
 	for _, cp := range cps {
 		storedByIdentifier[cp.Identifier] = cp
@@ -3484,6 +3486,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			cp1.Identifier: fleet.MDMDeliveryPending,
 			cp2.Identifier: fleet.MDMDeliveryVerifying,
 			cp3.Identifier: fleet.MDMDeliveryVerified,
+			cp4.Identifier: fleet.MDMDeliveryPending,
 		}
 	}
 
@@ -3497,12 +3500,12 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 		for _, h := range hosts {
 			gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 			require.NoError(t, err)
-			require.Len(t, gotProfs, 3)
+			require.Len(t, gotProfs, 4)
 			for _, p := range gotProfs {
 				s, ok := expectedHostMDMStatus[h.ID][p.Identifier]
 				require.True(t, ok)
 				require.NotNil(t, p.Status)
-				require.Equal(t, s, *p.Status)
+				require.Equalf(t, s, *p.Status, "profile identifier %s", p.Identifier)
 			}
 		}
 	}
@@ -3520,21 +3523,11 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 	upsertHostCPs(hosts, []*fleet.MDMAppleConfigProfile{storedByIdentifier[cp1.Identifier]}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryPending, ctx, ds, t)
 	upsertHostCPs(hosts, []*fleet.MDMAppleConfigProfile{storedByIdentifier[cp2.Identifier]}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
 	upsertHostCPs(hosts, []*fleet.MDMAppleConfigProfile{storedByIdentifier[cp3.Identifier]}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerified, ctx, ds, t)
+	upsertHostCPs(hosts, []*fleet.MDMAppleConfigProfile{storedByIdentifier[cp4.Identifier]}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryPending, ctx, ds, t)
 	checkHostMDMProfileStatuses()
 
 	// statuses don't change during the grace period if profiles are missing (i.e. not installed)
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[0], map[string]*fleet.HostMacOSProfile{}))
-	checkHostMDMProfileStatuses()
-
-	// only "verifying" status can change to "verified" so status of cp1 doesn't change (it
-	// remains "pending")
-	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[0], map[string]*fleet.HostMacOSProfile{
-		cp1.Identifier: {
-			Identifier:  cp1.Identifier,
-			DisplayName: cp1.Name,
-			InstallDate: time.Now(),
-		},
-	}))
 	checkHostMDMProfileStatuses()
 
 	// if install date is before the updated at timestamp of the profile, statuses don't change
@@ -3555,17 +3548,17 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			DisplayName: cp3.Name,
 			InstallDate: storedByIdentifier[cp3.Identifier].UpdatedAt.Add(-1 * time.Hour),
 		},
+		{
+			Identifier:  cp4.Identifier,
+			DisplayName: cp4.Name,
+			InstallDate: storedByIdentifier[cp4.Identifier].UpdatedAt.Add(-1 * time.Hour),
+		},
 	})))
 	checkHostMDMProfileStatuses()
 
-	// if install date is on or after the updated at timestamp of the profile, "verifying" status
-	// changes to "verified"
+	// if install date is on or after the updated at timestamp of the profile, "verifying" or "pending" status
+	// changes to "verified". Any "pending" profiles not reported are not changed
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
-		{
-			Identifier:  cp1.Identifier,
-			DisplayName: cp1.Name,
-			InstallDate: storedByIdentifier[cp1.Identifier].UpdatedAt,
-		},
 		{
 			Identifier:  cp2.Identifier,
 			DisplayName: cp2.Name,
@@ -3576,18 +3569,19 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			DisplayName: cp3.Name,
 			InstallDate: storedByIdentifier[cp3.Identifier].UpdatedAt,
 		},
+		{
+			Identifier:  cp4.Identifier,
+			DisplayName: cp4.Name,
+			InstallDate: storedByIdentifier[cp4.Identifier].UpdatedAt,
+		},
 	})))
 	expectedHostMDMStatus[hosts[2].ID][cp2.Identifier] = fleet.MDMDeliveryVerified
+	expectedHostMDMStatus[hosts[2].ID][cp4.Identifier] = fleet.MDMDeliveryVerified
 	checkHostMDMProfileStatuses()
 
 	// repeated call doesn't change statuses
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
 		{
-			Identifier:  cp1.Identifier,
-			DisplayName: cp1.Name,
-			InstallDate: storedByIdentifier[cp1.Identifier].UpdatedAt,
-		},
-		{
 			Identifier:  cp2.Identifier,
 			DisplayName: cp2.Name,
 			InstallDate: storedByIdentifier[cp2.Identifier].UpdatedAt,
@@ -3596,6 +3590,11 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			Identifier:  cp3.Identifier,
 			DisplayName: cp3.Name,
 			InstallDate: storedByIdentifier[cp3.Identifier].UpdatedAt,
+		},
+		{
+			Identifier:  cp4.Identifier,
+			DisplayName: cp4.Name,
+			InstallDate: storedByIdentifier[cp4.Identifier].UpdatedAt,
 		},
 	})))
 	checkHostMDMProfileStatuses()
@@ -3603,9 +3602,9 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 	// simulate expired grace period by setting updated_at timestamp of profiles back by 24 hours
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx,
-			`UPDATE mdm_apple_configuration_profiles SET updated_at = ? WHERE profile_uuid IN(?, ?, ?)`,
+			`UPDATE mdm_apple_configuration_profiles SET updated_at = ? WHERE profile_uuid IN(?, ?, ?, ?)`,
 			time.Now().Add(-24*time.Hour),
-			cp1.ProfileUUID, cp2.ProfileUUID, cp3.ProfileUUID,
+			cp1.ProfileUUID, cp2.ProfileUUID, cp3.ProfileUUID, cp4.ProfileUUID,
 		)
 		return err
 	})
@@ -3623,11 +3622,14 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			InstallDate: time.Now(),
 		},
 	})))
-	expectedHostMDMStatus[hosts[2].ID][cp3.Identifier] = fleet.MDMDeliveryPending // first retry for cp3
+	expectedHostMDMStatus[hosts[2].ID][cp1.Identifier] = fleet.MDMDeliveryVerified //cp1 can go from pending to verified
+	expectedHostMDMStatus[hosts[2].ID][cp3.Identifier] = fleet.MDMDeliveryPending  // first retry for cp3
+	expectedHostMDMStatus[hosts[2].ID][cp4.Identifier] = fleet.MDMDeliveryPending  // first retry for cp4
 	checkHostMDMProfileStatuses()
 	// simulate retry command acknowledged by setting status to "verifying"
 	adHocSetVerifying(hosts[2].UUID, cp3.Identifier)
-	// report osquery results again with cp3 still missing
+	adHocSetVerifying(hosts[2].UUID, cp4.Identifier)
+	// report osquery results again with cp3 and cp4 still missing
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
 		{
 			Identifier:  cp1.Identifier,
@@ -3641,6 +3643,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 		},
 	})))
 	expectedHostMDMStatus[hosts[2].ID][cp3.Identifier] = fleet.MDMDeliveryFailed // still missing after retry so expect cp3 to fail
+	expectedHostMDMStatus[hosts[2].ID][cp4.Identifier] = fleet.MDMDeliveryFailed // still missing after retry so expect cp4 to fail
 	checkHostMDMProfileStatuses()
 
 	// after the grace period and one retry attempt, status changes to "failed" if a profile is outdated (i.e. installed
@@ -3912,7 +3915,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.True(t, *h.DEPAssignedToFleet)
 
 		// simulate osquery report of MDM detail query
-		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet)
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "")
 		require.NoError(t, err)
 
 		// enrollment status changes to "On (automatic)"
@@ -3955,7 +3958,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.True(t, *h.DEPAssignedToFleet)
 
 		// simulate osquery report of MDM detail query reflecting re-enrollment to MDM
-		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet)
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "")
 		require.NoError(t, err)
 
 		// host MDM row is re-created when osquery reports MDM detail query
@@ -3977,7 +3980,7 @@ func TestHostDEPAssignments(t *testing.T) {
 
 		// simulate osquery report of MDM detail query with empty server URL (signals unenrollment
 		// from MDM)
-		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, false, "", false, "")
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, false, "", false, "", "")
 		require.NoError(t, err)
 
 		// host MDM row is reset to defaults when osquery reports MDM detail query with empty server URL
@@ -4192,7 +4195,7 @@ func testResetMDMAppleEnrollment(t *testing.T, ds *Datastore) {
 		ON DUPLICATE KEY UPDATE added_at = CURRENT_TIMESTAMP, deleted_at = NULL
 	`, host.ID)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", true, "")
+	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", true, "", "")
 	require.NoError(t, err)
 
 	sum, err := ds.GetMDMAppleBootstrapPackageSummary(ctx, uint(0))
@@ -4471,7 +4474,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 			{
 				name:           "PendingThenFoundExpected",
 				initialStatus:  fleet.MDMDeliveryPending,
-				expectedStatus: fleet.MDMDeliveryPending, // no change
+				expectedStatus: fleet.MDMDeliveryVerified, // pending can go to verified if found
 				expectedDetail: "",
 			},
 			{
@@ -4534,7 +4537,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 			{
 				name:           "PendingThenFoundExpectedAndUnexpected",
 				initialStatus:  fleet.MDMDeliveryPending,
-				expectedStatus: fleet.MDMDeliveryPending, // no change
+				expectedStatus: fleet.MDMDeliveryVerified, // profile can go from pending to verified
 				expectedDetail: "",
 			},
 			{
@@ -4746,13 +4749,18 @@ func TestRestorePendingDEPHost(t *testing.T) {
 			require.WithinDuration(t, time.Now(), depAssignment.AddedAt, 5*time.Second)
 
 			// simulate initial osquery enrollment via Orbit
-			h, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{HardwareSerial: depSerial, Platform: "darwin", HardwareUUID: depUUID, Hostname: "dep-host"}, depOrbitNodeKey, nil)
+			h, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+				HardwareSerial: depSerial,
+				Platform:       "darwin",
+				HardwareUUID:   depUUID,
+				Hostname:       "dep-host",
+			}, depOrbitNodeKey, nil)
 			require.NoError(t, err)
 			require.NotNil(t, h)
 			require.Equal(t, depHostID, h.ID)
 
 			// simulate osquery report of MDM detail query
-			err = ds.SetOrUpdateMDMData(ctx, depHostID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet)
+			err = ds.SetOrUpdateMDMData(ctx, depHostID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "")
 			require.NoError(t, err)
 
 			// enrollment status changes to "On (automatic)"

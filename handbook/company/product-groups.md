@@ -1,10 +1,8 @@
 # 🛩️ Product groups
 When creating software, handoffs between teams or contributors are one of the most common sources of miscommunication and waste.  Like [GitLab](https://docs.google.com/document/d/1RxqS2nR5K0vN6DbgaBw7SEgpPLi0Kr9jXNGzpORT-OY/edit#heading=h.7sfw1n9c1i2t), Fleet uses product groups to minimize handoffs and maximize iteration and efficiency in the way we build the product.
 
-
 ## Product roadmap
 Fleet team members can read [Fleet's high-level product goals and planned releases for the current quarter and the next quarter](https://docs.google.com/document/d/11XEb__EJoGQJE9hXwaLrN45_5_k1NCi-zlJKH-OlKKk/edit#heading=h.33k3ii7z7ubc) (confidential Google Doc).
-
 
 ## What are product groups?
 Fleet organizes product development efforts into separate, cross-functional product groups that include product designers, developers, and quality engineers.  These product groups are organized by business goal, and designed to operate in parallel.
@@ -29,7 +27,6 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 >
 > _Why?  Making users and customers happier and more successful is the goal of _every_ product group.  This includes simpler usage, lovable design + help text + error messages, fixed bugs, responding quickly to incidents, using Fleet's brand standards, more successful customer onboarding, features that drive more win-win meetings with contributors and Fleet's sales team, and "whole product solutions", including professional services, design partnerships, and training._
 
-
 ### Endpoint ops group
 The goal of the endpoint ops group is to increase and exceed [Fleet's product maturity goals in the endpoint operations category](https://drive.google.com/file/d/11yQ_2WG7TbRErUpMBKWu_hQ5wRIZyQhr/view?usp=sharing).
 
@@ -39,10 +36,9 @@ The goal of the endpoint ops group is to increase and exceed [Fleet's product ma
 | Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
 | Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
 | Quality Assurance                 | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
-| Developer                         | [Jacob Shandling](https://www.linkedin.com/in/jacob-shandling/) _([@jacobshandling](https://github.com/jacobshandling))_, [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_, [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_, [Tim Lee](https://www.linkedin.com/in/mostlikelee/) _([@mostlikelee](https://github.com/mostlikelee))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_, [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
+| Developer                         | [Jacob Shandling](https://www.linkedin.com/in/jacob-shandling/) _([@jacobshandling](https://github.com/jacobshandling))_, [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_, [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_, [Tim Lee](https://www.linkedin.com/in/mostlikelee/) _([@mostlikelee](https://github.com/mostlikelee))_, [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C01EZVBHFHU), [kanban release board](https://app.zenhub.com/workspaces/-g-endpoint-ops-current-sprint-63bd7e0bf75dba002a2343ac/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-endpoint-ops) for this product group is `#g-endpoint-ops`.
-
 
 ### MDM group
 The goal of the MDM group is to increase and exceed [Fleet's product maturity goals](https://drive.google.com/file/d/11yQ_2WG7TbRErUpMBKWu_hQ5wRIZyQhr/view?usp=sharing) in the "MDM" product category.
@@ -53,7 +49,7 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
 | Quality Assurance                 | [Sabrina Coy](https://www.linkedin.com/in/bricoy/) _([@sabrinabuckets](https://github.com/sabrinabuckets))_
-| Developer                         | [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Roberto Dip](https://www.linkedin.com/in/roperzh) _([@roperzh](https://github.com/roperzh))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_
+| Developer                         | [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Roberto Dip](https://www.linkedin.com/in/roperzh) _([@roperzh](https://github.com/roperzh))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
 
@@ -377,7 +373,7 @@ The goal of quality assurance is to identify corrections and optimizations befor
 
 Fleet uses a human-oriented quality assurance (QA) process to make sure the product meets the standards of users and organizations. Automated tests are important, but they can't catch everything. Many issues are hard to notice until a human looks empathetically at the user experience, whether in the user interface, the REST API, or the command line.
 
-You can read our guide to diagnosing issues in Fleet on the [debugging page](https://fleetdm.com/handbook/engineering/debugging). All bugs in Fleet are tracked by QA on the [bugs board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board) in ZenHub.
+You can read our guide to diagnosing issues in Fleet on the [debugging page](https://fleetdm.com/handbook/engineering/debugging). All bugs in Fleet are tracked by QA as [GitHub issues with the "bug" label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug).
 
 - **Bug states:** The lifecycle stages of a bug at Fleet correspond to a set of GitHub labels, assignees, and boards.
   - [Inbox](https://fleetdm.com/handbook/company/product-groups#inbox)
@@ -388,7 +384,6 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 ### All bugs
 - [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
-- [See on ZenHub](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board).
 
 - **Bugs opened this week:** This filter returns all "bug" issues opened after the specified date. Simply replace the date with a YYYY-MM-DD equal to one week ago. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+archived%3Afalse+label%3Abug+created%3A%3E%3DREPLACE_ME_YYYY-MM-DD).
 
@@ -406,17 +401,24 @@ Once reproduced, QA documents the reproduction steps in the description and move
 #### Reproduced
 QA has reproduced the issue successfully. It should now be transferred to engineering.
 
-Remove the “reproduce” label, add the label of the relevant team (e.g. #g-endpoint-ops, #g-mdm, #g-infra, #g-website), and assign it to the relevant engineering manager. (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+sort%3Aupdated-asc+).
+Remove the “reproduce” label, add the following labels: 
+
+1. The relevant product group (e.g. `#g-endpoint-ops`, `#g-mdm`, `#g-website`).
+3. The `~released bug` label if the bug is in a published version of Fleet, or `~unreleased bug` if it is not yet published.
+2. The `:incoming` label indicates to the EM that it is a new bug. 
+3. The `:release` label will place the bug on the team's release board. 
+
+Once the bug is properly labeled, assign it to the [relevant engineering manager](https://fleetdm.com/handbook/company/product-groups#current-product-groups). (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+sort%3Aupdated-asc+).
 
 > **Fast track for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
 
 #### In product drafting (as needed)
-If a bug requires input from product, the `:product` label is added, it is assigned to the product group's PM, and the bug is moved to the "Product drafting" column of the [bugs board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board). It will stay in this state until product closes the bug, or removes the `:product` label and assigns to an EM.
+If a bug requires input from product the `:product` label is added, the `:release` label is removed, and the PM is assigned to the issue. It will stay in this state until product closes the bug, or removes the `:product` label and assigns to an EM.
 
 #### In engineering
-A bug is in engineering after it has been reproduced and assigned to an EM. If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs), the `:release` and `~critical bug` labels are added, and it is moved to the "Current release' column of the bugs board. If the bug is a `~critical bug`, the EM follows the [critical bug notification process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#critical-bug-notification-process).
+A bug is in engineering after it has been reproduced and assigned to an EM. If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs), the `~critical bug` label is added, and the EM follows the [critical bug notification process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#critical-bug-notification-process).
 
-If the bug does not meet the criteria of a critical bug, the EM will determine if there is capacity in the current sprint for this bug. If so, the `:release` label is added, and it is moved to the "Current release' column on the bugs board. If there is no available capacity in the current sprint, the EM will move the bug to the "Sprint backlog" column where it will be prioritized for the next sprint.
+During daily standup, the EM will filter the board to only `:incoming` bugs and review with the team. The EM will remove the `:incoming` label, prioritize the bug in the "Ready" coulmn, unassign themselves, and assign an engineer or leave it unassigned for the first available engineer.  
 
 When fixing the bug, if the proposed solution requires changes that would affect the user experience (UI, API, or CLI), notify the EM and PM to align on the acceptability of the change.
 
@@ -430,8 +432,7 @@ For Endpoint ops support on MDM bugs:
 - Remove the `#g-mdm` label and add `#g-endpoint-ops` label.
 - Add `~assisting g-mdm` to clarify the bug’s origin.
 
-
-Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizing-improvements) into a release within six weeks. If a bug is not prioritized in the current release, and it is not prioritized in the next release, it is removed from the "Sprint backlog" and placed back in the "Product drafting" column with the `:product` label. Product will determine if the bug should be closed as accepted behavior, or if further drafting is necessary.
+Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizing-improvements). 
 
 #### Awaiting QA
 Bugs will be verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's sprint board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.

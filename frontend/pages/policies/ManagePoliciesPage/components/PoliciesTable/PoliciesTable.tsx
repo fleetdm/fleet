@@ -7,7 +7,6 @@ import { ITeamSummary } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyTable from "components/EmptyTable";
@@ -139,12 +138,13 @@ const PoliciesTable = ({
     >
       <TableContainer
         resultsTitle="policies"
-        columns={generateTableHeaders(
+        columnConfigs={generateTableHeaders(
           {
             selectedTeamId: currentTeam?.id,
             canAddOrDeletePolicy,
             tableType,
           },
+          policiesList,
           isPremiumTier,
           isSandboxMode
         )}
