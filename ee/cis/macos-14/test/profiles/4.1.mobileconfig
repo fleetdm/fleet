@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>test</string>
+			<key>PayloadType</key>
+			<string>com.apple.mDNSResponder</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-4.1.check</string>
+			<key>PayloadUUID</key>
+			<string>08FEA43B-CE9B-4098-804C-11459D109992</string>
+			<key>NoMulticastAdvertisements</key>
+			<true/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>test</string>
+	<key>PayloadDisplayName</key>
+	<string>Ensure Bonjour Advertising Services Is Disabled</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.cis-4.1</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>25BD1312-2B79-40C7-99FA-E60B49A1883E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

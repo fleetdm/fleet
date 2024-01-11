@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -332,7 +333,8 @@ var hostDetailQueries = map[string]DetailQuery{
 	"disk_space_unix": {
 		Query: `
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-       round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available
+       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
 FROM mounts WHERE path = '/' LIMIT 1;`,
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestDiskSpace,
@@ -341,7 +343,8 @@ FROM mounts WHERE path = '/' LIMIT 1;`,
 	"disk_space_windows": {
 		Query: `
 SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available,
-       ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available
+       ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available,
+       ROUND(sum(size)       * 10e-10) AS gigs_total_disk_space
 FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestDiskSpace,
@@ -406,8 +409,12 @@ func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.H
 	if err != nil {
 		return err
 	}
+	gigsTotal, err := strconv.ParseFloat(EmptyToZero(rows[0]["gigs_total_disk_space"]), 64)
+	if err != nil {
+		return err
+	}
 
-	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable)
+	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal)
 }
 
 func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
@@ -1078,10 +1085,10 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 		mapping = append(mapping, &fleet.HostDeviceMapping{
 			HostID: host.ID,
 			Email:  row["email"],
-			Source: "google_chrome_profiles",
+			Source: fleet.DeviceMappingGoogleChromeProfiles,
 		})
 	}
-	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
+	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, fleet.DeviceMappingGoogleChromeProfiles)
 }
 
 func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -1121,7 +1128,9 @@ func directIngestWindowsUpdateHistory(
 	for _, row := range rows {
 		u, err := fleet.NewWindowsUpdate(row["title"], row["date"])
 		if err != nil {
-			level.Warn(logger).Log("op", "directIngestWindowsUpdateHistory", "skipped", err)
+			// If the update failed to parse then we log a debug error and ignore it.
+			// E.g. we've seen KB updates with titles like "Logitech - Image - 1.4.40.0".
+			level.Debug(logger).Log("op", "directIngestWindowsUpdateHistory", "skipped", err)
 			continue
 		}
 
@@ -1158,6 +1167,17 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			continue
 		}
 
+		// Do not save stats without executions so that we do not overwrite existing stats.
+		// It is normal for host to have no executions when the query just got scheduled.
+		executions := cast.ToUint64(row["executions"])
+		if executions == 0 {
+			level.Debug(logger).Log(
+				"msg", "host reported scheduled query with no executions",
+				"host", host.Hostname,
+			)
+			continue
+		}
+
 		// Split with a limit of 2 in case query name includes the
 		// delimiter. Not much we can do if pack name includes the
 		// delimiter.
@@ -1177,16 +1197,16 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 		stats := fleet.ScheduledQueryStats{
 			ScheduledQueryName: scheduledName,
 			PackName:           packName,
-			AverageMemory:      cast.ToInt(row["average_memory"]),
+			AverageMemory:      cast.ToUint64(row["average_memory"]),
 			Denylisted:         cast.ToBool(row["denylisted"]),
-			Executions:         cast.ToInt(row["executions"]),
+			Executions:         executions,
 			Interval:           cast.ToInt(row["interval"]),
 			// Cast to int first to allow cast.ToTime to interpret the unix timestamp.
 			LastExecuted: time.Unix(cast.ToInt64(row["last_executed"]), 0).UTC(),
-			OutputSize:   cast.ToInt(row["output_size"]),
-			SystemTime:   cast.ToInt(row["system_time"]),
-			UserTime:     cast.ToInt(row["user_time"]),
-			WallTime:     cast.ToInt(row["wall_time"]),
+			OutputSize:   cast.ToUint64(row["output_size"]),
+			SystemTime:   cast.ToUint64(row["system_time"]),
+			UserTime:     cast.ToUint64(row["user_time"]),
+			WallTime:     cast.ToUint64(row["wall_time"]),
 		}
 		packs[packName] = append(packs[packName], stats)
 	}
@@ -1287,10 +1307,16 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 		// "Microsoft Teams" on macOS defines the `bundle_short_version` (CFBundleShortVersionString) in a different
 		// unexpected version format. Thus here we transform the version string to the expected format
 		// (see https://learn.microsoft.com/en-us/officeupdates/teams-app-versioning).
-		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed to `1.6.00.22155`.
+		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed
+		// to `1.6.00.22155` || s.Name == "Microsoft Teams (work or school).app".
+
+		// Note: in December 2023, Microsoft released "New Teams" for MacOS. This new version of
+		// Teams uses a completely different versioning scheme, which is documented at the URL
+		// above. Existing versions of Teams on MacOS were renamed to "Microsoft Teams Classic" and still use
+		// the same versioning scheme discussed above.
 		{
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return h.Platform == "darwin" && s.Name == "Microsoft Teams.app"
+				return h.Platform == "darwin" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
 			},
 			mutateSoftware: func(s *fleet.Software) {
 				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
@@ -1441,6 +1467,26 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing server_url")
 	}
+
+	// if the MDM solution is Fleet, we need to extract the enrollment reference from the URL and
+	// upsert host emails based on the MDM IdP account associated with the enrollment reference
+	var fleetEnrollRef string
+	if mdmSolutionName == fleet.WellKnownMDMFleet {
+		fleetEnrollRef = serverURL.Query().Get(mobileconfig.FleetEnrollReferenceKey)
+		if fleetEnrollRef == "" {
+			// TODO: We have some inconsistencies where we use enroll_reference sometimes and
+			// enrollment_reference other times. It really should be the same everywhere, but
+			// it seems to be working now because the values are matching where they need to match.
+			// We should clean this up at some point, but for now we'll just check both.
+			fleetEnrollRef = serverURL.Query().Get("enrollment_reference")
+		}
+		if fleetEnrollRef != "" {
+			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
+			}
+		}
+	}
+
 	// strip any query parameters from the URL
 	serverURL.RawQuery = ""
 
@@ -1451,6 +1497,7 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		serverURL.String(),
 		installedFromDep,
 		mdmSolutionName,
+		fleetEnrollRef,
 	)
 }
 
@@ -1509,6 +1556,7 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 		serverURL,
 		automatic,
 		deduceMDMNameWindows(data),
+		"",
 	)
 }
 

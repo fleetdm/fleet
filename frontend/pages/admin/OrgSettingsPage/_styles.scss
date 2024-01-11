@@ -23,8 +23,6 @@
     }
 
     .app-config-form {
-      width: 100%;
-
       .form-field {
         width: 100%;
 
@@ -57,20 +55,6 @@
           margin-right: 18px;
         }
 
-        h2 {
-          padding-bottom: $pad-small;
-          max-width: 100%;
-          font-size: $medium;
-          font-weight: $regular;
-          color: $core-fleet-black;
-          border-bottom: solid 1px $ui-fleet-black-10;
-          margin: 0 0 $pad-xxlarge;
-
-          @media (min-width: $break-md) {
-            max-width: 65%;
-          }
-        }
-
         .smtp-status {
           display: flex;
           justify-content: space-between;
@@ -78,10 +62,6 @@
 
         .empty-table__container {
           margin: 96px 0 1.5rem;
-
-          @media (min-width: $break-md) {
-            max-width: 65%;
-          }
         }
 
         .smtp-options {
@@ -111,26 +91,18 @@
       &__section-description {
         font-size: $x-small;
         color: $core-fleet-black;
-        width: 100%;
-
-        @media (min-width: $break-md) {
-          width: 60%;
-        }
       }
 
       &__inputs {
         margin-top: 1.1rem;
         width: 100%;
+        max-width: 754px;
         float: left;
-        padding-right: $pad-small;
         box-sizing: border-box;
-
-        @media (min-width: $break-md) {
-          width: 60%;
-        }
 
         .input-field {
           width: 100%;
+          max-width: 754px;
         }
 
         &--smtp {

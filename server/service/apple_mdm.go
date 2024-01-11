@@ -1087,7 +1087,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 			return nil, ctxerr.Wrap(ctx, err, "parsing configured server URL")
 		}
 		q := u.Query()
-		q.Add("enroll_reference", ref)
+		q.Add(mobileconfig.FleetEnrollReferenceKey, ref)
 		u.RawQuery = q.Encode()
 		enrollURL = u.String()
 	}
@@ -2233,15 +2233,15 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			return err
 		}
 
+		var tmID *uint
+		if info.TeamID != 0 {
+			tmID = &info.TeamID
+		}
+
 		// TODO: improve this to not enqueue the job if a host that is
 		// assigned in ABM is manually enrolling for some reason.
 		if info.DEPAssignedToFleet || info.InstalledFromDEP {
 			svc.logger.Log("info", "queueing post-enroll task for newly enrolled DEP device", "host_uuid", r.ID)
-
-			var tmID *uint
-			if info.TeamID != 0 {
-				tmID = &info.TeamID
-			}
 			if err := worker.QueueAppleMDMJob(
 				r.Context,
 				svc.ds,
@@ -2249,9 +2249,24 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 				worker.AppleMDMPostDEPEnrollmentTask,
 				r.ID,
 				tmID,
-				r.Params["enroll_reference"],
+				r.Params[mobileconfig.FleetEnrollReferenceKey],
 			); err != nil {
 				return ctxerr.Wrap(r.Context, err, "queue DEP post-enroll task")
+			}
+		}
+
+		// manual MDM enrollments that are not fleet-enrolled yet
+		if !info.InstalledFromDEP && !info.OsqueryEnrolled {
+			if err := worker.QueueAppleMDMJob(
+				r.Context,
+				svc.ds,
+				svc.logger,
+				worker.AppleMDMPostManualEnrollmentTask,
+				r.ID,
+				tmID,
+				r.Params[mobileconfig.FleetEnrollReferenceKey],
+			); err != nil {
+				return ctxerr.Wrap(r.Context, err, "queue manual post-enroll task")
 			}
 		}
 	}

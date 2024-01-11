@@ -17,15 +17,14 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
-	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/go-kit/kit/log/level"
-	"github.com/kolide/kit/version"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -51,17 +50,6 @@ type appConfigResponseFields struct {
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
 	SandboxEnabled bool  `json:"sandbox_enabled,omitempty"`
 	Err            error `json:"error,omitempty"`
-
-	// MDMEnabled is true if fleet serve was started with
-	// FLEET_DEV_MDM_ENABLED=1.
-	//
-	// Undocumented feature flag for Windows MDM, used to determine if the
-	// Windows MDM feature is visible in the UI and can be enabled. More details
-	// here: https://github.com/fleetdm/fleet/issues/12257
-	//
-	// TODO: remove this flag once the Windows MDM feature is ready for
-	// release.
-	MDMEnabled bool `json:"mdm_enabled,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -186,7 +174,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Logging:         loggingConfig,
 			Email:           emailConfig,
 			SandboxEnabled:  svc.SandboxEnabled(),
-			MDMEnabled:      config.IsMDMFeatureFlagEnabled(),
 		},
 	}
 	return response, nil
@@ -243,9 +230,8 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	response := appConfigResponse{
 		AppConfig: *appConfig,
 		appConfigResponseFields: appConfigResponseFields{
-			License:    license,
-			Logging:    loggingConfig,
-			MDMEnabled: config.IsMDMFeatureFlagEnabled(),
+			License: license,
+			Logging: loggingConfig,
 		},
 	}
 
@@ -786,12 +772,6 @@ func (svc *Service) validateMDM(
 	}
 
 	// Windows validation
-	if !config.IsMDMFeatureFlagEnabled() {
-		if mdm.WindowsEnabledAndConfigured {
-			invalid.Append("mdm.windows_enabled_and_configured", "cannot enable Windows MDM without the feature flag explicitly enabled")
-			return
-		}
-	}
 	if !svc.config.MDM.IsMicrosoftWSTEPSet() {
 		if mdm.WindowsEnabledAndConfigured {
 			invalid.Append("mdm.windows_enabled_and_configured", "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.")

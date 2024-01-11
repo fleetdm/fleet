@@ -173,13 +173,13 @@ const (
 	FleetOSUpdateTargetLocURI  = "/Vendor/MSFT/Policy/Config/Update"
 )
 
+// Supported MS-MDE2 enrollment versions
+var SupportedEnrollmentVersions = []string{"4.0", "5.0", "6.0"}
+
 // MS-MDE2 Message constants
 const (
-	// Minimum supported version
+	// Default MS-MDE2 enrollment protocol version
 	EnrollmentVersionV4 = "4.0"
-
-	// Maximum supported version
-	EnrollmentVersionV5 = "5.0"
 
 	// xsi:nil indicates value is not present
 	DefaultStateXSI = "true"

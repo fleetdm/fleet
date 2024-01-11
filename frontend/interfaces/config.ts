@@ -118,6 +118,7 @@ export interface IConfig {
     enable_analytics: boolean;
     deferred_save_host: boolean;
     query_reports_disabled: boolean;
+    scripts_disabled: boolean;
   };
   smtp_settings: {
     enable_smtp: boolean;
@@ -207,10 +208,6 @@ export interface IConfig {
     };
   };
   mdm: IMdmConfig;
-  /** This is the flag that determines if the windwos mdm feature flag is enabled.
-      TODO: WINDOWS FEATURE FLAG: remove when windows MDM is released. Only used for windows MDM dev currently.
-  */
-  mdm_enabled?: boolean;
 }
 
 export interface IWebhookSettings {

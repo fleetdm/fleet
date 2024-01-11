@@ -407,7 +407,7 @@ const Integrations = (): JSX.Element => {
         <TableDataError />
       ) : (
         <TableContainer
-          columns={tableHeaders}
+          columnConfigs={tableHeaders}
           data={tableData}
           isLoading={isLoadingIntegrations}
           defaultSortHeader={"name"}

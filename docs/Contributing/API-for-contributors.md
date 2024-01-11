@@ -2253,7 +2253,7 @@ currently pending.
 | Name | Type   | In    | Description                               |
 | ---- | ------ | ----- | ----------------------------------------- |
 | name | string | query | The name of the cron schedule to trigger. Supported trigger names are `apple_mdm_dep_profile_assigner`, `automations`, `cleanups_then_aggregation`, `integrations`, `mdm_apple_profile_manager`, `usage_statistics`, and `vulnerabilities`|
- 
+
 
 #### Example
 
@@ -2277,7 +2277,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's transparency URL](#get-devices-transparency-url)
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
-- [Trigger FileVault key escrow](#trigger-filevault-key-escrow) 
+- [Trigger FileVault key escrow](#trigger-filevault-key-escrow)
 - [Report an agent error](#report-an-agent-error)
 
 #### Refetch device's host
@@ -2316,6 +2316,24 @@ Same as [Get host's mobile device management and Munki information](https://flee
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
 
+#### Ping Server with Device Token
+Ping the server. OK response expected if the device token is still valid.
+
+`HEAD /api/v1/fleet/device/{token}/ping`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`HEAD /api/v1/fleet/device/abcdef012456789/ping`
+
+##### Default response
+
+`Status: 200`
 
 #### Get Fleet Desktop information
 _Available in Fleet Premium_
@@ -2708,6 +2726,39 @@ If the Fleet instance is provided required parameters to complete setup.
 
 ## Scripts
 
+### Run script asynchronously
+
+_Available in Fleet Premium_
+
+Creates a script execution request and returns the execution identifier to retrieve results at a later time.
+
+`POST /api/v1/fleet/scripts/run`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                                                    |
+| ----            | ------- | ---- | --------------------------------------------                                                   |
+| host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
+
+> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run`
+
+##### Default response
+
+`Status: 202`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
+}
+```
+
 ### Batch-apply scripts 
 
 _Available in Fleet Premium_
@@ -2718,8 +2769,8 @@ _Available in Fleet Premium_
 
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_id | number | query | The ID of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. 
-| team_name | string | query | The name of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. 
+| team_id | number | query | The ID of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`.
+| team_name | string | query | The name of the team to add the scripts to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`.
 | dry_run   | bool   | query | Validate the provided scripts and return any validation errors, but do not apply the changes.                                                                         |
 | scripts   | array  | body  | An array of objects with the scripts payloads. Each item must contain `name` with the script name and `script_contents` with the script contents encoded in base64    |
 

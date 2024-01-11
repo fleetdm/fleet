@@ -89,7 +89,7 @@ const StatusMessage = ({
       // Expected API message: "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
       return <StatusMessageError message={message} />;
     case -1:
-      // Expected API message: "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
+      // Expected API message: "Timeout. Fleet stopped the script after 5 minutes to protect host performance."
       return <StatusMessageError message={message} />;
     case 0:
       // Expected API message: ""

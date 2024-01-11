@@ -552,12 +552,16 @@ func TestDirectIngestMDMMac(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
 				require.Equal(t, isServer, c.wantParams[0])
 				require.Equal(t, enrolled, c.wantParams[1])
 				require.Equal(t, serverURL, c.wantParams[2])
 				require.Equal(t, installedFromDep, c.wantParams[3])
 				require.Equal(t, name, c.wantParams[4])
+				require.Empty(t, fleetEnrollmentRef)
+				return nil
+			}
+			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
 				return nil
 			}
 
@@ -570,7 +574,102 @@ func TestDirectIngestMDMMac(t *testing.T) {
 				require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 				require.NoError(t, err)
 				ds.SetOrUpdateMDMDataFuncInvoked = false
+				require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
 			}
+		})
+	}
+}
+
+func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
+	ds := new(mock.Store)
+	var host fleet.Host
+
+	generateRows := func(serverURL, payloadIdentifier string) []map[string]string {
+		return []map[string]string{
+			{
+				"enrolled":           "true",
+				"installed_from_dep": "true",
+				"server_url":         serverURL,
+				"payload_identifier": payloadIdentifier,
+			},
+		}
+	}
+
+	type testCase struct {
+		name                 string
+		mdmData              []map[string]string
+		wantServerURL        string
+		wantEnrollRef        string
+		wantHostEmailsCalled bool
+	}
+
+	for _, tc := range []testCase{
+		{
+			name:                 "Fleet enroll_reference",
+			mdmData:              generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL:        "https://test.example.com",
+			wantEnrollRef:        "test-reference",
+			wantHostEmailsCalled: true,
+		},
+		{
+			name:                 "Fleet no enroll_reference",
+			mdmData:              generateRows("https://test.example.com", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL:        "https://test.example.com",
+			wantEnrollRef:        "",
+			wantHostEmailsCalled: false,
+		},
+		{
+			name:                 "Fleet enrollment_reference",
+			mdmData:              generateRows("https://test.example.com?enrollment_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL:        "https://test.example.com",
+			wantEnrollRef:        "test-reference",
+			wantHostEmailsCalled: true,
+		},
+		{
+			name:                 "Fleet enroll_reference with other query params",
+			mdmData:              generateRows("https://test.example.com?token=abcdefg&enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL:        "https://test.example.com",
+			wantEnrollRef:        "test-reference",
+			wantHostEmailsCalled: true,
+		},
+		{
+			name:                 "non-Fleet enroll_reference",
+			mdmData:              generateRows("https://test.example.com?enroll_reference=test-reference", "com.unknown.mdm"),
+			wantServerURL:        "https://test.example.com",
+			wantEnrollRef:        "",
+			wantHostEmailsCalled: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
+				require.Equal(t, tc.wantEnrollRef, fleetEnrollmentRef)
+				return nil
+			}
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+				require.False(t, isServer)
+				require.True(t, enrolled)
+				require.True(t, installedFromDep)
+
+				require.Equal(t, tc.wantServerURL, serverURL)
+				require.Equal(t, tc.wantEnrollRef, fleetEnrollmentRef)
+				if tc.wantEnrollRef != "" {
+					require.NotContains(t, serverURL, tc.wantEnrollRef) // query string is removed
+				}
+				if tc.mdmData[0]["payload_identifier"] == apple_mdm.FleetPayloadIdentifier {
+					require.Equal(t, name, fleet.WellKnownMDMFleet)
+				} else {
+					require.Equal(t, name, fleet.UnknownMDMName)
+				}
+
+				return nil
+			}
+
+			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, tc.mdmData)
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+			require.Equal(t, tc.wantHostEmailsCalled, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
+			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked = false
 		})
 	}
 }
@@ -664,7 +763,8 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 					"discovery_service_url": "https://example.com",
 					"is_federated":          "1",
 					"provider_id":           "Some_ID",
-					"installation_type":     "Windows SeRvEr 99.9"},
+					"installation_type":     "Windows SeRvEr 99.9",
+				},
 			},
 			wantEnrolled:         true,
 			wantInstalledFromDep: true,
@@ -675,11 +775,15 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
 				require.Equal(t, c.wantEnrolled, enrolled)
 				require.Equal(t, c.wantInstalledFromDep, installedFromDep)
 				require.Equal(t, c.wantIsServer, isServer)
 				require.Equal(t, c.wantServerURL, serverURL)
+				require.Empty(t, fleetEnrollmentRef)
+				return nil
+			}
+			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
 				return nil
 			}
 		})
@@ -687,17 +791,19 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 		ds.SetOrUpdateMDMDataFuncInvoked = false
+		require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
 	}
 }
 
 func TestDirectIngestChromeProfiles(t *testing.T) {
 	ds := new(mock.Store)
-	ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, hostID uint, mapping []*fleet.HostDeviceMapping) error {
+	ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, hostID uint, mapping []*fleet.HostDeviceMapping, source string) error {
 		require.Equal(t, hostID, uint(1))
 		require.Equal(t, mapping, []*fleet.HostDeviceMapping{
 			{HostID: hostID, Email: "test@example.com", Source: "google_chrome_profiles"},
 			{HostID: hostID, Email: "test+2@example.com", Source: "google_chrome_profiles"},
 		})
+		require.Equal(t, source, "google_chrome_profiles")
 		return nil
 	}
 
@@ -1542,6 +1648,20 @@ func TestSanitizeSoftware(t *testing.T) {
 			sanitized: &fleet.Software{
 				Name:    "Citrix Workspace.app",
 				Version: "2400.1.104",
+			},
+		},
+		{
+			name: "MS Teams classic on MacOS",
+			h: &fleet.Host{
+				Platform: "darwin",
+			},
+			s: &fleet.Software{
+				Name:    "Microsoft Teams classic.app",
+				Version: "1.00.634263",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams classic.app",
+				Version: "1.6.00.34263",
 			},
 		},
 	} {
