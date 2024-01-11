@@ -6262,38 +6262,32 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 ### Run live query
 
-Run one or more live queries against the specified hosts and responds with the results
-collected after 25 seconds.
+> This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.43.0, for improved compatibility with many HTTP clients. The [deprecated endpoint](https://github.com/fleetdm/fleet/blob/fleet-v4.42.0/docs/REST%20API/rest-api.md#run-live-query) is maintained for backwards compatibility.
 
-If multiple queries are provided, they run concurrently. Response time is capped at 25 seconds from
-when the API request was received, regardless of how many queries you are running, and regardless
-whether all results have been gathered or not. This API does not return any results until the fixed
-time period elapses, at which point all of the collected results are returned.
+Runs a live query against the specified hosts and responds with the results.
 
-The fixed time period is configurable via environment variable on the Fleet server (eg.
-`FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value, be sure that you do not exceed your
-load balancer timeout.
+If some targeted hosts haven't responded, the live query will stop after 25 seconds (or whatever time period is configured), and all collected results are returned.
 
-> WARNING: This API endpoint collects responses in-memory (RAM) on the Fleet compute instance handling this request, which can overflow if the result set is large enough.  This has the potential to crash the process and/or cause an autoscaling event in your cloud provider, depending on how Fleet is deployed.
+The timeout period is configurable via environment variable on the Fleet server (e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value than the default, be sure not to exceed your load balancer timeout.
 
-`GET /api/v1/fleet/queries/run`
+
+`POST /api/v1/fleet/queries/:id/run`
 
 #### Parameters
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| query_ids | array | body | **Required**. The IDs of the saved queries to run. If a mix of authorized and unauthorized IDs is provided, only results from authorized queries will be returned. |
+| query_id | integer | path | **Required**. The ID of the saved query to run. |
 | host_ids  | array | body | **Required**. The IDs of the hosts to target. User must be authorized to target all of these hosts.                                                                |
 
 #### Example
 
-`GET /api/v1/fleet/queries/run`
+`POST /api/v1/fleet/queries/123/run`
 
 ##### Request body
 
 ```json
 {
-  "query_ids": [ 1, 2 ],
   "host_ids": [ 1, 4, 34, 27 ]
 }
 ```
@@ -6302,40 +6296,34 @@ load balancer timeout.
 
 ```json
 {
-  "summary": {
-    "targeted_host_count": 4,
-    "responded_host_count": 2
-  },
-  "live_query_results": [
+  "query_id": 123,
+  "targeted_host_count": 4,
+  "responded_host_count": 2,
+  "results": [
     {
-      "query_id": 2,
-      "results": [
+      "host_id": 1,
+      "rows": [
         {
-          "host_id": 1,
-          "rows": [
-            {
-              "build_distro": "10.12",
-              "build_platform": "darwin",
-              "config_hash": "7bb99fa2c8a998c9459ec71da3a84d66c592d6d3",
-              "config_valid": "1",
-              "extensions": "active",
-              "instance_id": "9a2ec7bf-4946-46ea-93bf-455e0bcbd068",
-              "pid": "23413",
-              "platform_mask": "21",
-              "start_time": "1635194306",
-              "uuid": "4C182AC7-75F7-5AF4-A74B-1E165ED35742",
-              "version": "4.9.0",
-              "watcher": "23412"
-            }
-          ],
-          "error": null
-        },
-        {
-          "host_id": 2,
-          "rows": [],
-          "error": "no such table: os_version"
+          "build_distro": "10.12",
+          "build_platform": "darwin",
+          "config_hash": "7bb99fa2c8a998c9459ec71da3a84d66c592d6d3",
+          "config_valid": "1",
+          "extensions": "active",
+          "instance_id": "9a2ec7bf-4946-46ea-93bf-455e0bcbd068",
+          "pid": "23413",
+          "platform_mask": "21",
+          "start_time": "1635194306",
+          "uuid": "4C182AC7-75F7-5AF4-A74B-1E165ED35742",
+          "version": "4.9.0",
+          "watcher": "23412"
         }
-      ]
+      ],
+      "error": null
+    },
+    {
+      "host_id": 2,
+      "rows": [],
+      "error": "no such table: os_version"
     }
   ]
 }
