@@ -1102,6 +1102,7 @@ func main() {
 func deleteIfExists(err error, enrollSecretPath string) {
 	// Since the secret is in the key store, we can delete the original secret file if it exists
 	if _, err = os.Stat(enrollSecretPath); err == nil {
+		log.Warn().Msgf("VICTOR deleting secret file: %v", enrollSecretPath)
 		err = os.Remove(enrollSecretPath)
 		if err != nil {
 			log.Warn().Err(err).Msgf("failed to delete secret file: %v", enrollSecretPath)
