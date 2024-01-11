@@ -21,7 +21,7 @@ import {
   isGlobalObserver,
   isTeamObserver,
 } from "utilities/permissions/permissions";
-import { DEFAULT_QUERY, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
