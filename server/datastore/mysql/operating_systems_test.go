@@ -426,5 +426,5 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 }
 
 func isSameOS(t *testing.T, os1 fleet.OperatingSystem, os2 fleet.OperatingSystem) bool {
-	return assert.ElementsMatch(t, []string{os1.Name, os1.Version, os1.Arch, os1.KernelVersion}, []string{os2.Name, os2.Version, os2.Arch, os2.KernelVersion})
+	return assert.ElementsMatch(t, []string{os1.Name, os1.Version, os1.Arch, os1.KernelVersion, os1.Platform}, []string{os2.Name, os2.Version, os2.Arch, os2.KernelVersion, os2.Platform})
 }
