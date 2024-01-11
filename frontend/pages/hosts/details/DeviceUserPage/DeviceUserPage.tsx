@@ -294,18 +294,6 @@ const DeviceUserPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    const hostTab = () => {
-      if (location.pathname.includes("software")) {
-        return "software";
-      }
-      if (location.pathname.includes("schedule")) {
-        return "schedule";
-      }
-      if (location.pathname.includes("policies")) {
-        return "policies";
-      }
-      return "";
-    };
     document.title = `My device | ${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, host]);
 
