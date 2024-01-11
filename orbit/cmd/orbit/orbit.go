@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/keystore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
@@ -262,18 +263,56 @@ func main() {
 			return errors.New("insecure and update-tls-certificate may not be specified together")
 		}
 
-		if c.String("enroll-secret-path") != "" {
+		enrollSecretPath := c.String("enroll-secret-path")
+		if enrollSecretPath != "" {
+			log.Warn().Msgf("VICTOR reading enroll secret from file: %v", enrollSecretPath)
 			if c.String("enroll-secret") != "" {
 				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
 			}
 
-			b, err := os.ReadFile(c.String("enroll-secret-path"))
-			if err != nil {
-				return fmt.Errorf("read enroll secret file: %w", err)
+			// Check if secret is in the key store
+			if keystore.Exists() {
+				secret, err := keystore.RetrieveSecret()
+				if err != nil {
+					log.Warn().Err(err).Msgf("failed to retrieve secret from %v", keystore.Name())
+				} else if secret != "" {
+					log.Info().Msgf("VICTOR found secret in key store: %v", keystore.Name())
+					if err = c.Set("enroll-secret", secret); err != nil {
+						return fmt.Errorf("set enroll secret from key store: %w", err)
+					}
+					deleteIfExists(err, enrollSecretPath)
+				}
 			}
+			if c.String("enroll-secret") == "" {
+				b, err := os.ReadFile(enrollSecretPath)
+				if err != nil {
+					return fmt.Errorf("read enroll secret file: %w", err)
+				}
+				secret := strings.TrimSpace(string(b))
 
-			if err := c.Set("enroll-secret", strings.TrimSpace(string(b))); err != nil {
-				return fmt.Errorf("set enroll secret from file: %w", err)
+				if err := c.Set("enroll-secret", secret); err != nil {
+					return fmt.Errorf("set enroll secret from file: %w", err)
+				}
+
+				// Add secret to key store
+				if keystore.Exists() {
+					if err = keystore.AddSecret(secret); err != nil {
+						log.Warn().Err(err).Msgf("failed to add secret to %v", keystore.Name())
+					} else {
+						log.Info().Msgf("VICTOR added secret to key store: %v", keystore.Name())
+						deleteIfExists(err, enrollSecretPath)
+					}
+				}
+			}
+		}
+		if c.String("enroll-secret") == "" && keystore.Exists() {
+			secret, err := keystore.RetrieveSecret()
+			if err != nil || secret == "" {
+				return fmt.Errorf("failed to retrieve secret from %v: %w", keystore.Name(), err)
+			}
+			log.Info().Msgf("VICTOR found secret in key store: %v", keystore.Name())
+			if err = c.Set("enroll-secret", secret); err != nil {
+				return fmt.Errorf("set enroll secret from key store: %w", err)
 			}
 		}
 
@@ -1057,6 +1096,16 @@ func main() {
 
 	if err := app.Run(os.Args); err != nil {
 		log.Error().Err(err).Msg("run orbit failed")
+	}
+}
+
+func deleteIfExists(err error, enrollSecretPath string) {
+	// Since the secret is in the key store, we can delete the original secret file if it exists
+	if _, err = os.Stat(enrollSecretPath); err == nil {
+		err = os.Remove(enrollSecretPath)
+		if err != nil {
+			log.Warn().Err(err).Msgf("failed to delete secret file: %v", enrollSecretPath)
+		}
 	}
 }
 
