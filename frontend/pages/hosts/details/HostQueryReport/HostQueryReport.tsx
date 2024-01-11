@@ -95,9 +95,12 @@ const HostQueryReport = ({
     router.push(PATHS.HOST_QUERIES(hostId));
   }
 
-  document.title = ` ${
-    queryName && hostName ? `${queryName} (${hostName}) |` : ""
-  } Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
+  // Updates title that shows up on browser tabs
+  if (queryName && hostName) {
+    // e.g., Discover TLS certificates (Rachel's MacBook Pro) | Hosts | Fleet
+    document.title = `${queryName} (${hostName}) |
+   Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
+  }
 
   const HQRHeader = useCallback(() => {
     const fullReportPath = PATHS.QUERY_DETAILS(queryId);

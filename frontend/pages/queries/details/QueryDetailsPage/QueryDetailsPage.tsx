@@ -176,12 +176,10 @@ const QueryDetailsPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    // e.g., Editing Discover TLS certificates | Queries | Fleet
-    const storedQueryTitleCopy = storedQuery?.name
-      ? `${storedQuery.name} | `
-      : "";
-    document.title = `${storedQueryTitleCopy}Queries | ${DOCUMENT_TITLE_SUFFIX}`;
-    // }
+    // e.g., Discover TLS certificates | Queries | Fleet
+    if (storedQuery?.name) {
+      document.title = `${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
   }, [location.pathname, storedQuery?.name]);
 
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
