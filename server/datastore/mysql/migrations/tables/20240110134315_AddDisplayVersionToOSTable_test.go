@@ -39,7 +39,6 @@ func TestUp_20240110134315(t *testing.T) {
 	_, err = db.Exec(insertStmt1, "Windows", "10.0.19042", "x86_64", "10.0.19042.2482", "windows", "22H2")
 	require.NoError(t, err)
 
-
 	// Unique constraint error when display_version is empty
 	_, err = db.Exec(insertStmt1, "Windows", "10.0.19042", "x86_64", "10.0.19042.2482", "windows", "")
 	require.Error(t, err)
