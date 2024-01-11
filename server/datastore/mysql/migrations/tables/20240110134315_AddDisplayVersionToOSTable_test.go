@@ -23,7 +23,8 @@ func TestUp_20240110134315(t *testing.T) {
 
 	// Check that the new column exists
 	var displayVersion string
-	db.Select(&displayVersion, "SELECT display_version FROM operating_systems LIMIT 1")
+	err = db.Select(&displayVersion, "SELECT display_version FROM operating_systems LIMIT 1")
+	require.NoError(t, err)
 	require.Empty(t, displayVersion)
 
 	// Test unique constraint includes display_version
