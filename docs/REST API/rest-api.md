@@ -6810,7 +6810,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 _Available in Fleet Premium_
 
-Execute a script and see script results (5 minutes timeout).
+Execute a script and see script results (5 minute timeout).
 
 `POST /api/v1/fleet/scripts/run/sync`
 
