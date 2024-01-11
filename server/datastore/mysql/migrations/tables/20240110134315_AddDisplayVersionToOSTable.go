@@ -12,7 +12,7 @@ func init() {
 func Up_20240110134315(tx *sql.Tx) error {
 	addColumnStmt := `
 		ALTER TABLE operating_systems
-		ADD COLUMN display_version VARCHAR(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL;
+		ADD COLUMN display_version VARCHAR(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '';
 	`
 	if _, err := tx.Exec(addColumnStmt); err != nil {
 		return fmt.Errorf("adding operating_systems column: %w", err)

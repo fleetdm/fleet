@@ -972,7 +972,7 @@ CREATE TABLE `operating_systems` (
   `arch` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
   `kernel_version` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
   `platform` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `display_version` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `display_version` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_unique_os` (`name`,`version`,`arch`,`kernel_version`,`platform`,`display_version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

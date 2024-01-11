@@ -16,13 +16,13 @@ func TestUp_20240110134315(t *testing.T) {
 			)
 		VALUES (?, ?, ?, ?, ?)
 	`
-	_, err := db.Exec(insertStmt, "Windows", "10.0.19042", "x86_64", "10.0.19042", "windows")
+	_, err := db.Exec(insertStmt, "Windows", "10.0.19042", "x86_64", "10.0.19042.2482", "windows")
 	require.NoError(t, err)
 
 	applyNext(t, db)
 
 	// Check that the new column exists
-	var displayVersion *string
+	var displayVersion string
 	err = db.Get(&displayVersion, "SELECT display_version FROM operating_systems LIMIT 1")
 	require.NoError(t, err)
 	require.Empty(t, displayVersion)
@@ -36,22 +36,17 @@ func TestUp_20240110134315(t *testing.T) {
 	`
 
 	// New record with display_version is not a duplicate
-	_, err = db.Exec(insertStmt1, "Windows", "10.0.19042", "x86_64", "10.0.19042", "windows", "22H2")
+	_, err = db.Exec(insertStmt1, "Windows", "10.0.19042", "x86_64", "10.0.19042.2482", "windows", "22H2")
 	require.NoError(t, err)
 
-	insertStmt2 := `
-		INSERT INTO operating_systems (
-			name, version, arch, kernel_version, platform
-			)
-		VALUES (?, ?, ?, ?, ?)
-	`
 
-	// No error when display_version is NULL
-	_, err = db.Exec(insertStmt2, "Windows", "10.0.19042", "x86_64", "10.0.19042", "windows")
-	require.NoError(t, err)
+	// Unique constraint error when display_version is empty
+	_, err = db.Exec(insertStmt1, "Windows", "10.0.19042", "x86_64", "10.0.19042.2482", "windows", "")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Duplicate entry")
 
 	// Unique constraint violation when display_version is not NULL
-	_, err = db.Exec(insertStmt1, "Windows", "10.0.19042", "x86_64", "10.0.19042", "windows", "22H2")
+	_, err = db.Exec(insertStmt1, "Windows", "10.0.19042", "x86_64", "10.0.19042.2482", "windows", "22H2")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Duplicate entry")
 }
