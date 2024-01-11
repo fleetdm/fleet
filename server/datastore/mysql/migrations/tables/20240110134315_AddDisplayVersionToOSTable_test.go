@@ -22,8 +22,8 @@ func TestUp_20240110134315(t *testing.T) {
 	applyNext(t, db)
 
 	// Check that the new column exists
-	var displayVersion string
-	err = db.Select(&displayVersion, "SELECT display_version FROM operating_systems LIMIT 1")
+	var displayVersion *string
+	err = db.Get(&displayVersion, "SELECT display_version FROM operating_systems LIMIT 1")
 	require.NoError(t, err)
 	require.Empty(t, displayVersion)
 
