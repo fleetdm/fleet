@@ -6268,7 +6268,7 @@ Runs a live query against the specified hosts and responds with the results.
 
 If some targeted hosts haven't responded, the live query will stop after 25 seconds (or whatever time period is configured), and all collected results are returned.
 
-The fixed time period is configurable via environment variable on the Fleet server (e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value than the default, be sure not to exceed your load balancer timeout.
+The timeout period is configurable via environment variable on the Fleet server (e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value than the default, be sure not to exceed your load balancer timeout.
 
 
 `POST /api/v1/fleet/queries/:id/run`
