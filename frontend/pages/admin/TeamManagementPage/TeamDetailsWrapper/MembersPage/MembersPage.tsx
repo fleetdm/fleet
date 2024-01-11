@@ -35,7 +35,6 @@ import {
   generateDataSet,
   IMembersTableData,
 } from "./MembersPageTableConfig";
-import Icon from "components/Icon";
 
 const baseClass = "members";
 const noMembersClass = "no-members";

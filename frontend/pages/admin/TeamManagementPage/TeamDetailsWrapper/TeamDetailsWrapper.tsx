@@ -28,7 +28,6 @@ import TabsWrapper from "components/TabsWrapper";
 import BackLink from "components/BackLink";
 import TeamsDropdown from "components/TeamsDropdown";
 import MainContent from "components/MainContent";
-import Graphic from "components/Graphic";
 import DeleteTeamModal from "../components/DeleteTeamModal";
 import EditTeamModal from "../components/EditTeamModal";
 import DeleteSecretModal from "../../../../components/EnrollSecrets/DeleteSecretModal";
