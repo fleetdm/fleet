@@ -53,17 +53,7 @@ h1 {
 }
 
 a {
-  color: $core-vibrant-blue;
-  font-weight: $bold;
-  font-size: $x-small;
-  text-decoration: none;
-
-  &:focus-visible {
-    outline-color: #d9d9fe;
-    outline-offset: 3px;
-    outline-style: solid;
-    outline-width: 2px;
-  }
+  @include link;
 }
 
 .__react_component_tooltip {

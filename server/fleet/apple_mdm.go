@@ -343,6 +343,12 @@ type MDMAppleFleetdConfig struct {
 	EnableScripts bool
 }
 
+// MDMCustomEnrollmentProfileItem represents an MDM enrollment profile item that
+// contains custom fields.
+type MDMCustomEnrollmentProfileItem struct {
+	EndUserEmail string
+}
+
 // MDMApplePreassignProfilePayload is the payload accepted by the endpoint that
 // preassigns profiles to hosts before generating corresponding teams for each
 // unique set of profiles and assigning hosts to those teams and profiles. For

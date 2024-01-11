@@ -1,4 +1,0 @@
-- Introduced `POST /mdm/profiles` for uploading Windows or macOS custom profiles.
-- New endpoints for managing MDM profiles: `DELETE /mdm/profiles/{id}`, `GET /mdm/profiles/{id}`, `GET /mdm/profiles` (paginated list), `GET /mdm/profiles/summary`.
-- Updated `GET /api/v1/hosts/:id` to include Windows MDM profiles.
-- Fleetctl now supports configuration of Windows MDM profiles.

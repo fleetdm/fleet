@@ -458,9 +458,10 @@ func (a ActivityTypeEditedAgentOptions) Documentation() (activity string, detail
 }
 
 type ActivityTypeLiveQuery struct {
-	TargetsCount uint    `json:"targets_count"`
-	QuerySQL     string  `json:"query_sql"`
-	QueryName    *string `json:"query_name,omitempty"`
+	TargetsCount uint             `json:"targets_count"`
+	QuerySQL     string           `json:"query_sql"`
+	QueryName    *string          `json:"query_name,omitempty"`
+	Stats        *AggregatedStats `json:"stats,omitempty"`
 }
 
 func (a ActivityTypeLiveQuery) ActivityName() string {

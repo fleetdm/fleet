@@ -80,7 +80,7 @@ func upgradePacksCommand() *cli.Command {
 			}
 
 			// get global queries (teamID==nil), because 2017 packs reference global queries.
-			queries, err := client.GetQueries(nil)
+			queries, err := client.GetQueries(nil, nil)
 			if err != nil {
 				return fmt.Errorf("could not list queries: %w", err)
 			}

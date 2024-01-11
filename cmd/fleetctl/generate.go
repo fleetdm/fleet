@@ -38,6 +38,8 @@ func generateMDMAppleCommand() *cli.Command {
 		Aliases: []string{"mdm_apple"},
 		Usage:   "Generates certificate signing request (CSR) and key for Apple Push Notification Service (APNs) and certificate and key for Simple Certificate Enrollment Protocol (SCEP) to turn on MDM features.",
 		Flags: []cli.Flag{
+			contextFlag(),
+			debugFlag(),
 			&cli.StringFlag{
 				Name:     "email",
 				Usage:    "The email address to send the signed APNS csr to.",
@@ -132,6 +134,8 @@ func generateMDMAppleBMCommand() *cli.Command {
 		Aliases: []string{"mdm_apple_bm"},
 		Usage:   "Generate Apple Business Manager public and private keys to enable automatic enrollment for macOS hosts.",
 		Flags: []cli.Flag{
+			contextFlag(),
+			debugFlag(),
 			&cli.StringFlag{
 				Name:  "public-key",
 				Usage: "The output path for the Apple Business Manager public key certificate.",

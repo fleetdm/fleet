@@ -435,7 +435,10 @@ WHERE
 		fleet.HostMDMProfileDetailFailedWasVerified,
 		fleet.MDMDeliveryFailed,
 		host.UUID,
-		[]interface{}{fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified},
+		[]interface{}{
+			fleet.MDMDeliveryVerifying,
+			fleet.MDMDeliveryVerified,
+		},
 		fleet.MDMOperationTypeInstall,
 		identifiersOrNames,
 	}
@@ -482,7 +485,11 @@ WHERE
 	args := []interface{}{
 		fleet.MDMDeliveryVerified,
 		host.UUID,
-		[]interface{}{fleet.MDMDeliveryVerifying, fleet.MDMDeliveryFailed},
+		[]interface{}{
+			fleet.MDMDeliveryPending,
+			fleet.MDMDeliveryVerifying,
+			fleet.MDMDeliveryFailed,
+		},
 		fleet.MDMOperationTypeInstall,
 		identifiersOrNames,
 	}

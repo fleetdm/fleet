@@ -179,7 +179,20 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		opt.MDMBootstrapPackageFilter = nil
 	}
 
-	return svc.ds.ListHosts(ctx, filter, opt)
+	hosts, err := svc.ds.ListHosts(ctx, filter, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	if opt.PopulateSoftware {
+		for _, host := range hosts {
+			if err = svc.ds.LoadHostSoftware(ctx, host, license.IsPremium(ctx)); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return hosts, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -507,6 +520,26 @@ func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error 
 		}
 	}
 	return nil
+}
+
+// //////////////////////////////////////////////////////////////////////////////
+// Get Host Lite
+// //////////////////////////////////////////////////////////////////////////////
+func (svc *Service) GetHostLite(ctx context.Context, id uint) (*fleet.Host, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host lite")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return host, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1067,6 +1100,93 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}, nil
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Get Host Query Report
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostQueryReportRequest struct {
+	ID      uint `url:"id"`
+	QueryID uint `url:"query_id"`
+}
+
+type getHostQueryReportResponse struct {
+	QueryID       uint                          `json:"query_id"`
+	HostID        uint                          `json:"host_id"`
+	HostName      string                        `json:"host_name"`
+	LastFetched   *time.Time                    `json:"last_fetched"`
+	ReportClipped bool                          `json:"report_clipped"`
+	Results       []fleet.HostQueryReportResult `json:"results"`
+	Err           error                         `json:"error,omitempty"`
+}
+
+func (r getHostQueryReportResponse) error() error { return r.Err }
+
+func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getHostQueryReportRequest)
+
+	// Need to return hostname in response even if there are no report results
+	host, err := svc.GetHostLite(ctx, req.ID)
+	if err != nil {
+		return getHostQueryReportResponse{Err: err}, nil
+	}
+
+	reportResults, lastFetched, err := svc.GetHostQueryReportResults(ctx, req.ID, req.QueryID)
+	if err != nil {
+		return getHostQueryReportResponse{Err: err}, nil
+	}
+
+	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID)
+	if err != nil {
+		return getHostQueryReportResponse{Err: err}, nil
+	}
+
+	return getHostQueryReportResponse{
+		QueryID:       req.QueryID,
+		HostID:        host.ID,
+		HostName:      host.DisplayName(),
+		LastFetched:   lastFetched,
+		ReportClipped: isClipped,
+		Results:       reportResults,
+	}, nil
+}
+
+func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, queryID uint) ([]fleet.HostQueryReportResult, *time.Time, error) {
+	query, err := svc.ds.Query(ctx, queryID)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, nil, ctxerr.Wrap(ctx, err, "get query from datastore")
+	}
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	rows, err := svc.ds.QueryResultRowsForHost(ctx, queryID, hostID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get query result rows for host")
+	}
+
+	if len(rows) == 0 {
+		return []fleet.HostQueryReportResult{}, nil, nil
+	}
+
+	var lastFetched *time.Time
+	result := make([]fleet.HostQueryReportResult, 0, len(rows))
+	for _, row := range rows {
+		fetched := row.LastFetched // copy to avoid loop reuse issue
+		lastFetched = &fetched     // need to return value even if data is nil
+
+		if row.Data != nil {
+			columns := map[string]string{}
+			if err := json.Unmarshal(*row.Data, &columns); err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal query result row data")
+			}
+			result = append(result, fleet.HostQueryReportResult{Columns: columns})
+		}
+	}
+
+	return result, lastFetched, nil
+}
+
 func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, []string, error) {
 	filter, err := processHostFilters(ctx, opt, lid)
 	if err != nil {
@@ -1156,6 +1276,57 @@ func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 	}
 
 	return svc.ds.ListHostDeviceMapping(ctx, id)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Put Custom Host Device Mapping
+////////////////////////////////////////////////////////////////////////////////
+
+type putHostDeviceMappingRequest struct {
+	ID    uint   `url:"id"`
+	Email string `json:"email"`
+}
+
+type putHostDeviceMappingResponse struct {
+	HostID        uint                       `json:"host_id"`
+	DeviceMapping []*fleet.HostDeviceMapping `json:"device_mapping"`
+	Err           error                      `json:"error,omitempty"`
+}
+
+func (r putHostDeviceMappingResponse) error() error { return r.Err }
+
+func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*putHostDeviceMappingRequest)
+	dms, err := svc.SetCustomHostDeviceMapping(ctx, req.ID, req.Email)
+	if err != nil {
+		return putHostDeviceMappingResponse{Err: err}, nil
+	}
+	return putHostDeviceMappingResponse{HostID: req.ID, DeviceMapping: dms}, nil
+}
+
+func (svc *Service) SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*fleet.HostDeviceMapping, error) {
+	isInstallerSource := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnOrbitToken)
+	if !isInstallerSource {
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return nil, err
+		}
+
+		host, err := svc.ds.HostLite(ctx, hostID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host")
+		}
+
+		// Authorize again with team loaded now that we have team_id
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+			return nil, err
+		}
+	}
+
+	source := fleet.DeviceMappingCustomOverride
+	if isInstallerSource {
+		source = fleet.DeviceMappingCustomInstaller
+	}
+	return svc.ds.SetOrUpdateCustomHostDeviceMapping(ctx, hostID, email, source)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
