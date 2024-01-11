@@ -4,6 +4,8 @@ import { render, screen } from "@testing-library/react";
 
 import ReportUpdatedCell from "./ReportUpdatedCell";
 
+const HUMAN_READABLE_DATETIME_REGEX = /\d{1,2}\/{1,2}\d\/\d\d\d\d, \d{1,2}:\d{1,2}:\d{1,2}\s(A|P)M/;
+
 describe("ReportUpdatedCell component", () => {
   it("Renders '---' with tooltip and no link when run on an interval with discard data and automations enabled", () => {
     render(
@@ -48,9 +50,7 @@ describe("ReportUpdatedCell component", () => {
       />
     );
 
-    expect(
-      screen.getByText(/\d\d\/\d\d\/\d\d\d\d, \d{1,2}:\d{1,2}:\d{1,2}( AM|PM)?/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(HUMAN_READABLE_DATETIME_REGEX)).toBeInTheDocument();
     expect(screen.getByText(/\d+.+ago/)).toBeInTheDocument();
     expect(screen.getByText(/View report/)).toBeInTheDocument();
   });
@@ -67,9 +67,7 @@ describe("ReportUpdatedCell component", () => {
       />
     );
 
-    expect(
-      screen.getByText(/\d\d\/\d\d\/\d\d\d\d, \d{1,2}:\d{1,2}:\d{1,2}( AM|PM)?/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(HUMAN_READABLE_DATETIME_REGEX)).toBeInTheDocument();
     expect(screen.getByText(/\d+.+ago/)).toBeInTheDocument();
     expect(screen.getByText(/View report/)).toBeInTheDocument();
   });
