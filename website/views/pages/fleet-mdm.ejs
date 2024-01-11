@@ -120,7 +120,7 @@
     </div>
   </div>
   <%/* Cloud city banner */%>
-  <parallax-city></parallax-city>
+  <parallax-city :is-mobile="bowser.mobile"></parallax-city>
   <modal v-if="modal === 'mdm'" @close="closeModal()" data-backdrop="false" v-cloak purpose="modal">
     <div class="container p-0 d-flex flex-column justify-content-center align-items-center" purpose="mdm-modal">
       <div purpose="modal-form"  v-if="!showSignupFormSuccess">
