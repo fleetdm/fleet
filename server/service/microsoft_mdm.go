@@ -1848,6 +1848,7 @@ func newSyncMLItem(cmdSource *string, cmdTarget *string, cmdDataType *string, cm
 	var metaFormat *mdm_types.MetaAttr
 	var metaType *mdm_types.MetaAttr
 	var meta *mdm_types.Meta
+	var data *mdm_types.RawXmlData
 
 	if cmdDataFormat != nil && len(*cmdDataFormat) > 0 {
 		metaFormat = &mdm_types.MetaAttr{
@@ -1870,9 +1871,15 @@ func newSyncMLItem(cmdSource *string, cmdTarget *string, cmdDataType *string, cm
 		}
 	}
 
+	if cmdDataValue != nil {
+		data = &mdm_types.RawXmlData{
+			Content: *cmdDataValue,
+		}
+	}
+
 	return &mdm_types.CmdItem{
 		Meta:   meta,
-		Data:   cmdDataValue,
+		Data:   data,
 		Target: cmdTarget,
 		Source: cmdSource,
 	}
@@ -2098,7 +2105,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	// with the new status, operation_type, etc.
 	hostProfiles := make([]*fleet.MDMWindowsBulkUpsertHostProfilePayload, 0, len(toInstall))
 
-	// install are maps from profileID -> command uuid and host
+	// install are maps from profileUUID -> command uuid and host
 	// UUIDs as the underlying MDM services are optimized to send one command to
 	// multiple hosts at the same time. Note that the same command uuid is used
 	// for all hosts in a given install/remove target operation.
@@ -2129,7 +2136,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 			OperationType: fleet.MDMOperationTypeInstall,
 			Status:        &fleet.MDMDeliveryPending,
 		})
-		level.Debug(logger).Log("msg", "installing profile", "profile_id", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
+		level.Debug(logger).Log("msg", "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
 	}
 
 	// Grab the contents of all the profiles we need to install
@@ -2142,16 +2149,16 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
-	for profID, target := range installTargets {
-		p, ok := profileContents[profID]
+	for profUUID, target := range installTargets {
+		p, ok := profileContents[profUUID]
 		if !ok {
 			// this should never happen
-			return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
+			return ctxerr.Wrapf(ctx, err, "missing profile content for profile %s", profUUID)
 		}
 
 		command, err := buildCommandFromProfileBytes(p, target.cmdUUID)
 		if err != nil {
-			level.Info(logger).Log("err", err, "profile_id", profID)
+			level.Info(logger).Log("err", err, "profile_uuid", profUUID)
 			continue
 		}
 		if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {

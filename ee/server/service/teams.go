@@ -513,7 +513,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	}
 
 	if len(hostIDs) > 0 {
-		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil, nil); err != nil {
+		if err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 
@@ -1127,7 +1127,18 @@ func (svc *Service) updateTeamMDMAppleSettings(ctx context.Context, tm *fleet.Te
 		if _, err := svc.ds.SaveTeam(ctx, tm); err != nil {
 			return err
 		}
-		if didUpdateMacOSDiskEncryption {
+
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return err
+		}
+
+		// macOS-specific stuff. For legacy reasons we check if apple is configured
+		// via `appCfg.MDM.EnabledAndConfigured`
+		//
+		// TODO: is there a missing bitlocker activity feed item? (see same TODO on
+		// other methods that deal with disk encryption)
+		if appCfg.MDM.EnabledAndConfigured && didUpdateMacOSDiskEncryption {
 			var act fleet.ActivityDetails
 			if tm.Config.MDM.EnableDiskEncryption {
 				act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name}

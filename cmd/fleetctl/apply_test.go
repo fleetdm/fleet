@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -164,7 +163,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, profileUUIDs, hostUUIDs []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
 		return nil
 	}
 
@@ -902,8 +901,6 @@ func mobileconfigForTest(name, identifier string) []byte {
 }
 
 func TestApplyAsGitOps(t *testing.T) {
-	t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
-
 	enqueuer := new(nanomdm_mock.Storage)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
@@ -991,7 +988,7 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, profileUUIDs, hostUUIDs []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
 		return nil
 	}
 	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
@@ -3339,17 +3336,6 @@ spec:
 			wantErr: `macOS MDM isn't turned on.`,
 		},
 		{
-			desc: "app config enable windows mdm without feature flag",
-			spec: `
-apiVersion: v1
-kind: config
-spec:
-  mdm:
-    windows_enabled_and_configured: true
-`,
-			wantErr: `422 Validation Failed: cannot enable Windows MDM without the feature flag explicitly enabled`,
-		},
-		{
 			desc: "app config enable windows mdm without WSTEP",
 			spec: `
 apiVersion: v1
@@ -3370,12 +3356,6 @@ spec:
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			// bit hacky, but since the env var is temporary while Windows MDM is in beta,
-			// didn't want to add a field to the test cases just for this.
-			if strings.Contains(c.desc, "WSTEP") {
-				t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
-			}
-
 			_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
 			setupDS(ds)
 			filename := writeTmpYml(t, c.spec)

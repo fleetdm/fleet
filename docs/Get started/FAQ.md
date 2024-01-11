@@ -106,6 +106,20 @@ Anyone is free to contribute to the free or paid features of the project. We are
 
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
+## How can I uninstall the osquery agent?
+To uninstall the osquery agent, follow the below instructions for your operating system.
+
+#### MacOS
+Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)
+
+#### Windows
+Use the "Add or remove programs" dialog to remove Orbit.
+
+#### Ubuntu
+Run `sudo apt remove fleet-osquery -y`
+
+#### CentOS
+Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
 
 <!--
 ## Using Fleet
@@ -382,21 +396,6 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
 ### If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?
 
 No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
-
-### How can I uninstall the osquery agent?
-To uninstall the osquery agent, follow the below instructions for your operating system.
-
-#### MacOS
-Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)
-
-#### Windows
-Use the "Add or remove programs" dialog to remove Orbit.
-
-#### Ubuntu
-Run `sudo apt remove fleet-osquery -y`
-
-#### CentOS
-Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
 
 ### How does Fleet determines online and offline status?
 

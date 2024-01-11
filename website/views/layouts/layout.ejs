@@ -162,9 +162,8 @@
                   <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
                     <a href="/integrations">Integrations</a>
                     <a href="/vulnerability-management">Vulnerability management</a>
-                    <a href="/osquery-management">Endpoint operations</a>
+                    <a href="/endpoint-ops">Endpoint operations</a>
                     <a href="/device-management">Device management (MDM)</a>
-                    <a href="/compliance">Reporting and automation</a>
                   </div>
                 </div>
                 <hr>
@@ -204,7 +203,7 @@
                   <hr>
                   <a purpose="mobile-nav-btn"  href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
                 <% }%>
-                  <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/try-fleet/register?tryitnow">Try it out</a>
+                  <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/try-fleet">Try it out</a>
               </div>
             </div>
             <%/* Desktop Navigation bar */%>
@@ -214,9 +213,8 @@
                 <div purpose="header-dropdown" class="dropdown-menu">
                   <a class="dropdown-item mb-1" href="/integrations">Integrations</a>
                   <a class="dropdown-item mb-1" href="/vulnerability-management">Vulnerability management</a>
-                  <a class="dropdown-item mb-1" href="/osquery-management">Endpoint operations</a>
+                  <a class="dropdown-item mb-1" href="/endpoint-ops">Endpoint operations</a>
                   <a class="dropdown-item mb-1" href="/device-management">Device management (MDM)</a>
-                  <a class="dropdown-item mb-1" href="/compliance">Reporting and automation</a>
                 </div>
               </div>
               <div purpose="dropdown-button" class="btn-group">
@@ -256,7 +254,7 @@
                 <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
                 allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
               </span>
-              <a purpose="glass-header-btn" class="align-items-center d-flex" href="/try-fleet/register?tryitnow" >Try it out</a>
+              <a purpose="glass-header-btn" class="align-items-center d-flex" href="/try-fleet/explore-data" >Try it out</a>
               <% if(_.has(me, 'id')) {%>
               <a purpose="header-nav-btn" href="/logout" class="justify-content-end pl-4 py-2 text-decoration-none">Log out</a>
               <% }%>
@@ -280,7 +278,7 @@
           <div class="d-flex flex-grow-1 flex-column">
             <div purpose="footer-nav" class="justify-content-between justify-content-sm-end order-l pb-xl-2 px-lg-0">
               <div class="flex-column">
-                <a href="/try-fleet/register?tryitnow" class="d-block pr-md-5 pr-sm-3 pb-2">Try it out</a>
+                <a href="/try-fleet" class="d-block pr-md-5 pr-sm-3 pb-2">Try it out</a>
                 <a href="/docs" class="d-block pr-md-5 pr-sm-3 pb-2">Docs</a>
                 <a href="/tables" class="d-block pr-md-5 pr-sm-3 pb-2">Explore data</a>
                 <a href="/handbook/company/why-this-way#why-open-source" class="d-block pr-md-5 pr-sm-3 pb-2 pb-xl-0">Why open source?</a>
@@ -307,7 +305,7 @@
             <div purpose="legal-section" class="d-flex flex-column justify-content-start flex-sm-row pr-sm-0">
               <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-160x30@2x.png" />
               <div class="pl-sm-3 pt-sm-0 pt-1 pl-0 text-sm-nowrap d-block d-sm-inline">
-                © 2023 Fleet Device Management Inc.
+                © <%= (new Date()).getFullYear() %> Fleet Device Management Inc.
                 <span purpose="legal-links">
                   <a href="/legal/privacy">Privacy</a>
                   <a class="pl-3" target="_blank" href="https://osquery.io">What is osquery?</a>
@@ -361,14 +359,24 @@
     <% /* Sticky header */ %>
     <script>
         var lastScrollTop = 0;
-        var header = document.querySelector('.header')
+        var header = document.querySelector('[purpose="header-container"]');
+        let mobileNavMenu = document.querySelector('[purpose="mobile-nav"]');
         window.addEventListener('scroll', windowScrolled);
         function windowScrolled() {
+          if(!header || !mobileNavMenu){
+            return;
+          }
+          let isMobileNavOpen = [...mobileNavMenu.classList].includes('show');
+          if(isMobileNavOpen) {
+            return;
+          }
           let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
           if(scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
+            // If the user scrolls 1.5x the height of their browser window, hide the page header.
             header.classList.add('translate-y-0');
             lastScrollTop = scrollTop;
           } else if(scrollTop < lastScrollTop - 60) {
+            // If the user scrolls 60 pixels upwards on the screen, we'll show the page header
             header.classList.remove('translate-y-0');
             lastScrollTop = scrollTop;
           }
@@ -415,13 +423,13 @@
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
-    <script src="/js/pages/compliance.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>
     <script src="/js/pages/customers/new-license.page.js"></script>
     <script src="/js/pages/dashboard/welcome.page.js"></script>
     <script src="/js/pages/docs/basic-documentation.page.js"></script>
+    <script src="/js/pages/endpoint-ops.page.js"></script>
     <script src="/js/pages/entrance/confirmed-email.page.js"></script>
     <script src="/js/pages/entrance/forgot-password.page.js"></script>
     <script src="/js/pages/entrance/login.page.js"></script>
@@ -439,10 +447,8 @@
     <script src="/js/pages/imagine/rapid-7-alternative.page.js"></script>
     <script src="/js/pages/imagine/unused-software.page.js"></script>
     <script src="/js/pages/integrations.page.js"></script>
-    <script src="/js/pages/landing.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
-    <script src="/js/pages/osquery-management.page.js"></script>
     <script src="/js/pages/osquery-table-details.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
@@ -451,6 +457,8 @@
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
+    <script src="/js/pages/try-fleet/explore-data.page.js"></script>
+    <script src="/js/pages/try-fleet/query-report.page.js"></script>
     <script src="/js/pages/try-fleet/register.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-login.page.js"></script>

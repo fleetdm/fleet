@@ -27,6 +27,9 @@ export interface IQueryStats {
   scheduled_query_name: string;
   scheduled_query_id: number;
   query_name: string;
+  discard_data: boolean;
+  last_fetched: string | null; // timestamp
+  automations_enabled: boolean;
   description: string;
   pack_name: string;
   pack_id: number;

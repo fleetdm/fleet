@@ -175,7 +175,12 @@ func (e MDMAppleCommandTimeoutError) StatusCode() int {
 // Configuration profiles are used to configure Apple devices .
 // See also https://developer.apple.com/documentation/devicemanagement/configuring_multiple_devices_using_profiles.
 type MDMAppleConfigProfile struct {
-	// ProfileID is the unique id of the configuration profile in Fleet
+	// ProfileUUID is the unique identifier of the configuration profile in
+	// Fleet. For Apple profiles, it is the letter "a" followed by a uuid.
+	ProfileUUID string `db:"profile_uuid" json:"profile_uuid"`
+	// Deprecated: ProfileID is the old unique id of the configuration profile in
+	// Fleet. It is still maintained and generated for new profiles, but only
+	// used in legacy API endpoints.
 	ProfileID uint `db:"profile_id" json:"profile_id"`
 	// TeamID is the id of the team with which the configuration is associated. A nil team id
 	// represents a configuration profile that is not associated with any team.
@@ -227,7 +232,7 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 type HostMDMAppleProfile struct {
 	HostUUID      string             `db:"host_uuid" json:"-"`
 	CommandUUID   string             `db:"command_uuid" json:"-"`
-	ProfileID     uint               `db:"profile_id" json:"profile_id"`
+	ProfileUUID   string             `db:"profile_uuid" json:"profile_uuid"`
 	Name          string             `db:"name" json:"name"`
 	Identifier    string             `db:"identifier" json:"-"`
 	Status        *MDMDeliveryStatus `db:"status" json:"status"`
@@ -239,7 +244,7 @@ type HostMDMAppleProfile struct {
 func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
 	return HostMDMProfile{
 		HostUUID:      p.HostUUID,
-		ProfileID:     p.ProfileID,
+		ProfileUUID:   p.ProfileUUID,
 		Name:          p.Name,
 		Identifier:    p.Identifier,
 		Status:        p.Status,
@@ -280,7 +285,7 @@ func (d HostMDMProfileDetail) Message() string {
 }
 
 type MDMAppleProfilePayload struct {
-	ProfileID         uint               `db:"profile_id"`
+	ProfileUUID       string             `db:"profile_uuid"`
 	ProfileIdentifier string             `db:"profile_identifier"`
 	ProfileName       string             `db:"profile_name"`
 	HostUUID          string             `db:"host_uuid"`
@@ -292,7 +297,7 @@ type MDMAppleProfilePayload struct {
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
-	ProfileID         uint
+	ProfileUUID       string
 	ProfileIdentifier string
 	ProfileName       string
 	HostUUID          string
@@ -336,6 +341,12 @@ type MDMAppleFleetdConfig struct {
 	FleetURL      string
 	EnrollSecret  string
 	EnableScripts bool
+}
+
+// MDMCustomEnrollmentProfileItem represents an MDM enrollment profile item that
+// contains custom fields.
+type MDMCustomEnrollmentProfileItem struct {
+	EndUserEmail string
 }
 
 // MDMApplePreassignProfilePayload is the payload accepted by the endpoint that

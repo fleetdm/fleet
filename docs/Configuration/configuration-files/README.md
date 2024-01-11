@@ -249,6 +249,10 @@ spec:
           - path/to/profile1.mobileconfig
           - path/to/profile2.mobileconfig
         enable_disk_encryption: true
+      windows_settings:
+        custom_settings:
+          - path/to/profile3.xml
+          - path/to/profile4.xml
     scripts:
         - path/to/script1.sh
         - path/to/script2.sh
@@ -460,6 +464,10 @@ spec:
         - path/to/profile1.mobileconfig
         - path/to/profile2.mobileconfig
       enable_disk_encryption: true
+    windows_settings:
+      custom_settings:
+        - path/to/profile3.xml
+        - path/to/profile4.xml
 ```
 
 ### Settings
@@ -759,6 +767,21 @@ Query reports are cached results of scheduled queries stored in Fleet (up to 100
   ```yaml
   server_settings:
     query_reports_disabled: true
+  ```
+
+##### server_settings.scripts_disabled
+
+Whether the scripts feature is disabled.
+
+If this setting is changed from `false` to `true`, then users will not be able to execute scripts on
+hosts. Scripts can still be added or modified in Fleet.
+
+- Optional setting (boolean)
+- Default value: `false`
+- Config file format:
+  ```yaml
+  server_settings:
+    scripts_disabled: true
   ```
 
 
@@ -1185,6 +1208,28 @@ If you're using Fleet Premium, this enforces disk encryption on all hosts assign
   mdm:
     macos_settings:
       enable_disk_encryption: true
+  ```
+
+##### mdm.windows_settings
+
+The following settings are Windows-specific settings for Fleet's MDM solution.
+
+##### mdm.windows_settings.custom_settings
+
+List of configuration profile files to apply to all hosts.
+
+If you're using Fleet Premium, these profiles apply to all hosts assigned to no team.
+
+> If you want to add profiles to all Windows hosts on a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](#teams).
+
+- Default value: none
+- Config file format:
+  ```yaml
+  mdm:
+    windows_settings:
+      custom_settings:
+        - path/to/profile1.xml
+        - path/to/profile2.xml
   ```
 
 #### Scripts 

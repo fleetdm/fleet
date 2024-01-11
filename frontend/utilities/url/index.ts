@@ -30,6 +30,8 @@ interface IMutuallyExclusiveHostParams {
   munkiIssueId?: number;
   lowDiskSpaceHosts?: number;
   softwareId?: number;
+  softwareVersionId?: number;
+  softwareTitleId?: number;
   osId?: number;
   osName?: string;
   osVersion?: string;
@@ -100,6 +102,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
   munkiIssueId,
   lowDiskSpaceHosts,
   softwareId,
+  softwareVersionId,
+  softwareTitleId,
   osId,
   osName,
   osVersion,
@@ -131,6 +135,10 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { mdm_enrollment_status: mdmEnrollmentStatus };
     case !!munkiIssueId:
       return { munki_issue_id: munkiIssueId };
+    case !!softwareTitleId:
+      return { software_title_id: softwareTitleId };
+    case !!softwareVersionId:
+      return { software_version_id: softwareVersionId };
     case !!softwareId:
       return { software_id: softwareId };
     case !!osId:
@@ -141,7 +149,6 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { low_disk_space: lowDiskSpaceHosts };
     case !!osSettings:
       return { [HOSTS_QUERY_PARAMS.OS_SETTINGS]: osSettings };
-
     case !!diskEncryptionStatus:
       return { [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: diskEncryptionStatus };
     case !!bootstrapPackageStatus:

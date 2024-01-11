@@ -58,7 +58,7 @@ export interface IMdmSummaryResponse {
 type ProfilePlatform = "darwin" | "windows";
 
 export interface IMdmProfile {
-  profile_id: number | string; // string for windows profiles
+  profile_uuid: string;
   team_id: number;
   name: string;
   platform: ProfilePlatform;
@@ -73,9 +73,10 @@ export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
 export type ProfileOperationType = "remove" | "install";
 
 export interface IHostMdmProfile {
-  profile_id: number;
+  profile_uuid: string;
   name: string;
   operation_type: ProfileOperationType | null;
+  platform: ProfilePlatform;
   status: MdmProfileStatus;
   detail: string;
 }

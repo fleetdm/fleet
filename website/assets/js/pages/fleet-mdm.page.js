@@ -42,27 +42,5 @@ parasails.registerPage('device-management', {
         window.HubSpotConversations.widget.open();
       }
     },
-    clickOpenMdmModal: function() {
-      this.modal = 'mdm';
-    },
-    closeModal: async function () {
-      this.modal = '';
-      await this._resetForms();
-    },
-    typeClearOneFormError: async function(field) {
-      if(this.formErrors[field]){
-        this.formErrors = _.omit(this.formErrors, field);
-      }
-    },
-    submittedForm: function() {
-      this.showSignupFormSuccess = true;
-    },
-    _resetForms: async function() {
-      this.cloudError = '';
-      this.formData = {};
-      this.formRules = {};
-      this.formErrors = {};
-      await this.forceRender();
-    },
   }
 });

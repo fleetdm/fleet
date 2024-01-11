@@ -1262,8 +1262,13 @@ func (a *agent) diskSpace() []map[string]string {
 	gigs := rand.Intn(100)
 	gigs++
 	pct := rand.Intn(100)
+	available := gigs * pct / 100
 	return []map[string]string{
-		{"percent_disk_space_available": strconv.Itoa(gigs), "gigs_disk_space_available": strconv.Itoa(pct)},
+		{
+			"percent_disk_space_available": strconv.Itoa(pct),
+			"gigs_disk_space_available":    strconv.Itoa(available),
+			"gigs_total_disk_space":        strconv.Itoa(gigs),
+		},
 	}
 }
 
@@ -1292,31 +1297,39 @@ func (a *agent) diskEncryptionLinux() []map[string]string {
 	}
 }
 
-func (a *agent) runLiveQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string) {
+func (a *agent) runLiveQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
 	if a.liveQueryFailProb > 0.0 && rand.Float64() <= a.liveQueryFailProb {
 		ss := fleet.OsqueryStatus(1)
-		return []map[string]string{}, &ss, ptr.String("live query failed with error foobar")
+		return []map[string]string{}, &ss, ptr.String("live query failed with error foobar"), nil
 	}
 	ss := fleet.OsqueryStatus(0)
 	if a.liveQueryNoResultsProb > 0.0 && rand.Float64() <= a.liveQueryNoResultsProb {
-		return []map[string]string{}, &ss, nil
+		return []map[string]string{}, &ss, nil, nil
 	}
 	return []map[string]string{{
-		"admindir":   "/var/lib/dpkg",
-		"arch":       "amd64",
-		"maintainer": "foobar",
-		"name":       "netconf",
-		"priority":   "optional",
-		"revision":   "",
-		"section":    "default",
-		"size":       "112594",
-		"source":     "",
-		"status":     "install ok installed",
-		"version":    "20230224000000",
-	}}, &ss, nil
+			"admindir":   "/var/lib/dpkg",
+			"arch":       "amd64",
+			"maintainer": "foobar",
+			"name":       "netconf",
+			"priority":   "optional",
+			"revision":   "",
+			"section":    "default",
+			"size":       "112594",
+			"source":     "",
+			"status":     "install ok installed",
+			"version":    "20230224000000",
+		},
+		}, &ss, nil, &fleet.Stats{
+			WallTimeMs: uint64(rand.Intn(1000) * 1000),
+			UserTime:   uint64(rand.Intn(1000)),
+			SystemTime: uint64(rand.Intn(1000)),
+			Memory:     uint64(rand.Intn(1000)),
+		}
 }
 
-func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus, message *string) {
+func (a *agent) processQuery(name, query string) (
+	handled bool, results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats,
+) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
 		hostDetailQueryPrefix = "fleet_detail_query_"
@@ -1327,60 +1340,60 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 
 	switch {
 	case strings.HasPrefix(name, liveQueryPrefix):
-		results, status, message = a.runLiveQuery(query)
-		return true, results, status, message
+		results, status, message, stats = a.runLiveQuery(query)
+		return true, results, status, message, stats
 	case strings.HasPrefix(name, hostPolicyQueryPrefix):
-		return true, a.runPolicy(query), &statusOK, nil
+		return true, a.runPolicy(query), &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":
-		return true, a.randomQueryStats(), &statusOK, nil
+		return true, a.randomQueryStats(), &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"mdm":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.mdmMac()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"mdm_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.mdmWindows()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"munki_info":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.munkiInfo()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"google_chrome_profiles":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.googleChromeProfiles()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"battery":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.batteries()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"users":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.hostUsers()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_macos":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.softwareMacOS()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = windowsSoftware
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_linux":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
@@ -1389,37 +1402,37 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 				results = ubuntuSoftware
 			}
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskSpace()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 
 	case strings.HasPrefix(name, hostDetailQueryPrefix+"disk_encryption_linux"):
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskEncryptionLinux()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"disk_encryption_darwin" ||
 		name == hostDetailQueryPrefix+"disk_encryption_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskEncryption()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"kubequery_info" && a.os != "kubequery":
 		// Real osquery running on hosts would return no results if it was not
 		// running kubequery (due to discovery query). Returning true here so that
 		// the caller knows it is handled, will not try to return lorem-ipsum-style
 		// results.
-		return true, nil, &statusNotOK, nil
+		return true, nil, &statusNotOK, nil, nil
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {
-			return false, nil, nil, nil
+			return false, nil, nil, nil, nil
 		}
 		var ni bytes.Buffer
 		err := a.templates.ExecuteTemplate(&ni, name, a)
@@ -1431,7 +1444,7 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			panic(err)
 		}
 
-		return true, results, &statusOK, nil
+		return true, results, &statusOK, nil, nil
 	}
 }
 
@@ -1440,10 +1453,11 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 		Results:  make(fleet.OsqueryDistributedQueryResults),
 		Statuses: make(map[string]fleet.OsqueryStatus),
 		Messages: make(map[string]string),
+		Stats:    make(map[string]*fleet.Stats),
 	}
 	r.NodeKey = a.nodeKey
 	for name, query := range queries {
-		handled, results, status, message := a.processQuery(name, query)
+		handled, results, status, message, stats := a.processQuery(name, query)
 		if !handled {
 			// If osquery-perf does not handle the incoming query,
 			// always return status OK and the default query result.
@@ -1458,6 +1472,9 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 			}
 			if message != nil {
 				r.Messages[name] = *message
+			}
+			if stats != nil {
+				r.Stats[name] = stats
 			}
 		}
 	}

@@ -170,7 +170,7 @@ const OperatingSystems = ({
           <TableDataError card />
         ) : (
           <TableContainer
-            columns={tableHeaders}
+            columnConfigs={tableHeaders}
             data={osInfo?.os_versions || []}
             isLoading={isFetching}
             defaultSortHeader={DEFAULT_SORT_HEADER}

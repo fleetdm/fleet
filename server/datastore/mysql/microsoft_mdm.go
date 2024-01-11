@@ -729,40 +729,46 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Cont
 	return nil
 }
 
-func subqueryHostsMDMWindowsOSSettingsStatusFailed() (string, []interface{}) {
+func subqueryHostsMDMWindowsOSSettingsStatusFailed() (string, []interface{}, error) {
 	sql := `
             SELECT
                 1 FROM host_mdm_windows_profiles hmwp
             WHERE
                 h.uuid = hmwp.host_uuid
-                AND hmwp.status = ?`
+                AND hmwp.status = ?
+                AND hmwp.profile_name NOT IN(?)`
 	args := []interface{}{
 		fleet.MDMDeliveryFailed,
+		mdm.ListFleetReservedWindowsProfileNames(),
 	}
 
-	return sql, args
+	return sqlx.In(sql, args...)
 }
 
-func subqueryHostsMDMWindowsOSSettingsStatusPending() (string, []interface{}) {
+func subqueryHostsMDMWindowsOSSettingsStatusPending() (string, []interface{}, error) {
 	sql := `
             SELECT
                 1 FROM host_mdm_windows_profiles hmwp
             WHERE
                 h.uuid = hmwp.host_uuid
                 AND (hmwp.status IS NULL OR hmwp.status = ?)
+				AND hmwp.profile_name NOT IN(?)
                 AND NOT EXISTS (
                     SELECT
                         1 FROM host_mdm_windows_profiles hmwp2
                     WHERE (h.uuid = hmwp2.host_uuid
-                        AND hmwp2.status = ?))`
+                        AND hmwp2.status = ?
+                        AND hmwp2.profile_name NOT IN(?)))`
 	args := []interface{}{
 		fleet.MDMDeliveryPending,
+		mdm.ListFleetReservedWindowsProfileNames(),
 		fleet.MDMDeliveryFailed,
+		mdm.ListFleetReservedWindowsProfileNames(),
 	}
-	return sql, args
+	return sqlx.In(sql, args...)
 }
 
-func subqueryHostsMDMWindowsOSSettingsStatusVerifying() (string, []interface{}) {
+func subqueryHostsMDMWindowsOSSettingsStatusVerifying() (string, []interface{}, error) {
 	sql := `
             SELECT
                 1 FROM host_mdm_windows_profiles hmwp
@@ -770,25 +776,28 @@ func subqueryHostsMDMWindowsOSSettingsStatusVerifying() (string, []interface{}) 
                 h.uuid = hmwp.host_uuid
                 AND hmwp.operation_type = ?
                 AND hmwp.status = ?
+                AND hmwp.profile_name NOT IN(?)
                 AND NOT EXISTS (
                     SELECT
                         1 FROM host_mdm_windows_profiles hmwp2
                     WHERE (h.uuid = hmwp2.host_uuid
                         AND hmwp2.operation_type = ?
+                        AND hmwp2.profile_name NOT IN(?)
                         AND(hmwp2.status IS NULL
-                            OR hmwp2.status NOT IN(?, ?))))`
+                            OR hmwp2.status NOT IN(?))))`
 
 	args := []interface{}{
 		fleet.MDMOperationTypeInstall,
 		fleet.MDMDeliveryVerifying,
+		mdm.ListFleetReservedWindowsProfileNames(),
 		fleet.MDMOperationTypeInstall,
-		fleet.MDMDeliveryVerifying,
-		fleet.MDMDeliveryVerified,
+		mdm.ListFleetReservedWindowsProfileNames(),
+		[]interface{}{fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified},
 	}
-	return sql, args
+	return sqlx.In(sql, args...)
 }
 
-func subqueryHostsMDMWindowsOSSettingsStatusVerified() (string, []interface{}) {
+func subqueryHostsMDMWindowsOSSettingsStatusVerified() (string, []interface{}, error) {
 	sql := `
             SELECT
                 1 FROM host_mdm_windows_profiles hmwp
@@ -796,20 +805,24 @@ func subqueryHostsMDMWindowsOSSettingsStatusVerified() (string, []interface{}) {
                 h.uuid = hmwp.host_uuid
                 AND hmwp.operation_type = ?
                 AND hmwp.status = ?
+                AND hmwp.profile_name NOT IN(?)
                 AND NOT EXISTS (
                     SELECT
                         1 FROM host_mdm_windows_profiles hmwp2
                     WHERE (h.uuid = hmwp2.host_uuid
                         AND hmwp2.operation_type = ?
+                        AND hmwp2.profile_name NOT IN(?)
                         AND(hmwp2.status IS NULL
                             OR hmwp2.status != ?)))`
 	args := []interface{}{
 		fleet.MDMOperationTypeInstall,
 		fleet.MDMDeliveryVerified,
+		mdm.ListFleetReservedWindowsProfileNames(),
 		fleet.MDMOperationTypeInstall,
+		mdm.ListFleetReservedWindowsProfileNames(),
 		fleet.MDMDeliveryVerified,
 	}
-	return sql, args
+	return sqlx.In(sql, args...)
 }
 
 func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
@@ -856,13 +869,25 @@ type statusCounts struct {
 
 func getMDMWindowsStatusCountsProfilesOnlyDB(ctx context.Context, ds *Datastore, teamID *uint) ([]statusCounts, error) {
 	var args []interface{}
-	subqueryFailed, subqueryFailedArgs := subqueryHostsMDMWindowsOSSettingsStatusFailed()
+	subqueryFailed, subqueryFailedArgs, err := subqueryHostsMDMWindowsOSSettingsStatusFailed()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusFailed")
+	}
 	args = append(args, subqueryFailedArgs...)
-	subqueryPending, subqueryPendingArgs := subqueryHostsMDMWindowsOSSettingsStatusPending()
+	subqueryPending, subqueryPendingArgs, err := subqueryHostsMDMWindowsOSSettingsStatusPending()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusPending")
+	}
 	args = append(args, subqueryPendingArgs...)
-	subqueryVerifying, subqueryVeryingingArgs := subqueryHostsMDMWindowsOSSettingsStatusVerifying()
+	subqueryVerifying, subqueryVeryingingArgs, err := subqueryHostsMDMWindowsOSSettingsStatusVerifying()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusVerifying")
+	}
 	args = append(args, subqueryVeryingingArgs...)
-	subqueryVerified, subqueryVerifiedArgs := subqueryHostsMDMWindowsOSSettingsStatusVerified()
+	subqueryVerified, subqueryVerifiedArgs, err := subqueryHostsMDMWindowsOSSettingsStatusVerified()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusVerified")
+	}
 	args = append(args, subqueryVerifiedArgs...)
 
 	teamFilter := "h.team_id IS NULL"
@@ -907,7 +932,7 @@ GROUP BY
 	)
 
 	var counts []statusCounts
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &counts, stmt, args...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, stmt, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -916,13 +941,25 @@ GROUP BY
 
 func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Datastore, teamID *uint) ([]statusCounts, error) {
 	var args []interface{}
-	subqueryFailed, subqueryFailedArgs := subqueryHostsMDMWindowsOSSettingsStatusFailed()
+	subqueryFailed, subqueryFailedArgs, err := subqueryHostsMDMWindowsOSSettingsStatusFailed()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusFailed")
+	}
 	args = append(args, subqueryFailedArgs...)
-	subqueryPending, subqueryPendingArgs := subqueryHostsMDMWindowsOSSettingsStatusPending()
+	subqueryPending, subqueryPendingArgs, err := subqueryHostsMDMWindowsOSSettingsStatusPending()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusPending")
+	}
 	args = append(args, subqueryPendingArgs...)
-	subqueryVerifying, subqueryVeryingingArgs := subqueryHostsMDMWindowsOSSettingsStatusVerifying()
+	subqueryVerifying, subqueryVeryingingArgs, err := subqueryHostsMDMWindowsOSSettingsStatusVerifying()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusVerifying")
+	}
 	args = append(args, subqueryVeryingingArgs...)
-	subqueryVerified, subqueryVerifiedArgs := subqueryHostsMDMWindowsOSSettingsStatusVerified()
+	subqueryVerified, subqueryVerifiedArgs, err := subqueryHostsMDMWindowsOSSettingsStatusVerified()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusVerified")
+	}
 	args = append(args, subqueryVerifiedArgs...)
 
 	profilesStatus := fmt.Sprintf(`
@@ -1030,7 +1067,7 @@ GROUP BY
 	)
 
 	var counts []statusCounts
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &counts, stmt, args...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, stmt, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -1341,7 +1378,7 @@ func (ds *Datastore) bulkDeleteMDMWindowsHostsConfigProfilesDB(
 }
 
 func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
-	profileUUID := uuid.New().String()
+	profileUUID := "w" + uuid.New().String()
 	stmt := `
 INSERT INTO
     mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml)
@@ -1470,7 +1507,8 @@ INSERT INTO
     profile_uuid, team_id, name, syncml
   )
 VALUES
-  ( UUID(), ?, ?, ? )
+	-- see https://stackoverflow.com/a/51393124/1094941
+  ( CONCAT('w', CONVERT(UUID() USING utf8mb4)), ?, ?, ? )
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   syncml = VALUES(syncml)
@@ -1650,7 +1688,7 @@ SELECT
 FROM
 	host_mdm_windows_profiles
 WHERE
-host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+host_uuid = ? AND profile_name NOT IN(?) AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,
@@ -1658,8 +1696,13 @@ host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s',
 		fleet.MDMDeliveryVerified,
 	)
 
+	stmt, args, err := sqlx.In(stmt, hostUUID, mdm.ListFleetReservedWindowsProfileNames())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building in statement")
+	}
+
 	var profiles []fleet.HostMDMWindowsProfile
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, args...); err != nil {
 		return nil, err
 	}
 	return profiles, nil

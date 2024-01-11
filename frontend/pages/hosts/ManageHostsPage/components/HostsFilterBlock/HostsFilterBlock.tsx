@@ -53,7 +53,9 @@ interface IHostsFilterBlockProps {
     policyId?: any;
     policy?: IPolicy;
     macSettingsStatus?: any;
-    softwareId?: any;
+    softwareId?: number;
+    softwareTitleId?: number;
+    softwareVersionId?: number;
     mdmId?: number;
     mdmEnrollmentStatus?: any;
     lowDiskSpaceHosts?: number;
@@ -62,7 +64,7 @@ interface IHostsFilterBlockProps {
     osVersion?: any;
     munkiIssueId?: number;
     osVersions?: IOperatingSystemVersion[];
-    softwareDetails: ISoftware | null;
+    softwareDetails: { name: string; version?: string } | null;
     mdmSolutionDetails: IMdmSolution | null;
     osSettingsStatus?: MdmProfileStatus;
     diskEncryptionStatus?: DiskEncryptionStatus;
@@ -95,6 +97,8 @@ const HostsFilterBlock = ({
     policyId,
     macSettingsStatus,
     softwareId,
+    softwareTitleId,
+    softwareVersionId,
     mdmId,
     mdmEnrollmentStatus,
     lowDiskSpaceHosts,
@@ -235,21 +239,31 @@ const HostsFilterBlock = ({
     if (!softwareDetails) return null;
 
     const { name, version } = softwareDetails;
-    const label = `${name || "Unknown software"} ${version || ""}`;
+    let label = name;
+    if (version) {
+      label += ` ${version}`;
+    }
+    label = label.trim() || "Unknown software";
 
-    const TooltipDescription = (
-      <span>
-        Hosts with {name || "Unknown software"},
-        <br />
-        {version || "version unknown"} installed
-      </span>
-    );
+    // const TooltipDescription = (
+    //   <span>
+    //     Hosts with {name || "Unknown software"},
+    //     <br />
+    //     {version || "version unknown"} installed
+    //   </span>
+    // );
 
     return (
       <FilterPill
         label={label}
-        onClear={() => handleClearFilter(["software_id"])}
-        tooltipDescription={TooltipDescription}
+        onClear={() =>
+          handleClearFilter([
+            "software_id",
+            "software_version_id",
+            "software_title_id",
+          ])
+        }
+        // tooltipDescription={TooltipDescription}
       />
     );
   };
@@ -433,6 +447,8 @@ const HostsFilterBlock = ({
     policyId ||
     macSettingsStatus ||
     softwareId ||
+    softwareTitleId ||
+    softwareVersionId ||
     mdmId ||
     mdmEnrollmentStatus ||
     lowDiskSpaceHosts ||
@@ -472,7 +488,7 @@ const HostsFilterBlock = ({
           return renderPoliciesFilterBlock();
         case !!macSettingsStatus:
           return renderMacSettingsStatusFilterBlock();
-        case !!softwareId:
+        case !!softwareId || !!softwareVersionId || !!softwareTitleId:
           return renderSoftwareFilterBlock();
         case !!mdmId:
           return renderMDMSolutionFilterBlock();

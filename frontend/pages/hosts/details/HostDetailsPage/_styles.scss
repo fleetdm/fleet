@@ -1,11 +1,4 @@
 .host-details {
-  background-color: $ui-off-white;
-
-  &__wrapper {
-    display: grid;
-    gap: 1rem;
-  }
-
   .component__tabs-wrapper {
     .react-tabs__tab {
       display: inline-flex;
