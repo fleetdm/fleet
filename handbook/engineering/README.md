@@ -11,7 +11,7 @@ This handbook page details processes specific to working [with](#team) and [with
 
 ## Contact us
 - Any community member can [**file a 🦟 "Bug report"**](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) (If urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel).
-  - Any Fleet team member can view the 🪲 ["Bugs" kanban board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board) including the status on all reported bugs.
+  - Any Fleet team member can view the [Endpoint ops](https://app.zenhub.com/workspaces/-g-endpoint-ops-current-sprint-63bd7e0bf75dba002a2343ac/board), [MDM](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board), or [Website](https://app.zenhub.com/workspaces/-g-website--product-marketing--brand-6451748b4eb15200131d4bab/board) kanban boards including the status on all reported bugs.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
 
 ## Responsibilities
