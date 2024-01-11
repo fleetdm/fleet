@@ -14,73 +14,74 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  [purpose='parallax-city'] {
+  [purpose='parallax-city-container'] {
     height: 630px;
     position: relative;
-    .layer {
+    div {
       position: absolute;
       right: 0;
+      bottom: -1px;
       width: 100%;
       height: 100%;
       will-change: transform;
     }
-    .layer-1 {
+    [purpose='foreground-cloud-1'] {
       background: url('/images/parallax-cloud-city/1-cloud-7050x630@2x.png');
       background-size: auto 100%;
       background-position: center bottom;
       background-repeat: no-repeat;
       z-index: 100;
     }
-    .layer-2 {
+    [purpose='foreground-cloud-2'] {
       background: url('/images/parallax-cloud-city/2-cloud-7050x630@2x.png');
       background-size: auto 100%;
       background-position: center bottom;
       background-repeat: no-repeat;
       z-index: 99;
     }
-    .layer-3 {
+    [purpose='swans'] {
       background: url('/images/parallax-cloud-city/3-swans-7050x630@2x.png');
       background-size: auto 100%;
       background-position: center bottom;
       background-repeat: no-repeat;
       z-index: 98;
     }
-    .layer-4 {
+    [purpose='large-island'] {
       background: url('/images/parallax-cloud-city/4-island-7050x630@2x.png');
       background-size: auto 100%;
       background-position: center bottom;
       background-repeat: no-repeat;
       z-index: 97;
     }
-    .layer-5 {
+    [purpose='background-cloud-1'] {
       background: url('/images/parallax-cloud-city/5-cloud-7050x630@2x.png');
       background-size: auto 100%;
       background-position: center bottom;
       background-repeat: no-repeat;
       z-index: 96;
     }
-    .layer-6 {
+    [purpose='small-island-1'] {
       background: url('/images/parallax-cloud-city/6-island-7050x630@2x.png');
       background-size: auto 100%;
       background-position: center bottom;
       background-repeat: no-repeat;
       z-index: 95;
     }
-    .layer-7 {
+    [purpose='small-island-2'] {
       background: url('/images/parallax-cloud-city/7-island-7050x630@2x.png');
       background-size: auto 100%;
       background-position: center bottom;
       background-repeat: no-repeat;
       z-index: 95;
     }
-    .layer-8 {
+    [purpose='background-cloud-2'] {
       background: url('/images/parallax-cloud-city/8-cloud-7050x630@2x.png');
       background-size: auto 100%;
       background-position: center bottom;
       background-repeat: no-repeat;
       z-index: 1;
     }
-    .layer-9 {
+    [purpose='background-cloud-3'] {
       background: url('/images/parallax-cloud-city/9-cloud-7050x630@2x.png');
       background-size: auto 100%;
       background-position: center bottom;
@@ -88,5 +89,16 @@
       z-index: 1;
     }
   }
-
+  @media (max-width: 575px) {
+    // On smaller screens, make sure the swans are visible in the user's viewport
+    [purpose='parallax-city-container'] {
+      background: url('/images/parallax-cloud-city/cloud-city-bg-all-layers-7050x630@2x.png');
+      background-size: auto 100%;
+      background-position: center bottom;
+      background-repeat: no-repeat;
+      div {
+        display: none;
+      }
+    }
+  }
 }
