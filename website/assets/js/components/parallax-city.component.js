@@ -20,7 +20,11 @@ parasails.registerComponent('parallaxCity', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: function (){
     return {
-      //…
+      parallaxCityElement: undefined,
+      elementBottomPosition: undefined,
+      elementHeight: undefined,
+      distanceFromTopOfPage: undefined,
+      isFramePending: false,
     };
   },
 
@@ -50,49 +54,60 @@ parasails.registerComponent('parallaxCity', {
 
   },
   mounted: async function(){
-    let parallaxCityElement = document.querySelector('[purpose="parallax-city"]');
-    let rect = parallaxCityElement.getBoundingClientRect();
-    let isElementCurrentlyVisible = (rect.bottom > (parallaxCityElement.offsetTop + parallaxCityElement.clientHeight));
-    if(isElementCurrentlyVisible) {
+    this.parallaxCityElement = document.querySelector('[purpose="parallax-city"]');
+    this.elementHeight = this.parallaxCityElement.clientHeight;
+    this.distanceFromTopOfPage = this.parallaxCityElement.offsetTop;
+    this.elementBottomPosition = this.elementHeight + this.distanceFromTopOfPage;
+    let parallaxCityElementPosition = this.parallaxCityElement.getBoundingClientRect();
+    if(parallaxCityElementPosition.bottom > this.distanceFromTopOfPage) {
       this.handleParallaxScroll();
     }
+
     document.querySelectorAll('div.layer').forEach((layer)=>{
       let initialPosition = layer.getAttribute('scroll-amount');
       layer.style.bottom = `-${Number(initialPosition) + 1}px`;
     });
-    document.addEventListener('scroll', ()=>{
-      window.requestAnimationFrame(this.handleParallaxScroll);
-    });
 
+    window.addEventListener('scroll', this.handleParallaxScroll);
+    window.addEventListener('resize', this.updateElementPositions);
+    window.addEventListener('orientationchange', this.updateElementPositions);
   },
   beforeDestroy: function() {
-    document.removeEventListener('scroll', this.handleParallaxScroll);
+    window.removeEventListener('scroll', this.handleParallaxScroll);
+    window.removeEventListener('resize', this.updateElementPositions);
+    window.removeEventListener('orientationchange', this.updateElementPositions);
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+    updateElementPositions: function() {
+      this.elementHeight = this.parallaxCityElement.clientHeight;
+      this.distanceFromTopOfPage = this.parallaxCityElement.offsetTop;
+      this.elementBottomPosition = this.elementHeight + this.distanceFromTopOfPage;
+    },
     handleParallaxScroll: function() {
-      let parallaxCity = document.querySelector('[purpose="parallax-city"]');
-      let elementBottom = parallaxCity.offsetTop + parallaxCity.clientHeight;
       let viewportBottom = window.scrollY + window.innerHeight;
       let percentageScrolled;
-      if (parallaxCity.offsetTop < viewportBottom && elementBottom > window.scrollY) {
-        let visibleHeight = Math.min(elementBottom, viewportBottom) - Math.max(parallaxCity.offsetTop, window.scrollY);
-        percentageScrolled = (visibleHeight / parallaxCity.clientHeight).toFixed(2);
-        if(viewportBottom > elementBottom){
+      if (this.parallaxCityElement.offsetTop < viewportBottom && this.elementBottomPosition > window.scrollY) {
+        let visibleHeight = Math.min(this.elementBottomPosition, viewportBottom) - Math.max(this.distanceFromTopOfPage, window.scrollY);
+        console.log(visibleHeight);
+        percentageScrolled = (visibleHeight / this.elementHeight);
+        if(viewportBottom > this.elementBottomPosition) { // If the page is scrolled past the element, set the percentage scrolled to 1.
           percentageScrolled = 1;
         }
       } else {
         percentageScrolled = 0;
       }
-      parallaxCity.querySelectorAll('div.layer').forEach((layer) => {
-        let scrollAmount = layer.getAttribute('scroll-amount');
-        let movement = (percentageScrolled * scrollAmount).toFixed(2);
-        let translateY = 'translate3d(0, -' + movement + 'px, 0)';
-        layer.style.transform = translateY;
-      });
+      if(percentageScrolled > 0){
+        this.parallaxCityElement.querySelectorAll('div.layer').forEach((layer) => {
+          let scrollAmount = layer.getAttribute('scroll-amount');
+          let movement = (percentageScrolled * scrollAmount);
+          layer.style.transform = 'translateY(-' + movement + 'px)';
+        });
+      }
+      this.isFramePending = false;
     },
   }
 });
