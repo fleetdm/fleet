@@ -179,6 +179,8 @@ const QueryDetailsPage = ({
     // e.g., Discover TLS certificates | Queries | Fleet
     if (storedQuery?.name) {
       document.title = `${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, storedQuery?.name]);
 

@@ -100,6 +100,8 @@ const HostQueryReport = ({
     // e.g., Discover TLS certificates (Rachel's MacBook Pro) | Hosts | Fleet
     document.title = `${queryName} (${hostName}) |
    Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
+  } else {
+    document.title = `Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
   }
 
   const HQRHeader = useCallback(() => {

@@ -209,6 +209,8 @@ const PolicyPage = ({
     // e.g., Antivirus healthy (Linux) | Policies | Fleet
     if (storedPolicy?.name) {
       document.title = `${storedPolicy.name} | Policies | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Policies | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, storedPolicy?.name]);
 

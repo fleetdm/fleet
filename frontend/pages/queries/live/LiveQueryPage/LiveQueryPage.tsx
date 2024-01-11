@@ -138,9 +138,12 @@ const RunQueryPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    const queryNameCopy = storedQuery?.name ? `${storedQuery?.name} | ` : "";
     // e.g., Run Discover TLS certificates | Queries | Fleet
-    document.title = `Run ${queryNameCopy} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    if (storedQuery?.name) {
+      document.title = `Run ${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
   }, [location.pathname, storedQuery?.name]);
 
   const goToQueryEditor = useCallback(

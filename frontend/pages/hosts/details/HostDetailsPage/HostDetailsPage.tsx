@@ -348,6 +348,8 @@ const HostDetailsPage = ({
     if (host?.display_name) {
       // e.g., Rachel's Macbook Pro | Hosts | Fleet
       document.title = `${host?.display_name} | Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, host]);
 
