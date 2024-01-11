@@ -92,7 +92,6 @@ parasails.registerComponent('parallaxCity', {
       let percentageScrolled;
       if (this.parallaxCityElement.offsetTop < viewportBottom && this.elementBottomPosition > window.scrollY) {
         let visibleHeight = Math.min(this.elementBottomPosition, viewportBottom) - Math.max(this.distanceFromTopOfPage, window.scrollY);
-        console.log(visibleHeight);
         percentageScrolled = (visibleHeight / this.elementHeight);
         if(viewportBottom > this.elementBottomPosition) { // If the page is scrolled past the element, set the percentage scrolled to 1.
           percentageScrolled = 1;
