@@ -6,13 +6,13 @@ import PATHS from "router/paths";
 // Note: Order matters for use of array.find() (specific subpaths must be listed before their parent path)
 export default [
   { path: PATHS.DASHBOARD, title: `Dashboard | ${DOCUMENT_TITLE_SUFFIX}` },
-  { path: "/hosts/manage", title: `Hosts | ${DOCUMENT_TITLE_SUFFIX}` },
+  { path: PATHS.MANAGE_HOSTS, title: `Hosts | ${DOCUMENT_TITLE_SUFFIX}` },
   {
-    path: "/controls",
+    path: PATHS.CONTROLS,
     title: `Controls | ${DOCUMENT_TITLE_SUFFIX}`,
   },
   {
-    path: "/software/",
+    path: PATHS.SOFTWARE,
     title: `Software | ${DOCUMENT_TITLE_SUFFIX}`,
   },
   {
@@ -26,7 +26,7 @@ export default [
   },
   { path: PATHS.NEW_POLICY, title: `New policy | ${DOCUMENT_TITLE_SUFFIX}` },
   {
-    path: "/settings/",
+    path: PATHS.ADMIN_SETTINGS,
     title: `Settings | ${DOCUMENT_TITLE_SUFFIX}`,
   },
   {
