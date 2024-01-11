@@ -39,7 +39,6 @@ parasails.registerComponent('parallaxCity', {
       <div purpose="small-island-1" scroll-amount=40></div>
       <div purpose="background-cloud-1" scroll-amount=40></div>
       <div purpose="large-island" scroll-amount=60></div>
-      <div purpose="swans" scroll-amount=60></div>
       <div purpose="foreground-cloud-2" scroll-amount=100></div>
       <div purpose="foreground-cloud-1" scroll-amount=120></div>
     </div>
