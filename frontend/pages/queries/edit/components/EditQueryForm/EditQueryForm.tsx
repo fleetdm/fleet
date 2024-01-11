@@ -694,35 +694,26 @@ const EditQueryForm = ({
             {renderPlatformCompatibility()}
           </span>
           {savedQueryMode && (
-            <div className={`${baseClass}__edit-options`}>
-              <div className={`${baseClass}__frequency`}>
-                <Dropdown
-                  searchable={false}
-                  options={frequencyOptions}
-                  onChange={onChangeSelectFrequency}
-                  placeholder={"Every day"}
-                  value={lastEditedQueryFrequency}
-                  label={"Frequency"}
-                  wrapperClassName={`${baseClass}__form-field form-field--frequency`}
-                />
-                <div className="help-text">
-                  This is how often your query collects data.
-                </div>
-              </div>
-              <div className={"form-field-with-help-text"}>
-                <Checkbox
-                  value={lastEditedQueryObserverCanRun}
-                  onChange={(value: boolean) =>
-                    setLastEditedQueryObserverCanRun(value)
-                  }
-                >
-                  Observers can run
-                </Checkbox>
-                <div className="help-text">
-                  Users with the observer role will be able to run this query on
-                  hosts where they have access.
-                </div>
-              </div>
+            <>
+              <Dropdown
+                searchable={false}
+                options={frequencyOptions}
+                onChange={onChangeSelectFrequency}
+                placeholder={"Every day"}
+                value={lastEditedQueryFrequency}
+                label={"Frequency"}
+                wrapperClassName={`${baseClass}__form-field form-field--frequency`}
+                helpText="This is how often your query collects data."
+              />
+              <Checkbox
+                value={lastEditedQueryObserverCanRun}
+                onChange={(value: boolean) =>
+                  setLastEditedQueryObserverCanRun(value)
+                }
+                helpText="Users with the observer role will be able to run this query on hosts where they have access."
+              >
+                Observers can run
+              </Checkbox>
               <RevealButton
                 isShowing={showAdvancedOptions}
                 className={"advanced-options-toggle"}
@@ -732,7 +723,7 @@ const EditQueryForm = ({
                 onClick={toggleAdvancedOptions}
               />
               {showAdvancedOptions && (
-                <div className={`${baseClass}__advanced-options`}>
+                <>
                   <Dropdown
                     options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
                     placeholder="Select"
@@ -741,11 +732,8 @@ const EditQueryForm = ({
                     value={lastEditedQueryPlatforms}
                     multi
                     wrapperClassName={`${baseClass}__form-field form-field--platform`}
+                    helpText="By default, your query collects data on all compatible platforms."
                   />
-                  <div className="help-text">
-                    By default, your query collects data on all compatible
-                    platforms.
-                  </div>
                   <Dropdown
                     options={MIN_OSQUERY_VERSION_OPTIONS}
                     onChange={onChangeMinOsqueryVersionOptions}
@@ -770,9 +758,9 @@ const EditQueryForm = ({
                       queryReportsDisabled={queryReportsDisabled}
                     />
                   )}
-                </div>
+                </>
               )}
-            </div>
+            </>
           )}
           {renderLiveQueryWarning()}
           <div

@@ -92,7 +92,7 @@ const DiscardDataOption = ({
         }
         helpText={renderHelpText()}
       >
-        <b>Discard data</b>
+        Discard data
       </Checkbox>
     </div>
   );
