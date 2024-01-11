@@ -260,9 +260,9 @@ Steps to renew the certificate:
 11. Adjust calendar event to be between 2-4 weeks before the next expiration.
 
 ### Preform an incident postmortem
-At Fleet, we take customer incidents very seriously. After working with customers to resolve issues, we will conduct an internal postmortem to determine any documentation or coding changes to prevent similar incidents from happening in the future. Why? We strive to make Fleet the best osquery management platform globally, and we sincerely believe that starts with sharing lessons learned with the community to become stronger together.
+At Fleet, we take customer incidents very seriously. After working with customers to resolve issues, we will conduct an internal postmortem to determine any process, documentation, or coding changes to prevent similar incidents from happening in the future. Why? We strive to make Fleet the best osquery management platform globally, and we sincerely believe that starts with sharing lessons learned with the community to become stronger together.
 
-At Fleet, we do postmortem meetings for every production incident, whether it's a customer's environment or on fleetdm.com.
+At Fleet, we do postmortem meetings for every service or feature outage and every critical bug, whether it's a customer's environment or on fleetdm.com.
 
 - **Postmortem documentation**
 Before running the postmortem meeting, copy this [Postmortem Template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and populate it with some initial data to enable a productive conversation.
