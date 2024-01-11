@@ -101,10 +101,11 @@ parasails.registerComponent('parallaxCity', {
       } else {
         percentageScrolled = 0;
       }
-      if(percentageScrolled > 0){
+      if(percentageScrolled > 0.5){// When the element has been scrolled down 50%, start adjusting the position of layers.
+        let adjustedPercentage = (percentageScrolled - 0.5) * 2;
         this.parallaxCityElement.querySelectorAll('div').forEach((layer) => {
           let scrollAmount = layer.getAttribute('scroll-amount');
-          let movement = (percentageScrolled * scrollAmount);
+          let movement = adjustedPercentage * scrollAmount;
           layer.style.transform = 'translateY(-' + movement + 'px)';
         });
       }
