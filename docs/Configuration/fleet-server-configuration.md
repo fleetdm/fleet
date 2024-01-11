@@ -4,7 +4,7 @@ Fleet server configuration options update the internals of the Fleet server (MyS
 
 Only self-managed users and customers can modify this configuration. If you're a managed-cloud customer, please reach out to Fleet about modifying the configuration.
 
-You can Fleet server specify configuration options in the following formats:
+You can specify configuration options in the following formats:
 
 1. YAML file
 2. Environment variables
