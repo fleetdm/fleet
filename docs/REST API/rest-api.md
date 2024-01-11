@@ -6025,7 +6025,7 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 Runs a live query against the specified hosts and responds with the results.
 
-The API will wait for responses up until a fixed time period elapses (default 25 seconds), at which point all of the collected results are returned. (Results are returned sooner if all targeted hosts have responded before that time.)
+If some targeted hosts haven't responded, the live query will stop after 25 seconds (or whatever time period is configured), and all collected results are returned.
 
 The fixed time period is configurable via environment variable on the Fleet server (e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value than the default, be sure not to exceed your load balancer timeout.
 
