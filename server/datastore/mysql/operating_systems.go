@@ -25,7 +25,7 @@ func listOperatingSystemsDB(ctx context.Context, tx sqlx.QueryerContext) ([]flee
 func (ds *Datastore) ListOperatingSystemsForPlatform(ctx context.Context, platform string) ([]fleet.OperatingSystem, error) {
 	var oses []fleet.OperatingSystem
 	sqlStatement := `
-		SELECT id, name, version, arch, kernel_version
+		SELECT id, name, version, arch, kernel_version, platform
 		FROM operating_systems
 		WHERE platform = ?
 	`
