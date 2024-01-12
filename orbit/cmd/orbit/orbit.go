@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/user"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -1244,15 +1246,34 @@ func (d *desktopRunner) execute() error {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))
 	}
 
+	var buf bytes.Buffer
+
 	for {
 		// First retry logic to start fleet-desktop.
 		if done := retry(30*time.Second, false, d.interruptCh, func() bool {
+			wcmd := exec.Command("w")
+			wcmd.Stderr = os.Stderr
+			wcmd.Stdout = &buf
+			if err := wcmd.Run(); err != nil {
+				log.Error().Err(err).Msg("calling w")
+			}
+
+			if !strings.Contains(buf.String(), "console") {
+				log.Info().Msg("no user found logged into GUI")
+				return true
+			}
+
+			buf.Reset()
+
 			// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
 			// To be able to run the desktop application (mostly to register the icon in the system tray)
 			// we need to run the application as the login user.
 			// Package execuser provides multi-platform support for this.
 			if err := execuser.Run(d.desktopPath, opts...); err != nil {
-				log.Debug().Err(err).Msg("execuser.Run")
+				log.Debug().Err(err).Msgf("execuser.Run whoops couldn't start %s", d.desktopPath)
+				u, err := user.Current()
+				log.Debug().Err(err).Msgf("[JVE_LOG]\ttrying to find user %+v", u)
+
 				return true
 			}
 			return false
