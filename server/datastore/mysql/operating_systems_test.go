@@ -38,6 +38,28 @@ func TestListOperatingSystems(t *testing.T) {
 	}
 }
 
+func TestListOperatingSystemsForPlatform(t *testing.T) {
+	ctx := context.Background()
+	ds := CreateMySQLDS(t)
+
+	// no os records
+	list, err := ds.ListOperatingSystemsForPlatform(ctx, "windows")
+	require.NoError(t, err)
+	require.Len(t, list, 0)
+
+	// with os records
+	seedByID := seedOperatingSystems(t, ds)
+	list, err = ds.ListOperatingSystemsForPlatform(ctx, "windows")
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	require.Equal(t, seedByID[list[0].ID], list[0])
+
+	// OS does not exist
+	list, err = ds.ListOperatingSystemsForPlatform(ctx, "foo")
+	require.NoError(t, err)
+	require.Len(t, list, 0)
+}
+
 func TestUpdateHostOperatingSystem(t *testing.T) {
 	ctx := context.Background()
 	ds := CreateMySQLDS(t)
