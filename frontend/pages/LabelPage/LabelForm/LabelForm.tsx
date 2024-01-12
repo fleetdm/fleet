@@ -214,7 +214,7 @@ const LabelForm = ({
           labelActionComponent={renderLabelComponent()}
           onLoad={onLoad}
           readOnly={isEdit}
-          wrapperClassName={`${baseClass}__text-editor-wrapper`}
+          wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
           helpText={aceHelpText}
           handleSubmit={noop}
           wrapEnabled
@@ -265,7 +265,7 @@ const LabelForm = ({
           </p>
         </div>
       )}
-      <div className={`${baseClass}__button-wrap`}>
+      <div className={"button-wrap"}>
         <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>
