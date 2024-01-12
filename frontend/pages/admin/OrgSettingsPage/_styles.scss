@@ -23,14 +23,6 @@
     }
 
     .app-config-form {
-      .form-field {
-        width: 100%;
-
-        &__label {
-          width: 100%;
-        }
-      }
-
       &__section {
         @include clearfix;
         margin: 0 0 $pad-large;
@@ -91,60 +83,6 @@
       &__section-description {
         font-size: $x-small;
         color: $core-fleet-black;
-      }
-
-      &__inputs {
-        margin-top: 1.1rem;
-        width: 100%;
-        max-width: 754px;
-        float: left;
-        box-sizing: border-box;
-
-        .input-field {
-          width: 100%;
-          max-width: 754px;
-        }
-
-        &--smtp {
-          margin: 0 0 $pad-medium;
-
-          .form-field {
-            width: 29%;
-            float: right;
-
-            &:first-child {
-              float: left;
-              width: 69%;
-            }
-
-            &:nth-child(2) {
-              padding-top: 6px;
-            }
-
-            &--checkbox {
-              clear: both;
-              width: 100%;
-              float: none;
-            }
-          }
-        }
-
-        &--usage {
-          margin-top: $pad-large;
-        }
-
-        &--preview {
-          margin: $pad-medium 0;
-        }
-
-        &--webhook,
-        &--agents {
-          margin-bottom: $pad-large;
-
-          .yaml-ace__label {
-            min-height: 0;
-          }
-        }
       }
 
       &__smtp-section {
