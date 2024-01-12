@@ -119,10 +119,10 @@ const Sso = ({
   };
 
   return (
-    <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
+    <div className={baseClass}>
       <div className={`${baseClass}__section`}>
         <h2>Single sign-on options</h2>
-        <div className={`${baseClass}__inputs`}>
+        <form onSubmit={onFormSubmit} autoComplete="off">
           <Checkbox
             onChange={handleInputChange}
             name="enableSso"
@@ -131,8 +131,6 @@ const Sso = ({
           >
             Enable single sign-on
           </Checkbox>
-        </div>
-        <div className={`${baseClass}__inputs`}>
           <InputField
             label="Identity provider name"
             onChange={handleInputChange}
@@ -143,8 +141,6 @@ const Sso = ({
             error={formErrors.idp_name}
             tooltip="A required human friendly name for the identity provider that will provide single sign-on authentication."
           />
-        </div>
-        <div className={`${baseClass}__inputs`}>
           <InputField
             label="Entity ID"
             helpText="The URI you provide here must exactly match the Entity ID field used in identity provider configuration."
@@ -156,8 +152,6 @@ const Sso = ({
             error={formErrors.entity_id}
             tooltip="The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
           />
-        </div>
-        <div className={`${baseClass}__inputs`}>
           <InputField
             label="IDP image URL"
             onChange={handleInputChange}
@@ -169,8 +163,6 @@ const Sso = ({
             tooltip={`An optional link to an image such
             as a logo for the identity provider.`}
           />
-        </div>
-        <div className={`${baseClass}__inputs`}>
           <InputField
             label="Metadata"
             type="textarea"
@@ -183,8 +175,6 @@ const Sso = ({
             tooltip={`Metadata provided by the identity provider. Either
             metadata or a metadata url must be provided.`}
           />
-        </div>
-        <div className={`${baseClass}__inputs`}>
           <InputField
             label="Metadata URL"
             helpText="If available from the identity provider, this is the preferred means of providing metadata."
@@ -196,8 +186,6 @@ const Sso = ({
             error={formErrors.metadata_url}
             tooltip="A URL that references the identity provider metadata."
           />
-        </div>
-        <div className={`${baseClass}__inputs`}>
           <Checkbox
             onChange={handleInputChange}
             name="enableSsoIdpLogin"
@@ -206,9 +194,7 @@ const Sso = ({
           >
             Allow SSO login initiated by identity provider
           </Checkbox>
-        </div>
-        {isPremiumTier && (
-          <div className={`${baseClass}__inputs`}>
+          {isPremiumTier && (
             <Checkbox
               onChange={handleInputChange}
               name="enableJitProvisioning"
@@ -224,19 +210,19 @@ const Sso = ({
                 />
               </>
             </Checkbox>
-          </div>
-        )}
+          )}
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={Object.keys(formErrors).length > 0}
+            className="save-loading"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
+        </form>
       </div>
-      <Button
-        type="submit"
-        variant="brand"
-        disabled={Object.keys(formErrors).length > 0}
-        className="save-loading"
-        isLoading={isUpdatingSettings}
-      >
-        Save
-      </Button>
-    </form>
+    </div>
   );
 };
 
