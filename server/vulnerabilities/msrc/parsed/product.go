@@ -1,9 +1,12 @@
 package parsed
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -12,12 +15,53 @@ import (
 // (if any) and its version (if any).
 type Product string
 
+type Products map[string]Product
+
+var ErrNoMatch = errors.New("no product matches")
+
+func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (string, error) {
+	var dvMatch, noDvMatch string
+
+	for pID, p := range p {
+		normalizedOS := NewProductFromOS(os)
+		if p.Name() != normalizedOS.Name() {
+			continue
+		}
+
+		archMatch := p.Arch() == "all" || normalizedOS.Arch() == "all" || p.Arch() == normalizedOS.Arch()
+		if !archMatch {
+			continue
+		}
+
+		if p.HasDisplayVersion() && os.DisplayVersion != "" && strings.Index(string(p), os.DisplayVersion) != -1 {
+			dvMatch = pID
+			continue
+		}
+		if !p.HasDisplayVersion() {
+			noDvMatch = pID
+			continue
+		}
+	}
+
+	if dvMatch == "" && noDvMatch == "" {
+		return "", ctxerr.Wrap(ctx, ErrNoMatch)
+	}
+
+	// unknown display version will match the first product
+	// without a display version
+	if dvMatch == "" {
+		return noDvMatch, nil
+	}
+
+	return dvMatch, nil
+}
+
 func NewProductFromFullName(fullName string) Product {
 	return Product(fullName)
 }
 
 func NewProductFromOS(os fleet.OperatingSystem) Product {
-	return Product(fmt.Sprintf("%s %s for %s", os.Name, os.Version, os.Arch))
+	return Product(fmt.Sprintf("%s for %s", os.Name, os.Arch))
 }
 
 // Arch returns the archicture for the current Microsoft product, if none can
@@ -28,6 +72,9 @@ func NewProductFromOS(os fleet.OperatingSystem) Product {
 func (p Product) Arch() string {
 	val := string(p)
 	switch {
+	case strings.Index(val, "ARM 64-bit") != -1 ||
+		strings.Index(val, "ARM64") != -1:
+		return "arm64"
 	case strings.Index(val, "x64") != -1 ||
 		strings.Index(val, "64-bit") != -1 ||
 		strings.Index(val, "x86_64") != -1:
@@ -35,13 +82,21 @@ func (p Product) Arch() string {
 	case strings.Index(val, "32-bit") != -1 ||
 		strings.Index(val, "x86") != -1:
 		return "32-bit"
-	case strings.Index(val, "ARM64") != -1:
-		return "arm64"
 	case strings.Index(val, "Itanium-Based") != -1:
 		return "itanium"
 	default:
 		return "all"
 	}
+}
+
+func (p Product) HasDisplayVersion() bool {
+	keywords := []string{"version", "edition"}
+	for _, k := range keywords {
+		if strings.Index(strings.ToLower(string(p)), k) != -1 {
+			return true
+		}
+	}
+	return false
 }
 
 // Name returns the name for the current Microsoft product, if none can
