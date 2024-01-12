@@ -58,10 +58,10 @@ const WebAddress = ({
   };
 
   return (
-    <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
+    <div className={baseClass}>
       <div className={`${baseClass}__section`}>
         <h2>Fleet web address</h2>
-        <div className={`${baseClass}__inputs`}>
+        <form onSubmit={onFormSubmit} autoComplete="off">
           <InputField
             label="Fleet app URL"
             helpText="Include base path only (eg. no <code>/latest</code>)"
@@ -73,18 +73,18 @@ const WebAddress = ({
             error={formErrors.server_url}
             tooltip="The base URL of this instance for use in Fleet links."
           />
-        </div>
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={Object.keys(formErrors).length > 0}
+            className="button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
+        </form>
       </div>
-      <Button
-        type="submit"
-        variant="brand"
-        disabled={Object.keys(formErrors).length > 0}
-        className="save-loading"
-        isLoading={isUpdatingSettings}
-      >
-        Save
-      </Button>
-    </form>
+    </div>
   );
 };
 

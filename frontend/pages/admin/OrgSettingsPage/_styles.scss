@@ -25,7 +25,6 @@
     .app-config-form {
       &__section {
         @include clearfix;
-        margin: 0 0 $pad-large;
         animation: fade-in 200ms ease-out;
 
         .upcaret::after {
