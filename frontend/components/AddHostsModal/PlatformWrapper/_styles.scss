@@ -2,6 +2,11 @@
 
 .platform-wrapper {
   padding: 0; // different to pad sticky subnav properly
+  .react-tabs {
+    &__tab-list {
+      margin: 0 0 1.25rem;
+    }
+  }
 
   h1 {
     margin-bottom: $pad-small;
