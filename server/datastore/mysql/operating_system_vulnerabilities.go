@@ -78,10 +78,11 @@ func (ds *Datastore) InsertOSVulnerability(ctx context.Context, v fleet.OSVulner
 		ON DUPLICATE KEY UPDATE
 			operating_system_id = VALUES(operating_system_id),
 			source = VALUES(source),
-			resolved_in_version = VALUES(resolved_in_version)
+			resolved_in_version = VALUES(resolved_in_version),
+			updated_at = ?
 	`
 
-	args = append(args, v.HostID, v.OSID, v.CVE, s, v.ResolvedInVersion)
+	args = append(args, v.HostID, v.OSID, v.CVE, s, v.ResolvedInVersion, time.Now().UTC())
 
 	res, err := ds.writer(ctx).ExecContext(ctx, sqlStmt, args...)
 	if err != nil {
