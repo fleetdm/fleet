@@ -7,8 +7,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
-	"github.com/kolide/kit/version"
 )
 
 // EnterpriseOverrides contains the methods that can be overriden by the

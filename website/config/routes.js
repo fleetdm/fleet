@@ -417,6 +417,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/faq': '/docs/get-started/faq',
   'GET /docs/using-fleet/monitoring-fleet': '/docs/deploy/monitoring-fleet',
   'GET /docs/using-fleet/adding-hosts': '/docs/using-fleet/enroll-hosts',
+  'GET /docs/using-fleet/fleetd': '/docs/using-fleet/enroll-hosts',
   'GET /docs/using-fleet/teams': '/docs/using-fleet/segment-hosts',
   'GET /docs/using-fleet/permissions': '/docs/using-fleet/manage-access',
   'GET /docs/using-fleet/chromeos': '/docs/using-fleet/enroll-chromebooks',
@@ -427,7 +428,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/process-file-events': '/guides/querying-process-file-events-table-on-centos-7',
   'GET /docs/using-fleet/audit-activities': '/docs/using-fleet/audit-logs',
   'GET /docs/using-fleet/detail-queries-summary': '/docs/using-fleet/understanding-host-vitals',
-  'GET /docs/using-fleet/orbit': '/docs/using-fleet/fleetd',
+  'GET /docs/using-fleet/orbit': '/docs/using-fleet/enroll-hosts',
   'GET /docs/deploying': '/docs/deploy',
   'GET /docs/deploying/faq': '/docs/get-started/faq',
   'GET /docs/deploying/introduction': '/docs/deploy/introduction',
@@ -498,11 +499,12 @@ module.exports.routes = {
   'GET /try-fleet/sandbox-expired':   '/try-fleet/fleetctl-preview',
   'GET /try-fleet/sandbox':   '/try-fleet/fleetctl-preview',
   'GET /try-fleet/waitlist':   '/try-fleet/fleetctl-preview',
+  'GET /mdm': '/device-management',// « alias for radio ad
 
   // Fleet UI
   // =============================================================================================================
-  // These are external links not maintained by Fleet. We can point the Fleet UI to redirects here instead of the
-  // original sources to help avoid broken links.
+  // Redirects for external links from the Fleet UI & CLI, including to fleetdm.com and to external websites not
+  // maintained by Fleet. These help avoid broken links by reducing surface area of links to maintain in the UI.
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
   'GET /learn-more-about/just-in-time-provisioning': 'https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning',
   'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',

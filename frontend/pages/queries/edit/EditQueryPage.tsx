@@ -202,12 +202,12 @@ const EditQueryPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    // e.g., Query details | Discover TLS certificates | Fleet for osquery
-    const storedQueryTitleCopy = storedQuery?.name
-      ? `${storedQuery.name} | `
-      : "";
-    document.title = `Edit query | ${storedQueryTitleCopy} ${DOCUMENT_TITLE_SUFFIX}`;
-    // }
+    // e.g., Editing Discover TLS certificates | Queries | Fleet
+    if (storedQuery?.name) {
+      document.title = `Editing ${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
   }, [location.pathname, storedQuery?.name]);
 
   useEffect(() => {

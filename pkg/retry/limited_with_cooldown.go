@@ -64,7 +64,7 @@ func (t *LimitedWithCooldown) Do(hash string, fn func() error) error {
 
 	if t.retries[hash] >= t.maxRetries &&
 		time.Since(t.wait[hash]) <= t.cooldown {
-		return &ExcessRetriesError{nextRetry: time.Until(t.wait[hash])}
+		return &ExcessRetriesError{nextRetry: time.Until(t.wait[hash].Add(t.cooldown))}
 	}
 
 	if err := fn(); err != nil {

@@ -7,13 +7,19 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/rs/zerolog/log"
+	"github.com/theupdateframework/go-tuf/client"
+	"golang.org/x/mod/semver"
 )
 
 // RunnerOptions is options provided for the update runner.
@@ -29,11 +35,12 @@ type RunnerOptions struct {
 //
 // It uses an Updater and makes sure to keep its targets up-to-date.
 type Runner struct {
-	updater     *Updater
-	opt         RunnerOptions
-	cancel      chan struct{}
-	localHashes map[string][]byte
-	mu          sync.Mutex
+	updater        *Updater
+	opt            RunnerOptions
+	cancel         chan struct{}
+	localHashes    map[string][]byte
+	mu             sync.Mutex
+	OsqueryVersion string
 }
 
 // AddRunnerOptTarget adds the given target to the RunnerOptions.Targets.
@@ -103,6 +110,12 @@ func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 	// (knowing that they are not expected to change during the execution of the runner).
 	for _, target := range opt.Targets {
 		if err := runner.StoreLocalHash(target); err != nil {
+			var tufFileNotFoundErr client.ErrNotFound
+			if errors.As(err, &tufFileNotFoundErr) {
+				// This can happen if the remote channel doesn't exist for a target.
+				// We don't want to error out, so we skip such target.
+				continue
+			}
 			return nil, err
 		}
 	}
@@ -234,7 +247,6 @@ func (r *Runner) UpdateAction() (bool, error) {
 		// Performing update if either the binary is not updated
 		// or the symlink needs to be updated and binary is not updated.
 		if localBinaryNotUpdated || needsSymlinkUpdate {
-			// Update detected
 			log.Info().Str("target", target).Msg("update detected")
 			if err := r.updateTarget(target); err != nil {
 				return didUpdate, fmt.Errorf("update %s: %w", target, err)
@@ -284,9 +296,16 @@ func (r *Runner) updateTarget(target string) error {
 	}
 	path := localTarget.ExecPath
 
+	if target == "osqueryd" {
+		// Compare old/new osquery versions
+		_ = compareVersion(path, r.OsqueryVersion, "osquery")
+	}
+
 	if target != "orbit" {
 		return nil
 	}
+	// Compare old/new orbit versions
+	_ = compareVersion(path, build.Version, "fleetd")
 
 	// Symlink Orbit binary
 	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
@@ -304,4 +323,45 @@ func (r *Runner) updateTarget(target string) error {
 func (r *Runner) Interrupt(err error) {
 	r.cancel <- struct{}{}
 	log.Error().Err(err).Msg("interrupt updater")
+}
+
+// compareVersion compares the old and new versions of a binary and prints the appropriate message.
+// The return value is only used for unit tests.
+func compareVersion(path string, oldVersion string, targetDisplayName string) *int {
+	newVersion := GetVersion(path)
+	vOldVersion := "v" + oldVersion
+	vNewVersion := "v" + newVersion
+	if semver.IsValid(vOldVersion) && semver.IsValid(vNewVersion) {
+		compareResult := semver.Compare(vOldVersion, vNewVersion)
+		switch compareResult {
+		case 1:
+			log.Warn().Msgf("Downgrading %s from %s to %s", targetDisplayName, oldVersion, newVersion)
+		case 0:
+			log.Warn().Msgf("Updating %s to the same version (%s == %s)", targetDisplayName, oldVersion, newVersion)
+		case -1:
+			log.Info().Msgf("Upgrading %s from %s to %s", targetDisplayName, oldVersion, newVersion)
+		}
+		return &compareResult
+	}
+	return nil
+}
+
+// Matches strings like:
+// - osqueryd version 5.10.2-26-gc396d07b4-dirty
+// - orbit 1.19.0
+var versionRegexp = regexp.MustCompile(`^\S+(\s+version)?\s+(\S*)$`)
+
+// GetVersion gets the version of a binary.
+func GetVersion(path string) string {
+	var version string
+	versionCmd := exec.Command(path, "--version")
+	if out, err := versionCmd.CombinedOutput(); err != nil {
+		log.Warn().Msgf("failed to get %s version: %s: %s", path, string(out), err)
+	} else {
+		matches := versionRegexp.FindStringSubmatch(strings.TrimSpace(string(out)))
+		if matches != nil && len(matches) > 2 {
+			version = matches[2]
+		}
+	}
+	return version
 }

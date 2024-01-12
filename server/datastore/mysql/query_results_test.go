@@ -27,6 +27,7 @@ func TestQueryResults(t *testing.T) {
 		{"MaxRows", testQueryResultRowsDoNotExceedMaxRows},
 		{"QueryResultRows", testQueryResultRows},
 		{"QueryResultRowsFilter", testQueryResultRowsTeamFilter},
+		{"CleanupQueryResultRows", testCleanupQueryResultRows},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -627,4 +628,65 @@ func testQueryResultRows(t *testing.T, ds *Datastore) {
 	results, err := ds.QueryResultRows(context.Background(), query.ID, filter)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
+}
+
+func testCleanupQueryResultRows(t *testing.T, ds *Datastore) {
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	queryNoDiscard := test.NewQuery(t, ds, nil, "Query No Discard", "SELECT 1", user.ID, true)
+	queryDiscardTrue := test.NewQuery(t, ds, nil, "Query Discard True", "SELECT 1", user.ID, true)
+	queryDiscardTrue.DiscardData = true
+	err := ds.SaveQuery(context.Background(), queryDiscardTrue, false, false)
+	require.NoError(t, err)
+
+	mockTime := time.Now().UTC().Truncate(time.Second)
+
+	// Insert query result rows
+	rows := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     queryNoDiscard.ID,
+			HostID:      1,
+			LastFetched: mockTime,
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
+		},
+		{
+			QueryID:     queryNoDiscard.ID,
+			HostID:      1,
+			LastFetched: mockTime,
+			Data:        ptr.RawMessage([]byte(`{"model": "Keyboard", "vendor": "Microsoft"}`)),
+		},
+	}
+	err = ds.OverwriteQueryResultRows(context.Background(), rows)
+	require.NoError(t, err)
+
+	// Call OverwriteQueryResultRows again with different rows
+	overwriteRows := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     queryDiscardTrue.ID,
+			HostID:      1,
+			LastFetched: mockTime,
+			Data:        ptr.RawMessage([]byte(`{"model": "Headphones", "vendor": "Sony"}`)),
+		},
+		{
+			QueryID:     queryDiscardTrue.ID,
+			HostID:      1,
+			LastFetched: mockTime,
+			Data:        ptr.RawMessage([]byte(`{"model": "Speakers", "vendor": "Bose"}`)),
+		},
+	}
+	err = ds.OverwriteQueryResultRows(context.Background(), overwriteRows)
+	require.NoError(t, err)
+
+	// Cleanup query result rows
+	err = ds.CleanupDiscardedQueryResults(context.Background())
+	require.NoError(t, err)
+
+	// Verify that the rows with discard data set to false are not removed
+	results, err := ds.QueryResultRows(context.Background(), queryNoDiscard.ID, fleet.TeamFilter{User: user})
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+
+	// Verify that the rows with discard data set to true are removed
+	results, err = ds.QueryResultRows(context.Background(), queryDiscardTrue.ID, fleet.TeamFilter{User: user})
+	require.NoError(t, err)
+	require.Len(t, results, 0)
 }

@@ -10,12 +10,13 @@
   &__icon {
     width: 96px;
     height: 96px;
-    border: 1px solid #E2E4EA;
+    border: 1px solid #e2e4ea;
     border-radius: 8px;
   }
 
   &__info {
     flex-grow: 1;
+    align-self: center;
   }
 
   h1 {
@@ -23,7 +24,6 @@
     font-weight: bold;
     margin-bottom: $pad-medium;
   }
-
 
   &__description-list {
     display: flex;

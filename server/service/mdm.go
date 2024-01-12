@@ -24,10 +24,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
-	nanomdm "github.com/micromdm/nanomdm/mdm"
 )
 
 ////////////////////////////////////////////////////////////////////////////////

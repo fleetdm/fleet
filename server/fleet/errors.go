@@ -536,10 +536,28 @@ func (e OrbitError) Error() string {
 
 // Message that may surfaced by the server or the fleetctl client in connection with the RunHostScript service.
 const (
-	RunScriptInvalidTypeErrMsg    = "File type not supported. Only .sh (Bash) and .ps1 (PowerShell) file types are allowed."
-	RunScriptHostOfflineErrMsg    = "Script can’t run on offline host."
-	RunScriptHostNotFoundErrMsg   = "Host doesn’t exist. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
-	RunScriptForbiddenErrMsg      = "You don’t have the right permissions in Fleet to run the script."
-	RunScriptAlreadyRunningErrMsg = "A script is already running on this host. Please wait about 1 minute to let it finish."
-	RunScriptHostTimeoutErrMsg    = "Fleet hasn’t heard from the host in over 1 minute. Fleet doesn’t know if the script ran because the host went offline."
+	RunScriptInvalidTypeErrMsg             = "File type not supported. Only .sh (Bash) and .ps1 (PowerShell) file types are allowed."
+	RunScriptHostOfflineErrMsg             = "Script can’t run on offline host."
+	RunScriptHostNotFoundErrMsg            = "Host doesn’t exist. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
+	RunScriptForbiddenErrMsg               = "You don’t have the right permissions in Fleet to run the script."
+	RunScriptAlreadyRunningErrMsg          = "A script is already running on this host. Please wait about 5 minutes to let it finish."
+	RunScriptHostTimeoutErrMsg             = "Fleet hasn’t heard from the host in over 5 minutes. Fleet doesn’t know if the script ran because the host went offline."
+	RunScriptScriptsDisabledGloballyErrMsg = "Running scripts is disabled in organization settings."
+	RunScriptDisabledErrMsg                = "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
+	RunScriptScriptTimeoutErrMsg           = "Timeout. Fleet stopped the script after 5 minutes to protect host performance."
 )
+
+// ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.
+type ConflictError struct {
+	Message string
+}
+
+// Error implements the error interface for the ConflictError.
+func (e ConflictError) Error() string {
+	return e.Message
+}
+
+// StatusCode implements the kithttp.StatusCoder interface.
+func (e ConflictError) StatusCode() int {
+	return http.StatusConflict
+}
