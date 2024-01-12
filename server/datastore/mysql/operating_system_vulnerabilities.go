@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -20,6 +21,7 @@ func (ds *Datastore) ListOSVulnerabilities(ctx context.Context, hostIDs []uint) 
 			goqu.I("host_id"),
 			goqu.I("operating_system_id"),
 			goqu.I("cve"),
+			goqu.I("resolved_in_version"),
 		).
 		Where(goqu.C("host_id").In(hostIDs))
 
@@ -57,6 +59,39 @@ func (ds *Datastore) InsertOSVulnerabilities(ctx context.Context, vulnerabilitie
 	return count, nil
 }
 
+func (ds *Datastore) InsertOSVulnerability(ctx context.Context, v fleet.OSVulnerability, s fleet.VulnerabilitySource) (bool, error) {
+	if v.CVE == "" {
+		return false, fmt.Errorf("inserting operating system vulnerability: CVE cannot be empty %#v", v)
+	}
+
+	var args []interface{}
+
+	// statement assumes a unique index on (host_id, cve)
+	sqlStmt := `
+		INSERT INTO operating_system_vulnerabilities (
+			host_id,
+			operating_system_id,
+			cve,
+			source,
+			resolved_in_version
+		) VALUES (?,?,?,?,?)
+		ON DUPLICATE KEY UPDATE
+			operating_system_id = VALUES(operating_system_id),
+			source = VALUES(source),
+			resolved_in_version = VALUES(resolved_in_version),
+			updated_at = ?
+	`
+
+	args = append(args, v.HostID, v.OSID, v.CVE, s, v.ResolvedInVersion, time.Now().UTC())
+
+	res, err := ds.writer(ctx).ExecContext(ctx, sqlStmt, args...)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "insert operating system vulnerability")
+	}
+
+	return insertOnDuplicateDidInsert(res), nil
+}
+
 func (ds *Datastore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error {
 	if len(vulnerabilities) == 0 {
 		return nil
@@ -73,6 +108,17 @@ func (ds *Datastore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilitie
 	}
 	if _, err := ds.writer(ctx).ExecContext(ctx, sql, args...); err != nil {
 		return ctxerr.Wrapf(ctx, err, "deleting operating system vulnerabilities")
+	}
+	return nil
+}
+
+func (ds *Datastore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, src fleet.VulnerabilitySource, d time.Duration) error {
+	deleteStmt := `
+		DELETE FROM operating_system_vulnerabilities
+		WHERE source = ? AND updated_at < ?
+	`
+	if _, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, src, time.Now().UTC().Add(-d)); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting out of date operating system vulnerabilities")
 	}
 	return nil
 }

@@ -80,6 +80,8 @@ type OSVulnerability struct {
 	OSID   uint   `db:"operating_system_id"`
 	HostID uint   `db:"host_id"`
 	CVE    string `db:"cve"`
+	// ResolvedInVersion is the version of the OS that resolves the vulnerability.
+	ResolvedInVersion *string `db:"resolved_in_version"`
 }
 
 // String implements fmt.Stringer.
