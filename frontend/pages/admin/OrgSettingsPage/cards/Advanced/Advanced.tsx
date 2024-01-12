@@ -100,11 +100,7 @@ const Advanced = ({
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
         <h2>Advanced options</h2>
-        <form
-          className={`${baseClass}__advanced-options`}
-          onSubmit={onFormSubmit}
-          autoComplete="off"
-        >
+        <form onSubmit={onFormSubmit} autoComplete="off">
           <p className={`${baseClass}__section-description`}>
             Most users do not need to modify these options.
           </p>

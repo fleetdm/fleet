@@ -112,10 +112,6 @@
         }
       }
 
-      &__advanced-options {
-        margin-bottom: $pad-large;
-      }
-
       &__disabled-usage-statistics-checkbox {
         @include disabled;
       }
