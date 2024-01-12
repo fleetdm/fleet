@@ -22,6 +22,19 @@ func listOperatingSystemsDB(ctx context.Context, tx sqlx.QueryerContext) ([]flee
 	return os, nil
 }
 
+func (ds *Datastore) ListOperatingSystemsForPlatform(ctx context.Context, platform string) ([]fleet.OperatingSystem, error) {
+	var oses []fleet.OperatingSystem
+	sqlStatement := `
+		SELECT id, name, version, arch, kernel_version, platform
+		FROM operating_systems
+		WHERE platform = ?
+	`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &oses, sqlStatement, platform); err != nil {
+		return nil, err
+	}
+	return oses, nil
+}
+
 func (ds *Datastore) UpdateHostOperatingSystem(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		os, err := getOrGenerateOperatingSystemDB(ctx, tx, hostOS)
