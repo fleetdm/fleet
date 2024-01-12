@@ -1,7 +1,5 @@
 .input-icon-field {
-  margin-top: $pad-medium;
   position: relative;
-  width: 100%;
 
   &__icon {
     position: absolute;
@@ -88,7 +86,6 @@
     display: block;
     font-size: $x-small;
     font-weight: $bold;
-    margin-bottom: $pad-xsmall;
 
     &[data-has-tooltip="true"] {
       margin-bottom: $pad-small;

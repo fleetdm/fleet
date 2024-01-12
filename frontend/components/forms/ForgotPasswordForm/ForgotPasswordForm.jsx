@@ -25,6 +25,10 @@ class ForgotPasswordForm extends Component {
     return (
       <form onSubmit={handleSubmit} className={baseClass} autoComplete="off">
         {baseError && <div className="form__base-error">{baseError}</div>}
+        <p>
+          Enter your email below to receive an email with instructions to reset
+          your password.
+        </p>
         <InputFieldWithIcon
           {...fields.email}
           autofocus

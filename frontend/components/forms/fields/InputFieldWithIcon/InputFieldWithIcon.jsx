@@ -85,7 +85,7 @@ class InputFieldWithIcon extends InputField {
     } = this.props;
     const { onInputChange, renderHelpText } = this;
 
-    const wrapperClasses = classnames(baseClass, {
+    const wrapperClasses = classnames(baseClass, "form-field", {
       [`${baseClass}--icon-start`]: iconPosition && iconPosition === "start",
     });
 
