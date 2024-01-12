@@ -9,7 +9,11 @@ const Slack = (props: SVGProps<SVGSVGElement>) => (
       stroke="#E2E4EA"
       d="M.5 8A7.5 7.5 0 0 1 8 .5h16A7.5 7.5 0 0 1 31.5 8v16a7.5 7.5 0 0 1-7.5 7.5H8A7.5 7.5 0 0 1 .5 24z"
     />
-    <g fillRule="evenodd" clipPath="url(#Name=slack_svg__a)" clipRule="evenodd">
+    <g
+      fillRule="evenodd"
+      clipPath="url(#Name=slack_clippath)"
+      clipRule="evenodd"
+    >
       <path
         fill="#36C5F0"
         d="M13.066 5a2.204 2.204 0 0 0 .001 4.408h2.2V7.205A2.204 2.204 0 0 0 13.067 5m0 5.878H7.2A2.202 2.202 0 0 0 5 13.082a2.202 2.202 0 0 0 2.2 2.205h5.866a2.202 2.202 0 0 0 2.2-2.204 2.202 2.202 0 0 0-2.2-2.205"
@@ -28,7 +32,7 @@ const Slack = (props: SVGProps<SVGSVGElement>) => (
       />
     </g>
     <defs>
-      <clipPath id="Name=slack_svg__a">
+      <clipPath id="Name=slack_clippath">
         <path fill="#fff" d="M5 5h22v22.044H5z" />
       </clipPath>
     </defs>

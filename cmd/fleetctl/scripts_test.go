@@ -176,7 +176,7 @@ Oh no!
 			scriptResult: &fleet.HostScriptResult{
 				ExitCode: ptr.Int64(-2),
 				Output:   "",
-				Message:  "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled.",
+				Message:  fleet.RunScriptDisabledErrMsg,
 			},
 			expectOutput: `
 Error: Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled.

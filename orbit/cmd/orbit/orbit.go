@@ -418,6 +418,18 @@ func main() {
 				return err
 			}
 
+			// Get current version of osquery
+			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
+			if err != nil {
+				log.Info().Err(err).Msg("Could not find local osqueryd executable")
+			} else {
+				version := update.GetVersion(osquerydPath)
+				if version != "" {
+					log.Info().Msgf("Found osquery version: %s", version)
+					updateRunner.OsqueryVersion = version
+				}
+			}
+
 			// Perform early check for updates before starting any sub-system.
 			// This is to prevent bugs in other sub-systems to mess up with
 			// the download of available updates.
@@ -1324,6 +1336,7 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 	log.Debug().Str("query", systemQuery).Msg("running single query")
 	out, err := exec.Command(osqueryPath, args...).Output()
 	if err != nil {
+		log.Debug().Str("output", string(out)).Msg("getHostInfo via osquery")
 		return nil, err
 	}
 	var info []osqueryHostInfo

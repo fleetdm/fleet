@@ -9,7 +9,7 @@ const VisualStudioCode = (props: SVGProps<SVGSVGElement>) => (
       stroke="#E2E4EA"
       d="M.5 8A7.5 7.5 0 0 1 8 .5h16A7.5 7.5 0 0 1 31.5 8v16a7.5 7.5 0 0 1-7.5 7.5H8A7.5 7.5 0 0 1 .5 24z"
     />
-    <g clipPath="url(#Name=vsc_svg__a)">
+    <g clipPath="url(#Name=vsc_clippath)">
       <path
         fill="#2489CA"
         d="M5.64 12.864s-.53-.382.106-.892l1.483-1.326s.424-.447.873-.058l13.683 10.36v4.967s-.007.78-1.008.694z"
@@ -28,7 +28,7 @@ const VisualStudioCode = (props: SVGProps<SVGSVGElement>) => (
       />
     </g>
     <defs>
-      <clipPath id="Name=vsc_svg__a">
+      <clipPath id="Name=vsc_clippath">
         <path fill="#fff" d="M5 5h22.403v22H5z" />
       </clipPath>
     </defs>

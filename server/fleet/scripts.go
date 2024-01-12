@@ -215,14 +215,14 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	case -1:
 		return RunScriptScriptTimeoutErrMsg
 	case -2:
-		return "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
+		return RunScriptDisabledErrMsg
 	default:
 		return ""
 	}
 }
 
 func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
-	return time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
+	return hsr.ExitCode == nil && time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
 }
 
 const MaxScriptRuneLen = 10000
