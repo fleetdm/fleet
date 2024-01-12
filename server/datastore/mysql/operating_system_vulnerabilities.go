@@ -61,7 +61,7 @@ func (ds *Datastore) InsertOSVulnerabilities(ctx context.Context, vulnerabilitie
 
 func (ds *Datastore) InsertOSVulnerability(ctx context.Context, v fleet.OSVulnerability, s fleet.VulnerabilitySource) (bool, error) {
 	if v.CVE == "" {
-		return false, nil
+		return false, fmt.Errorf("inserting operating system vulnerability: CVE cannot be empty %#v", v)
 	}
 
 	var args []interface{}
@@ -78,10 +78,11 @@ func (ds *Datastore) InsertOSVulnerability(ctx context.Context, v fleet.OSVulner
 		ON DUPLICATE KEY UPDATE
 			operating_system_id = VALUES(operating_system_id),
 			source = VALUES(source),
-			resolved_in_version = VALUES(resolved_in_version)
+			resolved_in_version = VALUES(resolved_in_version),
+			updated_at = ?
 	`
 
-	args = append(args, v.HostID, v.OSID, v.CVE, s, v.ResolvedInVersion)
+	args = append(args, v.HostID, v.OSID, v.CVE, s, v.ResolvedInVersion, time.Now().UTC())
 
 	res, err := ds.writer(ctx).ExecContext(ctx, sqlStmt, args...)
 	if err != nil {
@@ -116,8 +117,8 @@ func (ds *Datastore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, src f
 		DELETE FROM operating_system_vulnerabilities
 		WHERE source = ? AND updated_at < ?
 	`
-	if _, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, src, time.Now().Add(-d)); err != nil {
-		return ctxerr.Wrapf(ctx, err, "deleting out of date operating system vulnerabilities")
+	if _, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, src, time.Now().UTC().Add(-d)); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting out of date operating system vulnerabilities")
 	}
 	return nil
 }
