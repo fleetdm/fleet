@@ -21,13 +21,19 @@ func TestName(t *testing.T) {
 
 func TestSecret(t *testing.T) {
 	t.Parallel()
+
+	// Use a different service name for testing
+	origServiceStringRef := serviceStringRef
+	serviceStringRef = stringToCFString("com.fleetdm.fleetd.enroll.secret.test")
+
 	t.Cleanup(
 		func() {
+			// Delete test secret from keychain, and deallocate memory.
 			_ = deleteSecret()
+			releaseCFString(serviceStringRef)
+			serviceStringRef = origServiceStringRef
 		},
 	)
-
-	serviceStringRef = stringToCFString("com.fleetdm.fleetd.enroll.secret.test")
 
 	// Add secret
 	secret := "testSecret"

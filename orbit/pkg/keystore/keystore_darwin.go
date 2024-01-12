@@ -102,6 +102,7 @@ func GetSecret() (string, error) {
 
 	var data C.CFTypeRef
 	status := C.SecItemCopyMatching(C.CFDictionaryRef(query), &data)
+	defer C.CFRelease(data)
 
 	if status != C.errSecSuccess {
 		if status == C.errSecItemNotFound {
@@ -140,4 +141,9 @@ func stringToCFString(s string) C.CFStringRef {
 	bytes := []byte(s)
 	ptr := (*C.UInt8)(&bytes[0])
 	return C.CFStringCreateWithBytes(C.kCFAllocatorDefault, ptr, C.CFIndex(len(bytes)), C.kCFStringEncodingUTF8, C.false)
+}
+
+// releaseCFString will release memory allocated for a CFStringRef
+func releaseCFString(s C.CFStringRef) {
+	C.CFRelease(C.CFTypeRef(s))
 }
