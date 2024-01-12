@@ -1,3 +1,15 @@
+## Fleet 4.43.1 (Jan 12, 2024)
+
+### Bug fixes
+
+* Fixed bug where script results would sometimes show the wrong error message when a user attempts
+  to run a script on a host that has scripts disabled.
+* Fixed an issue with SCEP endpoints sending back 500 status codes. Should return 400 now if bad
+  data is sent to SCEP API.
+* Fixed text and icon alignment UI bug.
+* Fixed message for script execution timeout.
+* Fixed failed scripts showing the wrong error.
+
 ## Fleet 4.43.0 (Jan 9, 2024)
 
 ### Changes
