@@ -505,14 +505,14 @@ const PolicyForm = ({
         <FleetAce
           value={lastEditedQueryBody}
           name="query editor"
-          wrapperClassName={`${baseClass}__text-editor-wrapper`}
+          wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
           wrapEnabled
           readOnly
         />
       )}
       {renderLiveQueryWarning()}
       {isObserverPlus && ( // Observer+ can run existing policies
-        <div className={`${baseClass}__button-wrap`}>
+        <div className={"button-wrap"}>
           <Button
             className={`${baseClass}__run`}
             variant="blue-green"
@@ -552,7 +552,7 @@ const PolicyForm = ({
             labelActionComponent={renderLabelComponent()}
             name="query editor"
             onLoad={onLoad}
-            wrapperClassName={`${baseClass}__text-editor-wrapper`}
+            wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
             onChange={onChangePolicy}
             handleSubmit={promptSavePolicy}
             wrapEnabled
@@ -564,7 +564,7 @@ const PolicyForm = ({
           {(isEditMode || defaultPolicy) && platformSelector.render()}
           {isEditMode && isPremiumTier && renderCriticalPolicy()}
           {renderLiveQueryWarning()}
-          <div className={`${baseClass}__button-wrap`}>
+          <div className={"button-wrap"}>
             {hasSavePermissions && (
               <>
                 <span
