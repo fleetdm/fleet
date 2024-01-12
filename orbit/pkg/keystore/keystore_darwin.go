@@ -50,9 +50,42 @@ func AddSecret(secret string) error {
 	return nil
 }
 
-// RetrieveSecret will retrieve a secret from the keychain. If the secret was added by user or another application,
+// UpdateSecret will update a secret in the keychain. This secret can be retrieved by this application without any user authorization.
+func UpdateSecret(secret string) error {
+
+	query := C.CFDictionaryCreateMutable(
+		C.kCFAllocatorDefault,
+		0,
+		&C.kCFTypeDictionaryKeyCallBacks,
+		&C.kCFTypeDictionaryValueCallBacks,
+	)
+	defer C.CFRelease(C.CFTypeRef(query))
+
+	C.CFDictionaryAddValue(query, unsafe.Pointer(C.kSecClass), unsafe.Pointer(C.kSecClassGenericPassword))
+	C.CFDictionaryAddValue(query, unsafe.Pointer(C.kSecAttrService), unsafe.Pointer(serviceStringRef))
+
+	update := C.CFDictionaryCreateMutable(
+		C.kCFAllocatorDefault,
+		0,
+		&C.kCFTypeDictionaryKeyCallBacks,
+		&C.kCFTypeDictionaryValueCallBacks,
+	)
+	defer C.CFRelease(C.CFTypeRef(update))
+
+	data := C.CFDataCreate(C.kCFAllocatorDefault, (*C.UInt8)(unsafe.Pointer(C.CString(secret))), C.CFIndex(len(secret)))
+	defer C.CFRelease(C.CFTypeRef(data))
+	C.CFDictionaryAddValue(update, unsafe.Pointer(C.kSecValueData), unsafe.Pointer(data))
+
+	status := C.SecItemUpdate(C.CFDictionaryRef(query), C.CFDictionaryRef(update))
+	if status != C.errSecSuccess {
+		return fmt.Errorf("failed to update %v in keychain: %v", service, status)
+	}
+	return nil
+}
+
+// GetSecret will retrieve a secret from the keychain. If the secret was added by user or another application,
 // then this application needs to be authorized to retrieve the secret.
-func RetrieveSecret() (string, error) {
+func GetSecret() (string, error) {
 	var query C.CFMutableDictionaryRef
 	query = C.CFDictionaryCreateMutable(
 		C.kCFAllocatorDefault,
@@ -81,12 +114,30 @@ func RetrieveSecret() (string, error) {
 	return C.GoString((*C.char)(unsafe.Pointer(secret))), nil
 }
 
+// deleteSecret will delete a secret from the keychain.
+// This function is only used by tests. It is here because usage of CGO in tests is not supported.
+func deleteSecret() error {
+	query := C.CFDictionaryCreateMutable(
+		C.kCFAllocatorDefault,
+		0,
+		&C.kCFTypeDictionaryKeyCallBacks,
+		&C.kCFTypeDictionaryValueCallBacks,
+	)
+	defer C.CFRelease(C.CFTypeRef(query))
+
+	C.CFDictionaryAddValue(query, unsafe.Pointer(C.kSecClass), unsafe.Pointer(C.kSecClassGenericPassword))
+	C.CFDictionaryAddValue(query, unsafe.Pointer(C.kSecAttrService), unsafe.Pointer(serviceStringRef))
+
+	status := C.SecItemDelete(C.CFDictionaryRef(query))
+	if status != C.errSecSuccess {
+		return fmt.Errorf("failed to delete %v from keychain: %v", service, status)
+	}
+	return nil
+}
+
 // stringToCFString will return a CFStringRef
 func stringToCFString(s string) C.CFStringRef {
 	bytes := []byte(s)
-	var ptr *C.UInt8
-	if len(bytes) > 0 {
-		ptr = (*C.UInt8)(&bytes[0])
-	}
+	ptr := (*C.UInt8)(&bytes[0])
 	return C.CFStringCreateWithBytes(C.kCFAllocatorDefault, ptr, C.CFIndex(len(bytes)), C.kCFStringEncodingUTF8, C.false)
 }

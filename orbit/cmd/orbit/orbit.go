@@ -274,36 +274,41 @@ func main() {
 				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
 			}
 
-			// Check if secret is in the keystore
-			if keystore.Exists() && !c.Bool("disable-keystore") {
-				secret, err := keystore.RetrieveSecret()
-				if err != nil {
-					log.Warn().Err(err).Msgf("failed to retrieve secret from %v", keystore.Name())
-				} else if secret != "" {
-					log.Info().Msgf("found enroll secret in keystore: %v", keystore.Name())
-					if err = c.Set("enroll-secret", secret); err != nil {
-						return fmt.Errorf("set enroll secret from keystore: %w", err)
-					}
-					deleteIfExists(err, enrollSecretPath)
-				}
-			}
-			if c.String("enroll-secret") == "" {
-				b, err := os.ReadFile(enrollSecretPath)
-				if err != nil {
+			// Read secret from file. If secret is found and keystore enabled, write/overwrite the secret to the keystore and delete the file.
+
+			b, err := os.ReadFile(enrollSecretPath)
+			if err != nil {
+				if !keystore.Exists() || c.Bool("disable-keystore") {
 					return fmt.Errorf("read enroll secret file: %w", err)
 				}
+			} else {
 				secret := strings.TrimSpace(string(b))
-
 				if err = c.Set("enroll-secret", secret); err != nil {
 					return fmt.Errorf("set enroll secret from file: %w", err)
 				}
-
-				// Add secret to keystore
 				if keystore.Exists() && !c.Bool("disable-keystore") {
-					if err = keystore.AddSecret(secret); err != nil {
-						log.Warn().Err(err).Msgf("failed to add secret to %v", keystore.Name())
+					// Check if secret is already in the keystore.
+					secretFromKeystore, err := keystore.GetSecret()
+					if err != nil {
+						log.Warn().Err(err).Msgf("failed to retrieve enroll secret from %v", keystore.Name())
+					} else if secretFromKeystore == "" {
+						// Keystore secret not found, so we will add it to the keystore.
+						if err = keystore.AddSecret(secret); err != nil {
+							log.Warn().Err(err).Msgf("failed to add enroll secret to %v", keystore.Name())
+						} else {
+							log.Info().Msgf("added enroll secret to keystore: %v", keystore.Name())
+							deleteIfExists(err, enrollSecretPath)
+						}
+					} else if secretFromKeystore != secret {
+						// Keystore secret found, but needs to be updated.
+						if err = keystore.UpdateSecret(secret); err != nil {
+							log.Warn().Err(err).Msgf("failed to update enroll secret in %v", keystore.Name())
+						} else {
+							log.Info().Msgf("updated enroll secret in keystore: %v", keystore.Name())
+							deleteIfExists(err, enrollSecretPath)
+						}
 					} else {
-						log.Info().Msgf("added enroll secret to keystore: %v", keystore.Name())
+						// Keystore secret found, and it matches the secret from the file.
 						deleteIfExists(err, enrollSecretPath)
 					}
 				}
@@ -311,7 +316,7 @@ func main() {
 		}
 		if c.String("enroll-secret") == "" && keystore.Exists() && !c.Bool("disable-keystore") &&
 			!(runtime.GOOS == "darwin" && c.Bool("use-system-configuration")) {
-			secret, err := keystore.RetrieveSecret()
+			secret, err := keystore.GetSecret()
 			if err != nil || secret == "" {
 				return fmt.Errorf("failed to retrieve enroll secret from %v: %w", keystore.Name(), err)
 			}

@@ -17,8 +17,8 @@ func AddSecret(secret string) error {
 	return errors.New("not implemented")
 }
 
-// RetrieveSecret will retrieve a secret from the keychain. If the secret was added by user or another application,
+// GetSecret will retrieve a secret from the keychain. If the secret was added by user or another application,
 // then this application needs to be authorized to retrieve the secret.
-func RetrieveSecret() (string, error) {
+func GetSecret() (string, error) {
 	return "", errors.New("not implemented")
 }
