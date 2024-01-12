@@ -591,9 +591,7 @@ const EditQueryForm = ({
       {(lastEditedQueryObserverCanRun ||
         isObserverPlus ||
         isAnyTeamObserverPlus) && (
-        <div
-          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
-        >
+        <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
           <div
             data-tip
             data-for="live-query-button"
@@ -682,7 +680,7 @@ const EditQueryForm = ({
             labelActionComponent={renderLabelComponent()}
             name="query editor"
             onLoad={onLoad}
-            wrapperClassName={`${baseClass}__text-editor-wrapper`}
+            wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
             onChange={onChangeQuery}
             handleSubmit={
               confirmChanges ? toggleConfirmSaveChangesModal : promptSaveQuery
@@ -763,9 +761,7 @@ const EditQueryForm = ({
             </>
           )}
           {renderLiveQueryWarning()}
-          <div
-            className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
-          >
+          <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
             {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
               <>
                 {savedQueryMode && (

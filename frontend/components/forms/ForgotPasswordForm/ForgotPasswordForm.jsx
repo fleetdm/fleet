@@ -35,7 +35,7 @@ class ForgotPasswordForm extends Component {
           label="Email"
           placeholder="Email"
         />
-        <div className={`${baseClass}__button-wrap`}>
+        <div className={"button-wrap"}>
           <Button
             className={`${baseClass}__submit-btn`}
             variant="brand"

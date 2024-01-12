@@ -25,15 +25,4 @@
       padding-top: $pad-small;
     }
   }
-
-  &__button-wrap {
-    margin: 0;
-    margin-top: $pad-large;
-    display: flex;
-    gap: $pad-medium;
-  }
-
-  &__text-editor-wrapper {
-    margin: $pad-large 0;
-  }
 }

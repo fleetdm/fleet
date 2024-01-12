@@ -140,19 +140,10 @@
   }
 
   &__button-wrap {
-    display: flex;
-    gap: $pad-medium;
-
     &--new-query {
       display: flex;
       align-items: center;
     }
-  }
-
-  &__text-editor-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
   }
 
   &__title {
