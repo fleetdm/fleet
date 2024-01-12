@@ -113,7 +113,7 @@ func testInsertOSVulnerability(t *testing.T, ds *Datastore) {
 
 	// Inserting a vulnerability with no CVE should not insert anything
 	didInsert, err := ds.InsertOSVulnerability(ctx, vulnNoCVE, fleet.MSRCSource)
-	require.NoError(t, err)
+	require.Error(t, err)
 	require.False(t, didInsert)
 
 	// Inserting a vulnerability with a CVE should insert
