@@ -52,7 +52,7 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
     # comparison and mark the resource as changed depending on the ensure_profile value
     unless client_resp['body'] && client_resp['body']['profiles'] && !client_resp['body']['profiles']&.empty?
       Puppet.info("No assigned profiles found, this may be the first run for #{host_uuid}")
-      preassign_profile_response['resource_changed'] = ensure_profile == 'present' 
+      preassign_profile_response['resource_changed'] = ensure_profile == 'present'
       return preassign_profile_response
     end
 
@@ -62,7 +62,7 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
     if (has_profile && ensure_profile == 'absent') || (!has_profile && ensure_profile == 'present')
       preassign_profile_response['resource_changed'] = true
     else
-      Puppet.info("Profile #{ profile_identifier } already #{ ensure_profile } for #{ host_uuid }")
+      Puppet.info("Profile #{profile_identifier} already #{ensure_profile} for #{host_uuid}")
     end
 
     preassign_profile_response
