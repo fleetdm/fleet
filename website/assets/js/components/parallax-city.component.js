@@ -24,6 +24,8 @@ parasails.registerComponent('parallaxCity', {
       elementBottomPosition: undefined,
       elementHeight: undefined,
       distanceFromTopOfPage: undefined,
+      distanceFromBottomOfPage: undefined,
+      isAnimating: false,
     };
   },
 
@@ -56,6 +58,7 @@ parasails.registerComponent('parallaxCity', {
       this.parallaxCityElement = document.querySelector('[purpose="parallax-city-container"]');
       this.elementHeight = this.parallaxCityElement.clientHeight;
       this.distanceFromTopOfPage = this.parallaxCityElement.offsetTop;
+      this.distanceFromBottomOfPage = document.body.scrollHeight - this.distanceFromTopOfPage - (this.elementHeight * .5);
       this.elementBottomPosition = this.elementHeight + this.distanceFromTopOfPage;
       let parallaxCityElementPosition = this.parallaxCityElement.getBoundingClientRect();
       if(parallaxCityElementPosition.bottom > this.distanceFromTopOfPage) {
@@ -67,14 +70,14 @@ parasails.registerComponent('parallaxCity', {
         layer.style.bottom = `-${Number(initialPosition) + 4}px`;
       });
 
-      window.addEventListener('scroll', this.handleParallaxScroll);
+      window.addEventListener('scroll', this.onScroll);
       window.addEventListener('resize', this.updateElementPositions);
       window.addEventListener('orientationchange', this.updateElementPositions);
     }
   },
   beforeDestroy: function() {
     if(!this.isMobile){
-      window.removeEventListener('scroll', this.handleParallaxScroll);
+      window.removeEventListener('scroll', this.onScroll);
       window.removeEventListener('resize', this.updateElementPositions);
       window.removeEventListener('orientationchange', this.updateElementPositions);
     }
@@ -89,26 +92,35 @@ parasails.registerComponent('parallaxCity', {
       this.distanceFromTopOfPage = this.parallaxCityElement.offsetTop;
       this.elementBottomPosition = this.elementHeight + this.distanceFromTopOfPage;
     },
+    onScroll: function() {
+      if(!this.isAnimating){
+        this.isAnimating = true;
+        window.requestAnimationFrame(this.handleParallaxScroll);
+      }
+      return;
+    },
     handleParallaxScroll: function() {
       let viewportBottom = window.scrollY + window.innerHeight;
       let percentageScrolled;
-      if (this.parallaxCityElement.offsetTop < viewportBottom && this.elementBottomPosition > window.scrollY) {
-        let visibleHeight = Math.min(this.elementBottomPosition, viewportBottom) - Math.max(this.distanceFromTopOfPage, window.scrollY);
-        percentageScrolled = (visibleHeight / this.elementHeight);
-        if(viewportBottom > this.elementBottomPosition) { // If the page is scrolled past the element, set the percentage scrolled to 1.
-          percentageScrolled = 1;
-        }
+      if (this.parallaxCityElement.offsetTop < viewportBottom) {
+        let visibleHeight = viewportBottom - Math.max(this.distanceFromTopOfPage, window.scrollY);
+        percentageScrolled = visibleHeight / (this.distanceFromBottomOfPage + (this.elementHeight / 2 ));
       } else {
         percentageScrolled = 0;
       }
-      if(percentageScrolled > 0.5){// When the element has been scrolled down 50%, start adjusting the position of layers.
-        let adjustedPercentage = (percentageScrolled - 0.5) * 2;
+      if(percentageScrolled > 1){
+        percentageScrolled = 1;
+      }
+      percentageScrolled = percentageScrolled.toFixed(4);
+      if(percentageScrolled > .25){// When the element has been scrolled down 25%, start adjusting the position of layers.
+        let adjustedPercentage = (percentageScrolled - .25) * 4/3;
         this.parallaxCityElement.querySelectorAll('div').forEach((layer) => {
           let scrollAmount = layer.getAttribute('scroll-amount');
           let movement = adjustedPercentage * scrollAmount;
           layer.style.transform = 'translateY(-' + movement + 'px)';
         });
       }
+      this.isAnimating = false;
     },
   }
 });
