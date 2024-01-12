@@ -4,6 +4,7 @@ import { isEmpty } from "lodash";
 
 import TooltipWrapper from "components/TooltipWrapper";
 
+// all form-field styles are defined in _global.scss, which apply here and elsewhere
 const baseClass = "form-field";
 
 export interface IFormFieldProps {
