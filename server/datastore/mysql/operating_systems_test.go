@@ -402,11 +402,12 @@ func TestCleanupHostOperatingSystems(t *testing.T) {
 func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingSystem {
 	osSeeds := []fleet.OperatingSystem{
 		{
-			Name:          "Microsoft Windows 11 Enterprise Evaluation",
-			Version:       "21H2",
-			Arch:          "64-bit",
-			KernelVersion: "10.0.22000.795",
-			Platform:      "windows",
+			Name:           "Microsoft Windows 11 Enterprise Evaluation",
+			Version:        "10.0.22000.795",
+			Arch:           "64-bit",
+			KernelVersion:  "10.0.22000.795",
+			Platform:       "windows",
+			DisplayVersion: "21H2",
 		},
 		{
 			Name:          "macOS",
