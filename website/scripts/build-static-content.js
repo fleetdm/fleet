@@ -865,13 +865,13 @@ module.exports = {
       async()=>{
         // Validate the pricing table yaml and add it to builtStaticContent.pricingTable.
         let RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO = 'handbook/company/testimonials.yml';
-        // let url = require('url');
+        let VALID_PRODUCT_CATEGORIES = ['Endpoint operations', 'Device management', 'Vulnerability management'];
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find testimonials YAML file at "${RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let testimonials = YAML.parse(yaml, {prettyErrors: true});
         for(let testimonial of testimonials){
           // Throw an error if any value in the testimonial yaml is not a string.
-          for(let key of _.keys(testimonial)){
-            if(typeof testimonial[key] !== 'string'){
+          for(let key of _.keys(testimonial)) {
+            if(typeof testimonial[key] !== 'string' && key !== 'productCategories'){
               throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial contains a ${key} with a non-string value. Please make sure all values in testimonials.yml are strings, and try running this script again. Invalid (${typeof testimonial[key]}) ${key} value: ${testimonial[key]}`);
             }
           }
@@ -883,9 +883,28 @@ module.exports = {
             throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quoteAuthorName". To resolve, make sure all testimonials have a "quoteAuthorName", and try running this script again. Testimonial with missing "quoteAuthorName": ${testimonial} `);
           }
           // If quoteAuthorSocialHandle is provided, quoteLinkUrl is required.
-          if(testimonial.quoteAuthorSocialHandle) {
-            if(!testimonial.quoteLinkUrl){
-              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial with a "quoteAuthorSocialHandle" value is missing a "quoteLinkUrl". To resolve, make sure all testimonials with a "quoteAuthorSocialHandle" have a "quoteLinkUrl", and try running this script again. Testimonial with missing "quoteLinkUrl": ${testimonial} `);
+          if(!testimonial.quoteLinkUrl){
+            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quoteLinkUrl" (A link to the quote author's LinkedIn profile). To resolve, make sure all testimonials have a "quoteLinkUrl", and try running this script again. Testimonial with missing "quoteLinkUrl": ${testimonial} `);
+          }
+          if(!testimonial.quoteAuthorProfileImageFilename){
+            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quoteAuthorProfileImageFilename" (The quote author's LinkedIn profile picture). To resolve, make sure all testimonials have a "quoteAuthorProfileImageFilename", and try running this script again. Testimonial with missing "quoteAuthorProfileImageFilename": ${testimonial} `);
+          } else {
+            let imageFileExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+testimonial.quoteAuthorProfileImageFilename));
+            if(!imageFileExists){
+              throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a 'quoteAuthorProfileImageFilename' value that points to an image that doesn't exist. Please make sure the file exists in the /website/assets/images/ folder. Invalid quoteImageFilename value: ${testimonial.quoteImageFilename}`);
+            }
+          }
+          if(!testimonial.productCategories) {
+            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a 'productCategories' value. Please add an array of product categories to this testimonial and try running this script again`);
+          } else {
+            if(!_.isArray(testimonial.productCategories)){
+              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial has a has an invalid 'productCategories' value. Please change the productCategories for this testimonial to be an array of product categories`);
+            } else {
+              for(let category of testimonial.productCategories){
+                if(!_.contains(VALID_PRODUCT_CATEGORIES, category)){
+                  throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial has a 'productCategories' with an an invalid product category (${category}). Please change the values in this array to be one of: ${VALID_PRODUCT_CATEGORIES.join(', ')}`);
+                }
+              }
             }
           }
           // If the testimonial has a youtubeVideoUrl, we'll validate the link and add the video ID so we can embed the video in a modal.
@@ -924,8 +943,8 @@ module.exports = {
               throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a 'quoteImageFilename' value that points to an image that doesn't exist. Please make sure the file exists in the /website/assets/images/ folder. Invalid quoteImageFilename value: ${testimonial.quoteImageFilename}`);
             }
             let imageFilenameMatchesWebsiteConventions = testimonial.quoteImageFilename.match(/\d+x\d+@2x\.png|jpg|jpeg$/g);
-            if(!imageFilenameMatchesWebsiteConventions){
-              throw new Error('image naming conventions (but secretly, we\'ll be relying on this to set the images height in frontend land)');
+            if(!imageFilenameMatchesWebsiteConventions) {
+              throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a quoteImageFilename that does not match the website\'s naming conventions. To resolve, make sure that the images dimensions are added to the filename, and that the filename ends with @2x. Filename that does not match the Fleet website's naming conventions: ${testimonial.quoteImageFilename}`);
             }
             // Strip the 2x from the filename, using image dimensions we matched when we checked if the filename matches website conventions.
             let extensionlessFilenameWithPostfixRemoved = imageFilenameMatchesWebsiteConventions[0].split('@2x')[0];
