@@ -46,7 +46,7 @@
           margin-right: 18px;
         }
 
-        .smtp-status {
+        .smtp-header {
           display: flex;
           justify-content: space-between;
         }
@@ -84,8 +84,10 @@
         color: $core-fleet-black;
       }
 
-      &__smtp-section {
-        @include clearfix;
+      .smtp-server-inputs {
+        display: flex;
+        align-items: flex-end;
+        gap: $pad-small;
       }
 
       &__component-label {
