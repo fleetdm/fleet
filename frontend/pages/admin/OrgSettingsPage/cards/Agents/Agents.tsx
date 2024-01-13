@@ -67,18 +67,21 @@ const Agents = ({
   };
 
   return (
-    <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
+    <div className={baseClass}>
       <div className={`${baseClass}__section`}>
         <h2>Agent options</h2>
-        <p className={`${baseClass}__section-description`}>
-          Agent options configure the osquery agent. When you update agent
-          options, they will be applied the next time a host checks in to Fleet.{" "}
-          <CustomLink
-            url="https://fleetdm.com/docs/configuration/agent-configuration"
-            text="Learn more about agent options"
-            newTab
-            multiline
-          />
+        <form onSubmit={onFormSubmit} autoComplete="off">
+          <p className={`${baseClass}__section-description`}>
+            Agent options configure the osquery agent. When you update agent
+            options, they will be applied the next time a host checks in to
+            Fleet.{" "}
+            <CustomLink
+              url="https://fleetdm.com/docs/configuration/agent-configuration"
+              text="Learn more about agent options"
+              newTab
+              multiline
+            />
+          </p>
           {isPremiumTier ? (
             <InfoBanner>
               These options are not applied to hosts on a team. To update agent
@@ -95,31 +98,26 @@ const Agents = ({
               />
             </InfoBanner>
           )}
-        </p>
-        <div className={`${baseClass}__inputs ${baseClass}__inputs--agents`}>
-          <p className={`${baseClass}__component-label`}>
-            <b>YAML</b>
-          </p>
           <YamlAce
-            wrapperClassName={`${baseClass}__text-editor-wrapper`}
             onChange={handleAgentOptionsChange}
             name="agentOptions"
             value={agentOptions}
             parseTarget
             error={formErrors.agent_options}
+            label="YAML"
           />
-        </div>
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={Object.keys(formErrors).length > 0}
+            className="button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
+        </form>
       </div>
-      <Button
-        type="submit"
-        variant="brand"
-        disabled={Object.keys(formErrors).length > 0}
-        className="save-loading"
-        isLoading={isUpdatingSettings}
-      >
-        Save
-      </Button>
-    </form>
+    </div>
   );
 };
 

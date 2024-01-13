@@ -19,7 +19,9 @@
     }
 
     .info-banner {
-      margin-top: $pad-medium;
+      // TODO - apply this globally to .info-banner ?
+      box-sizing: border-box;
+      line-height: 1.5;
     }
 
     .app-config-form {
@@ -88,11 +90,6 @@
         display: flex;
         align-items: flex-end;
         gap: $pad-small;
-      }
-
-      &__component-label {
-        margin: $pad-medium 0 0;
-        font-size: $x-small;
       }
 
       &__component-details {
