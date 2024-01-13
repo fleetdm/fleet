@@ -1,9 +1,10 @@
 # -
 #   quote: - required
-#   quoteAuthorName: - required
+#   quoteAuthorName: required
 #   quoteAuthorJobTitle: required
+#   quoteLinkUrl: required
+#   quoteAuthorProfileImageFilename: required
 #   quoteImageFilename: 
-#   quoteLinkUrl:  - required if there is an image
 #   youtubeVideoUrl: 
 #.  productCategories: [Endpoint operations, Vulnerability management, Device management]
 -
