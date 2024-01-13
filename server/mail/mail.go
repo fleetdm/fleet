@@ -277,9 +277,11 @@ func dialTimeout(addr string, tlsConfig *tls.Config) (client *smtp.Client, err e
 type SMTPTestMailer struct {
 	BaseURL  template.URL
 	AssetURL template.URL
+	CurrentYear     int
 }
 
 func (m *SMTPTestMailer) Message() ([]byte, error) {
+	m.CurrentYear = time.Now().Year()
 	t, err := server.GetTemplate("server/mail/templates/smtp_setup.html", "email_template")
 	if err != nil {
 		return nil, err
