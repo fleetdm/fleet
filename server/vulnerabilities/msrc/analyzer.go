@@ -2,6 +2,7 @@ package msrc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -201,7 +202,7 @@ func loadBulletin(os fleet.OperatingSystem, dir string) (*msrc.SecurityBulletin,
 
 func winBuildVersionGreaterOrEqual(feed, os string) (bool, error) {
 	if feed == "" {
-		return false, fmt.Errorf("empty feed version")
+		return false, errors.New("empty feed version")
 	}
 
 	feedBuild, feedParts, err := getBuildNumber(feed)
