@@ -37,7 +37,7 @@ func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (
 			dvMatch = pID
 			break
 		}
-		
+
 		// This rule ensures that we match an unknown os.DisplayVersion to
 		// a MSRC product that does not have a display version (eg. The initial release
 		// of Windows 11 is 21H2, which does not appear in the MSRC data)
@@ -93,12 +93,12 @@ func (p Product) Arch() string {
 	}
 }
 
-// HasDisplayVersion returns true if the current Microsoft product 
-// has a display version in the name.  
-// Display Version refers to the version of the product that is 
+// HasDisplayVersion returns true if the current Microsoft product
+// has a display version in the name.
+// Display Version refers to the version of the product that is
 // displayed to the user: eg. 22H2
 // Year/Half refers to the year and half of the year that the product
-// was released: eg. 2nd Half of 2022 
+// was released: eg. 2nd Half of 2022
 func (p Product) HasDisplayVersion() bool {
 	keywords := []string{"version", "edition"}
 	for _, k := range keywords {
