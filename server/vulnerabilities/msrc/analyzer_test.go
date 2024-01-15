@@ -25,6 +25,8 @@ func TestAnalyzer(t *testing.T) {
 	prod := parsed.NewProductFromOS(op)
 
 	t.Run("#patched", func(t *testing.T) {
+		// TODO: this tests a nil vulnerability, which should never happen
+		// maybe return an error instead?
 		t.Run("no updates", func(t *testing.T) {
 			b := parsed.NewSecurityBulletin(prod.Name())
 			b.Products["123"] = prod
@@ -127,4 +129,84 @@ func TestAnalyzer(t *testing.T) {
 			require.Equal(t, prod.Name(), actual.ProductName)
 		})
 	})
+}
+
+func TestWinBuildVersionGreaterOrEqual(t *testing.T) {
+	tc := []struct {
+		name       string
+		feed       string
+		os         string
+		result     bool
+		errMessage string
+	}{
+		{
+			name:       "equal",
+			feed:       "10.0.22000.795",
+			os:         "10.0.22000.795",
+			result:     true,
+			errMessage: "",
+		},
+		{
+			name:       "greater",
+			feed:       "10.0.22000.795",
+			os:         "10.0.22000.796",
+			result:     true,
+			errMessage: "",
+		},
+		{
+			name:       "less",
+			feed:       "10.0.22000.795",
+			os:         "10.0.22000.794",
+			result:     false,
+			errMessage: "",
+		},
+		{
+			name:       "too many parts in feed version",
+			feed:       "10.0.22000.795.9999",
+			os:         "10.0.22000.794",
+			result:     false,
+			errMessage: "invalid feed version",
+		},
+		{
+			name:       "too many parts in os version",
+			feed:       "10.0.22000.795",
+			os:         "10.0.22000.794.9999",
+			result:     false,
+			errMessage: "invalid os version",
+		},
+		{
+			name:       "too few parts in feed version",
+			feed:       "10.0.22000",
+			os:         "10.0.22000.794",
+			result:     false,
+			errMessage: "invalid feed version",
+		},
+		{
+			name:       "empty feed version",
+			feed:       "",
+			os:         "10.0.22000.794",
+			result:     false,
+			errMessage: "empty feed version",
+		},
+		{
+			name:       "comparing different product versions",
+			feed:       "10.0.22000.795",
+			os:         "10.0.22621.795",
+			result:     false,
+			errMessage: "comparing different product versions",
+		},
+	}
+
+	for _, c := range tc {
+		t.Run(c.name, func(t *testing.T) {
+			result, err := winBuildVersionGreaterOrEqual(c.feed, c.os)
+			require.Equal(t, c.result, result)
+			if c.errMessage != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, c.errMessage)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
