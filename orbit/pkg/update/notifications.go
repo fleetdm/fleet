@@ -416,6 +416,12 @@ type execEncryptVolumeFunc func(volumeID string) (recoveryKey string, err error)
 // encryption status of a volume, and an error if the operation fails.
 type execGetEncryptionStatusFunc func() (status []bitlocker.VolumeStatus, err error)
 
+// execDecryptVolumeFunc handles the decryption of a volume identified by its
+// string identifier (e.g., "C:")
+//
+// It returns an error if the process fails.
+type execDecryptVolumeFunc func(volumeID string) error
+
 type windowsMDMBitlockerConfigFetcher struct {
 	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
 	// for actually returning the orbit configuration or an error.
@@ -441,6 +447,10 @@ type windowsMDMBitlockerConfigFetcher struct {
 	// for tests, to be able to mock API commands. If nil, will use
 	// bitlocker.GetEncryptionStatus
 	execGetEncryptionStatusFn execGetEncryptionStatusFunc
+
+	// for tests, to be able to mock the decryption process. If nil, will use
+	// bitlocker.DecryptVolume
+	execDecryptVolumeFn execDecryptVolumeFunc
 }
 
 func ApplyWindowsMDMBitlockerFetcherMiddleware(
@@ -496,6 +506,33 @@ func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fle
 	// don't do anything if the disk is being encrypted/decrypted
 	if w.bitLockerActionInProgress(encryptionStatus) {
 		log.Debug().Msgf("skipping encryption as the disk is not available. Disk conversion status: %d", encryptionStatus.ConversionStatus)
+		return
+	}
+
+	// if the disk is encrypted, try to decrypt it first.
+	if encryptionStatus != nil &&
+		encryptionStatus.ConversionStatus == bitlocker.ConversionStatusFullyEncrypted {
+		log.Debug().Msg("disk was previously encrypted. Attempting to decrypt it")
+
+		if err := w.decryptVolume(targetVolume); err != nil {
+			log.Error().Err(err).Msg("decryption failed")
+
+			// TODO: discuss: should we continue and try to encrypt the disk anyways instead?
+			if serverErr := w.updateFleetServer("", err); serverErr != nil {
+				log.Error().Err(serverErr).Msg("failed to send decryption failure to Fleet Server")
+				return
+			}
+		}
+
+		// return regardless of the operation output.
+		//
+		// - if we failed to decrypt the disk, we don't want to continue
+		// - if we started the decryption process, it might take a while for the
+		//   disk to be fully decrypted
+		//
+		// TODO:
+		// - revisit this logic in code review with the team
+		// - should we do `w.lastRun = time.Now()` to retry again in an hour?
 		return
 	}
 
@@ -568,6 +605,15 @@ func (w *windowsMDMBitlockerConfigFetcher) performEncryption(volume string) (str
 	}
 
 	return recoveryKey, nil
+}
+
+func (w *windowsMDMBitlockerConfigFetcher) decryptVolume(targetVolume string) error {
+	fn := w.execDecryptVolumeFn
+	if fn == nil {
+		fn = bitlocker.DecryptVolume
+	}
+
+	return fn(targetVolume)
 }
 
 // isMisreportedDecryptionError checks whether the given error is a potentially

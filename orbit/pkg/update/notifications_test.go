@@ -595,7 +595,10 @@ func TestBitlockerOperations(t *testing.T) {
 	var (
 		shouldEncrypt          = true
 		shouldFailEncryption   = false
+		shouldFailDecryption   = false
 		shouldFailServerUpdate = false
+		encryptFnCalled        = false
+		decryptFnCalled        = false
 	)
 
 	fetcher := &dummyConfigFetcher{
@@ -625,13 +628,28 @@ func TestBitlockerOperations(t *testing.T) {
 				return []bitlocker.VolumeStatus{}, nil
 			},
 			execEncryptVolumeFn: func(string) (string, error) {
+				encryptFnCalled = true
 				if shouldFailEncryption {
-					return "", errors.New("error")
+					return "", errors.New("error encrypting")
 				}
 
 				return "123456", nil
 			},
+			execDecryptVolumeFn: func(string) error {
+				decryptFnCalled = true
+				if shouldFailDecryption {
+					return errors.New("error decrypting")
+				}
+
+				return nil
+			},
 		}
+		shouldEncrypt = true
+		shouldFailEncryption = false
+		shouldFailDecryption = false
+		shouldFailServerUpdate = false
+		encryptFnCalled = false
+		decryptFnCalled = false
 		clientMock.SetOrUpdateDiskEncryptionKeyInvoked = false
 		logBuf.Reset()
 	}
@@ -640,6 +658,7 @@ func TestBitlockerOperations(t *testing.T) {
 		setupTest()
 		shouldEncrypt = true
 		shouldFailEncryption = false
+		shouldFailDecryption = false
 		cfg, err := enrollFetcher.GetConfig()
 		require.NoError(t, err)            // the dummy fetcher never returns an error
 		require.Equal(t, fetcher.cfg, cfg) // the bitlocker wrapper properly returns the expected config
@@ -652,6 +671,8 @@ func TestBitlockerOperations(t *testing.T) {
 		cfg, err := enrollFetcher.GetConfig()
 		require.NoError(t, err)            // the dummy fetcher never returns an error
 		require.Equal(t, fetcher.cfg, cfg) // the bitlocker wrapper properly returns the expected config
+		require.True(t, encryptFnCalled, "encryption function should have been called")
+		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
 	t.Run("bitlocker encryption returns an error", func(t *testing.T) {
@@ -661,6 +682,8 @@ func TestBitlockerOperations(t *testing.T) {
 		cfg, err := enrollFetcher.GetConfig()
 		require.NoError(t, err)            // the dummy fetcher never returns an error
 		require.Equal(t, fetcher.cfg, cfg) // the bitlocker wrapper properly returns the expected config
+		require.True(t, encryptFnCalled, "encryption function should have been called")
+		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
 	t.Run("encryption skipped based on various current statuses", func(t *testing.T) {
@@ -683,6 +706,8 @@ func TestBitlockerOperations(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, fetcher.cfg, cfg)
 				require.Contains(t, logBuf.String(), "skipping encryption as the disk is not available")
+				require.False(t, encryptFnCalled, "encryption function should not be called")
+				require.False(t, decryptFnCalled, "decryption function should not be called")
 				logBuf.Reset() // Reset the log buffer for the next iteration
 			})
 		}
@@ -701,7 +726,42 @@ func TestBitlockerOperations(t *testing.T) {
 		cfg, err := enrollFetcher.GetConfig()
 		require.NoError(t, err)
 		require.Equal(t, fetcher.cfg, cfg)
-		require.Contains(t, logBuf.String(), "disk encryption failed due to previous unsuccessful attempt")
+		require.Contains(t, logBuf.String(), "disk encryption failed due to previous unsuccessful attempt, user action required")
+		require.False(t, encryptFnCalled, "encryption function should not be called")
+		require.False(t, decryptFnCalled, "decryption function should not be called")
+	})
+
+	t.Run("decrypts the disk if previously encrypted", func(t *testing.T) {
+		setupTest()
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.CONVERSION_STATUS_FULLY_ENCRYPTED}
+		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
+		}
+		cfg, err := enrollFetcher.GetConfig()
+		require.NoError(t, err)
+		require.Equal(t, fetcher.cfg, cfg)
+		require.Contains(t, logBuf.String(), "disk was previously encrypted. Attempting to decrypt it")
+		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
+		require.True(t, encryptFnCalled, "encryption function should have been called")
+		require.True(t, decryptFnCalled, "decryption function should have been called")
+	})
+
+	t.Run("reports to the server if decryption fails", func(t *testing.T) {
+		setupTest()
+		shouldFailDecryption = true
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.CONVERSION_STATUS_FULLY_ENCRYPTED}
+		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
+		}
+
+		cfg, err := enrollFetcher.GetConfig()
+		require.NoError(t, err)
+		require.Equal(t, fetcher.cfg, cfg)
+		require.Contains(t, logBuf.String(), "disk was previously encrypted. Attempting to decrypt it")
+		require.Contains(t, logBuf.String(), "decryption failed")
+		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
+		require.False(t, encryptFnCalled, "encryption function should not be called")
+		require.True(t, decryptFnCalled, "decryption function should have been called")
 	})
 
 	t.Run("encryption skipped if last run too recent", func(t *testing.T) {
@@ -713,6 +773,8 @@ func TestBitlockerOperations(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, fetcher.cfg, cfg)
 		require.Contains(t, logBuf.String(), "skipped encryption process, last run was too recent")
+		require.False(t, encryptFnCalled, "encryption function should not be called")
+		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
 	t.Run("successful fleet server update", func(t *testing.T) {
@@ -727,6 +789,8 @@ func TestBitlockerOperations(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, fetcher.cfg, cfg)
 		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
+		require.True(t, encryptFnCalled, "encryption function should have been called")
+		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
 	t.Run("failed fleet server update", func(t *testing.T) {
@@ -743,5 +807,7 @@ func TestBitlockerOperations(t *testing.T) {
 		require.Equal(t, fetcher.cfg, cfg)
 		require.Contains(t, logBuf.String(), "failed to send encryption result to Fleet Server")
 		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
+		require.True(t, encryptFnCalled, "encryption function should have been called")
+		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 }
