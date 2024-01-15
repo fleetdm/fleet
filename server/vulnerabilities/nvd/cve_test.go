@@ -130,7 +130,7 @@ func (d *threadSafeDSMock) InsertSoftwareVulnerability(ctx context.Context, vuln
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
-	// nettest.Run(t)
+	nettest.Run(t)
 
 	tempDir := t.TempDir()
 
