@@ -102,14 +102,13 @@ func GetSecret() (string, error) {
 
 	var data C.CFTypeRef
 	status := C.SecItemCopyMatching(C.CFDictionaryRef(query), &data)
-	defer C.CFRelease(data)
-
 	if status != C.errSecSuccess {
 		if status == C.errSecItemNotFound {
 			return "", nil
 		}
 		return "", fmt.Errorf("failed to retrieve %v from keychain: %v", service, status)
 	}
+	defer C.CFRelease(data)
 
 	secret := C.CFDataGetBytePtr(C.CFDataRef(data))
 	return C.GoString((*C.char)(unsafe.Pointer(secret))), nil

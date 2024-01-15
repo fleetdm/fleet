@@ -35,10 +35,18 @@ func TestSecret(t *testing.T) {
 		},
 	)
 
+	// Make sure secret doesn't exist
+	_ = deleteSecret()
+
+	// Get secret -- should be empty
+	result, err := GetSecret()
+	require.NoError(t, err)
+	assert.Equal(t, "", result)
+
 	// Add secret
 	secret := "testSecret"
 	require.NoError(t, AddSecret(secret))
-	result, err := GetSecret()
+	result, err = GetSecret()
 	require.NoError(t, err)
 	assert.Equal(t, secret, result)
 
