@@ -801,9 +801,6 @@ func (msg WapProvisioningDoc) GetEncodedB64Representation() (string, error) {
 	// Appending the XML header beforing encoding it
 	xmlContent := append([]byte(xml.Header), rawXML...)
 
-	xmlContent = []byte(strings.ReplaceAll(string(xmlContent), "></parm>", " />"))
-	fmt.Print(">>>>> WAP PROVISIONING DOC POST-TWEAK: \n\n", string(xmlContent), "\n\n")
-
 	// Create a replacer to replace both "\n" and "\t"
 	replacer := strings.NewReplacer("\n", "", "\t", "")
 
