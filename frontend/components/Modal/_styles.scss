@@ -13,40 +13,6 @@
     margin-top: $pad-large;
     font-size: $x-small;
 
-    // form {
-    // display: flex;
-    // flex-direction: column;
-    // gap: $large;
-    // align-items: flex-start;
-    // }
-
-    // .form-field {
-    //   width: 100%;
-    //   display: flex;
-    //   flex-direction: column;
-    //   gap: $pad-small;
-
-    //   // override global styles until applied globally
-    //   // TODO - make all of this global
-    //   margin: 0;
-    //   &__label {
-    //     // override global styles until applied globally
-    //     // TODO - make all of this global
-    //     margin: 0;
-    //     font-size: $x-small;
-    //     font-weight: $bold;
-    //   }
-
-    //   &__help-text {
-    //     @include help-text;
-    //     // override global styles until applied globally
-    //     // TODO - make all of this global
-    //     margin-top: 0;
-    //     display: initial;
-    //     line-height: initial;
-    //   }
-    // }
-
     .input-field {
       width: 100%;
 
