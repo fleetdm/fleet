@@ -66,23 +66,23 @@ func encryptErrHandler(val int32) error {
 	var msg string
 
 	switch val {
-	case ERROR_IO_DEVICE:
+	case ErrorCodeIODevice:
 		msg = "an I/O error has occurred during encryption; the device may need to be reset"
-	case FVE_E_EDRIVE_INCOMPATIBLE_VOLUME:
+	case ErrorCodeDriveIncompatibleVolume:
 		msg = "the drive specified does not support hardware-based encryption"
-	case FVE_E_NO_TPM_WITH_PASSPHRASE:
+	case ErrorCodeNoTPMWithPassphrase:
 		msg = "a TPM key protector cannot be added because a password protector exists on the drive"
-	case FVE_E_PASSPHRASE_TOO_LONG:
+	case ErrorCodePassphraseTooLong:
 		msg = "the passphrase cannot exceed 256 characters"
-	case FVE_E_POLICY_PASSPHRASE_NOT_ALLOWED:
+	case ErrorCodePolicyPassphraseNotAllowed:
 		msg = "group Policy settings do not permit the creation of a password"
-	case FVE_E_NOT_DECRYPTED:
+	case ErrorCodeNotDecrypted:
 		msg = "the drive must be fully decrypted to complete this operation"
-	case FVE_E_INVALID_PASSWORD_FORMAT:
+	case ErrorCodeInvalidPasswordFormat:
 		msg = "the format of the recovery password provided is invalid"
-	case FVE_E_BOOTABLE_CDDVD:
+	case ErrorCodeBootableCDOrDVD:
 		msg = "BitLocker Drive Encryption detected bootable media (CD or DVD) in the computer"
-	case FVE_E_PROTECTOR_EXISTS:
+	case ErrorCodeProtectorExists:
 		msg = "key protector cannot be added; only one key protector of this type is allowed for this drive"
 	default:
 		msg = "error code returned during encryption: %d"

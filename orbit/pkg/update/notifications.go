@@ -487,7 +487,7 @@ func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fle
 		return
 	}
 
-	targetVolume := "C:"
+	const targetVolume = "C:"
 	encryptionStatus, err := w.getEncryptionStatusForVolume(targetVolume)
 	if err != nil {
 		log.Debug().Err(err).Msgf("unable to get encryption status for target volume %s, continuing anyway", targetVolume)
@@ -499,7 +499,7 @@ func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fle
 		return
 	}
 
-	recoveryKey, encryptionErr := w.performEncryption(targetVolume, encryptionStatus)
+	recoveryKey, encryptionErr := w.performEncryption(targetVolume)
 	// before reporting the error to the server, check if the error we've got is valid.
 	// see the description of w.isMisreportedDecryptionError and issue #15916.
 	var pErr *bitlocker.EncryptionError
@@ -549,14 +549,14 @@ func (w *windowsMDMBitlockerConfigFetcher) bitLockerActionInProgress(status *bit
 	}
 
 	// Check if the status matches any of the specified conditions
-	return status.ConversionStatus == bitlocker.CONVERSION_STATUS_DECRYPTION_IN_PROGRESS ||
-		status.ConversionStatus == bitlocker.CONVERSION_STATUS_DECRYPTION_PAUSED ||
-		status.ConversionStatus == bitlocker.CONVERSION_STATUS_ENCRYPTION_IN_PROGRESS ||
-		status.ConversionStatus == bitlocker.CONVERSION_STATUS_ENCRYPTION_PAUSED
+	return status.ConversionStatus == bitlocker.ConversionStatusDecryptionInProgress ||
+		status.ConversionStatus == bitlocker.ConversionStatusDecryptionPaused ||
+		status.ConversionStatus == bitlocker.ConversionStatusEncryptionInProgress ||
+		status.ConversionStatus == bitlocker.ConversionStatusEncryptionPaused
 }
 
 // performEncryption executes the encryption process.
-func (w *windowsMDMBitlockerConfigFetcher) performEncryption(volume string, status *bitlocker.EncryptionStatus) (string, error) {
+func (w *windowsMDMBitlockerConfigFetcher) performEncryption(volume string) (string, error) {
 	fn := w.execEncryptVolumeFn
 	if fn == nil {
 		fn = bitlocker.EncryptVolume
@@ -573,9 +573,9 @@ func (w *windowsMDMBitlockerConfigFetcher) performEncryption(volume string, stat
 // isMisreportedDecryptionError checks whether the given error is a potentially
 // misreported decryption error.
 //
-// It addresses cases where a previous encryption attempt might not have failed
-// due to the disk being fully decrypted, but subsequent attempts to encrypt
-// the disk could erroneously return a bitlocker.FVE_E_NOT_DECRYPTED error.
+// It addresses cases where a previous encryption attempt failed due to other
+// errors but subsequent attempts to encrypt the disk could erroneously return
+// a bitlocker.FVE_E_NOT_DECRYPTED error.
 //
 // This function checks if the disk is actually fully decrypted
 // (status.ConversionStatus == bitlocker.CONVERSION_STATUS_FULLY_DECRYPTED) and
@@ -585,9 +585,9 @@ func (w *windowsMDMBitlockerConfigFetcher) performEncryption(volume string, stat
 //
 // For more context, see issue #15916
 func (w *windowsMDMBitlockerConfigFetcher) isMisreportedDecryptionError(err *bitlocker.EncryptionError, status *bitlocker.EncryptionStatus) bool {
-	return err.Code() == bitlocker.FVE_E_NOT_DECRYPTED &&
+	return err.Code() == bitlocker.ErrorCodeNotDecrypted &&
 		status != nil &&
-		status.ConversionStatus == bitlocker.CONVERSION_STATUS_FULLY_DECRYPTED
+		status.ConversionStatus == bitlocker.ConversionStatusFullyDecrypted
 }
 
 func (w *windowsMDMBitlockerConfigFetcher) updateFleetServer(key string, err error) error {

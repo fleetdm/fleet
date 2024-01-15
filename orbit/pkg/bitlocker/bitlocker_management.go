@@ -5,12 +5,12 @@ package bitlocker
 // Values and their meanings were taken from:
 // https://learn.microsoft.com/en-us/windows/win32/secprov/getconversionstatus-win32-encryptablevolume
 const (
-	CONVERSION_STATUS_FULLY_DECRYPTED        int32 = 0
-	CONVERSION_STATUS_FULLY_ENCRYPTED        int32 = 1
-	CONVERSION_STATUS_ENCRYPTION_IN_PROGRESS int32 = 2
-	CONVERSION_STATUS_DECRYPTION_IN_PROGRESS int32 = 3
-	CONVERSION_STATUS_ENCRYPTION_PAUSED      int32 = 4
-	CONVERSION_STATUS_DECRYPTION_PAUSED      int32 = 5
+	ConversionStatusFullyDecrypted       int32 = 0
+	ConversionStatusFullyEncrypted       int32 = 1
+	ConversionStatusEncryptionInProgress int32 = 2
+	ConversionStatusDecryptionInProgress int32 = 3
+	ConversionStatusEncryptionPaused     int32 = 4
+	ConversionStatusDecryptionPaused     int32 = 5
 )
 
 // Free space wiping status.
@@ -18,10 +18,10 @@ const (
 // Values and their meanings were taken from:
 // https://learn.microsoft.com/en-us/windows/win32/secprov/getconversionstatus-win32-encryptablevolume
 const (
-	WIPING_STATUS_FREE_SPACE_NOT_WIPED          int32 = 0
-	WIPING_STATUS_FREE_SPACE_WIPED              int32 = 1
-	WIPING_STATUS_FREE_SPACE_WIPING_IN_PROGRESS int32 = 1
-	WIPING_STATUS_FREE_SPACE_WIPING_PAUSED      int32 = 1
+	WipingStatusFreeSpaceNotWiped         int32 = 0
+	WipingStatusFreeSpaceWiped            int32 = 1
+	WipingStatusFreeSpaceWipingInProgress int32 = 2
+	WipingStatusFreeSpaceWipingPaused     int32 = 3
 )
 
 // Specifies whether the volume and the encryption key (if any) are secured.
@@ -29,22 +29,22 @@ const (
 // Values and their meanings were taken from:
 // https://learn.microsoft.com/en-us/windows/win32/secprov/getprotectionstatus-win32-encryptablevolume
 const (
-	PROTECTION_STATUS_UNPROTECTED int32 = 0
-	PROTECTION_STATUS_PROTECTED   int32 = 1
-	PROTECTION_STATUS_UNKNOWN     int32 = 2
+	ProtectionStatusUnprotected int32 = 0
+	ProtectionStatusProtected   int32 = 1
+	ProtectionStatusUnknown     int32 = 2
 )
 
 const (
 	// Error Codes
-	ERROR_IO_DEVICE                     int32 = -2147023779
-	FVE_E_EDRIVE_INCOMPATIBLE_VOLUME    int32 = -2144272206
-	FVE_E_NO_TPM_WITH_PASSPHRASE        int32 = -2144272212
-	FVE_E_PASSPHRASE_TOO_LONG           int32 = -2144272214
-	FVE_E_POLICY_PASSPHRASE_NOT_ALLOWED int32 = -2144272278
-	FVE_E_NOT_DECRYPTED                 int32 = -2144272327
-	FVE_E_INVALID_PASSWORD_FORMAT       int32 = -2144272331
-	FVE_E_BOOTABLE_CDDVD                int32 = -2144272336
-	FVE_E_PROTECTOR_EXISTS              int32 = -2144272335
+	ErrorCodeIODevice                   int32 = -2147023779
+	ErrorCodeDriveIncompatibleVolume    int32 = -2144272206
+	ErrorCodeNoTPMWithPassphrase        int32 = -2144272212
+	ErrorCodePassphraseTooLong          int32 = -2144272214
+	ErrorCodePolicyPassphraseNotAllowed int32 = -2144272278
+	ErrorCodeNotDecrypted               int32 = -2144272327
+	ErrorCodeInvalidPasswordFormat      int32 = -2144272331
+	ErrorCodeBootableCDOrDVD            int32 = -2144272336
+	ErrorCodeProtectorExists            int32 = -2144272335
 )
 
 // EncryptionError represents an error that occurs during the encryption

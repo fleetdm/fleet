@@ -666,10 +666,10 @@ func TestBitlockerOperations(t *testing.T) {
 	t.Run("encryption skipped based on various current statuses", func(t *testing.T) {
 		setupTest()
 		statusesToTest := []int32{
-			bitlocker.CONVERSION_STATUS_DECRYPTION_IN_PROGRESS,
-			bitlocker.CONVERSION_STATUS_DECRYPTION_PAUSED,
-			bitlocker.CONVERSION_STATUS_ENCRYPTION_IN_PROGRESS,
-			bitlocker.CONVERSION_STATUS_ENCRYPTION_PAUSED,
+			bitlocker.ConversionStatusDecryptionInProgress,
+			bitlocker.ConversionStatusDecryptionPaused,
+			bitlocker.ConversionStatusEncryptionInProgress,
+			bitlocker.ConversionStatusEncryptionPaused,
 		}
 
 		for _, status := range statusesToTest {
@@ -690,12 +690,12 @@ func TestBitlockerOperations(t *testing.T) {
 
 	t.Run("handle misreported decryption error", func(t *testing.T) {
 		setupTest()
-		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.CONVERSION_STATUS_FULLY_DECRYPTED}
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyDecrypted}
 		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
 			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 		}
 		enrollFetcher.execEncryptVolumeFn = func(string) (string, error) {
-			return "", bitlocker.NewEncryptionError("", bitlocker.FVE_E_NOT_DECRYPTED)
+			return "", bitlocker.NewEncryptionError("", bitlocker.ErrorCodeNotDecrypted)
 		}
 
 		cfg, err := enrollFetcher.GetConfig()
@@ -718,7 +718,7 @@ func TestBitlockerOperations(t *testing.T) {
 	t.Run("successful fleet server update", func(t *testing.T) {
 		setupTest()
 		shouldFailEncryption = false
-		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.CONVERSION_STATUS_FULLY_DECRYPTED}
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyDecrypted}
 		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
 			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 		}
@@ -733,7 +733,7 @@ func TestBitlockerOperations(t *testing.T) {
 		setupTest()
 		shouldFailEncryption = false
 		shouldFailServerUpdate = true
-		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.CONVERSION_STATUS_FULLY_DECRYPTED}
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyDecrypted}
 		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
 			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 		}
