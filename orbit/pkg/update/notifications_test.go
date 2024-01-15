@@ -741,8 +741,8 @@ func TestBitlockerOperations(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, fetcher.cfg, cfg)
 		require.Contains(t, logBuf.String(), "disk was previously encrypted. Attempting to decrypt it")
-		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
-		require.True(t, encryptFnCalled, "encryption function should have been called")
+		require.False(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
+		require.False(t, encryptFnCalled, "encryption function should not have been called")
 		require.True(t, decryptFnCalled, "decryption function should have been called")
 	})
 
