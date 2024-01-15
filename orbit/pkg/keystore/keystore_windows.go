@@ -1,10 +1,11 @@
-//go:build windows && cgo
+//go:build windows
 
 package keystore
 
 import (
 	"errors"
 	"github.com/danieljoos/wincred"
+	"strings"
 	"syscall"
 )
 
@@ -21,6 +22,10 @@ func Name() string {
 
 // AddSecret will add a secret to the keychain. This secret can be retrieved by this application without any user authorization.
 func AddSecret(secret string) error {
+	secret = strings.TrimSpace(secret)
+	if secret == "" {
+		return errors.New("secret cannot be empty")
+	}
 	cred := wincred.NewGenericCredential(service)
 	cred.CredentialBlob = []byte(secret)
 	err := cred.Write()
