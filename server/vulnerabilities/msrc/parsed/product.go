@@ -22,22 +22,26 @@ var ErrNoMatch = errors.New("no product matches")
 func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (string, error) {
 	var dvMatch, noDvMatch string
 
-	for pID, p := range p {
+	for pID, product := range p {
 		normalizedOS := NewProductFromOS(os)
-		if p.Name() != normalizedOS.Name() {
+		if product.Name() != normalizedOS.Name() {
 			continue
 		}
 
-		archMatch := p.Arch() == "all" || normalizedOS.Arch() == "all" || p.Arch() == normalizedOS.Arch()
+		archMatch := product.Arch() == "all" || normalizedOS.Arch() == "all" || product.Arch() == normalizedOS.Arch()
 		if !archMatch {
 			continue
 		}
 
-		if p.HasDisplayVersion() && os.DisplayVersion != "" && strings.Index(string(p), os.DisplayVersion) != -1 {
+		if product.HasDisplayVersion() && os.DisplayVersion != "" && strings.Index(string(product), os.DisplayVersion) != -1 {
 			dvMatch = pID
-			continue
+			break
 		}
-		if !p.HasDisplayVersion() {
+		
+		// This rule ensures that we match an unknown os.DisplayVersion to
+		// a MSRC product that does not have a display version (eg. The initial release
+		// of Windows 11 is 21H2, which does not appear in the MSRC data)
+		if !product.HasDisplayVersion() {
 			noDvMatch = pID
 			continue
 		}
@@ -89,6 +93,12 @@ func (p Product) Arch() string {
 	}
 }
 
+// HasDisplayVersion returns true if the current Microsoft product 
+// has a display version in the name.  
+// Display Version refers to the version of the product that is 
+// displayed to the user: eg. 22H2
+// Year/Half refers to the year and half of the year that the product
+// was released: eg. 2nd Half of 2022 
 func (p Product) HasDisplayVersion() bool {
 	keywords := []string{"version", "edition"}
 	for _, k := range keywords {
