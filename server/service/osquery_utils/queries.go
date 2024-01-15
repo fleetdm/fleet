@@ -187,15 +187,7 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			version := rows[0]["display_version"]
-			if version == "" {
-				level.Debug(logger).Log(
-					"msg", "unable to identify windows display version",
-					"host", host.Hostname,
-				)
-			}
-
-			s := fmt.Sprintf("%v %v", rows[0]["name"], version)
+			s := fmt.Sprintf("%v %v", rows[0]["name"], rows[0]["display_version"])
 			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
 			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
 			s = strings.TrimSpace(s)
