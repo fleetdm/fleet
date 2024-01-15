@@ -116,8 +116,7 @@ if [ -n "$GENERATE_MSI" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-certificate=./tools/test-orbit-mtls/client.crt} \
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
-        --update-url=$MSI_TUF_URL \
-        --disable-keystore
+        --update-url=$MSI_TUF_URL
 fi
 
 echo "Packages generated."

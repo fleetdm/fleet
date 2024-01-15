@@ -22,9 +22,15 @@ func TestName(t *testing.T) {
 
 func TestSecret(t *testing.T) {
 	t.Parallel()
+
+	// Use a different service name for testing
+	origService := service
+	service = "com.fleetdm.fleetd.enroll.secret.test"
+
 	t.Cleanup(
 		func() {
 			cred, err := wincred.GetGenericCredential(service)
+			service = origService
 			if err != nil {
 				t.Log(err)
 				return
@@ -32,8 +38,6 @@ func TestSecret(t *testing.T) {
 			_ = cred.Delete()
 		},
 	)
-
-	service = "com.fleetdm.fleetd.enroll.secret.test"
 
 	// Add secret
 	secret := "testSecret"
