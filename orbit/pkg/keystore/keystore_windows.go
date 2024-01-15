@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/danieljoos/wincred"
 	"strings"
+	"sync"
 	"syscall"
 )
 
