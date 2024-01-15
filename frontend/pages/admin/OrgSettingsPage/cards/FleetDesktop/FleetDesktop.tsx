@@ -85,7 +85,6 @@ const FleetDesktop = ({
                 <CustomLink
                   url="https://fleetdm.com/transparency"
                   text="https://fleetdm.com/transparency"
-                  className="fleet-desktop-custom-transparency-url-link"
                   newTab
                   multiline
                 />{" "}

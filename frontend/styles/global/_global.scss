@@ -135,6 +135,20 @@ form,
   &__help-text {
     @include help-text;
 
+    .custom-link {
+      font-size: inherit;
+      .icon {
+        scale: 0.88;
+      }
+      &__no-wrap {
+        // adjust for multi-line custom links
+        .icon {
+          padding-left: 4px;
+          position: relative;
+          top: 2px;
+        }
+      }
+    }
     code {
       color: $core-vibrant-blue;
       background-color: $ui-light-grey;
