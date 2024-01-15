@@ -7138,7 +7138,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 - [List software](#list-software-titles)
 - [List software versions](#list-software-versions)
-- [Get software title](#get-software-title)
+- [Get software](#get-software-title)
 - [Get software version](#get-software-version)
 
 ### List software
@@ -7324,7 +7324,7 @@ Get a list of all software versions.
 }
 ```
 
-### Get software title
+### Get software
 
 Returns information about the specified software title. By default, `versions` are sorted in descending order by the `hosts_count` field.
 
