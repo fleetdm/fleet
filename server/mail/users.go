@@ -9,10 +9,10 @@ import (
 )
 
 type ChangeEmailMailer struct {
-	BaseURL  template.URL
-	AssetURL template.URL
-	Token    string
-	CurrentYear  int
+	BaseURL     template.URL
+	AssetURL    template.URL
+	Token       string
+	CurrentYear int
 }
 
 func (cem *ChangeEmailMailer) Message() ([]byte, error) {
@@ -37,7 +37,7 @@ type PasswordResetMailer struct {
 	// Token password reset token
 	Token string
 	// Current year for copyright year
-	CurrentYear  int
+	CurrentYear int
 }
 
 func (r PasswordResetMailer) Message() ([]byte, error) {

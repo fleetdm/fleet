@@ -275,9 +275,9 @@ func dialTimeout(addr string, tlsConfig *tls.Config) (client *smtp.Client, err e
 // SMTPTestMailer is used to build an email message that will be used as
 // a test message when testing SMTP configuration
 type SMTPTestMailer struct {
-	BaseURL  template.URL
-	AssetURL template.URL
-	CurrentYear     int
+	BaseURL     template.URL
+	AssetURL    template.URL
+	CurrentYear int
 }
 
 func (m *SMTPTestMailer) Message() ([]byte, error) {
