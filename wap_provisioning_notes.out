@@ -1,0 +1,2 @@
+* Logout and login does initiate a Sync, but still no scheduled/recurring task.
+* Restart also does initiate a Sync, but still no scheduled task.

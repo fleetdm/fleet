@@ -81,6 +81,8 @@ func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.Response
 
 	xmlRes = append(xmlRes, '\n')
 
+	fmt.Print(">>>>> WAP ENROLLMENT SOAP CONTAINER: \n\n", string(xmlRes), "\n\n")
+
 	w.Header().Set("Content-Type", syncml.SoapContentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(xmlRes)))
 	w.WriteHeader(http.StatusOK)
@@ -618,34 +620,28 @@ func NewCertStoreProvisioningData(enrollmentType string, identityFingerprint str
 // https://learn.microsoft.com/en-us/windows/client-management/mdm/w7-application-csp
 func NewApplicationProvisioningData(mdmEndpoint string) mdm_types.Characteristic {
 	provDoc := newCharacteristic("APPLICATION", []mdm_types.Param{
-		// The PROVIDER-ID parameter specifies the server identifier for a management server used in the current management session
-		newParm("PROVIDER-ID", syncml.DocProvisioningAppProviderID, ""),
-
 		// The APPID parameter is used to differentiate the types of available application services and protocols.
 		newParm("APPID", "w7", ""),
-
+		// The PROVIDER-ID parameter specifies the server identifier for a management server used in the current management session
+		newParm("PROVIDER-ID", syncml.DocProvisioningAppProviderID, ""),
 		// The NAME parameter is used in the APPLICATION characteristic to specify a user readable application identity.
 		newParm("NAME", syncml.DocProvisioningAppName, ""),
-
 		// The ADDR parameter is used in the APPADDR param to get or set the address of the OMA DM server.
 		newParm("ADDR", mdmEndpoint, ""),
 
 		// The ROLE parameter is used in the APPLICATION characteristic to specify the security application chamber that the DM session should run with when communicating with the DM server.
 
 		// The BACKCOMPATRETRYFREQ parameter is used  to specify how many retries the DM client performs when there are Connection Manager-level or WinInet-level errors
-		newParm("CONNRETRYFREQ", syncml.DocProvisioningAppConnRetryFreq, ""),
-
-		// The INITIALBACKOFFTIME parameter is used to specify the initial wait time in milliseconds when the DM client retries for the first time
-		newParm("INITIALBACKOFFTIME", syncml.DocProvisioningAppInitialBackoffTime, ""),
-
-		// The MAXBACKOFFTIME parameter is used to specify the maximum number of milliseconds to sleep after package-sending failure
-		newParm("MAXBACKOFFTIME", syncml.DocProvisioningAppMaxBackoffTime, ""),
-
-		// The DEFAULTENCODING parameter is used to specify whether the DM client should use WBXML or XML for the DM package when communicating with the server.
-		newParm("DEFAULTENCODING", "application/vnd.syncml.dm+xml", ""),
 
 		// The BACKCOMPATRETRYDISABLED parameter is used to specify whether to retry resending a package with an older protocol version
 		newParm("BACKCOMPATRETRYDISABLED", "", ""),
+		newParm("CONNRETRYFREQ", syncml.DocProvisioningAppConnRetryFreq, ""),
+		// The INITIALBACKOFFTIME parameter is used to specify the initial wait time in milliseconds when the DM client retries for the first time
+		newParm("INITIALBACKOFFTIME", syncml.DocProvisioningAppInitialBackoffTime, ""),
+		// The MAXBACKOFFTIME parameter is used to specify the maximum number of milliseconds to sleep after package-sending failure
+		newParm("MAXBACKOFFTIME", syncml.DocProvisioningAppMaxBackoffTime, ""),
+		// The DEFAULTENCODING parameter is used to specify whether the DM client should use WBXML or XML for the DM package when communicating with the server.
+		newParm("DEFAULTENCODING", "application/vnd.syncml.dm+xml", ""),
 	}, []mdm_types.Characteristic{
 		// CLIENT specifies that the server authenticates itself to the OMA DM Client at the DM protocol level.
 		newCharacteristic("APPAUTH", []mdm_types.Param{
@@ -687,7 +683,7 @@ func NewDMClientProvisioningData() mdm_types.Characteristic {
 						newParm("NumberOfRemainingScheduledRetries", syncml.DmClientCSPNumberOfRemainingScheduledRetries, syncml.DmClientIntType),
 						newParm("IntervalForRemainingScheduledRetries", syncml.DmClientCSPIntervalForRemainingScheduledRetries, syncml.DmClientIntType),
 						newParm("PollOnLogin", syncml.DmClientCSPPollOnLogin, syncml.DmClientBoolType),
-						newParm("AllUsersPollOnFirstLogin", syncml.DmClientCSPPollOnLogin, syncml.DmClientBoolType),
+						//newParm("AllUsersPollOnFirstLogin", syncml.DmClientCSPPollOnLogin, syncml.DmClientBoolType),
 					}, nil),
 				}),
 		}),

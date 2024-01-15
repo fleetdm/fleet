@@ -1,0 +1,70 @@
+>>>>> WAP PROVISIONING DOC:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<wap-provisioningdoc version="1.1">
+  <characteristic type="CertificateStore">
+    <characteristic type="Root">
+      <characteristic type="System">
+        <characteristic type="4A28F5B5EB1CDB90937B463FCA2A977C58E35922">
+          <parm name="EncodedCertificate" value="MIIDPzCCAiegAwIBAgIBATANBgkqhkiG9w0BAQsFADBBMQkwBwYDVQQGEwAxEDAOBgNVBAoTB3NjZXAtY2ExEDAOBgNVBAsTB1NDRVAgQ0ExEDAOBgNVBAMTB0ZsZWV0RE0wHhcNMjMwMjA3MTU0NTI4WhcNMzMwMjA3MTU0NTI4WjBBMQkwBwYDVQQGEwAxEDAOBgNVBAoTB3NjZXAtY2ExEDAOBgNVBAsTB1NDRVAgQ0ExEDAOBgNVBAMTB0ZsZWV0RE0wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCs4qt/9uSdKqW6ZdW6wwZJKrzkoYaVlp+2HlKTYcRQ7F8vj9jkmPvBEI/wvQC1Dm51p5USltr+t8MMVgI0JPMyvgGayqzAyUz064Eqf+eJl6FsMbxGcCO5racMNTTyJVywr9RRbVv96RQZV1mK8zbSuyMLE5FPfL6wzLE6aT+rJlrtKTP2qmb60rBiS3xmWCXfyB633jDj0sMvivswCutAKMzpOldDnb/BnJXOtkX1btqb4OvK4ymgm0HQzjOTUZLN5jGi1UdmkqnZueW8GbuC83esUqSd2zoUaJcd2i8pP5RnOAWdAnFR5KxPidL+nhHUX8vLlHGkCf5xUmmhEU8bAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBRxPadzM3aMKNuhz0F1y3kFtQCn4TANBgkqhkiG9w0BAQsFAAOCAQEAHPXgbk96WcjxO8iZ66dDcEmR0XpyCM7wxRRHq8FDR3YC9xBy/D22Ac8I/mEVIO2v4q47rdXEWbMRYZ1ID+dTe3a0cJzrjJVWN6yMD2+zVkHPl7TD9glemx5/rMclXzUTLWjHDtK9b0IYoFdthnGG2gQUxq3y8rWiqxblyU3oc3q+DYPIa6vrHrbX0ZnJz9UxiKdNpKUB9AfcRhiqelmk9OV+LMjxCiFn595BYd7sEXM7WCVJlDMLLa1ZyzJlZVfUYxfaLTBsiCWpKfZNrxc+Vhh544BaJLqnjTCbi+Dht3tuhbPEFLjRydnBRKCHAKP6mGaXzPOfHPQ73d8prl3JtQ=="></parm>
+        </characteristic>
+      </characteristic>
+    </characteristic>
+    <characteristic type="My">
+      <characteristic type="User">
+        <characteristic type="784393F22829E44CF430DD516942E9AC4B9DA8DF">
+          <parm name="EncodedCertificate" value="MIIDbTCCAlWgAwIBAgIBAjANBgkqhkiG9w0BAQsFADBBMQkwBwYDVQQGEwAxEDAOBgNVBAoTB3NjZXAtY2ExEDAOBgNVBAsTB1NDRVAgQ0ExEDAOBgNVBAMTB0ZsZWV0RE0wHhcNMjMwNzE5MTU0NDI3WhcNMjQwNzE4MTU0NDI3WjBbMQ4wDAYDVQQLEwVGbGVldDFJMEcGA1UEAxNANEM4MUU5NzBEREFCREVGREI2ODNGOTZCNEY3ODgzRkVFMkM2OUNCMjE1MTc4ODQ5QkUwRUFCNzc2RkVEM0Y0QTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAL4mbnUBkGkNGc9QYP5mAi96c0K5zM5iUGjef4gRanRWXi+4K8CGJWEVUxFtPesU659/tt4pJdjlxPa9ZcfMGhjrjbAUUAeNvTC2mqqLxqe2WymG6zaC+plv4yofriayBM4DQaJt1KLku8ERR0PALrgyJMn/w9yBqAURXVcvRO4g002AxydAb6LqCtR8w0tnoLoOWnmzoxjRbbx+vP/0kyIKeI61AkFgMFYRwDYUrc3y6JzwkECjz9rxVVSEjnN8nkccJX8iadreU5P1BxL+TB98HkhGUC3BqdfNRzm9wITZ+Ee7MTaNiKKsNxAl6Y1sK6XJv1vum2zIssknKnHs0sECAwEAAaNWMFQwDgYDVR0PAQH/BAQDAgWgMBMGA1UdJQQMMAoGCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUcT2nczN2jCjboc9Bdct5BbUAp+EwDQYJKoZIhvcNAQELBQADggEBAILz1622UXf0HmRNRlK/ZMYHs07qBF/OKDcjCKLsnMTpfDxBlQNM2UpJbRm2Oeh8UV5HqRlOaGPDe4YN6sZACdOlpPXJXdSh38rYcqiP3ThYq8i1QvF9+gHqCfKd6JDoVwUrEJDLT+miuAxyRQVElrjdBeBiIksagHEgJvYZ0t9HB6JaPeSD7NPczyOgcuPYVG5Ug+VgvSdklxdtC0f5gRKxMNXXZ9Wj/AtpTnhOPyTHhqBwZi4pzjJ8VPu1Moz7Y2AWaB4ZXx8AHBu07S7BRUXPPbX5d1KHd+TypAWOpqV5qHE4fzxtgB3BIJQZadhowwCAoXSf/OxlB7xxPYGd6JA="></parm>
+        </characteristic>
+        <characteristic type="PrivateKeyContainer"></characteristic>
+      </characteristic>
+      <characteristic type="WSTEP">
+        <characteristic type="Renew">
+          <parm name="ROBOSupport" value="true" datatype="boolean"></parm>
+          <parm name="RenewPeriod" value="365" datatype="integer"></parm>
+          <parm name="RetryInterval" value="4" datatype="integer"></parm>
+        </characteristic>
+      </characteristic>
+    </characteristic>
+  </characteristic>
+  <characteristic type="APPLICATION">
+    <parm name="PROVIDER-ID" value="Fleet"></parm>
+    <parm name="APPID" value="w7"></parm>
+    <parm name="NAME" value="Fleet"></parm>
+    <parm name="ADDR" value="https://72d2-135-19-39-191.ngrok-free.app/api/mdm/microsoft/management"></parm>
+    <parm name="CONNRETRYFREQ" value="6"></parm>
+    <parm name="INITIALBACKOFFTIME" value="30000"></parm>
+    <parm name="MAXBACKOFFTIME" value="120000"></parm>
+    <parm name="DEFAULTENCODING" value="application/vnd.syncml.dm+xml"></parm>
+    <parm name="BACKCOMPATRETRYDISABLED"></parm>
+    <characteristic type="APPAUTH">
+      <parm name="AAUTHLEVEL" value="CLIENT"></parm>
+      <parm name="AAUTHTYPE" value="DIGEST"></parm>
+      <parm name="AAUTHSECRET" value="dummy"></parm>
+      <parm name="AAUTHDATA" value="nonce"></parm>
+    </characteristic>
+    <characteristic type="APPAUTH">
+      <parm name="AAUTHLEVEL" value="APPSRV"></parm>
+      <parm name="AAUTHTYPE" value="DIGEST"></parm>
+      <parm name="AAUTHNAME" value="dummy"></parm>
+      <parm name="AAUTHSECRET" value="dummy"></parm>
+      <parm name="AAUTHDATA" value="nonce"></parm>
+    </characteristic>
+  </characteristic>
+  <characteristic type="DMClient">
+    <characteristic type="Provider">
+      <characteristic type="Fleet">
+        <characteristic type="Poll">
+          <parm name="NumberOfFirstRetries" value="8" datatype="integer"></parm>
+          <parm name="IntervalForFirstSetOfRetries" value="15" datatype="integer"></parm>
+          <parm name="NumberOfSecondRetries" value="5" datatype="integer"></parm>
+          <parm name="IntervalForSecondSetOfRetries" value="3" datatype="integer"></parm>
+          <parm name="NumberOfRemainingScheduledRetries" value="0" datatype="integer"></parm>
+          <parm name="IntervalForRemainingScheduledRetries" value="1560" datatype="integer"></parm>
+          <parm name="PollOnLogin" value="true" datatype="boolean"></parm>
+          <parm name="AllUsersPollOnFirstLogin" value="true" datatype="boolean"></parm>
+        </characteristic>
+      </characteristic>
+    </characteristic>
+  </characteristic>
+</wap-provisioningdoc>
+
