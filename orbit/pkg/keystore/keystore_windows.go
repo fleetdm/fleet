@@ -3,7 +3,9 @@
 package keystore
 
 import (
+	"errors"
 	"github.com/danieljoos/wincred"
+	"syscall"
 )
 
 // Using a var instead of const so that it can be overridden in tests.
@@ -35,6 +37,11 @@ func UpdateSecret(secret string) error {
 func GetSecret() (string, error) {
 	cred, err := wincred.GetGenericCredential(service)
 	if err != nil {
+		var errno syscall.Errno
+		ok := errors.As(err, &errno)
+		if ok && errors.Is(errno, syscall.ERROR_NOT_FOUND) {
+			return "", nil
+		}
 		return "", err
 	}
 	return string(cred.CredentialBlob), nil

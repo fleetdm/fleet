@@ -27,22 +27,33 @@ func TestSecret(t *testing.T) {
 	origService := service
 	service = "com.fleetdm.fleetd.enroll.secret.test"
 
+	deleteSecret := func() {
+		cred, err := wincred.GetGenericCredential(service)
+		if err != nil {
+			return
+		}
+		_ = cred.Delete()
+	}
+
 	t.Cleanup(
 		func() {
-			cred, err := wincred.GetGenericCredential(service)
+			deleteSecret()
 			service = origService
-			if err != nil {
-				t.Log(err)
-				return
-			}
-			_ = cred.Delete()
 		},
 	)
+
+	// Make sure the secret doesn't exist
+	deleteSecret()
+
+	// Get secret -- should be empty
+	result, err := GetSecret()
+	require.NoError(t, err)
+	assert.Equal(t, "", result)
 
 	// Add secret
 	secret := "testSecret"
 	require.NoError(t, AddSecret(secret))
-	result, err := GetSecret()
+	result, err = GetSecret()
 	require.NoError(t, err)
 	assert.Equal(t, secret, result)
 
