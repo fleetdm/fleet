@@ -1,1 +1,1 @@
-On My device and Host details pages, failing policies are now listed first.
+On My device, Host details pages, and GET /api/v1/fleet/hosts/:id API endpoint, failing policies are now listed first.
