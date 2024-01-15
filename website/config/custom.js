@@ -117,7 +117,7 @@ module.exports.custom = {
     // 'docs/Contributing/API-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
     // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
-    'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, Marcos, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
+    'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // 🫧 Articles and release notes
     'articles': 'spokanemac',
@@ -189,7 +189,7 @@ module.exports.custom = {
     'docs': ['rachaelshaw'],// (default for docs)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw'],// (standard query library)
     'schema': ['rachaelshaw'],// (Osquery table schema)
-    'ee/cis': ['sharon-fdm', 'lucasmrod', 'marcosd4h', 'rachelElysia', 'rachaelshaw'],
+    'ee/cis': ['sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
 
     // Articles and release notes
     'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'lukeheath'],

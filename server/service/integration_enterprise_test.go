@@ -4343,8 +4343,37 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.False(t, scriptResultResp.HostTimeout)
 	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
 
-	// verify that orbit would get the notification that it has a script to run
+	// Disable scripts and verify that there are no Orbit notifs
+	acr := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"scripts_disabled": true
+		}
+	}`), http.StatusOK, &acr)
+	require.True(t, acr.AppConfig.ServerSettings.ScriptsDisabled)
+
 	var orbitResp orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// Verify that endpoints related to scripts are disabled
+	srResp := s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusForbidden)
+	assertBodyContains(t, srResp, fleet.RunScriptScriptsDisabledGloballyErrMsg)
+
+	srResp = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusForbidden)
+	assertBodyContains(t, srResp, fleet.RunScriptScriptsDisabledGloballyErrMsg)
+
+	acr = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"scripts_disabled": false
+		}
+	}`), http.StatusOK, &acr)
+	require.False(t, acr.AppConfig.ServerSettings.ScriptsDisabled)
+
+	// verify that orbit would get the notification that it has a script to run
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
@@ -5414,6 +5443,84 @@ VALUES
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host4.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.Scripts)
 		require.Len(t, resp.Scripts, 0)
+	})
+
+	t.Run("get script results user message", func(t *testing.T) {
+		// add a script with an older created_at timestamp
+		var oldScriptID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			res, err := tx.ExecContext(ctx, `
+INSERT INTO
+	scripts (name, script_contents, created_at, updated_at)
+VALUES
+	(?,?,?,?)`,
+				"test-script-details-timeout.sh",
+				"echo test-script-details-timeout",
+				now.Add(-1*time.Hour),
+				now.Add(-1*time.Hour),
+			)
+			if err != nil {
+				return err
+			}
+			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			oldScriptID = uint(id)
+			return nil
+		})
+
+		for _, c := range []struct {
+			name       string
+			exitCode   *int64
+			executedAt time.Time
+			expected   string
+		}{
+			{
+				name:       "host-timeout",
+				exitCode:   nil,
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   fleet.RunScriptHostTimeoutErrMsg,
+			},
+			{
+				name:       "script-timeout",
+				exitCode:   ptr.Int64(-1),
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   fleet.RunScriptScriptTimeoutErrMsg,
+			},
+			{
+				name:       "pending",
+				exitCode:   nil,
+				executedAt: now.Add(-1 * time.Minute),
+				expected:   fleet.RunScriptAlreadyRunningErrMsg,
+			},
+			{
+				name:       "success",
+				exitCode:   ptr.Int64(0),
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   "",
+			},
+			{
+				name:       "error",
+				exitCode:   ptr.Int64(1),
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   "",
+			},
+			{
+				name:       "disabled",
+				exitCode:   ptr.Int64(-2),
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   fleet.RunScriptDisabledErrMsg,
+			},
+		} {
+			t.Run(c.name, func(t *testing.T) {
+				insertResults(t, host0.ID, &fleet.Script{ID: oldScriptID, Name: "test-script-details-timeout.sh"}, c.executedAt, "test-user-message_"+c.name, c.exitCode)
+
+				var resp getScriptResultResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/results/%s", "test-user-message_"+c.name), nil, http.StatusOK, &resp)
+				require.Equal(t, c.expected, resp.Message)
+			})
+		}
 	})
 }
 

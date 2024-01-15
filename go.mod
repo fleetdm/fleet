@@ -8,6 +8,7 @@ require (
 	github.com/AbGuthrie/goquery/v2 v2.0.1
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/Masterminds/semver v1.5.0
+	github.com/RobotsAndPencils/buford v0.14.0
 	github.com/VividCortex/mysqlerr v0.0.0-20170204212430-6c6b55f8796f
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
 	github.com/XSAM/otelsql v0.10.0
@@ -30,7 +31,6 @@ require (
 	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/facebookincubator/nvdtools v0.1.6-0.20231010102659-d14ce526f176
 	github.com/fatih/color v1.15.0
-	github.com/fleetdm/goose v0.0.0-20221011170007-06aacf8ac547
 	github.com/getsentry/sentry-go v0.18.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-ini/ini v1.67.0
@@ -57,14 +57,13 @@ require (
 	github.com/jmoiron/sqlx v1.2.1-0.20190826204134-d7d95172beb5
 	github.com/josephspurrier/goversioninfo v1.4.0
 	github.com/kevinburke/go-bindata v3.24.0+incompatible
-	github.com/kolide/kit v0.0.0-20221107170827-fb85e3d59eab
 	github.com/kolide/launcher v1.0.12
+	github.com/lib/pq v1.10.9
 	github.com/macadmins/osquery-extension v0.0.15
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
 	github.com/mattn/go-sqlite3 v1.14.13
 	github.com/micromdm/micromdm v1.9.0
 	github.com/micromdm/nanodep v0.1.0
-	github.com/micromdm/nanomdm v0.3.0
 	github.com/micromdm/scep/v2 v2.1.0
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/gon v0.2.6-0.20231031204852-2d4f161ccecd
@@ -99,6 +98,7 @@ require (
 	github.com/ulikunitz/xz v0.5.10
 	github.com/urfave/cli/v2 v2.23.5
 	github.com/valyala/fasthttp v1.40.0
+	github.com/ziutek/mymysql v1.5.4
 	go.elastic.co/apm/module/apmgorilla/v2 v2.3.0
 	go.elastic.co/apm/module/apmsql/v2 v2.4.3
 	go.elastic.co/apm/v2 v2.4.3
@@ -111,11 +111,13 @@ require (
 	golang.org/x/crypto v0.17.0
 	golang.org/x/exp v0.0.0-20230105202349-8879d0199aa3
 	golang.org/x/image v0.10.0
+	golang.org/x/mod v0.12.0
 	golang.org/x/net v0.19.0
 	golang.org/x/oauth2 v0.12.0
 	golang.org/x/sync v0.3.0
 	golang.org/x/sys v0.15.0
 	golang.org/x/text v0.14.0
+	golang.org/x/tools v0.13.0
 	google.golang.org/grpc v1.58.3
 	gopkg.in/guregu/null.v3 v3.5.0
 	gopkg.in/ini.v1 v1.67.0
@@ -158,7 +160,6 @@ require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
-	github.com/RobotsAndPencils/buford v0.14.0 // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/akavel/rsrc v0.10.2 // indirect
 	github.com/alecthomas/jsonschema v0.0.0-20211022214203-8b29eab41725 // indirect
@@ -187,7 +188,7 @@ require (
 	github.com/cavaliercoder/go-cpio v0.0.0-20180626203310-925f9528c45e // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/cloudflare/circl v1.3.3 // indirect
+	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/dghubble/go-twitter v0.0.0-20210609183100-2fdbf421508e // indirect
@@ -250,6 +251,7 @@ require (
 	github.com/jonboulle/clockwork v0.2.2 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/compress v1.16.5 // indirect
+	github.com/kolide/kit v0.0.0-20221107170827-fb85e3d59eab // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
@@ -306,10 +308,8 @@ require (
 	go.opentelemetry.io/otel/trace v1.19.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	gocloud.dev v0.24.0 // indirect
-	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/term v0.15.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.13.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/api v0.128.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
@@ -324,10 +324,6 @@ require (
 	gotest.tools/v3 v3.0.3 // indirect
 )
 
-replace github.com/kolide/kit => github.com/fleetdm/kolide-kit v0.0.0-20230519160117-86cc9441f9c1
-
-replace github.com/micromdm/nanomdm => github.com/fleetdm/nanomdm v0.3.1-0.20230710170238-fd0813187f24
-
 replace github.com/micromdm/nanodep => github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24
 
-replace github.com/micromdm/scep/v2 => github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03
+replace github.com/micromdm/scep/v2 => github.com/fleetdm/scep/v2 v2.1.1-0.20240111143358-4df608a81afd

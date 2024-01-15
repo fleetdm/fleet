@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -169,8 +169,6 @@ func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
-	const pendingScriptMaxAge = time.Minute
-
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -229,16 +227,21 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// load the pending script executions for that host
-	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, pendingScriptMaxAge)
-	if err != nil {
-		return fleet.OrbitConfig{}, err
-	}
-	if len(pending) > 0 {
-		execIDs := make([]string, 0, len(pending))
-		for _, p := range pending {
-			execIDs = append(execIDs, p.ExecutionID)
+	if !appConfig.ServerSettings.ScriptsDisabled {
+		// it is important that the "ignoreOlder" parameter in this call is the
+		// same everywhere (which is here and in RunScript to check if there is
+		// already a pending script).
+		pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, scripts.MaxServerWaitTime)
+		if err != nil {
+			return fleet.OrbitConfig{}, err
 		}
-		notifs.PendingScriptExecutionIDs = execIDs
+		if len(pending) > 0 {
+			execIDs := make([]string, 0, len(pending))
+			for _, p := range pending {
+				execIDs = append(execIDs, p.ExecutionID)
+			}
+			notifs.PendingScriptExecutionIDs = execIDs
+		}
 	}
 
 	// team ID is not nil, get team specific flags and options
@@ -280,11 +283,21 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			notifs.EnforceBitLockerEncryption = true
 		}
 
+		var updateChannels *fleet.OrbitUpdateChannels
+		if len(opts.UpdateChannels) > 0 {
+			var uc fleet.OrbitUpdateChannels
+			if err := json.Unmarshal(opts.UpdateChannels, &uc); err != nil {
+				return fleet.OrbitConfig{}, err
+			}
+			updateChannels = &uc
+		}
+
 		return fleet.OrbitConfig{
-			Flags:         opts.CommandLineStartUpFlags,
-			Extensions:    extensionsFiltered,
-			Notifications: notifs,
-			NudgeConfig:   nudgeConfig,
+			Flags:          opts.CommandLineStartUpFlags,
+			Extensions:     extensionsFiltered,
+			Notifications:  notifs,
+			NudgeConfig:    nudgeConfig,
+			UpdateChannels: updateChannels,
 		}, nil
 	}
 
@@ -316,11 +329,21 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.EnforceBitLockerEncryption = true
 	}
 
+	var updateChannels *fleet.OrbitUpdateChannels
+	if len(opts.UpdateChannels) > 0 {
+		var uc fleet.OrbitUpdateChannels
+		if err := json.Unmarshal(opts.UpdateChannels, &uc); err != nil {
+			return fleet.OrbitConfig{}, err
+		}
+		updateChannels = &uc
+	}
+
 	return fleet.OrbitConfig{
-		Flags:         opts.CommandLineStartUpFlags,
-		Extensions:    extensionsFiltered,
-		Notifications: notifs,
-		NudgeConfig:   nudgeConfig,
+		Flags:          opts.CommandLineStartUpFlags,
+		Extensions:     extensionsFiltered,
+		Notifications:  notifs,
+		NudgeConfig:    nudgeConfig,
+		UpdateChannels: updateChannels,
 	}, nil
 }
 

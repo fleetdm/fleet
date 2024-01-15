@@ -594,6 +594,7 @@ func (e *authEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler
 		mw := e.customMiddleware[i]
 		endp = mw(endp)
 	}
+
 	return newServer(endp, makeDecoder(v), e.opts)
 }
 

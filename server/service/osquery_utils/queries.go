@@ -1307,10 +1307,16 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 		// "Microsoft Teams" on macOS defines the `bundle_short_version` (CFBundleShortVersionString) in a different
 		// unexpected version format. Thus here we transform the version string to the expected format
 		// (see https://learn.microsoft.com/en-us/officeupdates/teams-app-versioning).
-		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed to `1.6.00.22155`.
+		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed
+		// to `1.6.00.22155` || s.Name == "Microsoft Teams (work or school).app".
+
+		// Note: in December 2023, Microsoft released "New Teams" for MacOS. This new version of
+		// Teams uses a completely different versioning scheme, which is documented at the URL
+		// above. Existing versions of Teams on MacOS were renamed to "Microsoft Teams Classic" and still use
+		// the same versioning scheme discussed above.
 		{
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return h.Platform == "darwin" && s.Name == "Microsoft Teams.app"
+				return h.Platform == "darwin" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
 			},
 			mutateSoftware: func(s *fleet.Software) {
 				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {

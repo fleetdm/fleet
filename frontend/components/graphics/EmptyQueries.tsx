@@ -9,12 +9,12 @@ const EmptyQueries = () => {
       fill="none"
       viewBox="0 0 322 176"
     >
-      <g clipPath="url(#clip0_121_352)">
+      <g clipPath="url(#emptyqueries_clippath)">
         <path
           fill="#F1F0FF"
           d="M162.5 176c41.421 0 75-33.579 75-75s-33.579-75-75-75-75 33.579-75 75 33.579 75 75 75z"
         />
-        <g filter="url(#filter0_d_121_352)">
+        <g filter="url(#emptyqueries_filter)">
           <path
             fill="#fff"
             d="M313 61H9a8 8 0 00-8 8v64a8 8 0 008 8h304a8 8 0 008-8V69a8 8 0 00-8-8z"
@@ -68,14 +68,14 @@ const EmptyQueries = () => {
         >
           <path fill="#fff" d="M150 12h24v24h-24V12z" />
         </mask>
-        <g fill="#fff" mask="url(#mask0_121_352)">
+        <g fill="#fff" mask="url(#emptyqueries_mask)">
           <path d="M173.1 30.75l-3.45-3.3c.9-1.35 1.35-3.15 1.35-4.95 0-5.85-4.65-10.5-10.5-10.5S150 16.65 150 22.5 154.65 33 160.5 33c1.8 0 3.45-.45 4.8-1.2l3.45 3.3c.6.6 1.35.9 2.1.9s1.5-.3 2.1-.9c1.35-1.2 1.35-3.15.15-4.35zm-21.3-8.25c0-4.8 3.9-8.7 8.7-8.7 4.8 0 8.7 3.9 8.7 8.7 0 4.8-3.9 8.7-8.7 8.7-4.8 0-8.7-3.9-8.7-8.7zm20.1 11.4c-.45.45-1.2.45-1.8 0l-3.15-3c.6-.45 1.2-1.05 1.8-1.8l3.15 3c.45.45.45 1.2 0 1.8z" />
           <path d="M164.4 18.45l-4.8 5.85-3.15-2.25c-.45-.3-.9-.3-1.2.15-.3.45-.3.9.15 1.2l4.5 3.3 5.85-7.2c.3-.45.3-.9-.15-1.2-.3-.3-.9-.3-1.2.15z" />
         </g>
       </g>
       <defs>
         <filter
-          id="filter0_d_121_352"
+          id="emptyqueries_filter"
           width="328"
           height="92"
           x="-3"
@@ -102,7 +102,7 @@ const EmptyQueries = () => {
             result="shape"
           />
         </filter>
-        <clipPath id="clip0_121_352">
+        <clipPath id="emptyqueries_clippath">
           <path fill="#fff" d="M0 0H322V176H0z" />
         </clipPath>
       </defs>

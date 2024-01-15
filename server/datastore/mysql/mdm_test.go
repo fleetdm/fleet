@@ -9,11 +9,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/micromdm/nanomdm/mdm"
 	"github.com/stretchr/testify/require"
 )
 

@@ -13,7 +13,8 @@
 			"live_query_disabled": false,
 			"query_reports_disabled": false,
 			"enable_analytics": false,
-			"deferred_save_host": false
+			"deferred_save_host": false,
+			"scripts_disabled": false
 		},
 		"smtp_settings": {
 			"enable_smtp": false,

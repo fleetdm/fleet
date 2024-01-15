@@ -6997,18 +6997,30 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.Equal(t, true, info.InstalledFromDEP)
 	require.EqualValues(t, tm.ID, info.TeamID)
 	require.False(t, info.DEPAssignedToFleet)
+	require.True(t, info.OsqueryEnrolled)
 
 	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host})
 	require.NoError(t, err)
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
 	require.True(t, info.DEPAssignedToFleet)
+	require.True(t, info.OsqueryEnrolled)
 
 	err = ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial})
 	require.NoError(t, err)
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
 	require.False(t, info.DEPAssignedToFleet)
+	require.True(t, info.OsqueryEnrolled)
+
+	// host with an empty node key
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET node_key = NULL WHERE uuid = ?`, host.UUID)
+		return err
+	})
+	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
+	require.NoError(t, err)
+	require.False(t, info.OsqueryEnrolled)
 }
 
 func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {

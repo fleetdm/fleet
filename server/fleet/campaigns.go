@@ -70,4 +70,5 @@ type QueryCampaignResult struct {
 	QueryID uint          `json:"query_id"`
 	Error   *string       `json:"error,omitempty"`
 	Results []QueryResult `json:"results"`
+	Err     error         `json:"-"`
 }

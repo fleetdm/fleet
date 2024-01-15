@@ -1,4 +1,0 @@
-At fleetd startup/upgrade, reduced the number of API calls to the server.
-- Removed call to fleet/orbit/device_token unless token needs to be updated.
-- Changed call to fleet/device/{token}/desktop with a less resource intensive call to fleet/device/{token}/ping
-- Removed call to fleet/orbit/ping

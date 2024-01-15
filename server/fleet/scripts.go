@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 )
 
 // Script represents a saved script that can be executed on a host.
@@ -203,7 +205,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	}
 
 	if hsr.ExitCode == nil {
-		if hsr.HostTimeout(1 * time.Minute) {
+		if hsr.HostTimeout(scripts.MaxServerWaitTime) {
 			return RunScriptHostTimeoutErrMsg
 		}
 		return RunScriptAlreadyRunningErrMsg
@@ -211,16 +213,16 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 
 	switch *hsr.ExitCode {
 	case -1:
-		return "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
+		return RunScriptScriptTimeoutErrMsg
 	case -2:
-		return "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
+		return RunScriptDisabledErrMsg
 	default:
 		return ""
 	}
 }
 
 func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
-	return time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
+	return hsr.ExitCode == nil && time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
 }
 
 const MaxScriptRuneLen = 10000
