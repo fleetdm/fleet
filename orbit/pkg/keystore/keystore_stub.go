@@ -4,7 +4,7 @@ package keystore
 
 import "errors"
 
-func Exists() bool {
+func Supported() bool {
 	return false
 }
 

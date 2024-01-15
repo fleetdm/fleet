@@ -12,14 +12,16 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"unsafe"
 )
 
 const service = "com.fleetdm.fleetd.enroll.secret"
 
 var serviceStringRef = stringToCFString(service)
+var mu sync.Mutex
 
-func Exists() bool {
+func Supported() bool {
 	return true
 }
 
@@ -34,6 +36,9 @@ func AddSecret(secret string) error {
 		return errors.New("secret cannot be empty")
 	}
 
+	mu.Lock()
+	defer mu.Unlock()
+
 	query := C.CFDictionaryCreateMutable(
 		C.kCFAllocatorDefault,
 		0,
@@ -42,7 +47,7 @@ func AddSecret(secret string) error {
 	)
 	defer C.CFRelease(C.CFTypeRef(query))
 
-	data := C.CFDataCreate(C.kCFAllocatorDefault, (*C.UInt8)(unsafe.Pointer(C.CString(secret))), C.CFIndex(len(secret)))
+	data := C.CFDataCreate(C.kCFAllocatorDefault, (*C.UInt8)(&[]byte(secret)[0]), C.CFIndex(len(secret)))
 	defer C.CFRelease(C.CFTypeRef(data))
 
 	C.CFDictionaryAddValue(query, unsafe.Pointer(C.kSecClass), unsafe.Pointer(C.kSecClassGenericPassword))
@@ -63,6 +68,9 @@ func UpdateSecret(secret string) error {
 		return errors.New("secret cannot be empty")
 	}
 
+	mu.Lock()
+	defer mu.Unlock()
+
 	query := C.CFDictionaryCreateMutable(
 		C.kCFAllocatorDefault,
 		0,
@@ -82,7 +90,7 @@ func UpdateSecret(secret string) error {
 	)
 	defer C.CFRelease(C.CFTypeRef(update))
 
-	data := C.CFDataCreate(C.kCFAllocatorDefault, (*C.UInt8)(unsafe.Pointer(C.CString(secret))), C.CFIndex(len(secret)))
+	data := C.CFDataCreate(C.kCFAllocatorDefault, (*C.UInt8)(&[]byte(secret)[0]), C.CFIndex(len(secret)))
 	defer C.CFRelease(C.CFTypeRef(data))
 	C.CFDictionaryAddValue(update, unsafe.Pointer(C.kSecValueData), unsafe.Pointer(data))
 
@@ -93,9 +101,13 @@ func UpdateSecret(secret string) error {
 	return nil
 }
 
-// GetSecret will retrieve a secret from the keychain. If the secret was added by user or another application,
+// GetSecret will retrieve a secret from the keychain. If secret doesn't exist, it will return "", nil.
+// If the secret was added by user or another application,
 // then this application needs to be authorized to retrieve the secret.
 func GetSecret() (string, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
 	var query C.CFMutableDictionaryRef
 	query = C.CFDictionaryCreateMutable(
 		C.kCFAllocatorDefault,
@@ -127,6 +139,9 @@ func GetSecret() (string, error) {
 // deleteSecret will delete a secret from the keychain.
 // This function is only used by tests. It is here because usage of CGO in tests is not supported.
 func deleteSecret() error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	query := C.CFDictionaryCreateMutable(
 		C.kCFAllocatorDefault,
 		0,

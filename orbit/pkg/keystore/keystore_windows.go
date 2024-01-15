@@ -11,8 +11,9 @@ import (
 
 // Using a var instead of const so that it can be overridden in tests.
 var service = "com.fleetdm.fleetd.enroll.secret"
+var mu sync.Mutex
 
-func Exists() bool {
+func Supported() bool {
 	return true
 }
 
@@ -20,26 +21,32 @@ func Name() string {
 	return "Credential Manager"
 }
 
-// AddSecret will add a secret to the keychain. This secret can be retrieved by this application without any user authorization.
+// AddSecret will add a secret to the Credential Manager. This secret can be retrieved by this user without additional authorization.
 func AddSecret(secret string) error {
 	secret = strings.TrimSpace(secret)
 	if secret == "" {
 		return errors.New("secret cannot be empty")
 	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
 	cred := wincred.NewGenericCredential(service)
 	cred.CredentialBlob = []byte(secret)
 	err := cred.Write()
 	return err
 }
 
-// UpdateSecret will update a secret in the keychain. This secret can be retrieved by this application without any user authorization.
+// UpdateSecret will update a secret in the Credential Manager.
 func UpdateSecret(secret string) error {
 	return AddSecret(secret)
 }
 
-// GetSecret will retrieve a secret from the keychain. If the secret was added by user or another application,
-// then this application needs to be authorized to retrieve the secret.
+// GetSecret will retrieve a secret from the Credential Manager. If secret doesn't exist, it will return "", nil.
 func GetSecret() (string, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
 	cred, err := wincred.GetGenericCredential(service)
 	if err != nil {
 		var errno syscall.Errno

@@ -11,7 +11,7 @@ import (
 
 func TestExists(t *testing.T) {
 	t.Parallel()
-	assert.True(t, Exists())
+	assert.True(t, Supported())
 }
 
 func TestName(t *testing.T) {
@@ -52,6 +52,9 @@ func TestSecret(t *testing.T) {
 	result, err = GetSecret()
 	require.NoError(t, err)
 	assert.Equal(t, secret, result)
+
+	// Try to add a secret again -- fails for macOS keychain
+	assert.Error(t, AddSecret("willFail"))
 
 	// Update empty secret
 	assert.Error(t, UpdateSecret(""))

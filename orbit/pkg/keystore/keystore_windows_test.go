@@ -12,7 +12,7 @@ import (
 
 func TestExists(t *testing.T) {
 	t.Parallel()
-	assert.True(t, Exists())
+	assert.True(t, Supported())
 }
 
 func TestName(t *testing.T) {
@@ -28,6 +28,8 @@ func TestSecret(t *testing.T) {
 	service = "com.fleetdm.fleetd.enroll.secret.test"
 
 	deleteSecret := func() {
+		mu.Lock()
+		defer mu.Unlock()
 		cred, err := wincred.GetGenericCredential(service)
 		if err != nil {
 			return

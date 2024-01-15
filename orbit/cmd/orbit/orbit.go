@@ -278,7 +278,7 @@ func main() {
 
 			b, err := os.ReadFile(enrollSecretPath)
 			if err != nil {
-				if !keystore.Exists() || c.Bool("disable-keystore") {
+				if !errors.Is(err, os.ErrNotExist) || !keystore.Supported() || c.Bool("disable-keystore") {
 					return fmt.Errorf("read enroll secret file: %w", err)
 				}
 			} else {
@@ -286,7 +286,7 @@ func main() {
 				if err = c.Set("enroll-secret", secret); err != nil {
 					return fmt.Errorf("set enroll secret from file: %w", err)
 				}
-				if keystore.Exists() && !c.Bool("disable-keystore") {
+				if keystore.Supported() && !c.Bool("disable-keystore") {
 					// Check if secret is already in the keystore.
 					secretFromKeystore, err := keystore.GetSecret()
 					if err != nil {
@@ -297,7 +297,7 @@ func main() {
 							log.Warn().Err(err).Msgf("failed to add enroll secret to %v", keystore.Name())
 						} else {
 							log.Info().Msgf("added enroll secret to keystore: %v", keystore.Name())
-							deleteIfExists(err, enrollSecretPath)
+							deleteSecretPathIfExists(enrollSecretPath)
 						}
 					} else if secretFromKeystore != secret {
 						// Keystore secret found, but needs to be updated.
@@ -305,16 +305,16 @@ func main() {
 							log.Warn().Err(err).Msgf("failed to update enroll secret in %v", keystore.Name())
 						} else {
 							log.Info().Msgf("updated enroll secret in keystore: %v", keystore.Name())
-							deleteIfExists(err, enrollSecretPath)
+							deleteSecretPathIfExists(enrollSecretPath)
 						}
 					} else {
 						// Keystore secret found, and it matches the secret from the file.
-						deleteIfExists(err, enrollSecretPath)
+						deleteSecretPathIfExists(enrollSecretPath)
 					}
 				}
 			}
 		}
-		if c.String("enroll-secret") == "" && keystore.Exists() && !c.Bool("disable-keystore") &&
+		if c.String("enroll-secret") == "" && keystore.Supported() && !c.Bool("disable-keystore") &&
 			!(runtime.GOOS == "darwin" && c.Bool("use-system-configuration")) {
 			secret, err := keystore.GetSecret()
 			if err != nil || secret == "" {
@@ -1109,9 +1109,9 @@ func main() {
 	}
 }
 
-func deleteIfExists(err error, enrollSecretPath string) {
+func deleteSecretPathIfExists(enrollSecretPath string) {
 	// Since the secret is in the keystore, we can delete the original secret file if it exists
-	if _, err = os.Stat(enrollSecretPath); err == nil {
+	if _, err := os.Stat(enrollSecretPath); err == nil {
 		log.Info().Msgf("deleting enroll secret file: %v", enrollSecretPath)
 		err = os.Remove(enrollSecretPath)
 		if err != nil {
