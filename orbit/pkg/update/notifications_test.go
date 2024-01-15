@@ -733,7 +733,7 @@ func TestBitlockerOperations(t *testing.T) {
 
 	t.Run("decrypts the disk if previously encrypted", func(t *testing.T) {
 		setupTest()
-		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.CONVERSION_STATUS_FULLY_ENCRYPTED}
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyEncrypted}
 		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
 			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 		}
@@ -749,7 +749,7 @@ func TestBitlockerOperations(t *testing.T) {
 	t.Run("reports to the server if decryption fails", func(t *testing.T) {
 		setupTest()
 		shouldFailDecryption = true
-		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.CONVERSION_STATUS_FULLY_ENCRYPTED}
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyEncrypted}
 		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
 			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 		}
