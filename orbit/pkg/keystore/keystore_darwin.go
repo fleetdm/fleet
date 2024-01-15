@@ -9,7 +9,9 @@ package keystore
 */
 import "C"
 import (
+	"errors"
 	"fmt"
+	"strings"
 	"unsafe"
 )
 
@@ -27,6 +29,10 @@ func Name() string {
 
 // AddSecret will add a secret to the keychain. This secret can be retrieved by this application without any user authorization.
 func AddSecret(secret string) error {
+	secret = strings.TrimSpace(secret)
+	if secret == "" {
+		return errors.New("secret cannot be empty")
+	}
 
 	query := C.CFDictionaryCreateMutable(
 		C.kCFAllocatorDefault,
@@ -52,6 +58,10 @@ func AddSecret(secret string) error {
 
 // UpdateSecret will update a secret in the keychain. This secret can be retrieved by this application without any user authorization.
 func UpdateSecret(secret string) error {
+	secret = strings.TrimSpace(secret)
+	if secret == "" {
+		return errors.New("secret cannot be empty")
+	}
 
 	query := C.CFDictionaryCreateMutable(
 		C.kCFAllocatorDefault,

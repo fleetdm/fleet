@@ -43,12 +43,18 @@ func TestSecret(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "", result)
 
+	// Add empty secret
+	assert.Error(t, AddSecret(""))
+
 	// Add secret
 	secret := "testSecret"
 	require.NoError(t, AddSecret(secret))
 	result, err = GetSecret()
 	require.NoError(t, err)
 	assert.Equal(t, secret, result)
+
+	// Update empty secret
+	assert.Error(t, UpdateSecret(""))
 
 	// Update secret
 	secret = "updatedSecret"
