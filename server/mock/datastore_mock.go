@@ -3908,6 +3908,13 @@ func (s *DataStore) InsertOSVulnerability(ctx context.Context, vuln fleet.OSVuln
 	return s.InsertOSVulnerabilityFunc(ctx, vuln, source)
 }
 
+func (s *DataStore) DeleteOutOfDateOSVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+	s.mu.Lock()
+	s.DeleteOutOfDateOSVulnerabilitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteOutOfDateOSVulnerabilitiesFunc(ctx, source, duration)
+}
+
 func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMAppleConfigProfileFuncInvoked = true
