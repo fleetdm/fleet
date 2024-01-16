@@ -967,8 +967,8 @@ module.exports = {
           return _.endsWith(filePath, 'rituals.yml');
         });
 
-        let githubLabelsToCheck = [];
-        let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly'];
+        let githubLabelsToCheck = {};
+        let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly', 'Monthly'];
         // Process each rituals YAML file. These will be added to the builtStaticContent as JSON
         for(let ritualsYamlFilePath of ritualTablesYamlFiles){
           // Get this rituals.yml file's parent folder name, we'll use this as the key for this section's rituals in the ritualsTables dictionary
@@ -1015,13 +1015,23 @@ module.exports = {
               if(!ritual.autoIssue.labels || !_.isArray(ritual.autoIssue.labels)){ // If the autoIssue value exists, but does not contain an array of labels, throw an error
                 throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. "${ritual.task}" contains an invalid autoIssue value. To resolve, add a "labels" value (An array of strings) to the autoIssue value.`);
               }
+              if(!ritual.autoIssue.repo || typeof ritual.autoIssue.repo !== 'string') {
+                throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. "${ritual.task}" has an 'autoIssue' value that is missing a 'repo'. Please add the name of the repo that issues will be created in to the "autoIssue.repo" value and try running this script again.`);
+              }
+              if(!_.contains(['fleet', 'confidential'], ritual.autoIssue.repo)) {
+                throw new Error(`Could not built rituals from ${ritualsYamlFilePath}. The "autoIssue.repo" value of "${ritual.task}" contains an invalid GitHub repo (${ritual.autoIssue.repo}). Please change this value to be either "fleet" or "confidential" and try running this script again.`);
+              }
               // Check each label in the labels array
               for(let label of ritual.autoIssue.labels) {
                 if(typeof label !== 'string') {
                   throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual (${ritual.task}) in the YAML file contains an invalid value in the labels array of the autoIssue value. To resolve, ensure every value in the nested labels array of the autoIssue value is a string.`);
                 }
+                if(!githubLabelsToCheck[ritual.autoIssue.repo]){
+                  // Create an empty array if an array does not exist for this repo.
+                  githubLabelsToCheck[ritual.autoIssue.repo] = [];
+                }
                 // Add this label to the array of labels to check. We'll check to see if all labels are valid at the after we've processed all rituals YAML files.
-                githubLabelsToCheck.push({
+                githubLabelsToCheck[ritual.autoIssue.repo].push({
                   label: label,
                   ritualUsingLabel: ritual.task,
                   ritualsYamlFilePath: relativeRepoPathForThisRitualsFile
@@ -1035,28 +1045,31 @@ module.exports = {
 
         }//∞
         // Validate all GitHub labels used in all ritual yaml files. Note: We check these here to minimize requests to the GitHub API. We'll send requests to get all existing labels in the Fleet repo, and will throw an error if a label in a rituals YAML file does not exist in the repo.
-        if(!skipGithubRequests) {
-          let allExistingLabelsInFleetRepo = [];
-          let pageOfResultsReturned = 1;
-          // Get all the labels in the fleetdm/fleet repo. Note: We use sails.helpers.flow.until() here so we can build
-          await sails.helpers.flow.until(async ()=>{
-            let pageOfLabels = await sails.helpers.http.get.with({
-              url: `https://api.github.com/repos/fleetdm/fleet/labels?per_page=100&page=${pageOfResultsReturned}`,
-              headers: baseHeadersForGithubRequests
-            });
-            allExistingLabelsInFleetRepo = allExistingLabelsInFleetRepo.concat(pageOfLabels);
-            pageOfResultsReturned++;
-            return pageOfLabels.length < 100;
-          });//∞
-          // Get an array containing only the names of labels.
-          let allLabelNames = _.pluck(allExistingLabelsInFleetRepo, 'name');
-          // Validate each label, if a label does not exist in the fleetdm/fleet repo, throw an error.
-          await sails.helpers.flow.simultaneouslyForEach(githubLabelsToCheck, async(labelInfo)=>{
-            if(!_.contains(allLabelNames, labelInfo.label)){
-              throw new Error(`Could not build rituals from ${labelInfo.ritualsYamlFilePath}. The labels array nested within the autoIssue value of a ritual (${labelInfo.ritualUsingLabel}) contains an invalid GitHub label (${labelInfo.label}). To resolve, make sure all labels in the labels array are labels that exist in the fleetdm/fleet repo.`);
-            }
-          });//∞
-        }//ﬁ
+        if(!skipGithubRequests){
+          for(let repo in githubLabelsToCheck){
+            let allExistingLabelsInSpecifiedRepo = [];
+            let pageOfResultsReturned = 0;
+            // Get all the labels in the specified repo.
+            await sails.helpers.flow.until(async ()=>{
+              let pageOfLabels = await sails.helpers.http.get.with({
+                url: `https://api.github.com/repos/fleetdm/${repo}/labels?per_page=100&page=${pageOfResultsReturned}`,
+                headers: baseHeadersForGithubRequests
+              });
+              allExistingLabelsInSpecifiedRepo = allExistingLabelsInSpecifiedRepo.concat(pageOfLabels);
+              pageOfResultsReturned++;
+              // This will stop running once all pages of labels in the specified GitHub repo have been returned.
+              return pageOfLabels.length < 100;
+            }, 10000);//∞   (maximum of 10s before giving up)
+            // Get an array containing only the names of labels.
+            let allLabelNamesInSpecifiedRepo = _.pluck(allExistingLabelsInSpecifiedRepo, 'name');
+            // Validate each label, if a label does not exist in the specified repo, throw an error.
+            await sails.helpers.flow.simultaneouslyForEach(githubLabelsToCheck[repo], async(labelInfo)=>{
+              if(!_.contains(allLabelNamesInSpecifiedRepo, labelInfo.label)){
+                throw new Error(`Could not build rituals from ${labelInfo.ritualsYamlFilePath}. The labels array nested within the autoIssue value of a ritual (${labelInfo.ritualUsingLabel}) contains an invalid GitHub label (${labelInfo.label}). To resolve, make sure all labels in the labels array are labels that exist in the repo that is soecificed in the .`);
+              }
+            });//∞
+          }
+        }
 
         // Add the rituals dictionary to builtStaticContent.rituals
         builtStaticContent.rituals = rituals;

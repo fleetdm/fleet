@@ -1,4 +1,4 @@
-## Fleet 4.43.1 (Jan 12, 2024)
+## Fleet 4.43.1 (Jan 15, 2024)
 
 ### Bug fixes
 
