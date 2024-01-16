@@ -103,6 +103,10 @@
         .input-field {
           width: 100%;
           max-width: 754px;
+
+          &__textarea {
+            min-width: 100%; // Cannot make textarea skinnier
+          }
         }
 
         &--smtp {
