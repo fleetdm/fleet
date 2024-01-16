@@ -40,16 +40,35 @@ func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity
 		cols = append(cols, "user_email")
 	}
 
-	insertStmt := `INSERT INTO activities (%s) VALUES (%s)`
-	sql := fmt.Sprintf(insertStmt, strings.Join(cols, ","), strings.Repeat("?,", len(cols)-1)+"?")
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		sql,
-		args...,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "new activity")
-	}
-	return nil
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		const insertActStmt = `INSERT INTO activities (%s) VALUES (%s)`
+		sql := fmt.Sprintf(insertActStmt, strings.Join(cols, ","), strings.Repeat("?,", len(cols)-1)+"?")
+		res, err := tx.ExecContext(ctx, sql, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "new activity")
+		}
+
+		// this supposes a reasonable amount of hosts per activity, to revisit if we
+		// get in the 10K+.
+		if ah, ok := activity.(fleet.ActivityHosts); ok {
+			const insertActHostStmt = `INSERT INTO host_activities (host_id, activity_id) VALUES `
+
+			var sb strings.Builder
+			if hostIDs := ah.HostIDs(); len(hostIDs) > 0 {
+				sb.WriteString(insertActHostStmt)
+				actID, _ := res.LastInsertId()
+				for _, hid := range hostIDs {
+					sb.WriteString(fmt.Sprintf("(%d, %d),", hid, actID))
+				}
+
+				stmt := strings.TrimSuffix(sb.String(), ",")
+				if _, err := tx.ExecContext(ctx, stmt); err != nil {
+					return ctxerr.Wrap(ctx, err, "insert host activity")
+				}
+			}
+		}
+		return nil
+	})
 }
 
 // ListActivities returns a slice of activities performed across the organization
