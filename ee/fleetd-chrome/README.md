@@ -1,6 +1,6 @@
 # Fleetd Chrome Extension
 
-## Packaging the extension
+## Packaging the extension locally
 Generate a .pem file to be the key for the chrome extension.
 
 (In parent dir)
@@ -55,6 +55,12 @@ The above command will generate an unpacked extension in `./dist`.
 npm run test
 ```
 
-### Test real builds
+## Release
 
-Real builds are pushed to `https://chrome-beta.fleetdm.com/updates.xml` with the extension ID `bfleegjcoffelppfmadimianphbcdjkb`.
+Release a new version via GitHub automation. Update the [package.json](./package.json) and [updates.xml](./updates.xml) versions, then tag a commit with `fleetd-chrome-vX.X.X` to kick off the build and deploy. The build is automatically uploaded to R2 and properly configured clients should be able to update immediately when the job completes. Note that automatic updates seem to only happen about once a day in Chrome -- Hit the "Update" button in `chrome://extensions` to trigger the update manually.
+
+### Beta releases
+
+Beta releases are pushed to `https://chrome-beta.fleetdm.com/updates.xml` with the extension ID `bfleegjcoffelppfmadimianphbcdjkb`.
+
+Kick off a beta release by updating the [package.json](./package.json) and [updates-beta.xml](./updates-beta.xml) versions, then tag a commit with `fleetd-chrome-vX.X.X-beta` to kick off the build and deploy.
