@@ -1259,7 +1259,7 @@ func (d *desktopRunner) execute() error {
 
 			// If no user is logged in via GUI, the command line returns "root".
 			if strings.TrimSpace(buf.String()) == "root" {
-				log.Info().Msg("no user found logged into GUI")
+				log.Debug().Msg("no user found logged into GUI")
 				buf.Reset()
 				return true
 			}
