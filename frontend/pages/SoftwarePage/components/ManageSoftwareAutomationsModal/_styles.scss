@@ -1,4 +1,4 @@
-.manage-policy-automations-modal {
+.manage-software-automations-modal {
   pre,
   code {
     background-color: $ui-off-white;
@@ -13,10 +13,8 @@
     color: $ui-error;
   }
 
-  &__policy-automations {
-    &__disabled {
-      @include disabled;
-    }
+  &__software-automations__disabled {
+    @include disabled;
   }
 
   &__no-integrations a {
