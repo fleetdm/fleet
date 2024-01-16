@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/keystore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
@@ -189,6 +190,11 @@ func main() {
 			Usage:   "Sets the email address of the user associated with the host when enrolling to Fleet. (requires Fleet >= v4.43.0)",
 			EnvVars: []string{"ORBIT_END_USER_EMAIL"},
 		},
+		&cli.BoolFlag{
+			Name:    "disable-keystore",
+			Usage:   "Disables the use of the keychain on macOS and Credentials Manager on Windows",
+			EnvVars: []string{"ORBIT_DISABLE_KEYSTORE"},
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -262,18 +268,61 @@ func main() {
 			return errors.New("insecure and update-tls-certificate may not be specified together")
 		}
 
-		if c.String("enroll-secret-path") != "" {
+		enrollSecretPath := c.String("enroll-secret-path")
+		if enrollSecretPath != "" {
 			if c.String("enroll-secret") != "" {
 				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
 			}
 
-			b, err := os.ReadFile(c.String("enroll-secret-path"))
-			if err != nil {
-				return fmt.Errorf("read enroll secret file: %w", err)
-			}
+			// Read secret from file. If secret is found and keystore enabled, write/overwrite the secret to the keystore and delete the file.
 
-			if err := c.Set("enroll-secret", strings.TrimSpace(string(b))); err != nil {
-				return fmt.Errorf("set enroll secret from file: %w", err)
+			b, err := os.ReadFile(enrollSecretPath)
+			if err != nil {
+				if !errors.Is(err, os.ErrNotExist) || !keystore.Supported() || c.Bool("disable-keystore") {
+					return fmt.Errorf("read enroll secret file: %w", err)
+				}
+			} else {
+				secret := strings.TrimSpace(string(b))
+				if err = c.Set("enroll-secret", secret); err != nil {
+					return fmt.Errorf("set enroll secret from file: %w", err)
+				}
+				if keystore.Supported() && !c.Bool("disable-keystore") {
+					// Check if secret is already in the keystore.
+					secretFromKeystore, err := keystore.GetSecret()
+					if err != nil {
+						log.Warn().Err(err).Msgf("failed to retrieve enroll secret from %v", keystore.Name())
+					} else if secretFromKeystore == "" {
+						// Keystore secret not found, so we will add it to the keystore.
+						if err = keystore.AddSecret(secret); err != nil {
+							log.Warn().Err(err).Msgf("failed to add enroll secret to %v", keystore.Name())
+						} else {
+							log.Info().Msgf("added enroll secret to keystore: %v", keystore.Name())
+							deleteSecretPathIfExists(enrollSecretPath)
+						}
+					} else if secretFromKeystore != secret {
+						// Keystore secret found, but needs to be updated.
+						if err = keystore.UpdateSecret(secret); err != nil {
+							log.Warn().Err(err).Msgf("failed to update enroll secret in %v", keystore.Name())
+						} else {
+							log.Info().Msgf("updated enroll secret in keystore: %v", keystore.Name())
+							deleteSecretPathIfExists(enrollSecretPath)
+						}
+					} else {
+						// Keystore secret found, and it matches the secret from the file.
+						deleteSecretPathIfExists(enrollSecretPath)
+					}
+				}
+			}
+		}
+		if c.String("enroll-secret") == "" && keystore.Supported() && !c.Bool("disable-keystore") &&
+			!(runtime.GOOS == "darwin" && c.Bool("use-system-configuration")) {
+			secret, err := keystore.GetSecret()
+			if err != nil || secret == "" {
+				return fmt.Errorf("failed to retrieve enroll secret from %v: %w", keystore.Name(), err)
+			}
+			log.Info().Msgf("found enroll secret in keystore: %v", keystore.Name())
+			if err = c.Set("enroll-secret", secret); err != nil {
+				return fmt.Errorf("set enroll secret from keystore: %w", err)
 			}
 		}
 
@@ -1060,6 +1109,17 @@ func main() {
 	}
 }
 
+func deleteSecretPathIfExists(enrollSecretPath string) {
+	// Since the secret is in the keystore, we can delete the original secret file if it exists
+	if _, err := os.Stat(enrollSecretPath); err == nil {
+		log.Info().Msgf("deleting enroll secret file: %v", enrollSecretPath)
+		err = os.Remove(enrollSecretPath)
+		if err != nil {
+			log.Warn().Err(err).Msgf("failed to delete enroll secret file: %v", enrollSecretPath)
+		}
+	}
+}
+
 // setServerOverrides overrides specific variables in c with values fetched from Fleet.
 func setServerOverrides(c *cli.Context) fallbackServerOverridesConfig {
 	overrideCfg, err := loadServerOverrides(c.String("root-dir"))
@@ -1336,6 +1396,7 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 	log.Debug().Str("query", systemQuery).Msg("running single query")
 	out, err := exec.Command(osqueryPath, args...).Output()
 	if err != nil {
+		log.Debug().Str("output", string(out)).Msg("getHostInfo via osquery")
 		return nil, err
 	}
 	var info []osqueryHostInfo

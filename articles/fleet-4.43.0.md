@@ -8,7 +8,6 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 ## Highlights
 
 * Enhanced user-device association
-* Script library for Linux
 * Disable scripts
 * Osquery version
 
@@ -16,12 +15,6 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 ### Enhanced user-device association
 
 Fleet introduces a significant improvement regarding the management of user information. This update allows Fleet users to set the end-user email address directly within Fleet without depending on external sources like a Google Chrome profile or an Identity Provider (IdP). This enhancement simplifies and streamlines associating user email addresses with their respective devices. Administrators have greater flexibility and control over user data by enabling direct input and managing end-user email addresses within the Fleet platform. This feature represents Fleet's ongoing commitment to user-friendly and adaptable device management solutions.
-
-
-### Script library for Linux
-
-Building on the existing feature outlined in the[ announcement of cross-platform script execution](https://fleetdm.com/announcements/introducing-cross-platform-script-execution), Fleet has now extended this functionality to include a script library specifically for Linux hosts. This addition effectively rounds out Fleet's capability in remote script execution across different operating systems, offering a more comprehensive and versatile toolset for administrators. The Linux script library facilitates efficient and streamlined management of Linux-based systems within the Fleet environment, enhancing the platform's overall utility and adaptability in diverse IT landscapes.
-
 
 ### Disable scripts
 

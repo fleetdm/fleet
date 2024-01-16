@@ -8,7 +8,7 @@ import (
 
 //go:generate go run ./mockimpl/impl.go -o datastore_mock.go "s *DataStore" "fleet.Datastore"
 //go:generate go run ./mockimpl/impl.go -o datastore_installers.go "s *InstallerStore" "fleet.InstallerStore"
-//go:generate go run ./mockimpl/impl.go -o nanomdm/storage.go "s *Storage" "github.com/micromdm/nanomdm/storage.AllStorage"
+//go:generate go run ./mockimpl/impl.go -o nanomdm/storage.go "s *Storage" "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage.AllStorage"
 //go:generate go run ./mockimpl/impl.go -o nanodep/storage.go "s *Storage" "github.com/micromdm/nanodep/storage.AllStorage"
 //go:generate go run ./mockimpl/impl.go -o scep/depot.go "d *Depot" "depot.Depot"
 

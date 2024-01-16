@@ -1650,6 +1650,20 @@ func TestSanitizeSoftware(t *testing.T) {
 				Version: "2400.1.104",
 			},
 		},
+		{
+			name: "MS Teams classic on MacOS",
+			h: &fleet.Host{
+				Platform: "darwin",
+			},
+			s: &fleet.Software{
+				Name:    "Microsoft Teams classic.app",
+				Version: "1.00.634263",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams classic.app",
+				Version: "1.6.00.34263",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())

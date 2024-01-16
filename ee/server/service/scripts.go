@@ -101,6 +101,9 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("host_id", fleet.RunScriptHostOfflineErrMsg)
 	}
 
+	// it is important that the "ignoreOlder" parameter in this call is the same
+	// everywhere (which is here and in the "get orbit config" endpoint to send
+	// the notification of scripts pending execution to the host).
 	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, scripts.MaxServerWaitTime)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")

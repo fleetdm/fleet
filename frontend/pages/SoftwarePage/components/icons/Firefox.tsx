@@ -9,7 +9,7 @@ const Firefox = (props: SVGProps<SVGSVGElement>) => (
       stroke="#E2E4EA"
       d="M.5 8A7.5 7.5 0 0 1 8 .5h16A7.5 7.5 0 0 1 31.5 8v16a7.5 7.5 0 0 1-7.5 7.5H8A7.5 7.5 0 0 1 .5 24z"
     />
-    <g clipPath="url(#Name=firefox_svg__a)">
+    <g clipPath="url(#Name=firefox_clippath)">
       <path
         fill="url(#Name=firefox_svg__b)"
         d="M23.288 6.233c-.584.68-.857 2.21-.264 3.762.591 1.552 1.5 1.215 2.066 2.797.747 2.087.399 4.892.399 4.892s.898 2.6 1.523-.162c1.384-5.186-3.724-10.011-3.724-11.29"
@@ -283,7 +283,7 @@ const Firefox = (props: SVGProps<SVGSVGElement>) => (
         <stop offset={0.838} stopColor="#FF8E00" stopOpacity={0.172} />
         <stop offset={1} stopColor="#FF8E00" stopOpacity={0} />
       </linearGradient>
-      <clipPath id="Name=firefox_svg__a">
+      <clipPath id="Name=firefox_clippath">
         <path fill="#fff" d="M4.5 4h23.253v24H4.5z" />
       </clipPath>
     </defs>
