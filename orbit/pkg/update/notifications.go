@@ -517,7 +517,6 @@ func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fle
 		if err := w.decryptVolume(targetVolume); err != nil {
 			log.Error().Err(err).Msg("decryption failed")
 
-			// TODO: discuss: should we continue and try to encrypt the disk anyways instead?
 			if serverErr := w.updateFleetServer("", err); serverErr != nil {
 				log.Error().Err(serverErr).Msg("failed to send decryption failure to Fleet Server")
 				return
@@ -526,13 +525,10 @@ func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fle
 
 		// return regardless of the operation output.
 		//
-		// - if we failed to decrypt the disk, we don't want to continue
-		// - if we started the decryption process, it might take a while for the
-		//   disk to be fully decrypted
-		//
-		// TODO:
-		// - revisit this logic in code review with the team
-		// - should we do `w.lastRun = time.Now()` to retry again in an hour?
+		// the decryption process takes an unknown amount of time (depending on
+		// factors outside of our control) and the next tick will be a noop if the
+		// disk is not ready to be encrypted yet (due to the
+		// w.bitLockerActionInProgress check above)
 		return
 	}
 
