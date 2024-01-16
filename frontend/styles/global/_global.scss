@@ -97,7 +97,7 @@ form,
 
   .button-wrap {
     margin: 0;
-    margin-top: $pad-medium; // 24px + 16px = 40px gap on Figma
+    margin-top: $pad-medium; // 24px gap between form fields + this additional 16px = style-guide specified 40px between form submit and above field
     display: flex;
     gap: $pad-medium;
   }

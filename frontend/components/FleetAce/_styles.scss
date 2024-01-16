@@ -24,9 +24,7 @@
   }
 
   &__help-text {
-    font-size: $x-small;
-    font-weight: $regular;
-    color: $core-fleet-blue;
+    @include help-text;
 
     code {
       color: $core-vibrant-blue;
