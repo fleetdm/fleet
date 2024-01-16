@@ -135,6 +135,9 @@ type HostScriptRequestPayload struct {
 	HostID         uint   `json:"host_id"`
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
+	// UserID is filled automatically from the context's user (the authenticated
+	// user that made the API request).
+	UserID *uint `json:"-"`
 }
 
 type HostScriptResultPayload struct {
@@ -173,6 +176,11 @@ type HostScriptResult struct {
 	// ScriptID is the id of the saved script to execute, or nil if this was an
 	// anonymous script execution.
 	ScriptID *uint `json:"script_id" db:"script_id"`
+	// UserID is the id of the user that requested execution. It is not part of
+	// the rendered JSON as it is only returned by the
+	// /hosts/:id/activities/upcoming endpoint which doesn't use this struct as
+	// return type.
+	UserID *uint `json:"-" db:"user_id"`
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.

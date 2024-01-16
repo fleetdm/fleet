@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -48,10 +49,12 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	var nfe *notFoundError
 	require.ErrorAs(t, err, &nfe)
 
-	// create a createdScript execution request
+	// create a createdScript execution request (with a user)
+	u := test.NewUser(t, ds, "Bob", "bob@example.com", true)
 	createdScript, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
 		HostID:         1,
 		ScriptContents: "echo",
+		UserID:         &u.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, createdScript.ID)
@@ -61,6 +64,8 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.Equal(t, "echo", createdScript.ScriptContents)
 	require.Nil(t, createdScript.ExitCode)
 	require.Empty(t, createdScript.Output)
+	require.NotNil(t, createdScript.UserID)
+	require.Equal(t, u.ID, *createdScript.UserID)
 
 	// the script execution is now listed as pending for this host
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, 10*time.Second)
@@ -98,7 +103,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	expectScript.ExitCode = ptr.Int64(0)
 	require.Equal(t, &expectScript, script)
 
-	// create another script execution request
+	// create another script execution request (null user id this time)
 	createdScript, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
 		HostID:         1,
 		ScriptContents: "echo2",
@@ -106,6 +111,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotZero(t, createdScript.ID)
 	require.NotEmpty(t, createdScript.ExecutionID)
+	require.Nil(t, createdScript.UserID)
 
 	// the script result can be retrieved even if it has no result yet
 	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript.ExecutionID)
@@ -385,9 +391,9 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 
 	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
 		stmt := `
-INSERT INTO 
-	host_script_results (%s host_id, created_at, execution_id, exit_code, script_contents, output) 
-VALUES 
+INSERT INTO
+	host_script_results (%s host_id, created_at, execution_id, exit_code, script_contents, output)
+VALUES
 	(%s ?,?,?,?,?,?)`
 
 		args := []interface{}{}

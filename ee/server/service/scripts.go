@@ -116,6 +116,9 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 
 	// create the script execution request, the host will be notified of the
 	// script execution request via the orbit config's Notifications mechanism.
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+		request.UserID = &ctxUser.ID
+	}
 	script, err := svc.ds.NewHostScriptExecutionRequest(ctx, request)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create script execution request")
