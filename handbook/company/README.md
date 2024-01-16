@@ -76,9 +76,9 @@ Empathy leads to smarter decisions.  Take an interest in what people are going t
 ### 🟠 Ownership
 It takes a fully-activated mind to achieve ambitious goals, and remote work requires self-discipline.  Think like an owner of the company.
 
-- **Be reliable.**  Reply quickly to email, Slack, and GitHub.  Prepare for meetings.  Arrive [on time](https://fleetdm.com/handbook/company/communications#meetings).  Use handbooked [processes](https://about.gitlab.com/handbook/leadership/#process-gets-a-bad-rep) and [decisions](https://fleetdm.com/handbook/company/why-this-way).
+- **Be reliable.**  Reply quickly to email, Slack, and GitHub.  Prepare for meetings.  Arrive [on time](https://fleetdm.com/handbook/company/communications#meetings).  Use handbooked [processes](https://about.gitlab.com/handbook/leadership/#process-gets-a-bad-rep) and [decisions](https://fleetdm.com/handbook/company/why-this-way#why-this-way).
 - **Finish what you start.** Follow through on commitments.  Take responsibility for mistakes.  There's no time for finger-pointing.  [Just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).
-- **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
+- **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/company/communications#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
 - **Think long term.** Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose), beyond your department's goals. Reduce maintenance.  Beware the thicket.  <!-- Think [7 years ahead](https://fleetdm.com/handbook/company#strategy). -->
 
 ### 🟢 Results
@@ -99,16 +99,18 @@ To reach our goals, we need to [see reality clearly](https://en.wikipedia.org/wi
 - **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.  <!-- Use first principles thinking](https://en.wikipedia.org/wiki/Ab_initio#Science_and_engineering) -->
 
 ### 🟣 Openness
-Take the time to make [yourself](https://fleetdm.com/handbook/business-operations#meetings) and [your work](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) visible.  This also takes courage.
+Take the time to make [yourself](https://fleetdm.com/handbook/company/communications#meetings) and [your work](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) visible.  This also takes courage.
 
 - **Write it down.** Let people [find](https://about.gitlab.com/handbook/values/#findability) and [reproduce](https://about.gitlab.com/handbook/values/#reproducibility) your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
 - **Have short toes.** Everyone can contribute.  Get comfortable with [others contributing to your work](https://about.gitlab.com/handbook/values/#short-toes).
-- **Public by default.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality) carefully.
-- **Speak freely.** Interrupt and be interrupted.  Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way).   <!-- Commit to candor.  Speak your mind. -->
+- **Public by default.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality) carefully.
+- **Speak freely.** Interrupt and be interrupted.  Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way). 
 
 <!--
-What about the sixth value?
-(🪩 dumb luck)
+### 🪩 Dumb luck
+
+Ever wonder why there are 6 circles in the Fleet logo, but only 5 values?  Behold, the sixth value: dumb luck.
+
 -->
 
 ## History
