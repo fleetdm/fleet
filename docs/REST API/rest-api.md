@@ -4295,20 +4295,22 @@ solely on the response status code returned by this endpoint.
 
 ### Update disk encryption enforcement
 
+> `PATCH /api/v1/fleet/mdm/apple/settings` API endpoint is deprecated as of Fleet 4.45. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/main/docs/REST%20API/rest-api.md?plain=1#L4296C29-L4296C29).
+
 _Available in Fleet Premium_
 
-`PATCH /api/v1/fleet/mdm/apple/settings`
+`PATCH /api/v1/fleet/mdm/disk_encryption`
 
 #### Parameters
 
 | Name                   | Type    | In    | Description                                                                                 |
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
 | team_id                | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
-| enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
+| enable                 | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
 
 #### Example
 
-`PATCH /api/v1/fleet/mdm/apple/settings`
+`PATCH /api/v1/fleet/mdm/disk_encryption`
 
 ##### Default response
 
