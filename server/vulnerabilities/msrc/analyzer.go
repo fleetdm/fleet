@@ -163,6 +163,9 @@ func patched(
 			continue
 		}
 
+		// An empty FixBuild is a bug in the MSRC feed, last
+		// seen around apr-2021.  Ignoring it to avoid false
+		// positive vulnerabilities.
 		if fix.FixedBuild == "" {
 			continue
 		}
