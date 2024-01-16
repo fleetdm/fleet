@@ -1271,7 +1271,7 @@ func (d *desktopRunner) execute() error {
 			// we need to run the application as the login user.
 			// Package execuser provides multi-platform support for this.
 			if err := execuser.Run(d.desktopPath, opts...); err != nil {
-				log.Debug().Err(err).Msgf("execuser.Run whoops couldn't start %s", d.desktopPath)
+				log.Debug().Err(err).Msg("execuser.Run")
 				return true
 			}
 			return false
