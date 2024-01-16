@@ -7143,7 +7143,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ### List software
 
-Get a list of all software grouped by software title.
+Get a list of all software.
 
 `GET /api/v1/fleet/software/titles`
 
