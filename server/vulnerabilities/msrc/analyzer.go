@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	msrc "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
@@ -28,12 +29,13 @@ func Analyze(
 	}
 
 	// Find matching products inside the bulletin
-	osProduct := msrc.NewProductFromOS(os)
 	matchingPIDs := make(map[string]bool)
-	for pID, p := range bulletin.Products {
-		if p.Matches(osProduct) {
-			matchingPIDs[pID] = true
-		}
+	pID, err := bulletin.Products.GetMatchForOS(ctx, os)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "Analyzing MSRC vulnerabilities")
+	}
+	if pID != "" {
+		matchingPIDs[pID] = true
 	}
 
 	if len(matchingPIDs) == 0 {
