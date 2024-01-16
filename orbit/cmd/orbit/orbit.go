@@ -270,6 +270,7 @@ func main() {
 		}
 
 		enrollSecretPath := c.String("enroll-secret-path")
+		log.Error().Msgf("Hi Mom! enroll-secret-path: %s", enrollSecretPath)
 		if enrollSecretPath != "" {
 			if c.String("enroll-secret") != "" {
 				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
