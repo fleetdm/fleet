@@ -4089,9 +4089,9 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Run custom MDM command](#run-custom-mdm-command)
 - [Get custom MDM command results](#get-custom-mdm-command-results)
 - [List custom MDM commands](#list-custom-mdm-commands)
-- [Set custom MDM setup enrollment profile](#set-custom-mdm-setup-enrollment-profile)
-- [Get custom MDM setup enrollment profile](#get-custom-mdm-setup-enrollment-profile)
-- [Delete custom MDM setup enrollment profile](#delete-custom-mdm-setup-enrollment-profile)
+- [Set custom automatic enrollment profile](#set-custom-automatic-enrollment-setup-enrollment-profile)
+- [Get custom automatic enrollment profile](#get-custom-automatic-enrollment-enrollment-profile)
+- [Delete custom automatic enrollment enrollment profile](#delete-custom-mdm-setup-enrollment-profile)
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
 - [Turn off MDM for a host](#turn-off-mdm-for-a-host)
@@ -4506,11 +4506,11 @@ This endpoint returns the list of custom MDM commands that have been executed.
 }
 ```
 
-### Set custom MDM setup enrollment profile
+### Set custom automatic enrollment profile
 
 _Available in Fleet Premium_
 
-Sets the custom MDM setup enrollment profile for a team or no team.
+Sets the custom automatic enrollment profile for a team or no team.
 
 `POST /api/v1/fleet/mdm/apple/enrollment_profile`
 
@@ -4542,11 +4542,11 @@ Sets the custom MDM setup enrollment profile for a team or no team.
 }
 ```
 
-### Get custom MDM setup enrollment profile
+### Get custom automatic enrollment profile
 
 _Available in Fleet Premium_
 
-Gets the custom MDM setup enrollment profile for a team or no team.
+Gets the custom automatic enrollment profile for a team or no team.
 
 `GET /api/v1/fleet/mdm/apple/enrollment_profile`
 
@@ -4576,11 +4576,11 @@ Gets the custom MDM setup enrollment profile for a team or no team.
 }
 ```
 
-### Delete custom MDM setup enrollment profile
+### Delete custom automatic enrollment profile
 
 _Available in Fleet Premium_
 
-Deletes the custom MDM setup enrollment profile assigned to a team or no team.
+Deletes the custom automatic enrollment profile assigned to a team or no team.
 
 `DELETE /api/v1/fleet/mdm/apple/enrollment_profile`
 
