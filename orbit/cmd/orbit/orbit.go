@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"os/user"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -1251,15 +1250,17 @@ func (d *desktopRunner) execute() error {
 	for {
 		// First retry logic to start fleet-desktop.
 		if done := retry(30*time.Second, false, d.interruptCh, func() bool {
-			wcmd := exec.Command("w")
+			wcmd := exec.Command("/usr/bin/stat", "-f", "%Su", "/dev/console")
 			wcmd.Stderr = os.Stderr
 			wcmd.Stdout = &buf
 			if err := wcmd.Run(); err != nil {
-				log.Error().Err(err).Msg("calling w")
+				log.Error().Err(err).Msg("calling stat")
 			}
 
-			if !strings.Contains(buf.String(), "console") {
+			// If no user is logged in via GUI, the command line returns "root".
+			if strings.TrimSpace(buf.String()) == "root" {
 				log.Info().Msg("no user found logged into GUI")
+				buf.Reset()
 				return true
 			}
 
@@ -1271,9 +1272,6 @@ func (d *desktopRunner) execute() error {
 			// Package execuser provides multi-platform support for this.
 			if err := execuser.Run(d.desktopPath, opts...); err != nil {
 				log.Debug().Err(err).Msgf("execuser.Run whoops couldn't start %s", d.desktopPath)
-				u, err := user.Current()
-				log.Debug().Err(err).Msgf("[JVE_LOG]\ttrying to find user %+v", u)
-
 				return true
 			}
 			return false

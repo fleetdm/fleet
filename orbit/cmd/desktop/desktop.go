@@ -59,7 +59,6 @@ func setupRunners() {
 
 func main() {
 	setupLogs()
-	log.Error().Err(errors.New("JVE_ERR")).Msg("/n/n/n/HAHAHAHAHAHHAHA/n/n/n")
 
 	// Our TUF provided targets must support launching with "--help".
 	if len(os.Args) > 1 && os.Args[1] == "--help" {
@@ -134,7 +133,7 @@ func main() {
 		myDeviceItem := systray.AddMenuItem("Connecting...", "")
 		myDeviceItem.Disable()
 
-		transparencyItem := systray.AddMenuItem("TransparencyHEHEHEHEEH", "")
+		transparencyItem := systray.AddMenuItem("Transparency", "")
 		transparencyItem.Disable()
 
 		tokenReader := token.Reader{Path: identifierPath}
