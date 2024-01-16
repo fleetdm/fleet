@@ -37,7 +37,6 @@ func Up_20240116102550(tx *sql.Tx) error {
 			activity_id INT(10) UNSIGNED NOT NULL,
 
 			PRIMARY KEY (host_id, activity_id),
-      INDEX idx_host_activities_host_id (host_id),
 			FOREIGN KEY fk_host_activities_activity_id (activity_id) REFERENCES activities (id) ON DELETE CASCADE
     );
 	`
