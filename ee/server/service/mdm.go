@@ -698,15 +698,18 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		return "", "", "", ctxerr.Wrap(ctx, err, "validate request in session")
 	}
 
-	var ssoSettings fleet.SSOSettings
-	if appConfig.SSOSettings != nil {
-		ssoSettings = *appConfig.SSOSettings
+	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	// For now, until we get to #10999, we assume that SSO is disabled if
+	// no settings are provided.
+	if settings.IsEmpty() {
+		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
+		return "", "", "", ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
 	}
 
 	err = sso.ValidateAudiences(
 		*metadata,
 		auth,
-		ssoSettings.EntityID,
+		settings.EntityID,
 		appConfig.ServerSettings.ServerURL,
 		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
 	)
