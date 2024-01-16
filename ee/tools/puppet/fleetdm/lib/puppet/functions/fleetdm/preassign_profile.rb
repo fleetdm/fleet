@@ -21,32 +21,19 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
 
     # initiate the pre-assignment process with fleet server
     client_resp = client.preassign_profile(run_identifier, host_uuid, template, group, ensure_profile, closure_scope['environment'])
-    unless client_resp && client_resp['error']&.empty?
-      Puppet.err("Error pre-assigning profile #{profile_identifier} (ensure #{ensure_profile}): #{client_resp&.[]('error')} \n\n #{template}")
-      preassign_profile_response['error'] = client_resp['error']
-      return preassign_profile_response
-    end
+    return check_for_error(client_resp, "Error pre-assigning profile #{profile_identifier} (ensure #{ensure_profile})", template, preassign_profile_response) if client_resp&.[]('error')&.present?
 
     # get host by idenfifier to get the host id
     client_resp = client.get_host_by_identifier(host_uuid, env)
-    unless client_resp && client_resp['error']&.empty?
-      Puppet.err("Error getting host by identifier #{host_uuid}: #{client_resp&.[]('error')} \n\n #{template}")
-      preassign_profile_response['error'] = client_resp['error']
-      return preassign_profile_response
-    end
+    return check_for_error(client_resp, "Error getting host by identifier #{host_uuid}", template, preassign_profile_response) if client_resp&.[]('error')&.present?
+
     unless client_resp['body'] && client_resp['body']['host'] && client_resp['body']['host']['id']
-      Puppet.err("No host found for #{host_uuid} \n\n #{template}")
-      preassign_profile_response['error'] = client_resp['error']
-      return preassign_profile_response
+      return handle_error("No host found for #{host_uuid}", client_resp['error'], template, preassign_profile_response)
     end
 
     # get host profiles currently assigned to the host
     client_resp = client.get_host_profiles(client_resp['body']['host']['id'], env)
-    unless client_resp && client_resp['error']&.empty?
-      Puppet.err("Error getting host profiles for #{host_uuid}: #{client_resp&.[]('error')} \n\n #{template}")
-      preassign_profile_response['error'] = client_resp['error']
-      return preassign_profile_response
-    end
+    return check_for_error(client_resp, "Error getting host profiles for #{host_uuid}", template, preassign_profile_response) if client_resp&.[]('error')&.present?
 
     # if this is the first run on the device, profiles will be empty so we can skip the checksum
     # comparison and mark the resource as changed depending on the ensure_profile value
@@ -66,5 +53,17 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
     end
 
     preassign_profile_response
+  end
+
+  private
+
+  def handle_error(message, error, template, preassign_profile_response)
+    Puppet.err("#{message}: #{error} \n\n #{template}")
+    preassign_profile_response['error'] = error
+    preassign_profile_response
+  end
+
+  def check_for_error(response, error_message, template, preassign_profile_response)
+    handle_error(error_message, response&.[]('error'), template, preassign_profile_response) if response&.[]('error')&.present?
   end
 end
