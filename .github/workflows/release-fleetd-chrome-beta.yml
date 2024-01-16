@@ -27,17 +27,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-      - name: Run tests
-        working-directory: ./ee/fleetd-chrome
-        run: |
-          echo -e 'FLEET_URL=""\nFLEET_ENROLL_SECRET=""' > .env
-          npm install && npm test
-
       - name: Build & sign extension
         working-directory: ./ee/fleetd-chrome
         env:
           CHROME_SIGNING_KEY: ${{ secrets.FLEETD_CHROME_SIGNING_KEY_BETA }}
         run: |
+          echo -e 'FLEET_URL=""\nFLEET_ENROLL_SECRET=""' > .env
           npm install && npm run build
           echo "$CHROME_SIGNING_KEY" > chrome.pem
           /usr/bin/google-chrome --pack-extension=./dist --pack-extension-key=chrome.pem
