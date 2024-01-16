@@ -667,7 +667,6 @@ spec:
   id: 0
   name: foo
   source: chrome_extensions
-  browser: ""
   versions:
   - id: 0
     version: 0.0.1
@@ -687,7 +686,6 @@ spec:
   id: 0
   name: bar
   source: deb_packages
-  browser: ""
   versions:
   - id: 0
     version: 0.0.3
@@ -704,7 +702,6 @@ spec:
       "id": 0,
       "name": "foo",
       "source": "chrome_extensions",
-	  "browser": "",
       "hosts_count": 2,
       "versions_count": 3,
       "versions": [
@@ -736,7 +733,6 @@ spec:
       "id": 0,
       "name": "bar",
       "source": "deb_packages",
-	  "browser": "",
       "hosts_count": 0,
       "versions_count": 1,
       "versions": [
