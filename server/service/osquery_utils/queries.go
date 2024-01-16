@@ -520,7 +520,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.version
+		os.version,
 		r.data as display_version
 	FROM
 		os_version os,
