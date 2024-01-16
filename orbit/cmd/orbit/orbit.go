@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -33,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
@@ -1245,26 +1245,22 @@ func (d *desktopRunner) execute() error {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))
 	}
 
-	var buf bytes.Buffer
-
 	for {
 		// First retry logic to start fleet-desktop.
 		if done := retry(30*time.Second, false, d.interruptCh, func() bool {
-			wcmd := exec.Command("/usr/bin/stat", "-f", "%Su", "/dev/console")
-			wcmd.Stderr = os.Stderr
-			wcmd.Stdout = &buf
-			if err := wcmd.Run(); err != nil {
-				log.Error().Err(err).Msg("calling stat")
-			}
-
-			// If no user is logged in via GUI, the command line returns "root".
-			if strings.TrimSpace(buf.String()) == "root" {
-				log.Debug().Msg("no user found logged into GUI")
-				buf.Reset()
+			// On MacOS, if we attempt to run Fleet Desktop while the user is not logged in through
+			// the GUI, MacOS returns an error. See https://github.com/fleetdm/fleet/issues/14698
+			// for more details.
+			loggedInGui, err := user.IsUserLoggedInViaGui()
+			if err != nil {
+				log.Debug().Err(err).Msg("desktop.IsUserLoggedInGui")
 				return true
 			}
 
-			buf.Reset()
+			if !loggedInGui {
+				log.Debug().Msg("user not logged in via GUI")
+				return true
+			}
 
 			// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
 			// To be able to run the desktop application (mostly to register the icon in the system tray)
