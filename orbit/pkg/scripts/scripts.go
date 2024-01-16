@@ -59,7 +59,14 @@ func (r *Runner) Run(execIDs []string) error {
 			continue
 		}
 
-		if err := r.runOne(execID); err != nil {
+		script, err := r.Client.GetHostScript(execID)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("get host script: %w", err))
+			// Stop here since we want to preserve the order in which scripts are queued.
+			break
+		}
+
+		if err := r.runOne(script); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -80,13 +87,8 @@ func (r *Runner) Run(execIDs []string) error {
 	return nil
 }
 
-func (r *Runner) runOne(execID string) (finalErr error) {
+func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 	const maxOutputRuneLen = 10000
-
-	script, err := r.Client.GetHostScript(execID)
-	if err != nil {
-		return fmt.Errorf("get host script: %w", err)
-	}
 
 	if script.ExitCode != nil {
 		// already a result stored for this execution, skip, it shouldn't be sent
@@ -94,7 +96,7 @@ func (r *Runner) runOne(execID string) (finalErr error) {
 		return nil
 	}
 
-	runDir, err := r.createRunDir(execID)
+	runDir, err := r.createRunDir(script.ExecutionID)
 	if err != nil {
 		return fmt.Errorf("create run directory: %w", err)
 	}
@@ -147,7 +149,7 @@ func (r *Runner) runOne(execID string) (finalErr error) {
 	}
 
 	err = r.Client.SaveHostScriptResult(&fleet.HostScriptResultPayload{
-		ExecutionID: execID,
+		ExecutionID: script.ExecutionID,
 		Output:      string(output),
 		Runtime:     int(duration.Seconds()),
 		ExitCode:    exitCode,
