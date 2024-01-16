@@ -1258,7 +1258,6 @@ func (d *desktopRunner) execute() error {
 			}
 
 			if !loggedInGui {
-				log.Debug().Msg("user not logged in via GUI")
 				return true
 			}
 
