@@ -180,7 +180,8 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 ### Update a team member's compensation
 When [changes in compensation for team members](https://fleetdm.com/handbook/company/communications#compensation-changes) is required, the following steps are taken:
 - On the first Friday of the month, post in the [#help-classified](https://fleetdm.slack.com/archives/C01CSUCLURL) channel with the list of team members due for compensation review.
-- The create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and stores it in the team member's [personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link), then share it with the manager and ask them to perform a values assessment.
+- Create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and stores it in the team member's [personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link),
+- Share the values assessment document with the manager and ask them to perform the values assessment.
 - Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and meet with manager or head of department about level of job skill in relation to compensation benchmarking levels.
 - Schedule time with the CEO and CTO over an existing 1:1 to discuss if an adjustment needs to be made to team member's compensation to align with benchmarking.
 - During the 1:1 call, founders review values assessment, benchmarking for role and geography, and decide if there will be an adjustment.
