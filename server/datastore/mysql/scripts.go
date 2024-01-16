@@ -124,7 +124,7 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
     exit_code,
     created_at,
     user_id,
-		sync_request
+    sync_request
   FROM
     host_script_results
   WHERE

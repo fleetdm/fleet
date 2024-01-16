@@ -4444,12 +4444,6 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	ctx, cancel := context.WithTimeout(ctx, testRunScriptWaitForResult)
 	defer cancel()
 
-	// must clear any pending executions first
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, "DELETE FROM host_script_results")
-		return err
-	})
-
 	resultsCh := make(chan *fleet.HostScriptResultPayload, 1)
 	go func() {
 		for range time.Tick(300 * time.Millisecond) {
