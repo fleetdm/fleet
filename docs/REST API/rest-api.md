@@ -7136,7 +7136,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
-- [List software](#list-software-titles)
+- [List software](#list-software)
 - [List software versions](#list-software-versions)
 - [Get software](#get-software-title)
 - [Get software version](#get-software-version)
