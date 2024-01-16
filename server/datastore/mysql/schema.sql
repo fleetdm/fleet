@@ -164,7 +164,6 @@ CREATE TABLE `host_activities` (
   `host_id` int(10) unsigned NOT NULL,
   `activity_id` int(10) unsigned NOT NULL,
   PRIMARY KEY (`host_id`,`activity_id`),
-  KEY `idx_host_activities_host_id` (`host_id`),
   KEY `fk_host_activities_activity_id` (`activity_id`),
   CONSTRAINT `host_activities_ibfk_1` FOREIGN KEY (`activity_id`) REFERENCES `activities` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
