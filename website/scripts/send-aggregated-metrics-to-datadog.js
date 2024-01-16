@@ -50,7 +50,7 @@ module.exports = {
       let lastNumberOfHostsReported = lastReportForThisOrg.numHostsEnrolled;
       let lastReportedFleetVersion = lastReportForThisOrg.fleetVersion;
       let hostCountMetricForThisOrg = {
-        metric: 'usage_statistics.num_hosts_enrolled_by_org',
+        metric: 'usage_statistics.num_hosts_enrolled_by_org',// Last number of hosts enrolled reported by a Fleet premium instance.
         type: 3,
         points: [{
           timestamp: timestampForTheseMetrics,
@@ -72,7 +72,7 @@ module.exports = {
     for(let version in statisticsByReportedFleetVersion){
       let numberOfInstancesReportingThisVersion = statisticsByReportedFleetVersion[version].length;
       metricsToReport.push({
-        metric: 'usage_statistics.fleet_version',
+        metric: 'usage_statistics.fleet_version',// The last reported host count for each Fleet version reported in the past week.
         type: 3,
         points: [{
           timestamp: timestampForTheseMetrics,
@@ -86,7 +86,7 @@ module.exports = {
     for(let tier in statisticsByReportedFleetLicenseTier){
       let numberOfInstancesReportingThisLicenseTier = statisticsByReportedFleetLicenseTier[tier].length;
       metricsToReport.push({
-        metric: 'usage_statistics.fleet_license',
+        metric: 'usage_statistics.fleet_license',// The Number of Fleet servers by license tier reported in the past week.
         type: 3,
         points: [{
           timestamp: timestampForTheseMetrics,
@@ -100,7 +100,7 @@ module.exports = {
     let numberOfInstancesWithSoftwareInventoryEnabled = _.where(latestStatisticsForEachInstance, {softwareInventoryEnabled: true}).length;
     let numberOfInstancesWithSoftwareInventoryDisabled = numberOfInstancesToReport - numberOfInstancesWithSoftwareInventoryEnabled;
     metricsToReport.push({
-      metric: 'usage_statistics.software_inventory',
+      metric: 'usage_statistics.software_inventory',// Number of Fleet instances that have software inventory enabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -109,7 +109,7 @@ module.exports = {
       tags: [`enabled:true`],
     });
     metricsToReport.push({
-      metric: 'usage_statistics.software_inventory',
+      metric: 'usage_statistics.software_inventory',// Number of Fleet instances that have software inventory disabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -121,7 +121,7 @@ module.exports = {
     let numberOfInstancesWithVulnDetectionEnabled = _.where(latestStatisticsForEachInstance, {vulnDetectionEnabled: true}).length;
     let numberOfInstancesWithVulnDetectionDisabled = numberOfInstancesToReport - numberOfInstancesWithVulnDetectionEnabled;
     metricsToReport.push({
-      metric: 'usage_statistics.vuln_detection',
+      metric: 'usage_statistics.vuln_detection',// Number of Fleet instances that have vuln detection enabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -130,7 +130,7 @@ module.exports = {
       tags: [`enabled:true`],
     });
     metricsToReport.push({
-      metric: 'usage_statistics.vuln_detection',
+      metric: 'usage_statistics.vuln_detection',// Number of Fleet instances that have vuln detection disabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -142,7 +142,7 @@ module.exports = {
     let numberOfInstancesWithSystemUsersEnabled = _.where(latestStatisticsForEachInstance, {systemUsersEnabled: true}).length;
     let numberOfInstancesWithSystemUsersDisabled = numberOfInstancesToReport - numberOfInstancesWithSystemUsersEnabled;
     metricsToReport.push({
-      metric: 'usage_statistics.system_users',
+      metric: 'usage_statistics.system_users',// Number of Fleet instances that have system users enabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -151,7 +151,7 @@ module.exports = {
       tags: [`enabled:true`],
     });
     metricsToReport.push({
-      metric: 'usage_statistics.system_users',
+      metric: 'usage_statistics.system_users',// Number of Fleet instances that have system users disabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -163,8 +163,7 @@ module.exports = {
     let numberOfInstancesWithHostsStatusWebHookEnabled = _.where(latestStatisticsForEachInstance, {hostsStatusWebHookEnabled: true}).length;
     let numberOfInstancesWithHostsStatusWebHookDisabled = numberOfInstancesToReport - numberOfInstancesWithHostsStatusWebHookEnabled;
     metricsToReport.push({
-      metric: 'usage_statistics.host_status_webhook',
-      type: 3,
+      metric: 'usage_statistics.host_status_webhook',// Number of Fleet instances that have the host status webhook enabled.
       points: [{
         timestamp: timestampForTheseMetrics,
         value: numberOfInstancesWithHostsStatusWebHookEnabled
@@ -172,7 +171,7 @@ module.exports = {
       tags: [`enabled:true`],
     });
     metricsToReport.push({
-      metric: 'usage_statistics.host_status_webhook',
+      metric: 'usage_statistics.host_status_webhook',// Number of Fleet instances that have the host status webhook disabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -184,7 +183,7 @@ module.exports = {
     let numberOfInstancesWithMdmMacOsEnabled = _.where(latestStatisticsForEachInstance, {mdmMacOsEnabled: true}).length;
     let numberOfInstancesWithMdmMacOsDisabled = numberOfInstancesToReport - numberOfInstancesWithMdmMacOsEnabled;
     metricsToReport.push({
-      metric: 'usage_statistics.macos_mdm',
+      metric: 'usage_statistics.macos_mdm',// Number of Fleet instances that have MacOS MDM enabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -193,7 +192,7 @@ module.exports = {
       tags: [`enabled:true`],
     });
     metricsToReport.push({
-      metric: 'usage_statistics.macos_mdm',
+      metric: 'usage_statistics.macos_mdm',// Number of Fleet instances that have MacOS MDM disabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -205,7 +204,7 @@ module.exports = {
     let numberOfInstancesWithMdmWindowsEnabled = _.where(latestStatisticsForEachInstance, {mdmWindowsEnabled: true}).length;
     let numberOfInstancesWithMdmWindowsDisabled = numberOfInstancesToReport - numberOfInstancesWithMdmWindowsEnabled;
     metricsToReport.push({
-      metric: 'usage_statistics.windows_mdm',
+      metric: 'usage_statistics.windows_mdm',// Number of Fleet instances that have Windows MDM enabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -214,7 +213,7 @@ module.exports = {
       tags: [`enabled:true`],
     });
     metricsToReport.push({
-      metric: 'usage_statistics.windows_mdm',
+      metric: 'usage_statistics.windows_mdm',// Number of Fleet instances that have Windows MDM disabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -226,7 +225,7 @@ module.exports = {
     let numberOfInstancesWithLiveQueryDisabled = _.where(latestStatisticsForEachInstance, {liveQueryDisabled: true}).length;
     let numberOfInstancesWithLiveQueryEnabled = numberOfInstancesToReport - numberOfInstancesWithLiveQueryDisabled;
     metricsToReport.push({
-      metric: 'usage_statistics.live_query',
+      metric: 'usage_statistics.live_query',// Number of Fleet instances that have live queries enabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -235,7 +234,7 @@ module.exports = {
       tags: [`enabled:false`],
     });
     metricsToReport.push({
-      metric: 'usage_statistics.live_query',
+      metric: 'usage_statistics.live_query',// Number of Fleet instances that have live queries disabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -247,7 +246,7 @@ module.exports = {
     let numberOfInstancesWithHostExpiryEnabled = _.where(latestStatisticsForEachInstance, {hostExpiryEnabled: true}).length;
     let numberOfInstancesWithHostExpiryDisabled = numberOfInstancesToReport - numberOfInstancesWithHostExpiryEnabled;
     metricsToReport.push({
-      metric: 'usage_statistics.host_expiry',
+      metric: 'usage_statistics.host_expiry',// Number of Fleet instances that have host expiry enabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -256,7 +255,7 @@ module.exports = {
       tags: [`enabled:true`],
     });
     metricsToReport.push({
-      metric: 'usage_statistics.host_expiry',
+      metric: 'usage_statistics.host_expiry',// Number of Fleet instances that have host expiry disabled.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -268,7 +267,7 @@ module.exports = {
     // Create two metrics to track total number of hosts reported in the last week.
     let totalNumberOfHostsReportedByPremiumInstancesInTheLastWeek = _.sum(_.pluck(_.filter(latestStatisticsForEachInstance, {licenseTier: 'premium'}), 'numHostsEnrolled'));
     metricsToReport.push({
-      metric: 'usage_statistics.total_num_hosts_enrolled',
+      metric: 'usage_statistics.total_num_hosts_enrolled',// Total number of hosts reported by Premium instances.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
@@ -279,7 +278,7 @@ module.exports = {
 
     let totalNumberOfHostsReportedByFreeInstancesInTheLastWeek = _.sum(_.pluck(_.filter(latestStatisticsForEachInstance, {licenseTier: 'free'}), 'numHostsEnrolled'));
     metricsToReport.push({
-      metric: 'usage_statistics.total_num_hosts_enrolled',
+      metric: 'usage_statistics.total_num_hosts_enrolled',// Total number of hosts reported by Free instances.
       type: 3,
       points: [{
         timestamp: timestampForTheseMetrics,
