@@ -7,6 +7,7 @@
   dri: "mikermcneil" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-demand" ] # label to be applied to issue
+    repo: "confidential"
 -
   task: "Optimize ads"
   startedOn: "2023-09-25"

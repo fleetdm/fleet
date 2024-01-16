@@ -81,13 +81,12 @@ changing specifications while ensuring that Fleet meets our brand and quality gu
 You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
 - A user story is taking more effort than was originally estimated, and Product Manager wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
+- A user story on the drafting board won't reach "Settled" by the last estimation session in the current sprint and cannot wait until the next sprint. 
 
 What happens during expedited drafting?
-1. Everyone on the product and engineering teams know that a drafted change was brought back
-   to drafting and prioritized.
-2. Drafts are updated to cover edge cases or reduce functionality.
-3. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back to the engineering team to continue the development task.
-
+1. Everyone in the product group knows that a user story is going through expedited drafting.
+2. Drafts are updated or finished.
+3. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the engineering sprint or are estimated.
 
 ### Correctly prioritize a bug
 Bugs are always prioritized. (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).) Bugs should be prioritized in the following order:
