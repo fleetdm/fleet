@@ -39,7 +39,7 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 	return &script, nil
 }
 
-func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
+func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult, error) {
 	const updStmt = `
   UPDATE host_script_results SET
     output = ?,
@@ -61,16 +61,26 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 		output = string(outputRunes[len(outputRunes)-maxOutputRuneLen:])
 	}
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, updStmt,
+	res, err := ds.writer(ctx).ExecContext(ctx, updStmt,
 		output,
 		result.Runtime,
 		result.ExitCode,
 		result.HostID,
 		result.ExecutionID,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "update host script result")
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "update host script result")
 	}
-	return nil
+
+	var hsr *fleet.HostScriptResult
+	if n, _ := res.RowsAffected(); n > 0 {
+		// it did update, so return the updated result
+		hsr, err = ds.getHostScriptExecutionResultDB(ctx, ds.writer(ctx), result.ExecutionID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load updated host script result")
+		}
+	}
+	return hsr, nil
 }
 
 func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error) {
@@ -97,6 +107,10 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 }
 
 func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
+	return ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), execID)
+}
+
+func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.QueryerContext, execID string) (*fleet.HostScriptResult, error) {
 	const getStmt = `
   SELECT
     id,
@@ -115,7 +129,7 @@ func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID st
     execution_id = ?`
 
 	var result fleet.HostScriptResult
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, getStmt, execID); err != nil {
+	if err := sqlx.GetContext(ctx, q, &result, getStmt, execID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("HostScriptResult").WithName(execID))
 		}

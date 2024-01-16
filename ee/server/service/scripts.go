@@ -127,20 +127,6 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 
 	asyncExecution := waitForResult <= 0
 
-	err = svc.ds.NewActivity(
-		ctx,
-		authz.UserFromContext(ctx),
-		fleet.ActivityTypeRanScript{
-			HostID:            host.ID,
-			HostDisplayName:   host.DisplayName(),
-			ScriptExecutionID: script.ExecutionID,
-			Async:             asyncExecution,
-		},
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create activity for script execution request")
-	}
-
 	if asyncExecution {
 		// async execution, return
 		return script, nil

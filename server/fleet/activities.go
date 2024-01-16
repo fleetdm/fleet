@@ -89,6 +89,13 @@ type ActivityDetails interface {
 	Documentation() (activity string, details string, detailsExample string)
 }
 
+// ActivityHosts is the optional additional interface that can be implemented
+// by activities that are related to hosts.
+type ActivityHosts interface {
+	ActivityDetails
+	HostIDs() []uint
+}
+
 type ActivityTypeCreatedPack struct {
 	ID   uint   `json:"pack_id"`
 	Name string `json:"pack_name"`
@@ -1079,6 +1086,10 @@ type ActivityTypeRanScript struct {
 
 func (a ActivityTypeRanScript) ActivityName() string {
 	return "ran_script"
+}
+
+func (a ActivityTypeRanScript) HostIDs() []uint {
+	return []uint{a.HostID}
 }
 
 func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExample string) {

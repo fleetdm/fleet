@@ -80,7 +80,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.Empty(t, pending)
 
 	// record a result for this execution
-	err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      1,
 		ExecutionID: createdScript.ExecutionID,
 		Output:      "foo",
@@ -141,7 +141,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		strings.Repeat("j", 1000) +
 		strings.Repeat("k", 1000)
 
-	err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      1,
 		ExecutionID: createdScript.ExecutionID,
 		Output:      largeOutput,
