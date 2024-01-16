@@ -4598,6 +4598,44 @@ Deletes the custom MDM setup enrollment profile assigned to a team or no team.
 
 `Status: 204`
 
+### Validate user during automatic enrollment
+
+_Available in Fleet Premium_
+
+Only use this endpoint if you set a custom value for `configuration_web_url` in your automatic enrollment (DEP) profile.
+
+This endpoint validates the user and tells Fleet to allow the macOS host to continue to the next step of the new Mac setup flow.
+
+`POST /api/v1/fleet/mdm/automatic_enrollment/validate_user`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                                           |
+| ------------------------- | ------  | ----- | -------------------------------------------------------------------------             |
+| enrollment_reference        | string | query | **Required.** A reference that must be passed along with `profile_token` to the endpoint to download an enrollment profile. |
+| profile_token  | string | query | **Required.** Token that can be used to download an enrollment profile |
+| username                   | string | query | The username used to pre-populate the **Account name** field in the account creation screen for the end user. |
+| fullname                   | string | query | The full name used to pre-populate the **Full name** field in the account creation screen for the end user. |
+| password                   | string | query | The password used to pre-populate the **Password** field in the account creation screen for the end user. |
+
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/enrollment_profile?team_id=123`
+
+##### Request body
+
+```json
+{
+  "team_id": 1,
+  "enabled_end_user_authentication": true
+}
+```
+
+##### Default response
+
+`Status: 200`
+
 ### Get Apple Push Notification service (APNs)
 
 `GET /api/v1/fleet/mdm/apple`
