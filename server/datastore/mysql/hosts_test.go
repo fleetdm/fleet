@@ -6229,6 +6229,21 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, host.UUID)
 	require.NoError(t, err)
 
+	err = ds.NewActivity(
+		context.Background(),
+		user1,
+		fleet.ActivityTypeRanScript{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	)
+	require.NoError(t, err)
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_activities (host_id, activity_id)
+          VALUES (?, (SELECT max(id) FROM activities))
+	`, host.ID)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool

@@ -493,6 +493,7 @@ var hostRefs = []string{
 	"host_software_installed_paths",
 	"host_script_results",
 	"query_results",
+	"host_activities",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
