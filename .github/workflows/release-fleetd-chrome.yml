@@ -32,7 +32,7 @@ jobs:
         working-directory: ./ee/fleetd-chrome
         run: |
           echo -e 'FLEET_URL=""\nFLEET_ENROLL_SECRET=""' > .env
-          npm install && npm run test
+          npm install && npm test
 
       - name: Build & sign extension
         working-directory: ./ee/fleetd-chrome
