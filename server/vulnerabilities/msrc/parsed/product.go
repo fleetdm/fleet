@@ -38,7 +38,7 @@ func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (
 			break
 		}
 
-		// This rule ensures that we match an unknown os.DisplayVersion to
+		// Ensure a match against an unknown or blank os.DisplayVersion to
 		// a MSRC product that does not have a display version (eg. The initial release
 		// of Windows 11 is 21H2, which does not appear in the MSRC data)
 		if !product.HasDisplayVersion() {
@@ -51,8 +51,6 @@ func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (
 		return "", ctxerr.Wrap(ctx, ErrNoMatch)
 	}
 
-	// unknown display version will match the first product
-	// without a display version
 	if dvMatch == "" {
 		return noDvMatch, nil
 	}
