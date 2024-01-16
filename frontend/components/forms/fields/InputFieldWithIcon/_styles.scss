@@ -96,22 +96,6 @@
     color: $core-vibrant-red;
   }
 
-  &__help-text {
-    font-size: $x-small;
-    font-style: italic;
-    font-weight: $regular;
-    line-height: 20px;
-    display: inline-block;
-    margin-top: $pad-small;
-
-    code {
-      color: $core-vibrant-blue;
-      background-color: $ui-light-grey;
-      padding: $pad-xxsmall;
-      font-family: "SourceCodePro", $monospace;
-    }
-  }
-
   // overwrite icon position and input padding
   &--icon-start {
     input {

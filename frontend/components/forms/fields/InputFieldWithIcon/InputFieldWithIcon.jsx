@@ -60,7 +60,11 @@ class InputFieldWithIcon extends InputField {
     const { helpText } = this.props;
 
     if (helpText) {
-      return <span className={`${baseClass}__help-text`}>{helpText}</span>;
+      return (
+        <span className={`${baseClass}__help-text form-field__help-text`}>
+          {helpText}
+        </span>
+      );
     }
 
     return false;
