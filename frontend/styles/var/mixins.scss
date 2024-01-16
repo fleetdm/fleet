@@ -211,3 +211,8 @@ $max-width: 2560px;
   flex-direction: column;
   gap: 1rem;
 }
+
+@mixin form-button-extra-clickable-area-compensation {
+  // compensate in layout for extra clickable area button height
+  margin: -8px 0;
+}

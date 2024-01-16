@@ -101,8 +101,7 @@ form,
   .button {
     width: auto;
     &--text-icon {
-      // compensate in layout for extra clickable area button height
-      margin: -8px 0;
+      @include form-button-extra-clickable-area-compensation;
     }
   }
 
