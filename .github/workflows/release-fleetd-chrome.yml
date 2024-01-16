@@ -39,7 +39,6 @@ jobs:
         env:
           CHROME_SIGNING_KEY: ${{ secrets.FLEETD_CHROME_SIGNING_KEY }}
         run: |
-          echo -e 'FLEET_URL=""\nFLEET_ENROLL_SECRET=""' > .env
           npm install && npm run build
           echo "$CHROME_SIGNING_KEY" > chrome.pem
           /usr/bin/google-chrome --pack-extension=./dist --pack-extension-key=chrome.pem
@@ -64,6 +63,6 @@ jobs:
           
           " > ~/.config/rclone/rclone.conf
           mv dist.crx fleetd.crx
-          rclone copy fleetd.crx r2:chrome-beta/
+          rclone copy fleetd.crx r2:chrome-beta/ # TODO change to chrome after testing on main
           mv updates-beta.xml updates.xml
-          rclone copy updates.xml r2:chrome-beta/
+          rclone copy updates.xml r2:chrome-beta/ # TODO change to chrome after testing on main
