@@ -55,6 +55,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		HostID:         1,
 		ScriptContents: "echo",
 		UserID:         &u.ID,
+		SyncRequest:    true,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, createdScript.ID)
@@ -66,6 +67,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.Empty(t, createdScript.Output)
 	require.NotNil(t, createdScript.UserID)
 	require.Equal(t, u.ID, *createdScript.UserID)
+	require.True(t, createdScript.SyncRequest)
 
 	// the script execution is now listed as pending for this host
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, 10*time.Second)
@@ -112,6 +114,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.NotZero(t, createdScript.ID)
 	require.NotEmpty(t, createdScript.ExecutionID)
 	require.Nil(t, createdScript.UserID)
+	require.False(t, createdScript.SyncRequest)
 
 	// the script result can be retrieved even if it has no result yet
 	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript.ExecutionID)

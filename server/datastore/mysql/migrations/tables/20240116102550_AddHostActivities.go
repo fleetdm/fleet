@@ -19,9 +19,14 @@ func Up_20240116102550(tx *sql.Tx) error {
 	// gets deleted. This is because the script executions are expected to run
 	// soon after the request is made, it should be a rare occurrence for the
 	// requesting user to be deleted before it runs.
+	//
+	// sync_request indicates if the script execution was requested via the
+	// synchronous API. We need this information to generate the proper activity
+	// details later on when the results are received.
 	const alterStmt = `
 		ALTER TABLE host_script_results
 		ADD COLUMN user_id INT(10) UNSIGNED DEFAULT NULL,
+		ADD COLUMN sync_request TINYINT(1) NOT NULL DEFAULT '0',
 		ADD CONSTRAINT fk_host_script_results_user_id FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL;
 	`
 	if _, err := tx.Exec(alterStmt); err != nil {

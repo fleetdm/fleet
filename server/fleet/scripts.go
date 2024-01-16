@@ -138,6 +138,9 @@ type HostScriptRequestPayload struct {
 	// UserID is filled automatically from the context's user (the authenticated
 	// user that made the API request).
 	UserID *uint `json:"-"`
+	// SyncRequest is filled automatically based on the endpoint used to create
+	// the execution request (synchronous or asynchronous).
+	SyncRequest bool `json:"-"`
 }
 
 type HostScriptResultPayload struct {
@@ -181,6 +184,10 @@ type HostScriptResult struct {
 	// /hosts/:id/activities/upcoming endpoint which doesn't use this struct as
 	// return type.
 	UserID *uint `json:"-" db:"user_id"`
+	// SyncRequest is used to determine when creating the script ran activity if
+	// the request was synchronous or asynchronous. It is otherwise not returned
+	// as part of any API endpoint.
+	SyncRequest bool `json:"-" db:"sync_request"`
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.

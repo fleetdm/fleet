@@ -60,8 +60,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 				HostID:            host.ID,
 				HostDisplayName:   host.DisplayName(),
 				ScriptExecutionID: hsr.ExecutionID,
-				// TODO(mna): we have no simple way of knowing if this was an async execution...
-				//Async:             asyncExecution,
+				Async:             !hsr.SyncRequest,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for script execution request")
