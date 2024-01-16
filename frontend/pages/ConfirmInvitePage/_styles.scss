@@ -47,13 +47,8 @@
     margin: 0;
   }
 
-  .confirm-invite-button-wrap {
-    display: flex;
-    justify-content: center;
-    margin-top: $pad-xxlarge;
-
-    .button {
-      width: 160px;
-    }
+  .confirm-invite-button {
+    align-self: center;
+    width: 160px;
   }
 }
