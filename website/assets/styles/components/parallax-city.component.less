@@ -82,9 +82,19 @@
       z-index: 1;
     }
   }
-  @media (max-width: 575px) {
-    // On smaller screens, make sure the swans are visible in the user's viewport
+  @media (max-width: 991px) {
     [purpose='parallax-city-container'] {
+      height: 500px;
+    }
+  }
+  @media (max-width: 768px) {
+    [purpose='parallax-city-container'] {
+      height: 400px;
+    }
+  }
+  @media (max-width: 575px) {
+    [purpose='parallax-city-container'] {
+      height: 300px;
       background: url('/images/parallax-cloud-city/cloud-city-bg-all-layers-7050x600@2x.png');
       background-size: auto 100%;
       background-position: center bottom;
@@ -92,6 +102,11 @@
       div {
         display: none;
       }
+    }
+  }
+  @media (max-width: 375px) {
+    [purpose='parallax-city-container'] {
+      height: 200px;
     }
   }
 }
