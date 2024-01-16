@@ -15,8 +15,8 @@ import (
 
 func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	const (
-		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output, script_id) VALUES (?, ?, ?, '', ?)`
-		getStmt = `SELECT id, host_id, execution_id, script_contents, created_at, script_id FROM host_script_results WHERE id = ?`
+		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output, script_id, user_id) VALUES (?, ?, ?, '', ?, ?)`
+		getStmt = `SELECT id, host_id, execution_id, script_contents, created_at, script_id, user_id FROM host_script_results WHERE id = ?`
 	)
 
 	execID := uuid.New().String()
@@ -25,6 +25,7 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 		execID,
 		request.ScriptContents,
 		request.ScriptID,
+		request.UserID,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "new host script execution request")
@@ -106,7 +107,8 @@ func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID st
     output,
     runtime,
     exit_code,
-    created_at
+    created_at,
+    user_id
   FROM
     host_script_results
   WHERE
@@ -280,7 +282,7 @@ FROM
 	LEFT JOIN (
 		SELECT
 			id,
-			host_id,		
+			host_id,
 			script_id,
 			execution_id,
 			created_at,
