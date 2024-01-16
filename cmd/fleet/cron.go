@@ -275,6 +275,7 @@ func checkWinVulnerabilities(
 				"msg", "msrc-analysis-done",
 				"os name", o.Name,
 				"os version", o.Version,
+				"display version", o.DisplayVersion,
 				"elapsed", elapsed,
 				"found new", len(r))
 			results = append(results, r...)
