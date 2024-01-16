@@ -1,1 +1,0 @@
-- Fixed bug where fleetctl did not allow placement of `--context` and `--debug` flages following the `generate mdm-apple` and `generate mdm-apple-bm` commands.

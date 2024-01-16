@@ -125,12 +125,6 @@ Currently enrolled hosts do not necessarily need enroll secrets updated, as the 
 
 Deploying a new enroll secret cannot be done centrally from Fleet.
 
-Osquery provides the enroll secret only during the enrollment process. Once a host is enrolled, the node key it receives remains valid for authentication independent from the enroll secret.
-
-Currently enrolled hosts do not necessarily need enroll secrets updated, as the existing enrollment will continue to be valid as long as the host is not deleted from Fleet and the osquery store on the host remains valid. Any newly enrolling hosts must have the new secret.
-
-Deploying a new enroll secret cannot be done centrally from Fleet.
-
 > Enroll secrets must be alphanumeric and should not contain special characters. 
 
 ### Multiple enroll secrets
@@ -403,6 +397,7 @@ spec:
     enable_analytics: true
     live_query_disabled: false
     query_reports_disabled: false
+    scripts_disabled: false
     server_url: ""
   smtp_settings:
     authentication_method: authmethod_plain

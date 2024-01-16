@@ -10,11 +10,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	nanomdm_push "github.com/micromdm/nanomdm/push"
 	"github.com/stretchr/testify/require"
 )
 

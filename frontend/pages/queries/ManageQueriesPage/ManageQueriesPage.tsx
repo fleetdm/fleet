@@ -461,7 +461,7 @@ const ManageQueriesPage = ({
                     className={`${baseClass}__create-button`}
                     onClick={onCreateQueryClick}
                   >
-                    Add query
+                    {isObserverPlus ? "Live query" : "Add query"}
                   </Button>
                 </>
               )}

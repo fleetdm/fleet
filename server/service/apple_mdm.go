@@ -29,6 +29,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
@@ -36,7 +37,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/micromdm/nanodep/godep"
-	"github.com/micromdm/nanomdm/mdm"
 )
 
 type getMDMAppleCommandResultsRequest struct {
