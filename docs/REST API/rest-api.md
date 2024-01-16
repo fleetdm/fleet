@@ -4095,12 +4095,12 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
 - [Turn off MDM for a host](#turn-off-mdm-for-a-host)
-- [Upload a bootstrap package](#upload-a-bootstrap-package)
+- [Add bootstrap package](#add-bootstrap-package)
 - [Get metadata about a bootstrap package](#get-metadata-about-a-bootstrap-package)
 - [Delete a bootstrap package](#delete-a-bootstrap-package)
 - [Download a bootstrap package](#download-a-bootstrap-package)
 - [Get a summary of bootstrap package status](#get-a-summary-of-bootstrap-package-status)
-- [Upload an EULA file](#upload-an-eula-file)
+- [Add EULA file](#upload-an-eula-file)
 - [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
 - [Delete an EULA file](#delete-an-eula-file)
 - [Download an EULA file](#download-an-eula-file)
@@ -4670,13 +4670,13 @@ None.
 `Status: 200`
 
 
-### Upload a bootstrap package
+### Add bootstrap package
 
 _Available in Fleet Premium_
 
-Upload a bootstrap package that will be automatically installed during DEP setup.
+Add a bootstrap package that will be automatically installed during DEP setup.
 
-`POST /api/v1/fleet/mdm/apple/bootstrap`
+`POST /api/v1/fleet/mdm/bootstrap`
 
 #### Parameters
 
@@ -4687,11 +4687,11 @@ Upload a bootstrap package that will be automatically installed during DEP setup
 
 #### Example
 
-Upload a bootstrap package that will be installed to macOS hosts enrolled to MDM that are
+Add a bootstrap package that will be installed to macOS hosts enrolled to MDM that are
 assigned to a team. Note that in this example the form data specifies `team_id` in addition to
 `package`.
 
-`POST /api/v1/fleet/mdm/apple/profiles`
+`POST /api/v1/fleet/mdm/bootstrap`
 
 ##### Request headers
 
@@ -4723,7 +4723,7 @@ _Available in Fleet Premium_
 
 Get information about a bootstrap package that was uploaded to Fleet.
 
-`GET /api/v1/fleet/mdm/apple/bootstrap/:team_id/metadata`
+`GET /api/v1/fleet/mdm/bootstrap/:team_id/metadata`
 
 #### Parameters
 
@@ -4734,7 +4734,7 @@ Get information about a bootstrap package that was uploaded to Fleet.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/bootstrap/0/metadata`
+`GET /api/v1/fleet/mdm/bootstrap/0/metadata`
 
 ##### Default response
 
@@ -4761,7 +4761,7 @@ _Available in Fleet Premium_
 
 Delete a team's bootstrap package.
 
-`DELETE /api/v1/fleet/mdm/apple/bootstrap/:team_id`
+`DELETE /api/v1/fleet/mdm/bootstrap/:team_id`
 
 #### Parameters
 
@@ -4772,7 +4772,7 @@ Delete a team's bootstrap package.
 
 #### Example
 
-`DELETE /api/v1/fleet/mdm/apple/bootstrap/1`
+`DELETE /api/v1/fleet/mdm/bootstrap/1`
 
 ##### Default response
 
@@ -4784,7 +4784,7 @@ _Available in Fleet Premium_
 
 Download a bootstrap package.
 
-`GET /api/v1/fleet/mdm/apple/bootstrap`
+`GET /api/v1/fleet/mdm/bootstrap`
 
 #### Parameters
 
@@ -4794,7 +4794,7 @@ Download a bootstrap package.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/bootstrap?token=AA598E2A-7952-46E3-B89D-526D45F7E233`
+`GET /api/v1/fleet/mdm/bootstrap?token=AA598E2A-7952-46E3-B89D-526D45F7E233`
 
 ##### Default response
 
@@ -4816,7 +4816,7 @@ Get aggregate status counts of bootstrap packages delivered to DEP enrolled host
 
 The summary can optionally be filtered by team ID.
 
-`GET /api/v1/fleet/mdm/apple/bootstrap/summary`
+`GET /api/v1/fleet/mdm/bootstrap/summary`
 
 #### Parameters
 
@@ -4826,7 +4826,7 @@ The summary can optionally be filtered by team ID.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/bootstrap/summary`
+`GET /api/v1/fleet/mdm/bootstrap/summary`
 
 ##### Default response
 
@@ -4872,13 +4872,13 @@ _Available in Fleet Premium_
 
 
 
-### Upload an EULA file
+### Add EULA file
 
 _Available in Fleet Premium_
 
-Upload an EULA that will be shown during the DEP flow.
+Add an EULA document that will be shown during the DEP flow.
 
-`POST /api/v1/fleet/mdm/apple/setup/eula`
+`POST /api/v1/fleet/mdm/setup/eula`
 
 #### Parameters
 
@@ -4888,7 +4888,7 @@ Upload an EULA that will be shown during the DEP flow.
 
 #### Example
 
-`POST /api/v1/fleet/mdm/apple/setup/eula`
+`POST /api/v1/fleet/mdm/setup/eula`
 
 ##### Request headers
 
@@ -4917,11 +4917,11 @@ _Available in Fleet Premium_
 
 Get information about the EULA file that was uploaded to Fleet. If no EULA was previously uploaded, this endpoint returns a `404` status code.
 
-`GET /api/v1/fleet/mdm/apple/setup/eula/metadata`
+`GET /api/v1/fleet/mdm/setup/eula/metadata`
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/setup/eula/metadata`
+`GET /api/v1/fleet/mdm/setup/eula/metadata`
 
 ##### Default response
 
@@ -4945,7 +4945,7 @@ _Available in Fleet Premium_
 
 Delete an EULA file.
 
-`DELETE /api/v1/fleet/mdm/apple/setup/eula/:token`
+`DELETE /api/v1/fleet/mdm/setup/eula/:token`
 
 #### Parameters
 
@@ -4955,7 +4955,7 @@ Delete an EULA file.
 
 #### Example
 
-`DELETE /api/v1/fleet/mdm/apple/setup/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
+`DELETE /api/v1/fleet/mdm/setup/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
 
 ##### Default response
 
@@ -4967,7 +4967,7 @@ _Available in Fleet Premium_
 
 Download an EULA file
 
-`GET /api/v1/fleet/mdm/apple/setup/eula/:token`
+`GET /api/v1/fleet/mdm/setup/eula/:token`
 
 #### Parameters
 
@@ -4977,7 +4977,7 @@ Download an EULA file
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/setup/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
+`GET /api/v1/fleet/mdm/setup/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
 
 ##### Default response
 
