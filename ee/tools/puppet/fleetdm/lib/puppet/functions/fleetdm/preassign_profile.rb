@@ -21,36 +21,30 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
 
     # initiate the pre-assignment process with fleet server
     client_resp = client.preassign_profile(run_identifier, host_uuid, template, group, ensure_profile, closure_scope['environment'])
-    unless client_resp && client_resp['error']&.empty?
-      Puppet.err("Error pre-assigning profile #{profile_identifier} (ensure #{ensure_profile}): #{client_resp&.[]('error')} \n\n #{template}")
-      preassign_profile_response['error'] = client_resp['error']
-      return preassign_profile_response
+    if is_error(client_resp)
+      return handle_error("Error pre-assigning profile #{profile_identifier} (ensure #{ensure_profile})", client_resp['error'], template, preassign_profile_response)
     end
-
+    
     # get host by idenfifier to get the host id
     client_resp = client.get_host_by_identifier(host_uuid, env)
-    unless client_resp && client_resp['error']&.empty?
-      Puppet.err("Error getting host by identifier #{host_uuid}: #{client_resp&.[]('error')} \n\n #{template}")
-      preassign_profile_response['error'] = client_resp['error']
-      return preassign_profile_response
+    if is_error(client_resp)
+      return handle_error("Error getting host by identifier #{host_uuid}", client_resp['error'], template, preassign_profile_response)
     end
-    unless client_resp['body'] && client_resp['body']['host'] && client_resp['body']['host']['id']
-      Puppet.err("No host found for #{host_uuid} \n\n #{template}")
-      preassign_profile_response['error'] = client_resp['error']
-      return preassign_profile_response
+
+    # if we didn't get the host id, we can't continue
+    if !client_resp&.[]('body')&.[]('host')&.[]('id')
+      return handle_error("Error getting host by identifier #{host_uuid}", "No host found", template, preassign_profile_response)
     end
 
     # get host profiles currently assigned to the host
     client_resp = client.get_host_profiles(client_resp['body']['host']['id'], env)
-    unless client_resp && client_resp['error']&.empty?
-      Puppet.err("Error getting host profiles for #{host_uuid}: #{client_resp&.[]('error')} \n\n #{template}")
-      preassign_profile_response['error'] = client_resp['error']
-      return preassign_profile_response
+    if is_error(client_resp)
+      return handle_error("Error getting host profiles for #{host_uuid}", client_resp['error'], template, preassign_profile_response)
     end
 
     # if this is the first run on the device, profiles will be empty so we can skip the checksum
     # comparison and mark the resource as changed depending on the ensure_profile value
-    unless client_resp['body'] && client_resp['body']['profiles'] && !client_resp['body']['profiles']&.empty?
+    if !client_resp&.[]('body')&.[]('profiles') || client_resp['body']['profiles'].empty?
       Puppet.info("No assigned profiles found, this may be the first run for #{host_uuid}")
       preassign_profile_response['resource_changed'] = ensure_profile == 'present'
       return preassign_profile_response
@@ -58,7 +52,7 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
 
     # compare checksums to see if the profile is already assigned
     base64_checksum = Digest::MD5.base64digest(template)
-    has_profile = client_resp['body']['profiles'].any? { |p| p['checksum'] == base64_checksum }
+    has_profile = client_resp['body']['profiles'].any? { |p| p&.[]('checksum') == base64_checksum }
     if (has_profile && ensure_profile == 'absent') || (!has_profile && ensure_profile == 'present')
       preassign_profile_response['resource_changed'] = true
     else
@@ -67,4 +61,16 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
 
     preassign_profile_response
   end
+
+  def is_error(response) 
+    response&.[]('error') && !response['error']&.empty?
+  end
+
+  def handle_error(message, error, template, preassign_profile_response)
+    Puppet.err("#{message}: #{error} \n\n #{template}")
+    preassign_profile_response['error'] = error
+    preassign_profile_response
+  end
 end
+
+
