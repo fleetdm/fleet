@@ -6538,7 +6538,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.runWorker()
 
 	// check that the last submitted DEP profile has been updated accordingly
-	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
+	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/mdm/sso")
 	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
 	// patch without specifying the mdm sso settings fields and an unrelated
@@ -6622,7 +6622,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}`), http.StatusOK, &acResp)
 
 	s.runWorker()
-	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
+	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/mdm/sso")
 	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
 	checkStoredIdPInfo := func(uuid, username, fullname, email string) {
@@ -6874,7 +6874,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}`), http.StatusOK, &acResp)
 
 	s.runWorker()
-	require.Contains(t, lastSubmittedProfile.URL, "https://example.com/api/mdm/apple/enroll?token=")
+	require.Contains(t, lastSubmittedProfile.URL, "https://example.com/mdm/sso")
 	require.Equal(t, "https://example.com/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
 	// hitting the callback with an invalid session id redirects the user to the UI

@@ -749,10 +749,11 @@ func (svc *Service) validateMDM(
 
 	// EndUserAuthentication
 	// only validate SSO settings if they changed
-	//
-	// NOTE: premium licensing and MDM configured for this setting are already
-	// validated in the top of this function.
 	if mdm.EndUserAuthentication.SSOProviderSettings != oldMdm.EndUserAuthentication.SSOProviderSettings {
+		if !license.IsPremium() {
+			invalid.Append("end_user_authentication", ErrMissingLicense.Error())
+			return nil
+		}
 		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid)
 	}
 
