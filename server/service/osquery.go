@@ -1703,34 +1703,67 @@ func getMostRecentResults(results []*fleet.ScheduledQueryResult) []*fleet.Schedu
 	return filteredResults
 }
 
-// Query names recieved from osqueryd are prefixed by teamID so we need
-// to pull them out to match the query name and team ID in the database
+// findPackDelimiterString attempts to find the `pack_delimiter` string in the scheduled
+// query name reported by osquery (note that `pack_delimiter` can contain multiple characters).
+//
+// The expected format for s is "pack<pack_delimiter>{Global|team-<team_id>}<pack_delimiter><query_name>"
+//
+// Returns "" if it failed to parse the pack_delimiter.
+func findPackDelimiterString(scheduledQueryName string) string {
+	// Go's regexp doesn't support backreferences so we have to perform some manual work.
+	scheduledQueryName = scheduledQueryName[4:] // always starts with "pack"
+	for l := 1; l < len(scheduledQueryName); l++ {
+		sep := scheduledQueryName[:l]
+		rest := scheduledQueryName[l:]
+		pattern := fmt.Sprintf(`^(?:(Global)|(team-\d+))%s.+`, regexp.QuoteMeta(sep))
+		matched, _ := regexp.MatchString(pattern, rest)
+		if matched {
+			return sep
+		}
+	}
+	return ""
+}
+
+// getQueryNameAndTeamIDFromResult attempts to parse the scheduled query name reported by osquery.
+//
+// The expected format of query names managed by Fleet is:
+// "pack<pack_delimiter>{Global|team-<team_id>}<pack_delimiter><query_name>"
 func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
+	if !strings.HasPrefix(path, "pack") || len(path) <= 4 {
+		return nil, "", fmt.Errorf("unknown format: %q", path)
+	}
+
+	sep := findPackDelimiterString(path)
+	if sep == "" {
+		// If a pack_delimiter could not be parsed we return an error.
+		//
+		// 2017/legacy packs with the format "pack/<Pack name>/<Query name> are
+		// considered unknown format (they are not considered global or team
+		// scheduled queries).
+		return nil, "", fmt.Errorf("unknown format: %q", path)
+	}
+
 	// For pattern: pack/Global/Name
-	if strings.HasPrefix(path, "pack/Global/") {
-		return nil, strings.TrimPrefix(path, "pack/Global/"), nil
+	globalPattern := "pack" + sep + "Global" + sep
+	if strings.HasPrefix(path, globalPattern) {
+		return nil, strings.TrimPrefix(path, globalPattern), nil
 	}
 
 	// For pattern: pack/team-<ID>/Name
-	if strings.HasPrefix(path, "pack/team-") {
-		parts := strings.SplitN(path, "/", 3)
-		if len(parts) != 3 {
-			return nil, "", fmt.Errorf("unknown format: %q", path)
+	teamPattern := "pack" + sep + "team-"
+	if strings.HasPrefix(path, teamPattern) {
+		teamIDAndRest := strings.TrimPrefix(path, teamPattern)
+		teamIDAndQueryNameParts := strings.SplitN(teamIDAndRest, sep, 2)
+		if len(teamIDAndQueryNameParts) != 2 {
+			return nil, "", fmt.Errorf("parsing team number part: %s", path)
 		}
-
-		teamNumberStr := strings.TrimPrefix(parts[1], "team-")
-		teamNumberUint, err := strconv.ParseUint(teamNumberStr, 10, 32)
+		teamNumberUint, err := strconv.ParseUint(teamIDAndQueryNameParts[0], 10, 32)
 		if err != nil {
 			return nil, "", fmt.Errorf("parsing team number: %w", err)
 		}
-
 		teamNumber := uint(teamNumberUint)
-		return &teamNumber, parts[2], nil
+		return &teamNumber, teamIDAndQueryNameParts[1], nil
 	}
-
-	// 2017/legacy packs with the format "pack/<Pack name>/<Query name> are
-	// considered unknown format (they are not considered global or team
-	// scheduled queries).
 
 	// If none of the above patterns match, return error
 	return nil, "", fmt.Errorf("unknown format: %q", path)
