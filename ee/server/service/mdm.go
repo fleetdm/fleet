@@ -510,19 +510,36 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 		return nil, err
 	}
 
+	// In order to validate if a configuration_web_url can be set for this setup
+	// assistant configuration, we need to know if end user authentication is
+	// enabled (either globally or for a specific team, if provided)
+	var endUserAuthEnabled bool
+	var teamName *string
+	if asst.TeamID != nil {
+		tm, err := svc.ds.Team(ctx, *asst.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get team")
+		}
+		teamName = &tm.Name
+		endUserAuthEnabled = tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+	} else {
+		appCfg, err := svc.AppConfigObfuscated(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting app config")
+		}
+		endUserAuthEnabled = appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+	}
+
 	var m map[string]any
 	if err := json.Unmarshal(asst.Profile, &m); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "json unmarshal setup assistant profile")
 	}
-
-	deniedFields := map[string]string{
-		"configuration_web_url": `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include configuration_web_url. To require end user authentication, use the macos_setup.end_user_authentication option.`,
-		"url":                   `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`,
+	if _, ok := m["configuration_web_url"]; ok && endUserAuthEnabled {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. First, disable end user authentication before adding an automatic enrollment (DEP) profile with a configuration_web_url.`))
 	}
-	for k, msg := range deniedFields {
-		if _, ok := m[k]; ok {
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", msg))
-		}
+
+	if _, ok := m["url"]; ok {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`))
 	}
 
 	// must read the existing setup assistant first to detect if it did change
@@ -548,14 +565,6 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 			return nil, ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile changed job")
 		}
 
-		var teamName *string
-		if newAsst.TeamID != nil {
-			tm, err := svc.ds.Team(ctx, *newAsst.TeamID)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get team")
-			}
-			teamName = &tm.Name
-		}
 		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeChangedMacosSetupAssistant{
 			TeamID:   newAsst.TeamID,
 			TeamName: teamName,
