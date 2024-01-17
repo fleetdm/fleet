@@ -10749,7 +10749,6 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 	applyResp = applyTeamSpecsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
-	fmt.Println("fooooooooooooooooooooooooo")
 	// assign the DEP profile and assert that contains the right values for the URL
 	s.runWorker()
 	require.Contains(t, lastSubmittedProfile.ConfigurationWebURL, acResp.ServerSettings.ServerURL+"/mdm/sso")
