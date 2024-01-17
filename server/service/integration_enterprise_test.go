@@ -4620,8 +4620,8 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	s.lastActivityMatches(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "async": true}`,
-			host.ID, host.DisplayName(), scriptResultResp.ExecutionID,
+			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true}`,
+			host.ID, host.DisplayName(), savedNoTmScript.Name, scriptResultResp.ExecutionID,
 		),
 		0,
 	)
