@@ -281,7 +281,6 @@ const PlatformWrapper = ({
     );
   };
 
-  // TODO - remove buttons/copy from labels
   const renderChromeOSLabel = (label: string, value: string) => {
     const onCopyChromeOSLabel = (evt: React.MouseEvent) => {
       evt.preventDefault();
@@ -410,7 +409,6 @@ const PlatformWrapper = ({
               helpText="Distribute your package to add hosts to Fleet."
             />
           </div>
-          {/* wrapper div necessary for proper InfoBanner width */}
           <div>
             <InfoBanner className={`${baseClass}__chrome--instructions`}>
               This works for macOS, Windows, and Linux hosts. To add

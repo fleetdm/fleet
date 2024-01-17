@@ -232,8 +232,6 @@ const Advanced = ({
             name="disableQueryReports"
             value={disableQueryReports}
             parseTarget
-            // TODO - once refactor is merged, have this and bove tooltips disappear more
-            // quickly to get out of users' way
             tooltipContent={
               <>
                 <p>

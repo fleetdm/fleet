@@ -44,7 +44,6 @@ class AdminDetails extends Component {
     return (
       <form onSubmit={handleSubmit} className={className} autoComplete="off">
         <p>Additional admins can be designated within the Fleet app.</p>
-        {/* <div className="registration-fields"> */}
         <InputField
           {...fields.name}
           label="Full name"
@@ -71,7 +70,6 @@ class AdminDetails extends Component {
           tabIndex={tabIndex}
           label="Confirm password"
         />
-        {/* </div> */}
         <Button
           type="submit"
           tabIndex={tabIndex}
