@@ -173,7 +173,7 @@ func TestRunnerTempDir(t *testing.T) {
 	t.Run("deletes temp dir", func(t *testing.T) {
 		tempDir := t.TempDir()
 
-		client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'"}}}
+		client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'", ExecutionID: "a"}}}
 		execer := &mockExecCmd{output: []byte("output"), exitCode: 0, err: nil}
 		runner := &Runner{
 			Client:                 client,
@@ -237,7 +237,7 @@ func TestRunnerTempDir(t *testing.T) {
 		tempDir := t.TempDir()
 		t.Setenv("FLEET_PREVENT_SCRIPT_TEMPDIR_DELETION", "1")
 
-		client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'"}}}
+		client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'", ExecutionID: "a"}}}
 		execer := &mockExecCmd{output: []byte("output"), exitCode: 0, err: nil}
 		runner := &Runner{
 			Client:                 client,
@@ -324,7 +324,7 @@ func TestRunnerResults(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'"}}}
+			client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'", ExecutionID: "a"}}}
 			execer := &mockExecCmd{output: []byte(c.output), exitCode: c.exitCode, err: c.runErr}
 			runner := &Runner{
 				Client:                 client,
@@ -374,6 +374,10 @@ func (m *mockClient) GetHostScript(execID string) (*fleet.HostScriptResult, erro
 			m.getErr = nil
 		}
 		return nil, err
+	}
+
+	if m.erroredScripts == nil {
+		m.erroredScripts = make(map[string]error)
 	}
 
 	script := m.scripts[execID]
