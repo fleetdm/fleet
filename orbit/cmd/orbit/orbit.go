@@ -100,7 +100,7 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:    "enroll-secret-path",
-			Usage:   "Path to file containing enroll secret",
+			Usage:   "Path to file containing enroll secret. On macOS and Windows, this file will be deleted and secret will be stored in the system keystore",
 			EnvVars: []string{"ORBIT_ENROLL_SECRET_PATH"},
 		},
 		&cli.StringFlag{
@@ -297,16 +297,32 @@ func main() {
 						if err = keystore.AddSecret(secret); err != nil {
 							log.Warn().Err(err).Msgf("failed to add enroll secret to %v", keystore.Name())
 						} else {
-							log.Info().Msgf("added enroll secret to keystore: %v", keystore.Name())
-							deleteSecretPathIfExists(enrollSecretPath)
+							// Sanity check that the secret was added to the keystore.
+							checkSecret, err := keystore.GetSecret()
+							if err != nil {
+								log.Warn().Err(err).Msgf("failed to check that enroll secret was saved in %v", keystore.Name())
+							} else if checkSecret != secret {
+								log.Warn().Msgf("enroll secret was not saved correctly in %v", keystore.Name())
+							} else {
+								log.Info().Msgf("added enroll secret to keystore: %v", keystore.Name())
+								deleteSecretPathIfExists(enrollSecretPath)
+							}
 						}
 					} else if secretFromKeystore != secret {
 						// Keystore secret found, but needs to be updated.
 						if err = keystore.UpdateSecret(secret); err != nil {
 							log.Warn().Err(err).Msgf("failed to update enroll secret in %v", keystore.Name())
 						} else {
-							log.Info().Msgf("updated enroll secret in keystore: %v", keystore.Name())
-							deleteSecretPathIfExists(enrollSecretPath)
+							// Sanity check that the secret was updated in the keystore.
+							checkSecret, err := keystore.GetSecret()
+							if err != nil {
+								log.Warn().Err(err).Msgf("failed to check that enroll secret was updated in %v", keystore.Name())
+							} else if checkSecret != secret {
+								log.Warn().Msgf("enroll secret was not updated correctly in %v", keystore.Name())
+							} else {
+								log.Info().Msgf("updated enroll secret in keystore: %v", keystore.Name())
+								deleteSecretPathIfExists(enrollSecretPath)
+							}
 						}
 					} else {
 						// Keystore secret found, and it matches the secret from the file.
