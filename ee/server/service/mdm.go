@@ -280,12 +280,25 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	if !ac.MDM.EnabledAndConfigured {
 		return &fleet.MDMNotConfiguredError{}
 	}
-	if payload.EnableEndUserAuthentication != nil && *payload.EnableEndUserAuthentication == true && ac.MDM.EndUserAuthentication.IsEmpty() {
-		// TODO: update this error message to include steps to resolve the issue once docs for IdP
-		// config are available
-		return fleet.NewInvalidArgumentError("enable_end_user_authentication",
-			`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
+
+	if payload.EnableEndUserAuthentication != nil && *payload.EnableEndUserAuthentication {
+		if ac.MDM.EndUserAuthentication.IsEmpty() {
+			// TODO: update this error message to include steps to resolve the issue once docs for IdP
+			// config are available
+			return fleet.NewInvalidArgumentError("enable_end_user_authentication",
+				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
+		}
+
+		hasCustomConfigurationWebURL, err := svc.HasCustomSetupAssistantConfigurationWebURL(ctx, payload.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking setup assistant configuration web url")
+		}
+
+		if hasCustomConfigurationWebURL {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication", fleet.EndUserAuthDEPWebURLConfiguredErrMsg))
+		}
 	}
+
 	return nil
 }
 
