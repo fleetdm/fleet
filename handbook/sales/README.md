@@ -128,6 +128,7 @@ To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) 
  - Use [this calendly link](https://calendly.com/fleetdm/talk-to-a-solutions-consultant) to obtain SC availability.
  - The AE will populate this issue with the appropriate dates for an internal prep meeting as well as the dates for the external prospect meeting.
  - Do not assign the issue. The Director of Solutions Consulting will assign the issue.
+ - Ensure that the product category is defined (Endpoint ops, Device management, or Vulnerability management) in the description of the issue.
 
 - **Documenting a prospect call:** When we do prospect calls, add the prospect's name in both the google doc title and the heading, ex. "Alex + Natalie (Fleet + Acme Co)."  This makes it easier when searching for the document later. 
 - **Before a prospect call(48hrs):** Check the calendar invite 48hrs before the meeting to determine if the prospect has accepted the invitation.
