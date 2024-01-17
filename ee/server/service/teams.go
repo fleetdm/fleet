@@ -220,6 +220,10 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 
+	if payload.HostExpirySettings != nil {
+		team.Config.HostExpirySettings = *payload.HostExpirySettings
+	}
+
 	team, err = svc.ds.SaveTeam(ctx, team)
 	if err != nil {
 		return nil, err
@@ -1012,6 +1016,11 @@ func (svc *Service) editTeamFromSpec(
 
 	if len(secrets) > 0 {
 		team.Secrets = secrets
+	}
+
+	// if host_expiry_settings are not provided, do not change them
+	if spec.HostExpirySettings != nil {
+		team.Config.HostExpirySettings = *spec.HostExpirySettings
 	}
 
 	if dryRun {

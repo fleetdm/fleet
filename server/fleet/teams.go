@@ -19,12 +19,13 @@ const (
 )
 
 type TeamPayload struct {
-	Name            *string              `json:"name"`
-	Description     *string              `json:"description"`
-	Secrets         []*EnrollSecret      `json:"secrets"`
-	WebhookSettings *TeamWebhookSettings `json:"webhook_settings"`
-	Integrations    *TeamIntegrations    `json:"integrations"`
-	MDM             *TeamPayloadMDM      `json:"mdm"`
+	Name               *string              `json:"name"`
+	Description        *string              `json:"description"`
+	Secrets            []*EnrollSecret      `json:"secrets"`
+	WebhookSettings    *TeamWebhookSettings `json:"webhook_settings"`
+	Integrations       *TeamIntegrations    `json:"integrations"`
+	MDM                *TeamPayloadMDM      `json:"mdm"`
+	HostExpirySettings *HostExpirySettings  `json:"host_expiry_settings"`
 	// Note AgentOptions must be set by a separate endpoint.
 }
 
@@ -390,12 +391,12 @@ type TeamSpec struct {
 	// If the agent_options key is present but empty in the YAML, will be set to
 	// "null" (JSON null). Otherwise, if the key is present and set, it will be
 	// set to the agent options JSON object.
-	AgentOptions json.RawMessage `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
-
-	Secrets  []EnrollSecret        `json:"secrets,omitempty"`
-	Features *json.RawMessage      `json:"features"`
-	MDM      TeamSpecMDM           `json:"mdm"`
-	Scripts  optjson.Slice[string] `json:"scripts"`
+	AgentOptions       json.RawMessage       `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
+	HostExpirySettings *HostExpirySettings   `json:"host_expiry_settings,omitempty"`
+	Secrets            []EnrollSecret        `json:"secrets,omitempty"`
+	Features           *json.RawMessage      `json:"features"`
+	MDM                TeamSpecMDM           `json:"mdm"`
+	Scripts            optjson.Slice[string] `json:"scripts"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.
@@ -426,10 +427,11 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
 	return &TeamSpec{
-		Name:         t.Name,
-		AgentOptions: agentOptions,
-		Features:     &featuresJSON,
-		Secrets:      secrets,
-		MDM:          mdmSpec,
+		Name:               t.Name,
+		AgentOptions:       agentOptions,
+		Features:           &featuresJSON,
+		Secrets:            secrets,
+		MDM:                mdmSpec,
+		HostExpirySettings: &t.Config.HostExpirySettings,
 	}, nil
 }
