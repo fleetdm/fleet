@@ -1,16 +1,16 @@
 module.exports = {
 
 
-  friendlyName: 'View fleet mdm',
+  friendlyName: 'View device management',
 
 
-  description: 'Display "Fleet mdm" page.',
+  description: 'Display "Device management" page.',
 
 
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/fleet-mdm'
+      viewTemplatePath: 'pages/device-management'
     },
     badConfig: { responseType: 'badConfig' },
   },
