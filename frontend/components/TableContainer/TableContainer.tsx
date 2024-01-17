@@ -384,7 +384,10 @@ const TableContainer = ({
       <div className={`${baseClass}__data-table-block`}>
         {/* No entities for this result. */}
         {(!isLoading && data.length === 0 && !isMultiColumnFilter) ||
-        (searchQuery.length && data.length === 0 && !isMultiColumnFilter) ? (
+        (searchQuery.length &&
+          data.length === 0 &&
+          !isMultiColumnFilter &&
+          !isLoading) ? (
           <>
             <EmptyComponent pageIndex={pageIndex} />
             {pageIndex !== 0 && (
@@ -404,7 +407,7 @@ const TableContainer = ({
           <>
             {/* TODO: Fix this hacky solution to clientside search being 0 rendering emptycomponent but
             no longer accesses rows.length because DataTable is not rendered */}
-            {clientFilterCount === 0 && !isMultiColumnFilter && (
+            {!isLoading && clientFilterCount === 0 && !isMultiColumnFilter && (
               <EmptyComponent pageIndex={pageIndex} />
             )}
             <div
