@@ -649,7 +649,7 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 		return false, err
 	}
 
-	_, ok := m["configuration_web_url"]
+	_, ok = m["configuration_web_url"]
 	return ok, nil
 }
 
