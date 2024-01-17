@@ -2,6 +2,7 @@ import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
+import SectionHeader from "components/SectionHeader";
 
 import CustomLink from "components/CustomLink";
 import { IAppConfigFormProps, IFormField } from "../constants";
@@ -44,7 +45,7 @@ const Statistics = ({
     <>
       <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
         <div className={`${baseClass}__section`}>
-          <h2>Usage statistics</h2>
+          <SectionHeader title="Usage statistics" />
           <p className={`${baseClass}__section-description`}>
             Help us improve Fleet by sending us anonymous usage statistics.
             <br />
