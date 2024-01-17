@@ -144,6 +144,7 @@ const PoliciesTable = ({
             canAddOrDeletePolicy,
             tableType,
           },
+          policiesList,
           isPremiumTier,
           isSandboxMode
         )}

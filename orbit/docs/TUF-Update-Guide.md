@@ -142,55 +142,37 @@ The commands show here update the local repository. After you are done running t
 
 #### orbit
 
-> The following commands assume you are pushing version `1.15.0`.
-
+> The following command assumes you are pushing version `1.15.0`:
 ```sh
-# macOS
-fleetctl updates add --target ./repository/targets/orbit/macos/edge/orbit --platform macos --name orbit --version 1.15.0 -t 1.15 -t 1 -t stable
-# Linux
-fleetctl updates add --target ./repository/targets/orbit/linux/edge/orbit --platform linux --name orbit --version 1.15.0 -t 1.15 -t 1 -t stable
-# Windows
-fleetctl updates add --target ./repository/targets/orbit/windows/edge/orbit.exe --platform windows --name orbit --version 1.15.0 -t 1.15 -t 1 -t stable
+/fleet/repo/tools/tuf/promote_edge_to_stable.sh orbit 1.15.0
 ```
 
 #### desktop
 
-> The following commands assume you are pushing version `1.15.0`.
-
+> The following command assumes you are pushing version `1.15.0`:
 ```sh
-# macOS
-fleetctl updates add --target ./repository/targets/desktop/macos/edge/desktop.app.tar.gz --platform macos --name desktop --version 1.15.0 -t 1.15 -t 1 -t stable
-# Linux
-fleetctl updates add --target ./repository/targets/desktop/linux/edge/desktop.tar.gz --platform linux --name desktop --version 1.15.0 -t 1.15 -t 1 -t stable
-# Windows
-fleetctl updates add --target ./repository/targets/desktop/windows/edge/fleet-desktop.exe --platform windows --name desktop --version 1.15.0 -t 1.15 -t 1 -t stable
+/fleet/repo/tools/tuf/promote_edge_to_stable.sh desktop 1.15.0
 ```
 
 #### swiftDialog
 
+> The following command assumes you are pushing version `2.2.1`:
 ```sh
-# macOS
-fleetctl updates add --target ./repository/targets/swiftDialog/macos/edge/swiftDialog.app.tar.gz --platform macos --name swiftDialog --version 2.2.1 -t stable
+/fleet/repo/tools/tuf/promote_edge_to_stable.sh swiftDialog 2.2.1
 ```
 
 #### nudge
 
+> The following command assumes you are pushing version `1.1.10.81462`:
 ```sh
-# macOS
-fleetctl updates add --target ./repository/targets/nudge/macos/edge/nudge.app.tar.gz --platform macos --name nudge --version 1.1.10.81462 -t stable
+/fleet/repo/tools/tuf/promote_edge_to_stable.sh nudge 1.1.10.81462
 ```
 
 #### osqueryd
 
-> The following commands assume you are pushing version `5.9.1`.
-
+> The following command assumes you are pushing version `5.9.1`.
 ```sh
-# macOS
-fleetctl updates add --target ./repository/targets/osqueryd/macos-app/edge/osqueryd.app.tar.gz --platform macos-app --name osqueryd --version 5.9.1 -t 5.9 -t 5 -t stable
-# Linux
-fleetctl updates add --target ./repository/targets/osqueryd/linux/edge/osqueryd --platform linux --name osqueryd --version 5.9.1 -t 5.9 -t 5 -t stable
-# Windows
-fleetctl updates add --target ./repository/targets/osqueryd/windows/edge/osqueryd.exe --platform windows --name osqueryd --version 5.9.1 -t 5.9 -t 5 -t stable
+/fleet/repo/tools/tuf/promote_edge_to_stable.sh osqueryd 5.9.1
 ```
 
 #### Push updates
@@ -213,7 +195,7 @@ If all looks good, run the same command without the `--dryrun` flag.
 
 > NOTE: Some things to note after the changes are pushed:
 >   - Once pushed you might see some clients failing to upgrade due to some sha256 mismatches. These temporary failures are expected because it takes some time for caches to be invalidated (these errors should go away after a few minutes).
->   - The auto-update routines in orbit run every one hour, so you might need to wait up to an hour to verify hosts are auto-updating properly.
+>   - The auto-update routines in orbit runs every 15 minutes, so you might need to wait up to 15 minutes to verify online hosts are auto-updating properly.
 
 ## Removing Unused Targets
 

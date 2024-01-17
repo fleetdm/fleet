@@ -7,6 +7,7 @@
   dri: "zayhanlon" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-customer-success" ] # label to be applied to issue
+    repo: "confidential"
 -
   task: "Upgrade Managed Cloud" # Title that will actually show in rituals table
   startedOn: "2023-10-18" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
@@ -16,3 +17,4 @@
   dri: "rfairburn" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-customer-success" ] # label to be applied to issue
+    repo: "confidential"

@@ -304,4 +304,4 @@ export const EMPTY_AGENT_OPTIONS = {
 
 export const DEFAULT_EMPTY_CELL_VALUE = "---";
 
-export const DOCUMENT_TITLE_SUFFIX = "Fleet for osquery";
+export const DOCUMENT_TITLE_SUFFIX = "Fleet";

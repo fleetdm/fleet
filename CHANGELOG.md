@@ -1,3 +1,70 @@
+## Fleet 4.43.1 (Jan 15, 2024)
+
+### Bug fixes
+
+* Fixed bug where script results would sometimes show the wrong error message when a user attempts
+  to run a script on a host that has scripts disabled.
+* Fixed an issue with SCEP endpoints sending back 500 status codes. Should return 400 now if bad
+  data is sent to SCEP API.
+* Fixed text and icon alignment UI bug.
+* Fixed message for script execution timeout.
+* Fixed failed scripts showing the wrong error.
+
+## Fleet 4.43.0 (Jan 9, 2024)
+
+### Changes
+
+* **Endpoint operations**:
+  - Added new `POST /api/v1/fleet/queries/:id/run` endpoint for synchronous live queries.
+  - Added `PUT /api/fleet/orbit/device_mapping` and `PUT /api/v1/fleet/hosts/{id}/device_mapping` endpoints for setting or replacing custom email addresses.
+  - Added experimental `--end-user-email` flag to `fleetctl package` for `.msi` installer bundling.
+  - Added `host_count_updated_at` to policy API responses.
+  - Added ability to query by host display name via list hosts endpoint.
+  - Added `gigs_total_disk_space` to host endpoint responses.
+  - Added ability to remotely configure `fleetd` update channels in agent options (Fleet Premium only, requires `fleetd` >= 1.20.0).
+  - Improved error message for osquery log write failures.
+  - Protect live query performance by limiting results per live query.
+  - Improved error handling and validation for `/api/fleet/orbit/device_token` and other endpoints.
+
+* **Device management (MDM)**:
+  - Added check for custom end user email fields in enrollment profiles.
+  - Modified hosts and labels endpoints to include only user-defined Windows MDM profiles.
+  - Improved profile verification logic for 'pending' profiles.
+  - Updated enrollment process so that `fleetd` auto-installs on Apple hosts enabling MDM features manually.
+  - Extended script execution timeout to 5 minutes.
+  - Extended Script disabling functionality to various script endpoints and `fleetctl`.
+
+### Bug fixes and improvements
+  - Fix profiles incorrectly being marked as "Failed". 
+    - **NOTE**: If you are using MDM features and have already upgraded to v4.42.0, you will need to take manual steps to resolve this issue. Please [follow these instructions](https://github.com/fleetdm/fleet/issues/15725) to reset your profiles. 
+  - Added tooltip to policies page stating when policy counts were last updated.
+  - Added bold styling to profile name in custom profile activity logs.
+  - Implemented style tweaks to the nudge preview on OS updates page.
+  - Updated sort query results and reports case sensitivity and default to sorting.
+  - Added disk size indication when disk is full. 
+  - Replaced 500 error with 409 for token conflicts with another host.
+  - Fixed script output text formatting.
+  - Fixed styling issues in policy automations modal and nudge preview on OS updates page.
+  - Fixed loading spinner not appearing when running a script on a host.
+  - Fixed duplicate view all hosts link in disk encryption table.
+  - Fixed tooltip text alignment UI bug.
+  - Fixed missing 'Last restarted' values when filtering hosts by label.
+  - Fixed broken link on callout box on host details page. 
+  - Fixed bugs in searching hosts by email addresses and filtering by labels.
+  - Fixed a bug where the host details > software > munki issues section was sometimes displayed erroneously.
+  - Fixed a bug where OS compatibility was not correctly calculated for certain queries.
+  - Fixed issue where software title aggregation was not running during vulnerability scans.
+  - Fixed an error message bug for password length on new user creation.
+  - Fixed a bug causing misreporting of vulnerability scanning status in analytics.
+  - Fixed issue with query results reporting after discard data is enabled.
+  - Fixed a bug preventing label selection while the label search field was active.
+  - Fixed bug where `fleetctl` did not allow placement of `--context` and `--debug` flags following certain commands.
+  - Fixed a validation bug allowing `overrides.platform` to be set to `null`.
+  - Fixed `fleetctl` issue with creating a new query when running a query by name.
+  - Fixed a bug that caused vulnerability scanning status to be misreported in analytics.
+  - Fixed CVE tooltip bullets on the software page.
+  - Fixed a bug that didn't allow enabling team disk encryption if macOS MDM was not configured.
+
 ## Fleet 4.42.0 (Dec 21, 2023)
 
 ### Changes

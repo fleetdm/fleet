@@ -201,6 +201,19 @@ func (s *integrationTestSuite) TestUserEmailValidation() {
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
 }
 
+func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
+	params := fleet.UserPayload{
+		Name:  ptr.String("user_invalid_email"),
+		Email: ptr.String("test@example.com"),
+		// This is 73 characters long
+		Password:   ptr.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaX@1"),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+
+	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
+	assertBodyContains(s.T(), resp, "Could not create user. Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.")
+}
+
 func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
 	t := s.T()
 
@@ -2560,11 +2573,12 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	hd := r.Host.HostDetail
 	policies := *hd.Policies
 	require.Len(t, policies, 2)
-	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, policies[0].PolicyData))
-	require.Equal(t, policies[0].Response, "pass")
+	// Policies that did not run are listed before passing policies
+	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, policies[0].PolicyData))
+	require.Equal(t, policies[0].Response, "") // policy didn't "run"
 
-	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, policies[1].PolicyData))
-	require.Equal(t, policies[1].Response, "") // policy didn't "run"
+	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, policies[1].PolicyData))
+	require.Equal(t, policies[1].Response, "pass")
 
 	// Try to create a global policy with an existing name.
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusConflict, &gpResp)
@@ -3690,6 +3704,137 @@ func (s *integrationTestSuite) TestLabels() {
 	for _, lbl := range hostSummaryResp.BuiltinLabels {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
+}
+
+// Sanity test to make sure fleet/labels/<all>/hosts and fleet/hosts return the same thing.
+func (s *integrationTestSuite) TestListHostsByLabel() {
+	t := s.T()
+
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, lblIDs, 1)
+	labelID := lblIDs[0]
+
+	hosts := s.createHosts(t, "darwin")
+	host := hosts[0]
+
+	// Update label
+	mysql.ExecAdhocSQL(
+		t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(
+				context.Background(),
+				"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, (SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1))",
+				host.ID,
+			)
+			return err
+		},
+	)
+
+	// set disk space information
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 10.0, 2.0, 500.0)) // low disk
+
+	// Update host fields
+	host.Uptime = 30 * time.Second
+	host.RefetchRequested = true
+	host.OSVersion = "macOS 14.2"
+	host.Build = "abc"
+	host.PlatformLike = "darwin"
+	host.CodeName = "sky"
+	host.Memory = 1000
+	host.CPUType = "arm64"
+	host.CPUSubtype = "ARM64e"
+	host.CPUBrand = "Apple M2 Pro"
+	host.CPUPhysicalCores = 12
+	host.CPULogicalCores = 14
+	host.HardwareVendor = "Apple Inc."
+	host.HardwareModel = "Mac14,10"
+	host.HardwareVersion = "23"
+	host.HardwareSerial = "ABC123"
+	host.ComputerName = "MBP"
+	host.PublicIP = "1.1.1.1"
+	host.PrimaryIP = "10.10.10.10"
+	host.PrimaryMac = "11:22:33"
+	host.DistributedInterval = 10
+	host.ConfigTLSRefresh = 9
+	host.OsqueryVersion = "5.10"
+	err = s.ds.UpdateHost(context.Background(), host)
+	require.NoError(t, err)
+
+	// Add team
+	team, err := s.ds.NewTeam(
+		context.Background(), &fleet.Team{
+			Name: uuid.New().String(),
+		},
+	)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID}))
+
+	// Add pack
+	_, err = s.ds.NewPack(
+		context.Background(), &fleet.Pack{
+			Name: t.Name(),
+			Hosts: []fleet.Target{
+				{
+					Type:     fleet.TargetHost,
+					TargetID: hosts[0].ID,
+				},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	// Add policy
+	qr, err := s.ds.NewQuery(
+		context.Background(), &fleet.Query{
+			Name:           t.Name(),
+			Description:    "Some description",
+			Query:          "select * from osquery;",
+			ObserverCanRun: true,
+			Logging:        fleet.LoggingSnapshot,
+		},
+	)
+	require.NoError(t, err)
+
+	gpParams := globalPolicyRequest{
+		QueryID:    &qr.ID,
+		Resolution: "some global resolution",
+	}
+	gpResp := globalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
+	require.NoError(
+		t,
+		s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{gpResp.Policy.ID: ptr.Bool(false)}, time.Now(), false),
+	)
+
+	// Add MDM info
+	require.NoError(
+		t,
+		s.ds.SetOrUpdateMDMData(
+			context.Background(), host.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "",
+		),
+	)
+
+	// Add device mapping
+	require.NoError(
+		t, s.ds.ReplaceHostDeviceMapping(
+			context.Background(), host.ID, []*fleet.HostDeviceMapping{
+				{HostID: hosts[0].ID, Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{HostID: hosts[0].ID, Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+			}, fleet.DeviceMappingGoogleChromeProfiles,
+		),
+	)
+
+	// Now do the actual API calls that we will compare.
+	var hostsResp, labelsResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelID), nil, http.StatusOK, &labelsResp, "device_mapping", "true")
+
+	// Converting to formatted JSON for easier diffs
+	hostsJson, _ := json.MarshalIndent(hostsResp, "", "  ")
+	labelsJson, _ := json.MarshalIndent(labelsResp, "", "  ")
+	assert.Equal(t, string(hostsJson), string(labelsJson))
+
 }
 
 func (s *integrationTestSuite) TestLabelSpecs() {
@@ -6101,6 +6246,22 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "foo.local0"}, http.StatusOK, &searchResp)
 	require.Len(t, searchResp.Hosts, 1)
 	require.Greater(t, searchResp.Hosts[0].SoftwareUpdatedAt, searchResp.Hosts[0].CreatedAt)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(
+			context.Background(),
+			`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+			hosts[0].ID, "a@b.c", "src1")
+
+		return err
+	})
+
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "a@b.c"}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, 1)
+
+	// search for non-existent email, shouldn't get anything back
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "not@found.com"}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, 0)
 }
 
 func (s *integrationTestSuite) TestCountTargets() {
@@ -9334,4 +9495,50 @@ func (s *integrationTestSuite) TestHostHealth() {
 	assert.Empty(t, resp.HostHealth.VulnerableSoftware)
 	assert.Empty(t, resp.HostHealth.FailingPolicies)
 	assert.Nil(t, resp.HostHealth.TeamID)
+}
+
+func (s *integrationTestSuite) TestHostDeviceToken() {
+	t := s.T()
+	type response struct {
+		Err string `json:"error"`
+	}
+
+	orbitHost := createOrbitEnrolledHost(t, "windows", "device_token", s.ds)
+
+	// Write empty token
+	body := setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
+		DeviceAuthToken: "",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
+
+	// Write bad node key
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    "",
+		DeviceAuthToken: "token",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusUnauthorized, &response{})
+
+	// Write a good token.
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
+		DeviceAuthToken: "token",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusOK, &response{})
+
+	// Try to write the token again for a different host.
+	// First write a valid token.
+	orbitHost2 := createOrbitEnrolledHost(t, "darwin", "device_token2", s.ds)
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost2.OrbitNodeKey,
+		DeviceAuthToken: "token2",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusOK, &response{})
+
+	// Now write a duplicate token, which will result in a conflict with the first host.
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost2.OrbitNodeKey,
+		DeviceAuthToken: "token",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusConflict, &response{})
 }

@@ -23,6 +23,7 @@ export default {
   DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
 
   // Admin pages
+  ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
@@ -44,6 +45,7 @@ export default {
   ADMIN_ORGANIZATION_FLEET_DESKTOP: `${URL_PREFIX}/settings/organization/fleet-desktop`,
 
   // Software pages
+  SOFTWARE: `${URL_PREFIX}/software`,
   SOFTWARE_TITLES: `${URL_PREFIX}/software/titles`,
   SOFTWARE_OS: `${URL_PREFIX}/software/os`,
   SOFTWARE_VERSIONS: `${URL_PREFIX}/software/versions`,

@@ -1763,6 +1763,15 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, hits, 3)
 	assert.Equal(t, []uint{h3.ID, h2.ID, h1.ID}, []uint{hits[0].ID, hits[1].ID, hits[2].ID})
+
+	// Add email to mapping table
+	_, err = ds.writer(context.Background()).ExecContext(context.Background(), `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+		hosts[0].ID, "a@b.c", "src1")
+	require.NoError(t, err)
+	// Verify search works
+	hits, err = ds.SearchHosts(context.Background(), filter, "a@b.c")
+	require.NoError(t, err)
+	assert.Len(t, hits, 1)
 }
 
 func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
@@ -6988,18 +6997,30 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.Equal(t, true, info.InstalledFromDEP)
 	require.EqualValues(t, tm.ID, info.TeamID)
 	require.False(t, info.DEPAssignedToFleet)
+	require.True(t, info.OsqueryEnrolled)
 
 	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host})
 	require.NoError(t, err)
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
 	require.True(t, info.DEPAssignedToFleet)
+	require.True(t, info.OsqueryEnrolled)
 
 	err = ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial})
 	require.NoError(t, err)
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
 	require.False(t, info.DEPAssignedToFleet)
+	require.True(t, info.OsqueryEnrolled)
+
+	// host with an empty node key
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET node_key = NULL WHERE uuid = ?`, host.UUID)
+		return err
+	})
+	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
+	require.NoError(t, err)
+	require.False(t, info.OsqueryEnrolled)
 }
 
 func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {

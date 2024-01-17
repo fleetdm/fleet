@@ -198,6 +198,7 @@ const QueryResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
+          defaultSortHeader="host_display_name"
           columnConfigs={
             tableType === "results" ? resultsColumnConfigs : errorColumnConfigs
           }

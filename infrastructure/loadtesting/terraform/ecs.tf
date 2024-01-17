@@ -130,15 +130,15 @@ resource "aws_ecs_task_definition" "backend" {
         environment = concat([
           {
             name  = "FLEET_MYSQL_USERNAME"
-            value = module.aurora_mysql.rds_cluster_master_username
+            value = module.aurora_mysql.cluster_master_username
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
-            value = module.aurora_mysql.rds_cluster_database_name
+            value = module.aurora_mysql.cluster_database_name
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
-            value = "${module.aurora_mysql.rds_cluster_endpoint}:3306"
+            value = "${module.aurora_mysql.cluster_endpoint}:3306"
           },
           {
             name  = "FLEET_MYSQL_MAX_OPEN_CONNS"
@@ -146,15 +146,15 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
-            value = module.aurora_mysql.rds_cluster_master_username
+            value = module.aurora_mysql.cluster_master_username
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_DATABASE"
-            value = module.aurora_mysql.rds_cluster_database_name
+            value = module.aurora_mysql.cluster_database_name
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_ADDRESS"
-            value = "${module.aurora_mysql.rds_cluster_reader_endpoint}:3306"
+            value = "${module.aurora_mysql.cluster_reader_endpoint}:3306"
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS"
@@ -261,15 +261,15 @@ resource "aws_ecs_task_definition" "migration" {
           },
           {
             name  = "FLEET_MYSQL_USERNAME"
-            value = module.aurora_mysql.rds_cluster_master_username
+            value = module.aurora_mysql.cluster_master_username
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
-            value = module.aurora_mysql.rds_cluster_database_name
+            value = module.aurora_mysql.cluster_database_name
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
-            value = "${module.aurora_mysql.rds_cluster_endpoint}:3306"
+            value = "${module.aurora_mysql.cluster_endpoint}:3306"
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
