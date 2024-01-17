@@ -375,6 +375,7 @@ CREATE TABLE `host_script_results` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `script_id` int(10) unsigned DEFAULT NULL,
   `user_id` int(10) unsigned DEFAULT NULL,
+  `sync_request` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_host_script_results_execution_id` (`execution_id`),
   KEY `idx_host_script_results_host_exit_created` (`host_id`,`exit_code`,`created_at`),

@@ -6229,7 +6229,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, host.UUID)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(
+	err = ds.NewActivity( // automatically creates the host_activities entry
 		context.Background(),
 		user1,
 		fleet.ActivityTypeRanScript{
@@ -6237,11 +6237,6 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 			HostDisplayName: host.DisplayName(),
 		},
 	)
-	require.NoError(t, err)
-	_, err = ds.writer(context.Background()).Exec(`
-          INSERT INTO host_activities (host_id, activity_id)
-          VALUES (?, (SELECT max(id) FROM activities))
-	`, host.ID)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

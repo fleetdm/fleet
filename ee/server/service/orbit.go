@@ -40,5 +40,31 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 
 	// always use the authenticated host's ID as host_id
 	result.HostID = host.ID
-	return svc.ds.SetHostScriptExecutionResult(ctx, result)
+	hsr, err := svc.ds.SetHostScriptExecutionResult(ctx, result)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "save host script result")
+	}
+
+	if hsr != nil {
+		var user *fleet.User
+		if hsr.UserID != nil {
+			user, err = svc.ds.UserByID(ctx, *hsr.UserID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get host script execution user")
+			}
+		}
+		if err := svc.ds.NewActivity(
+			ctx,
+			user,
+			fleet.ActivityTypeRanScript{
+				HostID:            host.ID,
+				HostDisplayName:   host.DisplayName(),
+				ScriptExecutionID: hsr.ExecutionID,
+				Async:             !hsr.SyncRequest,
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for script execution request")
+		}
+	}
+	return nil
 }

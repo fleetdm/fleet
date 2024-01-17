@@ -114,32 +114,19 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		).WithStatus(http.StatusConflict)
 	}
 
+	asyncExecution := waitForResult <= 0
+
 	// create the script execution request, the host will be notified of the
 	// script execution request via the orbit config's Notifications mechanism.
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
 		request.UserID = &ctxUser.ID
 	}
+	request.SyncRequest = !asyncExecution
 	script, err := svc.ds.NewHostScriptExecutionRequest(ctx, request)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create script execution request")
 	}
 	script.Hostname = host.DisplayName()
-
-	asyncExecution := waitForResult <= 0
-
-	err = svc.ds.NewActivity(
-		ctx,
-		authz.UserFromContext(ctx),
-		fleet.ActivityTypeRanScript{
-			HostID:            host.ID,
-			HostDisplayName:   host.DisplayName(),
-			ScriptExecutionID: script.ExecutionID,
-			Async:             asyncExecution,
-		},
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create activity for script execution request")
-	}
 
 	if asyncExecution {
 		// async execution, return

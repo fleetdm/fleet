@@ -4318,16 +4318,6 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, host.ID, runResp.HostID)
 	require.NotEmpty(t, runResp.ExecutionID)
 
-	// an activity was created for the async script execution
-	s.lastActivityMatches(
-		fleet.ActivityTypeRanScript{}.ActivityName(),
-		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "async": true}`,
-			host.ID, host.DisplayName(), runResp.ExecutionID,
-		),
-		0,
-	)
-
 	result, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, result.HostID)
@@ -4469,7 +4459,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 				case r := <-resultsCh:
 					r.ExecutionID = pending[0].ExecutionID
 					// ignoring errors in this goroutine, the HTTP request below will fail if this fails
-					err = s.ds.SetHostScriptExecutionResult(ctx, r)
+					_, err = s.ds.SetHostScriptExecutionResult(ctx, r)
 					if err != nil {
 						t.Log(err)
 					}
@@ -4493,16 +4483,6 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.NotNil(t, runSyncResp.ExitCode)
 	require.Equal(t, int64(0), *runSyncResp.ExitCode)
 	require.False(t, runSyncResp.HostTimeout)
-
-	// an activity was created for the sync script execution
-	s.lastActivityMatches(
-		fleet.ActivityTypeRanScript{}.ActivityName(),
-		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "async": false}`,
-			host.ID, host.DisplayName(), runSyncResp.ExecutionID,
-		),
-		0,
-	)
 
 	// simulate a scripts disabled result
 	resultsCh <- &fleet.HostScriptResultPayload{
@@ -4594,16 +4574,6 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.Equal(t, host.ID, runResp.HostID)
 	require.NotEmpty(t, runResp.ExecutionID)
 
-	// an activity was created for the async script execution
-	s.lastActivityMatches(
-		fleet.ActivityTypeRanScript{}.ActivityName(),
-		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "async": true}`,
-			host.ID, host.DisplayName(), runResp.ExecutionID,
-		),
-		0,
-	)
-
 	var scriptResultResp getScriptResultResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
 	require.Equal(t, host.ID, scriptResultResp.HostID)
@@ -4645,6 +4615,16 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, scriptResultResp.ExecutionID)),
 		http.StatusOK, &orbitPostScriptResp)
+
+	// an activity was created for the script execution
+	s.lastActivityMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "async": true}`,
+			host.ID, host.DisplayName(), scriptResultResp.ExecutionID,
+		),
+		0,
+	)
 
 	// verify that orbit does not receive any pending script anymore
 	orbitResp = orbitGetConfigResponse{}
