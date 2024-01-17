@@ -2,6 +2,10 @@ package msrc
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -159,8 +163,19 @@ func patched(
 			continue
 		}
 
-		// Check if the kernel build already contains the fix
-		if utils.Rpmvercmp(os.KernelVersion, fix.FixedBuild) >= 0 {
+		// An empty FixBuild is a bug in the MSRC feed, last
+		// seen around apr-2021.  Ignoring it to avoid false
+		// positive vulnerabilities.
+		if fix.FixedBuild == "" {
+			continue
+		}
+
+		isGreater, err := winBuildVersionGreaterOrEqual(fix.FixedBuild, os.KernelVersion)
+		if err != nil {
+			// TODO Log Debug Error
+			continue
+		}
+		if isGreater {
 			return true
 		}
 
@@ -186,4 +201,46 @@ func loadBulletin(os fleet.OperatingSystem, dir string) (*msrc.SecurityBulletin,
 	}
 
 	return msrc.UnmarshalBulletin(latest)
+}
+
+func winBuildVersionGreaterOrEqual(feed, os string) (bool, error) {
+	if feed == "" {
+		return false, errors.New("empty feed version")
+	}
+
+	feedBuild, feedParts, err := getBuildNumber(feed)
+	if err != nil {
+		return false, fmt.Errorf("invalid feed version: %w", err)
+	}
+
+	osBuild, osParts, err := getBuildNumber(os)
+	if err != nil {
+		return false, fmt.Errorf("invalid os version: %w", err)
+	}
+
+	for i := 0; i < 3; i++ {
+		if feedParts[i] != osParts[i] {
+			return false, fmt.Errorf("comparing different product versions: %s, %s", feed, os)
+		}
+	}
+
+	return osBuild >= feedBuild, nil
+}
+
+func getBuildNumber(version string) (int, []string, error) {
+	if version == "" {
+		return 0, nil, fmt.Errorf("empty version string %s", version)
+	}
+
+	parts := strings.Split(version, ".")
+	if len(parts) != 4 {
+		return 0, nil, fmt.Errorf("parts count mismatch %s", version)
+	}
+
+	build, err := strconv.Atoi(parts[3])
+	if err != nil {
+		return 0, nil, fmt.Errorf("unable to parse build number %s", version)
+	}
+
+	return build, parts, nil
 }
