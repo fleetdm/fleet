@@ -33,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
@@ -1307,6 +1308,19 @@ func (d *desktopRunner) execute() error {
 	for {
 		// First retry logic to start fleet-desktop.
 		if done := retry(30*time.Second, false, d.interruptCh, func() bool {
+			// On MacOS, if we attempt to run Fleet Desktop while the user is not logged in through
+			// the GUI, MacOS returns an error. See https://github.com/fleetdm/fleet/issues/14698
+			// for more details.
+			loggedInGui, err := user.IsUserLoggedInViaGui()
+			if err != nil {
+				log.Debug().Err(err).Msg("desktop.IsUserLoggedInGui")
+				return true
+			}
+
+			if !loggedInGui {
+				return true
+			}
+
 			// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
 			// To be able to run the desktop application (mostly to register the icon in the system tray)
 			// we need to run the application as the login user.
