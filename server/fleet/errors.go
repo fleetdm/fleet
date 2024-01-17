@@ -548,7 +548,7 @@ const (
 	RunScriptScriptTimeoutErrMsg           = "Timeout. Fleet stopped the script after 5 minutes to protect host performance."
 
 	// End user authentication
-	EndUserAuthDEPWebURLConfiguredErrMsg = `End user authentication can't be configured when the configured automatic enrollment (DEP) profile specifies a configuration_web_url.`
+	EndUserAuthDEPWebURLConfiguredErrMsg = `End user authentication can't be configured when the configured automatic enrollment (DEP) profile specifies a configuration_web_url.` // #nosec G101
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.
