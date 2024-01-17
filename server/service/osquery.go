@@ -996,7 +996,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 		// filter policy results for webhooks
 		var policyIDs []uint
-		if ac.WebhookSettings.FailingPoliciesWebhook.Enable {
+		if globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
 			policyIDs = append(policyIDs, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 		}
 
@@ -1005,7 +1005,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			if err != nil {
 				logging.WithErr(ctx, err)
 			} else {
-				if team.Config.WebhookSettings.FailingPoliciesWebhook.Enable {
+				if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
 					policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 				}
 			}
@@ -1081,6 +1081,44 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	return nil
+}
+
+// globalPolicyAutomationsEnabled returns true if any of the global policy automations are enabled.
+// globalPolicyAutomationsEnabled and teamPolicyAutomationsEnabled are effectively identical.
+// We could not use Go generics because Go generics does not support accessing common struct fields right now.
+// The umbrella Go issue tracking this: https://github.com/golang/go/issues/63940
+func globalPolicyAutomationsEnabled(webhookSettings fleet.WebhookSettings, integrations fleet.Integrations) bool {
+	if webhookSettings.FailingPoliciesWebhook.Enable {
+		return true
+	}
+	for _, j := range integrations.Jira {
+		if j.EnableFailingPolicies {
+			return true
+		}
+	}
+	for _, z := range integrations.Zendesk {
+		if z.EnableFailingPolicies {
+			return true
+		}
+	}
+	return false
+}
+
+func teamPolicyAutomationsEnabled(webhookSettings fleet.TeamWebhookSettings, integrations fleet.TeamIntegrations) bool {
+	if webhookSettings.FailingPoliciesWebhook.Enable {
+		return true
+	}
+	for _, j := range integrations.Jira {
+		if j.EnableFailingPolicies {
+			return true
+		}
+	}
+	for _, z := range integrations.Zendesk {
+		if z.EnableFailingPolicies {
+			return true
+		}
+	}
+	return false
 }
 
 func (svc *Service) ingestQueryResults(
