@@ -53,6 +53,7 @@ export const NotificationContext = createContext<InitialStateType>(
 );
 
 const NotificationProvider = ({ children }: Props) => {
+  console.log("rendering notification provider");
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const value = {

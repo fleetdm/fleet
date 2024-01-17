@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-import memoize from "memoize-one";
 
 import paths from "router/paths";
 import { IApiError } from "interfaces/errors";
@@ -9,6 +8,7 @@ import { IInvite } from "interfaces/invite";
 import { IUser, IUserFormErrors } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { clearToken } from "utilities/local";
+import useFlashMessage from "hooks/useFlashMessage";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -36,6 +36,8 @@ interface IUsersTableProps {
 const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+
+  const showMessage = useFlashMessage();
 
   // STATES
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
@@ -322,6 +324,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       usersAPI
         .update(userData.id, formData)
         .then(() => {
+          showMessage("TEST MESSSAGE");
           renderFlash("success", userUpdatedFlashMessage);
           toggleEditUserModal();
           refetchUsers();

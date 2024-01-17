@@ -117,42 +117,45 @@ const CoreLayout = ({
   }
 
   return (
-    <div className="app-wrap">
-      <div className="overlay">
-        <img src={smallScreenImage} alt="Unsupported screen size" />
-        <div className="overlay__text">
-          <h1>This screen size is not supported yet.</h1>
-          <p>Please enlarge your browser or try again on a computer.</p>
+    <>
+      {/* <div>flash here</div> */}
+      <div className="app-wrap">
+        <div className="overlay">
+          <img src={smallScreenImage} alt="Unsupported screen size" />
+          <div className="overlay__text">
+            <h1>This screen size is not supported yet.</h1>
+            <p>Please enlarge your browser or try again on a computer.</p>
+          </div>
         </div>
-      </div>
-      <nav className="site-nav-container">
-        <SiteTopNav
-          config={config}
-          currentUser={currentUser}
-          location={location}
-          onLogoutUser={onLogoutUser}
-          onNavItemClick={onNavItemClick}
-        />
-      </nav>
-      <div className="core-wrapper">
-        {isPremiumTier && showExpirationFlashMessage && (
+        <nav className="site-nav-container">
+          <SiteTopNav
+            config={config}
+            currentUser={currentUser}
+            location={location}
+            onLogoutUser={onLogoutUser}
+            onNavItemClick={onNavItemClick}
+          />
+        </nav>
+        <div className="core-wrapper">
+          {isPremiumTier && showExpirationFlashMessage && (
+            <FlashMessage
+              fullWidth={fullWidthFlash}
+              notification={expirationNotification}
+              onRemoveFlash={() =>
+                setShowExpirationFlashMessage(!showExpirationFlashMessage)
+              }
+            />
+          )}
           <FlashMessage
             fullWidth={fullWidthFlash}
-            notification={expirationNotification}
-            onRemoveFlash={() =>
-              setShowExpirationFlashMessage(!showExpirationFlashMessage)
-            }
+            notification={notification}
+            onRemoveFlash={hideFlash}
+            onUndoActionClick={onUndoActionClick}
           />
-        )}
-        <FlashMessage
-          fullWidth={fullWidthFlash}
-          notification={notification}
-          onRemoveFlash={hideFlash}
-          onUndoActionClick={onUndoActionClick}
-        />
-        {children}
+          {children}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
