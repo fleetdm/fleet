@@ -197,18 +197,19 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("host_id", fleet.RunScriptHostOfflineErrMsg)
 	}
 
-	// it is important that the "ignoreOlder" parameter in this call is the same
-	// everywhere (which is here and in the "get orbit config" endpoint to send
-	// the notification of scripts pending execution to the host).
-	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, scripts.MaxServerWaitTime)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
-	}
-	if len(pending) > 0 {
-		return nil, fleet.NewInvalidArgumentError(
-			"script_contents", fleet.RunScriptAlreadyRunningErrMsg,
-		).WithStatus(http.StatusConflict)
-	}
+	// TODO: to be adjusted, we don't check the pending scripts anymore unless it is a synchronous request.
+	//// it is important that the "ignoreOlder" parameter in this call is the same
+	//// everywhere (which is here and in the "get orbit config" endpoint to send
+	//// the notification of scripts pending execution to the host).
+	//pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, scripts.MaxServerWaitTime)
+	//if err != nil {
+	//	return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
+	//}
+	//if len(pending) > 0 {
+	//	return nil, fleet.NewInvalidArgumentError(
+	//		"script_contents", fleet.RunScriptAlreadyRunningErrMsg,
+	//	).WithStatus(http.StatusConflict)
+	//}
 
 	asyncExecution := waitForResult <= 0
 
