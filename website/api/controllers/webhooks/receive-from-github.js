@@ -618,7 +618,7 @@ module.exports = {
       if(owner === 'fleetdm' && repo === 'fleet') {
         if(release
           && _.startsWith(release.tag_name, 'fleet-v')// Only send requests for releases with tag names that start with 'fleet'
-          && _.endsWith(release.tag_name, '.0')// Only send requests if the release is a major or minor version. This works because all Fleet semvers have 2 periods. 
+          && _.endsWith(release.tag_name, '.0')// Only send requests if the release is a major or minor version. This works because all Fleet semvers have 2 periods.
         ) {
           // Send a POST request to Zapier with the release object.
           await sails.helpers.http.post.with({
